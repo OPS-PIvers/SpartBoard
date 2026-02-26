@@ -215,4 +215,9 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       resultsSessionId: null,
     },
   },
+  'sentence-stems': {
+    w: 300,
+    h: 400,
+    config: { expandedIndex: 0 },
+  },
 };

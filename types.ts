@@ -31,7 +31,8 @@ export type WidgetType =
   | 'smartNotebook'
   | 'recessGear'
   | 'pdf'
-  | 'quiz';
+  | 'quiz'
+  | 'sentence-stems';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -683,6 +684,10 @@ export interface QuizConfig {
   resultsSessionId: string | null;
 }
 
+export interface SentenceStemsConfig {
+  expandedIndex?: number | null;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | ClockConfig
@@ -717,7 +722,8 @@ export type WidgetConfig =
   | SmartNotebookConfig
   | RecessGearConfig
   | PdfConfig
-  | QuizConfig;
+  | QuizConfig
+  | SentenceStemsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -786,7 +792,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                 ? PdfConfig
                                                                 : T extends 'quiz'
                                                                   ? QuizConfig
-                                                                  : never;
+                                                                  : T extends 'sentence-stems'
+                                                                    ? SentenceStemsConfig
+                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

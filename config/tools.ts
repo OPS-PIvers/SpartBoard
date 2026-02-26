@@ -27,6 +27,7 @@ import {
   FileText,
   ClipboardList,
   Wand2,
+  Quote,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -137,6 +138,12 @@ export const TOOLS: ToolMetadata[] = [
     icon: ClipboardList,
     label: 'Quiz',
     color: 'bg-violet-600',
+  },
+  {
+    type: 'sentence-stems',
+    icon: Quote,
+    label: 'Sentence Stems',
+    color: 'bg-sky-500',
   },
   {
     type: 'record',

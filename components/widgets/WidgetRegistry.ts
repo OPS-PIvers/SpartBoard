@@ -108,6 +108,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   recessGear: lazyNamed(() => import('./RecessGearWidget'), 'RecessGearWidget'),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
+  'sentence-stems': lazyNamed(
+    () => import('./SentenceStemsWidget'),
+    'SentenceStemsWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -408,6 +412,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   quiz: {
     baseWidth: 620,
     baseHeight: 560,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'sentence-stems': {
+    baseWidth: 300,
+    baseHeight: 400,
     canSpread: true,
     skipScaling: true,
     padding: 0,
