@@ -638,6 +638,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipCloseConfirmation,
     removeWidget,
     updateWidget,
+    handleCloseTools,
   ]);
 
   // --- MULTI-TOUCH GESTURE HANDLERS ---
