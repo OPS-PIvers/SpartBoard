@@ -48,6 +48,7 @@ const DRAG_BLOCKING_SELECTOR = `${INTERACTIVE_ELEMENTS_SELECTOR}, .resize-handle
 const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE_ELEMENTS_SELECTOR}`;
 
 const MIN_GESTURE_SWIPE_DISTANCE = 100;
+const DRAG_CLICK_THRESHOLD_PX = 25;
 
 interface DraggableWindowProps {
   widget: WidgetData;
@@ -534,8 +535,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const isInteractive = target.closest(INTERACTIVE_ELEMENTS_SELECTOR);
     if (isInteractive) return;
 
-    // Only toggle tools if it wasn't a drag (less than 15px movement)
-    if (!isEditingTitle && dragDistanceRef.current < 25) {
+    // Only toggle tools if it wasn't a drag (less than the threshold movement)
+    if (!isEditingTitle && dragDistanceRef.current < DRAG_CLICK_THRESHOLD_PX) {
       setShowTools(!showTools);
     }
     dragDistanceRef.current = 0;
