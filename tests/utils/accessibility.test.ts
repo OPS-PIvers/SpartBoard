@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getButtonAccessibilityProps } from '../../utils/accessibility';
+import { getButtonAccessibilityProps } from '@/utils/accessibility';
 import React from 'react';
 
 describe('accessibility utility', () => {

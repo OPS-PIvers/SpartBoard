@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { classLinkService } from '../../utils/classlinkService';
+import { classLinkService } from '@/utils/classlinkService';
 import { httpsCallable } from 'firebase/functions';
-import { ClassLinkData } from '../../types';
+import { ClassLinkData } from '@/types';
 
 vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(),
   getFunctions: vi.fn(),
 }));
 
-vi.mock('../../config/firebase', () => ({
+vi.mock('@/config/firebase', () => ({
   functions: {},
 }));
 

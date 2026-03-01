@@ -5,8 +5,8 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
   DashboardPiiSupplement,
-} from '../../utils/dashboardPII';
-import { Dashboard } from '../../types';
+} from '@/utils/dashboardPII';
+import { Dashboard } from '@/types';
 
 describe('dashboardPII utilities', () => {
   const mockDashboard = {
