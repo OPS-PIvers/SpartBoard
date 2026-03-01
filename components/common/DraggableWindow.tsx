@@ -322,6 +322,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     setIsDragging(true);
     // Initialize transient state
     dragState.current = { x: widget.x, y: widget.y, w: widget.w, h: widget.h };
+    dragDistanceRef.current = 0;
 
     document.body.classList.add('is-dragging-widget');
     const startX = e.clientX - widget.x;
@@ -534,7 +535,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (isInteractive) return;
 
     // Only toggle tools if it wasn't a drag (less than 15px movement)
-    if (!isEditingTitle && dragDistanceRef.current < 15) {
+    if (!isEditingTitle && dragDistanceRef.current < 25) {
       setShowTools(!showTools);
     }
     dragDistanceRef.current = 0;
