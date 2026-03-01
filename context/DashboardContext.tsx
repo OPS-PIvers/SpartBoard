@@ -121,15 +121,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [libraryOrder, setLibraryOrder] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
+    const allTools = TOOLS.map((t) => t.type);
     const saved = localStorage.getItem('spartboard_library_order');
     if (saved) {
       try {
-        return JSON.parse(saved) as (WidgetType | InternalToolType)[];
+        const parsed = JSON.parse(saved) as (WidgetType | InternalToolType)[];
+        const missingTools = allTools.filter((t) => !parsed.includes(t));
+        return [...parsed, ...missingTools];
       } catch (e) {
         console.error('Failed to parse library order', e);
       }
     }
-    return TOOLS.map((t) => t.type);
+    return allTools;
   });
 
   const [dockItems, setDockItems] = useState<DockItem[]>(() => {
@@ -482,7 +485,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           (d) => d.id === activeIdRef.current
         );
         if (activeOnServer?.libraryOrder) {
-          setLibraryOrder(activeOnServer.libraryOrder);
+          const allTools = TOOLS.map((t) => t.type);
+          const serverOrder = activeOnServer.libraryOrder;
+          const missingTools = allTools.filter((t) => !serverOrder.includes(t));
+          setLibraryOrder([...serverOrder, ...missingTools]);
         }
 
         if (migratedDashboards.length > 0 && !activeIdRef.current) {
