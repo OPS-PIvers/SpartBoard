@@ -14,6 +14,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Increased from 500 to 1000 to silence warnings for inherently large dependencies
+    // like @imgly/background-removal (which includes WASM binaries) and ort-wasm.
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
@@ -23,6 +25,7 @@ export default defineConfig({
           'firebase-auth': ['firebase/auth'],
           'firebase-firestore': ['firebase/firestore'],
           'firebase-storage': ['firebase/storage'],
+          'firebase-functions': ['firebase/functions'],
           'dnd-kit': [
             '@dnd-kit/core',
             '@dnd-kit/sortable',
