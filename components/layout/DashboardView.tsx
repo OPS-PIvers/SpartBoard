@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '../../context/useDashboard';
-import { useAuth } from '../../context/useAuth';
-import { useLiveSession } from '../../hooks/useLiveSession';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useLiveSession } from '@/hooks/useLiveSession';
 import { z } from 'zod';
-import { useStorage, MAX_PDF_SIZE_BYTES } from '../../hooks/useStorage';
+import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
-import { WidgetRenderer } from '../widgets/WidgetRenderer';
+import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import {
   AlertCircle,
@@ -20,7 +20,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
   LiveStudent,
   SpartStickerDropPayload,
-} from '../../types';
+} from '@/types';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -441,8 +441,11 @@ export const DashboardView: React.FC = () => {
         ) as SpartStickerDropPayload;
         const w = 150;
         const h = 150;
-        const x = e.clientX - w / 2;
-        const y = e.clientY - h / 2;
+        const clientX = e.clientX ?? 500;
+        const clientY = e.clientY ?? 500;
+
+        const x = clientX - w / 2;
+        const y = clientY - h / 2;
 
         addWidget('sticker', {
           x,
@@ -487,8 +490,11 @@ export const DashboardView: React.FC = () => {
           w = baseSize * ratio;
         }
 
-        const x = e.clientX - w / 2;
-        const y = e.clientY - h / 2;
+        const clientX = e.clientX ?? 500;
+        const clientY = e.clientY ?? 500;
+
+        const x = clientX - w / 2;
+        const y = clientY - h / 2;
 
         addWidget('sticker', {
           x,

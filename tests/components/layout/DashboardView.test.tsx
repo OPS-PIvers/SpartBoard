@@ -263,4 +263,110 @@ describe('DashboardView Gestures & Navigation', () => {
       })
     );
   });
+
+  it('calls addWidget with correct config when application/sticker is dropped with valid ratio', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+    expect(root).toBeInTheDocument();
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker.png',
+            ratio: 2,
+          });
+        return '';
+      }),
+    };
+
+    fireEvent.drop(root!, {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+
+    // Base size is 200. Ratio = 2 > 1, so h = 200 / 2 = 100, w = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith('sticker', {
+      x: 500 - 200 / 2, // 400
+      y: 500 - 100 / 2, // 450
+      w: 200,
+      h: 100,
+      config: expect.objectContaining({
+        url: 'https://example.com/sticker.png',
+        rotation: 0,
+      }),
+    });
+  });
+
+  it('calls addWidget with fallback ratio when application/sticker is dropped with missing/null ratio', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker2.png',
+            ratio: null,
+          });
+        return '';
+      }),
+    };
+
+    fireEvent.drop(root!, {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+
+    // Base size is 200. Fallback ratio = 1, so w = 200, h = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith('sticker', {
+      x: 500 - 200 / 2, // 400
+      y: 500 - 200 / 2, // 400
+      w: 200,
+      h: 200,
+      config: expect.objectContaining({
+        url: 'https://example.com/sticker2.png',
+        rotation: 0,
+      }),
+    });
+  });
+
+  it('calls addWidget with fallback ratio when application/sticker is dropped with invalid ratio (e.g. 0)', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker3.png',
+            ratio: 0,
+          });
+        return '';
+      }),
+    };
+
+    fireEvent.drop(root!, {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+
+    // Base size is 200. Invalid ratio defaults to 1, so w = 200, h = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith('sticker', {
+      x: 500 - 200 / 2, // 400
+      y: 500 - 200 / 2, // 400
+      w: 200,
+      h: 200,
+      config: expect.objectContaining({
+        url: 'https://example.com/sticker3.png',
+        rotation: 0,
+      }),
+    });
+  });
 });
