@@ -2,6 +2,8 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import '../i18n'; // Initialise i18next with English translations for all tests
 
+vi.stubEnv('VITE_FIREBASE_API_KEY', 'test-api-key');
+
 // Mock PointerEvent globally since JSDOM doesn't fully support it
 class MockPointerEvent extends Event {
   clientX: number;
