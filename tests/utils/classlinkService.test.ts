@@ -18,21 +18,19 @@ describe('ClassLinkService', () => {
       {
         sourcedId: 'class-1',
         title: 'Math 101',
-        courseTitle: 'Mathematics',
-        grades: ['10'],
-        subjects: ['Math'],
-        status: 'active',
+        subject: 'Math',
       },
     ],
-    students: [
-      {
-        sourcedId: 'student-1',
-        givenName: 'Alice',
-        familyName: 'Smith',
-        classes: ['class-1'],
-        status: 'active',
-      },
-    ],
+    studentsByClass: {
+      'class-1': [
+        {
+          sourcedId: 'student-1',
+          givenName: 'Alice',
+          familyName: 'Smith',
+          email: 'alice@example.com',
+        },
+      ],
+    },
   };
 
   beforeEach(() => {

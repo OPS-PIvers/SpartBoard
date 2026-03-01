@@ -9,14 +9,14 @@ import {
 import { Dashboard } from '../../types';
 
 describe('dashboardPII utilities', () => {
-  const mockDashboard: Dashboard = {
+  const mockDashboard = {
     id: 'test-dash',
     name: 'Test Dashboard',
     isShared: false,
     widgets: [
       {
         id: 'widget-1',
-        type: 'RandomWidget',
+        type: 'random',
         position: { x: 0, y: 0 },
         config: {
           firstNames: 'Alice\nBob',
@@ -26,7 +26,7 @@ describe('dashboardPII utilities', () => {
       },
       {
         id: 'widget-2',
-        type: 'TextWidget',
+        type: 'text',
         position: { x: 10, y: 10 },
         config: {
           text: 'Hello world',
@@ -34,7 +34,7 @@ describe('dashboardPII utilities', () => {
       },
       {
         id: 'widget-3',
-        type: 'SeatingChartWidget',
+        type: 'seating-chart',
         position: { x: 20, y: 20 },
         config: {
           names: ['Charlie', 'Dave'],
@@ -42,7 +42,7 @@ describe('dashboardPII utilities', () => {
         },
       },
     ],
-  };
+  } as unknown as Dashboard;
 
   describe('dashboardHasPII', () => {
     it('returns true if any widget contains PII fields', () => {
@@ -50,17 +50,17 @@ describe('dashboardPII utilities', () => {
     });
 
     it('returns false if no widget contains PII fields', () => {
-      const safeDashboard: Dashboard = {
+      const safeDashboard = {
         ...mockDashboard,
         widgets: [
           {
             id: 'safe-widget',
-            type: 'TextWidget',
+            type: 'text',
             position: { x: 0, y: 0 },
             config: { text: 'No PII here' },
           },
         ],
-      };
+      } as unknown as Dashboard;
       expect(dashboardHasPII(safeDashboard)).toBe(false);
     });
   });
