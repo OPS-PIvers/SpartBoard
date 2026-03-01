@@ -331,7 +331,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block px-1">
+                    <label className="text-xxs font-black uppercase text-slate-400 tracking-widest block px-1">
                       Grade Levels
                     </label>
                     <div className="grid grid-cols-2 gap-1.5">
@@ -341,7 +341,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                           <button
                             key={level}
                             onClick={() => toggleGradeLevel(sticker.url, level)}
-                            className={`px-2 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border-2 ${
+                            className={`px-2 py-1.5 rounded-lg text-xxs font-black uppercase transition-all border-2 ${
                               isSelected
                                 ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
                                 : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200 hover:text-slate-500'

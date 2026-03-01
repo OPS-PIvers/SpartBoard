@@ -541,7 +541,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   className="w-full text-xxs font-bold bg-white border-none rounded-lg px-2 py-1 leading-tight resize-none text-slate-800"
                 />
                 <div className="flex items-center gap-2 mt-1 bg-white/50 p-1.5 rounded-lg border border-slate-100">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest">
                     Connect Widget:
                   </label>
                   <select
@@ -563,7 +563,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                       }
                       onChange({ ...routine, steps: nextSteps });
                     }}
-                    className="bg-white border border-slate-200 rounded px-2 py-0.5 text-[10px] font-bold text-slate-700 flex-1"
+                    className="bg-white border border-slate-200 rounded px-2 py-0.5 text-xxs font-bold text-slate-700 flex-1"
                   >
                     <option value="">None</option>
                     {WIDGET_TYPES.map((t) => (

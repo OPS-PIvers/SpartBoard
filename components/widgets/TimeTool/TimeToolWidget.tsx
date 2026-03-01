@@ -721,7 +721,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               >
                 {f.icon}
               </span>
-              <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">
+              <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter">
                 {f.label}
               </span>
             </button>
