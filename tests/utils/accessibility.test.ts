@@ -19,7 +19,10 @@ describe('accessibility utility', () => {
       const props = getButtonAccessibilityProps(onClick);
       const preventDefault = vi.fn();
 
-      props.onKeyDown({ key: 'Enter', preventDefault } as unknown as React.KeyboardEvent);
+      props.onKeyDown({
+        key: 'Enter',
+        preventDefault,
+      } as unknown as React.KeyboardEvent);
 
       expect(preventDefault).toHaveBeenCalled();
       expect(onClick).toHaveBeenCalled();
@@ -30,7 +33,10 @@ describe('accessibility utility', () => {
       const props = getButtonAccessibilityProps(onClick);
       const preventDefault = vi.fn();
 
-      props.onKeyDown({ key: ' ', preventDefault } as unknown as React.KeyboardEvent);
+      props.onKeyDown({
+        key: ' ',
+        preventDefault,
+      } as unknown as React.KeyboardEvent);
 
       expect(preventDefault).toHaveBeenCalled();
       expect(onClick).toHaveBeenCalled();
@@ -41,7 +47,10 @@ describe('accessibility utility', () => {
       const props = getButtonAccessibilityProps(onClick);
       const preventDefault = vi.fn();
 
-      props.onKeyDown({ key: 'A', preventDefault } as unknown as React.KeyboardEvent);
+      props.onKeyDown({
+        key: 'A',
+        preventDefault,
+      } as unknown as React.KeyboardEvent);
 
       expect(preventDefault).not.toHaveBeenCalled();
       expect(onClick).not.toHaveBeenCalled();

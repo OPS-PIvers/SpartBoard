@@ -46,13 +46,20 @@ describe('ClassLinkService', () => {
   });
 
   it('fetches rosters and caches them', async () => {
-    const mockHttpsCallable = vi.fn().mockResolvedValue({ data: mockClassLinkData });
-    (httpsCallable as vi.Mock).mockReturnValue(mockHttpsCallable);
+    const mockHttpsCallable = vi
+      .fn()
+      .mockResolvedValue({ data: mockClassLinkData });
+    (httpsCallable as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockHttpsCallable
+    );
 
     const result = await classLinkService.getRosters();
 
     expect(result).toEqual(mockClassLinkData);
-    expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'getClassLinkRosterV1');
+    expect(httpsCallable).toHaveBeenCalledWith(
+      expect.anything(),
+      'getClassLinkRosterV1'
+    );
     expect(mockHttpsCallable).toHaveBeenCalledTimes(1);
 
     // Call again within TTL, should return cached data and not call httpsCallable
@@ -62,8 +69,12 @@ describe('ClassLinkService', () => {
   });
 
   it('fetches rosters and ignores cache if forceRefresh is true', async () => {
-    const mockHttpsCallable = vi.fn().mockResolvedValue({ data: mockClassLinkData });
-    (httpsCallable as vi.Mock).mockReturnValue(mockHttpsCallable);
+    const mockHttpsCallable = vi
+      .fn()
+      .mockResolvedValue({ data: mockClassLinkData });
+    (httpsCallable as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockHttpsCallable
+    );
 
     await classLinkService.getRosters();
     expect(mockHttpsCallable).toHaveBeenCalledTimes(1);
@@ -74,8 +85,12 @@ describe('ClassLinkService', () => {
   });
 
   it('refetches rosters if cache TTL has expired', async () => {
-    const mockHttpsCallable = vi.fn().mockResolvedValue({ data: mockClassLinkData });
-    (httpsCallable as vi.Mock).mockReturnValue(mockHttpsCallable);
+    const mockHttpsCallable = vi
+      .fn()
+      .mockResolvedValue({ data: mockClassLinkData });
+    (httpsCallable as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockHttpsCallable
+    );
 
     await classLinkService.getRosters();
     expect(mockHttpsCallable).toHaveBeenCalledTimes(1);
@@ -91,8 +106,12 @@ describe('ClassLinkService', () => {
   it('throws error when fetching fails', async () => {
     const mockError = new Error('Function failed');
     const mockHttpsCallable = vi.fn().mockRejectedValue(mockError);
-    (httpsCallable as vi.Mock).mockReturnValue(mockHttpsCallable);
+    (httpsCallable as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockHttpsCallable
+    );
 
-    await expect(classLinkService.getRosters()).rejects.toThrow('Function failed');
+    await expect(classLinkService.getRosters()).rejects.toThrow(
+      'Function failed'
+    );
   });
 });
