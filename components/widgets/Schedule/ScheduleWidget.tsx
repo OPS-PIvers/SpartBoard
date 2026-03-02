@@ -4,6 +4,7 @@ import React, {
   useRef,
   useEffect,
   useMemo,
+  useLayoutEffect,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -157,6 +158,13 @@ interface ScheduleRowProps {
   format24: boolean;
   /** Seconds since midnight from the parent's shared ticker. */
   nowSeconds: number;
+  /**
+   * When true, the row uses a fixed 25%-of-container height so exactly 4 rows
+   * are visible at once and the list scrolls programmatically.
+   * When false (default), rows share available space equally and collapse
+   * gracefully with a min-height floor so text never overflows.
+   */
+  autoScroll: boolean;
 }
 
 const areScheduleRowPropsEqual = (
@@ -170,6 +178,7 @@ const areScheduleRowPropsEqual = (
   if (prev.cardOpacity !== next.cardOpacity) return false;
   if (prev.cardColor !== next.cardColor) return false;
   if (prev.format24 !== next.format24) return false;
+  if (prev.autoScroll !== next.autoScroll) return false;
 
   // Optimized manual comparison for `item` object (ScheduleItem) instead of JSON.stringify
   // to avoid serialization overhead on every tick.
@@ -217,6 +226,7 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
     cardColor,
     format24,
     nowSeconds,
+    autoScroll,
   }) => {
     const { t } = useTranslation();
 
@@ -228,16 +238,24 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
     // Show live countdown only when mode is 'timer', endTime is set, and item isn't done.
     const showCountdown = item.mode === 'timer' && !!item.endTime && !item.done;
 
+    // In auto-scroll mode: fixed 25% height so exactly 4 rows are visible.
+    // In normal mode: flex-grow so rows share space equally, with a cqh
+    // floor that prevents text overflow when many items are present — the
+    // container scrolls once rows exceed its height.
+    const rowStyle = autoScroll
+      ? { flex: '0 0 25%', backgroundColor: bgColor }
+      : { flex: '1 0 20cqh', minHeight: '20cqh', backgroundColor: bgColor };
+
     return (
       <div
-        className={`flex-1 w-full flex items-center rounded-2xl border border-slate-200 transition-all ${
+        className={`w-full flex items-center rounded-2xl border border-slate-200 transition-all ${
           item.done ? '' : 'shadow-sm'
         }`}
-        style={{ minHeight: 0, backgroundColor: bgColor }}
+        style={rowStyle}
       >
         <button
           onClick={() => onToggle(index)}
-          className="flex items-center flex-1 min-w-0"
+          className="flex items-center flex-1 min-w-0 h-full"
           style={{ gap: 'min(16px, 3cqmin)', padding: 'min(16px, 3cqmin)' }}
         >
           {item.done ? (
@@ -257,7 +275,7 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
               }}
             />
           )}
-          <div className="flex flex-col items-start justify-center min-w-0 flex-1">
+          <div className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0">
             {showCountdown ? (
               <CountdownDisplay
                 startTime={item.startTime}
@@ -265,10 +283,8 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
                 nowSeconds={nowSeconds}
               />
             ) : (
-              /* Issue 3 fix: removed font-mono so the font-family from the parent
-                 container (getFontClass) cascades down to the time display. */
               <span
-                className={`font-black ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
+                className={`font-black leading-none ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
                 style={{ fontSize: 'min(24px, 6cqmin)' }}
               >
                 {formatScheduleTime(item.startTime ?? item.time, format24)}
@@ -328,6 +344,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const {
     fontFamily = 'global',
     autoProgress = false,
+    autoScroll = false,
     cardOpacity = 1,
     cardColor = '#ffffff',
   } = config;
@@ -384,6 +401,54 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     }, 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Scroll container ref used for programmatic auto-scroll.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Derive the index of the currently active schedule item.
+   * An item is "active" when the current clock time falls within its time window:
+   *   startTime <= now < endTime  (or next item's startTime when endTime is absent).
+   * Returns -1 when no item is active (e.g. before the day starts).
+   */
+  const activeIndex = useMemo(() => {
+    if (!autoScroll) return -1;
+    const nowMinutes = Math.floor(nowSeconds / 60);
+
+    for (let i = 0; i < items.length; i++) {
+      const startMin = parseScheduleTime(items[i].startTime ?? items[i].time);
+      if (startMin === -1) continue;
+
+      let endMin = parseScheduleTime(items[i].endTime ?? '');
+      if (endMin === -1 && i < items.length - 1) {
+        endMin = parseScheduleTime(items[i + 1].startTime ?? items[i + 1].time);
+      }
+
+      if (endMin === -1) {
+        // Last item with no explicit end time — active once its start passes.
+        if (nowMinutes >= startMin) return i;
+      } else {
+        if (nowMinutes >= startMin && nowMinutes < endMin) return i;
+      }
+    }
+
+    return -1;
+  }, [items, nowSeconds, autoScroll]);
+
+  /**
+   * Scroll the list so that the previously-completed item is at the top,
+   * making the active item the second visible row.
+   * Each row is exactly 25% of the scroll container height in autoScroll mode.
+   */
+  useLayoutEffect(() => {
+    if (!autoScroll || activeIndex < 0 || !scrollContainerRef.current) return;
+    const el = scrollContainerRef.current;
+    // Row height = 25% of the scroll container's client height.
+    const rowHeight = el.clientHeight / 4;
+    // Show the completed item above the active one (activeIndex - 1).
+    const targetTop = Math.max(0, activeIndex - 1) * rowHeight;
+    el.scrollTo({ top: targetTop, behavior: 'smooth' });
+  }, [activeIndex, autoScroll]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.
   const clockWidget = useMemo(
@@ -579,7 +644,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(12px, 2.5cqmin)' }}
         >
           <div
-            className="flex-1 overflow-y-auto pr-1 custom-scrollbar flex flex-col"
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto custom-scrollbar flex flex-col min-h-0"
             style={{ gap: 'min(10px, 2cqmin)' }}
           >
             {items.map((item: ScheduleItem, i: number) => (
@@ -593,6 +659,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 cardColor={cardColor}
                 format24={format24}
                 nowSeconds={nowSeconds}
+                autoScroll={autoScroll}
               />
             ))}
             {items.length === 0 && (

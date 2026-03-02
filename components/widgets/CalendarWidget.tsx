@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDashboard } from '../../context/useDashboard';
 import {
   WidgetData,
@@ -30,11 +24,6 @@ import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Toggle } from '../common/Toggle';
 import { CalendarApiError } from '@/utils/googleCalendarService';
 
-/** Maximum number of event cards visible at once before the list scrolls. */
-const MAX_VISIBLE_EVENTS = 5;
-/** Approximated gap between cards in px (max of the CSS `min(10px, 2cqmin)` expression). */
-const APPROX_GAP_PX = 10;
-
 export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -53,20 +42,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const [isLoadingSync, setIsLoadingSync] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      setScrollContainerHeight(el.clientHeight);
-    });
-    observer.observe(el);
-    setScrollContainerHeight(el.clientHeight); // capture initial height before first resize
-    return () => observer.disconnect();
-  }, []);
 
   // 1. Subscribe to Global Admin Config
   useEffect(() => {
@@ -233,29 +208,23 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  const needsScroll = displayEvents.length > MAX_VISIBLE_EVENTS;
-  // Compute a per-item min-height so exactly MAX_VISIBLE_EVENTS cards are visible before scrolling.
-  // We approximate the gap at APPROX_GAP_PX (the max value of min(10px, 2cqmin)).
-  const itemHeight =
-    needsScroll && scrollContainerHeight > 0
-      ? Math.max(
-          40,
-          (scrollContainerHeight - (MAX_VISIBLE_EVENTS - 1) * APPROX_GAP_PX) /
-            MAX_VISIBLE_EVENTS
-        )
-      : undefined;
-
   return (
     <WidgetLayout
       padding="p-0"
       content={
         <div
-          className="h-full w-full flex flex-col overflow-hidden"
-          style={{ padding: 'min(12px, 2.5cqmin)' }}
+          className="h-full w-full flex flex-col overflow-y-auto custom-scrollbar"
+          style={{
+            padding: '1cqmin',
+            gap: '1cqh',
+          }}
         >
           {isLoadingSync && syncedEvents.length === 0 && (
-            <div className="flex items-center gap-2 mb-3 px-2 py-1 bg-blue-50 rounded-lg animate-pulse">
-              <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />
+            <div
+              className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg animate-pulse shrink-0"
+              style={{ marginBottom: '0.5cqh' }}
+            >
+              <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
               <span className="text-xxs font-bold text-blue-600 uppercase tracking-wider">
                 Syncing Calendar...
               </span>
@@ -263,7 +232,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
           )}
 
           {syncError && (
-            <div className="flex items-center justify-between gap-2 mb-3 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100 text-amber-600">
+            <div
+              className="flex items-center justify-between gap-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100 text-amber-600 shrink-0"
+              style={{ marginBottom: '0.5cqh' }}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span className="text-xxs font-black uppercase tracking-wider truncate">
@@ -288,66 +260,56 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
           )}
 
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto pr-1 custom-scrollbar flex flex-col"
-            style={{ gap: 'min(10px, 2cqmin)' }}
-          >
-            {displayEvents.map((event, i: number) => (
+          {displayEvents.map((event, i: number) => (
+            <div
+              key={`${event.date}-${event.title}-${i}`}
+              className="group relative flex bg-white rounded-2xl border border-slate-200 transition-all hover:bg-slate-50 shadow-sm shrink-0 overflow-hidden"
+              style={{
+                height: '18.8cqh',
+                gap: 'min(12px, 3cqh)',
+                padding: 'min(10px, 2cqh) min(12px, 2.5cqmin)',
+              }}
+            >
               <div
-                key={`${event.date}-${event.title}-${i}`}
-                className="group relative flex bg-white rounded-2xl border border-slate-200 transition-all hover:bg-slate-50 shadow-sm"
+                className="flex flex-col items-center justify-center border-r border-rose-200 shrink-0"
                 style={{
-                  gap: 'min(16px, 3.5cqmin)',
-                  padding: 'min(16px, 3.5cqmin)',
-                  flex: needsScroll && itemHeight ? '0 0 auto' : '1 1 0',
-                  minHeight:
-                    needsScroll && itemHeight ? `${itemHeight}px` : '0',
+                  minWidth: 'min(64px, 14cqmin)',
+                  paddingRight: 'min(12px, 2.5cqmin)',
                 }}
               >
-                <div
-                  className="flex flex-col items-center justify-center border-r border-rose-200 shrink-0"
-                  style={{
-                    minWidth: 'min(80px, 18cqmin)',
-                    paddingRight: 'min(16px, 3.5cqmin)',
-                    paddingTop: 'min(4px, 1cqmin)',
-                    paddingBottom: 'min(4px, 1cqmin)',
-                  }}
+                <span
+                  className="uppercase text-rose-400 font-black leading-none"
+                  style={{ fontSize: 'min(11px, 3cqh)' }}
                 >
-                  <span
-                    className="uppercase text-rose-400 font-black"
-                    style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-                  >
-                    {event.date.includes('-') ? 'Day' : 'Date'}
-                  </span>
-                  <span
-                    className="text-rose-600 font-black"
-                    style={{ fontSize: 'min(48px, 25cqmin)' }}
-                  >
-                    {event.date.includes('-')
-                      ? new Date(event.date + 'T00:00:00').getDate()
-                      : event.date}
-                  </span>
-                </div>
-                <div className="flex items-center min-w-0">
-                  <span
-                    className="text-slate-700 font-black leading-tight truncate"
-                    style={{ fontSize: 'min(24px, 8cqmin)' }}
-                  >
-                    {event.title}
-                  </span>
-                </div>
+                  {event.date.includes('-') ? 'Day' : 'Date'}
+                </span>
+                <span
+                  className="text-rose-600 font-black leading-none"
+                  style={{ fontSize: 'min(40px, 11cqh)' }}
+                >
+                  {event.date.includes('-')
+                    ? new Date(event.date + 'T00:00:00').getDate()
+                    : event.date}
+                </span>
               </div>
-            ))}
-            {displayEvents.length === 0 && !isLoadingSync && (
-              <ScaledEmptyState
-                icon={CalendarIcon}
-                title="No Events"
-                subtitle="Flip to add local events or check building sync."
-                className="opacity-40"
-              />
-            )}
-          </div>
+              <div className="flex items-center min-w-0 flex-1">
+                <span
+                  className="text-slate-700 font-black leading-tight truncate"
+                  style={{ fontSize: 'min(20px, 6.5cqh)' }}
+                >
+                  {event.title}
+                </span>
+              </div>
+            </div>
+          ))}
+          {displayEvents.length === 0 && !isLoadingSync && (
+            <ScaledEmptyState
+              icon={CalendarIcon}
+              title="No Events"
+              subtitle="Flip to add local events or check building sync."
+              className="opacity-40"
+            />
+          )}
         </div>
       }
     />

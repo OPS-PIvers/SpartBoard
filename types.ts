@@ -527,6 +527,12 @@ export interface ScheduleConfig {
   lastSyncedBuildingId?: string;
   fontFamily?: string;
   autoProgress?: boolean;
+  /**
+   * When true, the widget automatically scrolls to keep the active time slot
+   * centred in the viewport, showing 1 completed + 1 active + 2 upcoming items.
+   * Resets to the top each day as items re-activate based on the current time.
+   */
+  autoScroll?: boolean;
   /** Card background color as a hex string, e.g. '#ffffff'. Default: '#ffffff'. */
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
