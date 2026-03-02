@@ -225,4 +225,18 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       color: '#3b82f6',
     },
   },
+  mathTools: {
+    w: 420,
+    h: 500,
+    config: {},
+  },
+  mathTool: {
+    w: 480,
+    h: 200,
+    config: {
+      toolType: 'ruler-in',
+      pixelsPerInch: 96,
+      rulerUnits: 'both',
+    },
+  },
 };

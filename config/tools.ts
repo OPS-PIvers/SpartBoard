@@ -28,6 +28,7 @@ import {
   ClipboardList,
   Wand2,
   Wind,
+  Ruler,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -115,6 +116,12 @@ export const TOOLS: ToolMetadata[] = [
   { type: 'pdf', icon: FileText, label: 'PDF Viewer', color: 'bg-red-700' },
   { type: 'quiz', icon: ClipboardList, label: 'Quiz', color: 'bg-violet-600' },
   { type: 'breathing', icon: Wind, label: 'Breathing', color: 'bg-sky-400' },
+  {
+    type: 'mathTools',
+    icon: Ruler,
+    label: 'Math Tools',
+    color: 'bg-purple-600',
+  },
   { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
   {
     type: 'magic',

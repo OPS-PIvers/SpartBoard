@@ -32,6 +32,7 @@ import { RandomConfigurationPanel } from './RandomConfigurationPanel';
 import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
+import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
 // Helper type guard
@@ -59,6 +60,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   dice: DiceConfigurationPanel as unknown as BuildingConfigPanel,
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
+  mathTools: MathToolsConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {

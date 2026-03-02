@@ -32,7 +32,9 @@ export type WidgetType =
   | 'recessGear'
   | 'pdf'
   | 'quiz'
-  | 'breathing';
+  | 'breathing'
+  | 'mathTools'
+  | 'mathTool';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -605,6 +607,74 @@ export interface BreathingConfig {
   color: string;
 }
 
+// --- MATH TOOLS TYPES ---
+
+/** All individual math manipulative types available in the Math Tools suite */
+export type MathToolType =
+  | 'ruler-in' // 12-inch ruler (standard)
+  | 'ruler-cm' // 30 cm metric ruler
+  | 'protractor' // 180° semicircular protractor
+  | 'number-line' // Interactive number line
+  | 'base-10' // Base-10 blocks (units, rods, flats)
+  | 'fraction-tiles' // Fraction bar tiles
+  | 'geoboard' // Virtual geoboard with pegs
+  | 'pattern-blocks' // Pattern blocks (hexagons, trapezoids, etc.)
+  | 'algebra-tiles' // Algebra tiles (x², x, 1 tiles)
+  | 'coordinate-plane' // Cartesian coordinate plane
+  | 'calculator'; // Basic four-function calculator
+
+/** Default grade levels for each individual math tool */
+export type MathToolGradeLevels = Record<MathToolType, GradeLevel[]>;
+
+/** Global admin config for the mathTools widget – stored in feature_permissions */
+export interface MathToolsGlobalConfig {
+  /** Per-tool grade level overrides (which building levels can see each tool) */
+  toolGradeLevels?: Partial<MathToolGradeLevels>;
+  /**
+   * DPI calibration factor per building (pixels per CSS inch).
+   * Defaults to 96 (the CSS spec reference pixel).
+   * Admins can calibrate this for their specific IFP hardware.
+   */
+  dpiCalibration?: number;
+}
+
+/** Config for the mathTools PALETTE widget (the toolbox that launches tools) */
+export interface MathToolsConfig {
+  /** DPI calibration override stored locally; admin may override at building level */
+  dpiCalibration?: number;
+}
+
+/** Number line display mode */
+export type NumberLineMode = 'integers' | 'decimals' | 'fractions';
+
+/** Config for an individual mathTool widget instance */
+export interface MathToolConfig {
+  /** Which math tool this instance displays */
+  toolType: MathToolType;
+  /**
+   * Pixels per physical inch used for true-scale rendering.
+   * Defaults to 96 (CSS reference pixel = 1in exactly per CSS spec).
+   * Can be calibrated per-device in widget settings.
+   */
+  pixelsPerInch?: number;
+  /** Ruler measurement system ('in' | 'cm' | 'both') — for ruler tools */
+  rulerUnits?: 'in' | 'cm' | 'both';
+  /** Number line mode — for number-line tool */
+  numberLineMode?: NumberLineMode;
+  /** Number line range minimum — for number-line tool */
+  numberLineMin?: number;
+  /** Number line range maximum — for number-line tool */
+  numberLineMax?: number;
+  /** Rotation angle in degrees (0–360) — for measurement tools */
+  rotation?: number;
+  /** Fraction denominator — for fraction-tiles tool */
+  fractionDenominator?: number;
+  /** Calculator display string */
+  calcDisplay?: string;
+  /** Calculator expression accumulator */
+  calcExpression?: string;
+}
+
 export interface PdfConfig {
   activePdfId: string | null;
   activePdfUrl: string | null;
@@ -915,7 +985,9 @@ export type WidgetConfig =
   | RecessGearConfig
   | PdfConfig
   | QuizConfig
-  | BreathingConfig;
+  | BreathingConfig
+  | MathToolsConfig
+  | MathToolConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -986,7 +1058,11 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                   ? QuizConfig
                                                                   : T extends 'breathing'
                                                                     ? BreathingConfig
-                                                                    : never;
+                                                                    : T extends 'mathTools'
+                                                                      ? MathToolsConfig
+                                                                      : T extends 'mathTool'
+                                                                        ? MathToolConfig
+                                                                        : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

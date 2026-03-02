@@ -112,6 +112,8 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./Breathing/BreathingWidget'),
     'BreathingWidget'
   ),
+  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsWidget'),
+  mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -176,6 +178,8 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./Breathing/BreathingSettings'),
     'BreathingSettings'
   ),
+  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
+  mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -423,6 +427,22 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   breathing: {
     baseWidth: 400,
     baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  // Math Tools palette: uses container queries for responsive grid layout
+  mathTools: {
+    baseWidth: 420,
+    baseHeight: 500,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  // Individual math tool: rendered without scaling so true-scale SVGs work correctly
+  mathTool: {
+    baseWidth: 480,
+    baseHeight: 200,
     canSpread: true,
     skipScaling: true,
     padding: 0,
