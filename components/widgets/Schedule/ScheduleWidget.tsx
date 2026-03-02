@@ -407,9 +407,12 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   /**
    * Derive the index of the currently active schedule item.
-   * An item is "active" when the current clock time falls within its time window:
-   *   startTime <= now < endTime  (or next item's startTime when endTime is absent).
-   * Returns -1 when no item is active (e.g. before the day starts).
+   * Items are guaranteed to be sorted chronologically (Settings enforces this on
+   * every save), so inferring endTime from the next item's startTime is safe.
+   *
+   * An item is "active" when: startTime <= now < endTime
+   * (or next item's startTime when endTime is absent).
+   * Returns -1 when no item is active (e.g. before the first item starts).
    */
   const activeIndex = useMemo(() => {
     if (!autoScroll) return -1;

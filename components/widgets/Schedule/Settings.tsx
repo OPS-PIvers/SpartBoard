@@ -49,6 +49,22 @@ const FONTS = [
   { id: 'font-handwritten', label: 'School', icon: '✏️' },
 ];
 
+/** Parses "HH:MM" → minutes since midnight, or Infinity for items without times (pushed to end). */
+const parseTimeForSort = (t: string | undefined): number => {
+  if (!t || !t.includes(':')) return Infinity;
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return Infinity;
+  return h * 60 + m;
+};
+
+/** Returns a copy of items sorted chronologically by start time. Items without times go last. */
+const sortByTime = (items: ScheduleItem[]): ScheduleItem[] =>
+  [...items].sort(
+    (a, b) =>
+      parseTimeForSort(a.startTime ?? a.time) -
+      parseTimeForSort(b.startTime ?? b.time)
+  );
+
 export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -101,7 +117,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     }
 
     updateWidget(widget.id, {
-      config: { ...config, items: newItems } as ScheduleConfig,
+      config: { ...config, items: sortByTime(newItems) } as ScheduleConfig,
     });
     setEditingIndex(null);
     setTempItem(null);

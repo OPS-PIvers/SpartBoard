@@ -221,11 +221,22 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {isLoadingSync && syncedEvents.length === 0 && (
             <div
-              className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg animate-pulse shrink-0"
-              style={{ marginBottom: '0.5cqh' }}
+              className="flex items-center bg-blue-50 rounded-lg animate-pulse shrink-0"
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                marginBottom: '0.5cqh',
+                fontSize: 'min(10px, 2.5cqmin)',
+              }}
             >
-              <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
-              <span className="text-xxs font-bold text-blue-600 uppercase tracking-wider">
+              <Loader2
+                className="text-blue-500 animate-spin shrink-0"
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+              <span className="font-bold text-blue-600 uppercase tracking-wider">
                 Syncing Calendar...
               </span>
             </div>
@@ -233,12 +244,26 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
           {syncError && (
             <div
-              className="flex items-center justify-between gap-2 px-2 py-1.5 bg-amber-50 rounded-lg border border-amber-100 text-amber-600 shrink-0"
-              style={{ marginBottom: '0.5cqh' }}
+              className="flex items-center justify-between bg-amber-50 rounded-lg border border-amber-100 text-amber-600 shrink-0"
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+                marginBottom: '0.5cqh',
+                fontSize: 'min(10px, 2.5cqmin)',
+              }}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xxs font-black uppercase tracking-wider truncate">
+              <div
+                className="flex items-center min-w-0"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                <AlertCircle
+                  className="shrink-0"
+                  style={{
+                    width: 'min(14px, 3.5cqmin)',
+                    height: 'min(14px, 3.5cqmin)',
+                  }}
+                />
+                <span className="font-black uppercase tracking-wider truncate">
                   {syncError}
                 </span>
               </div>
@@ -250,11 +275,16 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                     void fetchAll();
                   }
                 }}
-                className="p-1 hover:bg-amber-100 rounded transition-colors shrink-0"
+                className="hover:bg-amber-100 rounded transition-colors shrink-0"
+                style={{ padding: 'min(4px, 1cqmin)' }}
                 title={needsReauth ? 'Sign in for permission' : 'Retry Sync'}
               >
                 <RefreshCw
-                  className={`w-3 h-3 ${isLoadingSync ? 'animate-spin' : ''}`}
+                  className={isLoadingSync ? 'animate-spin' : ''}
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
                 />
               </button>
             </div>
