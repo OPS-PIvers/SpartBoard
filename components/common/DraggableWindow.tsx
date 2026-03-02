@@ -161,7 +161,29 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     touches: number;
   } | null>(null);
 
-  useClickOutside(menuRef, () => setShowTools(false), [windowRef]);
+  const saveTitle = useCallback(() => {
+    if (tempTitle.trim()) {
+      updateWidget(widget.id, { customTitle: tempTitle.trim() });
+    } else {
+      // If empty, revert to default (remove custom title)
+      updateWidget(widget.id, { customTitle: null });
+      setTempTitle(title);
+    }
+    setIsEditingTitle(false);
+  }, [tempTitle, title, widget.id, updateWidget]);
+
+  const stateRef = useRef({ isEditingTitle, saveTitle });
+  stateRef.current = { isEditingTitle, saveTitle };
+
+  const handleCloseTools = useCallback(() => {
+    setShowTools(false);
+    const { isEditingTitle, saveTitle } = stateRef.current;
+    if (isEditingTitle) {
+      saveTitle();
+    }
+  }, []);
+
+  useClickOutside(menuRef, handleCloseTools, [windowRef]);
 
   // Ref specifically for the inner content we want to capture
   const contentRef = useRef<HTMLDivElement>(null);
@@ -209,17 +231,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
   }, [isMaximized, widget.id, updateWidget, bringToFront]);
 
-  const saveTitle = () => {
-    if (tempTitle.trim()) {
-      updateWidget(widget.id, { customTitle: tempTitle.trim() });
-    } else {
-      // If empty, revert to default (remove custom title)
-      updateWidget(widget.id, { customTitle: null });
-      setTempTitle(title);
-    }
-    setIsEditingTitle(false);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Stop propagation if we're in an input to prevent global shortcuts
     const target = e.target as HTMLElement;
@@ -260,7 +271,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         removeWidget(widget.id);
       } else {
         setShowConfirm(true);
-        setShowTools(false);
+        handleCloseTools();
       }
       return;
     }
@@ -281,12 +292,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         case 's': // Settings
           e.preventDefault();
           updateWidget(widget.id, { flipped: !widget.flipped });
-          setShowTools(false);
+          handleCloseTools();
           break;
         case 'd': // Draw tool
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
-          setShowTools(false);
+          handleCloseTools();
           break;
         case 'm': // Maximize/Restore
           e.preventDefault();
@@ -537,7 +548,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Only toggle tools if it wasn't a drag (less than the threshold movement)
     if (!isEditingTitle && dragDistanceRef.current < DRAG_CLICK_THRESHOLD_PX) {
-      setShowTools(!showTools);
+      if (showTools) {
+        handleCloseTools();
+      } else {
+        setShowTools(true);
+      }
     }
     dragDistanceRef.current = 0;
   };
@@ -604,7 +619,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           removeWidget(widget.id);
         } else {
           setShowConfirm(true);
-          setShowTools(false);
+          handleCloseTools();
         }
       }
     };
@@ -623,6 +638,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipCloseConfirmation,
     removeWidget,
     updateWidget,
+    handleCloseTools,
   ]);
 
   // --- MULTI-TOUCH GESTURE HANDLERS ---
@@ -703,16 +719,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (touches === 2 && deltaY > 0) {
       // 2-Finger Swipe Down: Minimize
       updateWidget(widget.id, { minimized: true, flipped: false });
-      setShowTools(false);
+      handleCloseTools();
     } else if (touches === 3) {
       if (deltaY > 0 && canScreenshot && !isCapturing) {
         // 3-Finger Swipe Down: Screenshot
         void takeScreenshot();
-        setShowTools(false);
+        handleCloseTools();
       } else if (deltaY < 0) {
         // 3-Finger Swipe Up: Annotate
         setIsAnnotating((prev) => !prev);
-        setShowTools(false);
+        handleCloseTools();
       }
     }
   };
@@ -1006,7 +1022,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         updateWidget(widget.id, {
                           flipped: !widget.flipped,
                         });
-                        setShowTools(false);
+                        handleCloseTools();
                       }}
                       icon={<Settings className="w-3.5 h-3.5" />}
                       label={
@@ -1029,7 +1045,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           removeWidget(widget.id);
                         } else {
                           setShowConfirm(true);
-                          setShowTools(false);
+                          handleCloseTools();
                         }
                       }}
                       icon={<X className="w-3.5 h-3.5" />}
@@ -1083,7 +1099,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 <IconButton
                   onClick={() => {
                     setIsAnnotating(!isAnnotating);
-                    setShowTools(false);
+                    handleCloseTools();
                   }}
                   icon={<Highlighter className="w-3.5 h-3.5" />}
                   label={t('widgetWindow.annotate')}
