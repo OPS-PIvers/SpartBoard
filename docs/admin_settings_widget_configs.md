@@ -6,42 +6,41 @@ This document outlines the administrative and user-level configuration capabilit
 
 ## Implementation Status
 
-| Widget                      | Status                   | Notes                                                                                |
-| --------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
-| Catalyst                    | ✅ Implemented           | `CatalystPermissionEditor` component                                                 |
-| Lunch Count                 | ✅ Implemented           | Sheet IDs + submission URL in `FeatureConfigurationPanel`                            |
-| Weather                     | ✅ Implemented           | Fetching strategy, source, temperature ranges, showFeelsLike                         |
-| Webcam                      | ✅ Implemented           | OCR mode toggle (Standard vs Gemini)                                                 |
-| Expectations                | ✅ Implemented           | `ExpectationsConfigurationPanel` per-building option overrides                       |
-| Schedule                    | ✅ Implemented           | `ScheduleConfigurationPanel` per-building default schedule items                     |
-| Calendar                    | ✅ Implemented           | `CalendarGlobalConfig` type + `CalendarConfigurationModal`                           |
-| Stickers                    | ✅ Implemented           | `StickerLibraryModal` + `StickerGlobalConfig` type                                   |
-| Instructional Routines      | ✅ Implemented           | `InstructionalRoutinesManager` component                                             |
-| **Clock**                   | ✅ **Implemented (new)** | Per-building defaults: format24, fontFamily, themeColor — `ClockConfigurationPanel`  |
-| **Timer (time-tool)**       | ✅ **Implemented (new)** | Per-building defaults: duration, timerEndTrafficColor — `TimeToolConfigurationPanel` |
-| **Checklist**               | ✅ **Implemented (new)** | Per-building defaults: items[], scaleMultiplier — `ChecklistConfigurationPanel`      |
-| **Sound**                   | ✅ **Implemented (new)** | Per-building defaults: visual style, sensitivity — `SoundConfigurationPanel`         |
-| **Note (text)**             | ✅ **Implemented (new)** | Per-building defaults: fontSize, bgColor — `NoteConfigurationPanel`                  |
-| **Traffic Light**           | ✅ **Implemented (new)** | Per-building defaults: default active state — `TrafficLightConfigurationPanel`       |
-| **Random**                  | ✅ **Implemented (new)** | Per-building defaults: visualStyle, soundEnabled — `RandomConfigurationPanel`        |
-| Checklist (user dice faces) | ⬜ Not started           | Custom word/value faces per die (user-facing feature)                                |
-| Classes                     | ⬜ Not started           | SIS sync rate limits, display name format                                            |
-| Dice                        | ⬜ Not started           | Custom preset arrays, default count/style                                            |
-| Drawing                     | ⬜ Not started           | Restricted palettes, default mode per building                                       |
-| Embed                       | ⬜ Not started           | Domain allowlist, default URL per building                                           |
-| Magic                       | ⬜ Not started           | Usage quotas, prompt suggestions                                                     |
-| Materials                   | ⬜ Not started           | Standardized asset library, default activeItems                                      |
-| Mini Apps                   | ⬜ Not started           | Approved app registry, default activeApp per building                                |
-| PDF Viewer                  | ⬜ Not started           | Max file size limit, default PDF URL                                                 |
-| Poll                        | ⬜ Not started           | District-wide pushed polls                                                           |
-| QR Code                     | ⬜ Not started           | UTM tracking parameter appender                                                      |
-| Quiz                        | ⬜ Not started           | District curriculum repository                                                       |
-| Recess Gear                 | ⬜ Not started           | Weather-linked thresholds, useFeelsLike default                                      |
-| Record                      | ⬜ Not started           | Max duration/resolution limits                                                       |
-| Scoreboard                  | ⬜ Not started           | Standardized teams, reset cron                                                       |
-| Seating Chart               | ⬜ Not started           | Max nodes, default template per building                                             |
-| Smart Notebook              | ⬜ Not started           | Max pages/stroke paths                                                               |
-| Stickers (per-item)         | ⬜ Not started           | Global asset drop per building                                                       |
+| Widget                 | Status                   | Notes                                                                                |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
+| Catalyst               | ✅ Implemented           | `CatalystPermissionEditor` component                                                 |
+| Lunch Count            | ✅ Implemented           | Sheet IDs + submission URL in `FeatureConfigurationPanel`                            |
+| Weather                | ✅ Implemented           | Fetching strategy, source, temperature ranges, showFeelsLike                         |
+| Webcam                 | ✅ Implemented           | OCR mode toggle (Standard vs Gemini)                                                 |
+| Expectations           | ✅ Implemented           | `ExpectationsConfigurationPanel` per-building option overrides                       |
+| Schedule               | ✅ Implemented           | `ScheduleConfigurationPanel` per-building default schedule items                     |
+| Calendar               | ✅ Implemented           | `CalendarGlobalConfig` type + `CalendarConfigurationModal`                           |
+| Stickers               | ✅ Implemented           | `StickerLibraryModal` + `StickerGlobalConfig` type                                   |
+| Instructional Routines | ✅ Implemented           | `InstructionalRoutinesManager` component                                             |
+| **Clock**              | ✅ **Implemented (new)** | Per-building defaults: format24, fontFamily, themeColor — `ClockConfigurationPanel`  |
+| **Timer (time-tool)**  | ✅ **Implemented (new)** | Per-building defaults: duration, timerEndTrafficColor — `TimeToolConfigurationPanel` |
+| **Checklist**          | ✅ **Implemented (new)** | Per-building defaults: items[], scaleMultiplier — `ChecklistConfigurationPanel`      |
+| **Sound**              | ✅ **Implemented (new)** | Per-building defaults: visual style, sensitivity — `SoundConfigurationPanel`         |
+| **Note (text)**        | ✅ **Implemented (new)** | Per-building defaults: fontSize, bgColor — `NoteConfigurationPanel`                  |
+| **Traffic Light**      | ✅ **Implemented (new)** | Per-building defaults: default active state — `TrafficLightConfigurationPanel`       |
+| **Random**             | ✅ **Implemented (new)** | Per-building defaults: visualStyle, soundEnabled — `RandomConfigurationPanel`        |
+| Classes                | ⬜ Not started           | SIS sync rate limits, display name format [First / First L. \ First Last]            |
+| Dice                   | ⬜ Not started           | Custom preset arrays, default count/style, custom images and/or text for each face   |
+| Drawing                | ⬜ Not started           | Restricted palettes, default mode per building                                       |
+| Embed                  | ⬜ Not started           | Domain allowlist, default URL per building                                           |
+| Magic                  | ⬜ Not started           | Usage quotas, prompt suggestions                                                     |
+| Materials              | ⬜ Not started           | Standardized asset library, default activeItems                                      |
+| Mini Apps              | ⬜ Not started           | Approved app registry, default activeApp per building                                |
+| PDF Viewer             | ⬜ Not started           | Max file size limit, default PDF URL                                                 |
+| Poll                   | ⬜ Not started           | District-wide pushed polls                                                           |
+| QR Code                | ⬜ Not started           | UTM tracking parameter appender                                                      |
+| Quiz                   | ⬜ Not started           | District curriculum repository                                                       |
+| Recess Gear            | ⬜ Not started           | Weather-linked thresholds, useFeelsLike default                                      |
+| Record                 | ⬜ Not started           | Max duration/resolution limits                                                       |
+| Scoreboard             | ⬜ Not started           | Standardized teams, reset cron                                                       |
+| Seating Chart          | ⬜ Not started           | Max nodes, default template per building                                             |
+| Smart Notebook         | ⬜ Not started           | Max pages/stroke paths                                                               |
+| Stickers (per-item)    | ⬜ Not started           | Global asset drop per building                                                       |
 
 ---
 

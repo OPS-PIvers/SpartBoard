@@ -4,62 +4,58 @@
 
 ## 📋 Overview
 
-SPART Board is an interactive, widget-based application built with **React 19**, **TypeScript**, and **Vite**. It provides teachers with a customizable, drag-and-drop interface containing over 20 specialized classroom tools—from timers and noise meters to polling and lunch counts. All data is synchronized in real-time using **Firebase**.
+SPART Board is an interactive, widget-based application built with **React 19**, **TypeScript**, and **Vite**. It provides teachers with a customizable, drag-and-drop interface containing specialized classroom tools—from timers and noise meters to polling and lunch counts. All data is synchronized in real-time using **Firebase**.
 
 ## ✨ Key Features
 
 - **🧩 Widget System:** 21+ interactive widgets including Timers, Stopwatches, Noise Meters, Drawing Boards, Random Pickers, Traffic Lights, Expectations, and more.
 - **☁️ Real-Time Persistence:** Dashboards are saved and synced instantly via Firebase Firestore.
-- **🔐 Authentication:** Secure Google Sign-In integration.
+- **🔐 Authentication:** Secure Google Sign-In integration via Firebase Auth.
 - **🛡️ Admin Controls:** Granular feature permissions (Public/Beta/Admin) and user management.
+- **🎓 Grade Level Filtering:** Tailor the widget dock to specific educational stages (K-2, 3-5, 6-8, 9-12).
 - **🎨 Customization:** Drag-and-drop layout, resizable widgets, custom backgrounds, and a professional design system featuring 'Lexend' and 'Patrick Hand' fonts.
-- **🤖 AI Integration:** Features powered by Google Gemini (e.g., OCR text extraction in the Webcam widget).
+- **🤖 AI Integration:** Features powered by **Gemini 3 Flash Preview** (e.g., OCR text extraction in the Webcam widget, intelligent mini-app generation).
+- **📶 Resilience:** Multi-proxy fallback mechanism for weather and API-driven widgets to bypass CORS restrictions.
 
 ## 🚀 Getting Started
 
-### Option 1: GitHub Codespaces (Recommended)
+### Prerequisites
 
-The easiest way to start coding is with GitHub Codespaces. This environment comes pre-configured with the Gemini CLI and all necessary dependencies.
+- **Node.js:** v20+ recommended.
+- **pnpm:** This project uses `pnpm` for package management.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/OPS-PIvers/SPART_Board)
-
-1.  Click the button above.
-2.  Wait for the environment to load.
-3.  Follow the prompts in the terminal to authenticate with Gemini.
-
-### Option 2: Local Development
-
-**Prerequisites:** Node.js (v20+ recommended)
+### Installation & Setup
 
 1.  **Clone the repository:**
 
     ```bash
-    git clone [https://github.com/OPS-PIvers/SPART_Board.git](https://github.com/OPS-PIvers/SPART_Board.git)
+    git clone https://github.com/OPS-PIvers/SPART_Board.git
     cd SPART_Board
     ```
 
 2.  **Install dependencies:**
 
     ```bash
-    npm install
+    pnpm install
     ```
 
 3.  **Configure Environment:**
     Create a `.env.local` file in the root directory and add your credentials:
 
     ```env
-    VITE_FIREBASE_API_KEY=your_key
-    VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-    VITE_FIREBASE_PROJECT_ID=your_project_id
-    VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
-    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-    VITE_FIREBASE_APP_ID=your_app_id
-    VITE_GEMINI_API_KEY=your_gemini_key
+    VITE_FIREBASE_API_KEY=...
+    VITE_FIREBASE_AUTH_DOMAIN=...
+    VITE_FIREBASE_PROJECT_ID=...
+    VITE_FIREBASE_STORAGE_BUCKET=...
+    VITE_FIREBASE_MESSAGING_SENDER_ID=...
+    VITE_FIREBASE_APP_ID=...
+    VITE_GEMINI_API_KEY=...
+    VITE_OPENWEATHER_API_KEY=...
     ```
 
 4.  **Run the app:**
     ```bash
-    npm run dev
+    pnpm run dev
     ```
 
 ## 🛠 Tech Stack
@@ -67,38 +63,47 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 - **Frontend:** React 19, TypeScript, Vite
 - **Styling:** Tailwind CSS (Custom Brand Theme), Lucide React (Icons)
 - **Fonts:** Lexend (UI), Patrick Hand (Handwritten), Roboto Mono (Code)
-- **Backend:** Firebase (Auth, Firestore, Storage)
+- **Backend:** Firebase (Auth, Firestore, Storage, Cloud Functions)
 - **AI:** Google Gemini API (`@google/genai`)
-- **Tooling:** ESLint, Prettier, Husky
+- **Testing:** Vitest (Unit), Playwright (E2E), Istanbul (Coverage)
+- **Tooling:** ESLint, Prettier, Husky, Lint-staged
 
 ## 📂 Project Structure
 
 This project uses a **flat file structure** (no `src/` directory). All source code resides at the project root.
 
-- `components/` - React components (Widgets, Layout, Admin, Auth)
-- `context/` - Global state (Dashboard & Auth contexts)
-- `hooks/` - Custom React hooks (`useFirestore`, `useStorage`)
-- `config/` - App configuration
-- `types.ts` - TypeScript definitions and Widget registry
+- `components/` - React components (Widgets, Layout, Admin, Auth, Common)
+- `config/` - Application configuration and metadata (tools, grade levels, themes)
+- `context/` - Global state management (Dashboard & Auth contexts)
+- `hooks/` - Custom React hooks for Firebase, UI state, and API interactions
+- `utils/` - Shared helper functions and service abstractions
+- `docs/` - Project documentation, setup guides, and architectural notes
+- `scripts/` - Automation scripts (versioning, admin setup, PDM tools)
+- `tests/` - Test setup and E2E test suites
+- `types.ts` - Centralized TypeScript definitions and Widget registry
 
 ## 📜 Available Scripts
 
-- `npm run dev` - Start the development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview the production build
-- `npm run validate` - Run type-check, linting, and formatting checks
-- `npm run format` - Auto-format code with Prettier
+- `pnpm run dev` - Start the development server (port 3000)
+- `pnpm run build` - Build the application for production
+- `pnpm run preview` - Preview the production build locally
+- `pnpm run validate` - Run type-check, linting, formatting check, and unit tests
+- `pnpm run test` - Execute unit tests with Vitest
+- `pnpm run test:e2e` - Execute end-to-end tests with Playwright
+- `pnpm run test:coverage` - Generate test coverage reports
+- `pnpm run lint` - Run ESLint analysis
+- `pnpm run format` - Auto-format code with Prettier
 
 ## 🤖 AI Development Workflow
 
 This repository is optimized for AI-assisted development using the **Gemini CLI**.
-Common slash commands available in the codespace:
+Common slash commands available in the environment:
 
 - `/preview` - Save changes and update the preview URL.
 - `/submit` - Create a Pull Request for review.
-- `/sync` - Update your workspace with the latest changes.
-- `/clean` - Discard unsaved changes.
-- `/undo` - Revert the most recent save (commit/push) to rewind back to previous `/preview` while retaining code changes in the branch.
+- `/sync` - Update your workspace with the latest changes from main.
+- `/clean` - Discard all unsaved changes and return to the last saved state.
+- `/undo` - Revert the most recent save while keeping work in the editor.
 
 ## 📄 License
 

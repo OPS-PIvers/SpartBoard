@@ -38,33 +38,20 @@ export const BreathingVisuals: React.FC<BreathingVisualsProps> = ({
 
   const renderVisual = () => {
     switch (visual) {
-      case 'circle':
+      case 'circle': // Now renders as a 3D Sphere
         return (
           <div
             className="relative flex items-center justify-center w-full h-full max-w-[min(80vw,80vh)] max-h-[min(80vw,80vh)]"
             style={{ aspectRatio: '1/1' }}
           >
             <div
-              className="absolute w-[120%] h-[120%] rounded-full transition-transform ease-linear"
+              className="absolute rounded-full transition-transform ease-linear"
               style={{
-                backgroundColor: `${color}33`,
-                transform: `scale(${scale})`,
-                transitionDuration: '50ms',
-              }}
-            />
-            <div
-              className="absolute w-[90%] h-[90%] rounded-full transition-transform ease-linear"
-              style={{
-                backgroundColor: `${color}80`,
-                transform: `scale(${scale})`,
-                transitionDuration: '50ms',
-              }}
-            />
-            <div
-              className="absolute w-[60%] h-[60%] rounded-full transition-transform ease-linear shadow-lg"
-              style={{
-                backgroundColor: color,
-                transform: `scale(${scale})`,
+                width: '60%',
+                height: '60%',
+                background: `radial-gradient(circle at 35% 35%, #ffffff 0%, ${color} 40%, #000000 100%)`,
+                boxShadow: `0 20px 40px -10px ${color}80, inset 0 -10px 20px rgba(0,0,0,0.5), inset 0 10px 20px rgba(255,255,255,0.8)`,
+                transform: `scale(${scale * 1.5})`,
                 transitionDuration: '50ms',
               }}
             />
@@ -84,46 +71,70 @@ export const BreathingVisuals: React.FC<BreathingVisualsProps> = ({
               return (
                 <div
                   key={i}
-                  className="absolute w-[15%] h-[40%] rounded-full transition-all ease-linear origin-bottom mix-blend-multiply opacity-80"
+                  className="absolute transition-all ease-linear"
                   style={{
+                    width: '30%',
+                    height: '30%',
+                    bottom: '50%',
+                    left: '50%',
                     backgroundColor: color,
-                    transform: `rotate(${rotation + expansion * 45}deg) translateY(-${10 + expansion * 30}%) scaleY(${0.8 + expansion * 0.4})`,
+                    borderRadius: '50% 0 50% 0',
+                    transformOrigin: 'bottom left',
+                    opacity: 0.6,
+                    transform: `rotate(${rotation + expansion * 15}deg) translate(${expansion * 15}%, -${expansion * 15}%) scale(${0.5 + expansion * 0.7})`,
                     transitionDuration: '50ms',
+                    boxShadow: `0 0 15px ${color}40`,
                   }}
                 />
               );
             })}
             <div
-              className="absolute w-[25%] h-[25%] rounded-full transition-transform ease-linear z-10"
+              className="absolute w-[20%] h-[20%] rounded-full transition-transform ease-linear z-10 shadow-lg"
               style={{
-                backgroundColor: `${color}ee`,
+                backgroundColor: color,
                 transform: `scale(${scale})`,
                 transitionDuration: '50ms',
+                background: `radial-gradient(circle at 35% 35%, #ffffff 0%, ${color} 50%, #000000 100%)`,
               }}
             />
           </div>
         );
       }
 
-      case 'wave':
+      case 'wave': // Now renders as Ripple
         return (
-          <div className="relative flex items-end justify-center w-full h-full overflow-hidden">
+          <div
+            className="relative flex items-center justify-center w-full h-full max-w-[min(80vw,80vh)] max-h-[min(80vw,80vh)]"
+            style={{ aspectRatio: '1/1' }}
+          >
+            {[1, 2, 3].map((ring) => {
+              const ringScale = scale * (1 + (ring - 1) * 0.4);
+              const opacity = Math.max(
+                0,
+                0.8 - (ring - 1) * 0.25 - (isActive ? scale - 0.5 : 0)
+              );
+              return (
+                <div
+                  key={ring}
+                  className="absolute rounded-full transition-all ease-linear border-[4px] md:border-[6px]"
+                  style={{
+                    width: '30%',
+                    height: '30%',
+                    borderColor: color,
+                    opacity,
+                    transform: `scale(${ringScale})`,
+                    transitionDuration: '50ms',
+                  }}
+                />
+              );
+            })}
             <div
-              className="absolute bottom-0 w-[200%] h-[200%] transition-transform ease-linear opacity-50"
+              className="absolute w-[20%] h-[20%] rounded-full transition-all ease-linear shadow-lg"
               style={{
                 backgroundColor: color,
-                borderRadius: '45%',
-                transform: `translateY(${100 - scale * 100}%) rotate(${progress * 360}deg)`,
+                transform: `scale(${scale})`,
                 transitionDuration: '50ms',
-              }}
-            />
-            <div
-              className="absolute bottom-0 w-[200%] h-[200%] transition-transform ease-linear opacity-50"
-              style={{
-                backgroundColor: `${color}cc`,
-                borderRadius: '43%',
-                transform: `translateY(${100 - scale * 90}%) rotate(${-progress * 360}deg)`,
-                transitionDuration: '50ms',
+                background: `radial-gradient(circle at 35% 35%, #ffffff 0%, ${color} 50%, #000000 100%)`,
               }}
             />
           </div>

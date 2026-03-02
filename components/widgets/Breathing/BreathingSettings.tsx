@@ -18,9 +18,9 @@ export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
   ] as const;
 
   const visuals = [
-    { id: 'circle', label: 'Circle' },
+    { id: 'circle', label: 'Sphere' },
     { id: 'lotus', label: 'Lotus' },
-    { id: 'wave', label: 'Wave' },
+    { id: 'wave', label: 'Ripple' },
   ] as const;
 
   const colors = WIDGET_PALETTE;
