@@ -156,3 +156,117 @@ export function getMathToolMeta(type: MathToolType): MathToolMeta {
     }
   );
 }
+
+/** Tool types that function as lightweight sticker overlays rather than full interactive widgets */
+export const STICKER_TOOL_TYPES: MathToolType[] = [
+  'ruler-in',
+  'ruler-cm',
+  'protractor',
+  'base-10',
+  'fraction-tiles',
+  'pattern-blocks',
+  'algebra-tiles',
+];
+
+/** Returns true if the given tool type should be treated as a sticker */
+export function isStickerTool(type: MathToolType): boolean {
+  return STICKER_TOOL_TYPES.includes(type);
+}
+
+/** A spawnable sub-item for a manipulative tool (e.g. an individual tile piece) */
+export interface ToolSubItem {
+  id: string;
+  label: string;
+  emoji?: string;
+  description?: string;
+  spawnW: number;
+  spawnH: number;
+}
+
+/**
+ * Sub-items for manipulative tools that spawn individual pieces.
+ * Only present for tools in the "sticker-pieces" category.
+ */
+export const TOOL_SUB_ITEMS: Partial<Record<MathToolType, ToolSubItem[]>> = {
+  'base-10': [
+    { id: 'unit', label: 'Unit', description: '= 1', spawnW: 80, spawnH: 80 },
+    { id: 'rod', label: 'Rod', description: '= 10', spawnW: 68, spawnH: 180 },
+    {
+      id: 'flat',
+      label: 'Flat',
+      description: '= 100',
+      spawnW: 200,
+      spawnH: 200,
+    },
+    {
+      id: 'cube',
+      label: 'Cube',
+      description: '= 1,000',
+      spawnW: 220,
+      spawnH: 220,
+    },
+  ],
+  'fraction-tiles': [
+    { id: '1-1', label: 'Whole', spawnW: 380, spawnH: 56 },
+    { id: '1-2', label: '½', spawnW: 196, spawnH: 56 },
+    { id: '1-3', label: '⅓', spawnW: 132, spawnH: 56 },
+    { id: '1-4', label: '¼', spawnW: 100, spawnH: 56 },
+    { id: '1-5', label: '⅕', spawnW: 82, spawnH: 56 },
+    { id: '1-6', label: '⅙', spawnW: 70, spawnH: 56 },
+    { id: '1-8', label: '⅛', spawnW: 56, spawnH: 56 },
+    { id: '1-10', label: '1/10', spawnW: 48, spawnH: 56 },
+    { id: '1-12', label: '1/12', spawnW: 42, spawnH: 56 },
+  ],
+  'pattern-blocks': [
+    { id: 'hexagon', label: 'Hexagon', spawnW: 120, spawnH: 120 },
+    { id: 'trapezoid', label: 'Trapezoid', spawnW: 140, spawnH: 80 },
+    { id: 'triangle', label: 'Triangle', spawnW: 120, spawnH: 80 },
+    { id: 'rhombus-wide', label: 'Wide ◇', spawnW: 120, spawnH: 80 },
+    { id: 'rhombus-narrow', label: 'Narrow ◇', spawnW: 80, spawnH: 120 },
+    { id: 'square', label: 'Square', spawnW: 90, spawnH: 90 },
+  ],
+  'algebra-tiles': [
+    {
+      id: 'x2-pos',
+      label: 'x²',
+      description: 'positive x² tile',
+      spawnW: 130,
+      spawnH: 130,
+    },
+    {
+      id: 'x-pos',
+      label: 'x',
+      description: 'positive x tile',
+      spawnW: 130,
+      spawnH: 44,
+    },
+    {
+      id: 'one-pos',
+      label: '1',
+      description: 'positive unit tile',
+      spawnW: 50,
+      spawnH: 50,
+    },
+    {
+      id: 'x2-neg',
+      label: '−x²',
+      description: 'negative x² tile',
+      spawnW: 130,
+      spawnH: 130,
+    },
+    {
+      id: 'x-neg',
+      label: '−x',
+      description: 'negative x tile',
+      spawnW: 130,
+      spawnH: 44,
+    },
+    {
+      id: 'one-neg',
+      label: '−1',
+      description: 'negative unit tile',
+      spawnW: 50,
+      spawnH: 50,
+    },
+  ],
+};

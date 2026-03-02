@@ -673,6 +673,10 @@ export interface MathToolConfig {
   calcDisplay?: string;
   /** Calculator expression accumulator */
   calcExpression?: string;
+  /** If true, render as a bare sticker without widget header chrome */
+  stickerMode?: boolean;
+  /** For manipulative piece stickers – identifies the specific piece (e.g. 'unit', 'rod', '1-2', 'hexagon') */
+  stickerPiece?: string;
 }
 
 export interface PdfConfig {

@@ -7,6 +7,7 @@ import {
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { CSS_PPI, getMathToolMeta } from './math-tools/mathToolUtils';
+import { StickerPieceSVG } from './math-tools/StickerPieces';
 
 // Lazy load all tool components to keep the bundle lean
 const RulerTool = lazy(() =>
@@ -33,7 +34,9 @@ const FractionTilesTool = lazy(() =>
   }))
 );
 const GeoboardTool = lazy(() =>
-  import('./math-tools/GeoboardTool').then((m) => ({ default: m.GeoboardTool }))
+  import('./math-tools/GeoboardTool').then((m) => ({
+    default: m.GeoboardTool,
+  }))
 );
 const PatternBlocksTool = lazy(() =>
   import('./math-tools/PatternBlocksTool').then((m) => ({
@@ -124,12 +127,42 @@ export const MathToolWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as MathToolConfig;
-  const meta = getMathToolMeta(config.toolType ?? 'ruler-in');
 
   const handleUpdate = (updates: Partial<MathToolConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
   };
 
+  // ---- Sticker mode: bare SVG piece, no header chrome ----
+  if (config.stickerMode && config.stickerPiece) {
+    return (
+      <div className="h-full w-full flex items-center justify-center p-1">
+        <StickerPieceSVG
+          toolType={config.toolType}
+          pieceId={config.stickerPiece}
+        />
+      </div>
+    );
+  }
+
+  // ---- Sticker mode: whole tool (ruler / protractor) without header badge ----
+  if (config.stickerMode) {
+    return (
+      <div className="h-full w-full overflow-auto">
+        <Suspense
+          fallback={
+            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              Loading…
+            </div>
+          }
+        >
+          <ToolContent config={config} onUpdate={handleUpdate} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // ---- Normal mode: header badge + tool content ----
+  const meta = getMathToolMeta(config.toolType ?? 'ruler-in');
   return (
     <div className="h-full w-full flex flex-col overflow-auto p-2 gap-2">
       {/* Tool header badge */}
