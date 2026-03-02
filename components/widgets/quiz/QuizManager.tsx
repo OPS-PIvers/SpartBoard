@@ -101,7 +101,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 <p className="font-bold text-brand-blue-dark text-base truncate px-2">
                   {selectedForLive.title}
                 </p>
-                <p className="text-brand-blue-primary/60 text-[10px] font-black uppercase tracking-widest mt-1">
+                <p
+                  className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
                   Choose Session Mode
                 </p>
               </div>
@@ -528,7 +531,10 @@ const ModeButton: React.FC<{
       <p className="font-black text-brand-blue-dark text-sm leading-tight">
         {title}
       </p>
-      <p className="text-brand-gray-primary text-[11px] font-medium leading-tight mt-0.5">
+      <p
+        className="text-brand-gray-primary font-medium leading-tight mt-0.5"
+        style={{ fontSize: 'min(11px, 3.25cqmin)' }}
+      >
         {desc}
       </p>
     </div>

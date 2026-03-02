@@ -78,7 +78,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         />
 
         <div className="mb-6">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+          <p className="text-xxs font-black uppercase tracking-widest text-slate-400 mb-2">
             Try these
           </p>
           <div className="flex flex-wrap gap-2">
@@ -90,7 +90,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
               <button
                 key={suggestion}
                 onClick={() => setDescription(suggestion)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 rounded-lg transition-colors"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 rounded-lg transition-colors"
               >
                 {suggestion}
               </button>

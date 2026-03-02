@@ -107,7 +107,10 @@ describe('useStorage', () => {
 
     it('should upload to Google Drive when user is NOT Admin and Drive is connected', async () => {
       mockUseAuth.mockReturnValue({ isAdmin: false });
-      mockUseGoogleDrive.mockReturnValue({ driveService: mockDriveService });
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+        userDomain: 'school.edu',
+      });
 
       mockDriveService.uploadFile.mockResolvedValue({
         id: 'drive-file-id',
@@ -126,7 +129,10 @@ describe('useStorage', () => {
         expect.stringMatching(/background-.*-test.png/),
         'Assets/Backgrounds'
       );
-      expect(mockDriveService.makePublic).toHaveBeenCalledWith('drive-file-id');
+      expect(mockDriveService.makePublic).toHaveBeenCalledWith(
+        'drive-file-id',
+        'school.edu'
+      );
       expect(url).toBe('https://drive.google.com/content-link');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });

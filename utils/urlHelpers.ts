@@ -24,13 +24,37 @@ export const convertToEmbedUrl = (url: string): string => {
   if (!url) return '';
   const trimmedUrl = url.trim();
 
-  // YouTube
+  // YouTube watch & short links
   const ytMatch =
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/.exec(
       trimmedUrl
     );
   if (ytMatch) {
     return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+
+  // YouTube Live  (youtube.com/live/{id}  or  youtu.be/live/{id})
+  const ytLiveMatch =
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/live\/([a-zA-Z0-9_-]{11})/.exec(
+      trimmedUrl
+    );
+  if (ytLiveMatch) {
+    return `https://www.youtube.com/embed/${ytLiveMatch[1]}`;
+  }
+
+  // Google Drive file links  (drive.google.com/file/d/{id}/...)
+  const driveFileMatch = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/.exec(
+    trimmedUrl
+  );
+  if (driveFileMatch) {
+    return `https://drive.google.com/file/d/${driveFileMatch[1]}/preview`;
+  }
+
+  // Google Drive open links  (drive.google.com/open?id={id})
+  const driveOpenMatch =
+    /drive\.google\.com\/open\?(?:.*&)?id=([a-zA-Z0-9_-]+)/.exec(trimmedUrl);
+  if (driveOpenMatch) {
+    return `https://drive.google.com/file/d/${driveOpenMatch[1]}/preview`;
   }
 
   // Google Services

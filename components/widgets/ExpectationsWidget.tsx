@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useDashboard } from '../../context/useDashboard';
-import { WidgetData, ExpectationsConfig } from '../../types';
+import { useAuth } from '../../context/useAuth';
+import {
+  WidgetData,
+  ExpectationsConfig,
+  ExpectationsGlobalConfig,
+} from '../../types';
 import {
   Volume2,
   Users,
   ArrowLeft,
-  User,
-  UsersRound,
-  Ear,
-  Heart,
   MessagesSquare,
   CheckCircle2,
   LayoutGrid,
@@ -17,119 +18,65 @@ import {
 
 // --- Constants & Data ---
 
-const VOLUME_OPTIONS = [
-  {
-    id: 0,
-    label: 'Silence',
-    sub: 'Independent',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  {
-    id: 1,
-    label: 'Whisper',
-    sub: 'Partner Talk',
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-  },
-  {
-    id: 2,
-    label: 'Conversation',
-    sub: 'Table Talk',
-    color: 'text-yellow-600',
-    bg: 'bg-yellow-50',
-  },
-  {
-    id: 3,
-    label: 'Presenter',
-    sub: 'Speaking',
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-  },
-  {
-    id: 4,
-    label: 'Outside',
-    sub: 'Recess',
-    color: 'text-red-600',
-    bg: 'bg-red-50',
-  },
-];
-
-const GROUP_OPTIONS: {
-  id: ExpectationsConfig['workMode'];
-  label: string;
-  icon: typeof User;
-  color: string;
-  bg: string;
-}[] = [
-  {
-    id: 'individual',
-    label: 'Alone',
-    icon: User,
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-  },
-  {
-    id: 'partner',
-    label: 'Partner',
-    icon: Users,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  {
-    id: 'group',
-    label: 'Group',
-    icon: UsersRound,
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-];
-
-const INTERACTION_OPTIONS: {
-  id: ExpectationsConfig['interactionMode'];
-  label: string;
-  icon: typeof Heart;
-  color: string;
-  bg: string;
-}[] = [
-  {
-    id: 'respectful',
-    label: 'Respectful',
-    icon: Heart,
-    color: 'text-rose-600',
-    bg: 'bg-rose-50',
-  },
-  {
-    id: 'listening',
-    label: 'Listening',
-    icon: Ear,
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
-  },
-  {
-    id: 'productive',
-    label: 'Productive',
-    icon: CheckCircle2,
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-50',
-  },
-  {
-    id: 'discussion',
-    label: 'Discussion',
-    icon: MessagesSquare,
-    color: 'text-sky-600',
-    bg: 'bg-sky-50',
-  },
-];
-
 import { WidgetLayout } from './WidgetLayout';
+import {
+  VOLUME_OPTIONS,
+  GROUP_OPTIONS,
+  INTERACTION_OPTIONS,
+} from '../../config/expectationsData';
 
 export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
+  const { featurePermissions, selectedBuildings } = useAuth();
   const config = widget.config as ExpectationsConfig;
   const { voiceLevel = null, workMode = null, interactionMode = null } = config;
+
+  // Get global expectations config
+  const expectationsPermission = featurePermissions.find(
+    (p) => p.widgetType === 'expectations'
+  );
+  const globalConfig = expectationsPermission?.config as
+    | ExpectationsGlobalConfig
+    | undefined;
+
+  // Get current building's config
+  const primaryBuildingId = selectedBuildings?.[0];
+  const buildingConfig = primaryBuildingId
+    ? globalConfig?.buildings?.[primaryBuildingId]
+    : undefined;
+
+  // Compute active options based on overrides
+  const activeVolumeOptions = VOLUME_OPTIONS.map((opt) => {
+    const override = buildingConfig?.volumeOverrides?.[opt.id];
+    if (override && override.enabled === false) return null;
+    return {
+      ...opt,
+      label: override?.customLabel ?? opt.label,
+      sub: override?.customSub ?? opt.sub,
+    };
+  }).filter(Boolean) as typeof VOLUME_OPTIONS;
+
+  const activeGroupOptions = GROUP_OPTIONS.map((opt) => {
+    if (opt.id === null) return null;
+    const override = buildingConfig?.groupOverrides?.[opt.id as string];
+    if (override && override.enabled === false) return null;
+    return {
+      ...opt,
+      label: override?.customLabel ?? opt.label,
+    };
+  }).filter(Boolean) as typeof GROUP_OPTIONS;
+
+  const activeInteractionOptions = INTERACTION_OPTIONS.map((opt) => {
+    if (opt.id === null) return null;
+    const override = buildingConfig?.interactionOverrides?.[opt.id as string];
+    if (override && override.enabled === false) return null;
+    return {
+      ...opt,
+      label: override?.customLabel ?? opt.label,
+    };
+  }).filter(Boolean) as typeof INTERACTION_OPTIONS;
 
   const [activeCategory, setActiveCategory] = useState<
     'volume' | 'groups' | 'interaction' | null
@@ -173,25 +120,26 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       padding="p-0"
       header={renderSubViewHeader('Volume Level')}
+      contentClassName="flex-1 min-h-0 flex flex-col"
       content={
         <div
-          className="flex-1 overflow-y-auto flex flex-col custom-scrollbar w-full h-full animate-in slide-in-from-right duration-200"
-          style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
+          style={{ padding: 'min(16px, 3cqmin)', gap: 'min(8px, 1.5cqmin)' }}
         >
-          {VOLUME_OPTIONS.map((v) => (
+          {activeVolumeOptions.map((v) => (
             <button
               key={v.id}
               onClick={() =>
                 updateConfig({ voiceLevel: voiceLevel === v.id ? null : v.id })
               }
-              className={`flex items-center rounded-2xl border-2 transition-all ${
+              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                 voiceLevel === v.id
-                  ? `${v.bg} border-current ${v.color} shadow-sm scale-[1.02]`
+                  ? `${v.bg} border-current ${v.color} shadow-sm`
                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
-                padding: 'min(16px, 3cqmin)',
+                padding: 'min(12px, 2.5cqmin)',
               }}
             >
               <span
@@ -237,23 +185,27 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       padding="p-0"
       header={renderSubViewHeader('Group Size')}
+      contentClassName="flex-1 min-h-0 flex flex-col"
       content={
         <div
-          className="flex-1 overflow-y-auto flex flex-col custom-scrollbar w-full h-full animate-in slide-in-from-right duration-200"
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
-          {GROUP_OPTIONS.map((g) => (
+          {activeGroupOptions.map((g) => (
             <button
               key={g.id}
               onClick={() =>
                 updateConfig({ workMode: workMode === g.id ? null : g.id })
               }
-              className={`flex items-center rounded-2xl border-2 transition-all ${
+              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                 workMode === g.id
-                  ? `${g.bg} border-current ${g.color} shadow-sm scale-[1.02]`
+                  ? `${g.bg} border-current ${g.color} shadow-sm`
                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
               }`}
-              style={{ gap: 'min(20px, 4cqmin)', padding: 'min(20px, 4cqmin)' }}
+              style={{
+                gap: 'min(20px, 4cqmin)',
+                padding: 'min(16px, 3.5cqmin)',
+              }}
             >
               <g.icon
                 style={{
@@ -288,12 +240,13 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       padding="p-0"
       header={renderSubViewHeader('Interaction')}
+      contentClassName="flex-1 min-h-0 flex flex-col"
       content={
         <div
-          className="flex-1 overflow-y-auto flex flex-col custom-scrollbar w-full h-full animate-in slide-in-from-right duration-200"
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
-          {INTERACTION_OPTIONS.map((i) => (
+          {activeInteractionOptions.map((i) => (
             <button
               key={i.id}
               onClick={() =>
@@ -301,12 +254,15 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                   interactionMode: interactionMode === i.id ? null : i.id,
                 })
               }
-              className={`flex items-center rounded-2xl border-2 transition-all ${
+              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
                 interactionMode === i.id
-                  ? `${i.bg} border-current ${i.color} shadow-sm scale-[1.02]`
+                  ? `${i.bg} border-current ${i.color} shadow-sm`
                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
               }`}
-              style={{ gap: 'min(20px, 4cqmin)', padding: 'min(20px, 4cqmin)' }}
+              style={{
+                gap: 'min(20px, 4cqmin)',
+                padding: 'min(16px, 3.5cqmin)',
+              }}
             >
               <i.icon
                 style={{
@@ -343,9 +299,9 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
   if (activeCategory === 'groups') return renderGroupsView();
   if (activeCategory === 'interaction') return renderInteractionView();
 
-  const selectedVolume = VOLUME_OPTIONS.find((v) => v.id === voiceLevel);
-  const selectedGroup = GROUP_OPTIONS.find((g) => g.id === workMode);
-  const selectedInteraction = INTERACTION_OPTIONS.find(
+  const selectedVolume = activeVolumeOptions.find((v) => v.id === voiceLevel);
+  const selectedGroup = activeGroupOptions.find((g) => g.id === workMode);
+  const selectedInteraction = activeInteractionOptions.find(
     (i) => i.id === interactionMode
   );
 

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LunchCountConfig, LunchMenuDay, WidgetData } from '../../../types';
 
 interface UseNutrisliceProps {
@@ -34,6 +35,7 @@ export const useNutrislice = ({
   updateWidget,
   addToast,
 }: UseNutrisliceProps) => {
+  const { t } = useTranslation();
   const [isSyncing, setIsSyncing] = useState(false);
   const configRef = useRef(config);
 
@@ -112,8 +114,8 @@ export const useNutrislice = ({
       const apiUrl = `https://orono.api.nutrislice.com/menu/api/weeks/school/${schoolSite}/menu-type/lunch/${year}/${month}/${day}/`;
       const data = await fetchWithFallback(apiUrl);
 
-      let hotLunch = 'No Hot Lunch Listed';
-      let bentoBox = 'No Bento Box Listed';
+      let hotLunch = t('widgets.lunchCount.noHotLunch');
+      let bentoBox = t('widgets.lunchCount.noBentoBox');
 
       if (data && data.days) {
         const todayStr = now.toISOString().split('T')[0];
@@ -165,31 +167,39 @@ export const useNutrislice = ({
           syncError: null,
         },
       });
-      addToast('Menu synced from Nutrislice', 'success');
+      addToast(t('widgets.lunchCount.syncSuccess'), 'success');
     } catch (err) {
       console.error('Nutrislice Sync Error:', err);
       updateWidget(widgetId, {
-        config: { ...configRef.current, syncError: 'E-SYNC-404' },
+        config: {
+          ...configRef.current,
+          syncError: 'E-SYNC-404',
+          // Mark this as a sync attempt so we don't loop endlessly
+          lastSyncDate: new Date().toISOString(),
+        },
       });
-      addToast('Failed to sync menu', 'error');
+      addToast(t('widgets.lunchCount.syncError'), 'error');
     } finally {
       setIsSyncing(false);
     }
-  }, [widgetId, updateWidget, addToast, isSyncing]);
+  }, [widgetId, updateWidget, addToast, isSyncing, t]);
 
   useEffect(() => {
     if (isSyncing) return;
 
-    const needsSync =
-      !config.cachedMenu ||
-      (config.lastSyncDate &&
-        new Date(config.lastSyncDate).toDateString() !==
-          new Date().toDateString());
+    const lastSyncDate = config.lastSyncDate
+      ? new Date(config.lastSyncDate)
+      : null;
+    const today = new Date();
 
-    if (needsSync) {
+    const isSyncedToday =
+      lastSyncDate && lastSyncDate.toDateString() === today.toDateString();
+
+    // Only try to sync if we haven't already synced (or attempted to) today
+    if (!isSyncedToday) {
       void fetchNutrislice();
     }
-  }, [fetchNutrislice, config.cachedMenu, config.lastSyncDate, isSyncing]);
+  }, [fetchNutrislice, config.lastSyncDate, isSyncing]);
 
   return { isSyncing, fetchNutrislice };
 };

@@ -98,16 +98,17 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         { time: '08:00', task: 'Morning Meeting' },
         { time: '09:00', task: 'Math' },
       ],
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   calendar: {
     w: 300,
     h: 350,
     config: {
-      events: [
-        { date: 'Friday', title: 'Pillar Power' },
-        { date: 'Monday', title: 'Loon Day - PE' },
-      ],
+      events: [],
+      isBuildingSyncEnabled: true,
+      daysVisible: 5,
     },
   },
   lunchCount: {
@@ -219,5 +220,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     w: 300,
     h: 400,
     config: { expandedIndex: 0 },
+  },
+  breathing: {
+    w: 400,
+    h: 400,
+    config: {
+      pattern: '4-4-4-4',
+      visual: 'circle',
+      color: '#3b82f6',
+    },
   },
 };

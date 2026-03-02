@@ -1,0 +1,1604 @@
+diff --git a/.env.example b/.env.example
+index d26da92a..395f1326 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,9 +1,9 @@
+-VITE_FIREBASE_API_KEY=""
+-VITE_FIREBASE_AUTH_DOMAIN=""
+-VITE_FIREBASE_PROJECT_ID=""
+-VITE_FIREBASE_STORAGE_BUCKET=""
+-VITE_FIREBASE_MESSAGING_SENDER_ID=""
+-VITE_FIREBASE_APP_ID=""
++VITE_FIREBASE_API_KEY="dummy"
++VITE_FIREBASE_AUTH_DOMAIN="dummy"
++VITE_FIREBASE_PROJECT_ID="dummy"
++VITE_FIREBASE_STORAGE_BUCKET="dummy"
++VITE_FIREBASE_MESSAGING_SENDER_ID="dummy"
++VITE_FIREBASE_APP_ID="dummy"
+ VITE_AUTH_BYPASS="false"
+ 
+ # Extension API Keys (Required for local MCP server configuration)
+diff --git a/.github/workflows/firebase-deploy.yml b/.github/workflows/firebase-deploy.yml
+index beb6c50a..f5007548 100644
+--- a/.github/workflows/firebase-deploy.yml
++++ b/.github/workflows/firebase-deploy.yml
+@@ -62,15 +62,6 @@ jobs:
+           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
+ 
+       - name: Deploy to Firebase
+-        env:
+-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
+         run: |
+           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+           export GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
+diff --git a/admin_settings_widget_configs.md b/admin_settings_widget_configs.md
+index a1ec26a9..5f6a4094 100644
+--- a/admin_settings_widget_configs.md
++++ b/admin_settings_widget_configs.md
+@@ -2,6 +2,49 @@ SPART Board Widget Configuration Analysis
+ 
+ This document outlines the administrative and user-level configuration capabilities for all widgets in the SPART Board application. It is divided into widgets that currently have global administrative settings and those that could benefit from them in the future. The focus is on establishing Global Admin Configurations that set Building-Level Defaults (the initial state a widget boots up with when a teacher adds it to their dashboard, based on their building assignment).
+ 
++---
++
++## Implementation Status
++
++| Widget                      | Status                   | Notes                                                                                |
++| --------------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
++| Catalyst                    | ✅ Implemented           | `CatalystPermissionEditor` component                                                 |
++| Lunch Count                 | ✅ Implemented           | Sheet IDs + submission URL in `FeatureConfigurationPanel`                            |
++| Weather                     | ✅ Implemented           | Fetching strategy, source, temperature ranges, showFeelsLike                         |
++| Webcam                      | ✅ Implemented           | OCR mode toggle (Standard vs Gemini)                                                 |
++| Expectations                | ✅ Implemented           | `ExpectationsConfigurationPanel` per-building option overrides                       |
++| Schedule                    | ✅ Implemented           | `ScheduleConfigurationPanel` per-building default schedule items                     |
++| Calendar                    | ✅ Implemented           | `CalendarGlobalConfig` type + `CalendarConfigurationModal`                           |
++| Stickers                    | ✅ Implemented           | `StickerLibraryModal` + `StickerGlobalConfig` type                                   |
++| Instructional Routines      | ✅ Implemented           | `InstructionalRoutinesManager` component                                             |
++| **Clock**                   | ✅ **Implemented (new)** | Per-building defaults: format24, fontFamily, themeColor — `ClockConfigurationPanel`  |
++| **Timer (time-tool)**       | ✅ **Implemented (new)** | Per-building defaults: duration, timerEndTrafficColor — `TimeToolConfigurationPanel` |
++| **Checklist**               | ✅ **Implemented (new)** | Per-building defaults: items[], scaleMultiplier — `ChecklistConfigurationPanel`      |
++| **Sound**                   | ✅ **Implemented (new)** | Per-building defaults: visual style, sensitivity — `SoundConfigurationPanel`         |
++| **Note (text)**             | ✅ **Implemented (new)** | Per-building defaults: fontSize, bgColor — `NoteConfigurationPanel`                  |
++| **Traffic Light**           | ✅ **Implemented (new)** | Per-building defaults: default active state — `TrafficLightConfigurationPanel`       |
++| **Random**                  | ✅ **Implemented (new)** | Per-building defaults: visualStyle, soundEnabled — `RandomConfigurationPanel`        |
++| Checklist (user dice faces) | ⬜ Not started           | Custom word/value faces per die (user-facing feature)                                |
++| Classes                     | ⬜ Not started           | SIS sync rate limits, display name format                                            |
++| Dice                        | ⬜ Not started           | Custom preset arrays, default count/style                                            |
++| Drawing                     | ⬜ Not started           | Restricted palettes, default mode per building                                       |
++| Embed                       | ⬜ Not started           | Domain allowlist, default URL per building                                           |
++| Magic                       | ⬜ Not started           | Usage quotas, prompt suggestions                                                     |
++| Materials                   | ⬜ Not started           | Standardized asset library, default activeItems                                      |
++| Mini Apps                   | ⬜ Not started           | Approved app registry, default activeApp per building                                |
++| PDF Viewer                  | ⬜ Not started           | Max file size limit, default PDF URL                                                 |
++| Poll                        | ⬜ Not started           | District-wide pushed polls                                                           |
++| QR Code                     | ⬜ Not started           | UTM tracking parameter appender                                                      |
++| Quiz                        | ⬜ Not started           | District curriculum repository                                                       |
++| Recess Gear                 | ⬜ Not started           | Weather-linked thresholds, useFeelsLike default                                      |
++| Record                      | ⬜ Not started           | Max duration/resolution limits                                                       |
++| Scoreboard                  | ⬜ Not started           | Standardized teams, reset cron                                                       |
++| Seating Chart               | ⬜ Not started           | Max nodes, default template per building                                             |
++| Smart Notebook              | ⬜ Not started           | Max pages/stroke paths                                                               |
++| Stickers (per-item)         | ⬜ Not started           | Global asset drop per building                                                       |
++
++---
++
+ # Part 1: Widgets WITH Global Admin Settings
+ 
+ These widgets currently have explicit UI controls in the FeatureConfigurationPanel allowing administrators to enforce global states and defaults.
+diff --git a/components/admin/AnnouncementsManager.tsx b/components/admin/AnnouncementsManager.tsx
+index 9aba40c9..002e5815 100644
+--- a/components/admin/AnnouncementsManager.tsx
++++ b/components/admin/AnnouncementsManager.tsx
+@@ -38,7 +38,6 @@ import {
+ import { BUILDINGS } from '@/config/buildings';
+ import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+ import { TOOLS } from '@/config/tools';
+-import { convertToEmbedUrl } from '@/utils/urlHelpers';
+ 
+ // Widget types that make practical sense as announcements
+ const ANNOUNCEMENT_WIDGET_TYPES: WidgetType[] = [
+@@ -258,11 +257,7 @@ const EmbedConfigEditor: React.FC<{
+           <input
+             type="url"
+             value={(config.url as string) ?? ''}
+-            onChange={(e) => {
+-              const rawUrl = e.target.value;
+-              const embedUrl = convertToEmbedUrl(rawUrl);
+-              onChange({ ...config, url: embedUrl });
+-            }}
++            onChange={(e) => onChange({ ...config, url: e.target.value })}
+             className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+             placeholder="https://example.com"
+           />
+diff --git a/components/admin/ChecklistConfigurationPanel.tsx b/components/admin/ChecklistConfigurationPanel.tsx
+new file mode 100644
+index 00000000..15cf0ac7
+--- /dev/null
++++ b/components/admin/ChecklistConfigurationPanel.tsx
+@@ -0,0 +1,199 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import {
++  ChecklistGlobalConfig,
++  BuildingChecklistDefaults,
++  ChecklistDefaultItem,
++} from '@/types';
++import { Plus, Trash2, GripVertical } from 'lucide-react';
++
++interface ChecklistConfigurationPanelProps {
++  config: ChecklistGlobalConfig;
++  onChange: (newConfig: ChecklistGlobalConfig) => void;
++}
++
++export const ChecklistConfigurationPanel: React.FC<
++  ChecklistConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++  const [newItemText, setNewItemText] = useState('');
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingChecklistDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++    items: [],
++  };
++
++  const items: ChecklistDefaultItem[] = currentBuildingConfig.items ?? [];
++
++  const handleUpdateBuilding = (
++    updates: Partial<BuildingChecklistDefaults>
++  ) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  const handleAddItem = () => {
++    const text = newItemText.trim();
++    if (!text) return;
++    handleUpdateBuilding({
++      items: [...items, { id: crypto.randomUUID(), text }],
++    });
++    setNewItemText('');
++  };
++
++  const handleUpdateItem = (id: string, value: string) => {
++    handleUpdateBuilding({
++      items: items.map((item) =>
++        item.id === id ? { ...item, text: value } : item
++      ),
++    });
++  };
++
++  const handleRemoveItem = (id: string) => {
++    handleUpdateBuilding({ items: items.filter((item) => item.id !== id) });
++  };
++
++  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
++    if (e.key === 'Enter') {
++      e.preventDefault();
++      handleAddItem();
++    }
++  };
++
++  const scaleMultiplier = currentBuildingConfig.scaleMultiplier ?? 1;
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Checklist Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => {
++                setSelectedBuildingId(building.id);
++                setNewItemText('');
++              }}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-populate the Checklist widget when a teacher
++          in <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
++          adds it to their dashboard.
++        </p>
++
++        {/* Default Text Scale */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Text Scale ({scaleMultiplier.toFixed(1)}x)
++          </label>
++          <input
++            type="range"
++            min="0.5"
++            max="2.5"
++            step="0.1"
++            value={scaleMultiplier}
++            onChange={(e) =>
++              handleUpdateBuilding({
++                scaleMultiplier: parseFloat(e.target.value),
++              })
++            }
++            className="w-full accent-brand-blue-primary"
++          />
++          <div className="flex justify-between text-xxs text-slate-400 mt-0.5">
++            <span>0.5x (Small)</span>
++            <span>1.0x (Normal)</span>
++            <span>2.5x (Large)</span>
++          </div>
++        </div>
++
++        {/* Default Items */}
++        <div>
++          <div className="flex items-center justify-between mb-2">
++            <label className="text-xxs font-bold text-slate-500 uppercase block">
++              Default Checklist Items
++            </label>
++            <span className="text-xxs text-slate-400">
++              {items.length} item{items.length !== 1 ? 's' : ''}
++            </span>
++          </div>
++
++          <div className="space-y-1.5 mb-3">
++            {items.map((item) => (
++              <div
++                key={item.id}
++                className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
++              >
++                <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
++                <input
++                  type="text"
++                  value={item.text}
++                  onChange={(e) => handleUpdateItem(item.id, e.target.value)}
++                  className="flex-1 text-xs border-none outline-none bg-transparent"
++                  placeholder="Item text..."
++                />
++                <button
++                  onClick={() => handleRemoveItem(item.id)}
++                  className="text-red-400 hover:text-red-600 p-0.5 shrink-0"
++                >
++                  <Trash2 className="w-3.5 h-3.5" />
++                </button>
++              </div>
++            ))}
++            {items.length === 0 && (
++              <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xxs italic">
++                No default items configured. Add items below.
++              </div>
++            )}
++          </div>
++
++          {/* Add new item */}
++          <div className="flex gap-2">
++            <input
++              type="text"
++              value={newItemText}
++              onChange={(e) => setNewItemText(e.target.value)}
++              onKeyDown={handleKeyDown}
++              placeholder="New default item..."
++              className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
++            />
++            <button
++              onClick={handleAddItem}
++              disabled={!newItemText.trim()}
++              className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
++            >
++              <Plus className="w-3 h-3" /> Add
++            </button>
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/ClockConfigurationPanel.tsx b/components/admin/ClockConfigurationPanel.tsx
+new file mode 100644
+index 00000000..99b2dabd
+--- /dev/null
++++ b/components/admin/ClockConfigurationPanel.tsx
+@@ -0,0 +1,154 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import { ClockGlobalConfig, BuildingClockDefaults } from '@/types';
++import { Toggle } from '../common/Toggle';
++import { STANDARD_COLORS } from '@/config/colors';
++
++interface ClockConfigurationPanelProps {
++  config: ClockGlobalConfig;
++  onChange: (newConfig: ClockGlobalConfig) => void;
++}
++
++const FONT_FAMILY_OPTIONS = [
++  { value: 'global', label: 'Inherit (Default)' },
++  { value: 'font-sans', label: 'Sans-serif' },
++  { value: 'font-mono', label: 'Monospace' },
++  { value: 'font-handwritten', label: 'Handwritten' },
++];
++
++export const ClockConfigurationPanel: React.FC<
++  ClockConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingClockDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++  };
++
++  const handleUpdateBuilding = (updates: Partial<BuildingClockDefaults>) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Clock Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-configure the Clock widget when a teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          it to their dashboard.
++        </p>
++
++        {/* 24-hour format toggle */}
++        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
++          <div>
++            <span className="text-xxs font-bold text-slate-700 block">
++              24-Hour Format
++            </span>
++            <span className="text-xxs text-slate-400">Widget default: On</span>
++          </div>
++          <Toggle
++            checked={currentBuildingConfig.format24 ?? true}
++            onChange={(checked) => handleUpdateBuilding({ format24: checked })}
++            size="xs"
++            showLabels={false}
++          />
++        </div>
++
++        {/* Font Family */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Font Family
++          </label>
++          <div className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1">
++            {FONT_FAMILY_OPTIONS.map((opt) => (
++              <button
++                key={opt.value}
++                onClick={() => handleUpdateBuilding({ fontFamily: opt.value })}
++                className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
++                  (currentBuildingConfig.fontFamily ?? 'global') === opt.value
++                    ? 'bg-brand-blue-primary text-white shadow-sm'
++                    : 'text-slate-500 hover:bg-slate-50'
++                }`}
++              >
++                {opt.label}
++              </button>
++            ))}
++          </div>
++        </div>
++
++        {/* Theme Color */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Theme Color
++          </label>
++          <div className="flex items-center gap-3">
++            <input
++              type="color"
++              value={currentBuildingConfig.themeColor ?? STANDARD_COLORS.slate}
++              onChange={(e) =>
++                handleUpdateBuilding({ themeColor: e.target.value })
++              }
++              className="w-10 h-8 rounded border border-slate-200 cursor-pointer p-0.5 bg-white"
++              title="Pick theme color"
++            />
++            <input
++              type="text"
++              value={currentBuildingConfig.themeColor ?? ''}
++              onChange={(e) =>
++                handleUpdateBuilding({
++                  themeColor: e.target.value || undefined,
++                })
++              }
++              placeholder="#ffffff"
++              className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
++            />
++            {currentBuildingConfig.themeColor && (
++              <button
++                onClick={() => handleUpdateBuilding({ themeColor: undefined })}
++                className="text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
++              >
++                Clear
++              </button>
++            )}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/FeatureConfigurationPanel.tsx b/components/admin/FeatureConfigurationPanel.tsx
+index 5a2f2781..89c74036 100644
+--- a/components/admin/FeatureConfigurationPanel.tsx
++++ b/components/admin/FeatureConfigurationPanel.tsx
+@@ -10,7 +10,6 @@ import {
+   CatalystGlobalConfig,
+   ExpectationsGlobalConfig,
+   ToolMetadata,
+-  ScheduleGlobalConfig,
+ } from '../../types';
+ import {
+   Settings,
+@@ -24,6 +23,13 @@ import {
+ import { CatalystPermissionEditor } from './CatalystPermissionEditor';
+ import { ExpectationsConfigurationPanel } from './ExpectationsConfigurationPanel';
+ import { ScheduleConfigurationPanel } from './ScheduleConfigurationPanel';
++import { ClockConfigurationPanel } from './ClockConfigurationPanel';
++import { TimeToolConfigurationPanel } from './TimeToolConfigurationPanel';
++import { ChecklistConfigurationPanel } from './ChecklistConfigurationPanel';
++import { SoundConfigurationPanel } from './SoundConfigurationPanel';
++import { NoteConfigurationPanel } from './NoteConfigurationPanel';
++import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel';
++import { RandomConfigurationPanel } from './RandomConfigurationPanel';
+ import { Toggle } from '../common/Toggle';
+ 
+ // Helper type guard
+@@ -31,6 +37,25 @@ const isCatalystConfig = (config: unknown): config is CatalystGlobalConfig => {
+   return typeof config === 'object' && config !== null;
+ };
+ 
++// Shared prop shape for all "building-defaults" config panels
++type BuildingConfigPanel = React.ComponentType<{
++  config: Record<string, unknown>;
++  onChange: (newConfig: Record<string, unknown>) => void;
++}>;
++
++// Map from widget/tool type to its building-defaults configuration panel.
++// Catalyst is excluded here because it requires additional props.
++const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
++  schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
++  clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,
++  'time-tool': TimeToolConfigurationPanel as unknown as BuildingConfigPanel,
++  checklist: ChecklistConfigurationPanel as unknown as BuildingConfigPanel,
++  sound: SoundConfigurationPanel as unknown as BuildingConfigPanel,
++  text: NoteConfigurationPanel as unknown as BuildingConfigPanel,
++  traffic: TrafficLightConfigurationPanel as unknown as BuildingConfigPanel,
++  random: RandomConfigurationPanel as unknown as BuildingConfigPanel,
++};
++
+ interface FeatureConfigurationPanelProps {
+   tool: ToolMetadata;
+   permission: FeaturePermission;
+@@ -699,22 +724,24 @@ export const FeatureConfigurationPanel: React.FC<
+         </div>
+       )}
+ 
+-      {tool.type === 'schedule' && (
+-        <div className="space-y-4">
+-          <ScheduleConfigurationPanel
+-            config={
+-              (permission.config ?? {
+-                buildingDefaults: {},
+-              }) as unknown as ScheduleGlobalConfig
+-            }
+-            onChange={(newConfig) =>
+-              updatePermission(tool.type, {
+-                config: newConfig as unknown as Record<string, unknown>,
+-              })
+-            }
+-          />
+-        </div>
+-      )}
++      {(() => {
++        const BuildingPanel = BUILDING_CONFIG_PANELS[tool.type];
++        if (!BuildingPanel) return null;
++        return (
++          <div className="space-y-4">
++            <BuildingPanel
++              config={
++                permission.config ?? {
++                  buildingDefaults: {},
++                }
++              }
++              onChange={(newConfig) =>
++                updatePermission(tool.type, { config: newConfig })
++              }
++            />
++          </div>
++        );
++      })()}
+ 
+       {![
+         'lunchCount',
+@@ -724,7 +751,7 @@ export const FeatureConfigurationPanel: React.FC<
+         'webcam',
+         'stickers',
+         'expectations',
+-        'schedule',
++        ...Object.keys(BUILDING_CONFIG_PANELS),
+       ].includes(tool.type) && (
+         <p className="text-xs text-slate-500 italic">
+           No additional configuration available for this widget.
+diff --git a/components/admin/NoteConfigurationPanel.tsx b/components/admin/NoteConfigurationPanel.tsx
+new file mode 100644
+index 00000000..61551264
+--- /dev/null
++++ b/components/admin/NoteConfigurationPanel.tsx
+@@ -0,0 +1,135 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import { NoteGlobalConfig, BuildingNoteDefaults } from '@/types';
++import { STICKY_NOTE_COLORS } from '@/config/colors';
++
++interface NoteConfigurationPanelProps {
++  config: NoteGlobalConfig;
++  onChange: (newConfig: NoteGlobalConfig) => void;
++}
++
++const STICKY_COLOR_OPTIONS = Object.entries(STICKY_NOTE_COLORS).map(
++  ([name, hex]) => ({ name, hex })
++);
++
++const FONT_SIZE_OPTIONS = [
++  { value: 14, label: 'Small' },
++  { value: 18, label: 'Medium' },
++  { value: 24, label: 'Large' },
++  { value: 32, label: 'X-Large' },
++];
++
++export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
++  config,
++  onChange,
++}) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingNoteDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++  };
++
++  const handleUpdateBuilding = (updates: Partial<BuildingNoteDefaults>) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  const activeColor =
++    currentBuildingConfig.bgColor ?? STICKY_NOTE_COLORS.yellow;
++  const activeFontSize = currentBuildingConfig.fontSize ?? 18;
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Note Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-configure the Note widget when a teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          it to their dashboard.
++        </p>
++
++        {/* Default Background Color */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++            Default Background Color
++          </label>
++          <div className="flex gap-2">
++            {STICKY_COLOR_OPTIONS.map(({ name, hex }) => (
++              <button
++                key={name}
++                onClick={() => handleUpdateBuilding({ bgColor: hex })}
++                title={name.charAt(0).toUpperCase() + name.slice(1)}
++                style={{ backgroundColor: hex }}
++                className={`w-9 h-9 rounded-lg border-2 transition-all ${
++                  activeColor === hex
++                    ? 'border-brand-blue-primary scale-110 shadow-sm'
++                    : 'border-transparent hover:border-slate-300'
++                }`}
++              />
++            ))}
++          </div>
++          <p className="text-xxs text-slate-400 mt-1">
++            Current: <span className="font-mono">{activeColor}</span>
++          </p>
++        </div>
++
++        {/* Default Font Size */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Font Size
++          </label>
++          <div className="flex gap-1.5">
++            {FONT_SIZE_OPTIONS.map(({ value, label }) => (
++              <button
++                key={value}
++                onClick={() => handleUpdateBuilding({ fontSize: value })}
++                className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
++                  activeFontSize === value
++                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++                }`}
++              >
++                {label}
++                <span className="block text-xxs opacity-70">{value}px</span>
++              </button>
++            ))}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/RandomConfigurationPanel.tsx b/components/admin/RandomConfigurationPanel.tsx
+new file mode 100644
+index 00000000..06ecd22b
+--- /dev/null
++++ b/components/admin/RandomConfigurationPanel.tsx
+@@ -0,0 +1,135 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import { RandomGlobalConfig, BuildingRandomDefaults } from '@/types';
++import { Toggle } from '../common/Toggle';
++
++interface RandomConfigurationPanelProps {
++  config: RandomGlobalConfig;
++  onChange: (newConfig: RandomGlobalConfig) => void;
++}
++
++const VISUAL_STYLE_OPTIONS: {
++  value: BuildingRandomDefaults['visualStyle'];
++  label: string;
++  description: string;
++}[] = [
++  { value: 'wheel', label: 'Wheel', description: 'Spinning prize wheel' },
++  { value: 'slots', label: 'Slots', description: 'Slot machine spin' },
++  { value: 'flash', label: 'Flash', description: 'Rapid text generator' },
++];
++
++export const RandomConfigurationPanel: React.FC<
++  RandomConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingRandomDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++  };
++
++  const handleUpdateBuilding = (updates: Partial<BuildingRandomDefaults>) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Random Picker Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-configure the Random Picker widget when a
++          teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          it to their dashboard.
++        </p>
++
++        {/* Default Visual Style */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++            Default Visual Style
++          </label>
++          <div className="flex gap-1.5">
++            {VISUAL_STYLE_OPTIONS.map((opt) => {
++              const isSelected =
++                (currentBuildingConfig.visualStyle ?? 'flash') === opt.value;
++              return (
++                <button
++                  key={opt.value}
++                  onClick={() =>
++                    handleUpdateBuilding({ visualStyle: opt.value })
++                  }
++                  className={`flex-1 p-2 rounded-lg border text-left transition-colors ${
++                    isSelected
++                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
++                  }`}
++                >
++                  <div className="text-xs font-bold">{opt.label}</div>
++                  <div
++                    className={`text-xxs mt-0.5 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}
++                  >
++                    {opt.description}
++                  </div>
++                </button>
++              );
++            })}
++          </div>
++        </div>
++
++        {/* Sound Enabled */}
++        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
++          <div>
++            <span className="text-xxs font-bold text-slate-700 block">
++              Sound Effects
++            </span>
++            <span className="text-xxs text-slate-400">
++              Play audio during the random selection animation
++            </span>
++          </div>
++          <Toggle
++            checked={currentBuildingConfig.soundEnabled ?? true}
++            onChange={(checked) =>
++              handleUpdateBuilding({ soundEnabled: checked })
++            }
++            size="xs"
++            showLabels={false}
++          />
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/SoundConfigurationPanel.tsx b/components/admin/SoundConfigurationPanel.tsx
+new file mode 100644
+index 00000000..17f0f39e
+--- /dev/null
++++ b/components/admin/SoundConfigurationPanel.tsx
+@@ -0,0 +1,149 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import { SoundGlobalConfig, BuildingSoundDefaults } from '@/types';
++
++interface SoundConfigurationPanelProps {
++  config: SoundGlobalConfig;
++  onChange: (newConfig: SoundGlobalConfig) => void;
++}
++
++const VISUAL_OPTIONS: {
++  value: BuildingSoundDefaults['visual'];
++  label: string;
++  description: string;
++}[] = [
++  {
++    value: 'thermometer',
++    label: 'Thermometer',
++    description: 'Classic rising bar',
++  },
++  { value: 'speedometer', label: 'Speedometer', description: 'Circular gauge' },
++  { value: 'line', label: 'Waveform', description: 'Audio waveform line' },
++  { value: 'balls', label: 'Balls', description: 'Bouncing animated balls' },
++];
++
++export const SoundConfigurationPanel: React.FC<
++  SoundConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingSoundDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++  };
++
++  const handleUpdateBuilding = (updates: Partial<BuildingSoundDefaults>) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  const sensitivity = currentBuildingConfig.sensitivity ?? 1;
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Sound Meter Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-configure the Sound Meter widget when a
++          teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          it to their dashboard.
++        </p>
++
++        {/* Default Visual Style */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++            Default Visual Style
++          </label>
++          <div className="grid grid-cols-2 gap-2">
++            {VISUAL_OPTIONS.map((opt) => (
++              <button
++                key={opt.value}
++                onClick={() => handleUpdateBuilding({ visual: opt.value })}
++                className={`p-2 rounded-lg border text-left transition-colors ${
++                  (currentBuildingConfig.visual ?? 'thermometer') === opt.value
++                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
++                }`}
++              >
++                <div className="text-xs font-bold">{opt.label}</div>
++                <div
++                  className={`text-xxs mt-0.5 ${
++                    (currentBuildingConfig.visual ?? 'thermometer') ===
++                    opt.value
++                      ? 'text-blue-100'
++                      : 'text-slate-400'
++                  }`}
++                >
++                  {opt.description}
++                </div>
++              </button>
++            ))}
++          </div>
++        </div>
++
++        {/* Default Sensitivity */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Sensitivity ({sensitivity.toFixed(1)}x)
++          </label>
++          <p className="text-xxs text-slate-400 mb-2 leading-tight">
++            Calibrate to match the acoustic environment of each building&apos;s
++            issued devices. Higher = more sensitive to quieter sounds.
++          </p>
++          <input
++            type="range"
++            min="0.1"
++            max="3.0"
++            step="0.1"
++            value={sensitivity}
++            onChange={(e) =>
++              handleUpdateBuilding({
++                sensitivity: parseFloat(e.target.value),
++              })
++            }
++            className="w-full accent-brand-blue-primary"
++          />
++          <div className="flex justify-between text-xxs text-slate-400 mt-0.5">
++            <span>0.1x (Low)</span>
++            <span>1.0x (Normal)</span>
++            <span>3.0x (High)</span>
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/TimeToolConfigurationPanel.tsx b/components/admin/TimeToolConfigurationPanel.tsx
+new file mode 100644
+index 00000000..8f1d8b73
+--- /dev/null
++++ b/components/admin/TimeToolConfigurationPanel.tsx
+@@ -0,0 +1,169 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
++
++interface TimeToolConfigurationPanelProps {
++  config: TimeToolGlobalConfig;
++  onChange: (newConfig: TimeToolGlobalConfig) => void;
++}
++
++const TRAFFIC_COLORS = [
++  { value: null, label: 'None' },
++  { value: 'green', label: 'Green' },
++  { value: 'yellow', label: 'Yellow' },
++  { value: 'red', label: 'Red' },
++] as const;
++
++const COLOR_CLASSES: Record<string, string> = {
++  green: 'bg-green-500 text-white border-green-500',
++  yellow: 'bg-yellow-400 text-white border-yellow-400',
++  red: 'bg-red-500 text-white border-red-500',
++};
++
++export const TimeToolConfigurationPanel: React.FC<
++  TimeToolConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingTimeToolDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++  };
++
++  const handleUpdateBuilding = (updates: Partial<BuildingTimeToolDefaults>) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  const durationSeconds = currentBuildingConfig.duration ?? 600;
++  const durationMinutes = Math.floor(durationSeconds / 60);
++  const durationRemainingSeconds = durationSeconds % 60;
++
++  const handleDurationChange = (minutes: number, seconds: number) => {
++    const total = Math.max(0, minutes * 60 + seconds);
++    handleUpdateBuilding({ duration: total });
++  };
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Timer Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          These defaults will pre-configure the Timer widget when a teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          it to their dashboard.
++        </p>
++
++        {/* Default Duration */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Default Timer Duration
++          </label>
++          <div className="flex items-center gap-2">
++            <div className="flex items-center gap-1">
++              <input
++                type="number"
++                min="0"
++                max="999"
++                value={durationMinutes}
++                onChange={(e) => {
++                  const val = parseInt(e.target.value);
++                  handleDurationChange(
++                    isNaN(val) ? 0 : val,
++                    durationRemainingSeconds
++                  );
++                }}
++                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
++              />
++              <span className="text-xxs text-slate-500 font-bold">min</span>
++            </div>
++            <span className="text-slate-400">:</span>
++            <div className="flex items-center gap-1">
++              <input
++                type="number"
++                min="0"
++                max="59"
++                value={durationRemainingSeconds}
++                onChange={(e) => {
++                  const val = parseInt(e.target.value);
++                  handleDurationChange(
++                    durationMinutes,
++                    isNaN(val) ? 0 : Math.min(59, val)
++                  );
++                }}
++                className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
++              />
++              <span className="text-xxs text-slate-500 font-bold">sec</span>
++            </div>
++            <span className="text-xxs text-slate-400 ml-1">
++              ({durationSeconds}s total)
++            </span>
++          </div>
++        </div>
++
++        {/* Timer End Traffic Light Color */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
++            Timer-End Traffic Light Color
++          </label>
++          <p className="text-xxs text-slate-400 mb-2 leading-tight">
++            Automatically sets the traffic light widget to this color when the
++            timer reaches zero.
++          </p>
++          <div className="flex gap-1.5">
++            {TRAFFIC_COLORS.map(({ value, label }) => (
++              <button
++                key={String(value)}
++                onClick={() =>
++                  handleUpdateBuilding({ timerEndTrafficColor: value })
++                }
++                className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
++                  (currentBuildingConfig.timerEndTrafficColor ?? null) === value
++                    ? value
++                      ? COLOR_CLASSES[value]
++                      : 'bg-slate-700 text-white border-slate-700'
++                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++                }`}
++              >
++                {label}
++              </button>
++            ))}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/components/admin/TrafficLightConfigurationPanel.tsx b/components/admin/TrafficLightConfigurationPanel.tsx
+new file mode 100644
+index 00000000..8d6f035e
+--- /dev/null
++++ b/components/admin/TrafficLightConfigurationPanel.tsx
+@@ -0,0 +1,154 @@
++import React, { useState } from 'react';
++import { BUILDINGS } from '@/config/buildings';
++import {
++  TrafficLightGlobalConfig,
++  BuildingTrafficLightDefaults,
++} from '@/types';
++
++interface TrafficLightConfigurationPanelProps {
++  config: TrafficLightGlobalConfig;
++  onChange: (newConfig: TrafficLightGlobalConfig) => void;
++}
++
++const LIGHT_OPTIONS: {
++  value: BuildingTrafficLightDefaults['active'];
++  label: string;
++  description: string;
++  activeClass: string;
++  inactiveClass: string;
++  dotClass: string;
++}[] = [
++  {
++    value: null,
++    label: 'Off',
++    description: 'All lights unlit on load',
++    activeClass: 'bg-slate-700 text-white border-slate-700',
++    inactiveClass: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50',
++    dotClass: 'bg-slate-400',
++  },
++  {
++    value: 'green',
++    label: 'Green',
++    description: 'Ready to work',
++    activeClass: 'bg-green-500 text-white border-green-500',
++    inactiveClass: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50',
++    dotClass: 'bg-green-500',
++  },
++  {
++    value: 'yellow',
++    label: 'Yellow',
++    description: 'Caution / settling in',
++    activeClass: 'bg-yellow-400 text-white border-yellow-400',
++    inactiveClass: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50',
++    dotClass: 'bg-yellow-400',
++  },
++  {
++    value: 'red',
++    label: 'Red',
++    description: 'Stop / silent',
++    activeClass: 'bg-red-500 text-white border-red-500',
++    inactiveClass: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50',
++    dotClass: 'bg-red-500',
++  },
++];
++
++export const TrafficLightConfigurationPanel: React.FC<
++  TrafficLightConfigurationPanelProps
++> = ({ config, onChange }) => {
++  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
++    BUILDINGS[0].id
++  );
++
++  const buildingDefaults = config.buildingDefaults ?? {};
++  const currentBuildingConfig: BuildingTrafficLightDefaults = buildingDefaults[
++    selectedBuildingId
++  ] ?? {
++    buildingId: selectedBuildingId,
++    active: null,
++  };
++
++  const handleUpdateBuilding = (
++    updates: Partial<BuildingTrafficLightDefaults>
++  ) => {
++    onChange({
++      ...config,
++      buildingDefaults: {
++        ...buildingDefaults,
++        [selectedBuildingId]: {
++          ...currentBuildingConfig,
++          ...updates,
++        },
++      },
++    });
++  };
++
++  return (
++    <div className="space-y-6">
++      {/* Building Selector */}
++      <div>
++        <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++          Configure Building Traffic Light Defaults
++        </label>
++        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
++          {BUILDINGS.map((building) => (
++            <button
++              key={building.id}
++              onClick={() => setSelectedBuildingId(building.id)}
++              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
++                selectedBuildingId === building.id
++                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
++                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
++              }`}
++            >
++              {building.name}
++            </button>
++          ))}
++        </div>
++      </div>
++
++      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
++        <p className="text-xxs text-slate-500 leading-tight">
++          Sets the default active light state when a teacher in{' '}
++          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
++          the Traffic Light widget. Starting on Green immediately establishes a
++          visual baseline without requiring a manual click.
++        </p>
++
++        {/* Default Active Light */}
++        <div>
++          <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">
++            Default Active State on Load
++          </label>
++          <div className="grid grid-cols-2 gap-2">
++            {LIGHT_OPTIONS.map((opt) => {
++              const isSelected = currentBuildingConfig.active === opt.value;
++              return (
++                <button
++                  key={String(opt.value)}
++                  onClick={() => handleUpdateBuilding({ active: opt.value })}
++                  className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-colors ${
++                    isSelected ? opt.activeClass : opt.inactiveClass
++                  }`}
++                >
++                  <span
++                    className={`w-4 h-4 rounded-full shrink-0 ${opt.dotClass} ${
++                      isSelected ? 'opacity-100' : 'opacity-40'
++                    }`}
++                  />
++                  <div>
++                    <div className="text-xs font-bold">{opt.label}</div>
++                    <div
++                      className={`text-xxs ${isSelected ? 'opacity-80' : 'text-slate-400'}`}
++                    >
++                      {opt.description}
++                    </div>
++                  </div>
++                </button>
++              );
++            })}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/context/DashboardContext.tsx b/context/DashboardContext.tsx
+index 1f0f698a..d5c808ed 100644
+--- a/context/DashboardContext.tsx
++++ b/context/DashboardContext.tsx
+@@ -56,7 +56,13 @@ const serializeDashboard = (d: Dashboard): string =>
+ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+   children,
+ }) => {
+-  const { user, isAdmin, refreshGoogleToken } = useAuth();
++  const {
++    user,
++    isAdmin,
++    refreshGoogleToken,
++    featurePermissions,
++    selectedBuildings,
++  } = useAuth();
+   const { driveService } = useGoogleDrive();
+   const {
+     saveDashboard: saveDashboardFirestore,
+@@ -1408,11 +1414,83 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+ 
+   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
+ 
++  /**
++   * Extracts building-level config overrides for a widget type from the admin's
++   * feature_permissions config. These are applied between widget defaults and
++   * explicit overrides so that per-building admin settings pre-configure new
++   * widget instances for the teacher's building.
++   */
++  const getAdminBuildingConfig = useCallback(
++    (type: WidgetType): Record<string, unknown> => {
++      if (!selectedBuildings.length) return {};
++      const buildingId = selectedBuildings[0];
++      const perm = featurePermissions.find((p) => p.widgetType === type);
++      const raw = (
++        perm?.config as
++          | { buildingDefaults?: Record<string, Record<string, unknown>> }
++          | undefined
++      )?.buildingDefaults?.[buildingId];
++      if (!raw) return {};
++
++      const out: Record<string, unknown> = {};
++      switch (type) {
++        case 'clock':
++          if (raw.format24 !== undefined) out.format24 = raw.format24;
++          if (raw.fontFamily) out.fontFamily = raw.fontFamily;
++          if (raw.themeColor) out.themeColor = raw.themeColor;
++          break;
++        case 'time-tool':
++          if (typeof raw.duration === 'number') {
++            out.duration = raw.duration;
++            out.elapsedTime = raw.duration;
++          }
++          if (raw.timerEndTrafficColor !== undefined)
++            out.timerEndTrafficColor = raw.timerEndTrafficColor;
++          break;
++        case 'checklist':
++          if (Array.isArray(raw.items) && raw.items.length > 0) {
++            out.items = (raw.items as Array<{ id: string; text: string }>).map(
++              (item) => ({
++                id: crypto.randomUUID(),
++                text: item.text,
++                completed: false,
++              })
++            );
++          }
++          if (raw.scaleMultiplier !== undefined)
++            out.scaleMultiplier = raw.scaleMultiplier;
++          break;
++        case 'sound':
++          if (raw.visual) out.visual = raw.visual;
++          if (raw.sensitivity !== undefined) out.sensitivity = raw.sensitivity;
++          break;
++        case 'text':
++          if (raw.bgColor) out.bgColor = raw.bgColor;
++          if (typeof raw.fontSize === 'number') out.fontSize = raw.fontSize;
++          break;
++        case 'traffic':
++          if (raw.active !== undefined) out.active = raw.active;
++          break;
++        case 'random':
++          if (raw.visualStyle) out.visualStyle = raw.visualStyle;
++          if (raw.soundEnabled !== undefined)
++            out.soundEnabled = raw.soundEnabled;
++          break;
++        default:
++          break;
++      }
++      return out;
++    },
++    [featurePermissions, selectedBuildings]
++  );
++
+   const addWidget = useCallback(
+     (type: WidgetType, overrides?: AddWidgetOverrides) => {
+       if (!activeId) return;
+       lastLocalUpdateAt.current = Date.now();
+ 
++      const adminConfig = getAdminBuildingConfig(type);
++
+       setDashboards((prev) =>
+         prev.map((d) => {
+           if (d.id !== activeId) return d;
+@@ -1430,10 +1508,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+             z: maxZ + 1,
+             ...defaults,
+             ...overrides,
+-            // Defaults supply the full required config; overrides patch a subset.
+-            // The spread result is a valid WidgetConfig at runtime.
++            // Layer order: widget defaults → admin building defaults → explicit overrides
+             config: {
+               ...(defaults.config ?? {}),
++              ...adminConfig,
+               ...(overrides?.config ?? {}),
+             } as WidgetConfig,
+           };
+@@ -1441,7 +1519,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+         })
+       );
+     },
+-    [activeId]
++    [activeId, getAdminBuildingConfig]
+   );
+ 
+   const addWidgets = useCallback(
+@@ -1460,6 +1538,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+ 
+           const newWidgets = widgetsToAdd.map((item, index) => {
+             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
++            const adminConfig = getAdminBuildingConfig(item.type);
+             maxZ++;
+ 
+             // 3-Column Grid Layout
+@@ -1479,8 +1558,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+               flipped: false,
+               z: maxZ,
+               ...defaults,
++              // Layer order: widget defaults → admin building defaults → explicit item config
+               config: {
+                 ...(defaults.config ?? {}),
++                ...adminConfig,
+                 ...(item.config ?? {}),
+               },
+             } as WidgetData;
+@@ -1490,7 +1571,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
+         })
+       );
+     },
+-    [activeId]
++    [activeId, getAdminBuildingConfig]
+   );
+ 
+   const removeWidget = useCallback(
+diff --git a/types.ts b/types.ts
+index 8c3e3129..9653d24b 100644
+--- a/types.ts
++++ b/types.ts
+@@ -355,6 +355,88 @@ export interface ScheduleGlobalConfig {
+   buildingDefaults: Record<string, BuildingScheduleDefaults>;
+ }
+ 
++// --- Clock Global Config ---
++export interface BuildingClockDefaults {
++  buildingId: string;
++  format24?: boolean;
++  fontFamily?: string;
++  themeColor?: string;
++}
++
++export interface ClockGlobalConfig {
++  buildingDefaults: Record<string, BuildingClockDefaults>;
++}
++
++// --- TimeTool (Timer/Stopwatch) Global Config ---
++export interface BuildingTimeToolDefaults {
++  buildingId: string;
++  duration?: number; // in seconds
++  timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
++}
++
++export interface TimeToolGlobalConfig {
++  buildingDefaults: Record<string, BuildingTimeToolDefaults>;
++}
++
++// --- Checklist Global Config ---
++export interface ChecklistDefaultItem {
++  id: string;
++  text: string;
++}
++
++export interface BuildingChecklistDefaults {
++  buildingId: string;
++  items?: ChecklistDefaultItem[]; // Default item labels pre-populated on widget creation
++  scaleMultiplier?: number;
++}
++
++export interface ChecklistGlobalConfig {
++  buildingDefaults: Record<string, BuildingChecklistDefaults>;
++}
++
++// --- Sound Global Config ---
++export interface BuildingSoundDefaults {
++  buildingId: string;
++  visual?: 'thermometer' | 'speedometer' | 'line' | 'balls';
++  sensitivity?: number;
++}
++
++export interface SoundGlobalConfig {
++  buildingDefaults: Record<string, BuildingSoundDefaults>;
++}
++
++// --- Note (text) Global Config ---
++export interface BuildingNoteDefaults {
++  buildingId: string;
++  fontSize?: number;
++  bgColor?: string;
++}
++
++export interface NoteGlobalConfig {
++  buildingDefaults: Record<string, BuildingNoteDefaults>;
++}
++
++// --- Traffic Light Global Config ---
++export interface BuildingTrafficLightDefaults {
++  buildingId: string;
++  active?: 'red' | 'yellow' | 'green' | null;
++}
++
++export interface TrafficLightGlobalConfig {
++  buildingDefaults: Record<string, BuildingTrafficLightDefaults>;
++}
++
++// --- Random Global Config ---
++export interface BuildingRandomDefaults {
++  buildingId: string;
++  visualStyle?: 'flash' | 'slots' | 'wheel';
++  soundEnabled?: boolean;
++}
++
++export interface RandomGlobalConfig {
++  buildingDefaults: Record<string, BuildingRandomDefaults>;
++}
++
+ export interface CalendarGlobalEvent {
+   id: string;
+   date: string; // ISO Date string (YYYY-MM-DD)

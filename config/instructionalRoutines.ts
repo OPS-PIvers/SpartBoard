@@ -26,6 +26,7 @@ export interface InstructionalRoutine {
   steps: InstructionalStep[];
   structure?: RoutineStructure;
   audience?: RoutineAudience;
+  layout?: 'list' | 'grid' | 'hero';
 }
 
 export const ROUTINES: InstructionalRoutine[] = [

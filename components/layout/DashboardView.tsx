@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { useLiveSession } from '../../hooks/useLiveSession';
@@ -6,7 +7,14 @@ import { useStorage, MAX_PDF_SIZE_BYTES } from '../../hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
 import { WidgetRenderer } from '../widgets/WidgetRenderer';
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  AlertTriangle,
+  Loader2,
+} from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
   LiveStudent,
@@ -19,33 +27,70 @@ const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
   return (
     <div className="fixed top-6 right-6 z-toast space-y-3 pointer-events-none">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          onClick={() => removeToast(toast.id)}
-          className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border pointer-events-auto cursor-pointer animate-in slide-in-from-right duration-300 ${
-            toast.type === 'success'
-              ? 'bg-green-50/90 border-green-200 text-green-800'
-              : toast.type === 'error'
-                ? 'bg-red-50/90 border-red-200 text-red-800'
-                : 'bg-white/90 border-slate-200 text-slate-800'
-          }`}
-        >
-          {toast.type === 'success' && (
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-          )}
-          {toast.type === 'error' && (
-            <AlertCircle className="w-5 h-5 text-red-600" />
-          )}
-          {toast.type === 'info' && <Info className="w-5 h-5 text-blue-600" />}
-          <span className="font-semibold text-sm">{toast.message}</span>
-        </div>
-      ))}
+      {toasts.map((toast) => {
+        const getStyles = () => {
+          switch (toast.type) {
+            case 'success':
+              return 'bg-green-50/90 border-green-200 text-green-800';
+            case 'error':
+              return 'bg-red-50/90 border-red-200 text-red-800';
+            case 'warning':
+              return 'bg-yellow-50/90 border-yellow-200 text-yellow-800';
+            case 'loading':
+              return 'bg-blue-50/90 border-blue-200 text-blue-800';
+            case 'info':
+            default:
+              return 'bg-white/90 border-slate-200 text-slate-800';
+          }
+        };
+
+        const getIcon = () => {
+          switch (toast.type) {
+            case 'success':
+              return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+            case 'error':
+              return <AlertCircle className="w-5 h-5 text-red-600" />;
+            case 'warning':
+              return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
+            case 'loading':
+              return <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />;
+            case 'info':
+            default:
+              return <Info className="w-5 h-5 text-blue-600" />;
+          }
+        };
+
+        return (
+          <div
+            key={toast.id}
+            onClick={() => removeToast(toast.id)}
+            className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border pointer-events-auto cursor-pointer animate-in slide-in-from-right duration-300 ${getStyles()}`}
+          >
+            {getIcon()}
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-sm">{toast.message}</span>
+              {toast.action && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.action?.onClick();
+                    removeToast(toast.id);
+                  }}
+                  className="w-fit px-2 py-1 bg-black/5 hover:bg-black/10 rounded-lg text-xxs font-black uppercase tracking-widest transition-all"
+                >
+                  {toast.action.label}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
 
 export const DashboardView: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const {
     activeDashboard,
@@ -148,7 +193,7 @@ export const DashboardView: React.FC = () => {
         e.preventDefault();
 
         if (e.shiftKey || e.altKey) {
-          if (confirm('Are you sure you want to clear the entire board?')) {
+          if (confirm(t('sidebar.confirmClearBoard'))) {
             deleteAllWidgets();
           }
         } else if (activeDashboard && activeDashboard.widgets.length > 0) {
@@ -197,6 +242,7 @@ export const DashboardView: React.FC = () => {
     activeDashboard,
     minimizeAllWidgets,
     deleteAllWidgets,
+    t,
   ]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -341,14 +387,14 @@ export const DashboardView: React.FC = () => {
       if (pdfFile && user) {
         e.preventDefault();
         if (pdfFile.size > MAX_PDF_SIZE_BYTES) {
-          addToast('PDF is too large. Maximum size is 50MB.', 'error');
+          addToast(t('toasts.imageTooLarge'), 'error');
           return;
         }
         const w = 600;
         const h = 750;
         const dropX = Math.max(0, e.clientX - w / 2);
         const dropY = Math.max(0, e.clientY - h / 2);
-        addToast('Uploading PDF…', 'info');
+        addToast(t('sidebar.header.syncingChanges'), 'info');
         void (async () => {
           try {
             const pdfData = await uploadAndRegisterPdf(user.uid, pdfFile);
@@ -363,10 +409,13 @@ export const DashboardView: React.FC = () => {
                 activePdfName: pdfData.name,
               },
             });
-            addToast(`"${pdfData.name}" added to board`, 'success');
+            addToast(
+              `"${pdfData.name}" ${t('sidebar.header.allChangesSavedTooltip')}`,
+              'success'
+            );
           } catch (err) {
             console.error('PDF drop upload failed', err);
-            addToast('Failed to upload PDF', 'error');
+            addToast(t('common.error'), 'error');
           }
         })();
         return;
@@ -487,7 +536,7 @@ export const DashboardView: React.FC = () => {
         <div className="animate-pulse flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <span className="font-black uppercase tracking-[0.3em] text-xs">
-            Waking up Classroom...
+            {t('common.loading')}
           </span>
         </div>
       </div>
@@ -562,6 +611,7 @@ export const DashboardView: React.FC = () => {
       <Sidebar />
       <Dock />
       <ToastContainer />
+      <AnnouncementOverlay />
     </div>
   );
 };

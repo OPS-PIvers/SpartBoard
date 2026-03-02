@@ -15,6 +15,20 @@
       ]
     },
     {
+      "collectionGroup": "global_mini_apps",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "pdfs",
       "queryScope": "COLLECTION",
       "fields": [

@@ -8,6 +8,7 @@ import {
   WebcamGlobalConfig,
   WeatherTemperatureRange,
   CatalystGlobalConfig,
+  ExpectationsGlobalConfig,
   ToolMetadata,
 } from '../../types';
 import {
@@ -20,11 +21,45 @@ import {
   Upload,
 } from 'lucide-react';
 import { CatalystPermissionEditor } from './CatalystPermissionEditor';
+import { ExpectationsConfigurationPanel } from './ExpectationsConfigurationPanel';
+import { ScheduleConfigurationPanel } from './ScheduleConfigurationPanel';
+import { ClockConfigurationPanel } from './ClockConfigurationPanel';
+import { TimeToolConfigurationPanel } from './TimeToolConfigurationPanel';
+import { ChecklistConfigurationPanel } from './ChecklistConfigurationPanel';
+import { SoundConfigurationPanel } from './SoundConfigurationPanel';
+import { NoteConfigurationPanel } from './NoteConfigurationPanel';
+import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel';
+import { RandomConfigurationPanel } from './RandomConfigurationPanel';
+import { DiceConfigurationPanel } from './DiceConfigurationPanel';
+import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
+import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
 // Helper type guard
 const isCatalystConfig = (config: unknown): config is CatalystGlobalConfig => {
   return typeof config === 'object' && config !== null;
+};
+
+// Shared prop shape for all "building-defaults" config panels
+type BuildingConfigPanel = React.ComponentType<{
+  config: Record<string, unknown>;
+  onChange: (newConfig: Record<string, unknown>) => void;
+}>;
+
+// Map from widget/tool type to its building-defaults configuration panel.
+// Catalyst is excluded here because it requires additional props.
+const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
+  schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
+  clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,
+  'time-tool': TimeToolConfigurationPanel as unknown as BuildingConfigPanel,
+  checklist: ChecklistConfigurationPanel as unknown as BuildingConfigPanel,
+  sound: SoundConfigurationPanel as unknown as BuildingConfigPanel,
+  text: NoteConfigurationPanel as unknown as BuildingConfigPanel,
+  traffic: TrafficLightConfigurationPanel as unknown as BuildingConfigPanel,
+  random: RandomConfigurationPanel as unknown as BuildingConfigPanel,
+  dice: DiceConfigurationPanel as unknown as BuildingConfigPanel,
+  scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
+  materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
@@ -662,6 +697,23 @@ export const FeatureConfigurationPanel: React.FC<
         </div>
       )}
 
+      {tool.type === 'expectations' && (
+        <div className="space-y-4">
+          <ExpectationsConfigurationPanel
+            config={
+              (permission.config ?? {
+                buildings: {},
+              }) as unknown as ExpectationsGlobalConfig
+            }
+            onChange={(newConfig) =>
+              updatePermission(tool.type, {
+                config: newConfig as unknown as Record<string, unknown>,
+              })
+            }
+          />
+        </div>
+      )}
+
       {tool.type === 'catalyst' && (
         <div className="space-y-4">
           <CatalystPermissionEditor
@@ -678,12 +730,36 @@ export const FeatureConfigurationPanel: React.FC<
         </div>
       )}
 
+      {(() => {
+        const BuildingPanel = BUILDING_CONFIG_PANELS[tool.type];
+        if (!BuildingPanel) return null;
+        return (
+          <div className="space-y-4">
+            <BuildingPanel
+              config={
+                permission.config ?? {
+                  buildingDefaults: {},
+                }
+              }
+              onChange={(newConfig) =>
+                updatePermission(tool.type, { config: newConfig })
+              }
+            />
+          </div>
+        );
+      })()}
+
       {![
         'lunchCount',
         'weather',
         'instructionalRoutines',
         'catalyst',
         'webcam',
+        'stickers',
+        'calendar',
+        'miniApp',
+        'expectations',
+        ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <p className="text-xs text-slate-500 italic">
           No additional configuration available for this widget.

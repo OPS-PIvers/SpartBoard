@@ -155,11 +155,12 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       });
 
     return createPortal(
-      <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none">
         <GlassCard
           ref={ref}
           globalStyle={globalStyle}
-          className="w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none"
+          transparency={0.98}
+          className="w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto"
         >
           <div className="bg-white/50 px-6 py-4 border-b border-white/30 flex justify-between items-center shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-4">

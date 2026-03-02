@@ -56,6 +56,8 @@ if (isConfigured) {
     'https://www.googleapis.com/auth/spreadsheets.readonly'
   );
   googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+  // Add Google Calendar scope for district event sync
+  googleProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
 } else {
   // Mock objects to prevent crashes when importing
   auth = {

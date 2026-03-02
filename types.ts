@@ -32,7 +32,8 @@ export type WidgetType =
   | 'recessGear'
   | 'pdf'
   | 'quiz'
-  | 'sentence-stems';
+  | 'sentence-stems'
+  | 'breathing';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -295,6 +296,22 @@ export interface ExpectationsConfig {
   layout?: 'secondary' | 'elementary';
 }
 
+export interface ExpectationsOptionOverride {
+  enabled: boolean;
+  customLabel?: string;
+  customSub?: string;
+}
+
+export interface ExpectationsBuildingConfig {
+  volumeOverrides?: Record<number, ExpectationsOptionOverride>;
+  groupOverrides?: Record<string, ExpectationsOptionOverride>;
+  interactionOverrides?: Record<string, ExpectationsOptionOverride>;
+}
+
+export interface ExpectationsGlobalConfig {
+  buildings: Record<string, ExpectationsBuildingConfig>;
+}
+
 export interface WeatherConfig {
   temp: number;
   condition: string;
@@ -331,14 +348,168 @@ export interface WebcamGlobalConfig {
   ocrMode?: 'standard' | 'gemini';
 }
 
+export interface BuildingScheduleDefaults {
+  buildingId: string;
+  items: ScheduleItem[];
+}
+
+export interface ScheduleGlobalConfig {
+  buildingDefaults: Record<string, BuildingScheduleDefaults>;
+}
+
+// --- Clock Global Config ---
+export interface BuildingClockDefaults {
+  buildingId: string;
+  format24?: boolean;
+  fontFamily?: string;
+  themeColor?: string;
+}
+
+export interface ClockGlobalConfig {
+  buildingDefaults: Record<string, BuildingClockDefaults>;
+}
+
+// --- TimeTool (Timer/Stopwatch) Global Config ---
+export interface BuildingTimeToolDefaults {
+  buildingId: string;
+  duration?: number; // in seconds
+  timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
+}
+
+export interface TimeToolGlobalConfig {
+  buildingDefaults: Record<string, BuildingTimeToolDefaults>;
+}
+
+// --- Checklist Global Config ---
+export interface ChecklistDefaultItem {
+  id: string;
+  text: string;
+}
+
+export interface BuildingChecklistDefaults {
+  buildingId: string;
+  items?: ChecklistDefaultItem[]; // Default item labels pre-populated on widget creation
+  scaleMultiplier?: number;
+}
+
+export interface ChecklistGlobalConfig {
+  buildingDefaults: Record<string, BuildingChecklistDefaults>;
+}
+
+// --- Sound Global Config ---
+export interface BuildingSoundDefaults {
+  buildingId: string;
+  visual?: 'thermometer' | 'speedometer' | 'line' | 'balls';
+  sensitivity?: number;
+}
+
+export interface SoundGlobalConfig {
+  buildingDefaults: Record<string, BuildingSoundDefaults>;
+}
+
+// --- Note (text) Global Config ---
+export interface BuildingNoteDefaults {
+  buildingId: string;
+  fontSize?: number;
+  bgColor?: string;
+}
+
+export interface NoteGlobalConfig {
+  buildingDefaults: Record<string, BuildingNoteDefaults>;
+}
+
+// --- Traffic Light Global Config ---
+export interface BuildingTrafficLightDefaults {
+  buildingId: string;
+  active?: 'red' | 'yellow' | 'green' | null;
+}
+
+export interface TrafficLightGlobalConfig {
+  buildingDefaults: Record<string, BuildingTrafficLightDefaults>;
+}
+
+// --- Random Global Config ---
+export interface BuildingRandomDefaults {
+  buildingId: string;
+  visualStyle?: 'flash' | 'slots' | 'wheel';
+  soundEnabled?: boolean;
+}
+
+export interface RandomGlobalConfig {
+  buildingDefaults: Record<string, BuildingRandomDefaults>;
+}
+
+// --- Dice Global Config ---
+export interface BuildingDiceDefaults {
+  buildingId: string;
+  count?: number; // Default number of dice (1-6)
+}
+
+export interface DiceGlobalConfig {
+  buildingDefaults: Record<string, BuildingDiceDefaults>;
+}
+
+// --- Scoreboard Global Config ---
+export interface ScoreboardDefaultTeam {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+export interface BuildingScoreboardDefaults {
+  buildingId: string;
+  teams?: ScoreboardDefaultTeam[];
+}
+
+export interface ScoreboardGlobalConfig {
+  buildingDefaults: Record<string, BuildingScoreboardDefaults>;
+}
+
+// --- Materials Global Config ---
+export interface BuildingMaterialsDefaults {
+  buildingId: string;
+  selectedItems?: string[]; // IDs of materials selected by default
+}
+
+export interface MaterialsGlobalConfig {
+  buildingDefaults: Record<string, BuildingMaterialsDefaults>;
+}
+
+export interface CalendarGlobalEvent {
+  id: string;
+  date: string; // ISO Date string (YYYY-MM-DD)
+  title: string;
+}
+
+export interface BuildingCalendarDefaults {
+  buildingId: string;
+  events: CalendarEvent[];
+  googleCalendarIds?: string[];
+}
+
+export interface CalendarGlobalConfig {
+  blockedDates: string[]; // Array of ISO Date strings (YYYY-MM-DD)
+  buildingDefaults: Record<string, BuildingCalendarDefaults>;
+}
+
 export interface ScheduleConfig {
   items: ScheduleItem[];
+  localEvents?: CalendarEvent[];
+  isBuildingSyncEnabled?: boolean;
+  lastSyncedBuildingId?: string;
   fontFamily?: string;
   autoProgress?: boolean;
+  /** Card background color as a hex string, e.g. '#ffffff'. Default: '#ffffff'. */
+  cardColor?: string;
+  /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
+  cardOpacity?: number;
 }
 
 export interface CalendarConfig {
   events: CalendarEvent[];
+  isBuildingSyncEnabled?: boolean;
+  lastSyncedBuildingId?: string;
+  daysVisible?: number;
 }
 
 export interface LunchMenuDay {
@@ -403,6 +574,18 @@ export interface MiniAppItem {
   order?: number;
 }
 
+/**
+ * A MiniAppItem published to the global library by an admin.
+ * Lives in the `/global_mini_apps/{id}` Firestore collection.
+ * `buildings` is a list of building IDs this app is targeted to;
+ * an empty array means it is available to all buildings.
+ * This field is always persisted (never omitted) so Firestore queries on it are reliable.
+ */
+export interface GlobalMiniAppItem extends MiniAppItem {
+  buildings: string[];
+  gradeLevels?: GradeLevel[];
+}
+
 // 2. Define the Widget Configuration
 export interface MiniAppConfig {
   activeApp: MiniAppItem | null;
@@ -416,6 +599,11 @@ export interface PdfItem {
   size: number;
   uploadedAt: number;
   order?: number;
+}
+export interface BreathingConfig {
+  pattern: '4-4-4-4' | '4-7-8' | '5-5';
+  visual: 'circle' | 'lotus' | 'wave';
+  color: string;
 }
 
 export interface PdfConfig {
@@ -492,6 +680,15 @@ export interface StickerConfig {
 
 export interface StickerBookConfig {
   uploadedUrls?: string[];
+}
+
+export interface GlobalSticker {
+  url: string;
+  gradeLevels?: GradeLevel[];
+}
+
+export interface StickerGlobalConfig {
+  globalStickers?: (string | GlobalSticker)[];
 }
 
 export interface FurnitureItem {
@@ -723,7 +920,8 @@ export type WidgetConfig =
   | RecessGearConfig
   | PdfConfig
   | QuizConfig
-  | SentenceStemsConfig;
+  | SentenceStemsConfig
+  | BreathingConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -794,7 +992,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                   ? QuizConfig
                                                                   : T extends 'sentence-stems'
                                                                     ? SentenceStemsConfig
-                                                                    : never;
+                                                                    : T extends 'breathing'
+                                                                      ? BreathingConfig
+                                                                      : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -915,7 +1115,11 @@ export interface Dashboard {
 export interface Toast {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning' | 'loading';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 export interface ToolMetadata {
@@ -1070,6 +1274,63 @@ export interface ScalingConfig {
    * Used to eliminate excess space in modern layouts.
    */
   padding?: number;
+}
+
+// --- ANNOUNCEMENT SYSTEM TYPES ---
+
+export type AnnouncementActivationType = 'manual' | 'scheduled';
+export type AnnouncementDismissalType =
+  | 'user'
+  | 'scheduled'
+  | 'duration'
+  | 'admin';
+
+/**
+ * An admin-created announcement that is pushed to users' dashboards as an overlay widget.
+ * Stored in Firestore under /announcements/{id}.
+ * All authenticated users can read; only admins can write.
+ */
+export interface Announcement {
+  id: string;
+  /** Admin-facing label for this announcement */
+  name: string;
+  /** The widget type to display in the overlay */
+  widgetType: WidgetType;
+  /**
+   * The widget's configuration. Stored as a flexible record so partial configs
+   * from the admin form round-trip cleanly through Firestore.
+   */
+  widgetConfig: Record<string, unknown>;
+  /** Pixel dimensions for the widget window */
+  widgetSize: { w: number; h: number };
+  /** When true, the announcement expands to fill the full viewport */
+  maximized: boolean;
+  /** Whether activation is triggered manually or at a scheduled time of day */
+  activationType: AnnouncementActivationType;
+  /** HH:MM in 24h format — used when activationType is 'scheduled' */
+  scheduledActivationTime?: string;
+  /** Whether the announcement is currently active (visible to targeted users) */
+  isActive: boolean;
+  /**
+   * Timestamp (ms) when this announcement was most recently activated.
+   * Used as a push epoch — if a user dismissed it before this timestamp, it shows again.
+   */
+  activatedAt: number | null;
+  /** How the overlay can be dismissed by end users */
+  dismissalType: AnnouncementDismissalType;
+  /** HH:MM in 24h format — used when dismissalType is 'scheduled' */
+  scheduledDismissalTime?: string;
+  /** Seconds until auto-dismiss — used when dismissalType is 'duration' */
+  dismissalDurationSeconds?: number;
+  /**
+   * Building IDs this announcement targets.
+   * An empty array means ALL buildings (broadcast to everyone).
+   */
+  targetBuildings: string[];
+  createdAt: number;
+  updatedAt: number;
+  /** Email of the admin who created/last modified this announcement */
+  createdBy: string;
 }
 
 export const DEFAULT_GLOBAL_STYLE: GlobalStyle = {

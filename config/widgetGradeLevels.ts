@@ -76,6 +76,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   pdf: ALL_GRADE_LEVELS,
   quiz: ALL_GRADE_LEVELS,
   'sentence-stems': ALL_GRADE_LEVELS,
+  breathing: ALL_GRADE_LEVELS,
   record: ALL_GRADE_LEVELS,
   magic: ALL_GRADE_LEVELS,
 };

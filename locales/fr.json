@@ -1,0 +1,133 @@
+{
+  "common": {
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "create": "Créer",
+    "close": "Fermer",
+    "back": "Retour",
+    "done": "Terminé",
+    "ok": "OK",
+    "all": "Tout",
+    "none": "Aucun",
+    "loading": "Chargement...",
+    "saving": "Enregistrement...",
+    "upload": "Télécharger"
+  },
+  "sidebar": {
+    "header": {
+      "classroomManager": "Gestionnaire de Classe",
+      "syncing": "Synchro",
+      "cloud": "Cloud",
+      "drive": "Drive",
+      "openMenu": "Ouvrir le menu",
+      "closeMenu": "Fermer le menu",
+      "back": "Retour",
+      "adminSettings": "Paramètres admin",
+      "enterFullscreen": "Plein écran",
+      "exitFullscreen": "Quitter le plein écran",
+      "clearAllWindows": "Fermer toutes les fenêtres",
+      "switchBoards": "Changer de tableau",
+      "hideBoards": "Masquer les tableaux",
+      "savingToCloud": "Enregistrement dans le cloud...",
+      "allChangesSaved": "Toutes les modifications enregistrées",
+      "syncingChanges": "Synchronisation des modifications...",
+      "allChangesSavedTooltip": "Toutes les modifications enregistrées",
+      "googleDriveConnected": "Google Drive connecté",
+      "googleDriveDisconnected": "Google Drive déconnecté",
+      "signOut": "Se déconnecter"
+    },
+    "nav": {
+      "workspace": "Espace de travail",
+      "configuration": "Configuration",
+      "boards": "Tableaux",
+      "backgrounds": "Arrière-plans",
+      "widgets": "Widgets",
+      "globalStyle": "Style global",
+      "generalSettings": "Paramètres généraux"
+    },
+    "boards": {
+      "newBoard": "Nouveau tableau",
+      "import": "Importer",
+      "myBoards": "Mes tableaux",
+      "renameDashboard": "Renommer le tableau",
+      "enterNewName": "Entrez un nouveau nom pour votre tableau.",
+      "newBoardTitle": "Nouveau tableau",
+      "enterName": "Entrez un nom pour votre nouveau tableau.",
+      "boardName": "Nom du tableau"
+    },
+    "backgrounds": {
+      "presets": "Préréglages",
+      "colors": "Couleurs",
+      "gradients": "Dégradés"
+    },
+    "widgets": {
+      "gradeFilter": "Filtre par niveau",
+      "availableWidgets": "Widgets disponibles",
+      "all": "Tout",
+      "none": "Aucun"
+    },
+    "settings": {
+      "googleDriveIntegration": "Intégration Google Drive",
+      "googleDriveDescription": "Vos tableaux et ressources sont automatiquement sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
+      "connectedSynced": "Connecté et synchronisé",
+      "disconnected": "Déconnecté",
+      "connect": "Connecter",
+      "disconnect": "Déconnecter",
+      "myBuildings": "Mon/Mes bâtiment(s)",
+      "myBuildingsDescription": "Sélectionnez le ou les bâtiments dans lesquels vous travaillez. Les widgets comme Routines d'enseignement afficheront automatiquement du contenu pour votre niveau scolaire. Sélectionnez-en plusieurs si vous travaillez dans plusieurs bâtiments.",
+      "noBuildingSelected": "Aucun bâtiment sélectionné — les widgets afficheront tout le contenu disponible.",
+      "interfacePreferences": "Préférences d'interface",
+      "disableCloseWarning": "Désactiver l'avertissement de fermeture",
+      "skipConfirmation": "Ignorer la confirmation lors de la fermeture des widgets.",
+      "quickAccessWidgets": "Widgets d'accès rapide",
+      "quickAccessDescription": "Sélectionnez jusqu'à 2 widgets à afficher lorsque le dock est réduit.",
+      "language": "Langue de l'interface",
+      "languageDescription": "Choisissez votre langue d'affichage préférée pour l'ensemble du tableau.",
+      "saveAllChanges": "Enregistrer toutes les modifications"
+    },
+    "confirmClearBoard": "Êtes-vous sûr de vouloir fermer TOUTES les fenêtres de widgets ?"
+  },
+  "widgetWindow": {
+    "closeWidget": "Fermer le widget ? Les données seront perdues.",
+    "settings": "Paramètres",
+    "closeSettings": "Fermer les paramètres",
+    "close": "Fermer",
+    "expandToolbar": "Développer la barre",
+    "collapseToolbar": "Réduire la barre",
+    "screenshotSaved": "Capture d'écran enregistrée",
+    "screenshotFailed": "Échec de la capture d'écran",
+    "eraser": "Gomme",
+    "undo": "Annuler",
+    "clearAll": "Tout effacer",
+    "done": "Terminé",
+    "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?"
+  },
+  "login": {
+    "signInToAccess": "Connectez-vous pour accéder à vos tableaux",
+    "signInWithGoogle": "Se connecter avec Google"
+  },
+  "toasts": {
+    "boardSharingDisabled": "Le partage de tableaux est actuellement désactivé",
+    "generatingShareLink": "Génération du lien de partage...",
+    "linkCopied": "Lien copié dans le presse-papiers !",
+    "boardShared": "Le tableau est maintenant partagé ! Lien prêt.",
+    "shareFailed": "Échec de la génération du lien de partage",
+    "boardImported": "Tableau importé avec succès",
+    "invalidBoardData": "Données du tableau invalides",
+    "imageTooLarge": "Image trop grande (max. 5 Mo)",
+    "backgroundUploaded": "Arrière-plan personnalisé téléchargé dans le cloud",
+    "settingsSaved": "Paramètres enregistrés avec succès"
+  },
+  "dock": {
+    "uploadingToDrive": "Téléchargement de l'enregistrement sur Google Drive...",
+    "recordingSavedToDrive": "Enregistrement sauvegardé sur Google Drive !",
+    "recordingDriveFailed": "Échec de la sauvegarde sur Drive. Téléchargement local...",
+    "noGoogleDrive": "Aucun Google Drive connecté. Téléchargement local..."
+  },
+  "languages": {
+    "en": "English",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français"
+  }
+}

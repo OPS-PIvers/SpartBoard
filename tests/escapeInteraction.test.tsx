@@ -15,6 +15,9 @@ import {
 import { Dashboard, WidgetData, GlobalStyle } from '../types';
 
 // Mock child components to simplify testing
+vi.mock('../components/announcements/AnnouncementOverlay', () => ({
+  AnnouncementOverlay: () => null,
+}));
 vi.mock('../components/layout/sidebar/Sidebar', () => ({
   Sidebar: () => <div data-testid="sidebar" />,
 }));

@@ -21,7 +21,7 @@ interface FurnitureItemRendererProps {
   isHighlighted: boolean;
   dragPos?: { x: number; y: number };
   resizeSize?: { width: number; height: number };
-  assignedStudents: string[];
+  assignedStudents: { id: string; label: string }[];
   onPointerDown: (e: React.PointerEvent, id: string) => void;
   onClick: (id: string) => void;
   onStudentDrop: (e: React.DragEvent, id: string) => void;
@@ -29,7 +29,7 @@ interface FurnitureItemRendererProps {
   onRotate: (id: string, delta: number) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
-  onRemoveAssignment: (studentName: string) => void;
+  onRemoveAssignment: (studentId: string) => void;
 }
 
 export const FurnitureItemRenderer = memo(
@@ -192,21 +192,21 @@ export const FurnitureItemRenderer = memo(
           )}
           {assignedStudents.length > 0 && (
             <div className="flex flex-col items-center justify-center gap-1 w-full h-full overflow-hidden">
-              {assignedStudents.map((name) => (
+              {assignedStudents.map((student) => (
                 <div
-                  key={name}
+                  key={student.id}
                   className={`bg-white px-1.5 rounded font-bold shadow-sm border border-slate-100 truncate w-full text-center pointer-events-auto flex items-center justify-center ${
                     assignedStudents.length === 1
                       ? 'h-full text-xs'
                       : 'py-1 text-xxs'
                   }`}
                 >
-                  <span className="truncate">{name}</span>
+                  <span className="truncate">{student.label}</span>
                   {mode === 'assign' && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onRemoveAssignment(name);
+                        onRemoveAssignment(student.id);
                       }}
                       className="ml-1 text-red-400 hover:text-red-600"
                     >

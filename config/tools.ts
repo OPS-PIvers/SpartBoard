@@ -28,6 +28,7 @@ import {
   ClipboardList,
   Wand2,
   Quote,
+  Wind,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -73,12 +74,7 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Lunch',
     color: 'bg-orange-600',
   },
-  {
-    type: 'classes',
-    icon: Users,
-    label: 'Class',
-    color: 'bg-indigo-600',
-  },
+  { type: 'classes', icon: Users, label: 'Class', color: 'bg-indigo-600' },
   {
     type: 'instructionalRoutines',
     icon: BookOpen,
@@ -97,24 +93,14 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Materials',
     color: 'bg-rose-600',
   },
-  {
-    type: 'stickers',
-    icon: Sticker,
-    label: 'Stickers',
-    color: 'bg-pink-500',
-  },
+  { type: 'stickers', icon: Sticker, label: 'Stickers', color: 'bg-pink-500' },
   {
     type: 'seating-chart',
     icon: Armchair,
     label: 'Seating',
     color: 'bg-teal-500',
   },
-  {
-    type: 'catalyst',
-    icon: Zap,
-    label: 'Catalyst',
-    color: 'bg-indigo-600',
-  },
+  { type: 'catalyst', icon: Zap, label: 'Catalyst', color: 'bg-indigo-600' },
   {
     type: 'smartNotebook',
     icon: BookOpen,
@@ -127,30 +113,16 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Recess Gear',
     color: 'bg-emerald-500',
   },
-  {
-    type: 'pdf',
-    icon: FileText,
-    label: 'PDF Viewer',
-    color: 'bg-red-700',
-  },
-  {
-    type: 'quiz',
-    icon: ClipboardList,
-    label: 'Quiz',
-    color: 'bg-violet-600',
-  },
+  { type: 'pdf', icon: FileText, label: 'PDF Viewer', color: 'bg-red-700' },
+  { type: 'quiz', icon: ClipboardList, label: 'Quiz', color: 'bg-violet-600' },
   {
     type: 'sentence-stems',
     icon: Quote,
     label: 'Sentence Stems',
     color: 'bg-sky-500',
   },
-  {
-    type: 'record',
-    icon: RecordIcon,
-    label: 'Record',
-    color: 'bg-red-500',
-  },
+  { type: 'breathing', icon: Wind, label: 'Breathing', color: 'bg-sky-400' },
+  { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
   {
     type: 'magic',
     icon: Wand2,

@@ -334,7 +334,10 @@ const OverviewTab: React.FC<{
       <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <Target className="w-4 h-4 text-brand-blue-primary" />
-          <span className="font-black text-brand-blue-dark uppercase tracking-widest text-[11px]">
+          <span
+            className="font-black text-brand-blue-dark uppercase tracking-widest"
+            style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+          >
             Score Distribution
           </span>
         </div>
@@ -505,7 +508,8 @@ const StudentsTab: React.FC<{
                 </p>
                 {warnings > 0 && (
                   <span
-                    className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-black shrink-0"
+                    className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+                    style={{ fontSize: 'min(10px, 3cqmin)' }}
                     title={`${warnings} Tab Switch Warning(s)`}
                   >
                     <AlertTriangle style={{ width: 10, height: 10 }} />

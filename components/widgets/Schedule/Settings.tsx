@@ -16,6 +16,9 @@ import {
   X,
   Save,
   GripVertical,
+  Timer,
+  Palette,
+  Settings2,
 } from 'lucide-react';
 import { Toggle } from '../../common/Toggle';
 import { Button } from '../../common/Button';
@@ -211,7 +214,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 className={`flex-1 p-2 border rounded-lg text-sm flex items-center justify-center gap-2 ${tempItem.mode === 'timer' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white'}`}
                 aria-pressed={tempItem.mode === 'timer'}
               >
-                <Clock className="w-4 h-4" /> Timer
+                <Timer className="w-4 h-4" /> Timer
               </button>
             </div>
             <p className="text-xs text-slate-400 mt-1">
@@ -324,7 +327,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     {item.task}
                   </span>
                   {item.mode === 'timer' && (
-                    <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500">
+                    <span className="text-xxs bg-slate-100 px-1 rounded text-slate-500">
                       Timer
                     </span>
                   )}
@@ -402,6 +405,76 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
 
+      {/* Card Style */}
+      <div>
+        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+          <Palette className="w-3 h-3" /> Card Style
+        </label>
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+          {/* Card Color */}
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">
+                Card Color
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-mono">
+                  {config.cardColor ?? '#ffffff'}
+                </span>
+                <input
+                  type="color"
+                  value={config.cardColor ?? '#ffffff'}
+                  onChange={(e) =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        cardColor: e.target.value,
+                      } as ScheduleConfig,
+                    })
+                  }
+                  className="w-8 h-8 rounded cursor-pointer border border-slate-200 p-0.5"
+                  aria-label="Card color"
+                  title="Choose card background color"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card Opacity */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-medium text-slate-700">
+                Card Opacity
+              </span>
+              <span className="text-xs text-slate-500 tabular-nums">
+                {Math.round((config.cardOpacity ?? 1) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={config.cardOpacity ?? 1}
+              onChange={(e) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    cardOpacity: parseFloat(e.target.value),
+                  } as ScheduleConfig,
+                })
+              }
+              aria-label="Card opacity"
+              className="w-full accent-blue-500"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              Set to 0% for fully transparent cards — schedule items appear as
+              floating text on the board background.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
           <CheckCircle2 className="w-3 h-3" /> Auto-Checkoff
@@ -427,6 +500,36 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
           <p className="text-xs text-slate-500">
             Automatically check off items when their time passes.
+          </p>
+        </div>
+      </div>
+
+      <hr className="border-slate-100" />
+
+      {/* Building Sync */}
+      <div>
+        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+          <Settings2 className="w-3 h-3" /> Building Integration
+        </label>
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-700">
+              Sync Building Schedule
+            </span>
+            <Toggle
+              checked={config.isBuildingSyncEnabled ?? true}
+              onChange={(checked) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    isBuildingSyncEnabled: checked,
+                  } as ScheduleConfig,
+                })
+              }
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            Automatically show district defaults for your building.
           </p>
         </div>
       </div>

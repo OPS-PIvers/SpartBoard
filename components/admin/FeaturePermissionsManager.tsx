@@ -1,53 +1,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { collection, doc, setDoc, getDocs } from 'firebase/firestore';
-import { db, isAuthBypass } from '../../config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import {
   FeaturePermission,
   AccessLevel,
   WidgetType,
   GradeLevel,
   InternalToolType,
-} from '../../types';
-import { useStorage } from '../../hooks/useStorage';
-import { TOOLS } from '../../config/tools';
+  GlobalSticker,
+} from '@/types';
+import { useStorage } from '@/hooks/useStorage';
+import { TOOLS } from '@/config/tools';
 import {
   getWidgetGradeLevels,
   ALL_GRADE_LEVELS,
-} from '../../config/widgetGradeLevels';
+} from '@/config/widgetGradeLevels';
 import {
   Shield,
   Users,
   Globe,
-  Plus,
-  Trash2,
   Save,
   Settings,
-  X,
-  Edit,
-  Sparkles,
   LayoutGrid,
   List,
 } from 'lucide-react';
-import { useInstructionalRoutines } from '../../hooks/useInstructionalRoutines';
-import { LibraryManager } from '../widgets/InstructionalRoutines/LibraryManager';
-import { InstructionalRoutine } from '../../config/instructionalRoutines';
-import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
-import { getRoutineColorClasses } from '../widgets/InstructionalRoutines/colorHelpers';
-import { Toggle } from '../common/Toggle';
-import { Toast } from '../common/Toast';
+import { Toggle } from '@/components/common/Toggle';
+import { Toast } from '@/components/common/Toast';
 
-import { FeatureConfigurationPanel } from './FeatureConfigurationPanel';
-import { BetaUsersPanel } from './BetaUsersPanel';
+import { FeatureConfigurationPanel } from '@/components/admin/FeatureConfigurationPanel';
+import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
+import { InstructionalRoutinesManager } from '@/components/admin/InstructionalRoutinesManager';
+import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
+import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
+import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
+import { StickerGlobalConfig } from '@/types';
 
 export const FeaturePermissionsManager: React.FC = () => {
-  const { routines, deleteRoutine, saveRoutine } = useInstructionalRoutines();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [editingRoutine, setEditingRoutine] =
-    useState<InstructionalRoutine | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    routineId: string;
-    routineName: string;
-  } | null>(null);
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
   >(new Map());
@@ -66,6 +55,10 @@ export const FeaturePermissionsManager: React.FC = () => {
     WidgetType | InternalToolType | null
   >(null);
   const [isRoutinesLibraryOpen, setIsRoutinesLibraryOpen] = useState(false);
+  const [isStickerLibraryOpen, setIsStickerLibraryOpen] = useState(false);
+  const [isCalendarConfigOpen, setIsCalendarConfigOpen] = useState(false);
+  const [isMiniAppLibraryOpen, setIsMiniAppLibraryOpen] = useState(false);
+  const [isSavingStickers, setIsSavingStickers] = useState(false);
   const { uploadWeatherImage } = useStorage();
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
@@ -74,6 +67,58 @@ export const FeaturePermissionsManager: React.FC = () => {
     // Return cleanup function
     return () => clearTimeout(timeoutId);
   }, []);
+
+  const getGlobalStickers = (): (string | GlobalSticker)[] => {
+    const config = getPermission('stickers').config as
+      | StickerGlobalConfig
+      | undefined;
+    return config?.globalStickers ?? [];
+  };
+
+  const handleStickerLibraryChange = (
+    newStickers: (string | GlobalSticker)[]
+  ) => {
+    const current = getPermission('stickers');
+    const updatedConfig: StickerGlobalConfig = {
+      ...(current.config as StickerGlobalConfig | undefined),
+      globalStickers: newStickers,
+    };
+    updatePermission('stickers', {
+      config: updatedConfig as unknown as Record<string, unknown>,
+    });
+  };
+
+  const handleStickerLibraryDiscard = (
+    originalStickers: (string | GlobalSticker)[]
+  ) => {
+    const current = getPermission('stickers');
+    const revertedConfig: StickerGlobalConfig = {
+      ...(current.config as StickerGlobalConfig | undefined),
+      globalStickers: originalStickers,
+    };
+    // Revert permission state and clear unsaved flag — no round-trip through
+    // updatePermission so we don't re-add 'stickers' to unsavedChanges.
+    setPermissions((prev) =>
+      new Map(prev).set('stickers', {
+        ...current,
+        config: revertedConfig as unknown as Record<string, unknown>,
+      })
+    );
+    setUnsavedChanges((prev) => {
+      const next = new Set(prev);
+      next.delete('stickers');
+      return next;
+    });
+  };
+
+  const handleStickerLibrarySave = async () => {
+    setIsSavingStickers(true);
+    try {
+      await savePermission('stickers');
+    } finally {
+      setIsSavingStickers(false);
+    }
+  };
 
   const loadPermissions = useCallback(async () => {
     if (isAuthBypass) {
@@ -326,7 +371,7 @@ export const FeaturePermissionsManager: React.FC = () => {
 
                   {/* Enabled Toggle */}
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    <span className="text-xxs font-bold text-slate-400 uppercase">
                       Enabled
                     </span>
                     <Toggle
@@ -370,7 +415,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                         <button
                           key={level}
                           onClick={() => toggleGradeLevel(tool.type, level)}
-                          className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${
+                          className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                             isSelected
                               ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
                               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -382,7 +427,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                     })}
                     <button
                       onClick={() => toggleAllGradeLevels(tool.type)}
-                      className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${
+                      className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                         isAllSelected
                           ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
                           : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -398,6 +443,12 @@ export const FeaturePermissionsManager: React.FC = () => {
                       onClick={() => {
                         if (tool.type === 'instructionalRoutines') {
                           setIsRoutinesLibraryOpen(true);
+                        } else if (tool.type === 'stickers') {
+                          setIsStickerLibraryOpen(true);
+                        } else if (tool.type === 'calendar') {
+                          setIsCalendarConfigOpen(true);
+                        } else if (tool.type === 'miniApp') {
+                          setIsMiniAppLibraryOpen(true);
                         } else {
                           setEditingConfig(
                             editingConfig === tool.type ? null : tool.type
@@ -407,6 +458,9 @@ export const FeaturePermissionsManager: React.FC = () => {
                       className={`p-2 rounded-lg transition-colors ${
                         (tool.type === 'instructionalRoutines' &&
                           isRoutinesLibraryOpen) ||
+                        (tool.type === 'stickers' && isStickerLibraryOpen) ||
+                        (tool.type === 'calendar' && isCalendarConfigOpen) ||
+                        (tool.type === 'miniApp' && isMiniAppLibraryOpen) ||
                         editingConfig === tool.type
                           ? 'bg-brand-blue-primary text-white'
                           : 'text-slate-400 hover:bg-slate-100'
@@ -498,6 +552,12 @@ export const FeaturePermissionsManager: React.FC = () => {
                     onClick={() => {
                       if (tool.type === 'instructionalRoutines') {
                         setIsRoutinesLibraryOpen(true);
+                      } else if (tool.type === 'stickers') {
+                        setIsStickerLibraryOpen(true);
+                      } else if (tool.type === 'calendar') {
+                        setIsCalendarConfigOpen(true);
+                      } else if (tool.type === 'miniApp') {
+                        setIsMiniAppLibraryOpen(true);
                       } else {
                         setEditingConfig(
                           editingConfig === tool.type ? null : tool.type
@@ -507,6 +567,9 @@ export const FeaturePermissionsManager: React.FC = () => {
                     className={`p-2 rounded-lg transition-colors ${
                       (tool.type === 'instructionalRoutines' &&
                         isRoutinesLibraryOpen) ||
+                      (tool.type === 'stickers' && isStickerLibraryOpen) ||
+                      (tool.type === 'calendar' && isCalendarConfigOpen) ||
+                      (tool.type === 'miniApp' && isMiniAppLibraryOpen) ||
                       editingConfig === tool.type
                         ? 'bg-brand-blue-primary text-white'
                         : 'text-slate-400 hover:bg-slate-100'
@@ -643,164 +706,35 @@ export const FeaturePermissionsManager: React.FC = () => {
 
       {/* Instructional Routines Library Modal */}
       {isRoutinesLibraryOpen && (
-        <div className="fixed inset-0 z-modal-nested bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">
-                Instructional Routines Library
-              </h3>
-              <button
-                onClick={() => setIsRoutinesLibraryOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Manage global templates available to all teachers.
-                  </p>
-                </div>
-                <button
-                  onClick={() =>
-                    setEditingRoutine({
-                      id: crypto.randomUUID(),
-                      name: '',
-                      grades: 'Universal',
-                      gradeLevels: ['k-2', '3-5', '6-8', '9-12'],
-                      icon: 'Zap',
-                      color: 'blue',
-                      steps: [
-                        {
-                          text: '',
-                          icon: 'Zap',
-                          color: 'blue',
-                          label: 'Step',
-                        },
-                      ],
-                    })
-                  }
-                  className="px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all flex items-center gap-2 shadow-sm whitespace-nowrap"
-                >
-                  <Plus className="w-4 h-4" /> New Routine
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                {routines.map((routine) => {
-                  const colorClasses = getRoutineColorClasses(
-                    routine.color || 'blue'
-                  );
-                  return (
-                    <div
-                      key={routine.id}
-                      className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between group hover:border-brand-blue-light transition-all shadow-sm"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`p-3 rounded-xl ${colorClasses.bg} ${colorClasses.text}`}
-                        >
-                          <div className="w-6 h-6 flex items-center justify-center">
-                            {/* Generic icon since dynamic lucide loading is complex here */}
-                            <div className="w-4 h-4 rounded-full bg-current opacity-50" />
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-black text-slate-800 leading-tight">
-                            {routine.name}
-                          </span>
-                          <span className="text-xxs text-slate-400 font-black uppercase tracking-wider">
-                            {routine.grades}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <button
-                          onClick={() => setEditingRoutine(routine)}
-                          className="p-2 hover:bg-blue-50 rounded-xl text-slate-400 hover:text-brand-blue-primary transition-colors flex items-center gap-1.5 text-xxs font-black uppercase tracking-wider"
-                          title="Edit Routine"
-                        >
-                          <Edit size={16} />
-                          <span className="hidden sm:inline">Edit</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeleteConfirm({
-                              routineId: routine.id,
-                              routineName: routine.name,
-                            });
-                          }}
-                          className="p-2 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1.5 text-xxs font-black uppercase tracking-wider"
-                          title="Delete Routine"
-                        >
-                          <Trash2 size={16} />
-                          <span className="hidden sm:inline">Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {routines.length === 0 && (
-                  <div className="py-12 flex flex-col items-center justify-center bg-white border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
-                    <Sparkles className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="font-black uppercase tracking-widest text-xs">
-                      No routines in library
-                    </p>
-                    <p className="text-xs mt-1">
-                      Create your first routine template to get started.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Routine Editor Modal */}
-      {editingRoutine && (
-        <div className="fixed inset-0 z-modal-deep bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            <LibraryManager
-              routine={editingRoutine}
-              onChange={setEditingRoutine}
-              onSave={async () => {
-                await saveRoutine(editingRoutine);
-                setEditingRoutine(null);
-                showMessage('success', 'Routine saved to library');
-              }}
-              onCancel={() => setEditingRoutine(null)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirm && (
-        <ConfirmDialog
-          title="Delete Routine"
-          message={`Are you sure you want to delete "${deleteConfirm.routineName}"? This action cannot be undone.`}
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={async () => {
-            try {
-              await deleteRoutine(deleteConfirm.routineId);
-              showMessage('success', 'Routine deleted successfully');
-            } catch (error) {
-              console.error('Failed to delete routine:', error);
-              showMessage(
-                'error',
-                'Failed to delete routine. Please try again.'
-              );
-            } finally {
-              setDeleteConfirm(null);
-            }
-          }}
-          onCancel={() => setDeleteConfirm(null)}
+        <InstructionalRoutinesManager
+          onClose={() => setIsRoutinesLibraryOpen(false)}
         />
+      )}
+
+      {/* Global Sticker Library Modal */}
+      {isStickerLibraryOpen && (
+        <StickerLibraryModal
+          stickers={getGlobalStickers()}
+          onClose={() => setIsStickerLibraryOpen(false)}
+          onDiscard={handleStickerLibraryDiscard}
+          onStickersChange={handleStickerLibraryChange}
+          onSave={handleStickerLibrarySave}
+          isSaving={isSavingStickers}
+          hasUnsavedChanges={unsavedChanges.has('stickers')}
+        />
+      )}
+
+      {/* Calendar Configuration Modal */}
+      {isCalendarConfigOpen && (
+        <CalendarConfigurationModal
+          isOpen={isCalendarConfigOpen}
+          onClose={() => setIsCalendarConfigOpen(false)}
+        />
+      )}
+
+      {/* Mini App Global Library Modal */}
+      {isMiniAppLibraryOpen && (
+        <MiniAppLibraryModal onClose={() => setIsMiniAppLibraryOpen(false)} />
       )}
     </div>
   );

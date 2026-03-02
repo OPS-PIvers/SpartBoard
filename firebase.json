@@ -18,6 +18,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
+    "predeploy": "pnpm run build",
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [

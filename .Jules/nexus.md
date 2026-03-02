@@ -28,6 +28,12 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 **Implementation:** `TimeToolWidget.tsx` (via `useTimeTool.ts`) monitors the timer completion and updates the `TrafficLightWidget` if `timerEndTrafficColor` is set.
 **Configuration:** Enabled via the "Traffic Light Control" section in Time Tool Settings.
 
+### Randomizer -> Scoreboard (Team Builder)
+
+**Description:** Instantly turns generated random groups into a competitive scoreboard.
+**Implementation:** `RandomWidget.tsx` provides a "Send to Scoreboard" button when groups are generated. It updates or creates a Scoreboard widget with the groups as teams.
+**Configuration:** Manual trigger via button in Randomizer (Groups mode).
+
 ## Planned Connections
 
 ## WILL NOT IMPLEMENT

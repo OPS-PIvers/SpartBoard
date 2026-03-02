@@ -1,0 +1,133 @@
+{
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "create": "Erstellen",
+    "close": "Schließen",
+    "back": "Zurück",
+    "done": "Fertig",
+    "ok": "OK",
+    "all": "Alle",
+    "none": "Keine",
+    "loading": "Laden...",
+    "saving": "Speichern...",
+    "upload": "Hochladen"
+  },
+  "sidebar": {
+    "header": {
+      "classroomManager": "Klassenzimmer-Manager",
+      "syncing": "Synchronisierung",
+      "cloud": "Cloud",
+      "drive": "Drive",
+      "openMenu": "Menü öffnen",
+      "closeMenu": "Menü schließen",
+      "back": "Zurück",
+      "adminSettings": "Admin-Einstellungen",
+      "enterFullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden",
+      "clearAllWindows": "Alle Fenster schließen",
+      "switchBoards": "Tafeln wechseln",
+      "hideBoards": "Tafeln ausblenden",
+      "savingToCloud": "In Cloud speichern...",
+      "allChangesSaved": "Alle Änderungen gespeichert",
+      "syncingChanges": "Änderungen synchronisieren...",
+      "allChangesSavedTooltip": "Alle Änderungen gespeichert",
+      "googleDriveConnected": "Google Drive verbunden",
+      "googleDriveDisconnected": "Google Drive getrennt",
+      "signOut": "Abmelden"
+    },
+    "nav": {
+      "workspace": "Arbeitsbereich",
+      "configuration": "Konfiguration",
+      "boards": "Tafeln",
+      "backgrounds": "Hintergründe",
+      "widgets": "Widgets",
+      "globalStyle": "Globaler Stil",
+      "generalSettings": "Allgemeine Einstellungen"
+    },
+    "boards": {
+      "newBoard": "Neue Tafel",
+      "import": "Importieren",
+      "myBoards": "Meine Tafeln",
+      "renameDashboard": "Tafel umbenennen",
+      "enterNewName": "Gib einen neuen Namen für deine Tafel ein.",
+      "newBoardTitle": "Neue Tafel",
+      "enterName": "Gib einen Namen für deine neue Tafel ein.",
+      "boardName": "Tafelname"
+    },
+    "backgrounds": {
+      "presets": "Voreinstellungen",
+      "colors": "Farben",
+      "gradients": "Verläufe"
+    },
+    "widgets": {
+      "gradeFilter": "Klassenstufen-Filter",
+      "availableWidgets": "Verfügbare Widgets",
+      "all": "Alle",
+      "none": "Keine"
+    },
+    "settings": {
+      "googleDriveIntegration": "Google Drive-Integration",
+      "googleDriveDescription": "Deine Tafeln und Dateien werden automatisch in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
+      "connectedSynced": "Verbunden & Synchronisiert",
+      "disconnected": "Getrennt",
+      "connect": "Verbinden",
+      "disconnect": "Trennen",
+      "myBuildings": "Mein(e) Gebäude",
+      "myBuildingsDescription": "Wähle die Gebäude aus, in denen du arbeitest. Widgets wie Unterrichtsroutinen zeigen automatisch Inhalte für deine Klassenstufe an. Wähle mehrere aus, wenn du in verschiedenen Gebäuden arbeitest.",
+      "noBuildingSelected": "Kein Gebäude ausgewählt — Widgets zeigen alle verfügbaren Inhalte.",
+      "interfacePreferences": "Oberflächeneinstellungen",
+      "disableCloseWarning": "Schließwarnung deaktivieren",
+      "skipConfirmation": "Bestätigungsdialog beim Schließen von Widgets überspringen.",
+      "quickAccessWidgets": "Schnellzugriff-Widgets",
+      "quickAccessDescription": "Wähle bis zu 2 Widgets aus, die erscheinen, wenn das Dock minimiert ist.",
+      "language": "Oberflächensprache",
+      "languageDescription": "Wähle deine bevorzugte Anzeigesprache für die gesamte Tafel.",
+      "saveAllChanges": "Alle Änderungen speichern"
+    },
+    "confirmClearBoard": "Bist du sicher, dass du ALLE Widget-Fenster schließen möchtest?"
+  },
+  "widgetWindow": {
+    "closeWidget": "Widget schließen? Daten gehen verloren.",
+    "settings": "Einstellungen",
+    "closeSettings": "Einstellungen schließen",
+    "close": "Schließen",
+    "expandToolbar": "Symbolleiste erweitern",
+    "collapseToolbar": "Symbolleiste reduzieren",
+    "screenshotSaved": "Screenshot gespeichert",
+    "screenshotFailed": "Screenshot konnte nicht gespeichert werden",
+    "eraser": "Radierer",
+    "undo": "Rückgängig",
+    "clearAll": "Alles löschen",
+    "done": "Fertig",
+    "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?"
+  },
+  "login": {
+    "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",
+    "signInWithGoogle": "Mit Google anmelden"
+  },
+  "toasts": {
+    "boardSharingDisabled": "Das Teilen von Tafeln ist derzeit deaktiviert",
+    "generatingShareLink": "Freigabelink wird generiert...",
+    "linkCopied": "Link in die Zwischenablage kopiert!",
+    "boardShared": "Tafel wird jetzt geteilt! Link bereit.",
+    "shareFailed": "Fehler beim Generieren des Freigabelinks",
+    "boardImported": "Tafel erfolgreich importiert",
+    "invalidBoardData": "Ungültige Tafeldaten",
+    "imageTooLarge": "Bild zu groß (max. 5 MB)",
+    "backgroundUploaded": "Benutzerdefinierter Hintergrund in die Cloud hochgeladen",
+    "settingsSaved": "Einstellungen erfolgreich gespeichert"
+  },
+  "dock": {
+    "uploadingToDrive": "Aufnahme wird auf Google Drive hochgeladen...",
+    "recordingSavedToDrive": "Aufnahme auf Google Drive gespeichert!",
+    "recordingDriveFailed": "Speichern auf Drive fehlgeschlagen. Lokaler Download...",
+    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download..."
+  },
+  "languages": {
+    "en": "English",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français"
+  }
+}

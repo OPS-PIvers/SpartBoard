@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import '../i18n'; // Initialise i18next with English translations for all tests
 
 // Mock PointerEvent globally since JSDOM doesn't fully support it
 class MockPointerEvent extends Event {

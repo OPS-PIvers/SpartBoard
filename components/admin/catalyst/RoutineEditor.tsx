@@ -334,11 +334,11 @@ export const RoutineEditor: React.FC<RoutineEditorProps> = ({
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-black uppercase text-slate-400">
+                    <label className="text-xxs font-black uppercase text-slate-400">
                       Config (JSON)
                     </label>
                     {jsonErrors[aw.id] && (
-                      <span className="text-[10px] font-bold text-red-500">
+                      <span className="text-xxs font-bold text-red-500">
                         {jsonErrors[aw.id]}
                       </span>
                     )}

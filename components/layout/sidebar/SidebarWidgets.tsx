@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Filter, CheckSquare } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -9,18 +10,10 @@ interface SidebarWidgetsProps {
   isVisible: boolean;
 }
 
-// Grade filter options for consistent validation and rendering
-const GRADE_FILTER_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'k-2', label: 'K-2' },
-  { value: '3-5', label: '3-5' },
-  { value: '6-8', label: '6-8' },
-  { value: '9-12', label: '9-12' },
-] as const;
-
 export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
   isVisible,
 }) => {
+  const { t } = useTranslation();
   const {
     visibleTools,
     toggleToolVisibility,
@@ -29,6 +22,15 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
     setGradeFilter,
   } = useDashboard();
   const { featurePermissions } = useAuth();
+
+  // Grade filter options for consistent validation and rendering
+  const GRADE_FILTER_OPTIONS = [
+    { value: 'all', label: t('sidebar.widgets.all') },
+    { value: 'k-2', label: 'K-2' },
+    { value: '3-5', label: '3-5' },
+    { value: '6-8', label: '6-8' },
+    { value: '9-12', label: '9-12' },
+  ] as const;
 
   // Memoize filtered tools to prevent unnecessary recalculations
   const filteredTools = useMemo(() => {
@@ -58,7 +60,7 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
         <div className="flex items-center gap-2 mb-3">
           <Filter className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xxs font-bold uppercase tracking-widest text-slate-400">
-            Grade Filter
+            {t('sidebar.widgets.gradeFilter')}
           </span>
         </div>
         <div className="grid grid-cols-5 gap-1">
@@ -80,20 +82,20 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
 
       <div className="flex items-center justify-between px-1">
         <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-          Available Widgets
+          {t('sidebar.widgets.availableWidgets')}
         </h3>
         <div className="flex gap-2">
           <button
             onClick={() => setAllToolsVisibility(true)}
             className="text-xxs font-bold text-brand-blue-primary uppercase"
           >
-            All
+            {t('sidebar.widgets.all')}
           </button>
           <button
             onClick={() => setAllToolsVisibility(false)}
             className="text-xxs font-bold text-slate-400 uppercase"
           >
-            None
+            {t('sidebar.widgets.none')}
           </button>
         </div>
       </div>
@@ -125,14 +127,14 @@ export const SidebarWidgets: React.FC<SidebarWidgetsProps> = ({
                   <tool.icon className="w-4 h-4" />
                 </div>
                 <div className="text-left">
-                  <div className="text-[11px] font-bold uppercase tracking-tight">
+                  <div className="text-xxs font-bold uppercase tracking-tight">
                     {displayLabel}
                   </div>
                   <div className="flex gap-1 mt-0.5">
                     {gradeLevels.map((level) => (
                       <span
                         key={level}
-                        className="text-[7px] font-bold px-1 py-0.5 rounded bg-slate-50 text-slate-400 uppercase"
+                        className="text-xxxs font-bold px-1 py-0.5 rounded bg-slate-50 text-slate-400 uppercase"
                       >
                         {level}
                       </span>

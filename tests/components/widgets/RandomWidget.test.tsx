@@ -26,6 +26,23 @@ vi.mock('../../../components/widgets/random/audioUtils', () => ({
   playWinner: vi.fn(),
 }));
 
+// Mock RandomFlash to capture the fontSize prop via a data attribute.
+// jsdom does not support CSS min() so we cannot reliably check computed styles;
+// capturing the prop string directly is the most reliable alternative.
+vi.mock('../../../components/widgets/random/RandomFlash', () => ({
+  RandomFlash: ({
+    fontSize,
+    displayResult,
+  }: {
+    fontSize?: string;
+    displayResult?: string | string[] | string[][] | null;
+  }) => (
+    <div data-testid="random-flash" data-font-size={fontSize ?? ''}>
+      {(displayResult as string) ?? 'Ready?'}
+    </div>
+  ),
+}));
+
 // Helper to render widget
 const renderWidget = (widget: WidgetData) => {
   return render(<RandomWidget widget={widget} />);
@@ -106,5 +123,114 @@ describe('RandomWidget', () => {
     renderWidget(emptyWidget);
     const resetButton = screen.getByTitle('Reset student pool');
     expect(resetButton).toBeDisabled();
+  });
+
+  describe('text scaling', () => {
+    // Shorter words get a larger cqw value; longer words get a smaller one.
+    // Formula: round(130 / maxWordLength) cqw, capped at [4, 40].
+    // 'Alice'       →  5 chars → round(130/5)  = 26 → 'min(26cqw, 20cqh)'
+    // 'Christopher' → 11 chars → round(130/11) = 12 → 'min(12cqw, 20cqh)'
+
+    it('assigns a smaller font size for longer words than for shorter ones', () => {
+      const shortWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Alice',
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Alice',
+        },
+      } as unknown as WidgetData;
+
+      const longWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Christopher',
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Christopher',
+        },
+      } as unknown as WidgetData;
+
+      const { unmount } = renderWidget(shortWidget);
+      const shortFontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+      unmount();
+
+      renderWidget(longWidget);
+      const longFontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      expect(shortFontSize).toBe('min(26cqw, 20cqh)');
+      expect(longFontSize).toBe('min(12cqw, 20cqh)');
+    });
+
+    it('sizes font by the longest WORD, not the full name length', () => {
+      // "Christopher Robertson" has a full-name length of 22 but its longest
+      // individual word is "Christopher" (11 chars).  A roster containing only
+      // "Christopher" produces the same maxWordLength and therefore the same
+      // font size — confirming we measure words, not full names.
+      const multiWordWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Christopher',
+          lastNames: 'Robertson',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Christopher Robertson',
+        },
+      } as unknown as WidgetData;
+
+      const singleWordWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Christopher',
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Christopher',
+        },
+      } as unknown as WidgetData;
+
+      const { unmount } = renderWidget(multiWordWidget);
+      const multiFontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+      unmount();
+
+      renderWidget(singleWordWidget);
+      const singleFontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      // Both rosters have a max word length of 11 → same font size
+      expect(multiFontSize).toBe('min(12cqw, 20cqh)');
+      expect(singleFontSize).toBe('min(12cqw, 20cqh)');
+    });
+
+    it('produces a valid font size for words longer than 18 characters', () => {
+      // 34-char word → round(130/34) = 4 (the minimum) → 'min(4cqw, 20cqh)'
+      const longWordWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Supercalifragilisticexpialidocious',
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Supercalifragilisticexpialidocious',
+        },
+      } as unknown as WidgetData;
+
+      renderWidget(longWordWidget);
+      const fontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      expect(fontSize).toBe('min(4cqw, 20cqh)');
+    });
   });
 });

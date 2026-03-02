@@ -468,10 +468,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
           {responses.length > 0 && (
             <div className="space-y-2 mt-2">
               <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
-                <span className="text-brand-blue-primary/60 font-black uppercase tracking-widest text-[10px]">
+                <span
+                  className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
                   Roster Progress
                 </span>
-                <span className="text-brand-blue-primary/40 font-bold text-[10px]">
+                <span
+                  className="text-brand-blue-primary/40 font-bold"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
                   {responses.length} ACTIVE
                 </span>
               </div>
@@ -645,7 +651,8 @@ const StudentRow: React.FC<{
 
         {warnings > 0 && (
           <span
-            className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] uppercase font-black shrink-0 animate-in zoom-in duration-300"
+            className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded uppercase font-black shrink-0 animate-in zoom-in duration-300"
+            style={{ fontSize: 'min(10px, 3cqmin)' }}
             title={`${warnings} Tab Switch Warning(s)`}
           >
             <AlertTriangle className="w-3 h-3" />

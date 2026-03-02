@@ -70,6 +70,39 @@ describe('urlHelpers', () => {
       );
     });
 
+    it('converts YouTube Live URLs to embed URLs', () => {
+      expect(
+        convertToEmbedUrl('https://www.youtube.com/live/dQw4w9WgXcQ')
+      ).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ');
+      expect(
+        convertToEmbedUrl(
+          'https://www.youtube.com/live/dQw4w9WgXcQ?feature=share'
+        )
+      ).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ');
+    });
+
+    describe('Google Drive', () => {
+      const fileId = 'abc123XYZ_file-id';
+
+      it('converts file view links to preview links', () => {
+        expect(
+          convertToEmbedUrl(`https://drive.google.com/file/d/${fileId}/view`)
+        ).toBe(`https://drive.google.com/file/d/${fileId}/preview`);
+      });
+
+      it('handles file edit links', () => {
+        expect(
+          convertToEmbedUrl(`https://drive.google.com/file/d/${fileId}/edit`)
+        ).toBe(`https://drive.google.com/file/d/${fileId}/preview`);
+      });
+
+      it('converts open?id= links to preview links', () => {
+        expect(
+          convertToEmbedUrl(`https://drive.google.com/open?id=${fileId}`)
+        ).toBe(`https://drive.google.com/file/d/${fileId}/preview`);
+      });
+    });
+
     describe('Google Docs', () => {
       const docId = '1abc123_XYZ';
 

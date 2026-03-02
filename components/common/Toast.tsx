@@ -14,6 +14,10 @@ interface ToastProps {
   message: string;
   type?: ToastType;
   onClose?: () => void;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
   className?: string;
 }
 
@@ -21,6 +25,7 @@ export const Toast: React.FC<ToastProps> = ({
   message,
   type = 'info',
   onClose,
+  action,
   className = '',
 }) => {
   const getIcon = () => {
@@ -61,7 +66,20 @@ export const Toast: React.FC<ToastProps> = ({
       role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
     >
       {getIcon()}
-      <span className="text-sm font-medium">{message}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium">{message}</span>
+        {action && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              action.onClick();
+            }}
+            className="text-xxs font-black uppercase tracking-widest px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded transition-all text-left w-fit"
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
       {onClose && (
         <button
           onClick={onClose}

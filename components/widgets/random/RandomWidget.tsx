@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../../context/useDashboard';
 import {
   WidgetData,
@@ -7,10 +8,31 @@ import {
   TimeToolConfig,
   RandomGroup,
   SharedGroup,
+  ScoreboardTeam,
 } from '../../../types';
 import { Button } from '../../common/Button';
-import { Users, RefreshCw, Layers, Target, RotateCcw } from 'lucide-react';
+import {
+  Users,
+  RefreshCw,
+  Layers,
+  Target,
+  RotateCcw,
+  Trophy,
+} from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
+
+const TEAM_COLORS = [
+  'bg-blue-500',
+  'bg-red-500',
+  'bg-green-500',
+  'bg-yellow-500',
+  'bg-purple-500',
+  'bg-pink-500',
+  'bg-indigo-500',
+  'bg-orange-500',
+  'bg-teal-600',
+  'bg-cyan-500',
+];
 import { RandomWheel } from './RandomWheel';
 import { RandomSlots } from './RandomSlots';
 import { RandomFlash } from './RandomFlash';
@@ -18,9 +40,12 @@ import { RandomFlash } from './RandomFlash';
 import { WidgetLayout } from '../WidgetLayout';
 
 export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+  const { t } = useTranslation();
   const {
     updateWidget,
     updateDashboard,
+    addWidget,
+    addToast,
     rosters,
     activeRosterId,
     activeDashboard,
@@ -146,6 +171,82 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
     setDisplayResult('');
     setRotation(0);
+  };
+
+  const handleSendToScoreboard = () => {
+    // 1. Normalize current groups from displayResult
+    const rawResult = displayResult;
+    let groups: RandomGroup[] | null = null;
+
+    if (Array.isArray(rawResult) && rawResult.length > 0) {
+      const first = rawResult[0];
+      // Case A: Already in RandomGroup[] shape
+      if (
+        typeof first === 'object' &&
+        first !== null &&
+        'names' in (first as RandomGroup)
+      ) {
+        groups = rawResult as RandomGroup[];
+      }
+      // Case B: Legacy string[][] shape – convert to RandomGroup[]
+      else if (Array.isArray(first)) {
+        const stringGroups = rawResult as string[][];
+        groups = stringGroups.map((names): RandomGroup => ({ names }));
+      }
+    }
+
+    if (!groups || groups.length === 0) {
+      return;
+    }
+
+    // 2. Map to ScoreboardTeam
+    const newTeams: ScoreboardTeam[] = groups.map((group, index) => {
+      let name = `Group ${index + 1}`;
+      // If linked to shared group, use that name
+      if (group.id && activeDashboard?.sharedGroups) {
+        const shared = activeDashboard.sharedGroups.find(
+          (g) => g.id === group.id
+        );
+        if (shared) name = shared.name;
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        name,
+        score: 0,
+        color: TEAM_COLORS[index % TEAM_COLORS.length],
+        linkedGroupId: group.id,
+      };
+    });
+
+    // 3. Find or Create Scoreboard Widget
+    const existingScoreboard = activeDashboard?.widgets.find(
+      (w) => w.type === 'scoreboard'
+    );
+
+    if (existingScoreboard) {
+      updateWidget(existingScoreboard.id, {
+        config: {
+          ...existingScoreboard.config,
+          teams: newTeams,
+        },
+      });
+      addToast(
+        t('widgets.random.scoreboardUpdated', { count: newTeams.length }),
+        'success'
+      );
+    } else {
+      // Create new widget
+      addWidget('scoreboard', {
+        config: {
+          teams: newTeams,
+        },
+      });
+      addToast(
+        t('widgets.random.scoreboardCreated', { count: newTeams.length }),
+        'success'
+      );
+    }
   };
 
   const handlePick = async () => {
@@ -350,24 +451,29 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
-  const maxNameLength = useMemo(
-    () => students.reduce((max, name) => Math.max(max, name.length), 0),
+  // Use the longest individual word (not full name length) so that a single
+  // word is never forced to wrap. cqw (container-width-relative) units ensure
+  // the chosen font size fits within the widget's actual width regardless of
+  // the widget's aspect ratio.
+  const maxWordLength = useMemo(
+    () =>
+      students
+        .flatMap((name) => name.trim().split(/\s+/))
+        .reduce((maxLen, word) => Math.max(maxLen, word.length), 0),
     [students]
   );
 
-  // Scale font down for longer names so they always fit without resizing the widget
+  // 130/N cqw guarantees the N-char word fits (uppercase bold, ~0.65
+  // char-width ratio, 15 % safety margin). Derived dynamically so the
+  // guarantee holds for any word length, not just those in a lookup table.
+  // Capped at 40cqw for very short words and 4cqw as an absolute minimum.
+  // The cqh cap (20cqh) prevents vertical overflow in very wide-but-short
+  // widgets where a pure cqw value could produce an impossibly tall font.
   const resFontSize = useMemo(() => {
-    const sizeSteps = [
-      { maxLength: 6, size: '45cqmin' },
-      { maxLength: 10, size: '35cqmin' },
-      { maxLength: 14, size: '28cqmin' },
-      { maxLength: 18, size: '22cqmin' },
-      { maxLength: 24, size: '18cqmin' },
-    ];
-
-    const step = sizeSteps.find((s) => maxNameLength <= s.maxLength);
-    return step ? step.size : '14cqmin';
-  }, [maxNameLength]);
+    if (maxWordLength === 0) return 'min(26cqw, 20cqh)';
+    const cqwValue = Math.min(40, Math.max(4, Math.round(130 / maxWordLength)));
+    return `min(${cqwValue}cqw, 20cqh)`;
+  }, [maxWordLength]);
 
   const renderSinglePick = () => {
     if (visualStyle === 'wheel' && students.length > 0) {
@@ -380,7 +486,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           wheelSize={wheelSize}
           displayResult={displayResult as string | string[] | string[][] | null}
           isSpinning={isSpinning}
-          resultFontSize={32} // Internal scaling handled by RandomWheel
+          resultFontSize={resFontSize}
         />
       );
     }
@@ -678,14 +784,47 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </div>
       }
       footer={
-        <div className="w-full px-2 pb-2">
+        <div
+          className="w-full px-2 pb-2 flex"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          {mode === 'groups' &&
+            Array.isArray(displayResult) &&
+            displayResult.length > 0 &&
+            ((typeof displayResult[0] === 'object' &&
+              displayResult[0] !== null &&
+              'names' in displayResult[0]) ||
+              Array.isArray(displayResult[0])) && (
+              <Button
+                variant="secondary"
+                shape="pill"
+                onClick={handleSendToScoreboard}
+                aria-label={t('widgets.random.sendToScoreboard')}
+                style={{
+                  width: 'min(48px, 12cqmin)',
+                  height: 'min(48px, 12cqmin)',
+                  padding: 0,
+                }}
+                className="flex-shrink-0"
+                title={t('widgets.random.sendToScoreboard')}
+                icon={
+                  <Trophy
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                    className="text-amber-500"
+                  />
+                }
+              />
+            )}
           <Button
             variant="hero"
             size="lg"
             shape="pill"
             onClick={handlePick}
             disabled={isSpinning}
-            className="w-full h-12"
+            className="flex-1 h-12"
             icon={
               <RefreshCw
                 className={`w-4 h-4 ${isSpinning ? 'animate-spin' : ''}`}

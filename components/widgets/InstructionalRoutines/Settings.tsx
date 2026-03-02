@@ -37,7 +37,7 @@ export const InstructionalRoutinesSettings: React.FC<{
             config: { ...config, selectedRoutineId: null },
           })
         }
-        className="w-full py-2.5 bg-brand-blue-lighter text-brand-blue-primary rounded-xl text-xxs  uppercase tracking-widest hover:bg-brand-blue-light/20 transition-colors"
+        className="w-full py-2.5 bg-brand-blue-lighter text-brand-blue-primary rounded-xl text-xxs uppercase tracking-widest hover:bg-brand-blue-light/20 transition-colors"
       >
         Switch Routine Template
       </button>
@@ -100,7 +100,7 @@ export const InstructionalRoutinesSettings: React.FC<{
                           });
                         }}
                         placeholder="Keyword"
-                        className="w-16 bg-transparent border-none p-0 text-[9px] font-bold text-emerald-600 focus:ring-0"
+                        className="w-16 bg-transparent border-none p-0 text-xxs font-bold text-emerald-600 focus:ring-0"
                       />
                     </div>
                   </div>
@@ -117,7 +117,7 @@ export const InstructionalRoutinesSettings: React.FC<{
                 }}
                 rows={2}
                 placeholder="Enter student direction..."
-                className="w-full text-[11px]  bg-transparent border-none focus:ring-0 p-0 leading-tight resize-none text-slate-800"
+                className="w-full text-xxs bg-transparent border-none focus:ring-0 p-0 leading-tight resize-none text-slate-800"
               />
               <div className="flex items-center gap-2">
                 <span className="text-xxxs font-bold text-slate-400 uppercase">
@@ -198,7 +198,7 @@ export const InstructionalRoutinesSettings: React.FC<{
               },
             })
           }
-          className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary transition-all flex items-center justify-center gap-2 text-xxs  uppercase"
+          className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-brand-blue-primary hover:text-brand-blue-primary transition-all flex items-center justify-center gap-2 text-xxs uppercase"
         >
           <Plus className="w-4 h-4" /> Add Next Step
         </button>

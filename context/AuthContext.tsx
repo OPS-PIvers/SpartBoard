@@ -29,6 +29,7 @@ import {
 } from '../types';
 import { AuthContext } from './AuthContextValue';
 import { getBuildingGradeLevels } from '../config/buildings';
+import i18n from '../i18n';
 
 /**
  * IMPORTANT: Authentication bypass / mock user mode
@@ -76,6 +77,7 @@ const MOCK_ACCESS_TOKEN = 'mock-google-access-token';
 const MOCK_TIME = new Date().toISOString(); // Fixed time at module load
 
 const GOOGLE_ACCESS_TOKEN_KEY = 'spart_google_access_token';
+const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
 
 /**
  * Mock user object for bypass mode.
@@ -134,7 +136,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
     () => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
-      return localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      const token = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+      const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
+
+      // If token is expired or about to expire (within 5 mins), don't load it
+      if (
+        token &&
+        expiry &&
+        Date.now() > parseInt(expiry, 10) - 5 * 60 * 1000
+      ) {
+        localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+        localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+        return null;
+      }
+      return token;
     }
   );
   // Note: In bypass mode we initialize `loading` to false because the mock user
@@ -151,8 +166,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     GlobalFeaturePermission[]
   >([]);
   const [selectedBuildings, setSelectedBuildingsState] = useState<string[]>([]);
-  // Tracks the latest setSelectedBuildings call to detect and suppress stale writes
+  // Initialise from i18n.language. If i18n.init() hasn't resolved its async
+  // language detection yet, the useEffect below will sync the state once it fires.
+  const [language, setLanguageState] = useState<string>(
+    () => i18n.language ?? 'en'
+  );
+  // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
+
+  // Keep language state in sync with i18next, including the async startup
+  // detection that may resolve after the first render.
+  useEffect(() => {
+    const handleLanguageChange = (lng: string) => {
+      setLanguageState(lng);
+    };
+    i18n.on('languageChanged', handleLanguageChange);
+    // Catch cases where detection finished before this effect mounted
+    if (i18n.language && i18n.language !== language) {
+      setLanguageState(i18n.language);
+    }
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+    // language intentionally omitted — we only want to subscribe once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Check for Google token expiry periodically
+  useEffect(() => {
+    if (isAuthBypass) return;
+
+    const checkToken = () => {
+      const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      if (expiry && Date.now() > parseInt(expiry, 10)) {
+        setGoogleAccessToken(null);
+        localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+        localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      }
+    };
+
+    const interval = setInterval(checkToken, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Persist googleAccessToken to localStorage
   useEffect(() => {
@@ -261,23 +316,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
         const rawData: unknown = profileDoc.data();
-        if (
-          typeof rawData === 'object' &&
-          rawData !== null &&
-          'selectedBuildings' in rawData
-        ) {
-          const { selectedBuildings } = rawData as {
-            selectedBuildings: unknown;
-          };
-          if (
-            Array.isArray(selectedBuildings) &&
-            selectedBuildings.every((id) => typeof id === 'string')
-          ) {
-            setSelectedBuildingsState(selectedBuildings);
-            return;
+        if (typeof rawData === 'object' && rawData !== null) {
+          const data = rawData as Record<string, unknown>;
+
+          // Load selectedBuildings
+          if ('selectedBuildings' in data) {
+            const { selectedBuildings } = data as {
+              selectedBuildings: unknown;
+            };
+            if (
+              Array.isArray(selectedBuildings) &&
+              selectedBuildings.every((id) => typeof id === 'string')
+            ) {
+              setSelectedBuildingsState(selectedBuildings);
+            } else {
+              setSelectedBuildingsState([]);
+            }
+          } else {
+            setSelectedBuildingsState([]);
           }
+
+          // Load language preference
+          if (
+            'language' in data &&
+            typeof data.language === 'string' &&
+            data.language.length > 0
+          ) {
+            const savedLang = data.language;
+            setLanguageState(savedLang);
+            void i18n.changeLanguage(savedLang);
+          }
+          return;
         }
-        // Profile exists but has no valid selectedBuildings; clear any previous selection
+        // Profile exists but has no valid data; clear any previous selection
         setSelectedBuildingsState([]);
       } catch (error) {
         if (!isCancelled) {
@@ -308,6 +379,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Only log if this is still the latest write (not superseded by a newer one)
         if (myToken === writeTokenRef.current) {
           console.error('Error saving user profile:', error);
+        }
+      }
+    },
+    [user]
+  );
+
+  const setLanguage = useCallback(
+    async (lang: string) => {
+      // i18n.changeLanguage() triggers the 'languageChanged' event, which the
+      // effect above uses to update React state — no manual setLanguageState needed.
+      void i18n.changeLanguage(lang);
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { language: lang },
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving language preference:', error);
         }
       }
     },
@@ -405,6 +498,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn('Bypassing Google Sign In');
       setUser(MOCK_USER);
       setGoogleAccessToken(MOCK_ACCESS_TOKEN);
+      localStorage.setItem(
+        GOOGLE_TOKEN_EXPIRY_KEY,
+        (Date.now() + 3600 * 1000).toString()
+      );
       setIsAdmin(true); // Restore admin status on sign in
       return;
     }
@@ -412,11 +509,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential) {
-        setGoogleAccessToken(credential.accessToken ?? null);
+        const token = credential.accessToken ?? null;
+        setGoogleAccessToken(token);
+        if (token) {
+          // Tokens usually last 1 hour (3600s). Save expiry time.
+          localStorage.setItem(
+            GOOGLE_TOKEN_EXPIRY_KEY,
+            (Date.now() + 3600 * 1000).toString()
+          );
+        }
       }
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
+    }
+  };
+
+  const refreshGoogleToken = async (): Promise<string | null> => {
+    if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+
+    try {
+      // Re-running signInWithPopup with the same provider will refresh the credential.
+      // If the user is already signed into Chrome and has authorized, this
+      // is usually very quick and sometimes doesn't even show a full UI interaction.
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        const token = credential.accessToken ?? null;
+        setGoogleAccessToken(token);
+        if (token) {
+          localStorage.setItem(
+            GOOGLE_TOKEN_EXPIRY_KEY,
+            (Date.now() + 3600 * 1000).toString()
+          );
+        }
+        return token;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error refreshing Google token:', error);
+      return null;
     }
   };
 
@@ -454,6 +586,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         selectedBuildings,
         userGradeLevels,
         setSelectedBuildings,
+        language,
+        setLanguage,
+        refreshGoogleToken,
       }}
     >
       {children}

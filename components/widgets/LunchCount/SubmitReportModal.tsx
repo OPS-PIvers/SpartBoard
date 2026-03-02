@@ -147,7 +147,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                 <span className="text-xxs font-black text-orange-600 uppercase">
                   Hot Lunch
                 </span>
-                <span className="text-[11px] font-bold text-orange-800 line-clamp-1">
+                <span className="text-xxs font-bold text-orange-800 line-clamp-1">
                   {data.hotLunchName}
                 </span>
               </div>
@@ -161,7 +161,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                 <span className="text-xxs font-black text-emerald-600 uppercase">
                   Bento Box
                 </span>
-                <span className="text-[11px] font-bold text-emerald-800 line-clamp-1">
+                <span className="text-xxs font-bold text-emerald-800 line-clamp-1">
                   {data.bentoBoxName}
                 </span>
               </div>

@@ -112,6 +112,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./SentenceStemsWidget'),
     'SentenceStemsWidget'
   ),
+  breathing: lazyNamed(
+    () => import('./Breathing/BreathingWidget'),
+    'BreathingWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -172,6 +176,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfSettings'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidgetSettings'),
+  breathing: lazyNamed(
+    () => import('./Breathing/BreathingSettings'),
+    'BreathingSettings'
+  ),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -418,6 +426,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   },
   'sentence-stems': {
     baseWidth: 300,
+    baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  breathing: {
+    baseWidth: 400,
     baseHeight: 400,
     canSpread: true,
     skipScaling: true,

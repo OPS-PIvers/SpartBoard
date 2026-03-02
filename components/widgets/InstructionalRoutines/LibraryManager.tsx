@@ -17,7 +17,18 @@ import {
 import { IconPicker } from './IconPicker';
 import { ROUTINE_COLORS, ROUTINE_STEP_COLORS } from '../../../config/colors';
 import { ALL_GRADE_LEVELS } from '../../../config/widgetGradeLevels';
+import { TOOLS } from '../../../config/tools';
+import { WidgetType } from '../../../types';
 import { httpsCallable } from 'firebase/functions';
+
+// Derive widget types from TOOLS registry, excluding catalyst-related widgets and internal tools
+const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
+  (tool) =>
+    !tool.type.startsWith('catalyst') &&
+    tool.type !== 'instructionalRoutines' &&
+    tool.type !== 'record' &&
+    tool.type !== 'magic'
+).map((tool) => tool.type as WidgetType);
 import { functions } from '../../../config/firebase';
 import { useAuth } from '../../../context/useAuth';
 import { useStorage } from '../../../hooks/useStorage';
@@ -239,7 +250,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 }
               />
               <select
-                value={routine.color || 'blue'}
+                value={routine.color ?? 'blue'}
                 onChange={(e) =>
                   onChange({
                     ...routine,
@@ -258,10 +269,10 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xxxs font-black uppercase text-slate-400 ml-1">
-              Structure & Audience
+              Structure, Audience & Layout
             </label>
             <div className="flex gap-2">
               <select
@@ -292,6 +303,20 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 <option value="student">For Students</option>
                 <option value="teacher">For Teachers</option>
               </select>
+              <select
+                value={routine.layout ?? 'list'}
+                onChange={(e) =>
+                  onChange({
+                    ...routine,
+                    layout: e.target.value as 'list' | 'grid' | 'hero',
+                  })
+                }
+                className="bg-slate-50 border-none rounded-xl px-2 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 flex-1"
+              >
+                <option value="list">List Layout</option>
+                <option value="grid">Grid Layout</option>
+                <option value="hero">Hero Layout</option>
+              </select>
             </div>
           </div>
           <div className="space-y-1">
@@ -305,7 +330,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   <button
                     key={level}
                     onClick={() => {
-                      const current = routine.gradeLevels || [];
+                      const current = routine.gradeLevels ?? [];
                       const next = isSelected
                         ? current.filter((l) => l !== level)
                         : [...current, level];
@@ -330,7 +355,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                         grades: gradesStr,
                       });
                     }}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                    className={`px-2 py-1 rounded-lg text-xxs font-black uppercase transition-all ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-sm'
                         : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
@@ -480,7 +505,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                       });
                     }}
                     placeholder="Label"
-                    className="w-16 bg-white border-none rounded px-2 py-0.5 text-[9px] font-bold text-emerald-600"
+                    className="w-16 bg-white border-none rounded px-2 py-0.5 text-xxs font-bold text-emerald-600"
                   />
                   <select
                     value={step.color ?? 'blue'}
@@ -492,7 +517,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                         steps: nextSteps,
                       });
                     }}
-                    className="bg-white border-none rounded px-2 py-0.5 text-[9px] font-bold text-slate-600"
+                    className="bg-white border-none rounded px-2 py-0.5 text-xxs font-bold text-slate-600"
                   >
                     {ROUTINE_STEP_COLORS.map((c) => (
                       <option key={c} value={c}>
@@ -513,8 +538,41 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   }}
                   rows={1}
                   placeholder="Instruction text..."
-                  className="w-full text-[11px] font-bold bg-white border-none rounded-lg px-2 py-1 leading-tight resize-none text-slate-800"
+                  className="w-full text-xxs font-bold bg-white border-none rounded-lg px-2 py-1 leading-tight resize-none text-slate-800"
                 />
+                <div className="flex items-center gap-2 mt-1 bg-white/50 p-1.5 rounded-lg border border-slate-100">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    Connect Widget:
+                  </label>
+                  <select
+                    value={step.attachedWidget?.type ?? ''}
+                    onChange={(e) => {
+                      const nextSteps = [...routine.steps];
+                      const val = e.target.value;
+                      if (!val) {
+                        nextSteps[i] = { ...step, attachedWidget: undefined };
+                      } else {
+                        const tool = TOOLS.find((t) => t.type === val);
+                        nextSteps[i] = {
+                          ...step,
+                          attachedWidget: {
+                            type: val,
+                            label: tool?.label ?? val,
+                          },
+                        };
+                      }
+                      onChange({ ...routine, steps: nextSteps });
+                    }}
+                    className="bg-white border border-slate-200 rounded px-2 py-0.5 text-[10px] font-bold text-slate-700 flex-1"
+                  >
+                    <option value="">None</option>
+                    {WIDGET_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {TOOLS.find((tool) => tool.type === t)?.label ?? t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <button
                 onClick={() => {

@@ -158,7 +158,9 @@ describe('QuizImporter', () => {
     });
 
     // Check if title is populated
-    expect(screen.getByDisplayValue('Solar System Quiz')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Solar System Quiz')).toBeInTheDocument();
+    });
 
     // Verify question text
     expect(

@@ -106,3 +106,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 1.  Added a new `dark` variant to `components/common/Button.tsx` (`bg-slate-800`) to support "neutral" actions like Google Drive integration.
 2.  Refactored `CategoryEditor` and `RoutineEditor` to use `<Button variant="primary">` (Save) and `<Button variant="secondary">` (Cancel), unifying the color palette to Brand Blue.
 3.  Refactored `BackgroundManager` to use `<Button variant="dark">`, `<Button variant="secondary">`, and `<Button variant="primary">`, replacing custom implementations.
+
+## 2026-02-16 - Micro-Typography Standardization
+
+**Drift:** Identified multiple hardcoded font sizes (`text-[10px]`, `text-[11px]`, `text-[7px]`, `text-[8px]`, `text-[9px]`) across components, bypassing the design system's `text-xxs` and `text-xxxs` tokens.
+**Fix:** Refactored all instances to use standard Tailwind utility classes (`text-xxs` for 10px, `text-xxxs` for 8px) to enforce consistency.

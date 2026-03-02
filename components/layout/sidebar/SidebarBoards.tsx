@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, Download } from 'lucide-react';
 import {
   DndContext,
@@ -32,6 +33,7 @@ interface DashboardData {
 }
 
 export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
+  const { t } = useTranslation();
   const {
     dashboards,
     activeDashboard,
@@ -82,13 +84,13 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
 
   const handleShare = async (db?: Dashboard) => {
     if (!canAccessFeature('dashboard-sharing')) {
-      addToast('Board sharing is currently disabled', 'error');
+      addToast(t('toasts.boardSharingDisabled'), 'error');
       return;
     }
     const target = db ?? activeDashboard;
     if (!target) return;
 
-    addToast('Generating share link...', 'info');
+    addToast(t('toasts.generatingShareLink'), 'info');
 
     try {
       const shareId = await shareDashboard(target);
@@ -96,32 +98,32 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
 
       try {
         await navigator.clipboard.writeText(url);
-        addToast('Link copied to clipboard!', 'success');
+        addToast(t('toasts.linkCopied'), 'success');
       } catch (clipErr) {
         console.warn(
           'Initial clipboard write failed, likely focus issue:',
           clipErr
         );
-        addToast('Board is now shared! Link ready.', 'success');
+        addToast(t('toasts.boardShared'), 'success');
       }
     } catch (err) {
       console.error('Share failed:', err);
-      addToast('Failed to generate share link', 'error');
+      addToast(t('toasts.shareFailed'), 'error');
     }
   };
 
   const handleImport = () => {
-    const data = prompt('Paste your board data here:');
+    const data = prompt(t('sidebar.boards.enterBoardData'));
     if (data) {
       try {
         const parsed = JSON.parse(data) as DashboardData;
         createNewDashboard(
-          `Imported: ${parsed.name}`,
+          `${t('sidebar.boards.imported')}: ${parsed.name}`,
           parsed as unknown as Dashboard
         );
-        addToast('Board imported successfully', 'success');
+        addToast(t('toasts.boardImported'), 'success');
       } catch {
-        addToast('Invalid board data', 'error');
+        addToast(t('toasts.invalidBoardData'), 'error');
       }
     }
   };
@@ -145,7 +147,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
           >
             <Plus className="w-4 h-4" />
             <span className="text-xxs font-bold uppercase tracking-wider">
-              New Board
+              {t('sidebar.boards.newBoard')}
             </span>
           </button>
           {canAccessFeature('dashboard-import') && (
@@ -155,7 +157,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
             >
               <Download className="w-4 h-4" />
               <span className="text-xxs font-bold uppercase tracking-wider">
-                Import
+                {t('sidebar.boards.import')}
               </span>
             </button>
           )}
@@ -163,7 +165,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
 
         <div className="space-y-4">
           <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
-            My Boards
+            {t('sidebar.boards.myBoards')}
           </h3>
           <div className="grid grid-cols-1 gap-2">
             <DndContext
@@ -200,10 +202,10 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
           <div className="fixed inset-0 z-popover flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
               <h2 className="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wider">
-                Rename Dashboard
+                {t('sidebar.boards.renameDashboard')}
               </h2>
               <p className="text-xs text-slate-500 mb-4">
-                Enter a new name for your dashboard.
+                {t('sidebar.boards.enterNewName')}
               </p>
               <input
                 type="text"
@@ -235,7 +237,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                   onClick={() => setEditingDashboard(null)}
                   className="px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -249,7 +251,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                   }}
                   className="px-3 py-2 text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-sm transition"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
               </div>
             </div>
@@ -262,10 +264,10 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
           <div className="fixed inset-0 z-popover flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
               <h2 className="text-sm font-bold text-slate-800 mb-2 uppercase tracking-wider">
-                New Board
+                {t('sidebar.boards.newBoardTitle')}
               </h2>
               <p className="text-xs text-slate-500 mb-4">
-                Enter a name for your new board.
+                {t('sidebar.boards.enterName')}
               </p>
               <input
                 type="text"
@@ -282,7 +284,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                   }
                 }}
                 autoFocus
-                placeholder="Board name"
+                placeholder={t('sidebar.boards.boardName')}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary mb-4"
               />
               <div className="flex justify-end gap-2">
@@ -290,7 +292,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                   onClick={() => setShowNewDashboardModal(false)}
                   className="px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => {
@@ -301,7 +303,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                   }}
                   className="px-3 py-2 text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-sm transition"
                 >
-                  Create
+                  {t('sidebar.boards.create')}
                 </button>
               </div>
             </div>

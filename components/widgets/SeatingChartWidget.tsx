@@ -4,7 +4,9 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useLayoutEffect,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '../../context/useDashboard';
 import {
   WidgetData,
@@ -115,11 +117,12 @@ interface RubberBand {
   y2: number;
 }
 
-const EMPTY_ARRAY: string[] = [];
+const EMPTY_ARRAY: { id: string; label: string }[] = [];
 
 export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
@@ -279,19 +282,47 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Optimization: Pre-compute assignments map to avoid O(N) filtering and new array references on every render.
   // Assignments now map studentIds -> furnitureId, so we resolve the studentId to the display label here.
-  const assignedStudentLabelsByFurnitureId = useMemo(() => {
-    const map = new Map<string, string[]>();
+  const assignedStudentsByFurnitureId = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }[]>();
     Object.entries(assignments).forEach(([studentId, furnitureId]) => {
       const label = studentLabelById.get(studentId) ?? studentId;
       const list = map.get(furnitureId);
       if (list) {
-        list.push(label);
+        list.push({ id: studentId, label });
       } else {
-        map.set(furnitureId, [label]);
+        map.set(furnitureId, [{ id: studentId, label }]);
       }
     });
     return map;
   }, [assignments, studentLabelById]);
+
+  // --- OPTIMIZATION START ---
+  // Store latest state/props in ref to avoid re-creating handlers.
+  // This ensures that passing these handlers to memoized children (FurnitureItemRenderer)
+  // does not cause unnecessary re-renders when other unrelated state changes.
+  const latestRef = useRef({
+    config,
+    furniture,
+    assignments,
+    mode,
+    selectedIds,
+    selectedStudent,
+    studentLabelById,
+  });
+
+  // Keep ref up to date
+  useLayoutEffect(() => {
+    Object.assign(latestRef.current, {
+      config,
+      furniture,
+      assignments,
+      mode,
+      selectedIds,
+      selectedStudent,
+      studentLabelById,
+    });
+  });
+  // --- OPTIMIZATION END ---
 
   // --- SCALE HELPER ---
   const getCanvasScale = useCallback((): number => {
@@ -352,19 +383,21 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   const handleRotate = useCallback(
     (id: string, delta: number) => {
-      const next = furniture.map((f) =>
+      const { furniture: curFurniture, config: curConfig } = latestRef.current;
+      const next = curFurniture.map((f) =>
         f.id === id ? { ...f, rotation: (f.rotation + delta + 360) % 360 } : f
       );
       updateWidget(widget.id, {
-        config: { ...config, furniture: next },
+        config: { ...curConfig, furniture: next },
       });
     },
-    [furniture, widget.id, config, updateWidget]
+    [widget.id, updateWidget]
   );
 
   const duplicateFurniture = useCallback(
     (id: string) => {
-      const item = furniture.find((f) => f.id === id);
+      const { furniture: curFurniture, config: curConfig } = latestRef.current;
+      const item = curFurniture.find((f) => f.id === id);
       if (!item) return;
 
       const newItem: FurnitureItem = {
@@ -375,26 +408,31 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       };
 
       updateWidget(widget.id, {
-        config: { ...config, furniture: [...furniture, newItem] },
+        config: { ...curConfig, furniture: [...curFurniture, newItem] },
       });
       setSelectedIds(new Set([newItem.id]));
     },
-    [furniture, gridSize, widget.id, config, updateWidget]
+    [gridSize, widget.id, updateWidget]
   );
 
   const removeFurniture = useCallback(
     (id: string) => {
-      const next = furniture.filter((f) => f.id !== id);
-      const nextAssignments = { ...assignments };
-      Object.entries(assignments).forEach(([student, furnId]) => {
+      const {
+        furniture: curFurniture,
+        assignments: curAssignments,
+        config: curConfig,
+      } = latestRef.current;
+      const next = curFurniture.filter((f) => f.id !== id);
+      const nextAssignments = { ...curAssignments };
+      Object.entries(curAssignments).forEach(([student, furnId]) => {
         if (furnId === id) delete nextAssignments[student];
       });
       updateWidget(widget.id, {
-        config: { ...config, furniture: next, assignments: nextAssignments },
+        config: { ...curConfig, furniture: next, assignments: nextAssignments },
       });
       setSelectedIds(new Set());
     },
-    [furniture, assignments, widget.id, config, updateWidget]
+    [widget.id, updateWidget]
   );
 
   // --- GROUP OPERATIONS (multi-select) ---
@@ -485,48 +523,56 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   const handleFurnitureClick = useCallback(
     (furnitureId: string) => {
+      const {
+        mode: curMode,
+        selectedStudent: curSelectedStudent,
+        studentLabelById: curStudentLabelById,
+        config: curConfig,
+        assignments: curAssignments,
+      } = latestRef.current;
+
       // Ctrl/Meta click was already handled in handlePointerDown — suppress here
       if (suppressNextClickRef.current) {
         suppressNextClickRef.current = false;
         return;
       }
 
-      if (mode === 'setup') {
+      if (curMode === 'setup') {
         // Regular click in setup mode: select only this item
         setSelectedIds(new Set([furnitureId]));
         return;
       }
-      if (mode === 'assign' && selectedStudent) {
+      if (curMode === 'assign' && curSelectedStudent) {
         updateWidget(widget.id, {
           config: {
-            ...config,
-            assignments: { ...assignments, [selectedStudent]: furnitureId },
+            ...curConfig,
+            assignments: {
+              ...curAssignments,
+              [curSelectedStudent]: furnitureId,
+            },
           },
         });
         setSelectedStudent(null);
         addToast(
-          `Assigned ${studentLabelById.get(selectedStudent) ?? selectedStudent}`,
+          `Assigned ${curStudentLabelById.get(curSelectedStudent) ?? curSelectedStudent}`,
           'success'
         );
       }
     },
-    [
-      mode,
-      selectedStudent,
-      studentLabelById,
-      widget.id,
-      config,
-      assignments,
-      updateWidget,
-      addToast,
-    ]
+    [widget.id, updateWidget, addToast]
   );
 
   // --- DRAG LOGIC (single + multi-item) ---
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, id: string) => {
-      if (mode !== 'setup') return;
+      const {
+        mode: curMode,
+        selectedIds: curSelectedIds,
+        furniture: curFurniture,
+      } = latestRef.current;
+
+      if (curMode !== 'setup') return;
       e.stopPropagation();
       e.preventDefault();
 
@@ -545,11 +591,11 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       // Determine the set of items to drag:
       // - if the clicked item is already selected, drag all selected items
       // - otherwise, select only the clicked item and drag it
-      const idsForDrag: Set<string> = selectedIds.has(id)
-        ? new Set(selectedIds)
+      const idsForDrag: Set<string> = curSelectedIds.has(id)
+        ? new Set(curSelectedIds)
         : new Set([id]);
 
-      if (!selectedIds.has(id)) {
+      if (!curSelectedIds.has(id)) {
         setSelectedIds(new Set([id]));
       }
 
@@ -559,7 +605,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
       // Capture the initial positions of every item in the drag set (single O(N) pass)
       const origPositions = new Map<string, { x: number; y: number }>();
-      furniture.forEach((item) => {
+      curFurniture.forEach((item) => {
         if (idsForDrag.has(item.id)) {
           origPositions.set(item.id, { x: item.x, y: item.y });
         }
@@ -587,27 +633,20 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
         window.removeEventListener('pointerup', handlePointerUp);
 
         // Commit all moved positions in a single update
-        const next = furniture.map((f) => {
+        const { furniture: upFurniture, config: upConfig } = latestRef.current;
+
+        const next = upFurniture.map((f) => {
           const pos = currentPositions.get(f.id);
           return pos ? { ...f, ...pos } : f;
         });
-        updateWidget(widget.id, { config: { ...config, furniture: next } });
+        updateWidget(widget.id, { config: { ...upConfig, furniture: next } });
         setDragState(null);
       };
 
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
     },
-    [
-      mode,
-      selectedIds,
-      furniture,
-      getCanvasScale,
-      gridSize,
-      widget.id,
-      config,
-      updateWidget,
-    ]
+    [getCanvasScale, gridSize, widget.id, updateWidget]
   );
 
   // --- RUBBER-BAND (canvas background drag to select) ---
@@ -686,7 +725,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     (e: React.PointerEvent, id: string) => {
       e.preventDefault();
       e.stopPropagation();
-      const item = furniture.find((f) => f.id === id);
+      const { furniture: curFurniture } = latestRef.current;
+      const item = curFurniture.find((f) => f.id === id);
       if (!item) return;
 
       const startX = e.clientX;
@@ -718,13 +758,14 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
 
-        const next = furniture.map((f) =>
+        const { furniture: upFurniture, config: upConfig } = latestRef.current;
+        const next = upFurniture.map((f) =>
           f.id === id
             ? { ...f, width: currentSize.w, height: currentSize.h }
             : f
         );
         updateWidget(widget.id, {
-          config: { ...config, furniture: next },
+          config: { ...upConfig, furniture: next },
         });
 
         setResizeState(null);
@@ -733,7 +774,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
     },
-    [furniture, getCanvasScale, gridSize, widget.id, config, updateWidget]
+    [getCanvasScale, gridSize, widget.id, updateWidget]
   );
 
   // --- ASSIGN LOGIC (Students) ---
@@ -742,30 +783,38 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     (e: React.DragEvent, furnitureId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      if (mode !== 'assign') return;
+      const {
+        mode: curMode,
+        assignments: curAssignments,
+        config: curConfig,
+      } = latestRef.current;
+
+      if (curMode !== 'assign') return;
 
       const studentId = e.dataTransfer.getData('studentId');
       if (!studentId) return;
 
-      if (assignments[studentId] === furnitureId) return;
+      if (curAssignments[studentId] === furnitureId) return;
 
       updateWidget(widget.id, {
         config: {
-          ...config,
-          assignments: { ...assignments, [studentId]: furnitureId },
+          ...curConfig,
+          assignments: { ...curAssignments, [studentId]: furnitureId },
         },
       });
     },
-    [mode, assignments, widget.id, config, updateWidget]
+    [widget.id, updateWidget]
   );
 
   const handleRemoveAssignment = useCallback(
     (studentId: string) => {
-      const next = { ...assignments };
+      const { assignments: curAssignments, config: curConfig } =
+        latestRef.current;
+      const next = { ...curAssignments };
       delete next[studentId];
-      updateWidget(widget.id, { config: { ...config, assignments: next } });
+      updateWidget(widget.id, { config: { ...curConfig, assignments: next } });
     },
-    [assignments, widget.id, config, updateWidget]
+    [widget.id, updateWidget]
   );
 
   const addAllRandomly = () => {
@@ -1157,7 +1206,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
             const resizeSize =
               resizeState?.id === item.id ? resizeState : undefined;
             const assignedStudents =
-              assignedStudentLabelsByFurnitureId.get(item.id) ?? EMPTY_ARRAY;
+              assignedStudentsByFurnitureId.get(item.id) ?? EMPTY_ARRAY;
             const isSelected = selectedIds.has(item.id) && mode === 'setup';
             const isSingleSelected = isSelected && selectedIds.size === 1;
 
@@ -1206,8 +1255,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
               </p>
               <p className="text-xs">
                 {template === 'freeform'
-                  ? 'Add furniture from the sidebar.'
-                  : 'Pick a template and click Apply Layout.'}
+                  ? t('widgets.seatingChart.emptyStateFreeform')
+                  : t('widgets.seatingChart.emptyStateTemplate')}
               </p>
             </div>
           )}

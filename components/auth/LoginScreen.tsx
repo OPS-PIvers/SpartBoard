@@ -1,10 +1,12 @@
 import { APP_NAME } from '../../config/constants';
 import React from 'react';
 import { LogIn, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/useAuth';
 
 export const LoginScreen: React.FC = () => {
   const { signInWithGoogle, loading } = useAuth();
+  const { t } = useTranslation();
   const [signingIn, setSigningIn] = React.useState(false);
 
   const handleSignIn = async () => {
@@ -30,7 +32,7 @@ export const LoginScreen: React.FC = () => {
       <div className="bg-white p-12 rounded-3xl shadow-2xl max-w-md w-full text-center">
         <h1 className="text-4xl font-black text-slate-800 mb-4">{APP_NAME}</h1>
         <p className="text-slate-500 mb-8 font-medium">
-          Sign in to access your boards
+          {t('login.signInToAccess')}
         </p>
         <button
           onClick={handleSignIn}
@@ -42,7 +44,7 @@ export const LoginScreen: React.FC = () => {
           ) : (
             <>
               <LogIn className="w-5 h-5" />
-              Sign in with Google
+              {t('login.signInWithGoogle')}
             </>
           )}
         </button>

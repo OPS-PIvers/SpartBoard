@@ -2,10 +2,15 @@ import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ExpectationsWidget, ExpectationsSettings } from './ExpectationsWidget';
 import { useDashboard } from '../../context/useDashboard';
+import { useAuth } from '../../context/useAuth';
 import { WidgetData, ExpectationsConfig } from '../../types';
 
 vi.mock('../../context/useDashboard', () => ({
   useDashboard: vi.fn(),
+}));
+
+vi.mock('../../context/useAuth', () => ({
+  useAuth: vi.fn(),
 }));
 
 const mockUpdateWidget = vi.fn();
@@ -33,6 +38,10 @@ describe('ExpectationsWidget', () => {
   beforeEach(() => {
     (useDashboard as Mock).mockReturnValue({
       updateWidget: mockUpdateWidget,
+    });
+    (useAuth as Mock).mockReturnValue({
+      featurePermissions: [],
+      selectedBuildings: [],
     });
   });
 

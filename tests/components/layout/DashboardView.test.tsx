@@ -20,6 +20,9 @@ vi.mock('../../../hooks/useLiveSession', () => ({
 }));
 
 // Mock child components
+vi.mock('../../../components/announcements/AnnouncementOverlay', () => ({
+  AnnouncementOverlay: () => null,
+}));
 vi.mock('../../../components/layout/sidebar/Sidebar', () => ({
   Sidebar: () => <div data-testid="sidebar">Sidebar</div>,
 }));

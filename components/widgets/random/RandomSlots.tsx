@@ -26,11 +26,13 @@ export const RandomSlots: React.FC<RandomSlotsProps> = ({
       <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black to-transparent z-10" />
       <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black to-transparent z-10" />
       <div
-        className="text-white font-black text-center px-4 transition-all duration-75 uppercase tracking-tighter break-words"
+        className="text-white font-black text-center px-4 transition-all duration-75 uppercase tracking-tighter"
         style={{
           fontSize: `min(250px, ${fontStyle})`,
           lineHeight: 1,
           maxWidth: '100%',
+          wordBreak: 'normal',
+          overflowWrap: 'normal',
         }}
       >
         {(displayResult as string) ?? 'Ready?'}

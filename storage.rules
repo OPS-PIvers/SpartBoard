@@ -61,6 +61,16 @@ service firebase.storage {
       allow read: if true; // Weather images are public
       allow write: if isAdmin();
     }
+
+    match /admin_stickers/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admin_catalyst_icons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     
     // Default deny for everything else
     match /{allPaths=**} {

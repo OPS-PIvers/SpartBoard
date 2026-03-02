@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X,
   Menu,
@@ -40,6 +41,7 @@ type MenuSection =
   | 'settings';
 
 export const Sidebar: React.FC = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -119,7 +121,7 @@ export const Sidebar: React.FC = () => {
         <IconButton
           onClick={() => setIsOpen(true)}
           icon={<Menu className="w-5 h-5" />}
-          label="Open Menu"
+          label={t('sidebar.header.openMenu')}
           variant="primary"
           size="md"
           className="shadow-brand-blue-dark/20"
@@ -131,7 +133,7 @@ export const Sidebar: React.FC = () => {
           <IconButton
             onClick={() => setShowAdminSettings(true)}
             icon={<Settings className="w-5 h-5" />}
-            label="Admin Settings"
+            label={t('sidebar.header.adminSettings')}
             variant="brand-ghost"
             size="md"
           />
@@ -146,23 +148,23 @@ export const Sidebar: React.FC = () => {
               <Maximize className="w-5 h-5" />
             )
           }
-          label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          label={
+            isFullscreen
+              ? t('sidebar.header.exitFullscreen')
+              : t('sidebar.header.enterFullscreen')
+          }
           variant="brand-ghost"
           size="md"
         />
 
         <IconButton
           onClick={() => {
-            if (
-              window.confirm(
-                'Are you sure you want to close ALL widget windows?'
-              )
-            ) {
+            if (window.confirm(t('sidebar.confirmClearBoard'))) {
               clearAllWidgets();
             }
           }}
           icon={<Trash2 className="w-5 h-5" />}
-          label="Clear All Windows"
+          label={t('sidebar.header.clearAllWindows')}
           variant="brand-danger-ghost"
           size="md"
         />
@@ -170,7 +172,11 @@ export const Sidebar: React.FC = () => {
         <IconButton
           onClick={() => setIsBoardSwitcherExpanded(!isBoardSwitcherExpanded)}
           icon={<ChevronRight className="w-5 h-5" />}
-          label={isBoardSwitcherExpanded ? 'Hide Boards' : 'Switch Boards'}
+          label={
+            isBoardSwitcherExpanded
+              ? t('sidebar.header.hideBoards')
+              : t('sidebar.header.switchBoards')
+          }
           variant={isBoardSwitcherExpanded ? 'primary' : 'brand-ghost'}
           size="md"
           className={`transition-all duration-300 [&>svg]:transition-transform [&>svg]:duration-500 ${
@@ -252,7 +258,7 @@ export const Sidebar: React.FC = () => {
                   <IconButton
                     onClick={() => setActiveSection('main')}
                     icon={<ArrowLeft className="w-4 h-4" />}
-                    label="Back"
+                    label={t('sidebar.header.back')}
                     variant="ghost"
                     size="sm"
                     shape="square"
@@ -265,8 +271,10 @@ export const Sidebar: React.FC = () => {
                 )}
                 <span className="text-xxs font-bold tracking-wider uppercase text-slate-500">
                   {activeSection === 'main'
-                    ? 'Classroom Manager'
-                    : activeSection.replace('-', ' ')}
+                    ? t('sidebar.header.classroomManager')
+                    : t(`sidebar.nav.${activeSection}`, {
+                        defaultValue: activeSection.replace('-', ' '),
+                      })}
                 </span>
                 <div className="flex items-center gap-1.5 ml-auto">
                   <div
@@ -276,7 +284,9 @@ export const Sidebar: React.FC = () => {
                         : 'bg-emerald-50 text-emerald-600'
                     }`}
                     title={
-                      isSaving ? 'Saving to Cloud...' : 'All Changes Saved'
+                      isSaving
+                        ? t('sidebar.header.savingToCloud')
+                        : t('sidebar.header.allChangesSaved')
                     }
                   >
                     {isSaving ? (
@@ -284,19 +294,21 @@ export const Sidebar: React.FC = () => {
                     ) : (
                       <CloudCheck className="w-3 h-3" />
                     )}
-                    <span className="text-[8px] font-black uppercase tracking-tighter">
-                      {isSaving ? 'Syncing' : 'Cloud'}
+                    <span className="text-xxxs font-black uppercase tracking-tighter">
+                      {isSaving
+                        ? t('sidebar.header.syncing')
+                        : t('sidebar.header.cloud')}
                     </span>
                   </div>
 
                   {isDriveConnected && (
                     <div
                       className="flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-500 bg-blue-50 text-blue-600"
-                      title="Google Drive Connected"
+                      title={t('sidebar.header.googleDriveConnected')}
                     >
                       <GoogleDriveIcon className="w-3 h-3" />
-                      <span className="text-[8px] font-black uppercase tracking-tighter">
-                        Drive
+                      <span className="text-xxxs font-black uppercase tracking-tighter">
+                        {t('sidebar.header.drive')}
                       </span>
                     </div>
                   )}
@@ -308,7 +320,7 @@ export const Sidebar: React.FC = () => {
                   setActiveSection('main');
                 }}
                 icon={<X className="w-5 h-5" />}
-                label="Close Menu"
+                label={t('sidebar.header.closeMenu')}
                 variant="ghost"
                 size="md"
               />
@@ -326,7 +338,7 @@ export const Sidebar: React.FC = () => {
               >
                 <div className="px-3 mb-2">
                   <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.1em] px-3">
-                    Workspace
+                    {t('sidebar.nav.workspace')}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -335,7 +347,7 @@ export const Sidebar: React.FC = () => {
                     className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
                   >
                     <SquareSquare className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span className="flex-grow">Boards</span>
+                    <span className="flex-grow">{t('sidebar.nav.boards')}</span>
                     <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-1.5 py-0.5 rounded font-bold">
                       {dashboards.length}
                     </span>
@@ -345,14 +357,14 @@ export const Sidebar: React.FC = () => {
                     className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
                   >
                     <Paintbrush className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>Backgrounds</span>
+                    <span>{t('sidebar.nav.backgrounds')}</span>
                   </button>
                   <button
                     onClick={() => setActiveSection('widgets')}
                     className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
                   >
                     <LayoutGrid className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>Widgets</span>
+                    <span>{t('sidebar.nav.widgets')}</span>
                   </button>
                 </div>
 
@@ -360,7 +372,7 @@ export const Sidebar: React.FC = () => {
 
                 <div className="px-3 mb-2">
                   <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.1em] px-3">
-                    Configuration
+                    {t('sidebar.nav.configuration')}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -369,14 +381,14 @@ export const Sidebar: React.FC = () => {
                     className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
                   >
                     <Palette className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>Global Style</span>
+                    <span>{t('sidebar.nav.globalStyle')}</span>
                   </button>
                   <button
                     onClick={() => setActiveSection('settings')}
                     className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
                   >
                     <Settings className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>General Settings</span>
+                    <span>{t('sidebar.nav.generalSettings')}</span>
                   </button>
                 </div>
               </nav>
@@ -423,7 +435,7 @@ export const Sidebar: React.FC = () => {
                   <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white" />
                 </div>
                 <div className="flex flex-col min-w-0 flex-grow">
-                  <span className="text-[11px] font-bold text-slate-900 truncate">
+                  <span className="text-xxs font-bold text-slate-900 truncate">
                     {user?.displayName}
                   </span>
                   <span className="text-xxs text-slate-500 truncate">
@@ -438,7 +450,9 @@ export const Sidebar: React.FC = () => {
                       isSaving ? 'text-amber-500' : 'text-emerald-500'
                     }`}
                     title={
-                      isSaving ? 'Syncing changes...' : 'All changes saved'
+                      isSaving
+                        ? t('sidebar.header.syncingChanges')
+                        : t('sidebar.header.allChangesSavedTooltip')
                     }
                   >
                     {isSaving ? (
@@ -456,8 +470,8 @@ export const Sidebar: React.FC = () => {
                       }`}
                       title={
                         isDriveConnected
-                          ? 'Google Drive Connected'
-                          : 'Google Drive Disconnected'
+                          ? t('sidebar.header.googleDriveConnected')
+                          : t('sidebar.header.googleDriveDisconnected')
                       }
                     >
                       <GoogleDriveIcon className="w-4 h-4" />
@@ -473,7 +487,7 @@ export const Sidebar: React.FC = () => {
                 <IconButton
                   onClick={() => void signOut()}
                   icon={<LogOut className="w-4 h-4" />}
-                  label="Sign Out"
+                  label={t('sidebar.header.signOut')}
                   variant="ghost"
                   size="sm"
                 />

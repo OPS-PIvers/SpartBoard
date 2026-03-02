@@ -6,6 +6,7 @@ import React, {
   useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { LayoutGrid, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
@@ -53,6 +54,7 @@ import { useScreenRecord } from '../../hooks/useScreenRecord';
 import { useGoogleDrive } from '../../hooks/useGoogleDrive';
 
 export const Dock: React.FC = () => {
+  const { t } = useTranslation();
   const {
     addWidget,
     removeWidget,
@@ -108,13 +110,13 @@ export const Dock: React.FC = () => {
       const fileName = `SPART-Board-Recording-${new Date().toISOString()}.webm`;
 
       if (driveService) {
-        addToast('Uploading recording to Google Drive...', 'info');
+        addToast(t('dock.uploadingToDrive'), 'info');
         try {
           await driveService.uploadFile(blob, fileName, 'Recordings');
-          addToast('Recording saved to Google Drive!', 'success');
+          addToast(t('dock.recordingSavedToDrive'), 'success');
         } catch (err) {
           console.error('Failed to upload recording:', err);
-          addToast('Failed to save to Drive. Downloading locally...', 'error');
+          addToast(t('dock.recordingDriveFailed'), 'error');
           // Fallback to local download
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -124,7 +126,7 @@ export const Dock: React.FC = () => {
           URL.revokeObjectURL(url);
         }
       } else {
-        addToast('No Google Drive connected. Downloading locally...', 'info');
+        addToast(t('dock.noGoogleDrive'), 'info');
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -133,7 +135,7 @@ export const Dock: React.FC = () => {
         URL.revokeObjectURL(url);
       }
     },
-    [driveService, addToast]
+    [driveService, addToast, t]
   );
 
   const { isRecording, duration, startRecording, stopRecording } =
@@ -307,7 +309,11 @@ export const Dock: React.FC = () => {
 
   // Handle exiting edit mode when clicking outside the dock area
   useClickOutside(dockContainerRef, () => {
-    if (isEditMode && !renamingFolderId && !showCreateFolderModal) {
+    if (
+      (isEditMode || showMoreMenu) &&
+      !renamingFolderId &&
+      !showCreateFolderModal
+    ) {
       setIsEditMode(false);
       setShowLibrary(false);
       setShowMoreMenu(false);
@@ -346,18 +352,13 @@ export const Dock: React.FC = () => {
   };
 
   /**
-
-     * Custom Collision Detection to handle Grouping vs Reordering
-
-     * If the center of the dragged item is significantly over a folder, we prioritize grouping.
-
-     */
-
+   * Custom Collision Detection to handle Grouping vs Reordering
+   * If the center of the dragged item is significantly over a folder, we prioritize grouping.
+   */
   const customCollisionDetection: CollisionDetection = (args) => {
     const items = dockItems;
 
     // 1. First, check for folder grouping (rect intersection)
-
     const folderCollisions = rectIntersection(args).filter((collision) => {
       const item = items.find(
         (i) => i.type === 'folder' && i.folder.id === collision.id
@@ -375,7 +376,6 @@ export const Dock: React.FC = () => {
     }
 
     // 2. Otherwise, fallback to standard sortable collision (closestCenter)
-
     return closestCenter(args);
   };
 
@@ -469,7 +469,7 @@ export const Dock: React.FC = () => {
       {showCreateFolderModal && (
         <RenameFolderModal
           name=""
-          title="Create New Folder"
+          title={t('sidebar.header.createFolder')}
           onClose={() => setShowCreateFolderModal(false)}
           onSave={(newName) => {
             if (newName.trim()) {
@@ -538,7 +538,7 @@ export const Dock: React.FC = () => {
                 setShowLibrary(false);
               }}
               globalStyle={globalStyle}
-              triggerRef={moreButtonRef}
+              triggerRef={dockContainerRef}
               libraryOrder={libraryOrder}
               onReorderLibrary={reorderLibrary}
               onAddFolder={() => setShowCreateFolderModal(true)}
@@ -804,7 +804,7 @@ export const Dock: React.FC = () => {
                           setShowLiveInfo(true);
                         }
                       }}
-                      aria-label="View live session information"
+                      aria-label={t('dock.viewLiveSession')}
                       className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-none relative focus-visible:outline-none"
                     >
                       <DockIcon
@@ -813,7 +813,7 @@ export const Dock: React.FC = () => {
                       >
                         <Cast className="w-5 h-5 md:w-6 md:h-6" />
                       </DockIcon>
-                      <DockLabel>Live</DockLabel>
+                      <DockLabel>{t('sidebar.header.live')}</DockLabel>
                     </button>
 
                     {/* LIVE POPOVER */}
@@ -835,7 +835,7 @@ export const Dock: React.FC = () => {
                           {' '}
                           <div className="p-4 flex flex-col items-center gap-2 text-center">
                             <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider">
-                              Live Session
+                              {t('dock.liveSession')}
                             </h3>
                             <div className="text-3xl font-black text-indigo-700 font-mono tracking-widest my-1 drop-shadow-sm">
                               {session.code}
@@ -844,7 +844,7 @@ export const Dock: React.FC = () => {
                               {getJoinUrl()}
                             </div>
                             <div className="text-xxs text-slate-500 mt-2">
-                              Provide this code to your students.
+                              {t('dock.provideCode')}
                             </div>
                           </div>
                           <div className="p-2 border-t border-white/30">
@@ -852,7 +852,7 @@ export const Dock: React.FC = () => {
                               onClick={() => setShowLiveInfo(false)}
                               className="w-full py-2 bg-white/50 hover:bg-white/60 text-slate-700 rounded-lg text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400 focus-visible:ring-offset-white"
                             >
-                              Close
+                              {t('common.close')}
                             </button>
                           </div>
                         </GlassCard>,
@@ -868,7 +868,7 @@ export const Dock: React.FC = () => {
                   ref={moreButtonRef}
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-none flex-shrink-0"
-                  title="More Widgets"
+                  title={t('sidebar.header.moreWidgets')}
                 >
                   <DockIcon
                     color="bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20"
@@ -877,13 +877,13 @@ export const Dock: React.FC = () => {
                     <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
                   </DockIcon>
                   <DockLabel className="text-slate-600 font-bold">
-                    More
+                    {t('sidebar.header.more')}
                   </DockLabel>
                 </button>
               </>
             ) : (
               <div className="px-6 py-2 text-xxs font-black uppercase text-slate-400 italic">
-                No apps selected in settings
+                {t('dock.noAppsSelected')}
               </div>
             )}
           </GlassCard>
@@ -937,7 +937,7 @@ export const Dock: React.FC = () => {
               style={{
                 backgroundColor: `rgba(45, 63, 137, ${globalStyle.dockTransparency + 0.4})`, // Slightly more opaque than expanded
               }}
-              title="Open Tools"
+              title={t('sidebar.header.openTools')}
             >
               <LayoutGrid className="w-6 h-6" />
             </button>

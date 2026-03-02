@@ -161,7 +161,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             {lunchTimeHour && (
-              <p className="mt-1 text-[10px] text-slate-400">
+              <p className="mt-1 text-xxs text-slate-400">
                 Preview: {lunchTimeHour}:{pad(lunchTimeMinute || '0')}
               </p>
             )}

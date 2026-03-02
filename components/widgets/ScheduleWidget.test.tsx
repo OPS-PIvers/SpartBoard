@@ -1,11 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  cleanup,
+  act,
+} from '@testing-library/react';
 import { ScheduleWidget, ScheduleSettings } from './Schedule';
 import { useDashboard } from '../../context/useDashboard';
+import { useAuth } from '../../context/useAuth';
+import { useFeaturePermissions } from '../../hooks/useFeaturePermissions';
 import { WidgetData, ScheduleConfig, DEFAULT_GLOBAL_STYLE } from '../../types';
 
 vi.mock('../../context/useDashboard');
+vi.mock('../../context/useAuth');
+vi.mock('../../hooks/useFeaturePermissions');
 
 // Mock useScaledFont to return a fixed size
 vi.mock('../../hooks/useScaledFont', () => ({
@@ -20,28 +30,53 @@ vi.mock('lucide-react', () => ({
   Clock: () => <div>Clock Icon</div>,
   AlertTriangle: () => <div>Alert Icon</div>,
   Plus: () => <div>Plus Icon</div>,
+  Timer: () => <div>Timer Icon</div>,
+  Palette: () => <div>Palette Icon</div>,
+  Trash2: () => <div>Trash Icon</div>,
+  Pencil: () => <div>Pencil Icon</div>,
+  X: () => <div>X Icon</div>,
+  Save: () => <div>Save Icon</div>,
+  GripVertical: () => <div>Grip Icon</div>,
+  Settings2: () => <div>Settings2 Icon</div>,
+  Calendar: () => <div>Calendar Icon</div>,
+  Ban: () => <div>Ban Icon</div>,
 }));
 
 const mockUpdateWidget = vi.fn();
+const mockAddWidget = vi.fn();
 
 const mockDashboardContext = {
   activeDashboard: {
     globalStyle: DEFAULT_GLOBAL_STYLE,
+    widgets: [],
   },
   updateWidget: mockUpdateWidget,
-  widgets: [],
+  addWidget: mockAddWidget,
 };
 
 describe('ScheduleWidget', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
+    (useAuth as unknown as Mock).mockReturnValue({
+      profile: { selectedBuildings: ['b1'] },
+    });
+    (useFeaturePermissions as unknown as Mock).mockReturnValue({
+      subscribeToPermission: vi.fn((type, cb) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        cb({ config: { blockedDates: [], buildingDefaults: {} } });
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        return () => {};
+      }),
+    });
     mockUpdateWidget.mockClear();
+    mockAddWidget.mockClear();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.clearAllTimers();
     cleanup();
+    vi.useRealTimers();
   });
 
   const createWidget = (config: Partial<ScheduleConfig> = {}): WidgetData => {
@@ -68,8 +103,103 @@ describe('ScheduleWidget', () => {
   it('renders schedule items', () => {
     render(<ScheduleWidget widget={createWidget()} />);
     expect(screen.getByText('Math')).toBeInTheDocument();
-    expect(screen.getByText('08:00')).toBeInTheDocument();
+    // No clock widget in mock → defaults to 12-hour format
+    expect(screen.getByText('8:00 AM')).toBeInTheDocument();
     expect(screen.getByText('Reading')).toBeInTheDocument();
+  });
+
+  it('renders times in 24-hour format when clock widget has format24:true', () => {
+    (useDashboard as unknown as Mock).mockReturnValue({
+      ...mockDashboardContext,
+      activeDashboard: {
+        ...mockDashboardContext.activeDashboard,
+        widgets: [{ id: 'clock-1', type: 'clock', config: { format24: true } }],
+      },
+    });
+    render(<ScheduleWidget widget={createWidget()} />);
+    expect(screen.getByText('08:00')).toBeInTheDocument();
+  });
+
+  it('shows countdown instead of clock time for a timer-mode item', () => {
+    // 08:30 — 30 minutes remain until endTime 09:00 → displays "30:00"
+    const date = new Date();
+    date.setHours(8, 30, 0, 0);
+    vi.setSystemTime(date);
+
+    const widget = createWidget({
+      items: [
+        {
+          id: 'item-1',
+          time: '08:00',
+          task: 'Math',
+          done: false,
+          mode: 'timer',
+          startTime: '08:00',
+          endTime: '09:00',
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+
+    // Countdown: endTime 09:00 = 32400s, now = 8:30:00 = 30600s, rem = 1800s = 30:00
+    expect(screen.getByText('30:00')).toBeInTheDocument();
+    // Clock-format time should NOT appear
+    expect(screen.queryByText('8:00 AM')).not.toBeInTheDocument();
+  });
+
+  it('auto-launches linked widgets exactly once when inside the time window', () => {
+    // 09:05 — Math starts at 09:00, ends 10:00 → window is open
+    const date = new Date();
+    date.setHours(9, 5, 0, 0);
+    vi.setSystemTime(date);
+
+    const widget = createWidget({
+      items: [
+        {
+          id: 'item-1',
+          time: '09:00',
+          task: 'Math',
+          done: false,
+          startTime: '09:00',
+          endTime: '10:00',
+          linkedWidgets: ['clock'],
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+
+    // Launched once on mount
+    expect(mockAddWidget).toHaveBeenCalledTimes(1);
+    expect(mockAddWidget).toHaveBeenCalledWith('clock', expect.any(Object));
+
+    // Subsequent interval ticks must NOT re-launch
+    mockAddWidget.mockClear();
+    act(() => {
+      vi.advanceTimersByTime(10000); // one full interval
+    });
+    expect(mockAddWidget).not.toHaveBeenCalled();
+  });
+
+  it('does NOT auto-launch when current time is before item start', () => {
+    const date = new Date();
+    date.setHours(8, 55, 0, 0); // 5 minutes before 09:00
+    vi.setSystemTime(date);
+
+    const widget = createWidget({
+      items: [
+        {
+          id: 'item-1',
+          time: '09:00',
+          task: 'Math',
+          done: false,
+          startTime: '09:00',
+          linkedWidgets: ['clock'],
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+
+    expect(mockAddWidget).not.toHaveBeenCalled();
   });
 
   it('toggles item status on click', () => {
@@ -185,6 +315,12 @@ describe('ScheduleWidget', () => {
 describe('ScheduleSettings', () => {
   beforeEach(() => {
     (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
+    (useAuth as unknown as Mock).mockReturnValue({
+      profile: { selectedBuildings: ['b1'] },
+    });
+    (useFeaturePermissions as unknown as Mock).mockReturnValue({
+      subscribeToPermission: vi.fn(),
+    });
     mockUpdateWidget.mockClear();
   });
 
