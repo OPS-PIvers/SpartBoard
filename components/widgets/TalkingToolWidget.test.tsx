@@ -1,14 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { TalkingToolWidget } from './TalkingToolWidget';
 import { WidgetData } from '@/types';
-
-// Mock useDashboard since the widget might use it
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({
-    updateWidget: vi.fn(),
-  }),
-}));
 
 const mockWidget: WidgetData = {
   id: 'test-widget',
@@ -29,10 +22,10 @@ describe('TalkingToolWidget', () => {
     // Check if the title "Listen Closely" is visible in the main content
     expect(
       screen.getByText('Listen Closely', { selector: 'h3' })
-    ).toBeDefined();
+    ).toBeInTheDocument();
 
     // Check if a specific stem from "Listen Closely" is visible
-    expect(screen.getByText(/What do you mean by/)).toBeDefined();
+    expect(screen.getByText(/What do you mean by/)).toBeInTheDocument();
   });
 
   it('switches tabs when a sidebar button is clicked', () => {
@@ -45,12 +38,12 @@ describe('TalkingToolWidget', () => {
     // Check if the title "Share What You Think" is now visible in the main content
     expect(
       screen.getByText('Share What You Think', { selector: 'h3' })
-    ).toBeDefined();
+    ).toBeInTheDocument();
 
     // Check if a specific stem from "Share What You Think" is visible
     expect(
       screen.getByText(/I think ________ because ________./)
-    ).toBeDefined();
+    ).toBeInTheDocument();
 
     // Find and click the "Support What You Say" button in the sidebar
     const supportButton = screen.getByText('Support What You Say');
@@ -59,9 +52,9 @@ describe('TalkingToolWidget', () => {
     // Check if the title "Support What You Say" is visible
     expect(
       screen.getByText('Support What You Say', { selector: 'h3' })
-    ).toBeDefined();
+    ).toBeInTheDocument();
 
     // Check if a specific stem from "Support What You Say" is visible
-    expect(screen.getByText(/In the text, ________./)).toBeDefined();
+    expect(screen.getByText(/In the text, ________./)).toBeInTheDocument();
   });
 });

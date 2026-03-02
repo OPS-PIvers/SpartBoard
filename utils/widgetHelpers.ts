@@ -35,6 +35,7 @@ export const getTitle = (widget: WidgetData): string => {
   if (widget.type === 'miniApp') return 'App Manager';
   if (widget.type === 'sticker') return 'Sticker';
   if (widget.type === 'seating-chart') return 'Seating Chart';
+  if (widget.type === 'talking-tool') return 'Talking Tool';
   if (widget.type === 'smartNotebook') return 'Notebook Viewer';
   if (widget.type === 'catalyst-instruction') {
     const cfg = widget.config as CatalystInstructionConfig;
