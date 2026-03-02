@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { getPatternBlockPoints } from './mathToolUtils';
+import { getPatternBlockPoints, PATTERN_BLOCK_COLORS } from './mathToolUtils';
 
 type ShapeType =
   | 'hexagon'
@@ -16,15 +16,6 @@ interface PlacedBlock {
   y: number;
   rotation: number;
 }
-
-const SHAPE_COLORS: Record<ShapeType, string> = {
-  hexagon: '#f59e0b',
-  trapezoid: '#ef4444',
-  triangle: '#10b981',
-  'rhombus-wide': '#3b82f6',
-  'rhombus-narrow': '#8b5cf6',
-  square: '#f97316',
-};
 
 const UNIT = 28; // base unit in px
 
@@ -111,7 +102,7 @@ export const PatternBlocksTool: React.FC = () => {
             <svg width={36} height={36} viewBox="-20 -20 40 40">
               <polygon
                 points={shapePoints(shape)}
-                fill={SHAPE_COLORS[shape]}
+                fill={PATTERN_BLOCK_COLORS[shape]}
                 stroke="rgba(0,0,0,0.2)"
                 strokeWidth={1}
               />
@@ -172,7 +163,7 @@ export const PatternBlocksTool: React.FC = () => {
               key={block.id}
               points={shapePoints(block.shape)}
               transform={`translate(${block.x},${block.y}) rotate(${block.rotation})`}
-              fill={SHAPE_COLORS[block.shape]}
+              fill={PATTERN_BLOCK_COLORS[block.shape]}
               stroke={block.id === selected ? '#1e293b' : 'rgba(0,0,0,0.15)'}
               strokeWidth={block.id === selected ? 2.5 : 1}
               opacity={0.9}

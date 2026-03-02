@@ -36,7 +36,8 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
   // this secondary guard keeps rendering safe even with unvalidated props.
   const MAX_RANGE = 200;
   const safeMax = Math.min(max, min + MAX_RANGE);
-  const range = safeMax - min;
+  // Guard against division by zero: ensure range is at least 1 even if min >= max
+  const range = Math.max(1, safeMax - min);
 
   // Decide tick spacing based on mode
   let tickCount: number;

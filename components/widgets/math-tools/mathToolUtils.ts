@@ -4,17 +4,16 @@ import { GradeLevel, MathToolType } from '@/types';
 export const CSS_PPI = 96;
 
 /**
- * Attempts to estimate the device's physical DPI by examining devicePixelRatio
- * and known common IFP resolutions. Falls back to the CSS reference value (96).
+ * Returns the CSS reference PPI (always 96).
  *
- * Note: Browser security restrictions prevent truly accurate DPI detection without
- * user calibration. The CSS spec defines 1in = 96px, so this default is correct
- * for screens that honour CSS physical units. Admins can calibrate via settings.
+ * The CSS spec defines 1in = 96px regardless of devicePixelRatio.
+ * devicePixelRatio only converts CSS px to physical device pixels; it does not
+ * change the physical size of 1 CSS px. True physical calibration requires the
+ * user to measure a known object on screen and set pixelsPerInch manually via
+ * widget settings.
  */
 export function estimatePPI(): number {
   if (typeof window === 'undefined') return CSS_PPI;
-  // CSS pixels per inch is always 96 by spec – devicePixelRatio only converts
-  // CSS px to physical device pixels, but does not change the physical size of 1 CSS px.
   return CSS_PPI;
 }
 
@@ -269,6 +268,33 @@ export const TOOL_SUB_ITEMS: Partial<Record<MathToolType, ToolSubItem[]>> = {
       spawnH: 50,
     },
   ],
+};
+
+// ---------------------------------------------------------------------------
+// Shared colour maps (single source of truth — import instead of duplicating)
+// ---------------------------------------------------------------------------
+
+/** Colours for fraction tile bars, keyed by denominator */
+export const FRACTION_COLORS: Record<number, string> = {
+  1: '#6366f1',
+  2: '#f43f5e',
+  3: '#f59e0b',
+  4: '#10b981',
+  5: '#3b82f6',
+  6: '#8b5cf6',
+  8: '#ec4899',
+  10: '#14b8a6',
+  12: '#f97316',
+};
+
+/** Colours for pattern block shapes */
+export const PATTERN_BLOCK_COLORS: Record<string, string> = {
+  hexagon: '#f59e0b',
+  trapezoid: '#ef4444',
+  triangle: '#10b981',
+  'rhombus-wide': '#3b82f6',
+  'rhombus-narrow': '#8b5cf6',
+  square: '#f97316',
 };
 
 // ---------------------------------------------------------------------------

@@ -3,35 +3,10 @@ import { MathToolType } from '@/types';
 import {
   AlgebraTileKind,
   ALGEBRA_TILE_META,
+  FRACTION_COLORS,
+  PATTERN_BLOCK_COLORS,
   getPatternBlockPoints,
 } from './mathToolUtils';
-
-// ---------------------------------------------------------------------------
-// Fraction tile colours — must match FractionTilesTool.tsx
-// ---------------------------------------------------------------------------
-const FRACTION_COLORS: Record<number, string> = {
-  1: '#6366f1',
-  2: '#f43f5e',
-  3: '#f59e0b',
-  4: '#10b981',
-  5: '#3b82f6',
-  6: '#8b5cf6',
-  8: '#ec4899',
-  10: '#14b8a6',
-  12: '#f97316',
-};
-
-// ---------------------------------------------------------------------------
-// Pattern block colours — must match PatternBlocksTool.tsx
-// ---------------------------------------------------------------------------
-const PATTERN_BLOCK_COLORS: Record<string, string> = {
-  hexagon: '#f59e0b',
-  trapezoid: '#ef4444',
-  triangle: '#10b981',
-  'rhombus-wide': '#3b82f6',
-  'rhombus-narrow': '#8b5cf6',
-  square: '#f97316',
-};
 
 // Unit size used for sticker-size pattern block SVGs
 const PB_STICKER_UNIT = 40;

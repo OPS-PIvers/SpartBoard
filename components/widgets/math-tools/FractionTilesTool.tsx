@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
+import { FRACTION_COLORS } from './mathToolUtils';
 
 const BAR_H = 30;
 const BAR_W = 400;
 const GAP = 4;
-
-const FRACTION_COLORS: Record<number, string> = {
-  1: '#6366f1',
-  2: '#f43f5e',
-  3: '#f59e0b',
-  4: '#10b981',
-  5: '#3b82f6',
-  6: '#8b5cf6',
-  8: '#ec4899',
-  10: '#14b8a6',
-  12: '#f97316',
-};
 
 function getColor(denom: number): string {
   return FRACTION_COLORS[denom] ?? '#64748b';

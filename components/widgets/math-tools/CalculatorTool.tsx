@@ -156,9 +156,11 @@ export const CalculatorTool: React.FC = () => {
   const pressToggleSign = useCallback(() => {
     setCalc((prev) => {
       if (prev.hasError || prev.display === '0') return prev;
-      const toggled = prev.display.startsWith('−')
+      // Use ASCII '-' internally so parseFloat() parses correctly.
+      // The display renders it as the Unicode '−' glyph (see JSX below).
+      const toggled = prev.display.startsWith('-')
         ? prev.display.slice(1)
-        : '−' + prev.display;
+        : '-' + prev.display;
       return { ...prev, display: toggled };
     });
   }, []);
@@ -306,7 +308,7 @@ export const CalculatorTool: React.FC = () => {
             calc.display.length > 10 ? 'text-xl' : 'text-3xl'
           } ${calc.hasError ? 'text-red-400' : ''}`}
         >
-          {calc.display}
+          {calc.display.replace('-', '−')}
         </div>
       </div>
 
