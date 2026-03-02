@@ -1,19 +1,31 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useDashboard } from '../../context/useDashboard';
-import { WidgetData, RecessGearConfig, WeatherConfig } from '../../types';
+import {
+  WidgetData,
+  RecessGearConfig,
+  WeatherConfig,
+  FeaturePermission,
+  RecessGearGlobalConfig,
+  GlobalWeatherData,
+} from '../../types';
 import {
   Shirt,
   Thermometer,
   Info,
   Link as LinkIcon,
   AlertCircle,
+  CloudSun,
 } from 'lucide-react';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { Toggle } from '../common/Toggle';
+import { useFeaturePermissions } from '../../hooks/useFeaturePermissions';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 interface GearItem {
   label: string;
-  icon: string;
+  icon?: string;
+  imageUrl?: string;
   category: 'clothing' | 'footwear' | 'accessory';
 }
 
@@ -23,12 +35,52 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { activeDashboard } = useDashboard();
+  const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as RecessGearConfig;
+  const [adminPermission, setAdminPermission] =
+    useState<FeaturePermission | null>(null);
+  const [adminWeatherData, setAdminWeatherData] =
+    useState<WeatherConfig | null>(null);
+
+  useEffect(() => {
+    return subscribeToPermission('recessGear', setAdminPermission);
+  }, [subscribeToPermission]);
+
+  const adminConfig = adminPermission?.config as
+    | RecessGearGlobalConfig
+    | undefined;
+
+  // If using admin proxy, fetch the shared weather data
+  useEffect(() => {
+    if (adminConfig?.fetchingStrategy === 'admin_proxy') {
+      // The admin weather proxy stores data in a known location in Firestore: global_weather/current
+      const unsubscribe = onSnapshot(
+        doc(db, 'global_weather', 'current'),
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data() as GlobalWeatherData;
+            // Map GlobalWeatherData to WeatherConfig
+            if (data) {
+              setAdminWeatherData({
+                temp: data.temp,
+                feelsLike: data.feelsLike,
+                condition: data.condition,
+                locationName: data.locationName,
+                lastSync: data.updatedAt,
+              });
+            }
+          }
+        }
+      );
+      return () => unsubscribe();
+    }
+    return undefined;
+  }, [adminConfig?.fetchingStrategy]);
 
   const widgets = activeDashboard?.widgets;
 
-  // Find linked or first available weather widget
-  const weatherWidget = useMemo(() => {
+  // Find linked or first available weather widget (Fallback)
+  const localWeatherWidget = useMemo(() => {
     if (!widgets) return null;
     if (config.linkedWeatherWidgetId) {
       const linked = widgets.find((w) => w.id === config.linkedWeatherWidgetId);
@@ -37,17 +89,62 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
     return widgets.find((w) => w.type === 'weather') ?? null;
   }, [widgets, config.linkedWeatherWidgetId]);
 
-  const weatherConfig = weatherWidget?.config as WeatherConfig | undefined;
+  const localWeatherConfig = localWeatherWidget?.config as
+    | WeatherConfig
+    | undefined;
+
+  // Determine which weather data to use
+  const activeWeatherConfig =
+    adminConfig?.fetchingStrategy === 'admin_proxy'
+      ? adminWeatherData
+      : localWeatherConfig;
 
   const getRecessGear = () => {
-    if (!weatherConfig || weatherConfig.temp === undefined) return [];
+    if (!activeWeatherConfig || activeWeatherConfig.temp === undefined)
+      return [];
 
+    const useFeelsLike = adminConfig
+      ? adminConfig.useFeelsLike
+      : config.useFeelsLike;
     const temp =
-      config.useFeelsLike && weatherConfig.feelsLike !== undefined
-        ? weatherConfig.feelsLike
-        : weatherConfig.temp;
-    const condition = weatherConfig.condition?.toLowerCase() ?? 'sunny';
+      (useFeelsLike ?? true) && activeWeatherConfig.feelsLike !== undefined
+        ? activeWeatherConfig.feelsLike
+        : activeWeatherConfig.temp;
+    const condition = activeWeatherConfig.condition?.toLowerCase() ?? 'sunny';
 
+    // If admin has defined custom ranges, use them
+    if (
+      adminConfig?.temperatureRanges &&
+      adminConfig.temperatureRanges.length > 0
+    ) {
+      const gear: GearItem[] = [];
+
+      adminConfig.temperatureRanges.forEach((range) => {
+        let matches = false;
+        const type = range.type ?? 'range';
+
+        if (type === 'range') {
+          matches = temp >= range.min && temp <= range.max;
+        } else if (type === 'above') {
+          matches = temp > range.min;
+        } else if (type === 'below') {
+          matches = temp < range.max;
+        }
+
+        if (matches) {
+          gear.push({
+            label: range.label,
+            icon: range.icon,
+            imageUrl: range.imageUrl,
+            category: range.category,
+          });
+        }
+      });
+
+      return gear;
+    }
+
+    // Fallback to legacy hardcoded logic
     const gear: GearItem[] = [];
 
     // Temperature-based clothing
@@ -84,7 +181,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
 
   const gearList = getRecessGear();
 
-  if (!weatherWidget || !weatherConfig || weatherConfig.temp === undefined) {
+  if (!activeWeatherConfig || activeWeatherConfig.temp === undefined) {
     return (
       <WidgetLayout
         padding="p-0"
@@ -92,12 +189,23 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
           <ScaledEmptyState
             icon={AlertCircle}
             title="No Weather Data"
-            subtitle="Add a Weather widget to automatically see required recess gear."
+            subtitle={
+              adminConfig?.fetchingStrategy === 'admin_proxy'
+                ? 'Waiting for admin weather data...'
+                : 'Add a Weather widget to automatically see required recess gear.'
+            }
           />
         }
       />
     );
   }
+
+  const currentTemp = Math.round(
+    ((adminConfig ? adminConfig.useFeelsLike : config.useFeelsLike) ?? true) &&
+      activeWeatherConfig.feelsLike !== undefined
+      ? activeWeatherConfig.feelsLike
+      : activeWeatherConfig.temp
+  );
 
   return (
     <WidgetLayout
@@ -148,12 +256,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
               className="font-black text-emerald-700 tracking-tight"
               style={{ fontSize: 'min(14px, 5cqmin)' }}
             >
-              {Math.round(
-                (config.useFeelsLike && weatherConfig.feelsLike !== undefined
-                  ? weatherConfig.feelsLike
-                  : weatherConfig.temp) ?? 72
-              )}
-              °
+              {currentTemp}°
             </span>
           </div>
         </div>
@@ -163,45 +266,69 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-1 w-full h-full overflow-y-auto custom-scrollbar bg-slate-50/30"
           style={{ padding: 'min(12px, 2.5cqmin)' }}
         >
-          <div
-            className="grid grid-cols-1 @[240px]:grid-cols-2"
-            style={{ gap: 'min(10px, 2.5cqmin)' }}
-          >
-            {gearList.map((item, idx) => (
-              <div
-                key={`${item.label}-${idx}`}
-                className="flex items-center bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-200 hover:shadow-md transition-all group"
-                style={{
-                  gap: 'min(10px, 2.5cqmin)',
-                  padding: 'min(12px, 2.5cqmin)',
-                }}
-              >
-                <span
-                  className="group-hover:scale-125 transition-transform duration-300 transform-gpu drop-shadow-sm shrink-0"
-                  style={{ fontSize: 'min(48px, 16cqmin)' }}
+          {gearList.length > 0 ? (
+            <div
+              className="grid grid-cols-1 @[240px]:grid-cols-2"
+              style={{ gap: 'min(10px, 2.5cqmin)' }}
+            >
+              {gearList.map((item, idx) => (
+                <div
+                  key={`${item.label}-${idx}`}
+                  className="flex items-center bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-200 hover:shadow-md transition-all group overflow-hidden"
+                  style={{
+                    gap: 'min(10px, 2.5cqmin)',
+                    padding: 'min(12px, 2.5cqmin)',
+                  }}
                 >
-                  {item.icon}
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span
-                    className="font-black text-slate-700 uppercase leading-tight tracking-tight"
-                    style={{ fontSize: 'min(20px, 8cqmin)' }}
-                  >
-                    {item.label}
-                  </span>
-                  <span
-                    className="font-bold text-slate-300 uppercase tracking-widest"
-                    style={{
-                      fontSize: 'min(14px, 5.5cqmin)',
-                      marginTop: 'min(2px, 0.5cqmin)',
-                    }}
-                  >
-                    {item.category}
-                  </span>
+                  {item.imageUrl ? (
+                    <div
+                      className="shrink-0 rounded-xl overflow-hidden shadow-sm"
+                      style={{
+                        width: 'min(48px, 16cqmin)',
+                        height: 'min(48px, 16cqmin)',
+                      }}
+                    >
+                      <img
+                        src={item.imageUrl}
+                        alt={item.label}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                  ) : (
+                    <span
+                      className="group-hover:scale-125 transition-transform duration-300 transform-gpu drop-shadow-sm shrink-0"
+                      style={{ fontSize: 'min(48px, 16cqmin)' }}
+                    >
+                      {item.icon ?? '👕'}
+                    </span>
+                  )}
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="font-black text-slate-700 uppercase leading-tight tracking-tight truncate"
+                      style={{ fontSize: 'min(18px, 7cqmin)' }}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      className="font-bold text-slate-300 uppercase tracking-widest"
+                      style={{
+                        fontSize: 'min(12px, 4.5cqmin)',
+                        marginTop: 'min(2px, 0.5cqmin)',
+                      }}
+                    >
+                      {item.category}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <ScaledEmptyState
+              icon={CloudSun}
+              title="Perfect Weather"
+              subtitle="No specific gear recommended for the current conditions."
+            />
+          )}
         </div>
       }
       footer={
@@ -224,7 +351,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             />
             <span className="truncate">
-              {weatherConfig.locationName ?? 'Weather'} Source
+              {activeWeatherConfig.locationName ?? 'Weather'} Source
             </span>
           </div>
           <div
@@ -232,13 +359,21 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
             style={{ gap: 'min(3px, 0.8cqmin)' }}
           >
             <div
-              className="bg-emerald-400 rounded-full animate-pulse"
+              className={`bg-emerald-400 rounded-full ${
+                adminConfig?.fetchingStrategy === 'admin_proxy'
+                  ? 'animate-pulse'
+                  : ''
+              }`}
               style={{
                 width: 'min(5px, 1.5cqmin)',
                 height: 'min(5px, 1.5cqmin)',
               }}
             />
-            <span>Auto</span>
+            <span>
+              {adminConfig?.fetchingStrategy === 'admin_proxy'
+                ? 'Admin'
+                : 'Auto'}
+            </span>
           </div>
         </div>
       }

@@ -344,6 +344,35 @@ export interface WeatherGlobalConfig {
   showFeelsLike?: boolean;
 }
 
+export interface RecessGearTemperatureRange {
+  id: string;
+  min: number;
+  max: number;
+  type?: 'range' | 'above' | 'below';
+  label: string;
+  icon?: string;
+  imageUrl?: string;
+  category: 'clothing' | 'footwear' | 'accessory';
+}
+
+export interface RecessGearGlobalConfig {
+  fetchingStrategy: 'client' | 'admin_proxy';
+  updateFrequencyMinutes: number;
+  temperatureRanges: RecessGearTemperatureRange[];
+  source?: 'openweather' | 'earth_networks';
+  city?: string;
+  useFeelsLike?: boolean;
+}
+
+export interface GlobalWeatherData {
+  temp: number;
+  feelsLike?: number;
+  condition: string;
+  locationName: string;
+  updatedAt: number;
+  source?: string;
+}
+
 export interface WebcamGlobalConfig {
   ocrMode?: 'standard' | 'gemini';
 }

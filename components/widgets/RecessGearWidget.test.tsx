@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
 import { render, screen } from '@testing-library/react';
 import { RecessGearWidget, RecessGearSettings } from './RecessGearWidget';
 import { WidgetData, RecessGearConfig, WeatherConfig } from '../../types';
@@ -6,11 +6,42 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { useDashboard } from '../../context/useDashboard';
 
-const mockUpdateWidget = vi.fn();
-
 // Mock dependencies
 vi.mock('../../context/useDashboard', () => ({
   useDashboard: vi.fn(),
+}));
+
+vi.mock('../../hooks/useFeaturePermissions', () => ({
+  useFeaturePermissions: vi.fn(() => ({
+    subscribeToPermission: vi.fn((_type, callback) => {
+      // Use setTimeout to avoid synchronous state update during render/effect loop
+      setTimeout(() => {
+        callback({
+          widgetType: 'recessGear',
+          enabled: true,
+          accessLevel: 'public',
+          config: {},
+        });
+      }, 0);
+      return vi.fn();
+    }),
+  })),
+}));
+
+vi.mock('../../hooks/useFirestore', () => ({
+  useFirestore: vi.fn(() => ({
+    getDocument: vi.fn(),
+  })),
+}));
+
+vi.mock('@/config/firebase', () => ({
+  db: {},
+  isAuthBypass: true,
+}));
+
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(),
+  onSnapshot: vi.fn(() => vi.fn()),
 }));
 
 describe('RecessGearWidget', () => {
@@ -48,7 +79,7 @@ describe('RecessGearWidget', () => {
           },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     render(<RecessGearWidget widget={baseWidget} />);
@@ -63,7 +94,7 @@ describe('RecessGearWidget', () => {
   it('renders helpful message when no weather widget is present', () => {
     vi.mocked(useDashboard).mockReturnValue({
       activeDashboard: { widgets: [] },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     render(<RecessGearWidget widget={baseWidget} />);
@@ -87,7 +118,7 @@ describe('RecessGearWidget', () => {
           },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     const widget: WidgetData = {
@@ -116,7 +147,7 @@ describe('RecessGearWidget', () => {
           },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     const widget: WidgetData = {
@@ -144,7 +175,7 @@ describe('RecessGearWidget', () => {
           },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     render(<RecessGearWidget widget={baseWidget} />);
@@ -177,7 +208,7 @@ describe('RecessGearWidget', () => {
           },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     const widget: WidgetData = {
@@ -200,7 +231,7 @@ describe('RecessGearWidget', () => {
           { id: 'w2', type: 'weather', config: { locationName: 'B' } },
         ],
       },
-      updateWidget: mockUpdateWidget,
+      updateWidget: vi.fn(),
     } as any);
 
     render(<RecessGearSettings widget={baseWidget} />);
