@@ -241,7 +241,7 @@ export const TOOL_SUB_ITEMS: Partial<Record<MathToolType, ToolSubItem[]>> = {
       spawnH: 44,
     },
     {
-      id: 'one-pos',
+      id: 'unit-pos',
       label: '1',
       description: 'positive unit tile',
       spawnW: 50,
@@ -262,7 +262,7 @@ export const TOOL_SUB_ITEMS: Partial<Record<MathToolType, ToolSubItem[]>> = {
       spawnH: 44,
     },
     {
-      id: 'one-neg',
+      id: 'unit-neg',
       label: '−1',
       description: 'negative unit tile',
       spawnW: 50,
@@ -270,3 +270,115 @@ export const TOOL_SUB_ITEMS: Partial<Record<MathToolType, ToolSubItem[]>> = {
     },
   ],
 };
+
+// ---------------------------------------------------------------------------
+// Shared algebra tile metadata (single source of truth for colours + layout)
+// ---------------------------------------------------------------------------
+
+/** Kind identifier for all algebra tile variants */
+export type AlgebraTileKind =
+  | 'x2-pos'
+  | 'x2-neg'
+  | 'x-pos'
+  | 'x-neg'
+  | 'unit-pos'
+  | 'unit-neg';
+
+/** Visual and layout metadata for one algebra tile kind */
+export interface AlgebraTileStyle {
+  label: string;
+  /** Pixel width in the interactive canvas layout */
+  w: number;
+  /** Pixel height in the interactive canvas layout */
+  h: number;
+  fill: string;
+  stroke: string;
+  textColor: string;
+}
+
+/** Canonical styles for all algebra tile kinds — import this instead of duplicating colours */
+export const ALGEBRA_TILE_META: Record<AlgebraTileKind, AlgebraTileStyle> = {
+  'x2-pos': {
+    label: 'x²',
+    w: 72,
+    h: 72,
+    fill: '#a5f3fc',
+    stroke: '#0891b2',
+    textColor: '#0e7490',
+  },
+  'x2-neg': {
+    label: '−x²',
+    w: 72,
+    h: 72,
+    fill: '#fda4af',
+    stroke: '#e11d48',
+    textColor: '#be123c',
+  },
+  'x-pos': {
+    label: 'x',
+    w: 72,
+    h: 18,
+    fill: '#bbf7d0',
+    stroke: '#16a34a',
+    textColor: '#15803d',
+  },
+  'x-neg': {
+    label: '−x',
+    w: 72,
+    h: 18,
+    fill: '#fecaca',
+    stroke: '#dc2626',
+    textColor: '#b91c1c',
+  },
+  'unit-pos': {
+    label: '1',
+    w: 18,
+    h: 18,
+    fill: '#fef9c3',
+    stroke: '#ca8a04',
+    textColor: '#92400e',
+  },
+  'unit-neg': {
+    label: '−1',
+    w: 18,
+    h: 18,
+    fill: '#fee2e2',
+    stroke: '#ef4444',
+    textColor: '#b91c1c',
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Shared pattern block geometry (single source of truth for polygon points)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an SVG polygon `points` string for a pattern block shape centred at
+ * the origin (0, 0) with the given unit size.
+ */
+export function getPatternBlockPoints(shape: string, unitSize: number): string {
+  const u = unitSize;
+  switch (shape) {
+    case 'hexagon': {
+      const r = u * 1.15;
+      return Array.from({ length: 6 })
+        .map((_, i) => {
+          const a = (Math.PI / 3) * i - Math.PI / 6;
+          return `${r * Math.cos(a)},${r * Math.sin(a)}`;
+        })
+        .join(' ');
+    }
+    case 'trapezoid':
+      return `${-u},${u * 0.5} ${u},${u * 0.5} ${u * 0.5},${-u * 0.5} ${-u * 0.5},${-u * 0.5}`;
+    case 'triangle':
+      return `0,${-u} ${-u * 0.87},${u * 0.5} ${u * 0.87},${u * 0.5}`;
+    case 'rhombus-wide':
+      return `0,${-u * 0.6} ${u},0 0,${u * 0.6} ${-u},0`;
+    case 'rhombus-narrow':
+      return `0,${-u * 0.8} ${u * 0.5},0 0,${u * 0.8} ${-u * 0.5},0`;
+    case 'square':
+      return `${-u * 0.6},${-u * 0.6} ${u * 0.6},${-u * 0.6} ${u * 0.6},${u * 0.6} ${-u * 0.6},${u * 0.6}`;
+    default:
+      return `${-u},${-u} ${u},${-u} ${u},${u} ${-u},${u}`;
+  }
+}

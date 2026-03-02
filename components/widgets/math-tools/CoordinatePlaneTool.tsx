@@ -22,10 +22,6 @@ function svgToUnit(px: number, axis: 'x' | 'y'): number {
   return Math.round(GRID_SIZE - (px - PAD) / STEP);
 }
 
-function makeId() {
-  return Math.random().toString(36).slice(2, 7);
-}
-
 const POINT_COLORS = [
   '#ef4444',
   '#3b82f6',
@@ -80,7 +76,7 @@ export const CoordinatePlaneTool: React.FC = () => {
       if (Math.abs(ux) > GRID_SIZE || Math.abs(uy) > GRID_SIZE) return;
       // Don't add duplicate at exact position
       if (points.some((p) => p.x === ux && p.y === uy)) return;
-      const id = makeId();
+      const id = crypto.randomUUID();
       const label = String.fromCharCode(65 + (points.length % 26));
       setPoints((prev) => [...prev, { id, x: ux, y: uy, label }]);
       colorIdx.current = (colorIdx.current + 1) % POINT_COLORS.length;

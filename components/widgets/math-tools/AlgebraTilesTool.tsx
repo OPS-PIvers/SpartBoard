@@ -1,76 +1,16 @@
 import React, { useState } from 'react';
+import {
+  AlgebraTileKind,
+  AlgebraTileStyle,
+  ALGEBRA_TILE_META,
+} from './mathToolUtils';
 
 interface Tile {
   id: string;
-  kind: 'x2-pos' | 'x2-neg' | 'x-pos' | 'x-neg' | 'unit-pos' | 'unit-neg';
+  kind: AlgebraTileKind;
 }
 
-const TILE_META: Record<
-  Tile['kind'],
-  {
-    label: string;
-    w: number;
-    h: number;
-    fill: string;
-    stroke: string;
-    textColor: string;
-  }
-> = {
-  'x2-pos': {
-    label: 'x²',
-    w: 72,
-    h: 72,
-    fill: '#a5f3fc',
-    stroke: '#0891b2',
-    textColor: '#0e7490',
-  },
-  'x2-neg': {
-    label: '−x²',
-    w: 72,
-    h: 72,
-    fill: '#fda4af',
-    stroke: '#e11d48',
-    textColor: '#be123c',
-  },
-  'x-pos': {
-    label: 'x',
-    w: 72,
-    h: 18,
-    fill: '#bbf7d0',
-    stroke: '#16a34a',
-    textColor: '#15803d',
-  },
-  'x-neg': {
-    label: '−x',
-    w: 72,
-    h: 18,
-    fill: '#fecaca',
-    stroke: '#dc2626',
-    textColor: '#b91c1c',
-  },
-  'unit-pos': {
-    label: '1',
-    w: 18,
-    h: 18,
-    fill: '#fef9c3',
-    stroke: '#ca8a04',
-    textColor: '#92400e',
-  },
-  'unit-neg': {
-    label: '−1',
-    w: 18,
-    h: 18,
-    fill: '#fee2e2',
-    stroke: '#ef4444',
-    textColor: '#b91c1c',
-  },
-};
-
-const PALETTE_KINDS = Object.keys(TILE_META) as Tile['kind'][];
-
-function makeId() {
-  return Math.random().toString(36).slice(2, 9);
-}
+const PALETTE_KINDS = Object.keys(ALGEBRA_TILE_META) as AlgebraTileKind[];
 
 function getTileValue(kind: Tile['kind']): string {
   const signs: Record<Tile['kind'], number> = {
@@ -86,16 +26,16 @@ function getTileValue(kind: Tile['kind']): string {
 
 export const AlgebraTilesTool: React.FC = () => {
   const [tiles, setTiles] = useState<Tile[]>([
-    { id: makeId(), kind: 'x2-pos' },
-    { id: makeId(), kind: 'x-pos' },
-    { id: makeId(), kind: 'x-pos' },
-    { id: makeId(), kind: 'unit-pos' },
-    { id: makeId(), kind: 'unit-pos' },
-    { id: makeId(), kind: 'unit-pos' },
+    { id: crypto.randomUUID(), kind: 'x2-pos' },
+    { id: crypto.randomUUID(), kind: 'x-pos' },
+    { id: crypto.randomUUID(), kind: 'x-pos' },
+    { id: crypto.randomUUID(), kind: 'unit-pos' },
+    { id: crypto.randomUUID(), kind: 'unit-pos' },
+    { id: crypto.randomUUID(), kind: 'unit-pos' },
   ]);
 
   const addTile = (kind: Tile['kind']) => {
-    setTiles((prev) => [...prev, { id: makeId(), kind }]);
+    setTiles((prev) => [...prev, { id: crypto.randomUUID(), kind }]);
   };
 
   const removeTile = (id: string) => {
@@ -139,7 +79,7 @@ export const AlgebraTilesTool: React.FC = () => {
     tile: Tile;
     x: number;
     y: number;
-    meta: (typeof TILE_META)[Tile['kind']];
+    meta: AlgebraTileStyle;
   };
   const rects: TileRect[] = [];
   let curX = PAD;
@@ -147,7 +87,7 @@ export const AlgebraTilesTool: React.FC = () => {
   let rowH = 0;
 
   for (const kind of groups) {
-    const meta = TILE_META[kind];
+    const meta = ALGEBRA_TILE_META[kind];
     const group = tiles.filter((t) => t.kind === kind);
     for (const tile of group) {
       if (curX + meta.w > CANVAS_W - PAD && curX > PAD) {
@@ -183,7 +123,7 @@ export const AlgebraTilesTool: React.FC = () => {
       {/* Palette */}
       <div className="flex flex-wrap gap-1 p-2 bg-slate-50 rounded-xl border border-slate-100">
         {PALETTE_KINDS.map((kind) => {
-          const meta = TILE_META[kind];
+          const meta = ALGEBRA_TILE_META[kind];
           return (
             <button
               key={kind}

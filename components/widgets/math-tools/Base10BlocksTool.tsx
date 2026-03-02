@@ -8,10 +8,6 @@ interface Block {
   id: string;
 }
 
-function makeId() {
-  return Math.random().toString(36).slice(2, 8);
-}
-
 /** Renders a single base-10 block (unit square, rod, or flat) */
 function BlockShape({ type }: { type: Block['type'] }) {
   if (type === 'unit') {
@@ -82,16 +78,16 @@ function blockH(type: Block['type']): number {
 
 export const Base10BlocksTool: React.FC = () => {
   const [blocks, setBlocks] = useState<Block[]>([
-    { type: 'flat', id: makeId() },
-    { type: 'rod', id: makeId() },
-    { type: 'rod', id: makeId() },
-    { type: 'unit', id: makeId() },
-    { type: 'unit', id: makeId() },
-    { type: 'unit', id: makeId() },
+    { type: 'flat', id: crypto.randomUUID() },
+    { type: 'rod', id: crypto.randomUUID() },
+    { type: 'rod', id: crypto.randomUUID() },
+    { type: 'unit', id: crypto.randomUUID() },
+    { type: 'unit', id: crypto.randomUUID() },
+    { type: 'unit', id: crypto.randomUUID() },
   ]);
 
   const addBlock = (type: Block['type']) => {
-    setBlocks((prev) => [...prev, { type, id: makeId() }]);
+    setBlocks((prev) => [...prev, { type, id: crypto.randomUUID() }]);
   };
 
   const removeBlock = (id: string) => {

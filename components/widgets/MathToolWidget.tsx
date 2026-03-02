@@ -1,12 +1,11 @@
 import React, { Suspense, lazy, useState } from 'react';
-import {
-  WidgetData,
-  MathToolConfig,
-  MathToolType,
-  NumberLineMode,
-} from '@/types';
+import { WidgetData, MathToolConfig, NumberLineMode } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { CSS_PPI, getMathToolMeta } from './math-tools/mathToolUtils';
+import {
+  CSS_PPI,
+  getMathToolMeta,
+  MATH_TOOL_META,
+} from './math-tools/mathToolUtils';
 import { StickerPieceSVG } from './math-tools/StickerPieces';
 
 // Lazy load all tool components to keep the bundle lean
@@ -71,10 +70,14 @@ function ToolContent({
 
   switch (toolType) {
     case 'ruler-in':
-      return <RulerTool units="in" pixelsPerInch={ppi} />;
+      return (
+        <RulerTool units={config.rulerUnits ?? 'in'} pixelsPerInch={ppi} />
+      );
 
     case 'ruler-cm':
-      return <RulerTool units="cm" pixelsPerInch={ppi} />;
+      return (
+        <RulerTool units={config.rulerUnits ?? 'cm'} pixelsPerInch={ppi} />
+      );
 
     case 'protractor':
       return <ProtractorTool pixelsPerInch={ppi} />;
@@ -198,19 +201,8 @@ export const MathToolSettings: React.FC<{ widget: WidgetData }> = ({
     String(config.pixelsPerInch ?? CSS_PPI)
   );
 
-  const TOOL_TYPES: { type: MathToolType; label: string; emoji: string }[] = [
-    { type: 'ruler-in', label: 'Inch Ruler', emoji: '📏' },
-    { type: 'ruler-cm', label: 'Metric Ruler (cm)', emoji: '📏' },
-    { type: 'protractor', label: 'Protractor', emoji: '📐' },
-    { type: 'number-line', label: 'Number Line', emoji: '〰️' },
-    { type: 'base-10', label: 'Base-10 Blocks', emoji: '🟦' },
-    { type: 'fraction-tiles', label: 'Fraction Tiles', emoji: '🟩' },
-    { type: 'geoboard', label: 'Geoboard', emoji: '🔵' },
-    { type: 'pattern-blocks', label: 'Pattern Blocks', emoji: '🔷' },
-    { type: 'algebra-tiles', label: 'Algebra Tiles', emoji: '🟪' },
-    { type: 'coordinate-plane', label: 'Coordinate Plane', emoji: '📊' },
-    { type: 'calculator', label: 'Calculator', emoji: '🔢' },
-  ];
+  // Derived from the canonical MATH_TOOL_META — no local duplication
+  const TOOL_TYPES = MATH_TOOL_META;
 
   const numberLineModes: NumberLineMode[] = [
     'integers',
@@ -286,7 +278,10 @@ export const MathToolSettings: React.FC<{ widget: WidgetData }> = ({
                   updateWidget(widget.id, {
                     config: {
                       ...config,
-                      numberLineMin: Number(e.target.value),
+                      numberLineMin: Math.max(
+                        -1000,
+                        Math.min(1000, Number(e.target.value))
+                      ),
                     },
                   })
                 }
@@ -304,7 +299,10 @@ export const MathToolSettings: React.FC<{ widget: WidgetData }> = ({
                   updateWidget(widget.id, {
                     config: {
                       ...config,
-                      numberLineMax: Number(e.target.value),
+                      numberLineMax: Math.max(
+                        -1000,
+                        Math.min(1000, Number(e.target.value))
+                      ),
                     },
                   })
                 }

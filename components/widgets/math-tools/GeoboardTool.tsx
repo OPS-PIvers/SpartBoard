@@ -64,7 +64,7 @@ export const GeoboardTool: React.FC = () => {
       if (activePegs.length >= 2 && pegsEqual(peg, activePegs[0])) {
         // Close polygon
         const newBand: Band = {
-          id: Math.random().toString(36).slice(2),
+          id: crypto.randomUUID(),
           pegs: activePegs,
           color: BAND_COLORS[colorIdx % BAND_COLORS.length],
         };

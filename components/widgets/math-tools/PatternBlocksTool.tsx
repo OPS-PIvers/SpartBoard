@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { getPatternBlockPoints } from './mathToolUtils';
 
 type ShapeType =
   | 'hexagon'
@@ -27,32 +28,9 @@ const SHAPE_COLORS: Record<ShapeType, string> = {
 
 const UNIT = 28; // base unit in px
 
-/** Returns an SVG polygon points string for each shape at origin 0,0 */
+/** Delegates to the shared getPatternBlockPoints helper in mathToolUtils */
 function shapePoints(shape: ShapeType): string {
-  const u = UNIT;
-  switch (shape) {
-    case 'hexagon': {
-      const r = u * 1.15;
-      return Array.from({ length: 6 })
-        .map((_, i) => {
-          const a = (Math.PI / 3) * i - Math.PI / 6;
-          return `${r * Math.cos(a)},${r * Math.sin(a)}`;
-        })
-        .join(' ');
-    }
-    case 'trapezoid':
-      return `${-u},${u * 0.5} ${u},${u * 0.5} ${u * 0.5},${-u * 0.5} ${-u * 0.5},${-u * 0.5}`;
-    case 'triangle':
-      return `0,${-u} ${-u * 0.87},${u * 0.5} ${u * 0.87},${u * 0.5}`;
-    case 'rhombus-wide':
-      return `0,${-u * 0.6} ${u},0 0,${u * 0.6} ${-u},0`;
-    case 'rhombus-narrow':
-      return `0,${-u * 0.8} ${u * 0.5},0 0,${u * 0.8} ${-u * 0.5},0`;
-    case 'square':
-      return `${-u * 0.6},${-u * 0.6} ${u * 0.6},${-u * 0.6} ${u * 0.6},${u * 0.6} ${-u * 0.6},${u * 0.6}`;
-    default:
-      return `0,0 ${u},0 ${u},${u} 0,${u}`;
-  }
+  return getPatternBlockPoints(shape, UNIT);
 }
 
 const PALETTE_SHAPES: ShapeType[] = [

@@ -30,7 +30,13 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
   const padL = 32;
   const padR = 32;
   const axisY = 44;
-  const range = max - min;
+
+  // Safety cap: limit the visual range so the tick loop never becomes unbounded.
+  // Input validation in MathToolWidget clamps persisted values to ±1000, but
+  // this secondary guard keeps rendering safe even with unvalidated props.
+  const MAX_RANGE = 200;
+  const safeMax = Math.min(max, min + MAX_RANGE);
+  const range = safeMax - min;
 
   // Decide tick spacing based on mode
   let tickCount: number;
@@ -211,7 +217,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
           viewBox={`0 0 ${svgW} ${svgH}`}
           style={{ display: 'block', minWidth: svgW }}
           role="img"
-          aria-label={`Number line from ${min} to ${max}`}
+          aria-label={`Number line from ${min} to ${safeMax}`}
         >
           {/* Arrow line */}
           <defs>
