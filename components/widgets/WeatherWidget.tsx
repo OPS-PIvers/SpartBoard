@@ -787,7 +787,7 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
                   className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${condition === c.id ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm' : 'border-slate-100 bg-white text-slate-400'}`}
                 >
                   <c.icon className="w-4 h-4" />
-                  <span className="text-[8px] font-black uppercase tracking-tighter">
+                  <span className="text-xxxs font-black uppercase tracking-tighter">
                     {c.label}
                   </span>
                 </button>
@@ -906,7 +906,7 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-slate-100" />
                     </div>
-                    <div className="relative flex justify-center text-[8px] font-black  text-slate-300 uppercase tracking-widest">
+                    <div className="relative flex justify-center text-xxxs font-black  text-slate-300 uppercase tracking-widest">
                       <span className="bg-white px-2">
                         {t('widgets.weather.or')}
                       </span>

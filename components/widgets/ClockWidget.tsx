@@ -201,7 +201,7 @@ export const ClockSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${config.fontFamily === f.id ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
             >
               <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
-              <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">
+              <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter">
                 {f.label}
               </span>
             </button>
