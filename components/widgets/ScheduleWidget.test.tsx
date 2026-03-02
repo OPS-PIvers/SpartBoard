@@ -17,6 +17,15 @@ vi.mock('../../context/useDashboard');
 vi.mock('../../context/useAuth');
 vi.mock('../../hooks/useFeaturePermissions');
 
+// jsdom does not implement HTMLElement.prototype.scrollTo.
+// Define it once as a stub so that the widget's useLayoutEffect does not throw
+// and vi.spyOn can wrap it in individual tests.
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+  configurable: true,
+  writable: true,
+  value: () => {},
+});
+
 // Mock useScaledFont to return a fixed size
 vi.mock('../../hooks/useScaledFont', () => ({
   useScaledFont: () => 16,
@@ -333,9 +342,7 @@ describe('ScheduleWidget', () => {
       date.setHours(9, 15, 0, 0);
       vi.setSystemTime(date);
 
-      const scrollToSpy = vi
-        .spyOn(HTMLElement.prototype, 'scrollTo')
-        .mockImplementation(() => {});
+      const scrollToSpy = vi.spyOn(HTMLElement.prototype, 'scrollTo');
 
       const widget = createWidget({ autoScroll: true });
       render(<ScheduleWidget widget={widget} />);
@@ -349,9 +356,7 @@ describe('ScheduleWidget', () => {
       date.setHours(9, 15, 0, 0);
       vi.setSystemTime(date);
 
-      const scrollToSpy = vi
-        .spyOn(HTMLElement.prototype, 'scrollTo')
-        .mockImplementation(() => {});
+      const scrollToSpy = vi.spyOn(HTMLElement.prototype, 'scrollTo');
 
       const widget = createWidget({ autoScroll: false });
       render(<ScheduleWidget widget={widget} />);
@@ -367,9 +372,7 @@ describe('ScheduleWidget', () => {
       date.setHours(9, 30, 0, 0);
       vi.setSystemTime(date);
 
-      const scrollToSpy = vi
-        .spyOn(HTMLElement.prototype, 'scrollTo')
-        .mockImplementation(() => {});
+      const scrollToSpy = vi.spyOn(HTMLElement.prototype, 'scrollTo');
 
       const widget = createWidget({
         autoScroll: true,

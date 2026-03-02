@@ -470,7 +470,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     const rowHeight = el.clientHeight / 4;
     // Show the completed item above the active one (activeIndex - 1).
     const targetTop = Math.max(0, activeIndex - 1) * rowHeight;
-    el.scrollTo({ top: targetTop, behavior: 'smooth' });
+    // Optional chaining guards against jsdom (tests) and edge-case browsers.
+    el.scrollTo?.({ top: targetTop, behavior: 'smooth' });
   }, [activeIndex, autoScroll]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.
