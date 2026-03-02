@@ -675,7 +675,20 @@ export const FeaturePermissionsManager: React.FC = () => {
           <GenericConfigurationModal
             tool={activeModalTool}
             permission={getPermission(activeModalTool.type)}
-            onClose={() => setActiveModalTool(null)}
+            onClose={() => {
+              if (activeModalTool && unsavedChanges.has(activeModalTool.type)) {
+                if (
+                  window.confirm(
+                    'You have unsaved changes. Are you sure you want to discard them?'
+                  )
+                ) {
+                  void loadPermissions();
+                  setActiveModalTool(null);
+                }
+              } else {
+                setActiveModalTool(null);
+              }
+            }}
             onSave={async () => {
               await savePermission(activeModalTool.type);
               setActiveModalTool(null);
