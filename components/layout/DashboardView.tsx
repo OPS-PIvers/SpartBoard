@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
-import { z } from 'zod';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
@@ -23,11 +22,6 @@ import {
 } from '@/types';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
-
-const StickerDataSchema = z.object({
-  url: z.string(),
-  ratio: z.number().nullable().optional(),
-});
 
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
@@ -441,8 +435,12 @@ export const DashboardView: React.FC = () => {
         ) as SpartStickerDropPayload;
         const w = 150;
         const h = 150;
-        const clientX = e.clientX ?? 500;
-        const clientY = e.clientY ?? 500;
+        const fallbackClientX =
+          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+        const fallbackClientY =
+          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+        const clientX = e.clientX ?? fallbackClientX;
+        const clientY = e.clientY ?? fallbackClientY;
 
         const x = clientX - w / 2;
         const y = clientY - h / 2;
@@ -469,8 +467,16 @@ export const DashboardView: React.FC = () => {
     if (stickerData) {
       e.preventDefault();
       try {
-        const parsed = StickerDataSchema.parse(JSON.parse(stickerData));
+        const parsed = JSON.parse(stickerData) as {
+          url?: string;
+          ratio?: number | null;
+        };
         const url = parsed.url;
+
+        if (typeof url !== 'string') {
+          throw new Error('Invalid sticker payload: missing url');
+        }
+
         let ratio = parsed.ratio ?? 1;
         if (
           typeof ratio !== 'number' ||
@@ -490,8 +496,12 @@ export const DashboardView: React.FC = () => {
           w = baseSize * ratio;
         }
 
-        const clientX = e.clientX ?? 500;
-        const clientY = e.clientY ?? 500;
+        const fallbackClientX =
+          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+        const fallbackClientY =
+          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+        const clientX = e.clientX ?? fallbackClientX;
+        const clientY = e.clientY ?? fallbackClientY;
 
         const x = clientX - w / 2;
         const y = clientY - h / 2;
