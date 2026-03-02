@@ -64,6 +64,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const hostname = parsedUrl.hostname.toLowerCase();
         const allowSameOriginHosts = new Set([
           'docs.google.com',
+          'drive.google.com',
+          'vids.google.com',
           'www.youtube.com',
           'youtube.com',
         ]);
