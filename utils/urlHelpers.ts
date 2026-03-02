@@ -57,6 +57,13 @@ export const convertToEmbedUrl = (url: string): string => {
     return `https://drive.google.com/file/d/${driveOpenMatch[1]}/preview`;
   }
 
+  // Google Vids  (vids.google.com/vids/{id}  or  vids.google.com/u/0/vids/{id})
+  const vidsMatch =
+    /vids\.google\.com\/(?:u\/\d+\/)?vids\/([a-zA-Z0-9_-]+)/.exec(trimmedUrl);
+  if (vidsMatch) {
+    return `https://vids.google.com/vids/${vidsMatch[1]}/preview`;
+  }
+
   // Google Services
   if (trimmedUrl.includes('docs.google.com/')) {
     const fullUrlString = trimmedUrl.startsWith('http')

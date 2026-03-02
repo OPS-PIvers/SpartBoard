@@ -182,6 +182,24 @@ describe('urlHelpers', () => {
       });
     });
 
+    describe('Google Vids', () => {
+      const vidId = 'some_vids_id-123';
+
+      it('converts vids.google.com/vids/{id} to preview URL', () => {
+        const url = `https://vids.google.com/vids/${vidId}`;
+        expect(convertToEmbedUrl(url)).toBe(
+          `https://vids.google.com/vids/${vidId}/preview`
+        );
+      });
+
+      it('converts vids.google.com/u/0/vids/{id} to preview URL', () => {
+        const url = `https://vids.google.com/u/0/vids/${vidId}`;
+        expect(convertToEmbedUrl(url)).toBe(
+          `https://vids.google.com/vids/${vidId}/preview`
+        );
+      });
+    });
+
     it('returns original URL for non-Google/YouTube links', () => {
       const url = 'https://example.com';
       expect(convertToEmbedUrl(url)).toBe(url);
