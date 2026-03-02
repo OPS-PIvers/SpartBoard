@@ -517,7 +517,22 @@ export const fetchWeatherProxy = functionsV1
     }
 
     try {
-      const response = await axios.get(data.url);
+      const parsedUrl = new URL(data.url);
+      if (
+        parsedUrl.protocol !== 'https:' ||
+        parsedUrl.hostname !== 'api.openweathermap.org'
+      ) {
+        throw new Error('Invalid host or protocol');
+      }
+    } catch {
+      throw new functionsV1.https.HttpsError(
+        'invalid-argument',
+        'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+      );
+    }
+
+    try {
+      const response = await axios.get<unknown>(data.url);
       return response.data;
     } catch (error: unknown) {
       console.error('Weather Proxy Error:', error);
@@ -596,6 +611,17 @@ interface JulesData {
   description: string;
 }
 
+interface JulesSessionResponse {
+  name?: string;
+  id?: string;
+}
+
+interface JulesError {
+  error?: {
+    message?: string;
+  };
+}
+
 export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
   {
     timeoutSeconds: 300,
@@ -631,13 +657,14 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
     }
 
     // Generate OAuth 2.0 Access Token
+
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
 
-    if (!accessToken.token) {
+    const accessToken = await auth.getAccessToken();
+
+    if (!accessToken) {
       throw new functionsV2.https.HttpsError(
         'internal',
         'Failed to generate OAuth token.'
@@ -676,7 +703,7 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
     try {
       console.log('Sending request to Jules API...');
       // Use the named constant for the endpoint
-      const { data: session } = await axios.post(
+      const { data: session } = await axios.post<JulesSessionResponse>(
         JULES_API_SESSIONS_ENDPOINT,
         {
           prompt: prompt,
@@ -691,13 +718,22 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken.token}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
-      const sessionId = session.name?.split('/').pop() || session.id;
+      const sessionIdFromName = session.name?.split('/').pop();
+      const sessionId = sessionIdFromName || session.id;
+
+      if (!sessionId) {
+        throw new functionsV2.https.HttpsError(
+          'internal',
+          'Jules API response is missing a session identifier (name or id).'
+        );
+      }
+
       console.log(`Jules session created: ${sessionId}`);
 
       return {
@@ -715,7 +751,9 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       if (axios.isAxiosError(error)) {
         console.error('Jules API Error Response Data:', error.response?.data);
         console.error('Jules API Error Status:', error.response?.status);
-        errorMessage = error.response?.data?.error?.message || error.message;
+
+        const data = error.response?.data as JulesError | undefined;
+        errorMessage = data?.error?.message || error.message;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }

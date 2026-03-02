@@ -1,4 +1,4 @@
-import { FurnitureItem } from '../../types';
+import { FurnitureItem } from '@/types';
 
 const DESK_W = 80;
 const DESK_H = 65;

@@ -2,6 +2,8 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import '../i18n'; // Initialise i18next with English translations for all tests
 
+vi.stubEnv('VITE_FIREBASE_API_KEY', '');
+
 // Mock PointerEvent globally since JSDOM doesn't fully support it
 class MockPointerEvent extends Event {
   clientX: number;
@@ -40,4 +42,24 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string): any => {
     };
   }
   return null;
+});
+// Globally mock Firebase config to avoid initializing the real SDK in tests
+vi.mock('@/config/firebase', () => {
+  const app = {};
+  const db = {};
+  const storage = {};
+  const functions = {};
+  const auth = {
+    onAuthStateChanged: vi.fn(),
+    signInWithPopup: vi.fn(),
+    signOut: vi.fn(),
+  };
+  return {
+    isConfigured: false,
+    app,
+    db,
+    auth,
+    storage,
+    functions,
+  };
 });

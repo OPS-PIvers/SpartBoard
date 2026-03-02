@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import {
   render,
@@ -5,6 +6,7 @@ import {
   waitFor,
   fireEvent,
   cleanup,
+  act,
 } from '@testing-library/react';
 import {
   describe,
@@ -216,7 +218,7 @@ describe('DraggableWindow', () => {
           settings={<SettingsContent />}
           globalStyle={mockGlobalStyle}
         >
-          <div>Widget Content</div>
+          <div>Content</div>
         </DraggableWindow>
       </DashboardContext.Provider>
     );
@@ -245,7 +247,7 @@ describe('DraggableWindow', () => {
           settings={<SettingsContent />}
           globalStyle={mockGlobalStyle}
         >
-          <div>Widget Content</div>
+          <div>Content</div>
         </DraggableWindow>
       </DashboardContext.Provider>
     );
@@ -584,6 +586,59 @@ describe('DraggableWindow', () => {
       });
 
       expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+  });
+
+  it('saves title and resets editing state when clicking outside after editing title', async () => {
+    const user = userEvent.setup();
+    const { useClickOutside } = await import('../../hooks/useClickOutside');
+
+    renderComponent();
+
+    // Click to open toolbar
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const windowEl = screen.getByText('Content').parentElement!;
+    await user.click(windowEl);
+
+    // Verify title is rendered
+    const titleEl = screen.getByText('Test Widget');
+    expect(titleEl).toBeInTheDocument();
+
+    // Click title to enter edit mode
+    await user.click(titleEl);
+
+    // Verify input appears
+    const input = screen.getByDisplayValue('Test Widget');
+    expect(input).toBeInTheDocument();
+
+    // Change title
+    act(() => {
+      fireEvent.change(input, { target: { value: 'New Saved Title' } });
+    });
+
+    // Simulate clicking outside using the mocked hook's captured callback
+    const clickOutsideCall = vi.mocked(useClickOutside).mock.calls[0];
+
+    const clickOutsideCallback = clickOutsideCall[1] as (
+      event: MouseEvent | TouchEvent
+    ) => void; // the handler is the 2nd arg
+
+    // Call it manually
+
+    clickOutsideCallback(new MouseEvent('mousedown'));
+
+    // Check if updateWidget was called with the new title
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'test-widget',
+
+      expect.objectContaining({ customTitle: 'New Saved Title' })
+    );
+
+    // The toolbar should close
+    await waitFor(() => {
+      expect(
+        screen.queryByDisplayValue('New Saved Title')
+      ).not.toBeInTheDocument();
     });
   });
 });

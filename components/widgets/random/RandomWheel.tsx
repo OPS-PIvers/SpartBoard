@@ -1,7 +1,7 @@
 import React from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { DEFAULT_GLOBAL_STYLE } from '../../../types';
-import { PASTEL_PALETTE } from '../../../config/colors';
+import { useDashboard } from '@/context/useDashboard';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
+import { PASTEL_PALETTE } from '@/config/colors';
 
 const WHEEL_COLORS = PASTEL_PALETTE;
 

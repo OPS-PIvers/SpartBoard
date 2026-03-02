@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '../../context/useDashboard';
-import { useAuth } from '../../context/useAuth';
-import { useLiveSession } from '../../hooks/useLiveSession';
-import { useStorage, MAX_PDF_SIZE_BYTES } from '../../hooks/useStorage';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useLiveSession } from '@/hooks/useLiveSession';
+import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
-import { WidgetRenderer } from '../widgets/WidgetRenderer';
+import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import {
   AlertCircle,
@@ -19,7 +19,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
   LiveStudent,
   SpartStickerDropPayload,
-} from '../../types';
+} from '@/types';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -435,8 +435,15 @@ export const DashboardView: React.FC = () => {
         ) as SpartStickerDropPayload;
         const w = 150;
         const h = 150;
-        const x = e.clientX - w / 2;
-        const y = e.clientY - h / 2;
+        const fallbackClientX =
+          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+        const fallbackClientY =
+          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+        const clientX = e.clientX ?? fallbackClientX;
+        const clientY = e.clientY ?? fallbackClientY;
+
+        const x = clientX - w / 2;
+        const y = clientY - h / 2;
 
         addWidget('sticker', {
           x,
@@ -460,12 +467,24 @@ export const DashboardView: React.FC = () => {
     if (stickerData) {
       e.preventDefault();
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const parsed = JSON.parse(stickerData);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const url = parsed.url as string;
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        const ratio = (parsed.ratio as number) || 1;
+        const parsed = JSON.parse(stickerData) as {
+          url?: string;
+          ratio?: number | null;
+        };
+        const url = parsed.url;
+
+        if (typeof url !== 'string') {
+          throw new Error('Invalid sticker payload: missing url');
+        }
+
+        let ratio = parsed.ratio ?? 1;
+        if (
+          typeof ratio !== 'number' ||
+          !Number.isFinite(ratio) ||
+          ratio <= 0
+        ) {
+          ratio = 1;
+        }
 
         const baseSize = 200;
         let w = baseSize;
@@ -477,8 +496,15 @@ export const DashboardView: React.FC = () => {
           w = baseSize * ratio;
         }
 
-        const x = e.clientX - w / 2;
-        const y = e.clientY - h / 2;
+        const fallbackClientX =
+          typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+        const fallbackClientY =
+          typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+        const clientX = e.clientX ?? fallbackClientX;
+        const clientY = e.clientY ?? fallbackClientY;
+
+        const x = clientX - w / 2;
+        const y = clientY - h / 2;
 
         addWidget('sticker', {
           x,

@@ -154,7 +154,7 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
                   {lang.nativeLabel}
                 </span>
                 <span
-                  className={`text-[9px] font-bold uppercase mt-1 ${
+                  className={`text-xxxs font-bold uppercase mt-1 ${
                     i18n.language === lang.code
                       ? 'text-white/60'
                       : 'text-slate-400'

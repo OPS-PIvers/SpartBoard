@@ -7,104 +7,24 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDashboard } from '../../context/useDashboard';
-import {
-  WidgetData,
-  SeatingChartConfig,
-  FurnitureItem,
-  SeatingChartTemplate,
-} from '../../types';
-import {
-  Armchair,
-  LayoutGrid,
-  RotateCw,
-  RotateCcw,
-  Trash2,
-  Monitor,
-  Dice5,
-  User,
-  UserPlus,
-  RefreshCw,
-  Rows3,
-  Grip,
-  LayoutTemplate,
-  MousePointer2,
-} from 'lucide-react';
-import { Button } from '../common/Button';
+import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
+import { LayoutGrid, LayoutTemplate } from 'lucide-react';
 import {
   generateColumnsLayout,
   generateHorseshoeLayout,
   generatePodsLayout,
 } from './seatingChartLayouts';
 import { FurnitureItemRenderer } from './FurnitureItemRenderer';
-
-// Furniture definitions for palette
-const FURNITURE_TYPES: {
-  type: FurnitureItem['type'];
-  label: string;
-  w: number;
-  h: number;
-  icon: React.ElementType;
-}[] = [
-  { type: 'desk', label: 'Desk', w: 80, h: 65, icon: Monitor },
-  {
-    type: 'table-rect',
-    label: 'Table (Rect)',
-    w: 120,
-    h: 80,
-    icon: LayoutGrid,
-  },
-  {
-    type: 'table-round',
-    label: 'Table (Round)',
-    w: 100,
-    h: 100,
-    icon: LayoutGrid,
-  },
-  { type: 'rug', label: 'Rug', w: 150, h: 100, icon: Armchair },
-  { type: 'teacher-desk', label: 'Teacher', w: 100, h: 60, icon: User },
-];
-
-// UI chrome sizes — must match the Tailwind classes used in the layout
-// (w-48 sidebar = 192px, h-12 toolbar = 48px). Named here so a future
-// layout change only requires updating one place.
-const SETUP_SIDEBAR_W = 192;
-const TOOLBAR_H = 48;
-// Minimum safe canvas dimension to avoid zero/negative spacing in generators
-const MIN_CANVAS_DIM = 200;
-
-// Template metadata for UI
-const TEMPLATES: {
-  id: SeatingChartTemplate;
-  label: string;
-  icon: React.ElementType;
-  description: string;
-}[] = [
-  {
-    id: 'freeform',
-    label: 'Freeform',
-    icon: LayoutTemplate,
-    description: 'Place desks freely',
-  },
-  {
-    id: 'rows',
-    label: 'Rows',
-    icon: Rows3,
-    description: 'Evenly spaced rows',
-  },
-  {
-    id: 'horseshoe',
-    label: 'Horseshoe',
-    icon: Armchair,
-    description: 'Inner & outer U',
-  },
-  {
-    id: 'pods',
-    label: 'Pods',
-    icon: Grip,
-    description: 'Groups of 4',
-  },
-];
+import { SeatingChartToolbar } from './SeatingChartToolbar';
+import { SeatingChartSidebar } from './SeatingChartSidebar';
+import {
+  FURNITURE_TYPES,
+  SETUP_SIDEBAR_W,
+  TOOLBAR_H,
+  MIN_CANVAS_DIM,
+  EMPTY_ARRAY,
+} from './constants';
 
 // Drag state tracks current positions for all items being dragged simultaneously
 type DragPositions = Map<string, { x: number; y: number }>;
@@ -116,8 +36,6 @@ interface RubberBand {
   x2: number;
   y2: number;
 }
-
-const EMPTY_ARRAY: { id: string; label: string }[] = [];
 
 export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -300,7 +218,15 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   // Store latest state/props in ref to avoid re-creating handlers.
   // This ensures that passing these handlers to memoized children (FurnitureItemRenderer)
   // does not cause unnecessary re-renders when other unrelated state changes.
-  const latestRef = useRef({
+  const latestRef = useRef<{
+    config: SeatingChartConfig;
+    furniture: FurnitureItem[];
+    assignments: Record<string, string>;
+    mode: 'setup' | 'assign' | 'interact';
+    selectedIds: Set<string>;
+    selectedStudent: string | null;
+    studentLabelById: Map<string, string>;
+  }>({
     config,
     furniture,
     assignments,
@@ -312,15 +238,14 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Keep ref up to date
   useLayoutEffect(() => {
-    Object.assign(latestRef.current, {
-      config,
-      furniture,
-      assignments,
-      mode,
-      selectedIds,
-      selectedStudent,
-      studentLabelById,
-    });
+    // Manually updating properties is cleaner for TS than Object.assign(any)
+    latestRef.current.config = config;
+    latestRef.current.furniture = furniture;
+    latestRef.current.assignments = assignments;
+    latestRef.current.mode = mode;
+    latestRef.current.selectedIds = selectedIds;
+    latestRef.current.selectedStudent = selectedStudent;
+    latestRef.current.studentLabelById = studentLabelById;
   });
   // --- OPTIMIZATION END ---
 
@@ -928,254 +853,35 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Toolbar */}
-      <div className="h-12 bg-slate-50 border-b border-slate-200 flex items-center px-2 justify-between shrink-0">
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          <button
-            onClick={() => setMode('interact')}
-            className={`px-3 py-1 text-xs font-black uppercase rounded-md transition-all ${mode === 'interact' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            Interact
-          </button>
-          <button
-            onClick={() => setMode('assign')}
-            className={`px-3 py-1 text-xs font-black uppercase rounded-md transition-all ${mode === 'assign' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            Assign
-          </button>
-          <button
-            onClick={() => setMode('setup')}
-            className={`px-3 py-1 text-xs font-black uppercase rounded-md transition-all ${mode === 'setup' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}`}
-          >
-            Setup
-          </button>
-        </div>
-
-        {mode === 'interact' && (
-          <Button
-            onClick={pickRandom}
-            variant="primary"
-            size="sm"
-            icon={<Dice5 className="w-4 h-4" />}
-            className="ml-auto"
-            disabled={!!animationIntervalRef.current}
-          >
-            Pick Random
-          </Button>
-        )}
-
-        {/* Multi-select group action bar */}
-        {mode === 'setup' && multiSelected && (
-          <div className="ml-auto flex items-center gap-1 bg-indigo-50 border border-indigo-200 rounded-lg px-2 py-1">
-            <MousePointer2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            <span className="text-xxs font-black text-indigo-600 uppercase tracking-wide">
-              {selectedIds.size} selected
-            </span>
-            <div className="w-px h-4 bg-indigo-200 mx-0.5" />
-            <button
-              onClick={() => rotateSelected(-45)}
-              className="p-1 hover:bg-indigo-100 rounded text-indigo-600 transition-colors"
-              title="Rotate all left 45°"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => rotateSelected(45)}
-              className="p-1 hover:bg-indigo-100 rounded text-indigo-600 transition-colors"
-              title="Rotate all right 45°"
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-px h-4 bg-indigo-200 mx-0.5" />
-            <button
-              onClick={deleteSelected}
-              className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors"
-              title="Delete all selected"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
+      <SeatingChartToolbar
+        mode={mode}
+        setMode={setMode}
+        pickRandom={pickRandom}
+        isPickingRandom={!!animationIntervalRef.current}
+        multiSelected={multiSelected}
+        selectedCount={selectedIds.size}
+        rotateSelected={rotateSelected}
+        deleteSelected={deleteSelected}
+      />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        {(mode === 'setup' || mode === 'assign') && (
-          <div className="w-48 bg-slate-50 border-r border-slate-200 flex flex-col overflow-hidden shrink-0 animate-in slide-in-from-left-4 duration-200">
-            {mode === 'setup' && (
-              <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
-                {/* Template Picker */}
-                <div className="p-3 border-b border-slate-200">
-                  <label className="text-xxs font-black text-slate-500 uppercase tracking-widest block mb-2">
-                    Template
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {TEMPLATES.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() =>
-                          updateWidget(widget.id, {
-                            config: { ...config, template: t.id },
-                          })
-                        }
-                        title={t.description}
-                        className={`flex flex-col items-center justify-center gap-1 p-2 border rounded-lg transition-all text-xxs font-black uppercase leading-none ${
-                          template === t.id
-                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 ring-1 ring-indigo-300'
-                            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <t.icon className="w-4 h-4" />
-                        <span>{t.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Columns count input */}
-                  {template === 'rows' && (
-                    <div className="mt-2">
-                      <label className="text-xxs font-black text-slate-500 uppercase tracking-widest block mb-1">
-                        # of Columns
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={localTemplateColumns}
-                        onChange={(e) => {
-                          setLocalTemplateColumns(e.target.value);
-                          const parsed = Number.parseInt(e.target.value, 10);
-                          if (!Number.isNaN(parsed)) {
-                            updateWidget(widget.id, {
-                              config: {
-                                ...config,
-                                templateColumns: Math.min(
-                                  20,
-                                  Math.max(1, parsed)
-                                ),
-                              },
-                            });
-                          }
-                        }}
-                        onBlur={() => {
-                          const parsed = Number.parseInt(
-                            localTemplateColumns,
-                            10
-                          );
-                          if (Number.isNaN(parsed)) {
-                            setLocalTemplateColumns(String(templateColumns));
-                          }
-                        }}
-                        className="w-full p-2 text-xs border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-black"
-                      />
-                    </div>
-                  )}
-
-                  {/* Student count hint */}
-                  <p className="text-xxs text-slate-400 mt-2 text-center">
-                    {studentCount > 0
-                      ? `${studentCount} students`
-                      : 'No roster set'}
-                  </p>
-
-                  {/* Apply button */}
-                  <button
-                    onClick={applyTemplate}
-                    disabled={
-                      template === 'freeform' ||
-                      (studentCount === 0 && template !== 'horseshoe')
-                    }
-                    className="mt-2 w-full flex items-center justify-center gap-1.5 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    Apply Layout
-                  </button>
-                </div>
-
-                {/* Multi-select hint */}
-                <div className="px-3 py-2 border-b border-slate-200 bg-indigo-50/50">
-                  <p className="text-xxs text-indigo-500 font-bold leading-tight">
-                    <span className="font-black">Ctrl+Click</span> to add/remove
-                    from selection.{' '}
-                    <span className="font-black">Drag empty space</span> to
-                    rubber-band select.
-                  </p>
-                </div>
-
-                {/* Manual Add */}
-                <div className="p-3 border-b border-slate-200">
-                  <label className="text-xxs font-black text-slate-500 uppercase tracking-widest block mb-2">
-                    Add Manually
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {FURNITURE_TYPES.map((t) => (
-                      <button
-                        key={t.type}
-                        onClick={() => addFurniture(t.type)}
-                        className="flex flex-col items-center justify-center gap-1 p-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors aspect-square shadow-sm"
-                      >
-                        <t.icon className="w-6 h-6 text-slate-600" />
-                        <span className="text-xxs font-black uppercase text-slate-500">
-                          {t.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Reset */}
-                <div className="mt-auto p-3">
-                  <button
-                    onClick={clearAllFurniture}
-                    className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Reset Canvas
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {mode === 'assign' && (
-              <div className="flex flex-col h-full">
-                <div className="p-2 border-b border-slate-200 bg-slate-100 text-xxs font-black uppercase text-slate-600 tracking-widest text-center">
-                  Unassigned Students
-                </div>
-                <div className="p-2 border-b border-slate-200">
-                  <button
-                    onClick={addAllRandomly}
-                    className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    Add All Random
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
-                  {unassignedStudents.length === 0 ? (
-                    <div className="text-center text-xs text-slate-400 py-4 italic font-bold">
-                      All assigned!
-                    </div>
-                  ) : (
-                    unassignedStudents.map((student) => (
-                      <div
-                        key={student.id}
-                        draggable
-                        onDragStart={(e) =>
-                          e.dataTransfer.setData('studentId', student.id)
-                        }
-                        onClick={() => handleStudentClick(student.id)}
-                        className={`p-2 bg-white border ${selectedStudent === student.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'} rounded-lg shadow-sm text-xs font-black text-slate-700 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all`}
-                        title="Drag or Click to assign"
-                      >
-                        {student.label}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <SeatingChartSidebar
+          mode={mode}
+          widgetId={widget.id}
+          config={config}
+          updateWidget={updateWidget}
+          template={template}
+          localTemplateColumns={localTemplateColumns}
+          setLocalTemplateColumns={setLocalTemplateColumns}
+          studentCount={studentCount}
+          applyTemplate={applyTemplate}
+          addFurniture={addFurniture}
+          clearAllFurniture={clearAllFurniture}
+          unassignedStudents={unassignedStudents}
+          addAllRandomly={addAllRandomly}
+          handleStudentClick={handleStudentClick}
+          selectedStudent={selectedStudent}
+        />
 
         {/* Canvas */}
         <div

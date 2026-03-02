@@ -26,7 +26,13 @@ vi.mock('firebase-admin', () => ({
 // Mock firebase-functions/v2
 vi.mock('firebase-functions/v2', () => ({
   https: {
-    onCall: (_options: unknown, handler: unknown) => handler,
+    onCall: <T>(
+      _options: unknown,
+      handler: (request: {
+        data: T;
+        auth?: { token: { email: string }; uid: string };
+      }) => Promise<unknown>
+    ) => handler,
     HttpsError: class extends Error {
       constructor(code: string, message: string) {
         super(message);
@@ -54,6 +60,15 @@ import {
   JULES_API_SESSIONS_ENDPOINT,
 } from './index';
 
+// Mock google-auth-library
+vi.mock('google-auth-library', () => {
+  return {
+    GoogleAuth: class {
+      getAccessToken = vi.fn().mockResolvedValue('mock-token');
+    },
+  };
+});
+
 describe('triggerJulesWidgetGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,12 +77,15 @@ describe('triggerJulesWidgetGeneration', () => {
 
   it('should call Jules API with correct endpoint', async () => {
     // Mock Admin Check using the granular mock
-    getMock.mockResolvedValue({ exists: true });
+    getMock.mockResolvedValue({ exists: true }); // Admin check passes
 
     // Mock Axios response using vi.mocked for type safety
-    vi.mocked(axios.post).mockResolvedValue({
+    // Use proper casting to unknown then to specific type to avoid linter errors
+    const mockPost = vi.mocked(axios.post);
+    mockPost.mockResolvedValue({
       data: {
         name: 'sessions/12345',
+        id: '12345',
       },
     });
 
@@ -82,29 +100,38 @@ describe('triggerJulesWidgetGeneration', () => {
       },
     };
 
-    // Verify type casting if needed, but since we mocked onCall to return the handler, it is the handler.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await (triggerJulesWidgetGeneration as any)(request);
+    // Ensure the handler is typed correctly to match the return of onCall
+    const handler = triggerJulesWidgetGeneration as unknown as (
+      req: typeof request
+    ) => Promise<{ success: boolean; message: string; consoleUrl: string }>;
+    const result = await handler(request);
 
-    expect(vi.mocked(axios.post)).toHaveBeenCalledWith(
-      JULES_API_SESSIONS_ENDPOINT,
-      expect.objectContaining({
-        prompt: expect.stringContaining('Test Widget'),
-        sourceContext: expect.objectContaining({
-          source: 'sources/github/OPS-PIvers/SPART_Board',
-        }),
-      }),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'X-Goog-Api-Key': 'test-api-key',
-        }),
-      })
-    );
+    // Verify axios call arguments
+    // We expect 1 call
+    expect(mockPost).toHaveBeenCalledTimes(1);
 
-    expect(result).toEqual({
-      success: true,
-      message: expect.stringContaining('12345'),
-      consoleUrl: 'https://jules.google.com/session/12345',
+    // Extract the call arguments to assert against them cleanly without `any` assignments
+    const callArgs = mockPost.mock.calls[0];
+    expect(callArgs[0]).toBe(JULES_API_SESSIONS_ENDPOINT);
+
+    const payload = callArgs[1] as Record<string, unknown>;
+    expect(payload.prompt).toContain('Test Widget');
+    expect(payload.sourceContext).toEqual({
+      source: 'sources/github.com/OPS-PIvers/SPART_Board',
+      githubRepoContext: { startingBranch: 'main' },
     });
+    expect(payload.automationMode).toBe('AUTO_CREATE_PR');
+    expect(payload.title).toBe('Generate Widget: Test Widget');
+
+    const config = callArgs[2] as { headers: Record<string, string> };
+    expect(config.headers).toEqual({
+      Authorization: 'Bearer mock-token',
+      'Content-Type': 'application/json',
+    });
+
+    // Check result
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('12345');
+    expect(result.consoleUrl).toBe('https://jules.google.com/session/12345');
   });
 });

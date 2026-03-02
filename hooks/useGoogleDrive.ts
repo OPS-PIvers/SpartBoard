@@ -7,8 +7,8 @@ export const useGoogleDrive = () => {
 
   const driveService = useMemo(() => {
     if (!googleAccessToken) return null;
-    return new GoogleDriveService(googleAccessToken);
-  }, [googleAccessToken]);
+    return new GoogleDriveService(googleAccessToken, refreshGoogleToken);
+  }, [googleAccessToken, refreshGoogleToken]);
 
   const userDomain = user?.email?.split('@')[1];
 

@@ -29,6 +29,9 @@ vi.mock('../../../components/layout/sidebar/Sidebar', () => ({
 vi.mock('../../../components/layout/Dock', () => ({
   Dock: () => <div data-testid="dock">Dock</div>,
 }));
+vi.mock('@/components/announcements/AnnouncementOverlay', () => ({
+  AnnouncementOverlay: () => <div data-testid="announcement-overlay" />,
+}));
 vi.mock('../../../components/widgets/WidgetRenderer', () => ({
   WidgetRenderer: () => <div data-testid="widget">Widget</div>,
 }));
@@ -262,6 +265,130 @@ describe('DashboardView Gestures & Navigation', () => {
           url: undefined,
           color: 'green',
           label: 'SHARE',
+        }),
+      })
+    );
+  });
+
+  it('calls addWidget with correct config when application/sticker is dropped with valid ratio', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('Root not found');
+    expect(root).toBeInTheDocument();
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker.png',
+            ratio: 2,
+          });
+        return '';
+      }),
+    };
+
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(root, dropEvent);
+
+    // Base size is 200. Ratio = 2 > 1, so h = 200 / 2 = 100, w = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith(
+      'sticker',
+      expect.objectContaining({
+        x: 500 - 200 / 2, // 400
+        y: 500 - 100 / 2, // 450
+        w: 200,
+        h: 100,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          url: 'https://example.com/sticker.png',
+          rotation: 0,
+        }),
+      })
+    );
+  });
+
+  it('calls addWidget with fallback ratio when application/sticker is dropped with missing/null ratio', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('Root not found');
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker2.png',
+            ratio: null,
+          });
+        return '';
+      }),
+    };
+
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(root, dropEvent);
+
+    // Base size is 200. Fallback ratio = 1, so w = 200, h = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith(
+      'sticker',
+      expect.objectContaining({
+        x: 500 - 200 / 2, // 400
+        y: 500 - 200 / 2, // 400
+        w: 200,
+        h: 200,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          url: 'https://example.com/sticker2.png',
+          rotation: 0,
+        }),
+      })
+    );
+  });
+
+  it('calls addWidget with fallback ratio when application/sticker is dropped with invalid ratio (e.g. 0)', () => {
+    render(<DashboardView />);
+    const root = document.getElementById('dashboard-root');
+    if (!root) throw new Error('Root not found');
+
+    const dataTransfer = {
+      types: ['application/sticker'],
+      getData: vi.fn((type) => {
+        if (type === 'application/sticker')
+          return JSON.stringify({
+            url: 'https://example.com/sticker3.png',
+            ratio: 0,
+          });
+        return '';
+      }),
+    };
+
+    const dropEvent = Object.assign(new Event('drop', { bubbles: true }), {
+      clientX: 500,
+      clientY: 500,
+      dataTransfer,
+    });
+    fireEvent(root, dropEvent);
+
+    // Base size is 200. Invalid ratio defaults to 1, so w = 200, h = 200.
+    expect(mockAddWidget).toHaveBeenCalledWith(
+      'sticker',
+      expect.objectContaining({
+        x: 500 - 200 / 2, // 400
+        y: 500 - 200 / 2, // 400
+        w: 200,
+        h: 200,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        config: expect.objectContaining({
+          url: 'https://example.com/sticker3.png',
+          rotation: 0,
         }),
       })
     );

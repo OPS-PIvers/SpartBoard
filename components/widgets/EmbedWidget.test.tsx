@@ -45,6 +45,38 @@ describe('EmbedWidget', () => {
     expect(iframe).toHaveAttribute('src', 'https://example.com');
   });
 
+  it('does not include allow-same-origin in sandbox for generic URLs', () => {
+    render(<EmbedWidget widget={baseWidget} />);
+    const iframe = screen.getByTitle('Embed Content');
+    expect(iframe.getAttribute('sandbox')).not.toContain('allow-same-origin');
+  });
+
+  it('adds allow-same-origin in sandbox for Google Drive URLs', () => {
+    const driveWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        url: 'https://drive.google.com/file/d/abc456/view',
+      } as EmbedConfig,
+    };
+    render(<EmbedWidget widget={driveWidget} />);
+    const iframe = screen.getByTitle('Embed Content');
+    expect(iframe.getAttribute('sandbox')).toContain('allow-same-origin');
+  });
+
+  it('adds allow-same-origin in sandbox for Google Vids URLs', () => {
+    const vidsWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        url: 'https://vids.google.com/vids/some_vids_id-123',
+      } as EmbedConfig,
+    };
+    render(<EmbedWidget widget={vidsWidget} />);
+    const iframe = screen.getByTitle('Embed Content');
+    expect(iframe.getAttribute('sandbox')).toContain('allow-same-origin');
+  });
+
   it('renders an iframe with srcDoc in code mode', () => {
     const codeWidget: WidgetData = {
       ...baseWidget,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, doc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
   FeaturePermission,
@@ -8,6 +8,7 @@ import {
   GradeLevel,
   InternalToolType,
   GlobalSticker,
+  ToolMetadata,
 } from '@/types';
 import { useStorage } from '@/hooks/useStorage';
 import { TOOLS } from '@/config/tools';
@@ -27,7 +28,7 @@ import {
 import { Toggle } from '@/components/common/Toggle';
 import { Toast } from '@/components/common/Toast';
 
-import { FeatureConfigurationPanel } from '@/components/admin/FeatureConfigurationPanel';
+import { GenericConfigurationModal } from '@/components/admin/GenericConfigurationModal';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
 import { InstructionalRoutinesManager } from '@/components/admin/InstructionalRoutinesManager';
 import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
@@ -51,13 +52,9 @@ export const FeaturePermissionsManager: React.FC = () => {
   const [unsavedChanges, setUnsavedChanges] = useState<
     Set<WidgetType | InternalToolType>
   >(new Set());
-  const [editingConfig, setEditingConfig] = useState<
-    WidgetType | InternalToolType | null
-  >(null);
-  const [isRoutinesLibraryOpen, setIsRoutinesLibraryOpen] = useState(false);
-  const [isStickerLibraryOpen, setIsStickerLibraryOpen] = useState(false);
-  const [isCalendarConfigOpen, setIsCalendarConfigOpen] = useState(false);
-  const [isMiniAppLibraryOpen, setIsMiniAppLibraryOpen] = useState(false);
+  const [activeModalTool, setActiveModalTool] = useState<ToolMetadata | null>(
+    null
+  );
   const [isSavingStickers, setIsSavingStickers] = useState(false);
   const { uploadWeatherImage } = useStorage();
 
@@ -183,9 +180,11 @@ export const FeaturePermissionsManager: React.FC = () => {
     setUnsavedChanges(new Set(unsavedChanges).add(widgetType));
   };
 
-  const savePermission = async (widgetType: WidgetType | InternalToolType) => {
+  const savePermission = async (
+    widgetType: WidgetType | InternalToolType
+  ): Promise<boolean> => {
     try {
-      setSaving(new Set(saving).add(widgetType));
+      setSaving((prev) => new Set(prev).add(widgetType));
       const permission = getPermission(widgetType);
 
       await setDoc(doc(db, 'feature_permissions', widgetType), permission);
@@ -198,9 +197,11 @@ export const FeaturePermissionsManager: React.FC = () => {
       });
 
       showMessage('success', `Saved ${widgetType} permissions`);
+      return true;
     } catch (error) {
       console.error('Error saving permission:', error);
       showMessage('error', `Failed to save ${widgetType} permissions`);
+      return false;
     } finally {
       setSaving((prev) => {
         const next = new Set(prev);
@@ -440,28 +441,9 @@ export const FeaturePermissionsManager: React.FC = () => {
                   {/* Actions */}
                   <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
                     <button
-                      onClick={() => {
-                        if (tool.type === 'instructionalRoutines') {
-                          setIsRoutinesLibraryOpen(true);
-                        } else if (tool.type === 'stickers') {
-                          setIsStickerLibraryOpen(true);
-                        } else if (tool.type === 'calendar') {
-                          setIsCalendarConfigOpen(true);
-                        } else if (tool.type === 'miniApp') {
-                          setIsMiniAppLibraryOpen(true);
-                        } else {
-                          setEditingConfig(
-                            editingConfig === tool.type ? null : tool.type
-                          );
-                        }
-                      }}
+                      onClick={() => setActiveModalTool(tool)}
                       className={`p-2 rounded-lg transition-colors ${
-                        (tool.type === 'instructionalRoutines' &&
-                          isRoutinesLibraryOpen) ||
-                        (tool.type === 'stickers' && isStickerLibraryOpen) ||
-                        (tool.type === 'calendar' && isCalendarConfigOpen) ||
-                        (tool.type === 'miniApp' && isMiniAppLibraryOpen) ||
-                        editingConfig === tool.type
+                        activeModalTool?.type === tool.type
                           ? 'bg-brand-blue-primary text-white'
                           : 'text-slate-400 hover:bg-slate-100'
                       }`}
@@ -489,30 +471,16 @@ export const FeaturePermissionsManager: React.FC = () => {
                 </div>
 
                 {/* Expanded Content Wrapper */}
-                {(editingConfig === tool.type ||
-                  permission.accessLevel === 'beta') && (
+                {permission.accessLevel === 'beta' && (
                   <div className="border-t border-slate-100 bg-slate-50">
-                    {/* Settings Panel */}
-                    {editingConfig === tool.type && (
-                      <FeatureConfigurationPanel
-                        tool={tool}
-                        permission={permission}
-                        updatePermission={updatePermission}
-                        showMessage={showMessage}
-                        uploadWeatherImage={uploadWeatherImage}
-                      />
-                    )}
-
                     {/* Beta Users Panel */}
-                    {permission.accessLevel === 'beta' && (
-                      <BetaUsersPanel
-                        tool={tool}
-                        permission={permission}
-                        updatePermission={updatePermission}
-                        showMessage={showMessage}
-                        variant="expanded"
-                      />
-                    )}
+                    <BetaUsersPanel
+                      tool={tool}
+                      permission={permission}
+                      updatePermission={updatePermission}
+                      showMessage={showMessage}
+                      variant="expanded"
+                    />
                   </div>
                 )}
               </div>
@@ -549,28 +517,9 @@ export const FeaturePermissionsManager: React.FC = () => {
 
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => {
-                      if (tool.type === 'instructionalRoutines') {
-                        setIsRoutinesLibraryOpen(true);
-                      } else if (tool.type === 'stickers') {
-                        setIsStickerLibraryOpen(true);
-                      } else if (tool.type === 'calendar') {
-                        setIsCalendarConfigOpen(true);
-                      } else if (tool.type === 'miniApp') {
-                        setIsMiniAppLibraryOpen(true);
-                      } else {
-                        setEditingConfig(
-                          editingConfig === tool.type ? null : tool.type
-                        );
-                      }
-                    }}
+                    onClick={() => setActiveModalTool(tool)}
                     className={`p-2 rounded-lg transition-colors ${
-                      (tool.type === 'instructionalRoutines' &&
-                        isRoutinesLibraryOpen) ||
-                      (tool.type === 'stickers' && isStickerLibraryOpen) ||
-                      (tool.type === 'calendar' && isCalendarConfigOpen) ||
-                      (tool.type === 'miniApp' && isMiniAppLibraryOpen) ||
-                      editingConfig === tool.type
+                      activeModalTool?.type === tool.type
                         ? 'bg-brand-blue-primary text-white'
                         : 'text-slate-400 hover:bg-slate-100'
                     }`}
@@ -580,17 +529,6 @@ export const FeaturePermissionsManager: React.FC = () => {
                   </button>
                 </div>
               </div>
-
-              {/* Configuration Panel */}
-              {editingConfig === tool.type && (
-                <FeatureConfigurationPanel
-                  tool={tool}
-                  permission={permission}
-                  updatePermission={updatePermission}
-                  showMessage={showMessage}
-                  uploadWeatherImage={uploadWeatherImage}
-                />
-              )}
 
               {/* Enabled Toggle */}
               <div className="flex items-center justify-between mb-3 p-3 bg-slate-50 rounded-lg">
@@ -704,18 +642,17 @@ export const FeaturePermissionsManager: React.FC = () => {
         })}
       </div>
 
-      {/* Instructional Routines Library Modal */}
-      {isRoutinesLibraryOpen && (
+      {/* Widget Configuration Modals */}
+      {activeModalTool?.type === 'instructionalRoutines' && (
         <InstructionalRoutinesManager
-          onClose={() => setIsRoutinesLibraryOpen(false)}
+          onClose={() => setActiveModalTool(null)}
         />
       )}
 
-      {/* Global Sticker Library Modal */}
-      {isStickerLibraryOpen && (
+      {activeModalTool?.type === 'stickers' && (
         <StickerLibraryModal
           stickers={getGlobalStickers()}
-          onClose={() => setIsStickerLibraryOpen(false)}
+          onClose={() => setActiveModalTool(null)}
           onDiscard={handleStickerLibraryDiscard}
           onStickersChange={handleStickerLibraryChange}
           onSave={handleStickerLibrarySave}
@@ -724,18 +661,89 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
-      {/* Calendar Configuration Modal */}
-      {isCalendarConfigOpen && (
+      {activeModalTool?.type === 'calendar' && (
         <CalendarConfigurationModal
-          isOpen={isCalendarConfigOpen}
-          onClose={() => setIsCalendarConfigOpen(false)}
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
         />
       )}
 
-      {/* Mini App Global Library Modal */}
-      {isMiniAppLibraryOpen && (
-        <MiniAppLibraryModal onClose={() => setIsMiniAppLibraryOpen(false)} />
+      {activeModalTool?.type === 'miniApp' && (
+        <MiniAppLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
+
+      {activeModalTool &&
+        !['instructionalRoutines', 'stickers', 'calendar', 'miniApp'].includes(
+          activeModalTool.type
+        ) && (
+          <GenericConfigurationModal
+            tool={activeModalTool}
+            permission={getPermission(activeModalTool.type)}
+            onClose={() => {
+              const toolType = activeModalTool?.type;
+              if (toolType && unsavedChanges.has(toolType)) {
+                if (
+                  window.confirm(
+                    'You have unsaved changes. Are you sure you want to discard them?'
+                  )
+                ) {
+                  setUnsavedChanges((prev) => {
+                    const next = new Set(prev);
+                    next.delete(toolType);
+                    return next;
+                  });
+
+                  if (!isAuthBypass) {
+                    const docRef = doc(db, 'feature_permissions', toolType);
+                    getDoc(docRef)
+                      .then((snap) => {
+                        let data: FeaturePermission;
+                        if (snap.exists()) {
+                          data = snap.data() as FeaturePermission;
+                          if (
+                            data.gradeLevels &&
+                            data.gradeLevels.includes('universal' as GradeLevel)
+                          ) {
+                            data.gradeLevels = ALL_GRADE_LEVELS;
+                          }
+                        } else {
+                          data = {
+                            widgetType: toolType,
+                            accessLevel: 'public',
+                            betaUsers: [],
+                            enabled: true,
+                          };
+                        }
+                        setPermissions((prev) =>
+                          new Map(prev).set(toolType, data)
+                        );
+                        setActiveModalTool(null);
+                      })
+                      .catch((err) => {
+                        console.error('Failed to revert permission', err);
+                        setActiveModalTool(null);
+                      });
+                  } else {
+                    setActiveModalTool(null);
+                  }
+                }
+              } else {
+                setActiveModalTool(null);
+              }
+            }}
+            onSave={async () => {
+              const success = await savePermission(activeModalTool.type);
+              if (success) {
+                setActiveModalTool(null);
+              }
+            }}
+            isSaving={saving.has(activeModalTool.type)}
+            hasUnsavedChanges={unsavedChanges.has(activeModalTool.type)}
+            updatePermission={updatePermission}
+            showMessage={showMessage}
+            uploadWeatherImage={uploadWeatherImage}
+          />
+        )}
     </div>
   );
 };

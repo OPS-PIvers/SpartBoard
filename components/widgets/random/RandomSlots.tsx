@@ -1,6 +1,6 @@
 import React from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { DEFAULT_GLOBAL_STYLE } from '../../../types';
+import { useDashboard } from '@/context/useDashboard';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 
 interface RandomSlotsProps {
   displayResult: string | string[] | string[][] | null;

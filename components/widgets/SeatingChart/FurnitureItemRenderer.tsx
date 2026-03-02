@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { FurnitureItem } from '../../types';
+import { FurnitureItem } from '@/types';
 import {
   Monitor,
   User,
@@ -11,7 +11,7 @@ import {
   Copy,
   Trash2,
 } from 'lucide-react';
-import { FloatingPanel } from '../common/FloatingPanel';
+import { FloatingPanel } from '@/components/common/FloatingPanel';
 
 interface FurnitureItemRendererProps {
   item: FurnitureItem;

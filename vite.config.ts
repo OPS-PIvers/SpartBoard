@@ -14,16 +14,19 @@ export default defineConfig({
     },
   },
   build: {
+    // Keep the global chunk size warning at 500 kB so we don't hide regressions in other chunks.
+    // Warnings for inherently large WASM-heavy chunks like @imgly/background-removal and ort-wasm
+    // are expected and accepted rather than suppressed globally.
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
-          firebase: [
-            'firebase/app',
-            'firebase/auth',
-            'firebase/firestore',
-            'firebase/storage',
-          ],
+          'firebase-app': ['firebase/app'],
+          'firebase-auth': ['firebase/auth'],
+          'firebase-firestore': ['firebase/firestore'],
+          'firebase-storage': ['firebase/storage'],
+          'firebase-functions': ['firebase/functions'],
           'dnd-kit': [
             '@dnd-kit/core',
             '@dnd-kit/sortable',
@@ -31,7 +34,6 @@ export default defineConfig({
           ],
           'imgly-bg-removal': ['@imgly/background-removal'],
           utils: ['html-to-image', 'jszip'],
-          icons: ['lucide-react'],
         },
       },
     },

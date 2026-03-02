@@ -58,12 +58,12 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (mode === 'url') {
       base += ' allow-modals';
       try {
-        const parsedUrl = new URL(
-          url.startsWith('http') ? url : `https://${url}`
-        );
+        const parsedUrl = new URL(embedUrl);
         const hostname = parsedUrl.hostname.toLowerCase();
         const allowSameOriginHosts = new Set([
           'docs.google.com',
+          'drive.google.com',
+          'vids.google.com',
           'www.youtube.com',
           'youtube.com',
         ]);
@@ -75,7 +75,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
     return base;
-  }, [mode, url]);
+  }, [mode, embedUrl]);
 
   if (mode === 'url' && !url) {
     return (
