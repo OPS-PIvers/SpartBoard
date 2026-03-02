@@ -12,7 +12,6 @@ import {
   ToolMetadata,
 } from '../../types';
 import {
-  Settings,
   Plus,
   Trash2,
   Image as ImageIcon,
@@ -158,11 +157,7 @@ export const FeatureConfigurationPanel: React.FC<
   };
 
   return (
-    <div className="mb-4 p-3 bg-brand-blue-lighter/20 border border-brand-blue-lighter rounded-lg animate-in slide-in-from-top-2">
-      <h4 className="text-xs font-black text-brand-blue-dark uppercase mb-3 flex items-center gap-2">
-        <Settings className="w-3 h-3" /> {tool.label} Configuration
-      </h4>
-
+    <div className="space-y-4">
       {tool.type === 'lunchCount' && (
         <div className="space-y-3">
           {(() => {
@@ -761,9 +756,14 @@ export const FeatureConfigurationPanel: React.FC<
         'expectations',
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
-        <p className="text-xs text-slate-500 italic">
-          No additional configuration available for this widget.
-        </p>
+        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
+          <p className="text-sm font-bold text-slate-500 mb-2">
+            No global settings available for this widget.
+          </p>
+          <p className="text-xs text-slate-400">
+            All settings are controlled at the user widget settings level.
+          </p>
+        </div>
       )}
     </div>
   );
