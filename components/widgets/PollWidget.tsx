@@ -107,7 +107,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }}
         >
           <div
-            className={`font-black uppercase text-slate-800 tracking-tight font-${globalStyle.fontFamily}`}
+            className={`font-black uppercase ${_announcementId ? 'text-white' : 'text-slate-800'} tracking-tight font-${globalStyle.fontFamily}`}
             style={{ fontSize: 'min(32px, 10cqmin)', lineHeight: 1.1 }}
           >
             {question}
@@ -124,7 +124,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         >
           {_announcementId && userVoted !== null && (
             <div
-              className="text-center text-emerald-600 font-semibold"
+              className={`text-center font-semibold ${_announcementId ? 'text-emerald-400' : 'text-emerald-600'}`}
               style={{ fontSize: 'min(14px, 4cqmin)' }}
             >
               ✓ Vote recorded!
@@ -155,7 +155,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 className={buttonCls}
               >
                 <div
-                  className={`flex justify-between mb-1 uppercase tracking-wider text-slate-600 font-${globalStyle.fontFamily}`}
+                  className={`flex justify-between mb-1 uppercase tracking-wider ${_announcementId ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
                   style={{ fontSize: 'min(16px, 5.5cqmin)' }}
                 >
                   <span className="font-bold truncate pr-4">{o.label}</span>
