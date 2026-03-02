@@ -33,6 +33,45 @@ describe('GoogleDriveService', () => {
     vi.restoreAllMocks();
   });
 
+  describe('fetchWithRetry (401 auto-refresh)', () => {
+    it('should retry with a new token after a 401 when onTokenExpire is provided', async () => {
+      const newToken = 'refreshed-token';
+      const onTokenExpire = vi.fn().mockResolvedValue(newToken);
+      const retryService = new GoogleDriveService(accessToken, onTokenExpire);
+
+      const mockFiles = [{ id: '1', name: 'file1' }];
+      vi.spyOn(global, 'fetch')
+        // First call → 401
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          statusText: 'Unauthorized',
+        } as Response)
+        // Retry call → 200 with data
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ files: mockFiles }),
+        } as Response);
+
+      const files = await retryService.listFiles();
+
+      expect(onTokenExpire).toHaveBeenCalledTimes(1);
+      expect(files).toEqual(mockFiles);
+    });
+
+    it('should propagate 401 as a thrown error when no onTokenExpire is provided', async () => {
+      vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+      } as Response);
+
+      await expect(service.listFiles()).rejects.toThrow(
+        'Google Drive access expired. Please sign in again.'
+      );
+    });
+  });
+
   describe('listFiles', () => {
     it('should list files with correct query params', async () => {
       const mockFiles = [{ id: '1', name: 'file1' }];

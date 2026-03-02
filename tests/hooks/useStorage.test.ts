@@ -7,7 +7,6 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage';
-import { useAuth } from '../../context/useAuth';
 import { useGoogleDrive } from '../../hooks/useGoogleDrive';
 
 // Mock dependencies
@@ -28,12 +27,25 @@ vi.mock('../../hooks/useGoogleDrive', () => ({
   useGoogleDrive: vi.fn(),
 }));
 
+// Mock URL.createObjectURL / revokeObjectURL for blob URL fallback tests
+const mockCreateObjectURL = vi
+  .fn()
+  .mockReturnValue('blob:http://localhost/mock-blob-id');
+const mockRevokeObjectURL = vi.fn();
+Object.defineProperty(URL, 'createObjectURL', {
+  value: mockCreateObjectURL,
+  writable: true,
+});
+Object.defineProperty(URL, 'revokeObjectURL', {
+  value: mockRevokeObjectURL,
+  writable: true,
+});
+
 describe('useStorage', () => {
   const mockUploadBytes = uploadBytes as Mock;
   const mockGetDownloadURL = getDownloadURL as Mock;
   const mockRef = ref as Mock;
   const mockDeleteObject = deleteObject as Mock;
-  const mockUseAuth = useAuth as Mock;
   const mockUseGoogleDrive = useGoogleDrive as Mock;
 
   const mockFile = new File(['dummy content'], 'test.png', {
@@ -42,12 +54,12 @@ describe('useStorage', () => {
   const mockDriveService = {
     uploadFile: vi.fn(),
     makePublic: vi.fn(),
+    deleteFile: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mocks
-    mockUseAuth.mockReturnValue({ isAdmin: true });
+    // Default: Drive not connected
     mockUseGoogleDrive.mockReturnValue({ driveService: null });
 
     mockRef.mockReturnValue('mock-ref');
@@ -89,24 +101,7 @@ describe('useStorage', () => {
   });
 
   describe('uploadBackgroundImage', () => {
-    it('should upload to Firebase when user is Admin', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: true });
-      const { result } = renderHook(() => useStorage());
-
-      await act(async () => {
-        await result.current.uploadBackgroundImage('user123', mockFile);
-      });
-
-      // Expect Firebase path structure
-      expect(mockRef).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.stringMatching(/users\/user123\/backgrounds\/.*-test.png/)
-      );
-      expect(mockUploadBytes).toHaveBeenCalled();
-    });
-
-    it('should upload to Google Drive when user is NOT Admin and Drive is connected', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
+    it('should upload to Google Drive when Drive is connected (admin user)', async () => {
       mockUseGoogleDrive.mockReturnValue({
         driveService: mockDriveService,
         userDomain: 'school.edu',
@@ -137,21 +132,41 @@ describe('useStorage', () => {
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 
-    it('should fall back to Firebase if not Admin but Drive NOT connected', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
-      mockUseGoogleDrive.mockReturnValue({ driveService: null }); // Drive disconnected
+    it('should upload to Google Drive when Drive is connected (non-admin user)', async () => {
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+        userDomain: 'school.edu',
+      });
+
+      mockDriveService.uploadFile.mockResolvedValue({
+        id: 'drive-file-id',
+        webContentLink: 'https://drive.google.com/content-link',
+      });
 
       const { result } = renderHook(() => useStorage());
 
+      let url;
       await act(async () => {
-        await result.current.uploadBackgroundImage('user123', mockFile);
+        url = await result.current.uploadBackgroundImage('user123', mockFile);
       });
 
-      // Should hit Firebase
-      expect(mockRef).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.stringMatching(/users\/user123\/backgrounds\/.*-test.png/)
-      );
+      expect(url).toBe('https://drive.google.com/content-link');
+      expect(mockUploadBytes).not.toHaveBeenCalled();
+    });
+
+    it('should return a blob URL when Drive is not connected', async () => {
+      mockUseGoogleDrive.mockReturnValue({ driveService: null });
+
+      const { result } = renderHook(() => useStorage());
+
+      let url;
+      await act(async () => {
+        url = await result.current.uploadBackgroundImage('user123', mockFile);
+      });
+
+      expect(mockCreateObjectURL).toHaveBeenCalledWith(mockFile);
+      expect(url).toBe('blob:http://localhost/mock-blob-id');
+      expect(mockUploadBytes).not.toHaveBeenCalled();
     });
   });
 
@@ -170,15 +185,21 @@ describe('useStorage', () => {
       expect(mockDeleteObject).toHaveBeenCalledWith('mock-ref');
     });
 
+    it('should revoke blob URLs without hitting Firebase or Drive', async () => {
+      const { result } = renderHook(() => useStorage());
+      const blobUrl = 'blob:http://localhost/some-uuid';
+
+      await act(async () => {
+        await result.current.deleteFile(blobUrl);
+      });
+
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith(blobUrl);
+      expect(mockDeleteObject).not.toHaveBeenCalled();
+    });
+
     it('should skip deletion for Drive-hosted URLs without a parseable file ID', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
-      const mockDriveServiceLocal = {
-        uploadFile: vi.fn(),
-        makePublic: vi.fn(),
-        deleteFile: vi.fn(),
-      };
       mockUseGoogleDrive.mockReturnValue({
-        driveService: mockDriveServiceLocal,
+        driveService: mockDriveService,
       });
 
       const { result } = renderHook(() => useStorage());
@@ -190,19 +211,14 @@ describe('useStorage', () => {
       });
 
       expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveServiceLocal.deleteFile).not.toHaveBeenCalled();
+      expect(mockDriveService.deleteFile).not.toHaveBeenCalled();
     });
 
     it('should delete file from Google Drive when URL contains a file ID', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
-      const mockDriveServiceLocal = {
-        uploadFile: vi.fn(),
-        makePublic: vi.fn(),
-        deleteFile: vi.fn().mockResolvedValue(undefined),
-      };
       mockUseGoogleDrive.mockReturnValue({
-        driveService: mockDriveServiceLocal,
+        driveService: mockDriveService,
       });
+      mockDriveService.deleteFile.mockResolvedValue(undefined);
 
       const { result } = renderHook(() => useStorage());
 
@@ -213,9 +229,68 @@ describe('useStorage', () => {
       });
 
       expect(mockDeleteObject).not.toHaveBeenCalled();
-      expect(mockDriveServiceLocal.deleteFile).toHaveBeenCalledWith(
-        'abc123xyz'
-      );
+      expect(mockDriveService.deleteFile).toHaveBeenCalledWith('abc123xyz');
+    });
+
+    it('should delete from Drive regardless of admin status', async () => {
+      // Admins who upload board assets to Drive should be able to delete them too
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+      });
+      mockDriveService.deleteFile.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useStorage());
+
+      await act(async () => {
+        await result.current.deleteFile(
+          'https://drive.google.com/file/d/admin-file-id/view'
+        );
+      });
+
+      expect(mockDriveService.deleteFile).toHaveBeenCalledWith('admin-file-id');
+    });
+  });
+
+  describe('uploadPdf', () => {
+    it('should upload PDF to Google Drive when connected', async () => {
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+        userDomain: 'school.edu',
+      });
+      mockDriveService.uploadFile.mockResolvedValue({
+        id: 'pdf-drive-id',
+        webViewLink: 'https://drive.google.com/file/d/pdf-drive-id/view',
+      });
+
+      const pdfFile = new File(['pdf content'], 'test.pdf', {
+        type: 'application/pdf',
+      });
+      const { result } = renderHook(() => useStorage());
+
+      let pdfResult;
+      await act(async () => {
+        pdfResult = await result.current.uploadPdf('user123', pdfFile);
+      });
+
+      expect(pdfResult).toEqual({
+        url: 'https://drive.google.com/file/d/pdf-drive-id/preview',
+        storagePath: 'https://drive.google.com/file/d/pdf-drive-id/view',
+      });
+    });
+
+    it('should throw when Drive is not connected', async () => {
+      mockUseGoogleDrive.mockReturnValue({ driveService: null });
+
+      const pdfFile = new File(['pdf content'], 'test.pdf', {
+        type: 'application/pdf',
+      });
+      const { result } = renderHook(() => useStorage());
+
+      await expect(
+        act(async () => {
+          await result.current.uploadPdf('user123', pdfFile);
+        })
+      ).rejects.toThrow('Google Drive must be connected to upload PDFs');
     });
   });
 });
