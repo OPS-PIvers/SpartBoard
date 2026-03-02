@@ -96,12 +96,11 @@ export class GoogleDriveService {
       const newToken = await this.onTokenExpire();
       if (newToken) {
         this.accessToken = newToken;
-        const currentHeaders = options.headers as
-          | Record<string, string>
-          | undefined;
+        const newHeaders = new Headers(options.headers);
+        newHeaders.set('Authorization', `Bearer ${newToken}`);
         return this.fetchWithTimeout(url, {
           ...options,
-          headers: { ...currentHeaders, Authorization: `Bearer ${newToken}` },
+          headers: newHeaders,
         });
       }
     }
