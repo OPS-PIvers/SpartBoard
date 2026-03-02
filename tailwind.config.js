@@ -105,8 +105,8 @@ export default {
         cursive: ['"Dancing Script"', 'cursive'],
       },
       fontSize: {
-        xxs: ['10px', '14px'],
-        xxxs: ['8px', '10px'],
+        xxs: ['10px', '14px'], // Micro-typography token
+        xxxs: ['8px', '10px'], // Micro-typography token
       },
       colors: {
         brand: {
