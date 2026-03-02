@@ -180,7 +180,9 @@ export const FeaturePermissionsManager: React.FC = () => {
     setUnsavedChanges(new Set(unsavedChanges).add(widgetType));
   };
 
-  const savePermission = async (widgetType: WidgetType | InternalToolType) => {
+  const savePermission = async (
+    widgetType: WidgetType | InternalToolType
+  ): Promise<boolean> => {
     try {
       setSaving(new Set(saving).add(widgetType));
       const permission = getPermission(widgetType);
@@ -195,9 +197,11 @@ export const FeaturePermissionsManager: React.FC = () => {
       });
 
       showMessage('success', `Saved ${widgetType} permissions`);
+      return true;
     } catch (error) {
       console.error('Error saving permission:', error);
       showMessage('error', `Failed to save ${widgetType} permissions`);
+      return false;
     } finally {
       setSaving((prev) => {
         const next = new Set(prev);
@@ -690,8 +694,10 @@ export const FeaturePermissionsManager: React.FC = () => {
               }
             }}
             onSave={async () => {
-              await savePermission(activeModalTool.type);
-              setActiveModalTool(null);
+              const success = await savePermission(activeModalTool.type);
+              if (success) {
+                setActiveModalTool(null);
+              }
             }}
             isSaving={saving.has(activeModalTool.type)}
             hasUnsavedChanges={unsavedChanges.has(activeModalTool.type)}
