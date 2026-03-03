@@ -26,6 +26,8 @@ interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
   visibleTools: (WidgetType | InternalToolType)[];
   canAccess: (type: WidgetType | InternalToolType) => boolean;
+  /** In normal (non-edit) mode, only widgets returning true are shown */
+  matchesUserBuilding?: (type: WidgetType | InternalToolType) => boolean;
   onClose: () => void;
   globalStyle: GlobalStyle;
   triggerRef?: React.RefObject<HTMLElement | null>;
@@ -107,6 +109,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       onToggle,
       visibleTools,
       canAccess,
+      matchesUserBuilding,
       onClose,
       globalStyle,
       triggerRef,
@@ -131,27 +134,39 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       triggerRef ? [triggerRef] : []
     );
 
+    // Merge any new TOOLS not yet tracked in libraryOrder (auto-discovery)
+    const allToolTypes = TOOLS.map((t) => t.type);
+    const effectiveOrder = [
+      ...libraryOrder,
+      ...allToolTypes.filter((type) => !libraryOrder.includes(type)),
+    ];
+
     const handleDragEnd = (event: DragEndEvent) => {
       const { active, over } = event;
       if (over && active.id !== over.id) {
-        const oldIndex = libraryOrder.indexOf(
+        const oldIndex = effectiveOrder.indexOf(
           active.id as WidgetType | InternalToolType
         );
-        const newIndex = libraryOrder.indexOf(
+        const newIndex = effectiveOrder.indexOf(
           over.id as WidgetType | InternalToolType
         );
-        onReorderLibrary(arrayMove(libraryOrder, oldIndex, newIndex));
+        onReorderLibrary(arrayMove(effectiveOrder, oldIndex, newIndex));
       }
     };
 
-    // Filter tools: must be accessible AND NOT already in the dock
-    const availableTools = libraryOrder
+    // Filter tools: must be accessible AND NOT already in the dock,
+    // and in normal mode must match the user's selected buildings
+    const availableTools = effectiveOrder
       .map((type) => TOOLS.find((t) => t.type === type))
       .filter((tool): tool is (typeof TOOLS)[0] => {
         if (!tool) return false;
         if (!canAccess(tool.type)) return false;
         // Hide if already in the dock
-        return !visibleTools.includes(tool.type);
+        if (visibleTools.includes(tool.type)) return false;
+        // In normal (non-edit) mode, apply building-based grade-level filter
+        if (!isEditMode && matchesUserBuilding && !matchesUserBuilding(tool.type))
+          return false;
+        return true;
       });
 
     return createPortal(
@@ -216,7 +231,9 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
                 <LayoutGrid className="w-12 h-12 mb-4 text-slate-400" />
                 <p className="text-sm font-black uppercase tracking-widest text-slate-600">
-                  All widgets are in your dock
+                  {isEditMode
+                    ? 'All widgets are in your dock'
+                    : 'No widgets available for your buildings'}
                 </p>
               </div>
             )}
@@ -227,7 +244,9 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 ? isEditMode
                   ? 'Drag to reorder • Tap to add to dock'
                   : 'Drag to reorder • Tap to add to board'
-                : 'Remove items from dock to see them here'}
+                : isEditMode
+                  ? 'All widgets are in your dock'
+                  : 'No widgets available for your selected buildings'}
             </p>
           </div>
         </GlassCard>

@@ -29,16 +29,9 @@ import { IconButton } from '@/components/common/IconButton';
 import { StylePanel } from './StylePanel';
 import { SidebarBoards } from './SidebarBoards';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
-import { SidebarWidgets } from './SidebarWidgets';
 import { SidebarSettings } from './SidebarSettings';
 
-type MenuSection =
-  | 'main'
-  | 'boards'
-  | 'backgrounds'
-  | 'widgets'
-  | 'style'
-  | 'settings';
+type MenuSection = 'main' | 'boards' | 'backgrounds' | 'style' | 'settings';
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -250,7 +243,7 @@ export const Sidebar: React.FC = () => {
               setActiveSection('main');
             }}
           />
-          <div className="relative w-full max-w-72 h-full bg-white shadow-2xl flex flex-col p-0 animate-in slide-in-from-left duration-300 border-r border-slate-200">
+          <div className="relative w-full max-w-80 h-full bg-white shadow-2xl flex flex-col p-0 animate-in slide-in-from-left duration-300 border-r border-slate-200">
             {/* Header */}
             <div className="h-14 flex items-center justify-between px-4 border-b border-slate-200 shrink-0 bg-white z-10">
               <div className="flex items-center gap-2">
@@ -359,13 +352,6 @@ export const Sidebar: React.FC = () => {
                     <Paintbrush className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
                     <span>{t('sidebar.nav.backgrounds')}</span>
                   </button>
-                  <button
-                    onClick={() => setActiveSection('widgets')}
-                    className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
-                  >
-                    <LayoutGrid className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>{t('sidebar.nav.widgets')}</span>
-                  </button>
                 </div>
 
                 <div className="my-4 border-t border-slate-100"></div>
@@ -398,9 +384,6 @@ export const Sidebar: React.FC = () => {
 
               {/* BACKGROUNDS SECTION */}
               <SidebarBackgrounds isVisible={activeSection === 'backgrounds'} />
-
-              {/* WIDGETS SECTION */}
-              <SidebarWidgets isVisible={activeSection === 'widgets'} />
 
               {/* STYLE SECTION */}
               <StylePanel

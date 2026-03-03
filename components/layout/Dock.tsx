@@ -29,9 +29,18 @@ import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { useLiveSession } from '../../hooks/useLiveSession';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { WidgetType, WidgetData, DockFolder, MiniAppItem } from '../../types';
+import {
+  WidgetType,
+  WidgetData,
+  DockFolder,
+  MiniAppItem,
+  InternalToolType,
+} from '../../types';
 import { TOOLS } from '../../config/tools';
 import { isLunchCountBuilding } from '../../config/buildings';
+import {
+  getWidgetGradeLevels,
+} from '../../config/widgetGradeLevels';
 import { AddWidgetOverrides } from '../../types';
 import { getJoinUrl } from '../../utils/urlHelpers';
 import ClassRosterMenu from './ClassRosterMenu';
@@ -81,6 +90,7 @@ export const Dock: React.FC = () => {
     user,
     userGradeLevels,
     selectedBuildings,
+    featurePermissions,
   } = useAuth();
   const { driveService } = useGoogleDrive();
 
@@ -103,6 +113,20 @@ export const Dock: React.FC = () => {
       return undefined;
     },
     [userGradeLevels, selectedBuildings]
+  );
+
+  /**
+   * Returns true when a widget's grade levels overlap with the user's selected
+   * buildings' grade levels. If no buildings are selected, all widgets match.
+   */
+  const matchesUserBuilding = useCallback(
+    (type: WidgetType | InternalToolType): boolean => {
+      if (userGradeLevels.length === 0) return true;
+      const permission = featurePermissions.find((p) => p.widgetType === type);
+      const levels = permission?.gradeLevels ?? getWidgetGradeLevels(type);
+      return levels.some((l) => userGradeLevels.includes(l));
+    },
+    [userGradeLevels, featurePermissions]
   );
 
   const handleRecordingComplete = useCallback(
@@ -533,6 +557,7 @@ export const Dock: React.FC = () => {
                 if (type === 'magic') return canAccessFeature('magic-layout');
                 return canAccessWidget(type as WidgetType);
               }}
+              matchesUserBuilding={matchesUserBuilding}
               onClose={() => {
                 setShowMoreMenu(false);
                 setShowLibrary(false);
