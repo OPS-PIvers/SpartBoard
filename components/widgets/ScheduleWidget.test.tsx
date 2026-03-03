@@ -47,6 +47,7 @@ vi.mock('lucide-react', () => ({
   Save: () => <div>Save Icon</div>,
   GripVertical: () => <div>Grip Icon</div>,
   Settings2: () => <div>Settings2 Icon</div>,
+  CalendarDays: () => <div>CalendarDays Icon</div>,
   Calendar: () => <div>Calendar Icon</div>,
   Ban: () => <div>Ban Icon</div>,
 }));
@@ -71,12 +72,20 @@ describe('ScheduleWidget', () => {
       profile: { selectedBuildings: ['b1'] },
     });
     (useFeaturePermissions as unknown as Mock).mockReturnValue({
-      subscribeToPermission: vi.fn((type, cb) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        cb({ config: { blockedDates: [], buildingDefaults: {} } });
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        return () => {};
-      }),
+      subscribeToPermission: vi.fn(
+        (
+          type: string,
+          cb: (p: {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            config: { blockedDates: any[]; buildingDefaults: any };
+          }) => void
+        ) => {
+          cb({ config: { blockedDates: [], buildingDefaults: {} } });
+          return () => {
+            /* no-op */
+          };
+        }
+      ),
     });
     mockUpdateWidget.mockClear();
     mockAddWidget.mockClear();
@@ -539,5 +548,214 @@ describe('ScheduleSettings', () => {
     ).config.items;
     expect(savedItems[0].task).toBe('Early Class');
     expect(savedItems[1].task).toBe('Later Class');
+  });
+});
+
+describe('ScheduleWidget Multi-Schedule', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
+    (useAuth as unknown as Mock).mockReturnValue({
+      profile: { selectedBuildings: ['b1'] },
+    });
+    (useFeaturePermissions as unknown as Mock).mockReturnValue({
+      subscribeToPermission: vi.fn(
+        (
+          type: string,
+          cb: (p: { config: { buildingDefaults: object } }) => void
+        ) => {
+          cb({ config: { buildingDefaults: {} } });
+          return () => {
+            /* no-op */
+          };
+        }
+      ),
+    });
+    mockUpdateWidget.mockClear();
+    mockAddWidget.mockClear();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  const createMultiScheduleWidget = (): WidgetData => {
+    return {
+      id: 'schedule-1',
+      type: 'schedule',
+      config: {
+        schedules: [
+          {
+            id: 'mon-wed',
+            name: 'Mon-Wed',
+            items: [{ time: '08:00', task: 'Math', done: false }],
+            days: [1, 3],
+          },
+          {
+            id: 'tue-thu',
+            name: 'Tue-Thu',
+            items: [{ time: '09:00', task: 'Reading', done: false }],
+            days: [2, 4],
+          },
+        ],
+      },
+    } as WidgetData;
+  };
+
+  it('displays the correct schedule based on the day of the week', () => {
+    // Monday (day 1)
+    const monday = new Date();
+    monday.setFullYear(2024, 0, 1); // 2024-01-01 is Monday
+    vi.setSystemTime(monday);
+
+    const { rerender } = render(
+      <ScheduleWidget widget={createMultiScheduleWidget()} />
+    );
+    expect(screen.getByText('Math')).toBeInTheDocument();
+    expect(screen.queryByText('Reading')).not.toBeInTheDocument();
+
+    // Tuesday (day 2)
+    const tuesday = new Date();
+    tuesday.setFullYear(2024, 0, 2);
+    vi.setSystemTime(tuesday);
+
+    rerender(<ScheduleWidget widget={createMultiScheduleWidget()} />);
+    expect(screen.getByText('Reading')).toBeInTheDocument();
+    expect(screen.queryByText('Math')).not.toBeInTheDocument();
+  });
+
+  it('displays nothing if no schedule matches and multiple schedules exist', () => {
+    // Sunday (day 0)
+    const sunday = new Date();
+    sunday.setFullYear(2024, 0, 7); // 2024-01-07 is Sunday
+    vi.setSystemTime(sunday);
+
+    render(<ScheduleWidget widget={createMultiScheduleWidget()} />);
+    expect(screen.getByText('No Schedule')).toBeInTheDocument();
+  });
+
+  it('displays the only schedule regardless of day if only one exists', () => {
+    const widget = {
+      id: 'schedule-1',
+      type: 'schedule',
+      x: 0,
+      y: 0,
+      w: 300,
+      h: 400,
+      z: 1,
+      flipped: false,
+      config: {
+        schedules: [
+          {
+            id: 'only',
+            name: 'Only',
+            items: [{ time: '08:00', task: 'Math', done: false }],
+            days: [],
+          },
+        ],
+      },
+    } as unknown as WidgetData;
+
+    // Sunday (day 0)
+    const sunday = new Date();
+    sunday.setFullYear(2024, 0, 7);
+    vi.setSystemTime(sunday);
+
+    render(<ScheduleWidget widget={widget} />);
+    expect(screen.getByText('Math')).toBeInTheDocument();
+  });
+});
+
+describe('ScheduleSettings Multi-Schedule', () => {
+  beforeEach(() => {
+    (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
+    (useAuth as unknown as Mock).mockReturnValue({
+      profile: { selectedBuildings: ['b1'] },
+    });
+    (useFeaturePermissions as unknown as Mock).mockReturnValue({
+      subscribeToPermission: vi.fn(),
+    });
+    mockUpdateWidget.mockClear();
+  });
+
+  const createWidget = (config: Partial<ScheduleConfig> = {}): WidgetData => {
+    return {
+      id: 'schedule-1',
+      type: 'schedule',
+      config: {
+        items: [],
+        ...config,
+      },
+    } as WidgetData;
+  };
+
+  it('can create a new schedule', () => {
+    render(<ScheduleSettings widget={createWidget()} />);
+
+    // Open New Schedule form
+    fireEvent.click(screen.getByText('New Schedule'));
+
+    // Fill in name
+    const nameInput = screen.getByPlaceholderText('e.g. Monday Schedule');
+    fireEvent.change(nameInput, { target: { value: 'My New Schedule' } });
+
+    // Save
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('schedule-1', {
+      config: expect.objectContaining({
+        schedules: expect.arrayContaining([
+          expect.objectContaining({ name: 'My New Schedule' }),
+        ]),
+      }),
+    });
+  });
+
+  it('day picker is disabled if only one schedule exists', () => {
+    render(<ScheduleSettings widget={createWidget()} />);
+
+    // Open Edit Schedule for the default one
+    const editButtons = screen.getAllByTitle('Edit Schedule settings');
+    fireEvent.click(editButtons[0]);
+
+    // Check day buttons (S, M, T, W, T, F, S)
+    const dayButtons = screen
+      .getAllByRole('button')
+      .filter((b) => ['S', 'M', 'T', 'W', 'F'].includes(b.textContent || ''));
+    dayButtons.forEach((button) => {
+      expect(button).toBeDisabled();
+    });
+  });
+
+  it('day picker is enabled if multiple schedules exist', () => {
+    const widget = createWidget({
+      schedules: [
+        { id: '1', name: 'S1', items: [], days: [] },
+        { id: '2', name: 'S2', items: [], days: [] },
+      ],
+    });
+    render(<ScheduleSettings widget={widget} />);
+
+    // Open Edit Schedule for the first one
+    const editButtons = screen.getAllByTitle('Edit Schedule settings');
+    fireEvent.click(editButtons[0]);
+
+    // Check a day button
+    const dayButton = screen.getByText('M');
+    expect(dayButton).not.toBeDisabled();
+
+    // Click to toggle
+    fireEvent.click(dayButton);
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('schedule-1', {
+      config: expect.objectContaining({
+        schedules: expect.arrayContaining([
+          expect.objectContaining({ id: '1', days: [1] }),
+        ]),
+      }),
+    });
   });
 });

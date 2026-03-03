@@ -530,7 +530,16 @@ export interface CalendarGlobalConfig {
   updateFrequencyHours?: number;
 }
 
+export interface DailySchedule {
+  id: string;
+  name: string;
+  items: ScheduleItem[];
+  /** Days of the week this schedule is active (0=Sunday, 1=Monday, ..., 6=Saturday) */
+  days: number[];
+}
+
 export interface ScheduleConfig {
+  schedules?: DailySchedule[];
   items: ScheduleItem[];
   localEvents?: CalendarEvent[];
   isBuildingSyncEnabled?: boolean;

@@ -346,8 +346,29 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const { subscribeToPermission } = useFeaturePermissions();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ScheduleConfig;
-  const items = useMemo(() => config.items ?? [], [config.items]);
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;
+
+  const schedules = useMemo(() => {
+    if (config.schedules && config.schedules.length > 0)
+      return config.schedules;
+    // Migration/fallback for legacy widgets
+    return [
+      {
+        id: 'default',
+        name: 'Default Schedule',
+        items: config.items ?? [],
+        days: [],
+      },
+    ];
+  }, [config.schedules, config.items]);
+
+  const activeSchedule = useMemo(() => {
+    if (schedules.length === 1) return schedules[0];
+    const today = new Date().getDay();
+    return schedules.find((s) => s.days.includes(today)) ?? null;
+  }, [schedules]);
+
+  const items = useMemo(() => activeSchedule?.items ?? [], [activeSchedule]);
 
   const {
     fontFamily = 'global',
@@ -376,10 +397,27 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           const buildingId = selectedBuildings[0];
           const defaults = gConfig.buildingDefaults?.[buildingId];
           if (defaults && defaults.items?.length > 0) {
+            const newItems = defaults.items;
+            const updatedSchedules = [...schedules];
+            if (activeSchedule) {
+              const idx = updatedSchedules.findIndex(
+                (s) => s.id === activeSchedule.id
+              );
+              if (idx !== -1) {
+                updatedSchedules[idx] = {
+                  ...updatedSchedules[idx],
+                  items: newItems,
+                };
+              }
+            } else {
+              updatedSchedules[0] = { ...updatedSchedules[0], items: newItems };
+            }
+
             updateWidget(widget.id, {
               config: {
                 ...config,
-                items: defaults.items,
+                items: newItems,
+                schedules: updatedSchedules,
                 lastSyncedBuildingId: buildingId,
               } as ScheduleConfig,
             });
@@ -395,6 +433,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     config,
     widget.id,
     updateWidget,
+    activeSchedule,
+    schedules,
   ]);
 
   // Single shared ticker for all CountdownDisplay instances in this widget.
@@ -505,22 +545,47 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const configRef = useRef(config);
   const itemsRef = useRef(items);
   const widgetRef = useRef(widget);
+  const schedulesRef = useRef(schedules);
+  const activeScheduleRef = useRef(activeSchedule);
 
   useEffect(() => {
     configRef.current = config;
     itemsRef.current = items;
     widgetRef.current = widget;
-  }, [config, items, widget]);
+    schedulesRef.current = schedules;
+    activeScheduleRef.current = activeSchedule;
+  }, [config, items, widget, schedules, activeSchedule]);
 
   const toggle = useCallback(
     (idx: number) => {
       const currentConfig = configRef.current;
       const currentItems = itemsRef.current;
+      const currentSchedules = schedulesRef.current;
+      const currentActiveSchedule = activeScheduleRef.current;
+
       const newItems = [...currentItems];
       if (newItems[idx]) {
         newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
+
+        const updatedSchedules = [...currentSchedules];
+        if (currentActiveSchedule) {
+          const sIdx = updatedSchedules.findIndex(
+            (s) => s.id === currentActiveSchedule.id
+          );
+          if (sIdx !== -1) {
+            updatedSchedules[sIdx] = {
+              ...updatedSchedules[sIdx],
+              items: newItems,
+            };
+          }
+        }
+
         updateWidget(widget.id, {
-          config: { ...currentConfig, items: newItems } as ScheduleConfig,
+          config: {
+            ...currentConfig,
+            items: newItems,
+            schedules: updatedSchedules,
+          } as ScheduleConfig,
         });
       }
     },
@@ -658,8 +723,27 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       });
 
       if (changed) {
+        const currentSchedules = schedulesRef.current;
+        const currentActiveSchedule = activeScheduleRef.current;
+        const updatedSchedules = [...currentSchedules];
+        if (currentActiveSchedule) {
+          const sIdx = updatedSchedules.findIndex(
+            (s) => s.id === currentActiveSchedule.id
+          );
+          if (sIdx !== -1) {
+            updatedSchedules[sIdx] = {
+              ...updatedSchedules[sIdx],
+              items: newItems,
+            };
+          }
+        }
+
         updateWidget(widget.id, {
-          config: { ...currentConfig, items: newItems } as ScheduleConfig,
+          config: {
+            ...currentConfig,
+            items: newItems,
+            schedules: updatedSchedules,
+          } as ScheduleConfig,
         });
       }
     };
