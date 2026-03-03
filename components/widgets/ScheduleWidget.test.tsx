@@ -18,13 +18,12 @@ vi.mock('../../context/useAuth');
 vi.mock('../../hooks/useFeaturePermissions');
 
 // jsdom does not implement HTMLElement.prototype.scrollTo.
-// Define it once as a stub so that the widget's useLayoutEffect does not throw
-// and vi.spyOn can wrap it in individual tests.
+// Define it once as a vi.fn() stub so that the widget's useLayoutEffect does
+// not throw and vi.spyOn can wrap it in individual tests.
 Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   configurable: true,
   writable: true,
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  value: () => {},
+  value: vi.fn(),
 });
 
 // Mock useScaledFont to return a fixed size

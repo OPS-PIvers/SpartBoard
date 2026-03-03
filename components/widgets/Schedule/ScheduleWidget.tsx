@@ -468,11 +468,17 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     const el = scrollContainerRef.current;
     // Row height = 25% of the scroll container's client height.
     const rowHeight = el.clientHeight / 4;
+    // Derive the per-gap height from the actual scroll height so the calculation
+    // stays accurate regardless of the gap CSS value (min(10px, 2cqmin)).
+    const rowCount = items.length;
+    const totalGapHeight = Math.max(0, el.scrollHeight - rowHeight * rowCount);
+    const gapPx = rowCount > 1 ? totalGapHeight / (rowCount - 1) : 0;
     // Show the completed item above the active one (activeIndex - 1).
-    const targetTop = Math.max(0, activeIndex - 1) * rowHeight;
+    const index = Math.max(0, activeIndex - 1);
+    const targetTop = index * (rowHeight + gapPx);
     // Optional chaining guards against jsdom (tests) and edge-case browsers.
     el.scrollTo?.({ top: targetTop, behavior: 'smooth' });
-  }, [activeIndex, autoScroll]);
+  }, [activeIndex, autoScroll, items.length]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.
   const clockWidget = useMemo(
