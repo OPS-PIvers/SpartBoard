@@ -14,8 +14,13 @@ export const TalkingToolConfigurationPanel: React.FC<
 > = ({ config, onChange }) => {
   const categories = config.categories ?? DEFAULT_TALKING_TOOL_CATEGORIES;
 
-  const updateCategory = (id: string, updates: Partial<TalkingToolCategory>) => {
-    const next = categories.map((c) => (c.id === id ? { ...c, ...updates } : c));
+  const updateCategory = (
+    id: string,
+    updates: Partial<TalkingToolCategory>
+  ) => {
+    const next = categories.map((c) =>
+      c.id === id ? { ...c, ...updates } : c
+    );
     onChange({ categories: next });
   };
 

@@ -530,7 +530,6 @@ export interface CalendarGlobalConfig {
   updateFrequencyHours?: number;
 }
 
-
 export interface TalkingToolCategory {
   id: string;
   label: string;

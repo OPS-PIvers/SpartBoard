@@ -6,20 +6,27 @@ import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 
 const getIcon = (iconName: string) => {
-  return (Icons as unknown as Record<string, React.ElementType>)[iconName] || Icons.MessageSquare;
+  return (
+    (Icons as unknown as Record<string, React.ElementType>)[iconName] ||
+    Icons.MessageSquare
+  );
 };
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
   const { featurePermissions } = useAuth();
 
   // Get config from feature permissions
-  const permission = featurePermissions.find(p => p.widgetType === 'talking-tool');
-  const config = (permission?.config ?? {}) as TalkingToolGlobalConfig;
-  const categories = config.categories?.length ? config.categories : DEFAULT_TALKING_TOOL_CATEGORIES;
+  const permission = featurePermissions.find(
+    (p) => p.widgetType === 'talking-tool'
+  );
+  const config = permission?.config as unknown as TalkingToolGlobalConfig;
+  const categories = config?.categories?.length
+    ? config.categories
+    : DEFAULT_TALKING_TOOL_CATEGORIES;
 
-  const [activeTab, setActiveTab] = useState<string>(categories[0]?.id || '');
+  const [activeTab, setActiveTab] = useState<string>(categories[0]?.id ?? '');
 
-  const activeCat = categories.find((c) => c.id === activeTab) || categories[0];
+  const activeCat = categories.find((c) => c.id === activeTab) ?? categories[0];
 
   if (!activeCat) return null;
 
@@ -126,7 +133,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
               style: {
                 width: 'min(20px, 5cqmin)',
                 height: 'min(20px, 5cqmin)',
-              }
+              },
             })}
             {activeCat.label}
           </h3>

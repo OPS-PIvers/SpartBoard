@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TalkingToolWidget } from './TalkingToolWidget';
-import { WidgetData } from '../../types';
+import { WidgetData, FeaturePermission } from '../../types';
 import { useAuth } from '../../context/useAuth';
+import { AuthContextType } from '../../context/AuthContextValue';
 
 // Mock useAuth
 vi.mock('../../context/useAuth', () => ({
@@ -21,11 +22,39 @@ const mockWidget: WidgetData = {
   config: {},
 };
 
+const mockAuthContext = (
+  overrides: Partial<AuthContextType> = {}
+): AuthContextType => ({
+  user: null,
+  googleAccessToken: null,
+  loading: false,
+  isAdmin: false,
+  featurePermissions: [],
+  globalPermissions: [],
+  canAccessWidget: () => true,
+  canAccessFeature: () => true,
+  signInWithGoogle: async () => {
+    /* mock */
+  },
+  signOut: async () => {
+    /* mock */
+  },
+  selectedBuildings: [],
+  userGradeLevels: [],
+  setSelectedBuildings: async () => {
+    /* mock */
+  },
+  language: 'en',
+  setLanguage: async () => {
+    /* mock */
+  },
+  refreshGoogleToken: () => Promise.resolve(null),
+  ...overrides,
+});
+
 describe('TalkingToolWidget', () => {
   it('renders correctly and defaults to "Listen Closely" tab', () => {
-    (useAuth as any).mockReturnValue({
-      featurePermissions: [],
-    });
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
 
     render(<TalkingToolWidget widget={mockWidget} />);
 
@@ -39,9 +68,7 @@ describe('TalkingToolWidget', () => {
   });
 
   it('switches tabs when a sidebar button is clicked', () => {
-    (useAuth as any).mockReturnValue({
-      featurePermissions: [],
-    });
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
 
     render(<TalkingToolWidget widget={mockWidget} />);
 
@@ -61,24 +88,29 @@ describe('TalkingToolWidget', () => {
   });
 
   it('renders custom categories from global config', () => {
-    (useAuth as any).mockReturnValue({
-      featurePermissions: [
-        {
-          widgetType: 'talking-tool',
-          config: {
-            categories: [
-              {
-                id: 'custom',
-                label: 'Custom Category',
-                color: '#ff0000',
-                icon: 'Star',
-                stems: ['Custom stem 1'],
-              },
-            ],
+    vi.mocked(useAuth).mockReturnValue(
+      mockAuthContext({
+        featurePermissions: [
+          {
+            widgetType: 'talking-tool',
+            accessLevel: 'public',
+            betaUsers: [],
+            enabled: true,
+            config: {
+              categories: [
+                {
+                  id: 'custom',
+                  label: 'Custom Category',
+                  color: '#ff0000',
+                  icon: 'Star',
+                  stems: ['Custom stem 1'],
+                },
+              ],
+            },
           },
-        },
-      ],
-    });
+        ] as FeaturePermission[],
+      })
+    );
 
     render(<TalkingToolWidget widget={mockWidget} />);
 

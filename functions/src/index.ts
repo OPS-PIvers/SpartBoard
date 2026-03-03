@@ -661,11 +661,14 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
 
     // Generate OAuth 2.0 Access Token
 
+    /* eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
-    const accessToken = await auth.getAccessToken();
+    const accessToken = await (
+      auth as unknown as { getAccessToken: () => Promise<string | null> }
+    ).getAccessToken();
 
     if (!accessToken) {
       throw new functionsV2.https.HttpsError(

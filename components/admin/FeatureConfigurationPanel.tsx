@@ -35,7 +35,7 @@ import { RandomConfigurationPanel } from './RandomConfigurationPanel';
 import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
-import { TalkingToolConfigurationPanel } from "./TalkingToolConfigurationPanel";
+import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -1215,7 +1215,8 @@ export const FeatureConfigurationPanel: React.FC<
         'stickers',
         'calendar',
         'miniApp',
-        'expectations', 'talking-tool',
+        'expectations',
+        'talking-tool',
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
