@@ -320,12 +320,12 @@ export const CalendarConfigurationModal: React.FC<
                           {b.name}
                         </span>
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-medium text-blue-600/70">
+                          <span className="text-xxs font-medium text-blue-600/70">
                             {eventCount} events
                           </span>
                           {lastSync && (
                             <span
-                              className="text-[9px] font-bold text-slate-400 uppercase"
+                              className="text-xxxs font-bold text-slate-400 uppercase"
                               title={new Date(lastSync).toLocaleString()}
                             >
                               {new Date(lastSync).toLocaleTimeString([], {
@@ -526,7 +526,7 @@ export const CalendarConfigurationModal: React.FC<
                         {currentBuildingConfig.lastProxySync && (
                           <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
                             <CheckCircle2 className="w-3 h-3 text-green-500" />
-                            <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
+                            <span className="text-xxs font-black text-green-600 uppercase tracking-tighter">
                               Proxied
                             </span>
                           </div>

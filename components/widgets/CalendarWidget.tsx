@@ -188,7 +188,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
             <p className="text-xs font-black uppercase text-rose-500 tracking-widest">
               Calendar Blocked
             </p>
-            <p className="text-[10px] text-rose-400 font-medium mt-1 leading-tight">
+            <p className="text-xxs text-rose-400 font-medium mt-1 leading-tight">
               A district-wide blocked date is active today.
             </p>
           </div>
@@ -421,14 +421,14 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
           </label>
           <button
             onClick={() => setShowInstructions(!showInstructions)}
-            className="text-[10px] font-black text-blue-500 uppercase tracking-tight flex items-center gap-1 hover:text-blue-600 transition-colors"
+            className="text-xxs font-black text-blue-500 uppercase tracking-tight flex items-center gap-1 hover:text-blue-600 transition-colors"
           >
             <HelpCircle className="w-3 h-3" /> Instructions
           </button>
         </div>
 
         {showInstructions && (
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-[11px] text-blue-800 space-y-2 animate-in slide-in-from-top-2">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xxs text-blue-800 space-y-2 animate-in slide-in-from-top-2">
             <p className="font-bold">How to find your Calendar ID:</p>
             <ol className="list-decimal list-inside space-y-1 opacity-90">
               <li>Open Google Calendar on your computer.</li>
@@ -569,7 +569,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
               className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 shadow-sm group"
             >
               <div className="min-w-0">
-                <div className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                <div className="text-xxs font-black text-rose-500 uppercase tracking-wider">
                   {event.date}
                 </div>
                 <div className="text-sm font-bold text-slate-700 truncate">
@@ -593,7 +593,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
           {events.length === 0 && (
             <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-2xl bg-slate-50/50">
-              <p className="text-[10px] italic">No local events added.</p>
+              <p className="text-xxs italic">No local events added.</p>
             </div>
           )}
         </div>
