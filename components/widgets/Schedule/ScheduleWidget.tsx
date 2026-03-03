@@ -158,13 +158,8 @@ interface ScheduleRowProps {
   format24: boolean;
   /** Seconds since midnight from the parent's shared ticker. */
   nowSeconds: number;
-  /**
-   * When true, the row uses a fixed 25%-of-container height so exactly 4 rows
-   * are visible at once and the list scrolls programmatically.
-   * When false (default), rows share available space equally and collapse
-   * gracefully with a min-height floor so text never overflows.
-   */
-  autoScroll: boolean;
+  /** Whether this is the currently active schedule item. */
+  isActive: boolean;
 }
 
 const areScheduleRowPropsEqual = (
@@ -173,12 +168,12 @@ const areScheduleRowPropsEqual = (
 ) => {
   // Check primitive/stable props equality
   if (prev.index !== next.index) return false;
+  if (prev.isActive !== next.isActive) return false;
   if (prev.onToggle !== next.onToggle) return false;
   if (prev.onStartTimer !== next.onStartTimer) return false;
   if (prev.cardOpacity !== next.cardOpacity) return false;
   if (prev.cardColor !== next.cardColor) return false;
   if (prev.format24 !== next.format24) return false;
-  if (prev.autoScroll !== next.autoScroll) return false;
 
   // Optimized manual comparison for `item` object (ScheduleItem) instead of JSON.stringify
   // to avoid serialization overhead on every tick.
@@ -216,6 +211,8 @@ const areScheduleRowPropsEqual = (
   return true;
 };
 
+const GAP_STYLE = 'min(10px, 2cqmin)';
+
 const ScheduleRow = React.memo<ScheduleRowProps>(
   ({
     item,
@@ -226,7 +223,7 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
     cardColor,
     format24,
     nowSeconds,
-    autoScroll,
+    isActive,
   }) => {
     const { t } = useTranslation();
 
@@ -238,21 +235,32 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
     // Show live countdown only when mode is 'timer', endTime is set, and item isn't done.
     const showCountdown = item.mode === 'timer' && !!item.endTime && !item.done;
 
-    // In auto-scroll mode: fixed 25% height so exactly 4 rows are visible.
-    // In normal mode: flex-grow so rows share space equally, with a cqh
-    // floor that prevents text overflow when many items are present — the
-    // container scrolls once rows exceed its height.
-    const rowStyle = autoScroll
-      ? { flex: '0 0 25%', backgroundColor: bgColor }
-      : { flex: '1 0 20cqh', minHeight: '20cqh', backgroundColor: bgColor };
+    // Fixed height calculation to ensure exactly 4 rows fit in the viewport
+    // (100% height - 3 gaps) / 4.
+    const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
+    const rowStyle = {
+      flex: `0 0 ${rowHeight}`,
+      height: rowHeight,
+      backgroundColor: bgColor,
+    };
 
     return (
       <div
-        className={`w-full flex items-center rounded-2xl border border-slate-200 transition-all ${
-          item.done ? '' : 'shadow-sm'
-        }`}
+        className={`w-full flex items-center rounded-2xl transition-all relative ${
+          isActive
+            ? 'border-[min(6px,1.5cqmin)] border-[#2d3f89] shadow-md z-10'
+            : 'border border-slate-200 shadow-sm'
+        } ${item.done ? '' : ''}`}
         style={rowStyle}
       >
+        {isActive && (
+          <div
+            className="absolute top-0 right-0 bg-[#2d3f89] text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
+            style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+          >
+            Current
+          </div>
+        )}
         <button
           onClick={() => onToggle(index)}
           className="flex items-center flex-1 min-w-0 h-full"
@@ -418,7 +426,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
    * Returns -1 when no item is active (e.g. before the first item starts).
    */
   const activeIndex = useMemo(() => {
-    if (!autoScroll || items.length === 0) return -1;
+    if (items.length === 0) return -1;
     const nowMinutes = Math.floor(nowSeconds / 60);
 
     // Precompute start minutes once to avoid repeated string parsing.
@@ -456,26 +464,28 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     return bestIndex;
-  }, [items, nowSeconds, autoScroll]);
+  }, [items, nowSeconds]);
 
   /**
    * Scroll the list so that the previously-completed item is at the top,
    * making the active item the second visible row.
-   * Each row is exactly 25% of the scroll container height in autoScroll mode.
+   * Each row is exactly (100% height - 3 gaps) / 4 in size.
    */
   useLayoutEffect(() => {
     if (!autoScroll || activeIndex < 0 || !scrollContainerRef.current) return;
     const el = scrollContainerRef.current;
-    // Row height = 25% of the scroll container's client height.
-    const rowHeight = el.clientHeight / 4;
-    // Derive the per-gap height from the actual scroll height so the calculation
-    // stays accurate regardless of the gap CSS value (min(10px, 2cqmin)).
-    const rowCount = items.length;
-    const totalGapHeight = Math.max(0, el.scrollHeight - rowHeight * rowCount);
-    const gapPx = rowCount > 1 ? totalGapHeight / (rowCount - 1) : 0;
+
+    // Improved calculation: Measure actual element height and gap for precision.
+    const firstRow = el.firstElementChild as HTMLElement;
+    if (!firstRow) return;
+
+    const rowHeight = firstRow.offsetHeight;
+    const gapPx = parseFloat(getComputedStyle(el).gap) || 0;
+
     // Show the completed item above the active one (activeIndex - 1).
     const index = Math.max(0, activeIndex - 1);
     const targetTop = index * (rowHeight + gapPx);
+
     // Optional chaining guards against jsdom (tests) and edge-case browsers.
     el.scrollTo?.({ top: targetTop, behavior: 'smooth' });
   }, [activeIndex, autoScroll, items.length]);
@@ -676,7 +686,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           <div
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto custom-scrollbar flex flex-col min-h-0"
-            style={{ gap: 'min(10px, 2cqmin)' }}
+            style={{ gap: GAP_STYLE }}
           >
             {items.map((item: ScheduleItem, i: number) => (
               <ScheduleRow
@@ -689,7 +699,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 cardColor={cardColor}
                 format24={format24}
                 nowSeconds={nowSeconds}
-                autoScroll={autoScroll}
+                isActive={i === activeIndex}
               />
             ))}
             {items.length === 0 && (

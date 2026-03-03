@@ -321,19 +321,47 @@ describe('ScheduleWidget', () => {
   });
 
   describe('autoScroll', () => {
-    it('gives rows flex:0 0 25% height when autoScroll is enabled', () => {
-      const widget = createWidget({ autoScroll: true });
-      const { container } = render(<ScheduleWidget widget={widget} />);
-      // Each ScheduleRow should have flex: '0 0 25%' in its style.
-      const rows = container.querySelectorAll('[style*="25%"]');
-      expect(rows.length).toBe(3); // default 3 items in createWidget
+    it('gives rows calc height to fit 4 items regardless of autoScroll setting', () => {
+      // Test with autoScroll: true
+      const widgetTrue = createWidget({ autoScroll: true });
+      const { container: containerTrue } = render(
+        <ScheduleWidget widget={widgetTrue} />
+      );
+      // Both modes now use the calc((100% - 3 * gap) / 4) formula
+      const rowsTrue = containerTrue.querySelectorAll('[style*="calc"]');
+      expect(rowsTrue.length).toBe(3);
+
+      cleanup();
+
+      // Test with autoScroll: false
+      const widgetFalse = createWidget({ autoScroll: false });
+      const { container: containerFalse } = render(
+        <ScheduleWidget widget={widgetFalse} />
+      );
+      const rowsFalse = containerFalse.querySelectorAll('[style*="calc"]');
+      expect(rowsFalse.length).toBe(3);
     });
 
-    it('does not apply 25% height style when autoScroll is disabled', () => {
-      const widget = createWidget({ autoScroll: false });
-      const { container } = render(<ScheduleWidget widget={widget} />);
-      const rows = container.querySelectorAll('[style*="25%"]');
-      expect(rows.length).toBe(0);
+    it('highlights the currently active item with "Current" badge', () => {
+      // 09:15 — inside the 09:00–10:00 Reading window.
+      const date = new Date();
+      date.setHours(9, 15, 0, 0);
+      vi.setSystemTime(date);
+
+      const widget = createWidget({
+        items: [
+          { time: '08:00', task: 'Math', done: true },
+          { time: '09:00', task: 'Reading', done: false },
+          { time: '10:00', task: 'Recess', done: false },
+        ],
+      });
+      render(<ScheduleWidget widget={widget} />);
+
+      // "Current" badge should be visible
+      expect(screen.getByText(/current/i)).toBeInTheDocument();
+      // Should be associated with the "Reading" item
+      const readingItem = screen.getByText('Reading').closest('.relative');
+      expect(readingItem).toHaveTextContent(/current/i);
     });
 
     it('calls scrollTo when an item is currently active and autoScroll is on', () => {
