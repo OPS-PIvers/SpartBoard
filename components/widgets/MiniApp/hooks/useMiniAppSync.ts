@@ -52,7 +52,8 @@ export const useMiniAppSync = (
                 const docRef = doc(appsRef, app.id);
                 batch.set(docRef, { ...app, order: index });
               });
-              void batch.commit()
+              void batch
+                .commit()
                 .then(() => {
                   localStorage.removeItem(STORAGE_KEY);
                   addToast('Migrated local apps to cloud', 'success');

@@ -48,7 +48,9 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
           <button
             onClick={onCancel}
             className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
-            aria-label={editingId ? 'Close mini-app editor' : 'Cancel new mini-app'}
+            aria-label={
+              editingId ? 'Close mini-app editor' : 'Cancel new mini-app'
+            }
           >
             <X className="w-5 h-5" />
           </button>
