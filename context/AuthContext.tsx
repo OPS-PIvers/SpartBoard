@@ -19,7 +19,13 @@ import {
   collection,
   onSnapshot,
 } from 'firebase/firestore';
-import { auth, googleProvider, db, isAuthBypass } from '../config/firebase';
+import {
+  auth,
+  googleProvider,
+  db,
+  isAuthBypass,
+  GOOGLE_OAUTH_SCOPES,
+} from '../config/firebase';
 import {
   FeaturePermission,
   WidgetType,
@@ -78,6 +84,9 @@ const MOCK_TIME = new Date().toISOString(); // Fixed time at module load
 
 const GOOGLE_ACCESS_TOKEN_KEY = 'spart_google_access_token';
 const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
+const GOOGLE_TOKEN_TTL_MS = 3600 * 1000; // 1 hour (Google's default access token lifetime)
+const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expiry
+const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
 
 /**
  * Mock user object for bypass mode.
@@ -173,6 +182,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
+  // Prevents concurrent proactive token refresh calls from the checkToken interval
+  const isRefreshingRef = useRef(false);
 
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
@@ -192,22 +203,107 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Check for Google token expiry periodically
+  const refreshGoogleToken = useCallback(
+    async (silent: boolean = true): Promise<string | null> => {
+      if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+        | string
+        | undefined;
+      const email = user?.email;
+
+      // Prefer GIS silent refresh when the client ID env var is configured.
+      // google.accounts is loaded asynchronously via the GIS script tag in index.html.
+      if (clientId && email && typeof window.google !== 'undefined') {
+        return new Promise<string | null>((resolve) => {
+          const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: GOOGLE_OAUTH_SCOPES.join(' '),
+            hint: email,
+            callback: (response: google.accounts.oauth2.TokenResponse) => {
+              if (response.access_token) {
+                setGoogleAccessToken(response.access_token);
+                localStorage.setItem(
+                  GOOGLE_TOKEN_EXPIRY_KEY,
+                  (
+                    Date.now() +
+                    (parseInt(response.expires_in ?? '3600', 10) || 3600) * 1000
+                  ).toString()
+                );
+                resolve(response.access_token);
+              } else {
+                resolve(null);
+              }
+            },
+            error_callback: () => resolve(null),
+          });
+          // prompt: '' = attempt silent authorization without showing a popup.
+          // A popup only appears when the user's Google session has expired.
+          tokenClient.requestAccessToken({ prompt: '' });
+        });
+      }
+
+      // Fallback: re-run Firebase popup sign-in to get a fresh access token.
+      // Skip when called silently (e.g. from the background interval) — browsers
+      // block popups that are not triggered by a direct user gesture.
+      if (silent) return null;
+
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (credential) {
+          const token = credential.accessToken ?? null;
+          setGoogleAccessToken(token);
+          if (token) {
+            localStorage.setItem(
+              GOOGLE_TOKEN_EXPIRY_KEY,
+              (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
+            );
+          }
+          return token;
+        }
+        return null;
+      } catch (error) {
+        console.error('Error refreshing Google token:', error);
+        return null;
+      }
+    },
+    [user?.email]
+  );
+
+  // Check for Google token expiry every minute; proactively refresh before expiry
+  // so the Drive connection stays alive without user interaction.
   useEffect(() => {
     if (isAuthBypass) return;
 
-    const checkToken = () => {
+    const checkToken = async () => {
       const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
-      if (expiry && Date.now() > parseInt(expiry, 10)) {
+      if (!expiry) return;
+
+      const expiryTime = parseInt(expiry, 10);
+      const now = Date.now();
+
+      if (now > expiryTime) {
+        // Already expired — clear state
         setGoogleAccessToken(null);
         localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
         localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+      } else if (now > expiryTime - GOOGLE_TOKEN_REFRESH_THRESHOLD_MS) {
+        // Expiring soon — refresh proactively while the service is still valid.
+        // Guard against concurrent calls if a previous refresh is still in flight.
+        if (!isRefreshingRef.current) {
+          isRefreshingRef.current = true;
+          await refreshGoogleToken();
+          isRefreshingRef.current = false;
+        }
       }
     };
 
-    const interval = setInterval(checkToken, 60000); // Check every minute
+    const interval = setInterval(() => {
+      void checkToken();
+    }, GOOGLE_TOKEN_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshGoogleToken]);
 
   // Persist googleAccessToken to localStorage
   useEffect(() => {
@@ -500,7 +596,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setGoogleAccessToken(MOCK_ACCESS_TOKEN);
       localStorage.setItem(
         GOOGLE_TOKEN_EXPIRY_KEY,
-        (Date.now() + 3600 * 1000).toString()
+        (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
       );
       setIsAdmin(true); // Restore admin status on sign in
       return;
@@ -512,10 +608,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const token = credential.accessToken ?? null;
         setGoogleAccessToken(token);
         if (token) {
-          // Tokens usually last 1 hour (3600s). Save expiry time.
           localStorage.setItem(
             GOOGLE_TOKEN_EXPIRY_KEY,
-            (Date.now() + 3600 * 1000).toString()
+            (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
           );
         }
       }
@@ -524,67 +619,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
     }
   };
-
-  const refreshGoogleToken = useCallback(async (): Promise<string | null> => {
-    if (isAuthBypass) return MOCK_ACCESS_TOKEN;
-
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
-    const email = user?.email;
-
-    // Prefer GIS silent refresh when the client ID env var is configured.
-    // google.accounts is loaded asynchronously via the GIS script tag in index.html.
-    if (clientId && email && typeof window.google !== 'undefined') {
-      return new Promise<string | null>((resolve) => {
-        const tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: 'https://www.googleapis.com/auth/drive.file',
-          hint: email,
-          callback: (response: google.accounts.oauth2.TokenResponse) => {
-            if (response.access_token) {
-              setGoogleAccessToken(response.access_token);
-              localStorage.setItem(
-                GOOGLE_TOKEN_EXPIRY_KEY,
-                (
-                  Date.now() +
-                  (parseInt(response.expires_in ?? '3600', 10) || 3600) * 1000
-                ).toString()
-              );
-              resolve(response.access_token);
-            } else {
-              resolve(null);
-            }
-          },
-          error_callback: () => resolve(null),
-        });
-        // prompt: '' = attempt silent authorization without showing a popup.
-        // A popup only appears when the user's Google session has expired.
-        tokenClient.requestAccessToken({ prompt: '' });
-      });
-    }
-
-    // Fallback: re-run Firebase popup sign-in to get a fresh access token.
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential) {
-        const token = credential.accessToken ?? null;
-        setGoogleAccessToken(token);
-        if (token) {
-          localStorage.setItem(
-            GOOGLE_TOKEN_EXPIRY_KEY,
-            (Date.now() + 3600 * 1000).toString()
-          );
-        }
-        return token;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error refreshing Google token:', error);
-      return null;
-    }
-  }, [user?.email]);
 
   const signOut = async () => {
     if (isAuthBypass) {

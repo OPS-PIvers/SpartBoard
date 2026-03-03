@@ -32,8 +32,12 @@ export interface AuthContextType {
   language: string;
   /** Persist the user's language preference to Firestore and update i18n */
   setLanguage: (lang: string) => Promise<void>;
-  /** Refresh the Google Access Token for Drive/Sheets APIs */
-  refreshGoogleToken: () => Promise<string | null>;
+  /**
+   * Refresh the Google Access Token for Drive/Sheets APIs.
+   * @param silent When true (default), skips the Firebase popup fallback so the call
+   *   is safe from background timers. Pass false only from direct user gestures.
+   */
+  refreshGoogleToken: (silent?: boolean) => Promise<string | null>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
