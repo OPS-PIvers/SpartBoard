@@ -1,36 +1,27 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboard } from '../../context/useDashboard';
-import {
-  WidgetData,
-  CalendarConfig,
-  CalendarGlobalConfig,
-  CalendarEvent,
-} from '../../types';
+import { WidgetData, CalendarConfig, CalendarGlobalConfig } from '../../types';
 import {
   Calendar as CalendarIcon,
   Plus,
   Trash2,
   Settings2,
   Ban,
-  Loader2,
-  AlertCircle,
   RefreshCw,
 } from 'lucide-react';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { WidgetLayout } from './WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
-import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Toggle } from '../common/Toggle';
-import { CalendarApiError } from '@/utils/googleCalendarService';
+
+const GAP_STYLE = 'min(10px, 2cqmin)';
 
 export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
-  const { selectedBuildings, signInWithGoogle } = useAuth();
+  const { selectedBuildings } = useAuth();
   const { subscribeToPermission } = useFeaturePermissions();
-  const { calendarService, isConnected } = useGoogleCalendar();
   const config = widget.config as CalendarConfig;
   const localEvents = useMemo(() => config.events ?? [], [config.events]);
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;
@@ -38,12 +29,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const [globalConfig, setGlobalConfig] = useState<CalendarGlobalConfig | null>(
     null
   );
-  const [syncedEvents, setSyncedEvents] = useState<CalendarEvent[]>([]);
-  const [isLoadingSync, setIsLoadingSync] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [needsReauth, setNeedsReauth] = useState(false);
 
-  // 1. Subscribe to Global Admin Config
+  // 1. Subscribe to Global Admin Config (Proxy Source)
   useEffect(() => {
     return subscribeToPermission('calendar', (perm) => {
       if (perm?.config) {
@@ -53,123 +40,34 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     });
   }, [subscribeToPermission]);
 
-  // 2. Fetch Google Calendar Events
-  const fetchAll = useCallback(async () => {
-    if (
-      !isBuildingSyncEnabled ||
-      !globalConfig ||
-      !isConnected ||
-      !calendarService
-    ) {
-      setSyncedEvents([]);
-      return;
-    }
-
+  // Combined events for display (Local + Building Synced from Proxy)
+  const { displayEvents, lastSyncAt } = useMemo(() => {
     const buildingId = selectedBuildings?.[0];
-    if (!buildingId) return;
+    const buildingDefaults = buildingId
+      ? globalConfig?.buildingDefaults?.[buildingId]
+      : null;
 
-    const buildingDefaults = globalConfig.buildingDefaults?.[buildingId];
-    const calendarIds = buildingDefaults?.googleCalendarIds ?? [];
+    const proxiedEvents = isBuildingSyncEnabled
+      ? (buildingDefaults?.cachedEvents ?? [])
+      : [];
 
-    if (calendarIds.length === 0) {
-      setSyncedEvents([]);
-      return;
-    }
+    const staticEvents = isBuildingSyncEnabled
+      ? (buildingDefaults?.events ?? [])
+      : [];
 
-    setIsLoadingSync(true);
-    setSyncError(null);
-    setNeedsReauth(false);
-    try {
-      const now = new Date();
-      const timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-      const timeMax = new Date(now.setDate(now.getDate() + 30)).toISOString();
+    // Merge local, building static, and building proxied events
+    const combined = [...localEvents, ...staticEvents, ...proxiedEvents];
 
-      const allPromises = calendarIds.map((id) =>
-        calendarService.getEvents(id, timeMin, timeMax)
-      );
-      const results = await Promise.all(allPromises);
-      const merged = results
-        .flat()
-        .sort((a, b) => a.date.localeCompare(b.date));
+    // Deduplicate by date + title
+    const seen = new Set<string>();
+    const unique = combined.filter((e) => {
+      const key = `${e.date}-${e.title}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
-      setSyncedEvents(merged);
-    } catch (err) {
-      console.error('Failed to sync Google Calendars:', err);
-      const is403 =
-        (err as CalendarApiError)?.status === 403 ||
-        (err as Error)?.message?.includes('403');
-
-      if (is403) {
-        setSyncError('Permission denied (403).');
-        setNeedsReauth(true);
-      } else {
-        setSyncError('Failed to sync Google Calendar.');
-      }
-    } finally {
-      setIsLoadingSync(false);
-    }
-  }, [
-    isBuildingSyncEnabled,
-    globalConfig,
-    isConnected,
-    calendarService,
-    selectedBuildings,
-  ]);
-
-  useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
-
-  // 3. Auto-populate Building Defaults (One-time check per building)
-  useEffect(() => {
-    if (!globalConfig || !isBuildingSyncEnabled || !selectedBuildings?.[0])
-      return;
-
-    const buildingId = selectedBuildings[0];
-    // Only trigger if we haven't synced this building's static defaults to this widget instance yet
-    if (config.lastSyncedBuildingId !== buildingId) {
-      const defaults = globalConfig.buildingDefaults?.[buildingId];
-      if (defaults && defaults.events?.length > 0) {
-        // Merge with existing events to prevent data loss, but mark as synced
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            events: [...localEvents, ...defaults.events],
-            lastSyncedBuildingId: buildingId,
-          } as CalendarConfig,
-        });
-      } else {
-        // Just mark as "checked" for this building even if no defaults found
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            lastSyncedBuildingId: buildingId,
-          } as CalendarConfig,
-        });
-      }
-    }
-  }, [
-    globalConfig,
-    isBuildingSyncEnabled,
-    selectedBuildings,
-    config,
-    widget.id,
-    updateWidget,
-    localEvents,
-  ]);
-
-  // Blocked Date logic
-  const isBlocked = useMemo(() => {
-    if (!isBuildingSyncEnabled) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return globalConfig?.blockedDates?.includes(today);
-  }, [isBuildingSyncEnabled, globalConfig]);
-
-  // Combined events for display (Local + Building Synced)
-  const displayEvents = useMemo(() => {
-    // Merge local and synced, then sort by date
-    const combined = [...localEvents, ...syncedEvents];
-    const sorted = combined.sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = unique.sort((a, b) => a.date.localeCompare(b.date));
 
     // Filter by daysVisible if set
     const daysVisible = config.daysVisible ?? 5;
@@ -178,16 +76,33 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     const futureLimit = new Date(today);
     futureLimit.setDate(today.getDate() + daysVisible);
 
-    return sorted.filter((event) => {
-      // If it's an ISO date (YYYY-MM-DD), filter by range
+    const filtered = sorted.filter((event) => {
       if (event.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const eventDate = new Date(event.date + 'T00:00:00');
+        // Include events from today through future limit
         return eventDate >= today && eventDate < futureLimit;
       }
-      // If it's a manual string (e.g. "Monday"), always show it
       return true;
     });
-  }, [localEvents, syncedEvents, config.daysVisible]);
+
+    return {
+      displayEvents: filtered,
+      lastSyncAt: buildingDefaults?.lastProxySync,
+    };
+  }, [
+    localEvents,
+    globalConfig,
+    isBuildingSyncEnabled,
+    selectedBuildings,
+    config.daysVisible,
+  ]);
+
+  // Blocked Date logic
+  const isBlocked = useMemo(() => {
+    if (!isBuildingSyncEnabled) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return globalConfig?.blockedDates?.includes(today);
+  }, [isBuildingSyncEnabled, globalConfig]);
 
   if (isBlocked) {
     return (
@@ -199,8 +114,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
             <p className="text-xs font-black uppercase text-rose-500 tracking-widest">
               Calendar Blocked
             </p>
-            <p className="text-xxs text-slate-500 mt-1 font-medium leading-tight">
-              A district-wide event is taking precedence today.
+            <p className="text-[10px] text-rose-400 font-medium mt-1 leading-tight">
+              A district-wide blocked date is active today.
             </p>
           </div>
         }
@@ -208,138 +123,106 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
+  // Common height for exactly 4 cards: (100% - 3 gaps) / 4
+  const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
+
   return (
     <WidgetLayout
       padding="p-0"
+      header={
+        lastSyncAt && (
+          <div
+            className="flex items-center justify-center gap-1.5 py-1 px-2 bg-slate-50 border-b border-slate-100"
+            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+          >
+            <RefreshCw
+              className="text-slate-400"
+              style={{
+                width: 'min(10px, 2.5cqmin)',
+                height: 'min(10px, 2.5cqmin)',
+              }}
+            />
+            <span className="text-slate-400 font-bold uppercase tracking-tighter">
+              Synced{' '}
+              {new Date(lastSyncAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+        )
+      }
       content={
         <div
-          className="h-full w-full flex flex-col overflow-y-auto custom-scrollbar"
-          style={{
-            padding: '1cqmin',
-            gap: '1cqh',
-          }}
+          className="h-full w-full flex flex-col overflow-hidden"
+          style={{ padding: 'min(12px, 2.5cqmin)' }}
         >
-          {isLoadingSync && syncedEvents.length === 0 && (
-            <div
-              className="flex items-center bg-blue-50 rounded-lg animate-pulse shrink-0"
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                marginBottom: '0.5cqh',
-                fontSize: 'min(10px, 2.5cqmin)',
-              }}
-            >
-              <Loader2
-                className="text-blue-500 animate-spin shrink-0"
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
-              />
-              <span className="font-bold text-blue-600 uppercase tracking-wider">
-                Syncing Calendar...
-              </span>
-            </div>
-          )}
+          <div
+            className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0 snap-y snap-mandatory"
+            style={{
+              gap: GAP_STYLE,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            {displayEvents.map((event, idx) => {
+              const today = new Date().toISOString().split('T')[0];
+              const isToday = event.date === today;
 
-          {syncError && (
-            <div
-              className="flex items-center justify-between bg-amber-50 rounded-lg border border-amber-100 text-amber-600 shrink-0"
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-                marginBottom: '0.5cqh',
-                fontSize: 'min(10px, 2.5cqmin)',
-              }}
-            >
-              <div
-                className="flex items-center min-w-0"
-                style={{ gap: 'min(8px, 2cqmin)' }}
-              >
-                <AlertCircle
-                  className="shrink-0"
+              return (
+                <div
+                  key={`${event.date}-${event.title}-${idx}`}
+                  className={`w-full flex flex-col justify-center px-4 rounded-2xl transition-all relative shrink-0 snap-start ${
+                    isToday
+                      ? 'bg-brand-blue-lighter/50 border-[min(6px,1.5cqmin)] border-brand-blue-primary shadow-md z-10'
+                      : 'bg-white border border-slate-200 shadow-sm'
+                  }`}
                   style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
+                    height: rowHeight,
+                    flex: `0 0 ${rowHeight}`,
                   }}
-                />
-                <span className="font-black uppercase tracking-wider truncate">
-                  {syncError}
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  if (needsReauth) {
-                    void signInWithGoogle();
-                  } else {
-                    void fetchAll();
+                >
+                  {isToday && (
+                    <div
+                      className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
+                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                    >
+                      Now
+                    </div>
+                  )}
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="font-black text-slate-400 uppercase tracking-widest"
+                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                    >
+                      {isToday ? 'Today' : event.date}
+                    </span>
+                    <span
+                      className="font-black text-slate-800 truncate leading-tight mt-0.5"
+                      style={{ fontSize: 'min(16px, 4cqmin)' }}
+                    >
+                      {event.title}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {displayEvents.length === 0 && (
+              <div className="h-full flex items-center justify-center">
+                <ScaledEmptyState
+                  icon={CalendarIcon}
+                  title="No Events"
+                  subtitle={
+                    isBuildingSyncEnabled
+                      ? 'Nothing scheduled for the next few days.'
+                      : 'Flip to manage calendar settings.'
                   }
-                }}
-                className="hover:bg-amber-100 rounded transition-colors shrink-0"
-                style={{ padding: 'min(4px, 1cqmin)' }}
-                title={needsReauth ? 'Sign in for permission' : 'Retry Sync'}
-              >
-                <RefreshCw
-                  className={isLoadingSync ? 'animate-spin' : ''}
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
+                  className="opacity-40"
                 />
-              </button>
-            </div>
-          )}
-
-          {displayEvents.map((event, i: number) => (
-            <div
-              key={`${event.date}-${event.title}-${i}`}
-              className="group relative flex bg-white rounded-2xl border border-slate-200 transition-all hover:bg-slate-50 shadow-sm shrink-0 overflow-hidden"
-              style={{
-                height: '18.8cqh',
-                gap: 'min(12px, 3cqh)',
-                padding: 'min(10px, 2cqh) min(12px, 2.5cqmin)',
-              }}
-            >
-              <div
-                className="flex flex-col items-center justify-center border-r border-rose-200 shrink-0"
-                style={{
-                  minWidth: 'min(64px, 14cqmin)',
-                  paddingRight: 'min(12px, 2.5cqmin)',
-                }}
-              >
-                <span
-                  className="uppercase text-rose-400 font-black leading-none"
-                  style={{ fontSize: 'min(11px, 3cqh)' }}
-                >
-                  {event.date.includes('-') ? 'Day' : 'Date'}
-                </span>
-                <span
-                  className="text-rose-600 font-black leading-none"
-                  style={{ fontSize: 'min(40px, 11cqh)' }}
-                >
-                  {event.date.includes('-')
-                    ? new Date(event.date + 'T00:00:00').getDate()
-                    : event.date}
-                </span>
               </div>
-              <div className="flex items-center min-w-0 flex-1">
-                <span
-                  className="text-slate-700 font-black leading-tight truncate"
-                  style={{ fontSize: 'min(20px, 6.5cqh)' }}
-                >
-                  {event.title}
-                </span>
-              </div>
-            </div>
-          ))}
-          {displayEvents.length === 0 && !isLoadingSync && (
-            <ScaledEmptyState
-              icon={CalendarIcon}
-              title="No Events"
-              subtitle="Flip to add local events or check building sync."
-              className="opacity-40"
-            />
-          )}
+            )}
+          </div>
         </div>
       }
     />

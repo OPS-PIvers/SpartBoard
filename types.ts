@@ -516,11 +516,17 @@ export interface BuildingCalendarDefaults {
   buildingId: string;
   events: CalendarEvent[];
   googleCalendarIds?: string[];
+  /** Latest events fetched from Google Calendar by an admin proxy */
+  cachedEvents?: CalendarEvent[];
+  /** Timestamp of the last successful proxy sync for this building */
+  lastProxySync?: number;
 }
 
 export interface CalendarGlobalConfig {
   blockedDates: string[]; // Array of ISO Date strings (YYYY-MM-DD)
   buildingDefaults: Record<string, BuildingCalendarDefaults>;
+  /** How often the admin proxy should refresh data (in hours) */
+  updateFrequencyHours?: number;
 }
 
 export interface ScheduleConfig {

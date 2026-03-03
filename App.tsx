@@ -34,6 +34,11 @@ const AdminWeatherFetcher = lazy(() =>
     default: module.AdminWeatherFetcher,
   }))
 );
+const AdminCalendarFetcher = lazy(() =>
+  import('./components/admin/AdminCalendarFetcher').then((module) => ({
+    default: module.AdminCalendarFetcher,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -55,7 +60,12 @@ const AuthenticatedApp: React.FC = () => {
   return (
     <DashboardProvider>
       <Suspense fallback={<FullPageLoader />}>
-        {isAdmin && <AdminWeatherFetcher />}
+        {isAdmin && (
+          <>
+            <AdminWeatherFetcher />
+            <AdminCalendarFetcher />
+          </>
+        )}
         <DashboardView />
       </Suspense>
       <UpdateNotification />

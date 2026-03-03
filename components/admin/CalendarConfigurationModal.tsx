@@ -9,6 +9,9 @@ import {
   Settings2,
   Save,
   Loader2,
+  RefreshCw,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import {
@@ -20,6 +23,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
+import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 
 interface CalendarConfigurationModalProps {
   isOpen: boolean;
@@ -29,12 +33,16 @@ interface CalendarConfigurationModalProps {
 export const CalendarConfigurationModal: React.FC<
   CalendarConfigurationModalProps
 > = ({ isOpen, onClose }) => {
+  const { calendarService, isConnected, refreshGoogleToken } =
+    useGoogleCalendar();
   const [config, setConfig] = useState<CalendarGlobalConfig>({
     blockedDates: [],
     buildingDefaults: {},
+    updateFrequencyHours: 4,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
     type: 'success' | 'error';
@@ -70,7 +78,7 @@ export const CalendarConfigurationModal: React.FC<
     }
   }, [isOpen, fetchConfig]);
 
-  const handleSave = async () => {
+  const handleSave = async (updatedConfig?: CalendarGlobalConfig) => {
     if (isAuthBypass) return;
     setSaving(true);
     try {
@@ -79,17 +87,79 @@ export const CalendarConfigurationModal: React.FC<
         docRef,
         {
           type: 'calendar',
-          config: config as unknown as Record<string, unknown>,
+          config: (updatedConfig ?? config) as unknown as Record<
+            string,
+            unknown
+          >,
           updatedAt: Date.now(),
         },
         { merge: true }
       );
-      setMessage({ text: 'Calendar configuration saved!', type: 'success' });
+      if (!updatedConfig) {
+        setMessage({ text: 'Calendar configuration saved!', type: 'success' });
+      }
     } catch (err) {
       console.error('Failed to save calendar config:', err);
       setMessage({ text: 'Failed to save configuration.', type: 'error' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!calendarService || !isConnected) {
+      setMessage({
+        text: 'Please sign in with Google to sync calendars.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const now = new Date();
+      const timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
+      const timeMax = new Date(now.setDate(now.getDate() + 30)).toISOString();
+
+      const nextBuildingDefaults = { ...config.buildingDefaults };
+
+      for (const building of BUILDINGS) {
+        const bConfig = nextBuildingDefaults[building.id];
+        const ids = bConfig?.googleCalendarIds ?? [];
+
+        if (ids.length === 0) continue;
+
+        try {
+          const allPromises = ids.map((id) =>
+            calendarService.getEvents(id, timeMin, timeMax)
+          );
+          const results = await Promise.all(allPromises);
+          const merged = results
+            .flat()
+            .sort((a, b) => a.date.localeCompare(b.date));
+
+          nextBuildingDefaults[building.id] = {
+            ...bConfig,
+            cachedEvents: merged,
+            lastProxySync: Date.now(),
+          };
+        } catch (err) {
+          console.error(`Failed to sync building ${building.name}:`, err);
+        }
+      }
+
+      const nextConfig = {
+        ...config,
+        buildingDefaults: nextBuildingDefaults,
+      };
+      setConfig(nextConfig);
+      await handleSave(nextConfig);
+      setMessage({ text: 'All building calendars synced!', type: 'success' });
+    } catch (err) {
+      console.error('Global sync failed:', err);
+      setMessage({ text: 'Failed to sync all calendars.', type: 'error' });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -150,16 +220,26 @@ export const CalendarConfigurationModal: React.FC<
                 Calendar Administration
               </h2>
               <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-                Global Blocked Dates & Building Defaults
+                Managed Proxy & Building Defaults
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isConnected && (
+              <button
+                onClick={() => void refreshGoogleToken()}
+                className="text-xxs font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest px-3 py-1 bg-rose-50 rounded-lg transition-colors border border-rose-100 mr-2"
+              >
+                Reconnect Google
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -173,6 +253,94 @@ export const CalendarConfigurationModal: React.FC<
             </div>
           ) : (
             <>
+              {/* Proxy Sync Controls */}
+              <section className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-black text-blue-700 uppercase tracking-widest flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4" /> Managed Proxy Sync
+                    </h3>
+                    <p className="text-xxs text-blue-600/70 font-medium mt-1 uppercase tracking-wider">
+                      Pull events centrally so users don&apos;t need individual
+                      auth
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-blue-200">
+                      <Clock className="w-3.5 h-3.5 text-blue-400" />
+                      <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
+                        Every
+                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="24"
+                        value={config.updateFrequencyHours ?? 4}
+                        onChange={(e) =>
+                          updateGlobal({
+                            updateFrequencyHours: parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-none"
+                      />
+                      <span className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
+                        Hours
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleSyncAll}
+                      disabled={syncing || !isConnected}
+                      className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-black hover:bg-brand-blue-dark transition-all shadow-md disabled:opacity-50"
+                    >
+                      {syncing ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />{' '}
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" /> Sync All Now
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {BUILDINGS.map((b) => {
+                    const bConfig = config.buildingDefaults?.[b.id];
+                    const lastSync = bConfig?.lastProxySync;
+                    const eventCount = bConfig?.cachedEvents?.length ?? 0;
+                    return (
+                      <div
+                        key={b.id}
+                        className="bg-white/50 border border-blue-100 p-2 rounded-xl flex flex-col gap-1"
+                      >
+                        <span className="text-xxs font-black text-slate-700 truncate">
+                          {b.name}
+                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-medium text-blue-600/70">
+                            {eventCount} events
+                          </span>
+                          {lastSync && (
+                            <span
+                              className="text-[9px] font-bold text-slate-400 uppercase"
+                              title={new Date(lastSync).toLocaleString()}
+                            >
+                              {new Date(lastSync).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
               {/* Global Blocked Dates */}
               <section className="bg-red-50 border border-red-100 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -343,8 +511,8 @@ export const CalendarConfigurationModal: React.FC<
                   <hr className="border-slate-200" />
 
                   {/* Google Calendar Sync */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
                       <div>
                         <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
                           <Settings2 className="w-4 h-4 text-blue-500" /> Google
@@ -354,18 +522,29 @@ export const CalendarConfigurationModal: React.FC<
                           District or building-wide synced calendars
                         </p>
                       </div>
-                      <button
-                        onClick={() => {
-                          const nextIds = [
-                            ...(currentBuildingConfig.googleCalendarIds ?? []),
-                            '',
-                          ];
-                          updateBuilding({ googleCalendarIds: nextIds });
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-sm"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add ID
-                      </button>
+                      <div className="flex gap-2">
+                        {currentBuildingConfig.lastProxySync && (
+                          <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
+                            <CheckCircle2 className="w-3 h-3 text-green-500" />
+                            <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">
+                              Proxied
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            const nextIds = [
+                              ...(currentBuildingConfig.googleCalendarIds ??
+                                []),
+                              '',
+                            ];
+                            updateBuilding({ googleCalendarIds: nextIds });
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add ID
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
@@ -440,7 +619,7 @@ export const CalendarConfigurationModal: React.FC<
               Cancel
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={saving}
               className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
             >
