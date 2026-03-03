@@ -188,7 +188,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
             <p className="text-xs font-black uppercase text-rose-500 tracking-widest">
               Calendar Blocked
             </p>
-            <p className="text-xxs text-rose-400 font-medium mt-1 leading-tight">
+            <p
+              className="text-rose-400 font-medium mt-1 leading-tight"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               A district-wide blocked date is active today.
             </p>
           </div>
