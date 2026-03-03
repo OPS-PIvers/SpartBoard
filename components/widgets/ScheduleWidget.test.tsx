@@ -8,6 +8,7 @@ import {
   act,
 } from '@testing-library/react';
 import { ScheduleWidget, ScheduleSettings } from './Schedule';
+import { ScheduleConfig } from '../../types';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { useFeaturePermissions } from '../../hooks/useFeaturePermissions';
@@ -47,6 +48,7 @@ vi.mock('lucide-react', () => ({
   Save: () => <div>Save Icon</div>,
   GripVertical: () => <div>Grip Icon</div>,
   Settings2: () => <div>Settings2 Icon</div>,
+  CalendarDays: () => <div>CalendarDays Icon</div>,
   Calendar: () => <div>Calendar Icon</div>,
   Ban: () => <div>Ban Icon</div>,
 }));
@@ -501,15 +503,22 @@ describe('ScheduleSettings', () => {
   it('sorts items chronologically when a new item is saved via the add form', () => {
     // Start with one item at 10:00.
     const widget = createWidget({
-      items: [
+      schedules: [
         {
-          id: 'existing',
-          time: '10:00',
-          startTime: '10:00',
-          task: 'Later Class',
-          done: false,
-          mode: 'clock' as const,
-          linkedWidgets: [],
+          id: 's1',
+          name: 'Schedule 1',
+          items: [
+            {
+              id: 'existing',
+              time: '10:00',
+              startTime: '10:00',
+              task: 'Later Class',
+              done: false,
+              mode: 'clock' as const,
+              linkedWidgets: [],
+            },
+          ],
+          days: [1, 2, 3, 4, 5],
         },
       ],
     });
@@ -532,12 +541,82 @@ describe('ScheduleSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     // The saved items must be sorted: Early Class (08:00) before Later Class (10:00).
-    const savedItems = (
+    const savedSchedules = (
       mockUpdateWidget.mock.calls[0][1] as {
-        config: { items: { task: string }[] };
+        config: { schedules: { items: { task: string }[] }[] };
       }
-    ).config.items;
+    ).config.schedules;
+    const savedItems = savedSchedules[0].items;
     expect(savedItems[0].task).toBe('Early Class');
     expect(savedItems[1].task).toBe('Later Class');
+  });
+
+  it('migrates legacy items to schedules on mount', () => {
+    const widget = createWidget({
+      items: [{ time: '08:00', task: 'Legacy Task' }],
+    });
+    render(<ScheduleSettings widget={widget} />);
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          schedules: expect.arrayContaining([
+            expect.objectContaining({
+              name: 'Default',
+              items: expect.arrayContaining([
+                expect.objectContaining({ task: 'Legacy Task' }),
+              ]),
+            }),
+          ]),
+        }),
+      })
+    );
+  });
+
+  it('allows switching between schedules', () => {
+    const widget = createWidget({
+      schedules: [
+        { id: 's1', name: 'Schedule 1', items: [{ task: 'Task 1' }], days: [1] },
+        { id: 's2', name: 'Schedule 2', items: [{ task: 'Task 2' }], days: [2] },
+      ],
+    });
+    render(<ScheduleSettings widget={widget} />);
+
+    expect(screen.getByText('Task 1')).toBeInTheDocument();
+
+    // Switch to Schedule 2
+    // fireEvent.click(screen.getByText('Edit Items', { selector: 'button' }));
+    // Actually the first 'Edit Items' matches the active one.
+    const editButtons = screen.getAllByText('Edit Items');
+    fireEvent.click(editButtons[1]);
+
+    expect(screen.getByText('Task 2')).toBeInTheDocument();
+  });
+
+  it('updates day assignments for a schedule', () => {
+    const widget = createWidget({
+      schedules: [
+        { id: 's1', name: 'Schedule 1', items: [], days: [1] },
+        { id: 's2', name: 'Schedule 2', items: [], days: [2] },
+      ],
+    });
+    render(<ScheduleSettings widget={widget} />);
+
+    // Click 'M' (index 1) for first schedule should remove it, 'T' (index 2) should add it
+    // Wait, let's just click 'W' (index 3) for the first schedule.
+    const dayButtons = screen.getAllByText('W');
+    fireEvent.click(dayButtons[0]);
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          schedules: expect.arrayContaining([
+            expect.objectContaining({ id: 's1', days: expect.arrayContaining([1, 3]) }),
+          ]),
+        }),
+      })
+    );
   });
 });

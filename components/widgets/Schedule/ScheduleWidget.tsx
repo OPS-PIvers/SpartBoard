@@ -346,7 +346,17 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const { subscribeToPermission } = useFeaturePermissions();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ScheduleConfig;
-  const items = useMemo(() => config.items ?? [], [config.items]);
+
+  /** Determine the active schedule items based on the current day and configuration. */
+  const items = useMemo(() => {
+    const schedules = config.schedules ?? [];
+    if (schedules.length === 0) return config.items ?? [];
+    if (schedules.length === 1) return schedules[0].items;
+
+    const today = new Date().getDay();
+    const matching = schedules.find((s) => s.days.includes(today));
+    return matching?.items ?? [];
+  }, [config.schedules, config.items]);
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;
 
   const {
@@ -519,9 +529,25 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       const newItems = [...currentItems];
       if (newItems[idx]) {
         newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
-        updateWidget(widget.id, {
-          config: { ...currentConfig, items: newItems } as ScheduleConfig,
-        });
+
+        const nextConfig = { ...currentConfig };
+        if (nextConfig.schedules && nextConfig.schedules.length > 0) {
+          const today = new Date().getDay();
+          // Find which schedule we are currently showing so we update the correct one
+          const schedIdx = nextConfig.schedules.length === 1
+            ? 0
+            : nextConfig.schedules.findIndex(s => s.days.includes(today));
+
+          if (schedIdx !== -1) {
+            const nextSchedules = [...nextConfig.schedules];
+            nextSchedules[schedIdx] = { ...nextSchedules[schedIdx], items: newItems };
+            nextConfig.schedules = nextSchedules;
+          }
+        } else {
+          nextConfig.items = newItems;
+        }
+
+        updateWidget(widget.id, { config: nextConfig as ScheduleConfig });
       }
     },
     [updateWidget, widget.id]
@@ -658,9 +684,22 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       });
 
       if (changed) {
-        updateWidget(widget.id, {
-          config: { ...currentConfig, items: newItems } as ScheduleConfig,
-        });
+        const nextConfig = { ...currentConfig };
+        if (nextConfig.schedules && nextConfig.schedules.length > 0) {
+          const today = new Date().getDay();
+          const schedIdx = nextConfig.schedules.length === 1
+            ? 0
+            : nextConfig.schedules.findIndex(s => s.days.includes(today));
+
+          if (schedIdx !== -1) {
+            const nextSchedules = [...nextConfig.schedules];
+            nextSchedules[schedIdx] = { ...nextSchedules[schedIdx], items: newItems };
+            nextConfig.schedules = nextSchedules;
+          }
+        } else {
+          nextConfig.items = newItems;
+        }
+        updateWidget(widget.id, { config: nextConfig as ScheduleConfig });
       }
     };
 

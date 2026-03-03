@@ -147,6 +147,13 @@ export interface ScheduleItem {
   spawnedWidgetIds?: string[];
 }
 
+export interface DailySchedule {
+  id: string;
+  name: string;
+  items: ScheduleItem[];
+  days: number[]; // 0-6 (Sun-Sat)
+}
+
 export interface CalendarEvent {
   date: string;
   time?: string;
@@ -531,6 +538,7 @@ export interface CalendarGlobalConfig {
 }
 
 export interface ScheduleConfig {
+  schedules?: DailySchedule[];
   items: ScheduleItem[];
   localEvents?: CalendarEvent[];
   isBuildingSyncEnabled?: boolean;
