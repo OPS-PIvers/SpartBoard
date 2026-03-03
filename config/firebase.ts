@@ -27,6 +27,15 @@ let storage: FirebaseStorage;
 let functions: Functions;
 let googleProvider: GoogleAuthProvider;
 
+/** All Google OAuth scopes the app requests at sign-in and when refreshing tokens. */
+export const GOOGLE_OAUTH_SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/calendar.readonly',
+];
+
 if (isConfigured) {
   const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
@@ -48,16 +57,7 @@ if (isConfigured) {
   storage = getStorage(app);
   functions = getFunctions(app);
   googleProvider = new GoogleAuthProvider();
-  // Add Google Drive scopes
-  googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
-  googleProvider.addScope('https://www.googleapis.com/auth/drive.readonly');
-  // Add Google Sheets scopes for quiz import and results export
-  googleProvider.addScope(
-    'https://www.googleapis.com/auth/spreadsheets.readonly'
-  );
-  googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
-  // Add Google Calendar scope for district event sync
-  googleProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+  GOOGLE_OAUTH_SCOPES.forEach((scope) => googleProvider.addScope(scope));
 } else {
   // Mock objects to prevent crashes when importing
   auth = {
