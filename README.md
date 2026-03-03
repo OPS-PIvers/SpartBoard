@@ -41,7 +41,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 2.  **Install dependencies:**
 
     ```bash
-    npm install
+    pnpm install
     ```
 
 3.  **Configure Environment:**
@@ -59,7 +59,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 
 4.  **Run the app:**
     ```bash
-    npm run dev
+    pnpm run dev
     ```
 
 ## 🛠 Tech Stack
@@ -83,11 +83,11 @@ This project uses a **flat file structure** (no `src/` directory). All source co
 
 ## 📜 Available Scripts
 
-- `npm run dev` - Start the development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview the production build
-- `npm run validate` - Run type-check, linting, and formatting checks
-- `npm run format` - Auto-format code with Prettier
+- `pnpm run dev` - Start the development server
+- `pnpm run build` - Build for production
+- `pnpm run preview` - Preview the production build
+- `pnpm run validate` - Run type-check, linting, and formatting checks
+- `pnpm run format` - Auto-format code with Prettier
 
 ## 🤖 AI Development Workflow
 
