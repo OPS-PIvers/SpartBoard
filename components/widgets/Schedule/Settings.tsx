@@ -81,7 +81,7 @@ const sortByTime = (items: ScheduleItem[]): ScheduleItem[] =>
 export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget, addToast } = useDashboard();
   const config = widget.config as ScheduleConfig;
 
   // Migration logic for settings view
@@ -252,7 +252,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   const handleDeleteSchedule = (id: string) => {
     if (schedules.length <= 1) {
-      alert('You must have at least one schedule.');
+      addToast('You must have at least one schedule.', 'error');
       return;
     }
     if (confirm('Are you sure you want to delete this schedule?')) {

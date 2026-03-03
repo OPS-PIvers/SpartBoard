@@ -87,6 +87,16 @@ const hexToRgba = (hex: string, alpha: number): string => {
   if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(255, 255, 255, ${a})`;
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
+/** Resolves the ID of the active schedule based on current rules. */
+const getActiveScheduleId = (
+  schedules: DailySchedule[],
+  legacyItems: ScheduleItem[]
+): string | undefined => {
+  if (schedules.length === 0 && legacyItems.length > 0) return 'default';
+  if (schedules.length === 1) return schedules[0].id;
+  const today = new Date().getDay();
+  return schedules.find((s) => s.days.includes(today))?.id;
+};
 
 interface CountdownDisplayProps {
   startTime?: string;
@@ -551,17 +561,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       const currentConfig = configRef.current;
       const { schedules = [], items: legacyItems = [] } = currentConfig;
 
-      // Resolve the active schedule ID to update the correct one in the array
-      const today = new Date().getDay();
-      let targetScheduleId: string | undefined;
-
-      if (schedules.length === 0 && legacyItems.length > 0) {
-        targetScheduleId = 'default';
-      } else if (schedules.length === 1) {
-        targetScheduleId = schedules[0].id;
-      } else {
-        targetScheduleId = schedules.find((s) => s.days.includes(today))?.id;
-      }
+      const targetScheduleId = getActiveScheduleId(schedules, legacyItems);
 
       if (!targetScheduleId) return;
 
@@ -726,16 +726,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
       if (changed) {
         const { schedules = [], items: legacyItems = [] } = currentConfig;
-        const today = new Date().getDay();
-        let targetScheduleId: string | undefined;
-
-        if (schedules.length === 0 && legacyItems.length > 0) {
-          targetScheduleId = 'default';
-        } else if (schedules.length === 1) {
-          targetScheduleId = schedules[0].id;
-        } else {
-          targetScheduleId = schedules.find((s) => s.days.includes(today))?.id;
-        }
+        const targetScheduleId = getActiveScheduleId(schedules, legacyItems);
 
         if (!targetScheduleId) return;
 
