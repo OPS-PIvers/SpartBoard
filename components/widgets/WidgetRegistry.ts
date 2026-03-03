@@ -82,7 +82,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./InstructionalRoutines/Widget'),
     'InstructionalRoutinesWidget'
   ),
-  miniApp: lazyNamed(() => import('./MiniAppWidget'), 'MiniAppWidget'),
+  miniApp: lazyNamed(() => import('./MiniApp/Widget'), 'MiniAppWidget'),
   materials: lazyNamed(() => import('./MaterialsWidget'), 'MaterialsWidget'),
   stickers: lazyNamed(
     () => import('./stickers/StickerBookWidget'),

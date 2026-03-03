@@ -53,3 +53,9 @@
 **Weed:** `Sidebar.tsx` was ~1300 lines, acting as a "God Component" that managed boards, backgrounds, widgets, and settings all in one file.
 **Root Cause:** Features were added incrementally to the sidebar over time without separating concerns, leading to a massive file with mixed responsibilities.
 **Plan:** Decomposed into `SidebarBoards.tsx`, `SidebarBackgrounds.tsx`, `SidebarWidgets.tsx`, and `SidebarSettings.tsx`. Extracted relevant state and logic to each component. Used `createPortal` for modals within the sub-components to handle stacking context issues.
+
+## 2025-06-07 - Extract MiniAppWidget
+
+**Weed:** `MiniAppWidget.tsx` was over 1000 lines, mixing UI components (SortableItem, GlobalAppRow, MiniAppEditor) with complex API fetching logic.
+**Root Cause:** "God Component" pattern where the feature was built in a single file over time.
+**Plan:** Decomposed into `components/widgets/MiniApp/` with `Widget.tsx`, `components/SortableItem.tsx`, `components/GlobalAppRow.tsx`, `components/MiniAppEditor.tsx`, and extracted API logic to `hooks/useMiniAppSync.ts` hook.

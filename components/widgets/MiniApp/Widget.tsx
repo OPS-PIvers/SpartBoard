@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -6,26 +6,9 @@ import {
   MiniAppConfig,
   GlobalMiniAppItem,
 } from '@/types';
-import {
-  Plus,
-  Play,
-  Pencil,
-  Trash2,
-  Save,
-  X,
-  GripVertical,
-  LayoutGrid,
-  Download,
-  Upload,
-  Box,
-  Code2,
-  Sparkles,
-  Loader2,
-  Globe,
-  BookDown,
-} from 'lucide-react';
+import { Plus, LayoutGrid, Download, Upload, Box, Globe } from 'lucide-react';
 import { generateMiniAppCode } from '@/utils/ai';
-import { WidgetLayout } from './WidgetLayout';
+import { WidgetLayout } from '../WidgetLayout';
 import {
   DndContext,
   closestCenter,
@@ -40,245 +23,30 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '@/context/useAuth';
 import {
   collection,
-  onSnapshot,
   doc,
   setDoc,
   deleteDoc,
-  query,
-  orderBy,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-
-// --- CONSTANTS ---
-const STORAGE_KEY = 'spartboard_miniapps_library';
-
-// --- SORTABLE ITEM COMPONENT ---
-interface SortableItemProps {
-  app: MiniAppItem;
-  onRun: (app: MiniAppItem) => void;
-  onEdit: (app: MiniAppItem) => void;
-  onDelete: (id: string) => void;
-}
-
-const SortableItem: React.FC<SortableItemProps> = ({
-  app,
-  onRun,
-  onEdit,
-  onDelete,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: app.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 'auto',
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        ...style,
-        padding: 'min(12px, 2.5cqmin)',
-        gap: 'min(12px, 2.5cqmin)',
-      }}
-      className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex items-center"
-    >
-      {/* Drag Handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="text-slate-400 cursor-grab hover:text-slate-600 touch-none"
-      >
-        <GripVertical
-          style={{
-            width: 'min(16px, 4cqmin)',
-            height: 'min(16px, 4cqmin)',
-          }}
-        />
-      </div>
-
-      {/* Icon & Title */}
-      <div
-        className="bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0 border border-indigo-100"
-        style={{
-          width: 'min(40px, 10cqmin)',
-          height: 'min(40px, 10cqmin)',
-          fontSize: 'min(12px, 3cqmin)',
-        }}
-      >
-        HTML
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4
-          className="text-slate-700 font-bold truncate"
-          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-        >
-          {app.title}
-        </h4>
-        <div
-          className="text-slate-500 font-mono"
-          style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-        >
-          {(app.html.length / 1024).toFixed(1)} KB
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center" style={{ gap: 'min(4px, 1cqmin)' }}>
-        <button
-          onClick={() => onRun(app)}
-          className="bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
-          style={{ padding: 'min(8px, 2cqmin)' }}
-          title="Run App"
-        >
-          <Play
-            className="fill-current"
-            style={{
-              width: 'min(16px, 4cqmin)',
-              height: 'min(16px, 4cqmin)',
-            }}
-          />
-        </button>
-        <div
-          className="bg-slate-200"
-          style={{
-            width: '1px',
-            height: 'min(24px, 6cqmin)',
-            marginLeft: 'min(4px, 1cqmin)',
-            marginRight: 'min(4px, 1cqmin)',
-          }}
-        ></div>
-        <button
-          onClick={() => onEdit(app)}
-          className="text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors"
-          style={{ padding: 'min(8px, 2cqmin)' }}
-          title="Edit"
-        >
-          <Pencil
-            style={{
-              width: 'min(16px, 4cqmin)',
-              height: 'min(16px, 4cqmin)',
-            }}
-          />
-        </button>
-        <button
-          onClick={() => onDelete(app.id)}
-          className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          style={{ padding: 'min(8px, 2cqmin)' }}
-          title="Delete"
-        >
-          <Trash2
-            style={{
-              width: 'min(16px, 4cqmin)',
-              height: 'min(16px, 4cqmin)',
-            }}
-          />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// --- GLOBAL APP ROW (read-only, no drag) ---
-interface GlobalAppRowProps {
-  app: GlobalMiniAppItem;
-  onRun: (app: MiniAppItem) => void;
-  onSaveToLibrary: (app: GlobalMiniAppItem) => void;
-  isSaving: boolean;
-}
-
-const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
-  app,
-  onRun,
-  onSaveToLibrary,
-  isSaving,
-}) => (
-  <div
-    style={{ padding: 'min(10px, 2cqmin)', gap: 'min(10px, 2cqmin)' }}
-    className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-violet-200 transition-all flex items-center"
-  >
-    <div
-      className="bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center shrink-0 border border-violet-100 font-black"
-      style={{
-        width: 'min(36px, 9cqmin)',
-        height: 'min(36px, 9cqmin)',
-        fontSize: 'min(10px, 2.5cqmin)',
-      }}
-    >
-      HTML
-    </div>
-    <div className="flex-1 min-w-0">
-      <h4
-        className="text-slate-700 font-bold truncate"
-        style={{ fontSize: 'min(13px, 3.2cqmin)' }}
-      >
-        {app.title}
-      </h4>
-      <div
-        className="text-slate-500 font-mono"
-        style={{ fontSize: 'min(9px, 2.2cqmin)' }}
-      >
-        {(app.html.length / 1024).toFixed(1)} KB
-      </div>
-    </div>
-    <div className="flex items-center" style={{ gap: 'min(4px, 1cqmin)' }}>
-      <button
-        onClick={() => onRun(app)}
-        className="bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
-        style={{ padding: 'min(7px, 1.8cqmin)' }}
-        title="Run App"
-      >
-        <Play
-          className="fill-current"
-          style={{
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
-          }}
-        />
-      </button>
-      <button
-        onClick={() => onSaveToLibrary(app)}
-        disabled={isSaving}
-        className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
-        style={{ padding: 'min(7px, 1.8cqmin)' }}
-        title="Save to My Library"
-      >
-        <BookDown
-          style={{
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
-          }}
-        />
-      </button>
-    </div>
-  </div>
-);
+import { SortableItem } from './components/SortableItem';
+import { GlobalAppRow } from './components/GlobalAppRow';
+import { MiniAppEditor } from './components/MiniAppEditor';
+import { useMiniAppSync } from './hooks/useMiniAppSync';
 
 // --- MAIN WIDGET COMPONENT ---
 export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { canAccessFeature, user, selectedBuildings } = useAuth();
+  const { user } = useAuth();
   const config = widget.config as MiniAppConfig;
   const { activeApp } = config;
 
-  const [library, setLibrary] = useState<MiniAppItem[]>([]);
-  const [globalLibrary, setGlobalLibrary] = useState<GlobalMiniAppItem[]>([]);
+  const { library, globalLibrary } = useMiniAppSync(addToast);
+
   const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -301,81 +69,6 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  // Firestore Sync & Migration
-  useEffect(() => {
-    if (!user) return;
-
-    const appsRef = collection(db, 'users', user.uid, 'miniapps');
-    const q = query(
-      appsRef,
-      orderBy('order', 'asc'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const apps = snapshot.docs.map(
-        (d) => ({ ...d.data(), id: d.id }) as MiniAppItem
-      );
-      setLibrary(apps);
-
-      // Migration check: if Firestore is empty but localStorage has data
-      if (apps.length === 0) {
-        const local = localStorage.getItem(STORAGE_KEY);
-        if (local) {
-          try {
-            const parsed = JSON.parse(local) as MiniAppItem[];
-            if (parsed.length > 0) {
-              console.warn(
-                '[MiniAppWidget] Migrating local apps to Firestore...'
-              );
-              const batch = writeBatch(db);
-              parsed.forEach((app, index) => {
-                const docRef = doc(appsRef, app.id);
-                batch.set(docRef, { ...app, order: index });
-              });
-              void batch.commit().then(() => {
-                localStorage.removeItem(STORAGE_KEY);
-                addToast('Migrated local apps to cloud', 'success');
-              });
-            }
-          } catch (e) {
-            console.error('[MiniAppWidget] Migration failed', e);
-          }
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user, addToast]);
-
-  // Global library listener — subscribes to all published mini apps and filters
-  // client-side. An app is visible when its `buildings` array is empty/absent
-  // (available to everyone) OR contains at least one of the teacher's buildings.
-  // When the teacher has no building context, only untagged apps are shown.
-  useEffect(() => {
-    const q = query(
-      collection(db, 'global_mini_apps'),
-      orderBy('order', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const allApps = snap.docs.map(
-        (d) => ({ ...d.data(), id: d.id }) as GlobalMiniAppItem
-      );
-      const filtered = allApps.filter((app) => {
-        // Treat absent or empty buildings as "all buildings"
-        const appBuildings = Array.isArray(app.buildings) ? app.buildings : [];
-        const isGlobal = appBuildings.length === 0;
-        if (isGlobal) return true;
-        if (selectedBuildings.length === 0) return false;
-        return appBuildings.some((b) => selectedBuildings.includes(b));
-      });
-      setGlobalLibrary(filtered);
-    });
-
-    return () => unsubscribe();
-  }, [selectedBuildings]);
 
   // --- HANDLERS ---
 
@@ -643,131 +336,20 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // --- RENDER: EDITOR MODE ---
   if (view === 'editor') {
     return (
-      <WidgetLayout
-        padding="p-0"
-        header={
-          <div className="p-4 flex items-center justify-between">
-            <h3 className="text-slate-700 uppercase tracking-wider text-xs flex items-center gap-2 font-black">
-              <Code2 className="w-4 h-4 text-indigo-500" />
-              {editingId ? 'Edit App' : 'New Mini-App'}
-            </h3>
-            <button
-              onClick={() => setView('list')}
-              className="p-1 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        }
-        content={
-          <div className="flex-1 w-full h-full flex flex-col p-4 space-y-4 overflow-y-auto custom-scrollbar relative">
-            {showPromptInput && (
-              <div
-                className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setShowPromptInput(false);
-                }}
-              >
-                <div className="w-full max-sm space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-                      <Sparkles className="w-5 h-5" /> Magic Generator
-                    </h4>
-                    <button
-                      onClick={() => setShowPromptInput(false)}
-                      className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-                      aria-label="Close Magic Generator"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
-                    Describe the mini-app you want to build.
-                  </p>
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect."
-                    className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
-                    autoFocus
-                    aria-label="Describe your mini-app"
-                  />
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating || !prompt.trim()}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />{' '}
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" /> Generate Code
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-                  App Title
-                </label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="e.g. Lunch Randomizer"
-                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
-                />
-              </div>
-              {canAccessFeature('gemini-functions') && (
-                <div className="pt-5">
-                  <button
-                    onClick={() => setShowPromptInput(true)}
-                    className="h-[46px] px-4 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
-                    title="Generate with AI"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span className="hidden sm:inline">Magic</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 flex flex-col min-h-[250px]">
-              <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">
-                HTML Code
-              </label>
-              <textarea
-                value={editCode}
-                onChange={(e) => setEditCode(e.target.value)}
-                className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
-                spellCheck={false}
-                placeholder="Paste your HTML, CSS, and JS here..."
-              />
-            </div>
-          </div>
-        }
-        footer={
-          <div className="p-4 flex gap-3">
-            <button
-              onClick={() => setView('list')}
-              className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors border border-slate-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex-1 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95"
-            >
-              <Save className="w-4 h-4" /> Save App
-            </button>
-          </div>
-        }
+      <MiniAppEditor
+        editingId={editingId}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editCode={editCode}
+        setEditCode={setEditCode}
+        prompt={prompt}
+        setPrompt={setPrompt}
+        showPromptInput={showPromptInput}
+        setShowPromptInput={setShowPromptInput}
+        isGenerating={isGenerating}
+        onGenerate={handleGenerate}
+        onSave={handleSave}
+        onCancel={() => setView('list')}
       />
     );
   }
