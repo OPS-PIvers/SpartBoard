@@ -530,7 +530,15 @@ export interface CalendarGlobalConfig {
   updateFrequencyHours?: number;
 }
 
+export interface DailySchedule {
+  id: string;
+  name: string;
+  items: ScheduleItem[];
+  days: number[];
+}
+
 export interface ScheduleConfig {
+  schedules?: DailySchedule[];
   items: ScheduleItem[];
   localEvents?: CalendarEvent[];
   isBuildingSyncEnabled?: boolean;
