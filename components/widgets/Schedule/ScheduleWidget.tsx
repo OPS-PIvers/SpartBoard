@@ -736,7 +736,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     const interval = setInterval(checkTime, 10000);
     checkTime();
     return () => clearInterval(interval);
-  }, [autoProgress, hasClock, widget.id, updateWidget]);
+  }, [autoProgress, hasClock, widget.id, updateWidget, activeSchedule]);
 
   const getFontClass = () => {
     if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;

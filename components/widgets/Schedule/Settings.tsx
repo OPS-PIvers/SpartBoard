@@ -105,7 +105,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   }, [config.schedules, config.items]);
 
   const activeSchedule =
-    schedules.find((s) => s.id === selectedScheduleId) || schedules[0];
+    schedules.find((s) => s.id === selectedScheduleId) ?? schedules[0];
   const items = activeSchedule?.items ?? [];
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
