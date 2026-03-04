@@ -149,31 +149,58 @@ describe('fetchWeatherProxy', () => {
   });
 
   it('should throw unauthenticated error if no auth context', async () => {
-    const handler = fetchWeatherProxy as unknown as (req: unknown, context: unknown) => Promise<unknown>;
-    await expect(handler({ url: 'https://api.openweathermap.org/data/2.5/weather' }, {}))
-      .rejects.toThrow('The function must be called while authenticated.');
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler({ url: 'https://api.openweathermap.org/data/2.5/weather' }, {})
+    ).rejects.toThrow('The function must be called while authenticated.');
   });
 
   it('should throw invalid-argument for invalid host', async () => {
-    const handler = fetchWeatherProxy as unknown as (req: unknown, context: unknown) => Promise<unknown>;
-    await expect(handler({ url: 'https://example.com/weather' }, { auth: { uid: '123' } }))
-      .rejects.toThrow('Invalid proxy URL. Only https://api.openweathermap.org is allowed.');
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler({ url: 'https://example.com/weather' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(
+      'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+    );
   });
 
   it('should throw invalid-argument for invalid protocol', async () => {
-    const handler = fetchWeatherProxy as unknown as (req: unknown, context: unknown) => Promise<unknown>;
-    await expect(handler({ url: 'http://api.openweathermap.org/data' }, { auth: { uid: '123' } }))
-      .rejects.toThrow('Invalid proxy URL. Only https://api.openweathermap.org is allowed.');
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler(
+        { url: 'http://api.openweathermap.org/data' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(
+      'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+    );
   });
 
   it('should return data successfully for valid openweathermap url', async () => {
     const mockGet = vi.mocked(axios.get);
     mockGet.mockResolvedValue({ data: { temp: 72 } });
 
-    const handler = fetchWeatherProxy as unknown as (req: unknown, context: unknown) => Promise<{temp: number}>;
-    const result = await handler({ url: 'https://api.openweathermap.org/data/2.5/weather?q=London' }, { auth: { uid: '123' } });
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ temp: number }>;
+    const result = await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
 
-    expect(mockGet).toHaveBeenCalledWith('https://api.openweathermap.org/data/2.5/weather?q=London');
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London'
+    );
     expect(result).toEqual({ temp: 72 });
   });
 
@@ -181,9 +208,16 @@ describe('fetchWeatherProxy', () => {
     const mockGet = vi.mocked(axios.get);
     mockGet.mockRejectedValue(new Error('Network error'));
 
-    const handler = fetchWeatherProxy as unknown as (req: unknown, context: unknown) => Promise<unknown>;
-    await expect(handler({ url: 'https://api.openweathermap.org/data/2.5/weather?q=London' }, { auth: { uid: '123' } }))
-      .rejects.toThrow('Network error');
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler(
+        { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow('Network error');
   });
 });
 
@@ -193,21 +227,31 @@ describe('checkUrlCompatibility', () => {
   });
 
   it('should throw unauthenticated error if no auth context', async () => {
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<unknown>;
-    await expect(handler({ url: 'https://example.com' }, {}))
-      .rejects.toThrow('The function must be called while authenticated.');
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(handler({ url: 'https://example.com' }, {})).rejects.toThrow(
+      'The function must be called while authenticated.'
+    );
   });
 
   it('should return isEmbeddable false for x-frame-options deny', async () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockResolvedValue({
       headers: {
-        'x-frame-options': 'DENY'
-      }
+        'x-frame-options': 'DENY',
+      },
     });
 
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<{isEmbeddable: boolean; reason: string}>;
-    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ isEmbeddable: boolean; reason: string }>;
+    const result = await handler(
+      { url: 'https://example.com' },
+      { auth: { uid: '123' } }
+    );
 
     expect(result.isEmbeddable).toBe(false);
     expect(result.reason).toContain('X-Frame-Options: DENY');
@@ -217,12 +261,18 @@ describe('checkUrlCompatibility', () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockResolvedValue({
       headers: {
-        'x-frame-options': 'SAMEORIGIN'
-      }
+        'x-frame-options': 'SAMEORIGIN',
+      },
     });
 
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<{isEmbeddable: boolean; reason: string}>;
-    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ isEmbeddable: boolean; reason: string }>;
+    const result = await handler(
+      { url: 'https://example.com' },
+      { auth: { uid: '123' } }
+    );
 
     expect(result.isEmbeddable).toBe(false);
     expect(result.reason).toContain('X-Frame-Options: SAMEORIGIN');
@@ -232,25 +282,40 @@ describe('checkUrlCompatibility', () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockResolvedValue({
       headers: {
-        'content-security-policy': "default-src 'self'; frame-ancestors 'none';"
-      }
+        'content-security-policy':
+          "default-src 'self'; frame-ancestors 'none';",
+      },
     });
 
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<{isEmbeddable: boolean; reason: string}>;
-    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ isEmbeddable: boolean; reason: string }>;
+    const result = await handler(
+      { url: 'https://example.com' },
+      { auth: { uid: '123' } }
+    );
 
     expect(result.isEmbeddable).toBe(false);
-    expect(result.reason).toContain('strict Content Security Policy (frame-ancestors)');
+    expect(result.reason).toContain(
+      'strict Content Security Policy (frame-ancestors)'
+    );
   });
 
   it('should return isEmbeddable true if no restrictive headers are present', async () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockResolvedValue({
-      headers: {}
+      headers: {},
     });
 
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<{isEmbeddable: boolean; reason: string}>;
-    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ isEmbeddable: boolean; reason: string }>;
+    const result = await handler(
+      { url: 'https://example.com' },
+      { auth: { uid: '123' } }
+    );
 
     expect(result.isEmbeddable).toBe(true);
     expect(result.reason).toBe('');
@@ -260,8 +325,14 @@ describe('checkUrlCompatibility', () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockRejectedValue(new Error('Network error on head request'));
 
-    const handler = checkUrlCompatibility as unknown as (req: unknown, context: unknown) => Promise<{isEmbeddable: boolean; uncertain: boolean; error: string}>;
-    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ isEmbeddable: boolean; uncertain: boolean; error: string }>;
+    const result = await handler(
+      { url: 'https://example.com' },
+      { auth: { uid: '123' } }
+    );
 
     expect(result.isEmbeddable).toBe(true);
     expect(result.uncertain).toBe(true);
