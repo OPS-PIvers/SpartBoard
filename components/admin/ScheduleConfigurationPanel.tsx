@@ -84,7 +84,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id || '' });
+  } = useSortable({ id: item.id ?? '' });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -164,34 +164,35 @@ export const ScheduleConfigurationPanel: React.FC<
     })
   );
 
+  const handleUpdateBuilding = useCallback(
+    (updates: Partial<BuildingScheduleDefaults>) => {
+      const currentDefaults = config.buildingDefaults ?? {};
+      const currentConfig = currentDefaults[selectedBuildingId] ?? {
+        buildingId: selectedBuildingId,
+        items: [],
+        schedules: [],
+      };
+
+      onChange({
+        ...config,
+        buildingDefaults: {
+          ...currentDefaults,
+          [selectedBuildingId]: {
+            ...currentConfig,
+            ...updates,
+          },
+        },
+      });
+    },
+    [config, selectedBuildingId, onChange]
+  );
+
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
     buildingId: selectedBuildingId,
     items: [],
     schedules: [],
   };
-
-  const handleUpdateBuilding = useCallback(
-    (updates: Partial<BuildingScheduleDefaults>) => {
-      onChange({
-        ...config,
-        buildingDefaults: {
-          ...buildingDefaults,
-          [selectedBuildingId]: {
-            ...currentBuildingConfig,
-            ...updates,
-          },
-        },
-      });
-    },
-    [
-      config,
-      buildingDefaults,
-      selectedBuildingId,
-      currentBuildingConfig,
-      onChange,
-    ]
-  );
 
   // Migrate legacy items into a "Default Schedule" if no schedules exist yet
   const schedules: DailySchedule[] = (() => {
@@ -483,7 +484,7 @@ export const ScheduleConfigurationPanel: React.FC<
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={items.map((item) => item.id || '')}
+                  items={items.map((item) => item.id ?? '')}
                   strategy={verticalListSortingStrategy}
                 >
                   {items.map((item) => (
