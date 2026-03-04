@@ -344,26 +344,26 @@ export const generateWithAI = functionsV1
 
       const ai = new GoogleGenAI({ apiKey });
 
-      let systemPrompt = '';
-      let userPrompt = '';
-
-      if (genType === 'mini-app') {
-        systemPrompt = `
+      const promptMap: Record<string, () => { systemPrompt: string; userPrompt: string }> = {
+        'mini-app': () => ({
+          systemPrompt: `
           You are an expert frontend developer. Create a single-file HTML/JS mini-app based on the user's request.
           Requirements:
           1. Single File (embedded CSS/JS).
           2. Use Tailwind CDN.
           3. Return JSON: { "title": "...", "html": "..." }
-        `;
-        userPrompt = `User Request: ${data.prompt}`;
-      } else if (genType === 'poll') {
-        systemPrompt = `
+        `,
+          userPrompt: `User Request: ${data?.prompt}`,
+        }),
+        poll: () => ({
+          systemPrompt: `
           You are an expert teacher. Create a 4-option multiple choice poll JSON:
           { "question": "...", "options": ["...", "...", "...", "..."] }
-        `;
-        userPrompt = `Topic: ${data.prompt}`;
-      } else if (genType === 'dashboard-layout') {
-        systemPrompt = `
+        `,
+          userPrompt: `Topic: ${data?.prompt}`,
+        }),
+        'dashboard-layout': () => ({
+          systemPrompt: `
           You are an expert instructional designer. Based on the user's lesson description, suggest a set of interactive widgets to place on their digital whiteboard.
           
           Available Widgets (use EXACT type strings):
@@ -397,10 +397,11 @@ export const generateWithAI = functionsV1
           1. Select 3-6 most relevant widgets for the activity.
           2. Return JSON: { "widgets": [{ "type": "...", "config": {} }] }
           3. 'config' should be an empty object {} unless you are setting a specific property known to that widget (like 'question' for 'poll').
-        `;
-        userPrompt = `Lesson/Activity Description: ${data.prompt}`;
-      } else if (genType === 'instructional-routine') {
-        systemPrompt = `
+        `,
+          userPrompt: `Lesson/Activity Description: ${data?.prompt}`,
+        }),
+        'instructional-routine': () => ({
+          systemPrompt: `
           You are an expert instructional designer. Create a classroom instructional routine based on the user's description.
 
           Return JSON:
@@ -418,18 +419,24 @@ export const generateWithAI = functionsV1
               }
             ]
           }
-        `;
-        userPrompt = `Description: ${data.prompt}`;
-      } else if (genType === 'ocr') {
-        systemPrompt = `
+        `,
+          userPrompt: `Description: ${data?.prompt}`,
+        }),
+        ocr: () => ({
+          systemPrompt: `
           You are an expert at extracting text from images (OCR).
           Analyze the provided image and extract all readable text accurately.
           Maintain the structure as best as possible.
           If there are multiple paragraphs, separate them with double newlines.
           Return JSON: { "text": "extracted text here" }
-        `;
-        userPrompt = 'Extract text from this image.';
-      } else {
+        `,
+          userPrompt: 'Extract text from this image.',
+        }),
+      };
+
+      const promptDataFn = promptMap[genType];
+
+      if (!promptDataFn) {
         const debugData = {
           receivedType: data?.type,
           typeOfReceivedType: typeof data?.type,
@@ -445,6 +452,8 @@ export const generateWithAI = functionsV1
           `V3 ERROR: Invalid generation type: "${data?.type}". Received keys: ${Object.keys(data || {}).join(', ')}`
         );
       }
+
+      const { systemPrompt, userPrompt } = promptDataFn();
 
       const contents: Content[] = [
         {
