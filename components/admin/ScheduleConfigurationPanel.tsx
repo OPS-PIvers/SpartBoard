@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import {
   ScheduleGlobalConfig,
@@ -84,7 +84,7 @@ const SortableItem: React.FC<SortableItemProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id || '' });
+  } = useSortable({ id: item.id ?? '' });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -164,12 +164,19 @@ export const ScheduleConfigurationPanel: React.FC<
     })
   );
 
-  const buildingDefaults = config.buildingDefaults ?? {};
-  const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
-    buildingId: selectedBuildingId,
-    items: [],
-    schedules: [],
-  };
+  const buildingDefaults = useMemo(
+    () => config.buildingDefaults ?? {},
+    [config.buildingDefaults]
+  );
+  const currentBuildingConfig = useMemo(
+    () =>
+      buildingDefaults[selectedBuildingId] ?? {
+        buildingId: selectedBuildingId,
+        items: [],
+        schedules: [],
+      },
+    [buildingDefaults, selectedBuildingId]
+  );
 
   const handleUpdateBuilding = useCallback(
     (updates: Partial<BuildingScheduleDefaults>) => {
@@ -483,7 +490,7 @@ export const ScheduleConfigurationPanel: React.FC<
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={items.map((item) => item.id || '')}
+                  items={items.map((item) => item.id ?? '')}
                   strategy={verticalListSortingStrategy}
                 >
                   {items.map((item) => (
