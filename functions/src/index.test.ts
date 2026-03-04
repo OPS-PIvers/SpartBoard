@@ -46,8 +46,13 @@ vi.mock('firebase-functions/v2', () => ({
 vi.mock('firebase-functions/v1', () => ({
   runWith: vi.fn().mockReturnThis(),
   https: {
-    onCall: vi.fn(),
-    HttpsError: class extends Error {},
+    onCall: vi.fn().mockImplementation((handler) => handler),
+    HttpsError: class extends Error {
+      constructor(code: string, message: string) {
+        super(message);
+        this.name = code;
+      }
+    },
   },
 }));
 
@@ -58,6 +63,8 @@ vi.mock('axios');
 import {
   triggerJulesWidgetGeneration,
   JULES_API_SESSIONS_ENDPOINT,
+  fetchWeatherProxy,
+  checkUrlCompatibility,
 } from './index';
 
 // Mock google-auth-library
@@ -133,5 +140,131 @@ describe('triggerJulesWidgetGeneration', () => {
     expect(result.success).toBe(true);
     expect(result.message).toContain('12345');
     expect(result.consoleUrl).toBe('https://jules.google.com/session/12345');
+  });
+});
+
+describe('fetchWeatherProxy', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should throw unauthenticated error if no auth context', async () => {
+    const handler = fetchWeatherProxy as unknown as (req: any, context: any) => Promise<any>;
+    await expect(handler({ url: 'https://api.openweathermap.org/data/2.5/weather' }, {}))
+      .rejects.toThrow('The function must be called while authenticated.');
+  });
+
+  it('should throw invalid-argument for invalid host', async () => {
+    const handler = fetchWeatherProxy as unknown as (req: any, context: any) => Promise<any>;
+    await expect(handler({ url: 'https://example.com/weather' }, { auth: { uid: '123' } }))
+      .rejects.toThrow('Invalid proxy URL. Only https://api.openweathermap.org is allowed.');
+  });
+
+  it('should throw invalid-argument for invalid protocol', async () => {
+    const handler = fetchWeatherProxy as unknown as (req: any, context: any) => Promise<any>;
+    await expect(handler({ url: 'http://api.openweathermap.org/data' }, { auth: { uid: '123' } }))
+      .rejects.toThrow('Invalid proxy URL. Only https://api.openweathermap.org is allowed.');
+  });
+
+  it('should return data successfully for valid openweathermap url', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: { temp: 72 } });
+
+    const handler = fetchWeatherProxy as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://api.openweathermap.org/data/2.5/weather?q=London' }, { auth: { uid: '123' } });
+
+    expect(mockGet).toHaveBeenCalledWith('https://api.openweathermap.org/data/2.5/weather?q=London');
+    expect(result).toEqual({ temp: 72 });
+  });
+
+  it('should throw internal error if axios throws', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockRejectedValue(new Error('Network error'));
+
+    const handler = fetchWeatherProxy as unknown as (req: any, context: any) => Promise<any>;
+    await expect(handler({ url: 'https://api.openweathermap.org/data/2.5/weather?q=London' }, { auth: { uid: '123' } }))
+      .rejects.toThrow('Network error');
+  });
+});
+
+describe('checkUrlCompatibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should throw unauthenticated error if no auth context', async () => {
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    await expect(handler({ url: 'https://example.com' }, {}))
+      .rejects.toThrow('The function must be called while authenticated.');
+  });
+
+  it('should return isEmbeddable false for x-frame-options deny', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({
+      headers: {
+        'x-frame-options': 'DENY'
+      }
+    });
+
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+
+    expect(result.isEmbeddable).toBe(false);
+    expect(result.reason).toContain('X-Frame-Options: DENY');
+  });
+
+  it('should return isEmbeddable false for x-frame-options sameorigin', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({
+      headers: {
+        'x-frame-options': 'SAMEORIGIN'
+      }
+    });
+
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+
+    expect(result.isEmbeddable).toBe(false);
+    expect(result.reason).toContain('X-Frame-Options: SAMEORIGIN');
+  });
+
+  it('should return isEmbeddable false for strict content-security-policy', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({
+      headers: {
+        'content-security-policy': "default-src 'self'; frame-ancestors 'none';"
+      }
+    });
+
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+
+    expect(result.isEmbeddable).toBe(false);
+    expect(result.reason).toContain('strict Content Security Policy (frame-ancestors)');
+  });
+
+  it('should return isEmbeddable true if no restrictive headers are present', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({
+      headers: {}
+    });
+
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+
+    expect(result.isEmbeddable).toBe(true);
+    expect(result.reason).toBe('');
+  });
+
+  it('should return isEmbeddable true and uncertain true if axios throws', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockRejectedValue(new Error('Network error on head request'));
+
+    const handler = checkUrlCompatibility as unknown as (req: any, context: any) => Promise<any>;
+    const result = await handler({ url: 'https://example.com' }, { auth: { uid: '123' } });
+
+    expect(result.isEmbeddable).toBe(true);
+    expect(result.uncertain).toBe(true);
+    expect(result.error).toContain('Network error on head request');
   });
 });
