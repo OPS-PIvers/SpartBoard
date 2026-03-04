@@ -5,7 +5,7 @@ import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 
 interface TalkingToolConfigurationPanelProps {
-  config: TalkingToolGlobalConfig;
+  config: Partial<TalkingToolGlobalConfig>;
   onChange: (newConfig: TalkingToolGlobalConfig) => void;
 }
 
@@ -124,6 +124,7 @@ export const TalkingToolConfigurationPanel: React.FC<
                 onClick={() => removeCategory(cat.id)}
                 className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
                 title="Remove Category"
+                aria-label="Remove category"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -148,6 +149,8 @@ export const TalkingToolConfigurationPanel: React.FC<
                   <button
                     onClick={() => removeStem(cat.id, stem.id)}
                     className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                    aria-label="Remove stem"
+                    title="Remove stem"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

@@ -329,7 +329,7 @@ export interface TalkingToolCategory {
 }
 
 export interface TalkingToolGlobalConfig {
-  categories: TalkingToolCategory[];
+  categories?: TalkingToolCategory[];
 }
 
 export interface WeatherConfig {

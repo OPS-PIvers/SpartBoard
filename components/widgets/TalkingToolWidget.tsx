@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import * as Icons from 'lucide-react';
-import { Quote } from 'lucide-react';
+import {
+  Quote,
+  Ear,
+  MessageCircle,
+  BookOpen,
+  MessageSquare,
+} from 'lucide-react';
 import { WidgetComponentProps, TalkingToolGlobalConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 
+const ICON_MAP: Record<string, React.ElementType> = {
+  Ear,
+  MessageCircle,
+  BookOpen,
+  MessageSquare,
+};
+
 const getIcon = (iconName: string) => {
-  return (
-    (Icons as unknown as Record<string, React.ElementType>)[iconName] ||
-    Icons.MessageSquare
-  );
+  return ICON_MAP[iconName] || MessageSquare;
 };
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
@@ -19,7 +28,11 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
   const permission = featurePermissions.find(
     (p) => p.widgetType === 'talking-tool'
   );
-  const config = permission?.config as unknown as TalkingToolGlobalConfig;
+
+  const config = permission?.config as
+    | Partial<TalkingToolGlobalConfig>
+    | undefined;
+
   const categories = config?.categories?.length
     ? config.categories
     : DEFAULT_TALKING_TOOL_CATEGORIES;

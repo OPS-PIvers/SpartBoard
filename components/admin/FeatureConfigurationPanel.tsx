@@ -34,8 +34,8 @@ import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel
 import { RandomConfigurationPanel } from './RandomConfigurationPanel';
 import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
-import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
+import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -1138,12 +1138,13 @@ export const FeatureConfigurationPanel: React.FC<
           })()}
         </div>
       )}
-
       {tool.type === 'talking-tool' && (
         <div className="space-y-4">
           <TalkingToolConfigurationPanel
             config={
-              (permission.config as unknown as TalkingToolGlobalConfig) ?? {}
+              (permission.config as TalkingToolGlobalConfig | undefined) ?? {
+                categories: [],
+              }
             }
             onChange={(newConfig) =>
               updatePermission(tool.type, {
