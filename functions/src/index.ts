@@ -344,7 +344,10 @@ export const generateWithAI = functionsV1
 
       const ai = new GoogleGenAI({ apiKey });
 
-      const promptMap: Record<string, () => { systemPrompt: string; userPrompt: string }> = {
+      const promptMap: Record<
+        string,
+        () => { systemPrompt: string; userPrompt: string }
+      > = {
         'mini-app': () => ({
           systemPrompt: `
           You are an expert frontend developer. Create a single-file HTML/JS mini-app based on the user's request.
