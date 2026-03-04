@@ -408,6 +408,7 @@ export interface WebcamGlobalConfig {
 export interface BuildingScheduleDefaults {
   buildingId: string;
   items: ScheduleItem[];
+  schedules?: DailySchedule[];
 }
 
 export interface ScheduleGlobalConfig {

@@ -16,8 +16,22 @@ describe('ScheduleConfigurationPanel', () => {
     buildingDefaults: {
       b1: {
         buildingId: 'b1',
-        items: [
-          { id: 'item1', task: 'Task 1', startTime: '09:00', endTime: '10:00' },
+        items: [],
+        schedules: [
+          {
+            id: 's1',
+            name: 'Test Schedule',
+            items: [
+              {
+                id: 'item1',
+                task: 'Task 1',
+                startTime: '09:00',
+                endTime: '10:00',
+                mode: 'clock',
+              },
+            ],
+            days: [1, 2],
+          },
         ],
       },
     },
@@ -34,22 +48,48 @@ describe('ScheduleConfigurationPanel', () => {
       <ScheduleConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
 
-    expect(screen.getByText('Default Schedule Items')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Task 1')).toBeInTheDocument();
+    expect(screen.getByText('Building Schedules')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Test Schedule')).toBeInTheDocument();
   });
 
-  it('adds a default schedule item', () => {
+  it('adds a new schedule', () => {
     render(
       <ScheduleConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
 
-    const addButton = screen.getByText('Add Item');
-    fireEvent.click(addButton);
+    const addScheduleButton = screen.getByText('Add Schedule');
+    fireEvent.click(addScheduleButton);
 
     expect(mockOnChange).toHaveBeenCalled();
     const lastCall = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
-    expect(lastCall.buildingDefaults.b1.items).toHaveLength(2);
-    expect(lastCall.buildingDefaults.b1.items[1].task).toBe('New Default Task');
+    expect(lastCall.buildingDefaults.b1.schedules).toHaveLength(2);
+    expect(lastCall.buildingDefaults.b1.schedules?.[1].name).toBe(
+      'New Schedule'
+    );
+  });
+
+  it('edits a schedule and adds an item', () => {
+    render(
+      <ScheduleConfigurationPanel config={mockConfig} onChange={mockOnChange} />
+    );
+
+    // Click Edit Items (Pencil icon inside button with title "Edit items")
+    const editButton = screen.getByTitle('Edit items');
+    fireEvent.click(editButton);
+
+    // Now we should be in the items view
+    expect(screen.getByText('Test Schedule')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Task 1')).toBeInTheDocument();
+
+    const addEventButton = screen.getByText('Add Event');
+    fireEvent.click(addEventButton);
+
+    expect(mockOnChange).toHaveBeenCalled();
+    const lastCall = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
+    const testSchedule = lastCall.buildingDefaults.b1.schedules?.[0];
+    expect(testSchedule?.items).toHaveLength(2);
+    // Since sortByTime is used, "New Task" at 08:00 should come before "Task 1" at 09:00
+    expect(testSchedule?.items[0].task).toBe('New Task');
   });
 
   it('switches buildings', () => {
@@ -64,7 +104,7 @@ describe('ScheduleConfigurationPanel', () => {
       screen.getByText((_content, element) => {
         const hasText = (node: Element) =>
           node.textContent ===
-          'These items will pre-populate the widget when a teacher in Building 2 instantiates it.';
+          'Users in Building 2 will be able to copy these default schedules to their dashboard.';
         const nodeHasText = element ? hasText(element) : false;
         const childrenDontHaveText = Array.from(element?.children ?? []).every(
           (child) => !hasText(child)
@@ -72,6 +112,6 @@ describe('ScheduleConfigurationPanel', () => {
         return nodeHasText && childrenDontHaveText;
       })
     ).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Task 1')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Test Schedule')).not.toBeInTheDocument();
   });
 });

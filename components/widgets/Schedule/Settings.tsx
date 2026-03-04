@@ -1,11 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDashboard } from '../../../context/useDashboard';
+import { useAuth } from '../../../context/useAuth';
+import { useFeaturePermissions } from '../../../hooks/useFeaturePermissions';
 import {
   WidgetData,
   ScheduleConfig,
   ScheduleItem,
   DailySchedule,
   WidgetType,
+  FeaturePermission,
+  ScheduleGlobalConfig,
 } from '../../../types';
 import {
   Type,
@@ -82,7 +86,27 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast } = useDashboard();
+  const { selectedBuildings } = useAuth();
+  const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as ScheduleConfig;
+
+  const [adminPermission, setAdminPermission] =
+    useState<FeaturePermission | null>(null);
+
+  useEffect(() => {
+    return subscribeToPermission('schedule', setAdminPermission);
+  }, [subscribeToPermission]);
+
+  // Extract building schedules
+  const buildingSchedules = useMemo((): DailySchedule[] => {
+    if (!selectedBuildings?.length) return [];
+    const buildingId = selectedBuildings[0];
+    const adminConfig = adminPermission?.config as
+      | ScheduleGlobalConfig
+      | undefined;
+    const raw = adminConfig?.buildingDefaults?.[buildingId];
+    return raw?.schedules ?? [];
+  }, [selectedBuildings, adminPermission]);
 
   // Migration logic for settings view
   const schedules = useMemo(() => {
@@ -98,6 +122,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     return list;
   }, [config.schedules, config.items]);
 
+  const [activeTab, setActiveTab] = useState<'my' | 'building'>('my');
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [tempItem, setTempItem] = useState<ScheduleItem | null>(null);
@@ -431,92 +456,167 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     return (
       <div className="space-y-6">
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
-              <LayoutGrid className="w-3 h-3" /> Daily Schedules
-            </label>
+          <div className="flex gap-2 mb-4 border-b border-slate-200">
             <button
-              onClick={handleAddSchedule}
-              className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+              onClick={() => setActiveTab('my')}
+              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === 'my'
+                  ? 'border-brand-blue-primary text-brand-blue-primary'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <Plus className="w-3 h-3" /> Add Schedule
+              My Schedules
+            </button>
+            <button
+              onClick={() => setActiveTab('building')}
+              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === 'building'
+                  ? 'border-brand-blue-primary text-brand-blue-primary'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Building Schedules
             </button>
           </div>
 
-          <div className="space-y-3">
-            {schedules.map((s) => (
-              <div
-                key={s.id}
-                className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
-              >
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <input
-                    type="text"
-                    value={s.name}
-                    onChange={(e) =>
-                      handleUpdateSchedule(s.id, { name: e.target.value })
-                    }
-                    className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1"
-                    placeholder="Schedule Name"
-                  />
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setActiveScheduleId(s.id)}
-                      className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
-                      title="Edit items"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSchedule(s.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
-                      title="Delete schedule"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+          {activeTab === 'my' ? (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
+                  <LayoutGrid className="w-3 h-3" /> My Schedules
+                </label>
+                <button
+                  onClick={handleAddSchedule}
+                  className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  <Plus className="w-3 h-3" /> Add Schedule
+                </button>
+              </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-1">
-                    {DAYS.map((d) => {
-                      const isSelected = s.days.includes(d.id);
-                      const isOnly = schedules.length === 1;
-                      return (
+              <div className="space-y-3">
+                {schedules.map((s) => (
+                  <div
+                    key={s.id}
+                    className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <input
+                        type="text"
+                        value={s.name}
+                        onChange={(e) =>
+                          handleUpdateSchedule(s.id, { name: e.target.value })
+                        }
+                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1"
+                        placeholder="Schedule Name"
+                      />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          key={d.id}
-                          disabled={isOnly}
-                          aria-label={d.fullName}
-                          title={d.fullName}
-                          onClick={() => {
-                            const newDays = isSelected
-                              ? s.days.filter((id) => id !== d.id)
-                              : [...s.days, d.id];
-                            handleUpdateSchedule(s.id, { days: newDays });
-                          }}
-                          className={`w-6 h-6 rounded-md text-[10px] font-bold transition-colors ${
-                            isSelected
-                              ? 'bg-blue-500 text-white'
-                              : isOnly
-                                ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                          }`}
+                          onClick={() => setActiveScheduleId(s.id)}
+                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+                          title="Edit items"
                         >
-                          {d.label}
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
-                      );
-                    })}
+                        <button
+                          onClick={() => handleDeleteSchedule(s.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
+                          title="Delete schedule"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1">
+                        {DAYS.map((d) => {
+                          const isSelected = s.days.includes(d.id);
+                          const isOnly = schedules.length === 1;
+                          return (
+                            <button
+                              key={d.id}
+                              disabled={isOnly}
+                              aria-label={d.fullName}
+                              title={d.fullName}
+                              onClick={() => {
+                                const newDays = isSelected
+                                  ? s.days.filter((id) => id !== d.id)
+                                  : [...s.days, d.id];
+                                handleUpdateSchedule(s.id, { days: newDays });
+                              }}
+                              className={`w-6 h-6 rounded-md text-[10px] font-bold transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-500 text-white'
+                                  : isOnly
+                                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setActiveScheduleId(s.id)}
+                        className="text-xxs font-bold text-blue-500 hover:underline flex items-center gap-0.5"
+                      >
+                        {s.items.length} Items{' '}
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {buildingSchedules.map((s: DailySchedule) => (
+                <div
+                  key={s.id}
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-bold text-slate-700">{s.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {s.items.length} Items{' '}
+                      {s.days.length > 0 &&
+                        `• ${s.days.map((d) => DAYS.find((day) => day.id === d)?.label).join(', ')}`}
+                    </div>
                   </div>
                   <button
-                    onClick={() => setActiveScheduleId(s.id)}
-                    className="text-xxs font-bold text-blue-500 hover:underline flex items-center gap-0.5"
+                    onClick={() => {
+                      const newSchedule: DailySchedule = {
+                        ...s,
+                        id: crypto.randomUUID(),
+                        items: s.items.map((item) => ({
+                          ...item,
+                          id: crypto.randomUUID(),
+                        })),
+                      };
+                      updateWidget(widget.id, {
+                        config: {
+                          ...config,
+                          schedules: [...(config.schedules ?? []), newSchedule],
+                        } as ScheduleConfig,
+                      });
+                      addToast(`Added "${s.name}" to My Schedules`, 'success');
+                      setActiveTab('my');
+                    }}
+                    className="p-1.5 text-brand-blue-primary hover:bg-blue-100 rounded"
+                    title="Add to My Schedules"
                   >
-                    {s.items.length} Items <ChevronRight className="w-3 h-3" />
+                    <Plus className="w-5 h-5" />
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+              {buildingSchedules.length === 0 && (
+                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xxs italic">
+                  No default schedules configured for your building.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <hr className="border-slate-100" />
