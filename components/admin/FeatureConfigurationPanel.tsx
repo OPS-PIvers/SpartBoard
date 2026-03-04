@@ -13,7 +13,7 @@ import {
   ExpectationsGlobalConfig,
   TalkingToolGlobalConfig,
   ToolMetadata,
-} from '../../types';
+} from '@/types';
 import {
   Plus,
   Trash2,
@@ -1143,7 +1143,7 @@ export const FeatureConfigurationPanel: React.FC<
         <div className="space-y-4">
           <TalkingToolConfigurationPanel
             config={
-              (permission.config ?? {}) as unknown as TalkingToolGlobalConfig
+              (permission.config as unknown as TalkingToolGlobalConfig) ?? {}
             }
             onChange={(newConfig) =>
               updatePermission(tool.type, {

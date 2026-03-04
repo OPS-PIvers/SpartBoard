@@ -315,6 +315,23 @@ export interface ExpectationsGlobalConfig {
   buildings: Record<string, ExpectationsBuildingConfig>;
 }
 
+export interface TalkingToolStem {
+  id: string;
+  text: string;
+}
+
+export interface TalkingToolCategory {
+  id: string;
+  label: string;
+  color: string;
+  icon: string;
+  stems: TalkingToolStem[];
+}
+
+export interface TalkingToolGlobalConfig {
+  categories: TalkingToolCategory[];
+}
+
 export interface WeatherConfig {
   temp: number;
   condition: string;
@@ -530,17 +547,6 @@ export interface CalendarGlobalConfig {
   updateFrequencyHours?: number;
 }
 
-export interface TalkingToolCategory {
-  id: string;
-  label: string;
-  color: string;
-  icon: string;
-  stems: string[];
-}
-
-export interface TalkingToolGlobalConfig {
-  categories: TalkingToolCategory[];
-}
 export interface ScheduleConfig {
   items: ScheduleItem[];
   localEvents?: CalendarEvent[];

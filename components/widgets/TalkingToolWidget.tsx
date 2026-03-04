@@ -138,9 +138,9 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
             {activeCat.label}
           </h3>
           <ul className="flex flex-col" style={{ gap: 'min(12px, 3cqmin)' }}>
-            {activeCat.stems.map((stem, idx) => (
+            {activeCat.stems.map((stem) => (
               <li
-                key={idx}
+                key={stem.id}
                 className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-sm bg-slate-50 rounded-r-lg"
                 style={{
                   borderLeftColor: activeCat.color,
@@ -150,7 +150,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
                   paddingBottom: 'min(8px, 2cqmin)',
                 }}
               >
-                {stem}
+                {stem.text}
               </li>
             ))}
           </ul>

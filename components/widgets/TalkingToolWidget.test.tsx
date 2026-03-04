@@ -1,12 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TalkingToolWidget } from './TalkingToolWidget';
-import { WidgetData, FeaturePermission } from '../../types';
-import { useAuth } from '../../context/useAuth';
-import { AuthContextType } from '../../context/AuthContextValue';
+import { WidgetData, FeaturePermission } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { AuthContextType } from '@/context/AuthContextValue';
 
 // Mock useAuth
-vi.mock('../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
@@ -103,7 +103,7 @@ describe('TalkingToolWidget', () => {
                   label: 'Custom Category',
                   color: '#ff0000',
                   icon: 'Star',
-                  stems: ['Custom stem 1'],
+                  stems: [{ id: 'c1', text: 'Custom stem 1' }],
                 },
               ],
             },

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Plus, Trash2, MessageSquare } from 'lucide-react';
-import { TalkingToolGlobalConfig, TalkingToolCategory } from '../../types';
-import { DEFAULT_TALKING_TOOL_CATEGORIES } from '../../config/talkingToolData';
-import { IconPicker } from '../widgets/InstructionalRoutines/IconPicker';
+import { TalkingToolGlobalConfig, TalkingToolCategory } from '@/types';
+import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
+import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 
 interface TalkingToolConfigurationPanelProps {
   config: TalkingToolGlobalConfig;
@@ -30,7 +30,7 @@ export const TalkingToolConfigurationPanel: React.FC<
       label: 'New Category',
       color: '#3b82f6',
       icon: 'MessageSquare',
-      stems: ['New sentence stem...'],
+      stems: [{ id: crypto.randomUUID(), text: 'New sentence stem...' }],
     };
     onChange({ categories: [...categories, newCat] });
   };
@@ -42,16 +42,22 @@ export const TalkingToolConfigurationPanel: React.FC<
 
   const addStem = (catId: string) => {
     const next = categories.map((c) =>
-      c.id === catId ? { ...c, stems: [...c.stems, ''] } : c
+      c.id === catId
+        ? {
+            ...c,
+            stems: [...c.stems, { id: crypto.randomUUID(), text: '' }],
+          }
+        : c
     );
     onChange({ categories: next });
   };
 
-  const updateStem = (catId: string, index: number, value: string) => {
+  const updateStem = (catId: string, stemId: string, value: string) => {
     const next = categories.map((c) => {
       if (c.id === catId) {
-        const nextStems = [...c.stems];
-        nextStems[index] = value;
+        const nextStems = c.stems.map((s) =>
+          s.id === stemId ? { ...s, text: value } : s
+        );
         return { ...c, stems: nextStems };
       }
       return c;
@@ -59,10 +65,10 @@ export const TalkingToolConfigurationPanel: React.FC<
     onChange({ categories: next });
   };
 
-  const removeStem = (catId: string, index: number) => {
+  const removeStem = (catId: string, stemId: string) => {
     const next = categories.map((c) => {
       if (c.id === catId) {
-        const nextStems = c.stems.filter((_, i) => i !== index);
+        const nextStems = c.stems.filter((s) => s.id !== stemId);
         return { ...c, stems: nextStems };
       }
       return c;
@@ -128,17 +134,19 @@ export const TalkingToolConfigurationPanel: React.FC<
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
                 Sentence Stems
               </label>
-              {cat.stems.map((stem, idx) => (
-                <div key={idx} className="flex items-center gap-2 group">
+              {cat.stems.map((stem) => (
+                <div key={stem.id} className="flex items-center gap-2 group">
                   <input
                     type="text"
-                    value={stem}
-                    onChange={(e) => updateStem(cat.id, idx, e.target.value)}
+                    value={stem.text}
+                    onChange={(e) =>
+                      updateStem(cat.id, stem.id, e.target.value)
+                    }
                     className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:border-brand-blue-primary focus:bg-white outline-none transition-all"
                     placeholder="Enter sentence stem..."
                   />
                   <button
-                    onClick={() => removeStem(cat.id, idx)}
+                    onClick={() => removeStem(cat.id, stem.id)}
                     className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
