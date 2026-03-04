@@ -145,6 +145,19 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         : items.map((it, i) => (i === editingIndex ? itemToSave : it))
     );
 
+    handleUpdateActiveItems(newItems);
+    setEditingIndex(null);
+    setTempItem(null);
+  };
+
+  const handleDelete = (index: number) => {
+    if (confirm('Are you sure you want to delete this event?')) {
+      const newItems = items.filter((_, i) => i !== index);
+      handleUpdateActiveItems(newItems);
+    }
+  };
+
+  const handleUpdateActiveItems = (newItems: ScheduleItem[]) => {
     const isLegacy =
       activeScheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
 
@@ -161,31 +174,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       updateWidget(widget.id, {
         config: { ...config, schedules: newSchedules } as ScheduleConfig,
       });
-    }
-    setEditingIndex(null);
-    setTempItem(null);
-  };
-
-  const handleDelete = (index: number) => {
-    if (confirm('Are you sure you want to delete this event?')) {
-      const newItems = items.filter((_, i) => i !== index);
-      const isLegacy =
-        activeScheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
-
-      if (isLegacy) {
-        updateWidget(widget.id, {
-          config: { ...config, items: newItems } as ScheduleConfig,
-        });
-      } else {
-        const newSchedules = schedules
-          .filter((s) => s.id !== 'default')
-          .map((s) =>
-            s.id === activeScheduleId ? { ...s, items: newItems } : s
-          );
-        updateWidget(widget.id, {
-          config: { ...config, schedules: newSchedules } as ScheduleConfig,
-        });
-      }
     }
   };
 
@@ -200,23 +188,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       newItems[index],
     ];
 
-    const isLegacy =
-      activeScheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
-
-    if (isLegacy) {
-      updateWidget(widget.id, {
-        config: { ...config, items: newItems } as ScheduleConfig,
-      });
-    } else {
-      const newSchedules = schedules
-        .filter((s) => s.id !== 'default')
-        .map((s) =>
-          s.id === activeScheduleId ? { ...s, items: newItems } : s
-        );
-      updateWidget(widget.id, {
-        config: { ...config, schedules: newSchedules } as ScheduleConfig,
-      });
-    }
+    handleUpdateActiveItems(newItems);
   };
   const handleAddSchedule = () => {
     const newSchedule: DailySchedule = {

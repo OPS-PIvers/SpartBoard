@@ -74,6 +74,44 @@ const formatScheduleTime = (
 };
 
 /** Converts a hex color + alpha into an rgba() CSS string. */
+/** Result of resolving the active schedule. */
+interface ResolvedSchedule {
+  /** The actual schedule object (might be a migrated legacy one). */
+  schedule: DailySchedule;
+  /** Whether this is the legacy config.items schedule. */
+  isLegacy: boolean;
+}
+
+/** Resolves the active schedule based on current rules. */
+const resolveActiveSchedule = (
+  schedules: DailySchedule[],
+  legacyItems: ScheduleItem[],
+  today: number
+): ResolvedSchedule | null => {
+  // 1. Check legacy mode (no schedules defined yet)
+  if (schedules.length === 0) {
+    if (legacyItems.length === 0) return null;
+    return {
+      isLegacy: true,
+      schedule: {
+        id: 'default',
+        name: 'Default Schedule',
+        items: legacyItems,
+        days: [],
+      },
+    };
+  }
+
+  // 2. Single schedule mode
+  if (schedules.length === 1) {
+    return { isLegacy: false, schedule: schedules[0] };
+  }
+
+  // 3. Multi-schedule mode (select by day)
+  const match = schedules.find((s) => s.days.includes(today));
+  return match ? { isLegacy: false, schedule: match } : null;
+};
+
 const hexToRgba = (hex: string, alpha: number): string => {
   const clean = (hex ?? '#ffffff').replace('#', '');
   const a =
@@ -395,33 +433,12 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     new Date().setHours(0, 0, 0, 0) + nowSeconds * 1000
   ).getDay();
 
-  // Migration & Selection Logic
-  const activeSchedule = useMemo(() => {
-    // 1. Resolve all available schedules (including legacy migration)
-    const allSchedules: DailySchedule[] = [...schedules];
-    if (legacyItems.length > 0 && allSchedules.length === 0) {
-      allSchedules.push({
-        id: 'default',
-        name: 'Default Schedule',
-        items: legacyItems,
-        days: [], // No specific days = always show if it's the only one
-      });
-    }
-
-    if (allSchedules.length === 0) return null;
-    if (allSchedules.length === 1) return allSchedules[0];
-
-    // 2. Filter by current day of the week
-    const dayMatch = allSchedules.find((s) => s.days.includes(currentDay));
-    if (dayMatch) return dayMatch;
-
-    // 3. Fallback: If no match, check if there's a default (no assigned days)
-    // Requirement says: "If a schedule doesn’t have an assigned day then it doesn’t display unless it’s the only schedule."
-    // But it also says "the first schedule is the default".
-    // Interpretation: if multiple schedules exist, ONLY show the one matching the day.
-    // If none match the day, show nothing (return null).
-    return null;
-  }, [schedules, legacyItems, currentDay]);
+  // Resolve active schedule using shared logic
+  const resolved = useMemo(
+    () => resolveActiveSchedule(schedules, legacyItems, currentDay),
+    [schedules, legacyItems, currentDay]
+  );
+  const activeSchedule = resolved?.schedule ?? null;
 
   const items = useMemo(() => activeSchedule?.items ?? [], [activeSchedule]);
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;
@@ -583,12 +600,11 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       const currentConfig = configRef.current;
       const { schedules = [], items: legacyItems = [] } = currentConfig;
 
-      const active = getActiveScheduleId(
+      const active = resolveActiveSchedule(
         schedules,
         legacyItems,
         new Date().getDay()
       );
-
       if (!active) return;
 
       if (active.isLegacy) {
@@ -599,23 +615,24 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             config: { ...currentConfig, items: newItems } as ScheduleConfig,
           });
         }
-        return;
-      }
-
-      const newSchedules = schedules.map((s) => {
-        if (s.id === active.id) {
-          const newItems = [...s.items];
-          if (newItems[idx]) {
-            newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
+      } else {
+        const newSchedules = schedules.map((s) => {
+          if (s.id === active.schedule.id) {
+            const newItems = [...s.items];
+            if (newItems[idx]) {
+              newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
+            }
+            return { ...s, items: newItems };
           }
-          return { ...s, items: newItems };
-        }
-        return s;
-      });
-
-      updateWidget(widget.id, {
-        config: { ...currentConfig, schedules: newSchedules } as ScheduleConfig,
-      });
+          return s;
+        });
+        updateWidget(widget.id, {
+          config: {
+            ...currentConfig,
+            schedules: newSchedules,
+          } as ScheduleConfig,
+        });
+      }
     },
     [updateWidget, widget.id]
   );
