@@ -350,24 +350,24 @@ export const generateWithAI = functionsV1
       > = {
         'mini-app': () => ({
           systemPrompt: `
-          You are an expert frontend developer. Create a single-file HTML/JS mini-app based on the user's request.
+          You are an expert frontend developer. Create a single-file HTML/JS mini-app based on the user's request provided within <user_request> tags.
           Requirements:
           1. Single File (embedded CSS/JS).
           2. Use Tailwind CDN.
           3. Return JSON: { "title": "...", "html": "..." }
         `,
-          userPrompt: `User Request: ${data?.prompt}`,
+          userPrompt: `User Request: <user_request>${data?.prompt}</user_request>`,
         }),
         poll: () => ({
           systemPrompt: `
-          You are an expert teacher. Create a 4-option multiple choice poll JSON:
+          You are an expert teacher. Create a 4-option multiple choice poll JSON based on the topic provided within <topic> tags:
           { "question": "...", "options": ["...", "...", "...", "..."] }
         `,
-          userPrompt: `Topic: ${data?.prompt}`,
+          userPrompt: `Topic: <topic>${data?.prompt}</topic>`,
         }),
         'dashboard-layout': () => ({
           systemPrompt: `
-          You are an expert instructional designer. Based on the user's lesson description, suggest a set of interactive widgets to place on their digital whiteboard.
+          You are an expert instructional designer. Based on the user's lesson description provided within <lesson_description> tags, suggest a set of interactive widgets to place on their digital whiteboard.
           
           Available Widgets (use EXACT type strings):
           - clock: Digital/analog clock
@@ -401,11 +401,11 @@ export const generateWithAI = functionsV1
           2. Return JSON: { "widgets": [{ "type": "...", "config": {} }] }
           3. 'config' should be an empty object {} unless you are setting a specific property known to that widget (like 'question' for 'poll').
         `,
-          userPrompt: `Lesson/Activity Description: ${data?.prompt}`,
+          userPrompt: `Lesson/Activity Description: <lesson_description>${data?.prompt}</lesson_description>`,
         }),
         'instructional-routine': () => ({
           systemPrompt: `
-          You are an expert instructional designer. Create a classroom instructional routine based on the user's description.
+          You are an expert instructional designer. Create a classroom instructional routine based on the user's description provided within <description> tags.
 
           Return JSON:
           {
@@ -423,7 +423,7 @@ export const generateWithAI = functionsV1
             ]
           }
         `,
-          userPrompt: `Description: ${data?.prompt}`,
+          userPrompt: `Description: <description>${data?.prompt}</description>`,
         }),
         ocr: () => ({
           systemPrompt: `
