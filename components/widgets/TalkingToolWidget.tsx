@@ -1,61 +1,47 @@
 import React, { useState } from 'react';
-import { Ear, MessageCircle, BookOpen, Quote } from 'lucide-react';
-import { WidgetComponentProps } from '@/types';
+import {
+  Quote,
+  Ear,
+  MessageCircle,
+  BookOpen,
+  MessageSquare,
+} from 'lucide-react';
+import { WidgetComponentProps, TalkingToolGlobalConfig } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 
-interface Category {
-  id: string;
-  label: string;
-  color: string;
-  icon: React.ElementType;
-  stems: string[];
-}
+const ICON_MAP: Record<string, React.ElementType> = {
+  Ear,
+  MessageCircle,
+  BookOpen,
+  MessageSquare,
+};
 
-const CATEGORIES: Category[] = [
-  {
-    id: 'listen',
-    label: 'Listen Closely',
-    color: '#008ab6',
-    icon: Ear,
-    stems: [
-      'What do you mean by ________?',
-      'Can you tell me more about ________?',
-      'What evidence supports your idea?',
-      'How does your idea relate to ________?',
-    ],
-  },
-  {
-    id: 'share',
-    label: 'Share What You Think',
-    color: '#009cc3',
-    icon: MessageCircle,
-    stems: [
-      'I think ________ because ________.',
-      'First, ________. Also, ________. Finally, ________.',
-      'I agree and I will add that ________.',
-      'I disagree because ________.',
-      'I hear you say that ________. This makes me think that ________.',
-      'I hear you say that ________. However, ________.',
-    ],
-  },
-  {
-    id: 'support',
-    label: 'Support What You Say',
-    color: '#5aafd1',
-    icon: BookOpen,
-    stems: [
-      'In the text, ________.',
-      'For example, ________.',
-      'One reason is ________. Another reason is ________.',
-      'This evidence shows ________.',
-      'This evidence means ________.',
-      'This evidence is important because ________.',
-    ],
-  },
-];
+const getIcon = (iconName: string) => {
+  return ICON_MAP[iconName] || MessageSquare;
+};
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
-  const [activeTab, setActiveTab] = useState<string>('listen');
-  const activeCat = CATEGORIES.find((c) => c.id === activeTab) ?? CATEGORIES[0];
+  const { featurePermissions } = useAuth();
+
+  // Get config from feature permissions
+  const permission = featurePermissions.find(
+    (p) => p.widgetType === 'talking-tool'
+  );
+
+  const config = permission?.config as
+    | Partial<TalkingToolGlobalConfig>
+    | undefined;
+
+  const categories = config?.categories?.length
+    ? config.categories
+    : DEFAULT_TALKING_TOOL_CATEGORIES;
+
+  const [activeTab, setActiveTab] = useState<string>(categories[0]?.id ?? '');
+
+  const activeCat = categories.find((c) => c.id === activeTab) ?? categories[0];
+
+  if (!activeCat) return null;
 
   return (
     <div className="flex h-full w-full bg-white select-none overflow-hidden rounded-lg">
@@ -96,9 +82,9 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
           className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar"
           style={{ padding: 'min(8px, 2cqmin)' }}
         >
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isActive = activeTab === cat.id;
-            const Icon = cat.icon;
+            const Icon = getIcon(cat.icon);
 
             return (
               <button
@@ -156,18 +142,18 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
               marginBottom: 'min(16px, 4cqmin)',
             }}
           >
-            <activeCat.icon
-              style={{
+            {React.createElement(getIcon(activeCat.icon), {
+              style: {
                 width: 'min(20px, 5cqmin)',
                 height: 'min(20px, 5cqmin)',
-              }}
-            />
+              },
+            })}
             {activeCat.label}
           </h3>
           <ul className="flex flex-col" style={{ gap: 'min(12px, 3cqmin)' }}>
-            {activeCat.stems.map((stem, idx) => (
+            {activeCat.stems.map((stem) => (
               <li
-                key={idx}
+                key={stem.id}
                 className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-sm bg-slate-50 rounded-r-lg"
                 style={{
                   borderLeftColor: activeCat.color,
@@ -177,7 +163,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
                   paddingBottom: 'min(8px, 2cqmin)',
                 }}
               >
-                {stem}
+                {stem.text}
               </li>
             ))}
           </ul>

@@ -665,8 +665,12 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
-    const accessToken = await auth.getAccessToken();
-
+    const client = await auth.getClient();
+    const accessTokenResponse = await client.getAccessToken();
+    const accessToken =
+      typeof accessTokenResponse === 'string' || accessTokenResponse === null
+        ? accessTokenResponse
+        : (accessTokenResponse.token ?? null);
     if (!accessToken) {
       throw new functionsV2.https.HttpsError(
         'internal',

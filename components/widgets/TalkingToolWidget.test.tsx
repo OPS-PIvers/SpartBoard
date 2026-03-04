@@ -1,7 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { TalkingToolWidget } from './TalkingToolWidget';
-import { WidgetData } from '@/types';
+import { WidgetData, FeaturePermission } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { AuthContextType } from '@/context/AuthContextValue';
+
+// Mock useAuth
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(),
+}));
 
 const mockWidget: WidgetData = {
   id: 'test-widget',
@@ -15,8 +22,40 @@ const mockWidget: WidgetData = {
   config: {},
 };
 
+const mockAuthContext = (
+  overrides: Partial<AuthContextType> = {}
+): AuthContextType => ({
+  user: null,
+  googleAccessToken: null,
+  loading: false,
+  isAdmin: false,
+  featurePermissions: [],
+  globalPermissions: [],
+  canAccessWidget: () => true,
+  canAccessFeature: () => true,
+  signInWithGoogle: async () => {
+    /* mock */
+  },
+  signOut: async () => {
+    /* mock */
+  },
+  selectedBuildings: [],
+  userGradeLevels: [],
+  setSelectedBuildings: async () => {
+    /* mock */
+  },
+  language: 'en',
+  setLanguage: async () => {
+    /* mock */
+  },
+  refreshGoogleToken: () => Promise.resolve(null),
+  ...overrides,
+});
+
 describe('TalkingToolWidget', () => {
   it('renders correctly and defaults to "Listen Closely" tab', () => {
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
+
     render(<TalkingToolWidget widget={mockWidget} />);
 
     // Check if the title "Listen Closely" is visible in the main content
@@ -29,6 +68,8 @@ describe('TalkingToolWidget', () => {
   });
 
   it('switches tabs when a sidebar button is clicked', () => {
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
+
     render(<TalkingToolWidget widget={mockWidget} />);
 
     // Find and click the "Share What You Think" button in the sidebar
@@ -44,17 +85,38 @@ describe('TalkingToolWidget', () => {
     expect(
       screen.getByText(/I think ________ because ________./)
     ).toBeInTheDocument();
+  });
 
-    // Find and click the "Support What You Say" button in the sidebar
-    const supportButton = screen.getByText('Support What You Say');
-    fireEvent.click(supportButton);
+  it('renders custom categories from global config', () => {
+    vi.mocked(useAuth).mockReturnValue(
+      mockAuthContext({
+        featurePermissions: [
+          {
+            widgetType: 'talking-tool',
+            accessLevel: 'public',
+            betaUsers: [],
+            enabled: true,
+            config: {
+              categories: [
+                {
+                  id: 'custom',
+                  label: 'Custom Category',
+                  color: '#ff0000',
+                  icon: 'Star',
+                  stems: [{ id: 'c1', text: 'Custom stem 1' }],
+                },
+              ],
+            },
+          },
+        ] as FeaturePermission[],
+      })
+    );
 
-    // Check if the title "Support What You Say" is visible
+    render(<TalkingToolWidget widget={mockWidget} />);
+
     expect(
-      screen.getByText('Support What You Say', { selector: 'h3' })
+      screen.getByText('Custom Category', { selector: 'h3' })
     ).toBeInTheDocument();
-
-    // Check if a specific stem from "Support What You Say" is visible
-    expect(screen.getByText(/In the text, ________./)).toBeInTheDocument();
+    expect(screen.getByText('Custom stem 1')).toBeInTheDocument();
   });
 });

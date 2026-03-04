@@ -323,6 +323,23 @@ export interface ExpectationsGlobalConfig {
   buildings: Record<string, ExpectationsBuildingConfig>;
 }
 
+export interface TalkingToolStem {
+  id: string;
+  text: string;
+}
+
+export interface TalkingToolCategory {
+  id: string;
+  label: string;
+  color: string;
+  icon: string;
+  stems: TalkingToolStem[];
+}
+
+export interface TalkingToolGlobalConfig {
+  categories?: TalkingToolCategory[];
+}
+
 export interface WeatherConfig {
   temp: number;
   condition: string;

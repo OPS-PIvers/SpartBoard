@@ -11,8 +11,9 @@ import {
   RecessGearTemperatureRange,
   CatalystGlobalConfig,
   ExpectationsGlobalConfig,
+  TalkingToolGlobalConfig,
   ToolMetadata,
-} from '../../types';
+} from '@/types';
 import {
   Plus,
   Trash2,
@@ -33,6 +34,7 @@ import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel
 import { RandomConfigurationPanel } from './RandomConfigurationPanel';
 import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
+import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { Toggle } from '../common/Toggle';
@@ -1136,6 +1138,22 @@ export const FeatureConfigurationPanel: React.FC<
           })()}
         </div>
       )}
+      {tool.type === 'talking-tool' && (
+        <div className="space-y-4">
+          <TalkingToolConfigurationPanel
+            config={
+              (permission.config as TalkingToolGlobalConfig | undefined) ?? {
+                categories: [],
+              }
+            }
+            onChange={(newConfig) =>
+              updatePermission(tool.type, {
+                config: newConfig as unknown as Record<string, unknown>,
+              })
+            }
+          />
+        </div>
+      )}
 
       {tool.type === 'expectations' && (
         <div className="space-y-4">
@@ -1199,6 +1217,7 @@ export const FeatureConfigurationPanel: React.FC<
         'calendar',
         'miniApp',
         'expectations',
+        'talking-tool',
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">

@@ -64,6 +64,9 @@ import {
 vi.mock('google-auth-library', () => {
   return {
     GoogleAuth: class {
+      getClient = vi.fn().mockResolvedValue({
+        getAccessToken: vi.fn().mockResolvedValue('mock-token'),
+      });
       getAccessToken = vi.fn().mockResolvedValue('mock-token');
     },
   };
