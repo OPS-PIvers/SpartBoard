@@ -39,3 +39,5 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 ## WILL NOT IMPLEMENT
 
 - **Poll -> Scoreboard:** this is not a connection that adds meaningful value.
+
+## 2024-05-18 - [Quiz Leaderboard] **Source:** Quiz (QuizResults) **Destination:** Scoreboard **Value:** Exports top quiz scores to the Scoreboard widget as teams.

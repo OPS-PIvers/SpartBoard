@@ -18,7 +18,8 @@ import {
   Target,
   AlertTriangle,
 } from 'lucide-react';
-import { QuizResponse, QuizData, QuizQuestion } from '@/types';
+import { QuizResponse, QuizData, QuizQuestion, ScoreboardTeam } from '@/types';
+import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer } from '@/hooks/useQuizSession';
@@ -470,83 +471,174 @@ const QuestionsTab: React.FC<{
 const StudentsTab: React.FC<{
   responses: QuizResponse[];
   questions: QuizQuestion[];
-}> = ({ responses, questions }) => (
-  <div className="space-y-2">
-    {responses
-      .slice()
-      .sort((a, b) => {
-        const scoreA =
-          a.status === 'completed' || a.status === 'in-progress'
-            ? getResponseScore(a, questions)
-            : -1;
-        const scoreB =
-          b.status === 'completed' || b.status === 'in-progress'
-            ? getResponseScore(b, questions)
-            : -1;
-        return scoreB - scoreA;
-      })
-      .map((r) => {
-        const score = getResponseScore(r, questions);
-        const correct = r.answers.filter((a) => {
-          const q = questions.find((qn) => qn.id === a.questionId);
-          return q ? gradeAnswer(q, a.answer) : false;
-        }).length;
-        const warnings = r.tabSwitchWarnings ?? 0;
+}> = ({ responses, questions }) => {
+  const {
+    addWidget,
+    activeDashboard,
+    updateWidget,
+    addToast,
+    rosters,
+    activeRosterId,
+  } = useDashboard();
 
-        return (
-          <div
-            key={r.studentUid}
-            className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p
-                  className="font-bold text-brand-blue-dark truncate font-mono"
-                  style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-                >
-                  PIN {r.pin}
-                </p>
-                {warnings > 0 && (
-                  <span
-                    className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                    title={`${warnings} Tab Switch Warning(s)`}
+  const handleSendToScoreboard = () => {
+    const activeRoster = rosters.find((r) => r.id === activeRosterId);
+
+    const getName = (pin: string) => {
+      if (activeRoster) {
+        const student = activeRoster.students.find((s) => s.pin === pin);
+        if (student) return `${student.firstName} ${student.lastName}`;
+      }
+      return `PIN ${pin}`;
+    };
+
+    const topStudents = responses
+      .filter((r) => r.status === 'completed')
+      .sort(
+        (a, b) =>
+          getResponseScore(b, questions) - getResponseScore(a, questions)
+      )
+      .slice(0, 10);
+
+    if (topStudents.length === 0) {
+      addToast('No completed students to export.', 'info');
+      return;
+    }
+
+    const colors = [
+      'bg-blue-500',
+      'bg-red-500',
+      'bg-green-500',
+      'bg-yellow-500',
+      'bg-purple-500',
+      'bg-pink-500',
+    ];
+    const newTeams: ScoreboardTeam[] = topStudents.map((r, i) => ({
+      id: crypto.randomUUID(),
+      name: getName(r.pin),
+      score: getResponseScore(r, questions),
+      color: colors[i % colors.length],
+    }));
+
+    const existingScoreboard = activeDashboard?.widgets.find(
+      (w) => w.type === 'scoreboard'
+    );
+
+    if (existingScoreboard) {
+      updateWidget(existingScoreboard.id, {
+        config: { ...existingScoreboard.config, teams: newTeams },
+      });
+      addToast(
+        `Updated Scoreboard with top ${topStudents.length} scores!`,
+        'success'
+      );
+    } else {
+      addWidget('scoreboard', { config: { teams: newTeams } });
+      addToast(
+        `Created Scoreboard with top ${topStudents.length} scores!`,
+        'success'
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={handleSendToScoreboard}
+          className="flex items-center bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold rounded-xl transition-all shadow-sm active:scale-95"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(11px, 3.5cqmin)',
+          }}
+          title="Send Top 10 to Scoreboard"
+        >
+          <Trophy
+            style={{
+              width: 'min(14px, 4cqmin)',
+              height: 'min(14px, 4cqmin)',
+            }}
+          />
+          Send to Scoreboard
+        </button>
+      </div>
+      {responses
+        .slice()
+        .sort((a, b) => {
+          const scoreA =
+            a.status === 'completed' || a.status === 'in-progress'
+              ? getResponseScore(a, questions)
+              : -1;
+          const scoreB =
+            b.status === 'completed' || b.status === 'in-progress'
+              ? getResponseScore(b, questions)
+              : -1;
+          return scoreB - scoreA;
+        })
+        .map((r) => {
+          const score = getResponseScore(r, questions);
+          const correct = r.answers.filter((a) => {
+            const q = questions.find((qn) => qn.id === a.questionId);
+            return q ? gradeAnswer(q, a.answer) : false;
+          }).length;
+          const warnings = r.tabSwitchWarnings ?? 0;
+
+          return (
+            <div
+              key={r.studentUid}
+              className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p
+                    className="font-bold text-brand-blue-dark truncate font-mono"
+                    style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                   >
-                    <AlertTriangle style={{ width: 10, height: 10 }} />
-                    {warnings}
-                  </span>
+                    PIN {r.pin}
+                  </p>
+                  {warnings > 0 && (
+                    <span
+                      className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      title={`${warnings} Tab Switch Warning(s)`}
+                    >
+                      <AlertTriangle style={{ width: 10, height: 10 }} />
+                      {warnings}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
+                {r.status === 'completed' || r.status === 'in-progress' ? (
+                  <>
+                    <p
+                      className={`font-black ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
+                      style={{ fontSize: 'min(15px, 5cqmin)' }}
+                    >
+                      {score}%
+                    </p>
+                    <p
+                      className="text-brand-blue-primary/60 font-bold"
+                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                    >
+                      {correct}/{questions.length} Correct
+                      {r.status === 'in-progress' && ' (In Progress)'}
+                    </p>
+                  </>
+                ) : (
+                  <div
+                    className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
+                    style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                  >
+                    {r.status}
+                  </div>
                 )}
               </div>
             </div>
-
-            <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
-              {r.status === 'completed' || r.status === 'in-progress' ? (
-                <>
-                  <p
-                    className={`font-black ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
-                    style={{ fontSize: 'min(15px, 5cqmin)' }}
-                  >
-                    {score}%
-                  </p>
-                  <p
-                    className="text-brand-blue-primary/60 font-bold"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    {correct}/{questions.length} Correct
-                    {r.status === 'in-progress' && ' (In Progress)'}
-                  </p>
-                </>
-              ) : (
-                <div
-                  className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
-                  style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                >
-                  {r.status}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-  </div>
-);
+          );
+        })}
+    </div>
+  );
+};
