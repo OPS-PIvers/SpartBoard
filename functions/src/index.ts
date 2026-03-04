@@ -661,7 +661,6 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
 
     // Generate OAuth 2.0 Access Token
 
-    // @ts-expect-error - GoogleAuth types are not correctly resolved by ESLint in this environment
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
