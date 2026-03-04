@@ -116,3 +116,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Identified remaining hardcoded font sizes (`text-[8px]`, `text-[9px]`, `text-[10px]`) in `SidebarSettings`, `StickerLibraryModal`, `TimeToolWidget`, `LibraryManager`, `WeatherWidget`, and `ClockWidget`.
 **Fix:** Refactored all remaining instances to use the standard Tailwind utility classes (`text-xxs` for 10px, `text-xxxs` for 8px) to enforce design system consistency and eliminate "snowflakes".
+
+## 2026-03-04 - Calendar Components Micro-Typography Standardization
+
+**Drift:** Identified remaining hardcoded micro-typography font sizes (`text-[9px]`, `text-[10px]`, `text-[11px]`) in `CalendarConfigurationModal.tsx` and `CalendarWidget.tsx` that bypassed the standardized `text-xxs` and `text-xxxs` design tokens.
+**Fix:** Refactored instances of `text-[10px]` and `text-[11px]` to `text-xxs`, and `text-[9px]` to `text-xxxs`, enforcing design system consistency and eliminating more "snowflakes" in the Calendar module.
