@@ -181,5 +181,6 @@ To manage costs and prevent abuse, AI features have the following usage limits:
 
 ## Project Memories
 
+- **Strict Linting Policy:** Do not commit or push any code that introduces ESLint warnings or errors. Ensure that `pnpm run validate` succeeds before doing a final push or creating a PR.
 - **Widget Scaling (Clock):** Perfectly satisfied with the Clock widget's scaling (fill-first logic with `min(75cqh, 25cqw)`). Do not change.
 - **Widget Scaling (Weather):** Perfectly satisfied with the Weather widget's scaling (refined fill-first logic with cqh/cqw constraints and specific padding). Maintain as is.

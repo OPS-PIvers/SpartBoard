@@ -578,7 +578,6 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     () => activeDashboard?.widgets?.find((w) => w.type === 'clock') ?? null,
     [activeDashboard?.widgets]
   );
-  const hasClock = clockWidget !== null;
   // Default to 12-hour format when no clock widget is present on the dashboard.
   const format24 =
     (clockWidget?.config as ClockConfig | undefined)?.format24 ?? false;
@@ -728,7 +727,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Auto-progress: mark items as done when their time window passes.
   useEffect(() => {
-    if (!autoProgress || !hasClock) return;
+    if (!autoProgress) return;
 
     const checkTime = () => {
       const now = new Date();
@@ -798,7 +797,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     const interval = setInterval(checkTime, 10000);
     checkTime();
     return () => clearInterval(interval);
-  }, [autoProgress, hasClock, widget.id, updateWidget]);
+  }, [autoProgress, widget.id, updateWidget]);
 
   const getFontClass = () => {
     if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;

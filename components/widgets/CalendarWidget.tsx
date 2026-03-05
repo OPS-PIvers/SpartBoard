@@ -101,7 +101,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     null
   );
   const [personalEvents, setPersonalEvents] = useState<CalendarEvent[]>([]);
-  const [isSyncingPersonal, setIsSyncingPersonal] = useState(false);
 
   // 1. Subscribe to Global Admin Config (Proxy Source)
   useEffect(() => {
@@ -116,12 +115,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // 2. Fetch Personal Events (Direct Client-Side)
   useEffect(() => {
     if (!isConnected || !calendarService || personalIds.length === 0) {
-      setPersonalEvents([]);
       return;
     }
 
     const fetchPersonal = async () => {
-      setIsSyncingPersonal(true);
       try {
         const now = new Date();
         const timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
@@ -134,8 +131,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
         setPersonalEvents(results.flat());
       } catch (err) {
         console.error('Failed to sync personal calendars:', err);
-      } finally {
-        setIsSyncingPersonal(false);
       }
     };
 
@@ -143,7 +138,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   }, [isConnected, calendarService, personalIds]);
 
   // Combined events for display (Local + Building Synced + Personal)
-  const { displayEvents, lastSyncAt } = useMemo(() => {
+  const displayEvents = useMemo(() => {
     const buildingId = selectedBuildings?.[0];
     const buildingDefaults = buildingId
       ? globalConfig?.buildingDefaults?.[buildingId]
@@ -157,12 +152,17 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       ? (buildingDefaults?.events ?? [])
       : [];
 
+    const validatedPersonalEvents =
+      isConnected && calendarService && personalIds.length > 0
+        ? personalEvents
+        : [];
+
     // Merge local, building static, building proxied, and personal events
     const combined = [
       ...localEvents,
       ...staticEvents,
       ...proxiedEvents,
-      ...personalEvents,
+      ...validatedPersonalEvents,
     ];
 
     // Deduplicate by date + title
@@ -191,10 +191,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       return true;
     });
 
-    return {
-      displayEvents: filtered,
-      lastSyncAt: buildingDefaults?.lastProxySync ?? null,
-    };
+    return filtered;
   }, [
     localEvents,
     globalConfig,
@@ -202,6 +199,9 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     selectedBuildings,
     config.daysVisible,
     personalEvents,
+    isConnected,
+    calendarService,
+    personalIds,
   ]);
 
   // Blocked Date logic
@@ -238,33 +238,12 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
+  // Common height for exactly 4 cards: (100% - 3 gaps) / 4
+  const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
+
   return (
     <WidgetLayout
       padding="p-0"
-      header={
-        (lastSyncAt !== null || isSyncingPersonal) && (
-          <div
-            className="flex items-center justify-center gap-1.5 py-1 px-2 bg-slate-50 border-b border-slate-100"
-            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-          >
-            <RefreshCw
-              className={`text-slate-400 ${isSyncingPersonal ? 'animate-spin' : ''}`}
-              style={{
-                width: 'min(10px, 2.5cqmin)',
-                height: 'min(10px, 2.5cqmin)',
-              }}
-            />
-            <span className="text-slate-400 font-bold uppercase tracking-tighter text-center">
-              {isSyncingPersonal
-                ? 'Syncing Personal...'
-                : `Synced ${new Date(lastSyncAt ?? 0).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}`}
-            </span>
-          </div>
-        )
-      }
       content={
         <div
           className={`h-full w-full flex flex-col overflow-hidden ${getFontClass()}`}
@@ -285,13 +264,25 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               return (
                 <div
                   key={`${event.date}-${event.title}-${idx}`}
-                  className={`w-full flex flex-col justify-center px-4 py-3 rounded-2xl transition-all relative shrink-0 snap-start ${
+                  className={`w-full flex flex-col justify-center px-4 rounded-2xl transition-all relative shrink-0 snap-start ${
                     isToday
                       ? 'border-[min(6px,1.5cqmin)] border-[#2d3f89] shadow-md z-10'
                       : 'border border-slate-200 shadow-sm'
                   }`}
-                  style={{ backgroundColor: bgColor }}
+                  style={{
+                    backgroundColor: bgColor,
+                    height: rowHeight,
+                    flex: `0 0 ${rowHeight}`,
+                  }}
                 >
+                  {isToday && (
+                    <div
+                      className="absolute top-0 right-0 bg-[#2d3f89] text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
+                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                    >
+                      Now
+                    </div>
+                  )}
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span
@@ -353,19 +344,37 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, selectedBuildings } = useAuth();
   const { isConnected } = useGoogleCalendar();
+  const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as CalendarConfig;
   const events = config.events ?? [];
   const personalIds = config.personalCalendarIds ?? [];
   const daysVisible = config.daysVisible ?? 5;
 
+  const [globalConfig, setGlobalConfig] = useState<CalendarGlobalConfig | null>(
+    null
+  );
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
   const [isAddingLocal, setIsAddingLocal] = useState(false);
 
   const [personalInput, setPersonalInput] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
+
+  useEffect(() => {
+    return subscribeToPermission('calendar', (perm) => {
+      if (perm?.config) {
+        const gConfig = perm.config as unknown as CalendarGlobalConfig;
+        setGlobalConfig(gConfig);
+      }
+    });
+  }, [subscribeToPermission]);
+
+  const buildingId = selectedBuildings?.[0];
+  const lastSyncAt = buildingId
+    ? globalConfig?.buildingDefaults?.[buildingId]?.lastProxySync
+    : null;
 
   const addLocalEvent = () => {
     if (newTitle && newDate) {
@@ -412,9 +421,21 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
         </label>
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-700">
-              Sync Building Schedule
-            </span>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-slate-700">
+                Sync Building Schedule
+              </span>
+              {lastSyncAt && (
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  Synced{' '}
+                  {new Date(lastSyncAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              )}
+            </div>
             <Toggle
               checked={config.isBuildingSyncEnabled ?? true}
               onChange={(checked) =>

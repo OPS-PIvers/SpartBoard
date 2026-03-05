@@ -239,13 +239,13 @@ describe('ScheduleWidget', () => {
     expect(contentDiv).toBeInTheDocument();
   });
 
-  it('auto-progresses items when connected to clock', () => {
-    // Mock a clock widget being present
+  it('auto-progresses items even without a clock widget', () => {
+    // No clock widget
     (useDashboard as unknown as Mock).mockReturnValue({
       ...mockDashboardContext,
       activeDashboard: {
         ...mockDashboardContext.activeDashboard,
-        widgets: [{ id: 'clock-1', type: 'clock' }],
+        widgets: [],
       },
     });
 
@@ -258,9 +258,6 @@ describe('ScheduleWidget', () => {
     render(<ScheduleWidget widget={widget} />);
 
     // Should make 08:00 (Math) done, because 09:00 (Reading) has started.
-    // 09:00 (Reading) should be active (not done).
-    // 10:00 (Recess) should be future (not done).
-
     expect(mockUpdateWidget).toHaveBeenCalledWith('schedule-1', {
       config: expect.objectContaining({
         items: [
@@ -273,15 +270,6 @@ describe('ScheduleWidget', () => {
   });
 
   it('marks all items as done when time is past the last item', () => {
-    // Mock a clock widget being present
-    (useDashboard as unknown as Mock).mockReturnValue({
-      ...mockDashboardContext,
-      activeDashboard: {
-        ...mockDashboardContext.activeDashboard,
-        widgets: [{ id: 'clock-1', type: 'clock' }],
-      },
-    });
-
     // Set time BEFORE render to 11:30 (Past Recess at 10:00 + 60 mins)
     const date = new Date();
     date.setHours(11, 30, 0, 0);
@@ -299,27 +287,6 @@ describe('ScheduleWidget', () => {
         ],
       }),
     });
-  });
-
-  it('does NOT auto-progress if no clock widget is present', () => {
-    // No clock widget
-    (useDashboard as unknown as Mock).mockReturnValue({
-      ...mockDashboardContext,
-      activeDashboard: {
-        ...mockDashboardContext.activeDashboard,
-        widgets: [],
-      },
-    });
-
-    // Set time BEFORE render
-    const date = new Date();
-    date.setHours(9, 30, 0, 0);
-    vi.setSystemTime(date);
-
-    const widget = createWidget({ autoProgress: true });
-    render(<ScheduleWidget widget={widget} />);
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
   describe('autoScroll', () => {

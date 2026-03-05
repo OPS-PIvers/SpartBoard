@@ -164,6 +164,29 @@ export const ScheduleConfigurationPanel: React.FC<
     })
   );
 
+  const handleUpdateBuilding = useCallback(
+    (updates: Partial<BuildingScheduleDefaults>) => {
+      const currentDefaults = config.buildingDefaults ?? {};
+      const currentConfig = currentDefaults[selectedBuildingId] ?? {
+        buildingId: selectedBuildingId,
+        items: [],
+        schedules: [],
+      };
+
+      onChange({
+        ...config,
+        buildingDefaults: {
+          ...currentDefaults,
+          [selectedBuildingId]: {
+            ...currentConfig,
+            ...updates,
+          },
+        },
+      });
+    },
+    [config, selectedBuildingId, onChange]
+  );
+
   const buildingDefaults = useMemo(
     () => config.buildingDefaults ?? {},
     [config.buildingDefaults]
@@ -176,28 +199,6 @@ export const ScheduleConfigurationPanel: React.FC<
         schedules: [],
       },
     [buildingDefaults, selectedBuildingId]
-  );
-
-  const handleUpdateBuilding = useCallback(
-    (updates: Partial<BuildingScheduleDefaults>) => {
-      onChange({
-        ...config,
-        buildingDefaults: {
-          ...buildingDefaults,
-          [selectedBuildingId]: {
-            ...currentBuildingConfig,
-            ...updates,
-          },
-        },
-      });
-    },
-    [
-      config,
-      buildingDefaults,
-      selectedBuildingId,
-      currentBuildingConfig,
-      onChange,
-    ]
   );
 
   // Migrate legacy items into a "Default Schedule" if no schedules exist yet
