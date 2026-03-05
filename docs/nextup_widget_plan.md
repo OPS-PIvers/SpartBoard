@@ -26,12 +26,12 @@ export type WidgetType =
 
 // Define the Next Up widget config
 export interface NextUpConfig {
-  activeDriveFileId: string | null; 
+  activeDriveFileId: string | null;
   sessionName: string | null;
   isActive: boolean;
   createdAt: number; // Used for midnight auto-expiry
-  lastUpdated: number; 
-  displayCount: number; 
+  lastUpdated: number;
+  displayCount: number;
   styling: {
     fontFamily: string;
     themeColor: string;
@@ -41,17 +41,20 @@ export interface NextUpConfig {
 
 // Global config for building defaults
 export interface NextUpGlobalConfig {
-  buildingDefaults: Record<string, {
-    displayCount: number;
-    fontFamily: string;
-    themeColor: string;
-  }>;
+  buildingDefaults: Record<
+    string,
+    {
+      displayCount: number;
+      fontFamily: string;
+      themeColor: string;
+    }
+  >;
 }
 
 // Add to ConfigForWidget and WidgetConfig unions
 export type WidgetConfig =
   // ...
-  | NextUpConfig;
+  NextUpConfig;
 
 // Data structure to be saved IN GOOGLE DRIVE (Not Firestore)
 export interface NextUpQueueItem {
@@ -72,11 +75,11 @@ export interface NextUpQueueItem {
 ## 4. Widget Settings Pane (`NextUpSettings`)
 
 - **Session Controls**:
-    - **Start Button**: "Create New" (enter title) or "Load Existing". Sets `isActive: true`, `createdAt: Date.now()`.
-    - **End Button**: Sets `isActive: false`. (Progress is already auto-saved to Drive).
+  - **Start Button**: "Create New" (enter title) or "Load Existing". Sets `isActive: true`, `createdAt: Date.now()`.
+  - **End Button**: Sets `isActive: false`. (Progress is already auto-saved to Drive).
 - **Display Settings**:
-    - **Display Count**: 1-10 names.
-    - **Styling**: Typeface (Lexend, Patrick Hand, etc.), Theme Color, and Animations.
+  - **Display Count**: 1-10 names.
+  - **Styling**: Typeface (Lexend, Patrick Hand, etc.), Theme Color, and Animations.
 - **Live Link**: Copyable student URL (`/nextup?id=...`).
 
 ## 5. Global Administration (`components/admin/NextUpConfigurationPanel.tsx`)
@@ -92,11 +95,12 @@ export interface NextUpQueueItem {
 ## 7. Configuration & Integration
 
 ### `config/widgetDefaults.ts`
+
 ```typescript
-nextUp: { 
-  w: 350, 
-  h: 500, 
-  config: { 
+nextUp: {
+  w: 350,
+  h: 500,
+  config: {
     activeDriveFileId: null,
     sessionName: null,
     isActive: false,
@@ -108,6 +112,6 @@ nextUp: {
       themeColor: '#2d3f89',
       animation: 'slide'
     }
-  } 
+  }
 },
 ```
