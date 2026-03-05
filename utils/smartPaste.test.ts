@@ -77,6 +77,20 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('detects HTML starting with <!DOCTYPE html>', () => {
+    const input =
+      '<!DOCTYPE html><html><title>Full Doc</title><body>Hello</body></html>';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-mini-app') {
+      expect(result.title).toBe('Full Doc');
+      expect(result.html).toBe(input);
+    } else {
+      throw new Error('Expected create-mini-app action');
+    }
+  });
+
   it('detects Share Links', () => {
     const input = 'https://myapp.com/share/12345';
     const result = detectWidgetType(input);

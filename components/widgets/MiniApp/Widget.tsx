@@ -347,29 +347,42 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             />
             <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
               {config.activeAppUnsaved && (
-                <button
-                  onClick={() => {
-                    setPendingSaveTitle(
-                      activeApp.title !== 'Untitled App' ? activeApp.title : ''
-                    );
-                    setShowSaveForm(true);
-                  }}
-                  className="bg-indigo-600/90 backdrop-blur-sm hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-indigo-500 font-black transition-all"
-                  title="Save to library"
-                  style={{
-                    padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-                    fontSize: 'min(10px, 2.5cqmin)',
-                    gap: 'min(6px, 1.5cqmin)',
-                  }}
-                >
-                  <Save
+                <>
+                  <div
+                    className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400"
                     style={{
-                      width: 'min(10px, 2.5cqmin)',
-                      height: 'min(10px, 2.5cqmin)',
+                      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                      fontSize: 'min(8px, 2cqmin)',
                     }}
-                  />
-                  Save
-                </button>
+                  >
+                    Unsaved
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPendingSaveTitle(
+                        activeApp.title !== 'Untitled App'
+                          ? activeApp.title
+                          : ''
+                      );
+                      setShowSaveForm(true);
+                    }}
+                    className="bg-indigo-600/90 backdrop-blur-sm hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-indigo-500 font-black transition-all"
+                    title="Save to library"
+                    style={{
+                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                      fontSize: 'min(10px, 2.5cqmin)',
+                      gap: 'min(6px, 1.5cqmin)',
+                    }}
+                  >
+                    <Save
+                      style={{
+                        width: 'min(10px, 2.5cqmin)',
+                        height: 'min(10px, 2.5cqmin)',
+                      }}
+                    />
+                    Save
+                  </button>
+                </>
               )}
               <button
                 onClick={handleCloseActive}

@@ -64,7 +64,7 @@ function tryParseBoardImport(text: string): PasteResult | null {
 }
 
 function tryParseMiniApp(text: string): PasteResult | null {
-  if (/^\s*<[a-z][\s\S]*>/i.test(text)) {
+  if (/^\s*<[!a-z][\s\S]*>/i.test(text)) {
     // Extract title if present
     const titleMatch = text.match(/<title>(.*?)<\/title>/i);
     const title = titleMatch ? titleMatch[1].trim() : undefined;
