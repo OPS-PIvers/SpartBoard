@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AlignLeft, CheckSquare, X } from 'lucide-react';
-import { GlassCard } from '../../common/GlassCard';
-import { GlobalStyle } from '../../../types';
+import { GlassCard } from '@/components/common/GlassCard';
+import { GlobalStyle } from '@/types';
 
 interface SmartPastePickerModalProps {
   text: string;
@@ -23,6 +23,15 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
     text.length > PREVIEW_MAX_LENGTH
       ? text.slice(0, PREVIEW_MAX_LENGTH).trimEnd() + '…'
       : text;
+
+  // Dismiss on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   return createPortal(
     <div
@@ -54,7 +63,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
           </button>
         </div>
 
-        {/* Text preview */}
+        {/* Text preview — React renders {preview} as a text node, so no XSS risk */}
         <div className="mx-6 mb-5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="text-xs text-slate-500 font-black uppercase tracking-widest mb-1.5">
             Pasted text

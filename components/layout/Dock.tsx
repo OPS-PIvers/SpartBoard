@@ -48,7 +48,11 @@ import { Z_INDEX } from '../../config/zIndex';
 import { WidgetLibrary } from './dock/WidgetLibrary';
 import { RenameFolderModal } from './dock/RenameFolderModal';
 import { MagicLayoutModal } from './dock/MagicLayoutModal';
-import { detectWidgetType } from '../../utils/smartPaste';
+import {
+  detectWidgetType,
+  buildChecklistFromLines,
+  createDefaultTextWidget,
+} from '../../utils/smartPaste';
 import { SmartPastePickerModal } from './dock/SmartPastePickerModal';
 import { useImageUpload } from '../../hooks/useImageUpload';
 import { DockIcon } from './dock/DockIcon';
@@ -491,29 +495,16 @@ export const Dock: React.FC = () => {
                 .split('\n')
                 .map((l) => l.trim())
                 .filter((l) => l.length > 0);
-              addWidget('checklist', {
-                config: {
-                  items: lines.map((line) => ({
-                    id: crypto.randomUUID(),
-                    text: line,
-                    completed: false,
-                  })),
-                  mode: 'manual',
-                },
-              });
+              const result = buildChecklistFromLines(lines);
+              if (result.action === 'create-widget') {
+                addWidget(result.type, { config: result.config });
+              }
               addToast('Added Checklist widget!', 'success');
             } else {
-              addWidget('text', {
-                config: {
-                  content: text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\n/g, '<br/>'),
-                  bgColor: '#fef3c7',
-                  fontSize: 18,
-                },
-              });
+              const result = createDefaultTextWidget(text);
+              if (result.action === 'create-widget') {
+                addWidget(result.type, { config: result.config });
+              }
               addToast('Added Text widget!', 'success');
             }
           }}

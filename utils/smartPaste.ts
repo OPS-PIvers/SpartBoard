@@ -157,19 +157,10 @@ function tryParseChecklist(text: string): PasteResult | null {
     );
     if (allShortMedium) {
       // Paragraph-separated short/medium items → checklist
-      return {
-        action: 'create-widget',
-        type: 'checklist',
-        config: {
-          items: paragraphs.map((p) => ({
-            id: crypto.randomUUID(),
-            // Flatten any internal newlines within a paragraph item
-            text: p.replace(/\n+/g, ' '),
-            completed: false,
-          })),
-          mode: 'manual',
-        } as WidgetConfig,
-      };
+      return buildChecklistFromLines(
+        // Flatten any internal newlines within a paragraph item
+        paragraphs.map((p) => p.replace(/\n+/g, ' '))
+      );
     }
     // Paragraph-separated but items are long prose → fall through to text widget
     return null;
@@ -192,7 +183,24 @@ function tryParseChecklist(text: string): PasteResult | null {
   return null;
 }
 
-function createDefaultTextWidget(text: string): PasteResult {
+/** Builds a checklist PasteResult from an array of line strings. */
+export function buildChecklistFromLines(lines: string[]): PasteResult {
+  return {
+    action: 'create-widget',
+    type: 'checklist',
+    config: {
+      items: lines.map((line) => ({
+        id: crypto.randomUUID(),
+        text: line,
+        completed: false,
+      })),
+      mode: 'manual',
+    } as WidgetConfig,
+  };
+}
+
+/** Builds a text widget PasteResult, safely encoding HTML entities. */
+export function createDefaultTextWidget(text: string): PasteResult {
   return {
     action: 'create-widget',
     type: 'text',

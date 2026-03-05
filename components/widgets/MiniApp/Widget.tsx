@@ -110,7 +110,7 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         createdAt: activeApp.createdAt,
         order:
           library.length > 0
-            ? Math.min(...library.map((a) => a.order ?? 0)) - 1
+            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
             : 0,
       };
       await setDoc(doc(appsRef, id), appData);
@@ -205,7 +205,7 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         order: editingId
           ? (library.find((a) => a.id === editingId)?.order ?? 0)
           : library.length > 0
-            ? Math.min(...library.map((a) => a.order ?? 0)) - 1
+            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
             : 0,
       };
 
