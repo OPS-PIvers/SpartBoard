@@ -221,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Prefer GIS silent refresh when the client ID env var is configured.
       // google.accounts is loaded asynchronously via the GIS script tag in index.html.
       if (clientId && email && typeof window.google !== 'undefined') {
-        return new Promise<string | null>((resolve) => {
+        const gisToken = await new Promise<string | null>((resolve) => {
           const tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: clientId,
             scope: GOOGLE_OAUTH_SCOPES.join(' '),
@@ -255,6 +255,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // A popup only appears when the user's Google session has expired.
           tokenClient.requestAccessToken({ prompt: '' });
         });
+
+        // GIS succeeded — return immediately.
+        if (gisToken) return gisToken;
+
+        // GIS failed (e.g. domain not in authorized JavaScript origins).
+        // For silent background refreshes, give up here to avoid unexpected popups.
+        // For explicit user-triggered reconnects (silent=false), fall through to
+        // the Firebase popup below, which uses the already-authorized Firebase
+        // OAuth client and avoids redirect_uri_mismatch errors.
+        if (silent) return null;
       }
 
       // Fallback: re-run Firebase popup sign-in to get a fresh access token.
