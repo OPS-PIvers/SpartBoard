@@ -264,11 +264,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               return (
                 <div
                   key={`${event.date}-${event.title}-${idx}`}
-                  className={`w-full flex flex-col justify-center rounded-2xl transition-all relative shrink-0 snap-start ${
-                    isToday
-                      ? 'border-[min(6px,1.5cqmin)] border-[#2d3f89] shadow-md z-10'
-                      : 'border border-slate-200 shadow-sm'
-                  }`}
+                  className="w-full flex flex-col justify-center rounded-2xl transition-all relative shrink-0 snap-start border border-slate-200 shadow-sm"
                   style={{
                     backgroundColor: bgColor,
                     height: rowHeight,
@@ -276,14 +272,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                     padding: 'min(16px, 3cqmin)',
                   }}
                 >
-                  {isToday && (
-                    <div
-                      className="absolute top-0 right-0 bg-[#2d3f89] text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
-                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-                    >
-                      Now
-                    </div>
-                  )}
                   <div
                     className="flex flex-col min-w-0"
                     style={{ gap: 'min(4px, 0.8cqmin)' }}
