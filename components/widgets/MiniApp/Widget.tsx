@@ -6,7 +6,16 @@ import {
   MiniAppConfig,
   GlobalMiniAppItem,
 } from '@/types';
-import { Plus, LayoutGrid, Download, Upload, Box, Globe } from 'lucide-react';
+import {
+  Plus,
+  LayoutGrid,
+  Download,
+  Upload,
+  Box,
+  Globe,
+  Save,
+  X,
+} from 'lucide-react';
 import { generateMiniAppCode } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import {
@@ -58,6 +67,10 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [showPromptInput, setShowPromptInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Unsaved paste state: shown as an overlay when activeAppUnsaved is true
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [pendingSaveTitle, setPendingSaveTitle] = useState('');
+
   // Dnd Kit Sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -80,8 +93,42 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleCloseActive = () => {
     updateWidget(widget.id, {
-      config: { ...config, activeApp: null },
+      config: { ...config, activeApp: null, activeAppUnsaved: false },
     });
+  };
+
+  const handleSavePasted = async () => {
+    if (!user || !activeApp) return;
+    const title = pendingSaveTitle.trim() || activeApp.title || 'Untitled App';
+    try {
+      const id = activeApp.id;
+      const appsRef = collection(db, 'users', user.uid, 'miniapps');
+      const appData: MiniAppItem = {
+        id,
+        title,
+        html: activeApp.html,
+        createdAt: activeApp.createdAt,
+        order:
+          library.length > 0
+            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
+            : 0,
+      };
+      await setDoc(doc(appsRef, id), appData);
+      // Clear unsaved flag and update title
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          activeApp: { ...activeApp, title },
+          activeAppUnsaved: false,
+        },
+      });
+      setShowSaveForm(false);
+      setPendingSaveTitle('');
+      addToast(`"${title}" saved to library!`, 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to save app', 'error');
+    }
   };
 
   const handleCreate = () => {
@@ -158,7 +205,7 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         order: editingId
           ? (library.find((a) => a.id === editingId)?.order ?? 0)
           : library.length > 0
-            ? Math.min(...library.map((a) => a.order ?? 0)) - 1
+            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
             : 0,
       };
 
@@ -298,7 +345,32 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 height: 'min(4px, 1cqmin)',
               }}
             />
-            <div className="absolute top-1 right-2 z-10">
+            <div className="absolute top-1 right-2 z-10 flex items-center gap-1">
+              {config.activeAppUnsaved && (
+                <button
+                  onClick={() => {
+                    setPendingSaveTitle(
+                      activeApp.title !== 'Untitled App' ? activeApp.title : ''
+                    );
+                    setShowSaveForm(true);
+                  }}
+                  className="bg-indigo-600/90 backdrop-blur-sm hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-indigo-500 font-black transition-all"
+                  title="Save to library"
+                  style={{
+                    padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                    fontSize: 'min(10px, 2.5cqmin)',
+                    gap: 'min(6px, 1.5cqmin)',
+                  }}
+                >
+                  <Save
+                    style={{
+                      width: 'min(10px, 2.5cqmin)',
+                      height: 'min(10px, 2.5cqmin)',
+                    }}
+                  />
+                  Save
+                </button>
+              )}
               <button
                 onClick={handleCloseActive}
                 className="bg-slate-900/80 backdrop-blur-sm hover:bg-slate-900 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-slate-700 font-black transition-all"
@@ -327,6 +399,44 @@ export const MiniAppWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               sandbox="allow-scripts allow-forms allow-popups allow-modals"
               title={activeApp.title}
             />
+            {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}
+            {showSaveForm && (
+              <div className="absolute inset-0 z-20 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+                <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-xs flex flex-col gap-3 animate-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-slate-800 uppercase tracking-tight text-xs flex items-center gap-1.5">
+                      <Save className="w-3.5 h-3.5 text-indigo-500" />
+                      Save to Library
+                    </h4>
+                    <button
+                      onClick={() => setShowSaveForm(false)}
+                      className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+                      aria-label="Cancel save"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={pendingSaveTitle}
+                    onChange={(e) => setPendingSaveTitle(e.target.value)}
+                    placeholder="App title…"
+                    autoFocus
+                    className="w-full px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleSavePasted();
+                      if (e.key === 'Escape') setShowSaveForm(false);
+                    }}
+                  />
+                  <button
+                    onClick={() => void handleSavePasted()}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save App
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         }
       />

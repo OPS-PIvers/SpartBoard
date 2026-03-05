@@ -669,6 +669,8 @@ export interface GlobalMiniAppItem extends MiniAppItem {
 // 2. Define the Widget Configuration
 export interface MiniAppConfig {
   activeApp: MiniAppItem | null;
+  /** True when activeApp was created via smart-paste and has not yet been saved to the library */
+  activeAppUnsaved?: boolean;
 }
 
 export interface PdfItem {

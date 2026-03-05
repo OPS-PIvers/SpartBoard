@@ -9,7 +9,8 @@ export type PasteResult =
       title?: string;
     }
   | { action: 'import-board'; url: string }
-  | { action: 'create-mini-app'; html: string; title?: string };
+  | { action: 'create-mini-app'; html: string; title?: string }
+  | { action: 'prompt-text-or-checklist'; text: string };
 
 /**
  * Detects the most appropriate paste action based on the provided text.
@@ -138,30 +139,68 @@ function createQrWidget(url: string): PasteResult {
   };
 }
 
+// Max character length per item to be considered "short/medium"
+const CHECKLIST_ITEM_MAX_LENGTH = 250;
+// Max character length per line to be considered short (for single-newline lists)
+const CHECKLIST_LINE_MAX_LENGTH = 120;
+
 function tryParseChecklist(text: string): PasteResult | null {
-  // Heuristic: If there are 3 or more non-empty lines, assume it's a list.
+  // --- Case 1: Paragraph-separated items (blank lines between entries) ---
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
+  if (paragraphs.length >= 2) {
+    const allShortMedium = paragraphs.every(
+      (p) => p.length <= CHECKLIST_ITEM_MAX_LENGTH
+    );
+    if (allShortMedium) {
+      // Paragraph-separated short/medium items → checklist
+      return buildChecklistFromLines(
+        // Flatten any internal newlines within a paragraph item
+        paragraphs.map((p) => p.replace(/\n+/g, ' '))
+      );
+    }
+    // Paragraph-separated but items are long prose → fall through to text widget
+    return null;
+  }
+
+  // --- Case 2: Single-newline-separated lines (no blank lines) ---
   const lines = text
     .split('\n')
     .map((l) => l.trim())
-    .filter((l) => l);
+    .filter((l) => l.length > 0);
+
   if (lines.length >= 3) {
-    return {
-      action: 'create-widget',
-      type: 'checklist',
-      config: {
-        items: lines.map((line) => ({
-          id: crypto.randomUUID(),
-          text: line,
-          completed: false,
-        })),
-        mode: 'manual',
-      } as WidgetConfig,
-    };
+    const allShort = lines.every((l) => l.length <= CHECKLIST_LINE_MAX_LENGTH);
+    if (allShort) {
+      // Ambiguous: could be a list or text with line breaks — ask the user
+      return { action: 'prompt-text-or-checklist', text };
+    }
   }
+
   return null;
 }
 
-function createDefaultTextWidget(text: string): PasteResult {
+/** Builds a checklist PasteResult from an array of line strings. */
+export function buildChecklistFromLines(lines: string[]): PasteResult {
+  return {
+    action: 'create-widget',
+    type: 'checklist',
+    config: {
+      items: lines.map((line) => ({
+        id: crypto.randomUUID(),
+        text: line,
+        completed: false,
+      })),
+      mode: 'manual',
+    } as WidgetConfig,
+  };
+}
+
+/** Builds a text widget PasteResult, safely encoding HTML entities. */
+export function createDefaultTextWidget(text: string): PasteResult {
   return {
     action: 'create-widget',
     type: 'text',

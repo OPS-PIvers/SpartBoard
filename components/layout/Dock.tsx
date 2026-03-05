@@ -48,10 +48,13 @@ import { Z_INDEX } from '../../config/zIndex';
 import { WidgetLibrary } from './dock/WidgetLibrary';
 import { RenameFolderModal } from './dock/RenameFolderModal';
 import { MagicLayoutModal } from './dock/MagicLayoutModal';
-import { detectWidgetType } from '../../utils/smartPaste';
+import {
+  detectWidgetType,
+  buildChecklistFromLines,
+  createDefaultTextWidget,
+} from '../../utils/smartPaste';
+import { SmartPastePickerModal } from './dock/SmartPastePickerModal';
 import { useImageUpload } from '../../hooks/useImageUpload';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { DockIcon } from './dock/DockIcon';
 import { DockLabel } from './dock/DockLabel';
 import { ToolDockItem } from './dock/ToolDockItem';
@@ -178,6 +181,9 @@ export const Dock: React.FC = () => {
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [showMagicLayout, setShowMagicLayout] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [smartPastePending, setSmartPastePending] = useState<string | null>(
+    null
+  );
 
   // Drag-to-collapse state
   const [dragY, setDragY] = useState(0);
@@ -273,34 +279,22 @@ export const Dock: React.FC = () => {
             // Navigate to the share URL to trigger import
             window.location.href = result.url;
           } else if (result.action === 'create-mini-app') {
-            if (user) {
-              addToast('Creating Mini App...', 'info');
-              const id = crypto.randomUUID();
-              const newItem: MiniAppItem = {
-                id,
-                title: result.title ?? 'Untitled App',
-                html: result.html,
-                createdAt: Date.now(),
-                order: 0, // Will be sorted by createdAt usually
-              };
-
-              // Save to Firestore (library)
-              try {
-                await setDoc(
-                  doc(db, 'users', user.uid, 'miniapps', id),
-                  newItem
-                );
-
-                // Open the widget immediately
-                addWidget('miniApp', { config: { activeApp: newItem } });
-                addToast('Mini App saved to library!', 'success');
-              } catch (err) {
-                console.error(err);
-                addToast('Failed to save Mini App', 'error');
-              }
-            } else {
-              addToast('Sign in to create Mini Apps', 'error');
-            }
+            // Open the widget immediately with the HTML running — user can save later
+            const id = crypto.randomUUID();
+            const previewItem: MiniAppItem = {
+              id,
+              title: result.title ?? 'Untitled App',
+              html: result.html,
+              createdAt: Date.now(),
+              order: 0,
+            };
+            addWidget('miniApp', {
+              config: { activeApp: previewItem, activeAppUnsaved: true },
+            });
+            addToast('HTML opened — click the save icon to keep it!', 'info');
+          } else if (result.action === 'prompt-text-or-checklist') {
+            // Ambiguous: show a picker modal for the user to decide
+            setSmartPastePending(result.text);
           }
         }
       }
@@ -485,6 +479,35 @@ export const Dock: React.FC = () => {
           onClose={() => setShowRosterMenu(false)}
           onOpenFullEditor={openClassEditor}
           anchorRect={classesAnchorRect}
+        />
+      )}
+
+      {smartPastePending !== null && (
+        <SmartPastePickerModal
+          text={smartPastePending}
+          globalStyle={globalStyle}
+          onClose={() => setSmartPastePending(null)}
+          onSelect={(type) => {
+            const text = smartPastePending;
+            setSmartPastePending(null);
+            if (type === 'checklist') {
+              const lines = text
+                .split('\n')
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0);
+              const result = buildChecklistFromLines(lines);
+              if (result.action === 'create-widget') {
+                addWidget(result.type, { config: result.config });
+              }
+              addToast('Added Checklist widget!', 'success');
+            } else {
+              const result = createDefaultTextWidget(text);
+              if (result.action === 'create-widget') {
+                addWidget(result.type, { config: result.config });
+              }
+              addToast('Added Text widget!', 'success');
+            }
+          }}
         />
       )}
 
