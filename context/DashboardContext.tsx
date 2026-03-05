@@ -18,6 +18,7 @@ import {
   GlobalStyle,
   DEFAULT_GLOBAL_STYLE,
   AddWidgetOverrides,
+  NextUpConfig,
 } from '../types';
 import { useAuth } from './useAuth';
 import { useFirestore } from '../hooks/useFirestore';
@@ -1507,20 +1508,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             out.selectedItems = raw.selectedItems;
           break;
         case 'nextUp':
-          if (raw && typeof raw === 'object') {
-            const nr = raw as Record<string, any>;
-            if (typeof nr.displayCount === 'number') {
-              out.displayCount = nr.displayCount;
+          if (raw) {
+            if (typeof raw['displayCount'] === 'number') {
+              out.displayCount = raw['displayCount'];
             }
-            if (nr.fontFamily || nr.themeColor) {
-              const baseConfig = (WIDGET_DEFAULTS.nextUp.config as unknown) as NextUpConfig;
+            if (raw['fontFamily'] || raw['themeColor']) {
+              const nextUpDefaultConfig = WIDGET_DEFAULTS.nextUp
+                .config as unknown as NextUpConfig;
               out.styling = {
-                ...baseConfig.styling,
-                ...(typeof nr.fontFamily === 'string'
-                  ? { fontFamily: nr.fontFamily }
+                ...nextUpDefaultConfig.styling,
+                ...(typeof raw['fontFamily'] === 'string'
+                  ? { fontFamily: raw['fontFamily'] }
                   : {}),
-                ...(typeof nr.themeColor === 'string'
-                  ? { themeColor: nr.themeColor }
+                ...(typeof raw['themeColor'] === 'string'
+                  ? { themeColor: raw['themeColor'] }
                   : {}),
               };
             }
