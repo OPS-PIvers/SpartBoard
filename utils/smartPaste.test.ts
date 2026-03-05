@@ -88,4 +88,75 @@ describe('detectWidgetType (Smart Paste)', () => {
       throw new Error('Expected import-board action');
     }
   });
+
+  it('detects bare domain for Share Links', () => {
+    const input = 'myapp.com/share/12345';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-board') {
+      expect(result.url).toBe('https://myapp.com/share/12345');
+    } else {
+      throw new Error('Expected import-board action');
+    }
+  });
+
+  it('detects bare domain and converts to URL', () => {
+    const input = 'google.com';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('qr');
+      const config = result.config as QRConfig;
+      expect(config.url).toBe('https://google.com');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects image URLs and creates a sticker widget', () => {
+    const input = 'https://example.com/image.png';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('sticker');
+      const config = result.config as any;
+      expect(config.url).toBe('https://example.com/image.png');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects multi-line text and creates a checklist widget', () => {
+    const input = 'item 1\nitem 2\nitem 3';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('checklist');
+      const config = result.config as any;
+      expect(config.items.length).toBe(3);
+      expect(config.items[0].text).toBe('item 1');
+      expect(config.items[1].text).toBe('item 2');
+      expect(config.items[2].text).toBe('item 3');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects plain text and creates a text widget', () => {
+    const input = 'Hello world';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('text');
+      const config = result.config as any;
+      expect(config.content).toBe('Hello world');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
 });
