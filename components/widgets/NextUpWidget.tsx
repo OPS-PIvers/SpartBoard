@@ -39,9 +39,16 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
   const { driveService } = useGoogleDrive();
   const { updateWidget } = useDashboard();
+  const { user } = useAuth();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Firestore session ID is [teacherUid]_[widgetId] to ensure ownership and avoid collisions/permission issues
+  const sessionId = useMemo(
+    () => (user ? `${user.uid}_${widget.id}` : null),
+    [user, widget.id]
+  );
 
   // Auto-expiry check: Deactivate session if it's from a previous day
   useEffect(() => {
@@ -94,12 +101,18 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
   // Firestore "Buffer" Listener: Watch for incoming student entries
   useEffect(() => {
-    if (!config.isActive || !config.activeDriveFileId || !driveService) return;
+    if (
+      !config.isActive ||
+      !config.activeDriveFileId ||
+      !driveService ||
+      !sessionId
+    )
+      return;
 
     const entriesRef = collection(
       db,
       SESSIONS_COLLECTION,
-      widget.id,
+      sessionId,
       ENTRIES_SUBCOLLECTION
     );
     const q = query(entriesRef, orderBy('joinedAt', 'asc'), limit(5));
@@ -443,6 +456,8 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
     if (fileId) {
       // 1. Create/Update Firestore Session (for student access)
+      // ID is [teacherUid]_[widgetId] to ensure ownership across account merges
+      const sessionId = `${user.uid}_${widget.id}`;
       const sessionData: NextUpSession = {
         id: widget.id,
         teacherUid: user.uid,
@@ -452,7 +467,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
         createdAt: Date.now(),
         lastUpdated: Date.now(),
       };
-      await setDoc(doc(db, SESSIONS_COLLECTION, widget.id), sessionData);
+      await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), sessionData);
 
       // 2. Update Local Widget Config
       updateWidget(widget.id, {
@@ -484,9 +499,12 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
     }
 
     // 1. Deactivate in Firestore
-    await updateDoc(doc(db, SESSIONS_COLLECTION, widget.id), {
-      isActive: false,
-    });
+    if (user) {
+      const sessionId = `${user.uid}_${widget.id}`;
+      await updateDoc(doc(db, SESSIONS_COLLECTION, sessionId), {
+        isActive: false,
+      }).catch(console.error); // Silent fail if doc doesn't exist or permissions changed
+    }
 
     // 2. Update Local Widget Config
     updateWidget(widget.id, {
@@ -500,7 +518,9 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   const copyLink = () => {
-    const url = `${window.location.origin}/nextup?id=${widget.id}`;
+    if (!user) return;
+    const sessionId = `${user.uid}_${widget.id}`;
+    const url = `${window.location.origin}/nextup?id=${sessionId}`;
     void navigator.clipboard.writeText(url);
     setCopy(true);
     setTimeout(() => setCopy(false), 2000);
