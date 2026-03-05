@@ -88,6 +88,7 @@ const GOOGLE_TOKEN_EXPIRY_KEY = 'spart_google_token_expiry';
 const GOOGLE_TOKEN_TTL_MS = 3600 * 1000; // 1 hour (Google's default access token lifetime)
 const GOOGLE_TOKEN_CHECK_INTERVAL_MS = 60 * 1000; // How often to poll for expiry
 const GOOGLE_TOKEN_REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // Refresh this far before expiry
+const GOOGLE_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000; // Don't use tokens within 5 min of expiry
 
 /**
  * Mock user object for bypass mode.
@@ -153,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (
         token &&
         expiry &&
-        Date.now() > parseInt(expiry, 10) - 5 * 60 * 1000
+        Date.now() > parseInt(expiry, 10) - GOOGLE_TOKEN_EXPIRY_BUFFER_MS
       ) {
         localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
         localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
@@ -230,8 +231,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 const expiryMs =
                   Date.now() +
                   (parseInt(response.expires_in ?? '3600', 10) || 3600) * 1000;
-                // Write both token and expiry to localStorage atomically so a
-                // fast page reload can't find an expiry key without its token.
+                // Write token before expiry so that a fast page reload never
+                // finds an expiry key without its accompanying token.
+                // Note: two separate setItem calls are not truly atomic; this
+                // ordering minimises the window where expiry exists without token.
                 localStorage.setItem(
                   GOOGLE_ACCESS_TOKEN_KEY,
                   response.access_token
@@ -289,9 +292,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const connectGoogleDrive = useCallback(async (): Promise<void> => {
     if (isAuthBypass) {
       setGoogleAccessToken(MOCK_ACCESS_TOKEN);
+      localStorage.setItem(
+        GOOGLE_TOKEN_EXPIRY_KEY,
+        (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
+      );
       return;
     }
-    await refreshGoogleToken(false);
+    // Try a silent GIS refresh first; only fall back to a popup if it fails.
+    const token = await refreshGoogleToken(true);
+    if (!token) {
+      await refreshGoogleToken(false);
+    }
   }, [refreshGoogleToken]);
 
   // On startup: if the user has a Firebase session but the Drive token is
@@ -309,18 +320,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
     const expiry = localStorage.getItem(GOOGLE_TOKEN_EXPIRY_KEY);
     const hasValidToken =
-      stored && expiry && Date.now() < parseInt(expiry, 10) - 5 * 60 * 1000;
+      stored &&
+      expiry &&
+      Date.now() < parseInt(expiry, 10) - GOOGLE_TOKEN_EXPIRY_BUFFER_MS;
 
     if (hasValidToken) return;
 
-    // GIS script is loaded async — give it a moment before calling
-    const timer = setTimeout(() => {
+    // GIS script is loaded async — poll every 200 ms until it's ready
+    // rather than guessing a fixed delay, which can fail on slow networks.
+    const pollGis = setInterval(() => {
       if (typeof window.google !== 'undefined') {
+        clearInterval(pollGis);
+        clearTimeout(pollTimeout);
         void refreshGoogleToken(true);
       }
-    }, 1500);
+    }, 200);
+    // Safety valve: stop polling after 10 s to prevent indefinite loops.
+    const pollTimeout = setTimeout(() => clearInterval(pollGis), 10000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearInterval(pollGis);
+      clearTimeout(pollTimeout);
+    };
   }, [user, refreshGoogleToken]);
 
   // Check for Google token expiry every minute; proactively refresh before expiry

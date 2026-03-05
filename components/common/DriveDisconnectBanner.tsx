@@ -14,8 +14,8 @@ export const DriveDisconnectBanner: React.FC = () => {
 
   const isConnected = !!googleAccessToken;
 
-  // When Drive reconnects, reset dismissed state so the banner won't
-  // reappear immediately if Drive drops again in the same session.
+  // When Drive reconnects, clear the dismiss state and any pending re-show
+  // timer so that a future disconnection can show the banner again.
   useEffect(() => {
     if (isConnected) {
       setDismissed(false);
@@ -34,6 +34,11 @@ export const DriveDisconnectBanner: React.FC = () => {
   }, []);
 
   const handleDismiss = () => {
+    // Clear any previous dismiss timer before setting a new one so that
+    // multiple rapid clicks don't queue up redundant re-show callbacks.
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+    }
     setDismissed(true);
     // Re-show the banner after the dismiss duration
     dismissTimerRef.current = setTimeout(() => {
