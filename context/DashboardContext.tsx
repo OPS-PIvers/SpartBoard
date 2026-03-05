@@ -59,6 +59,7 @@ const PERSISTED_WIDGET_TYPES: WidgetType[] = [
   'lunchCount',
   'weather',
   'instructionalRoutines',
+  'nextUp',
 ];
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -1504,6 +1505,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'materials':
           if (Array.isArray(raw.selectedItems) && raw.selectedItems.length > 0)
             out.selectedItems = raw.selectedItems;
+          break;
+        case 'nextUp':
+          if (raw && typeof raw === 'object') {
+            const nr = raw as Record<string, any>;
+            if (typeof nr.displayCount === 'number') {
+              out.displayCount = nr.displayCount;
+            }
+            if (nr.fontFamily || nr.themeColor) {
+              const baseConfig = (WIDGET_DEFAULTS.nextUp.config as unknown) as NextUpConfig;
+              out.styling = {
+                ...baseConfig.styling,
+                ...(typeof nr.fontFamily === 'string'
+                  ? { fontFamily: nr.fontFamily }
+                  : {}),
+                ...(typeof nr.themeColor === 'string'
+                  ? { themeColor: nr.themeColor }
+                  : {}),
+              };
+            }
+          }
           break;
         default:
           break;

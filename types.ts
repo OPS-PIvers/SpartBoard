@@ -35,7 +35,8 @@ export type WidgetType =
   | 'talking-tool'
   | 'breathing'
   | 'mathTools'
-  | 'mathTool';
+  | 'mathTool'
+  | 'nextUp';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1034,6 +1035,49 @@ export interface QuizConfig {
 
 export type TalkingToolConfig = Record<string, never>;
 
+export interface NextUpQueueItem {
+  id: string;
+  name: string;
+  status: 'waiting' | 'active' | 'done';
+  joinedAt: number;
+}
+
+export interface NextUpConfig {
+  activeDriveFileId: string | null;
+  sessionName: string | null;
+  isActive: boolean;
+  createdAt: number; // Used for midnight auto-expiry
+  lastUpdated: number;
+  displayCount: number;
+  styling: {
+    fontFamily: string;
+    themeColor: string;
+    animation: 'slide' | 'fade' | 'none';
+  };
+}
+
+export interface NextUpGlobalConfig {
+  buildingDefaults: Record<
+    string,
+    {
+      displayCount: number;
+      fontFamily: string;
+      themeColor: string;
+    }
+  >;
+}
+
+export interface NextUpSession {
+  id: string; // widgetId
+  teacherUid: string;
+  sessionName: string;
+  activeDriveFileId: string;
+  isActive: boolean;
+  createdAt: number;
+  lastUpdated: number;
+  buildingId?: string; // For default settings
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | ClockConfig
@@ -1072,7 +1116,8 @@ export type WidgetConfig =
   | TalkingToolConfig
   | BreathingConfig
   | MathToolsConfig
-  | MathToolConfig;
+  | MathToolConfig
+  | NextUpConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1149,7 +1194,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                         ? MathToolsConfig
                                                                         : T extends 'mathTool'
                                                                           ? MathToolConfig
-                                                                          : never;
+                                                                          : T extends 'nextUp'
+                                                                            ? NextUpConfig
+                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

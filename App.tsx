@@ -19,6 +19,11 @@ const QuizStudentApp = lazy(() =>
     default: module.QuizStudentApp,
   }))
 );
+const NextUpStudentApp = lazy(() =>
+  import('./components/student/NextUpStudentApp').then((module) => ({
+    default: module.NextUpStudentApp,
+  }))
+);
 const LoginScreen = lazy(() =>
   import('./components/auth/LoginScreen').then((module) => ({
     default: module.LoginScreen,
@@ -78,6 +83,8 @@ const App: React.FC = () => {
   const pathname = window.location.pathname;
   const isStudentRoute = pathname === '/join' || pathname.startsWith('/join/');
   const isQuizRoute = pathname === '/quiz' || pathname.startsWith('/quiz/');
+  const isNextUpRoute =
+    pathname === '/nextup' || pathname.startsWith('/nextup/');
 
   if (isStudentRoute) {
     return (
@@ -97,6 +104,15 @@ const App: React.FC = () => {
           <QuizStudentApp />
         </Suspense>
       </AuthProvider>
+    );
+  }
+
+  // Next Up student route — anonymous entry allowed
+  if (isNextUpRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <NextUpStudentApp />
+      </Suspense>
     );
   }
 

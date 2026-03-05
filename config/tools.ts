@@ -30,6 +30,7 @@ import {
   Quote,
   Wind,
   Ruler,
+  ListOrdered,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -130,10 +131,17 @@ export const TOOLS: ToolMetadata[] = [
   {
     type: 'mathTools',
     icon: Ruler,
-    label: 'Math Tools',
-    color: 'bg-purple-600',
+    label: 'Math',
+    color: 'bg-teal-500',
+  },
+  {
+    type: 'nextUp',
+    icon: ListOrdered,
+    label: 'Next Up',
+    color: 'bg-brand-blue-primary',
   },
   { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
+
   {
     type: 'magic',
     icon: Wand2,

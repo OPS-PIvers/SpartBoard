@@ -118,6 +118,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsWidget'),
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
+  nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpWidget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -184,6 +185,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
+  nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpSettings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -454,6 +456,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   mathTool: {
     baseWidth: 480,
     baseHeight: 200,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  nextUp: {
+    baseWidth: 350,
+    baseHeight: 500,
     canSpread: true,
     skipScaling: true,
     padding: 0,

@@ -37,6 +37,7 @@ import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
+import { NextUpConfigurationPanel } from './NextUpConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
 // Helper type guard
@@ -65,6 +66,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
   mathTools: MathToolsConfigurationPanel as unknown as BuildingConfigPanel,
+  nextUp: NextUpConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {

@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - dev-paul        # Your branch
-      - dev-jen  # Developer 1's branch
-      - dev-bailey  # Developer 2's branch
-      - dev-joel  # Joel's branch
-      - dev-jason  # Jason's branch
+      - dev-jen         # Developer 1's branch
+      - dev-bailey      # Developer 2's branch
+      - dev-joel        # Joel's branch
+      - dev-jason       # Jason's branch
 
 jobs:
   lint:
@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            functions/pnpm-lock.yaml
       - run: pnpm run install:ci
       - run: pnpm run lint
       - run: pnpm run format:check
@@ -32,6 +35,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            functions/pnpm-lock.yaml
       - run: pnpm run install:ci
       - run: pnpm run type-check:all
 
@@ -44,6 +50,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            functions/pnpm-lock.yaml
       - run: pnpm run install:ci
       - run: pnpm run test
         env:
@@ -66,19 +75,24 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            functions/pnpm-lock.yaml
       - run: pnpm run install:ci
       
+      - name: Create .env file for Vite and Firebase
+        run: |
+          echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
+          echo "VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}" >> .env
+          echo "VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}" >> .env
+          echo "VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}" >> .env
+          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
+          echo "VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}" >> .env
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
+          echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
+
       - name: Build project
         run: pnpm run build:all
-        env:
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
 
       - name: Extract branch name
         id: extract_branch
@@ -100,3 +114,5 @@ jobs:
           echo "### 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "**Preview URL:** ${{ steps.deploy.outputs.details_url }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This preview will be available for 30 days and updates with each push to this branch." >> $GITHUB_STEP_SUMMARY

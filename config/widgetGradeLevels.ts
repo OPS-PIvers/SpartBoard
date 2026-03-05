@@ -81,6 +81,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   magic: ALL_GRADE_LEVELS,
   mathTools: ALL_GRADE_LEVELS,
   mathTool: [],
+  nextUp: ALL_GRADE_LEVELS,
 };
 
 /**

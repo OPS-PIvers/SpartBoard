@@ -244,4 +244,21 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       rulerUnits: 'both',
     },
   },
+  nextUp: {
+    w: 350,
+    h: 500,
+    config: {
+      activeDriveFileId: null,
+      sessionName: null,
+      isActive: false,
+      createdAt: 0,
+      lastUpdated: 0,
+      displayCount: 3,
+      styling: {
+        fontFamily: 'lexend',
+        themeColor: '#2d3f89',
+        animation: 'slide',
+      },
+    },
+  },
 };
