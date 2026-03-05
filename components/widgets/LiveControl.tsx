@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Cast, Snowflake, X, Trash2 } from 'lucide-react';
 import { LiveStudent } from '../../types';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { Z_INDEX } from '../../config/zIndex';
 
 interface LiveControlProps {
   isLive: boolean;
@@ -174,7 +175,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
             position: 'fixed',
             top: `${menuPosition.top}px`,
             left: `${menuPosition.left}px`,
-            zIndex: 10000,
+            zIndex: Z_INDEX.modal,
           }}
           className="w-64 bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col animate-in fade-in slide-in-from-top-2"
         >

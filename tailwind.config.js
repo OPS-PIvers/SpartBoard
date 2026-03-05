@@ -72,6 +72,8 @@ export default {
         sidebar: Z_INDEX.sidebar.toString(),
         header: Z_INDEX.header.toString(),
         backdrop: Z_INDEX.backdrop.toString(),
+        'announcement-overlay': Z_INDEX.announcementOverlay.toString(),
+        'announcement-maximized': Z_INDEX.announcementMaximized.toString(),
         'confirm-overlay': Z_INDEX.confirmOverlay.toString(),
         modal: Z_INDEX.modal.toString(),
         'modal-content': Z_INDEX.modalContent.toString(),
