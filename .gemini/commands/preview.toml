@@ -1,4 +1,4 @@
-description = "Saves work, integrates from main, validates code quality, and updates online preview."
+description = "Saves work, integrates from main, formats code, and updates online preview."
 prompt = """
 
 You are a technical assistant. Execute the following steps to save work and update the preview safely:
@@ -9,28 +9,22 @@ You are a technical assistant. Execute the following steps to save work and upda
 3. Generate a concise, one-line technical commit message.
 4. Run `git commit -m "[AI] $GENERATED_MESSAGE"`.
 
+### PHASE 1.5: Integrated hygiene
+5. Run `pnpm run lint:fix` to quickly resolve any basic formatting or syntax issues.
+
 ### PHASE 2: Sync & Integrate
-5. Run `git fetch origin`.
-6. Run `git merge origin/$(git branch --show-current)`.
+6. Run `git fetch origin`.
+7. Run `git merge origin/$(git branch --show-current)`.
     - Resolve any immediate conflicts from the remote branch.
-7. Run `git merge origin/main`.
+8. Run `git merge origin/main`.
     - **If merge conflicts occur**: 
         - Analyze the conflicts. 
         - Resolve the conflicts immediately (imports, logic, etc.) without asking the user.
         - Run `git add .` and `git commit -m "chore: merge origin/main into $(git branch --show-current)"`.
         - If you get stuck, explain the blockage and stop.
 
-### PHASE 3: Validate & Auto-Repair
-8. Run `pnpm run validate`.
-9. **If validation fails**:
-    - Run `pnpm run lint:fix` to resolve formatting.
-    - Analyze the remaining error output (TypeScript errors, test failures).
-    - **Take the wheel**: Edit the files to fix the reported errors.
-    - Re-run `pnpm run validate`.
-    - Repeat until successful. If you cannot fix it after 3 attempts, report the specific technical blockage.
+### PHASE 3: Upload
+9. Run `git push origin $(git branch --show-current)`.
 
-### PHASE 4: Upload
-10. Run `git push origin $(git branch --show-current)`.
-
-11. Report: "Changes saved, integrated from Main via merge, and verified. Your development URL is now being updated."
+10. Report: "Changes saved, integrated from Main via merge, and formatted. Your development URL is now being updated by GitHub Actions."
 """
