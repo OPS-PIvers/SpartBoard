@@ -117,53 +117,59 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     );
     const q = query(entriesRef, orderBy('joinedAt', 'asc'), limit(5));
 
-    return onSnapshot(q, (snap) => {
-      if (snap.empty) return;
+    return onSnapshot(
+      q,
+      (snap) => {
+        if (snap.empty) return;
 
-      const processEntries = async () => {
-        // Process new entries
-        const updatedQueue = [...queue];
-        const deletePromises: Promise<void>[] = [];
+        const processEntries = async () => {
+          // Process new entries
+          const updatedQueue = [...queue];
+          const deletePromises: Promise<void>[] = [];
 
-        snap.docs.forEach((doc) => {
-          const data = doc.data() as { name: string; joinedAt: number };
-          const newItem: NextUpQueueItem = {
-            id: doc.id,
-            name: data.name,
-            status: 'waiting',
-            joinedAt: data.joinedAt,
-          };
+          snap.docs.forEach((doc) => {
+            const data = doc.data() as { name: string; joinedAt: number };
+            const newItem: NextUpQueueItem = {
+              id: doc.id,
+              name: data.name,
+              status: 'waiting',
+              joinedAt: data.joinedAt,
+            };
 
-          // Avoid duplicates if listener triggers multiple times
-          if (!updatedQueue.some((q) => q.id === doc.id)) {
-            // If no active student, make the first one active
-            if (updatedQueue.length === 0) {
-              newItem.status = 'active';
+            // Avoid duplicates if listener triggers multiple times
+            if (!updatedQueue.some((q) => q.id === doc.id)) {
+              // If no active student, make the first one active
+              if (updatedQueue.length === 0) {
+                newItem.status = 'active';
+              }
+              updatedQueue.push(newItem);
             }
-            updatedQueue.push(newItem);
-          }
 
-          deletePromises.push(deleteDoc(doc.ref));
-        });
+            deletePromises.push(deleteDoc(doc.ref));
+          });
 
-        // Save to Drive and trigger local re-fetch
-        const blob = new Blob([JSON.stringify(updatedQueue)], {
-          type: 'application/json',
-        });
-        if (!config.activeDriveFileId) return;
-        await driveService.updateFileContent(config.activeDriveFileId, blob);
+          // Save to Drive and trigger local re-fetch
+          const blob = new Blob([JSON.stringify(updatedQueue)], {
+            type: 'application/json',
+          });
+          if (!config.activeDriveFileId) return;
+          await driveService.updateFileContent(config.activeDriveFileId, blob);
 
-        // Cleanup entries from Firestore (PII Safety)
-        await Promise.all(deletePromises);
+          // Cleanup entries from Firestore (PII Safety)
+          await Promise.all(deletePromises);
 
-        // Trigger update
-        updateWidget(widget.id, {
-          config: { ...config, lastUpdated: Date.now() },
-        });
-      };
+          // Trigger update
+          updateWidget(widget.id, {
+            config: { ...config, lastUpdated: Date.now() },
+          });
+        };
 
-      void processEntries();
-    });
+        void processEntries();
+      },
+      (error) => {
+        console.error('[NextUp] Entries listener error:', error);
+      }
+    );
   }, [sessionId, driveService, queue, config, widget.id, updateWidget]);
 
   const syncToDrive = useCallback(
@@ -447,30 +453,35 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
     }
 
     if (fileId) {
-      // 1. Create/Update Firestore Session (for student access)
-      // ID is [teacherUid]_[widgetId] to ensure ownership across account merges
-      const fsSessionId = `${user.uid}_${widget.id}`;
-      const sessionData: NextUpSession = {
-        id: widget.id,
-        teacherUid: user.uid,
-        sessionName: name,
-        activeDriveFileId: fileId,
-        isActive: true,
-        createdAt: Date.now(),
-        lastUpdated: Date.now(),
-      };
-      await setDoc(doc(db, SESSIONS_COLLECTION, fsSessionId), sessionData);
-
-      // 2. Update Local Widget Config
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          activeDriveFileId: fileId,
+      try {
+        // 1. Create/Update Firestore Session (for student access)
+        // ID is [teacherUid]_[widgetId] to ensure ownership across account merges
+        const fsSessionId = `${user.uid}_${widget.id}`;
+        const sessionData: NextUpSession = {
+          id: widget.id,
+          teacherUid: user.uid,
           sessionName: name,
+          activeDriveFileId: fileId,
           isActive: true,
-          createdAt: sessionData.createdAt,
-        },
-      });
+          createdAt: Date.now(),
+          lastUpdated: Date.now(),
+        };
+        await setDoc(doc(db, SESSIONS_COLLECTION, fsSessionId), sessionData);
+
+        // 2. Update Local Widget Config
+        updateWidget(widget.id, {
+          config: {
+            ...config,
+            activeDriveFileId: fileId,
+            sessionName: name,
+            isActive: true,
+            createdAt: sessionData.createdAt,
+          },
+        });
+      } catch (error) {
+        console.error('[NextUp] Failed to start session:', error);
+        alert('Failed to start live session. Please check your permissions.');
+      }
     }
   };
 
@@ -602,7 +613,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
                     Student Link
                   </p>
                   <p className="text-xs text-slate-600 truncate opacity-60">
-                    /nextup?id={widget.id}
+                    /nextup?id={user?.uid}_{widget.id}
                   </p>
                 </div>
                 <button
