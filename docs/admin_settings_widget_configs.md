@@ -31,7 +31,7 @@ This document outlines the administrative and user-level configuration capabilit
 | Mini Apps (miniApp)                            | ✅ Implemented | Global app library with building targeting — `MiniAppLibraryModal`                   |
 | Recess Gear (recessGear)                       | ✅ Implemented | Weather-linked gear ranges and fetching strategy — `FeatureConfigurationPanel`       |
 | Classes                                        | ⬜ Not started | SIS sync rate limits, display name format [First / First L. \ First Last]            |
-| Drawing                                        | ⬜ Not started | Restricted palettes, default mode per building                                       |
+| Drawing                                        | ✅ Implemented | Default mode, brush thickness, and restricted palettes — `DrawingConfigurationPanel` |
 | Embed                                          | ⬜ Not started | Domain allowlist, default URL per building                                           |
 | Magic                                          | ⬜ Not started | Usage quotas, prompt suggestions                                                     |
 | PDF Viewer (pdf)                               | ⬜ Not started | Max file size limit, default PDF URL                                                 |
@@ -41,7 +41,7 @@ This document outlines the administrative and user-level configuration capabilit
 | Record                                         | ⬜ Not started | Max duration/resolution limits                                                       |
 | Seating Chart (seating-chart)                  | ⬜ Not started | Max nodes, default template per building                                             |
 | Smart Notebook (smartNotebook)                 | ⬜ Not started | Max pages/stroke paths                                                               |
-| Talking Tool (talking-tool)                    | ⬜ Not started | No specific global settings available                                                |
+| Talking Tool (talking-tool)                    | ✅ Implemented | Admin phrase bank and category management                                            |
 | Breathing                                      | ⬜ Not started | No specific global settings available                                                |
 
 ---
@@ -170,10 +170,6 @@ These widgets currently lack specific global settings panels beyond basic enable
 
 **Proposed Admin Config**: SIS Synchronization Limits. Add controls for how often roster data can be pulled from ClassLink/Drive. Set building-level default display styles (e.g., "First Name + Last Initial" vs "Full Name").
 
-## 2. Drawing (drawing)
-
-**Proposed Admin Config**: Restricted Palettes. Predefine color palettes matching school branding. Set building defaults for mode (window vs overlay).
-
 ## 3. Embed (embed)
 
 **Proposed Admin Config**: Domain Allowlist. Establish security array of allowed domains. Set default URLs per building (e.g., daily announcements).
@@ -209,10 +205,6 @@ These widgets currently lack specific global settings panels beyond basic enable
 ## 11. Smart Notebook (smartNotebook)
 
 **Proposed Admin Config**: Data Caps. Define max pages or stroke paths per notebook.
-
-## 12. Talking Tool (talking-tool)
-
-**Proposed Admin Config**: Usage restrictions or predefined phrase banks.
 
 ## 13. Breathing (breathing)
 

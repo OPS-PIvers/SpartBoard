@@ -158,6 +158,10 @@ const mockDashboard: DashboardContextValue = {
   updateDashboard: () => {
     // No-op
   },
+  selectedWidgetId: null,
+  setSelectedWidgetId: () => {
+    // No-op
+  },
   addFolder: () => {
     // No-op
   },

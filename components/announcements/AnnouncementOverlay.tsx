@@ -36,6 +36,7 @@ import { useAuth } from '@/context/useAuth';
 import { Announcement, WidgetData, WidgetConfig } from '@/types';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 import { useWindowSize } from '@/hooks/useWindowSize';
+import { Z_INDEX } from '@/config/zIndex';
 
 const DISMISSALS_KEY = 'spart_announcement_dismissals';
 const SCHEDULE_CHECK_INTERVAL_MS = 30_000;
@@ -141,7 +142,7 @@ const AnnouncementWidgetContent: React.FC<{ announcement: Announcement }> = ({
     y: 0,
     w: announcement.maximized ? width : announcement.widgetSize.w,
     h: announcement.maximized ? height : announcement.widgetSize.h,
-    z: 9990,
+    z: Z_INDEX.announcementMaximized,
     flipped: false,
     minimized: false,
     maximized: announcement.maximized,
@@ -233,18 +234,12 @@ const AnnouncementWindow: React.FC<{
 
   const isMaximized = announcement.maximized;
 
-  const containerStyle: React.CSSProperties = isMaximized
-    ? {
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9990,
-      }
-    : {
-        position: 'relative',
-        width: announcement.widgetSize.w,
-        height: announcement.widgetSize.h + 48, // + header
-        flexShrink: 0,
-      };
+  const containerStyle: React.CSSProperties = {
+    position: 'relative',
+    width: announcement.widgetSize.w,
+    height: announcement.widgetSize.h + 48, // + header
+    flexShrink: 0,
+  };
 
   const headerStyle: React.CSSProperties = {
     height: 48,
@@ -267,9 +262,9 @@ const AnnouncementWindow: React.FC<{
   return (
     <div
       className={`rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col ${
-        isMaximized ? 'fixed inset-0 rounded-none' : ''
+        isMaximized ? 'fixed inset-0 rounded-none z-announcement-maximized' : ''
       }`}
-      style={isMaximized ? { zIndex: 9990 } : containerStyle}
+      style={isMaximized ? undefined : containerStyle}
       role="dialog"
       aria-modal={isMaximized ? 'true' : undefined}
       aria-labelledby={headingId}
@@ -441,7 +436,7 @@ export const AnnouncementOverlay: React.FC = () => {
       {/* Windowed announcements stack in the bottom-center */}
       {windowed.length > 0 && (
         <div
-          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9985] flex flex-wrap justify-center gap-4 pointer-events-none"
+          className="fixed bottom-28 left-1/2 -translate-x-1/2 z-announcement-overlay flex flex-wrap justify-center gap-4 pointer-events-none"
           aria-live="polite"
         >
           {windowed.map((a) => (

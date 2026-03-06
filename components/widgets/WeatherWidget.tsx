@@ -5,6 +5,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { isExternalBackground } from '@/utils/backgrounds';
 import {
   WidgetData,
   WeatherConfig,
@@ -181,6 +182,10 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Maps weather conditions to preset IDs from BACKGROUND_GRADIENTS
   useEffect(() => {
     if (!syncBackground || !activeDashboard) return;
+
+    // Don't override user-selected image or video backgrounds (URLs).
+    // The weather sync only applies to Tailwind class-based backgrounds.
+    if (isExternalBackground(activeDashboard.background)) return;
 
     const getBackgroundForCondition = (cond: string) => {
       switch (cond.toLowerCase()) {

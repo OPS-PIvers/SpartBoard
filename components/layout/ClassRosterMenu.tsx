@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '../../context/useDashboard';
 import { Star, Plus } from 'lucide-react';
+import { Z_INDEX } from '../../config/zIndex';
 
 interface Props {
   onClose: () => void;
@@ -71,7 +72,7 @@ const ClassRosterMenu: React.FC<Props> = ({
 
     transform: 'translateX(-50%)',
 
-    zIndex: 10100,
+    zIndex: Z_INDEX.modalNested,
   };
 
   return createPortal(

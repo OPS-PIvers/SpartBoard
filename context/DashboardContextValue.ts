@@ -60,6 +60,10 @@ export interface DashboardContextValue {
   updateDashboard: (updates: Partial<Dashboard>) => void;
   clearAllStickers: () => void;
 
+  // Selection system
+  selectedWidgetId: string | null;
+  setSelectedWidgetId: (id: string | null) => void;
+
   // Sharing system
   shareDashboard: (dashboard: Dashboard) => Promise<string>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;

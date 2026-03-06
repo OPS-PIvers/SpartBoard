@@ -17,6 +17,7 @@ import { useStorage } from '../../hooks/useStorage';
 import { useAuth } from '../../context/useAuth';
 import { useGoogleDrive } from '../../hooks/useGoogleDrive';
 import { DriveFile } from '../../utils/googleDriveService';
+import { extractYouTubeId } from '../../utils/url';
 import {
   Upload,
   Trash2,
@@ -30,6 +31,7 @@ import {
   X,
   Check,
   Database,
+  Video,
 } from 'lucide-react';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
@@ -94,6 +96,10 @@ export const BackgroundManager: React.FC = () => {
   } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeLabel, setYoutubeLabel] = useState('');
+  const [addingYoutube, setAddingYoutube] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadAdminBackground } = useStorage();
@@ -303,6 +309,46 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
+  const handleAddYoutubeVideo = async () => {
+    const videoId = extractYouTubeId(youtubeUrl.trim());
+    if (!videoId) {
+      showMessage('error', 'Invalid YouTube URL');
+      return;
+    }
+    if (!youtubeLabel.trim()) {
+      showMessage('error', 'Please provide a label (e.g. "Cozy Rain Cafe")');
+      return;
+    }
+
+    setAddingYoutube(true);
+    try {
+      const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      const presetId = crypto.randomUUID();
+
+      const newPreset: BackgroundPreset = {
+        id: presetId,
+        url: youtubeUrl.trim(),
+        label: youtubeLabel.trim(),
+        thumbnailUrl,
+        active: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        createdAt: Date.now(),
+      };
+
+      await setDoc(doc(db, 'admin_backgrounds', presetId), newPreset);
+      setPresets((prev) => [newPreset, ...prev]);
+      showMessage('success', 'YouTube background added successfully');
+      setYoutubeUrl('');
+      setYoutubeLabel('');
+    } catch (error) {
+      console.error('Failed to add YouTube background:', error);
+      showMessage('error', 'Failed to add YouTube background');
+    } finally {
+      setAddingYoutube(false);
+    }
+  };
+
   const updatePreset = (id: string, updates: Partial<BackgroundPreset>) => {
     return updateDoc(doc(db, 'admin_backgrounds', id), updates)
       .then(() => {
@@ -454,6 +500,39 @@ export const BackgroundManager: React.FC = () => {
         />
       </div>
 
+      {/* YouTube Video Preset Form */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <Video className="w-4 h-4 text-red-600" />
+          Add Ambient YouTube Video
+        </h3>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="url"
+            placeholder="YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          />
+          <input
+            type="text"
+            placeholder='Label (e.g. "Cozy Rain Cafe")'
+            value={youtubeLabel}
+            onChange={(e) => setYoutubeLabel(e.target.value)}
+            className="w-full sm:w-52 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          />
+          <Button
+            variant="primary"
+            onClick={() => void handleAddYoutubeVideo()}
+            disabled={!youtubeUrl.trim() || !youtubeLabel.trim()}
+            isLoading={addingYoutube}
+            icon={<Plus size={16} />}
+          >
+            Add Video
+          </Button>
+        </div>
+      </div>
+
       {/* Drive Picker Modal */}
       {showDrivePicker && (
         <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -525,10 +604,18 @@ export const BackgroundManager: React.FC = () => {
                 {/* Image Preview */}
                 <div className="relative h-[120px] bg-slate-100 group shrink-0">
                   <img
-                    src={preset.url}
+                    src={preset.thumbnailUrl ?? preset.url}
                     alt={preset.label}
                     className="w-full h-full object-cover"
                   />
+                  {extractYouTubeId(preset.url) && (
+                    <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-red-600 text-white rounded px-1.5 py-0.5">
+                      <Video className="w-3 h-3" />
+                      <span className="text-xxxs font-black uppercase tracking-wide">
+                        Video
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute top-1.5 right-1.5 z-10">
                     <button
                       onClick={() => void deletePreset(preset)}

@@ -1,6 +1,0 @@
-
-> spart-board@0.0.1 lint /workspaces/SPART_Board
-> eslint . --max-warnings 0
-
-Terminated
- ELIFECYCLE  Command failed with exit code 143.

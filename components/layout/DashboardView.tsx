@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { isExternalBackground } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
@@ -20,6 +21,7 @@ import {
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
+import { extractYouTubeId } from '@/utils/url';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -104,6 +106,7 @@ export const DashboardView: React.FC = () => {
     loadDashboard,
     minimizeAllWidgets,
     deleteAllWidgets,
+    setSelectedWidgetId,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
 
@@ -532,12 +535,21 @@ export const DashboardView: React.FC = () => {
     setPrevIndex(currentIndex);
   }, [currentIndex, prevIndex]);
 
+  const youTubeVideoId = useMemo(
+    () =>
+      activeDashboard ? extractYouTubeId(activeDashboard.background) : null,
+    [activeDashboard]
+  );
+
   const backgroundStyles = useMemo(() => {
     if (!activeDashboard) return {};
     const bg = activeDashboard.background;
 
+    // YouTube backgrounds are rendered via an iframe — skip CSS background
+    if (youTubeVideoId) return {};
+
     // Check if it's a URL or Base64 image
-    if (bg.startsWith('http') || bg.startsWith('data:')) {
+    if (isExternalBackground(bg)) {
       return {
         backgroundImage: `url("${bg}")`,
         backgroundSize: 'cover',
@@ -546,13 +558,13 @@ export const DashboardView: React.FC = () => {
       };
     }
     return {};
-  }, [activeDashboard]);
+  }, [activeDashboard, youTubeVideoId]);
 
   const backgroundClasses = useMemo(() => {
     if (!activeDashboard) return '';
     const bg = activeDashboard.background;
-    // If it's a URL, don't apply the class
-    if (bg.startsWith('http') || bg.startsWith('data:')) return '';
+    // If it's a URL (including YouTube), don't apply the Tailwind class
+    if (isExternalBackground(bg)) return '';
     return bg;
   }, [activeDashboard]);
 
@@ -577,14 +589,29 @@ export const DashboardView: React.FC = () => {
       id="dashboard-root"
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
       style={backgroundStyles}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedWidgetId(null);
+      }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Background Overlay for Depth (especially for images) */}
+      {/* Ambient YouTube Video Layer */}
+      {youTubeVideoId && (
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
+          <iframe
+            src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1`}
+            className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
+            allow="autoplay; encrypted-media"
+            title="Ambient background video"
+          />
+        </div>
+      )}
+
+      {/* Background Overlay for Depth (especially for images and videos) */}
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
       {/* Dynamic Widget Surface */}

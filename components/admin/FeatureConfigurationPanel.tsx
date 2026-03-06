@@ -34,6 +34,7 @@ import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel
 import { RandomConfigurationPanel } from './RandomConfigurationPanel';
 import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
+import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
@@ -64,6 +65,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   random: RandomConfigurationPanel as unknown as BuildingConfigPanel,
   dice: DiceConfigurationPanel as unknown as BuildingConfigPanel,
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
+  drawing: DrawingConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
   mathTools: MathToolsConfigurationPanel as unknown as BuildingConfigPanel,
   nextUp: NextUpConfigurationPanel as unknown as BuildingConfigPanel,

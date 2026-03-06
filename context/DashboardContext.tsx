@@ -102,6 +102,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const dashboardsRef = useRef(dashboards);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [visibleTools, setVisibleTools] = useState<
@@ -1491,6 +1492,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'dice':
           if (typeof raw.count === 'number') out.count = raw.count;
           break;
+        case 'drawing':
+          if (raw.mode === 'window' || raw.mode === 'overlay') {
+            out.mode = raw.mode;
+          }
+          if (typeof raw.width === 'number') {
+            const roundedWidth = Math.round(raw.width);
+            if (roundedWidth >= 1 && roundedWidth <= 20) {
+              out.width = roundedWidth;
+            }
+          }
+          if (Array.isArray(raw.customColors)) {
+            const stringColors = raw.customColors.filter(
+              (c): c is string => typeof c === 'string' && c.trim() !== ''
+            );
+            if (stringColors.length > 0) {
+              const normalized: string[] = stringColors.slice(0, 5);
+              while (normalized.length < 5) {
+                normalized.push(normalized[normalized.length - 1]);
+              }
+              out.customColors = normalized;
+              // Also set the active color to the first preset
+              out.color = normalized[0];
+            }
+          }
+          break;
         case 'scoreboard':
           if (Array.isArray(raw.teams) && raw.teams.length > 0) {
             out.teams = (
@@ -1974,6 +2000,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGlobalStyle,
       toggleToolVisibility,
       setAllToolsVisibility,
+      selectedWidgetId,
+      setSelectedWidgetId,
       reorderTools,
       reorderLibrary,
       reorderDockItems,
@@ -2036,6 +2064,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGlobalStyle,
       toggleToolVisibility,
       setAllToolsVisibility,
+      selectedWidgetId,
+      setSelectedWidgetId,
       reorderTools,
       reorderLibrary,
       reorderDockItems,

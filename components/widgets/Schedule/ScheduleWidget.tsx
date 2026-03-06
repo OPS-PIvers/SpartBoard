@@ -312,7 +312,7 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
 
     return (
       <div
-        className={`w-full flex items-center rounded-2xl transition-all relative snap-start ${
+        className={`w-full flex items-center rounded-2xl transition-all relative snap-start overflow-hidden ${
           isActive
             ? 'border-[min(6px,1.5cqmin)] border-[#2d3f89] shadow-md z-10'
             : 'border border-slate-200 shadow-sm'

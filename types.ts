@@ -527,6 +527,18 @@ export interface ScoreboardGlobalConfig {
   buildingDefaults: Record<string, BuildingScoreboardDefaults>;
 }
 
+// --- Drawing Global Config ---
+export interface BuildingDrawingDefaults {
+  buildingId: string;
+  mode?: 'window' | 'overlay';
+  width?: number;
+  customColors?: string[];
+}
+
+export interface DrawingGlobalConfig {
+  buildingDefaults: Record<string, BuildingDrawingDefaults>;
+}
+
 // --- Materials Global Config ---
 export interface BuildingMaterialsDefaults {
   buildingId: string;

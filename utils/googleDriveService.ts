@@ -111,8 +111,9 @@ export class GoogleDriveService {
   /**
    * List files in the user's Google Drive.
    * @param query Google Drive API Q parameter (e.g., "mimeType = 'image/jpeg'")
+   * @param orderBy Google Drive API orderBy parameter (e.g., "createdTime desc")
    */
-  async listFiles(query?: string): Promise<DriveFile[]> {
+  async listFiles(query?: string, orderBy?: string): Promise<DriveFile[]> {
     const url = new URL(`${DRIVE_API_URL}/files`);
     url.searchParams.append(
       'fields',
@@ -120,6 +121,9 @@ export class GoogleDriveService {
     );
     if (query) {
       url.searchParams.append('q', query);
+    }
+    if (orderBy) {
+      url.searchParams.append('orderBy', orderBy);
     }
 
     const response = await this.fetchWithRetry(url.toString(), {
@@ -137,6 +141,22 @@ export class GoogleDriveService {
 
     const data = (await response.json()) as DriveFileListResponse;
     return data.files ?? [];
+  }
+
+  /**
+   * Look up a folder by name without creating it if it doesn't exist.
+   * Returns the folder ID, or null if not found.
+   */
+  async findFolder(
+    folderName: string,
+    parentId?: string
+  ): Promise<string | null> {
+    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    if (parentId) {
+      query += ` and '${parentId}' in parents`;
+    }
+    const folders = await this.listFiles(query);
+    return folders.length > 0 ? folders[0].id : null;
   }
 
   /**

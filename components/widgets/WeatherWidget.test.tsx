@@ -157,4 +157,23 @@ describe('WeatherWidget', () => {
       expect(mockSetBackground).toHaveBeenCalledWith(expectedBg);
     });
   });
+
+  it('does not override an HTTP image/video background when syncBackground is enabled', () => {
+    const originalBg = mockActiveDashboard.background;
+    mockActiveDashboard.background = 'https://example.com/bg.jpg';
+
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        condition: 'sunny',
+        syncBackground: true,
+      } as WeatherConfig,
+    };
+    render(<WeatherWidget widget={widget} />);
+
+    expect(mockSetBackground).not.toHaveBeenCalled();
+
+    mockActiveDashboard.background = originalBg;
+  });
 });

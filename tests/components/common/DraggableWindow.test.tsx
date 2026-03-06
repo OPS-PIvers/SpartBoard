@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { DraggableWindow } from '../../../components/common/DraggableWindow';
 import { WidgetData, GlobalStyle } from '../../../types';
 import {
@@ -61,6 +61,8 @@ describe('DraggableWindow (Tests folder)', () => {
     bringToFront: vi.fn(),
     addToast: vi.fn(),
     resetWidgetSize: vi.fn(),
+    selectedWidgetId: null,
+    setSelectedWidgetId: vi.fn(),
   };
 
   beforeEach(() => {
@@ -71,7 +73,12 @@ describe('DraggableWindow (Tests folder)', () => {
   it('renders toolbar buttons in the correct order', () => {
     render(
       <DashboardContext.Provider
-        value={mockContext as unknown as DashboardContextValue}
+        value={
+          {
+            ...mockContext,
+            selectedWidgetId: mockWidget.id,
+          } as unknown as DashboardContextValue
+        }
       >
         <DraggableWindow
           widget={mockWidget}
@@ -84,11 +91,7 @@ describe('DraggableWindow (Tests folder)', () => {
       </DashboardContext.Provider>
     );
 
-    // Simulate click to open toolbar
-    const widget = screen.getByText('Content').closest('.widget');
-    if (!widget) throw new Error('Widget not found');
-    fireEvent.click(widget);
-
+    // Toolbar should now be visible because selectedWidgetId matches
     // Check for icons
     const settingsIcon = screen.getByTestId('settings-icon');
     const chevronIcon = screen.getByTestId('chevron-icon');
