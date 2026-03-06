@@ -54,11 +54,10 @@ export const useGoogleDrive = () => {
     }
 
     const files = await driveService.listFiles(
-      `mimeType contains 'image/' and '${folderId}' in parents and trashed = false`
+      `mimeType contains 'image/' and '${folderId}' in parents and trashed = false`,
+      'createdTime desc'
     );
 
-    // Sort newest-first by relying on the order Drive returns them (usually
-    // creation-time descending). Map each file to its renderable URL.
     return files.map((f) => `https://lh3.googleusercontent.com/d/${f.id}`);
   };
 

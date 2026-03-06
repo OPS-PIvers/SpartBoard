@@ -3,15 +3,7 @@ import { Upload, Loader2, Grid, Image as ImageIcon, Video } from 'lucide-react';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
-
-/** Extract YouTube video ID from any standard YouTube URL format. */
-const extractYouTubeId = (url: string): string | null => {
-  if (!url) return null;
-  const match = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/
-  );
-  return match ? match[1] : null;
-};
+import { extractYouTubeId } from '@/utils/url';
 
 interface SidebarBackgroundsProps {
   isVisible: boolean;
@@ -331,8 +323,8 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
             </div>
           ) : (
             <p className="text-center text-xs text-slate-400 mt-2">
-              Custom images you upload will be saved securely to your Google
-              Drive.
+              Custom images you upload will be stored in your Google Drive and
+              shared via link so they can be used as backgrounds.
             </p>
           )}
         </div>

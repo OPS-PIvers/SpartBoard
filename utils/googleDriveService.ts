@@ -111,8 +111,9 @@ export class GoogleDriveService {
   /**
    * List files in the user's Google Drive.
    * @param query Google Drive API Q parameter (e.g., "mimeType = 'image/jpeg'")
+   * @param orderBy Google Drive API orderBy parameter (e.g., "createdTime desc")
    */
-  async listFiles(query?: string): Promise<DriveFile[]> {
+  async listFiles(query?: string, orderBy?: string): Promise<DriveFile[]> {
     const url = new URL(`${DRIVE_API_URL}/files`);
     url.searchParams.append(
       'fields',
@@ -120,6 +121,9 @@ export class GoogleDriveService {
     );
     if (query) {
       url.searchParams.append('q', query);
+    }
+    if (orderBy) {
+      url.searchParams.append('orderBy', orderBy);
     }
 
     const response = await this.fetchWithRetry(url.toString(), {

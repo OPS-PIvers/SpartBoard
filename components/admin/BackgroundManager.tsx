@@ -17,6 +17,7 @@ import { useStorage } from '../../hooks/useStorage';
 import { useAuth } from '../../context/useAuth';
 import { useGoogleDrive } from '../../hooks/useGoogleDrive';
 import { DriveFile } from '../../utils/googleDriveService';
+import { extractYouTubeId } from '../../utils/url';
 import {
   Upload,
   Trash2,
@@ -84,14 +85,6 @@ const DEFAULT_PRESETS = [
 ];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const extractYouTubeId = (url: string): string | null => {
-  if (!url) return null;
-  const match = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/
-  );
-  return match ? match[1] : null;
-};
 
 export const BackgroundManager: React.FC = () => {
   const [presets, setPresets] = useState<BackgroundPreset[]>([]);
