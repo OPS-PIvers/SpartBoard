@@ -238,9 +238,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  // Common height for exactly 4 cards: (100% - 3 gaps) / 4
-  const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
-
   return (
     <WidgetLayout
       padding="p-0"
@@ -250,7 +247,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(12px, 2.5cqmin)' }}
         >
           <div
-            className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0 snap-y snap-mandatory"
+            className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0"
             style={{
               gap: GAP_STYLE,
               scrollbarWidth: 'none',
@@ -264,48 +261,53 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               return (
                 <div
                   key={`${event.date}-${event.title}-${idx}`}
-                  className="w-full flex flex-col justify-center rounded-2xl transition-all relative shrink-0 snap-start border border-slate-200 shadow-sm overflow-hidden"
+                  className="w-full flex flex-col rounded-xl transition-all relative shrink-0 overflow-hidden"
                   style={{
                     backgroundColor: bgColor,
-                    height: rowHeight,
-                    flex: `0 0 ${rowHeight}`,
-                    padding: 'min(16px, 3cqmin)',
+                    padding: 'min(10px, 2.2cqmin) min(14px, 3cqmin)',
+                    border: `1px solid ${isToday ? 'rgba(99, 102, 241, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+                    borderLeft: isToday
+                      ? 'min(4px, 0.8cqmin) solid rgb(99, 102, 241)'
+                      : undefined,
+                    boxShadow: isToday
+                      ? '0 2px 8px rgba(99, 102, 241, 0.12)'
+                      : '0 1px 3px rgba(0,0,0,0.06)',
                   }}
                 >
                   <div
-                    className="flex flex-col min-w-0 overflow-hidden"
-                    style={{ gap: 'min(4px, 0.8cqmin)' }}
+                    className="flex flex-col min-w-0"
+                    style={{ gap: 'min(2px, 0.5cqmin)' }}
                   >
                     <div
                       className="flex items-center min-w-0 overflow-hidden"
-                      style={{ gap: 'min(10px, 2cqmin)' }}
+                      style={{ gap: 'min(6px, 1.2cqmin)' }}
                     >
                       <span
-                        className="font-black text-slate-400 uppercase tracking-widest shrink-0"
-                        style={{ fontSize: 'min(24px, 6cqmin)' }}
+                        className="font-black uppercase tracking-widest shrink-0"
+                        style={{
+                          fontSize: 'min(11px, 3.5cqmin)',
+                          color: isToday
+                            ? 'rgb(99, 102, 241)'
+                            : 'rgb(148, 163, 184)',
+                        }}
                       >
                         {isToday ? 'Today' : event.date}
                       </span>
                       {event.time && (
-                        <>
-                          <span
-                            className="text-slate-300 shrink-0"
-                            style={{ fontSize: 'min(24px, 6cqmin)' }}
-                          >
-                            •
-                          </span>
-                          <span
-                            className="font-bold text-slate-400 truncate min-w-0 flex-1"
-                            style={{ fontSize: 'min(24px, 6cqmin)' }}
-                          >
-                            {event.time}
-                          </span>
-                        </>
+                        <span
+                          className="font-medium text-slate-400 shrink-0"
+                          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                        >
+                          · {event.time}
+                        </span>
                       )}
                     </div>
                     <span
-                      className="font-black text-slate-700 truncate leading-tight"
-                      style={{ fontSize: 'min(36px, 10cqmin)' }}
+                      className="font-black truncate leading-tight"
+                      style={{
+                        fontSize: 'min(22px, 7.5cqmin)',
+                        color: isToday ? 'rgb(55, 65, 81)' : 'rgb(71, 85, 105)',
+                      }}
                     >
                       {event.title}
                     </span>
