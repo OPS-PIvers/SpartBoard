@@ -220,9 +220,22 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       <WidgetLayout
         content={
           <div className="flex flex-col items-center justify-center h-full text-slate-400 p-6 text-center">
-            <ListOrdered className="w-12 h-12 mb-4 opacity-20" />
-            <p className="text-sm font-medium">Queue is not active</p>
-            <p className="text-xxs mt-1">Flip to settings to start a session</p>
+            <ListOrdered
+              className="mb-4 opacity-20"
+              style={{
+                width: 'min(48px, 12cqmin)',
+                height: 'min(48px, 12cqmin)',
+              }}
+            />
+            <p
+              className="font-medium"
+              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+            >
+              Queue is not active
+            </p>
+            <p className="mt-1" style={{ fontSize: 'min(10px, 2.5cqmin)' }}>
+              Flip to settings to start a session
+            </p>
           </div>
         }
       />

@@ -77,7 +77,8 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
       try {
         // 1. Create/Update Firestore Session (for student access)
         // ID is [teacherUid]_[widgetId] to ensure ownership across account merges
-        const fsSessionId = `${user.uid}_${widget.id}`;
+        const safeWidgetId = widget.id.replace(/[^a-zA-Z0-9_-]/g, '');
+        const fsSessionId = `${user.uid}_${safeWidgetId}`;
         const sessionData: NextUpSession = {
           id: widget.id,
           teacherUid: user.uid,
@@ -124,7 +125,8 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
     // 1. Deactivate in Firestore
     if (user) {
-      const fsSessionId = `${user.uid}_${widget.id}`;
+      const safeWidgetId = widget.id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const fsSessionId = `${user.uid}_${safeWidgetId}`;
       await updateDoc(doc(db, SESSIONS_COLLECTION, fsSessionId), {
         isActive: false,
       }).catch(console.error); // Silent fail if doc doesn't exist or permissions changed
@@ -143,7 +145,8 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
 
   const copyLink = () => {
     if (!user) return;
-    const fsSessionId = `${user.uid}_${widget.id}`;
+    const safeWidgetId = widget.id.replace(/[^a-zA-Z0-9_-]/g, '');
+    const fsSessionId = `${user.uid}_${safeWidgetId}`;
     const url = `${window.location.origin}/nextup?id=${fsSessionId}`;
     void navigator.clipboard.writeText(url);
     setCopy(true);
