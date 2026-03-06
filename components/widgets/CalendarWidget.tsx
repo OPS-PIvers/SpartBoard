@@ -224,30 +224,15 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div
-            className="h-full w-full flex flex-col items-center justify-center text-center bg-rose-50/30"
-            style={{ padding: 'min(24px, 5cqmin)', gap: 'min(8px, 2cqmin)' }}
-          >
-            <Ban
-              className="text-rose-400 animate-pulse"
-              style={{
-                width: 'min(48px, 12cqmin)',
-                height: 'min(48px, 12cqmin)',
-              }}
-            />
-            <p
-              className="font-black uppercase text-rose-500 tracking-widest"
-              style={{ fontSize: 'min(14px, 5cqmin)' }}
-            >
-              Calendar Blocked
-            </p>
-            <p
-              className="text-rose-400 font-medium leading-tight"
-              style={{ fontSize: 'min(12px, 4cqmin)' }}
-            >
-              A district-wide blocked date is active today.
-            </p>
-          </div>
+          <ScaledEmptyState
+            icon={Ban}
+            title="Calendar Blocked"
+            subtitle="A district-wide blocked date is active today."
+            className="bg-rose-50/30"
+            iconClassName="text-rose-400 animate-pulse"
+            titleClassName="text-rose-500"
+            subtitleClassName="text-rose-400 font-medium"
+          />
         }
       />
     );
