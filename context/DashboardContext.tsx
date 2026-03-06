@@ -2064,6 +2064,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingShareId,
       clearPendingShare,
       selectedWidgetId,
+      setSelectedWidgetId,
     ]
   );
 
