@@ -34,7 +34,9 @@ describe('DrawingConfigurationPanel', () => {
       <DrawingConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
 
-    expect(screen.getByText('Configure Building Drawing Defaults')).toBeInTheDocument();
+    expect(
+      screen.getByText('Configure Building Drawing Defaults')
+    ).toBeInTheDocument();
     // Use getAllByText because it appears in the button and the description
     expect(screen.getAllByText('Building 1').length).toBeGreaterThan(0);
 
@@ -51,12 +53,14 @@ describe('DrawingConfigurationPanel', () => {
       <DrawingConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
 
-    const overlayButton = screen.getByText('Overlay (Annotate)').closest('button');
+    const overlayButton = screen
+      .getByText('Overlay (Annotate)')
+      .closest('button');
     if (overlayButton) fireEvent.click(overlayButton);
 
     expect(mockOnChange).toHaveBeenCalled();
     const lastCall = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
-    expect(lastCall.buildingDefaults!['b1']?.mode).toBe('overlay');
+    expect(lastCall.buildingDefaults['b1']?.mode).toBe('overlay');
   });
 
   it('updates width when changed', () => {
@@ -69,7 +73,7 @@ describe('DrawingConfigurationPanel', () => {
 
     expect(mockOnChange).toHaveBeenCalled();
     const lastCall = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
-    expect(lastCall.buildingDefaults!['b1']?.width).toBe(10);
+    expect(lastCall.buildingDefaults['b1']?.width).toBe(10);
   });
 
   it('updates colors when hex value is changed', () => {
@@ -82,7 +86,7 @@ describe('DrawingConfigurationPanel', () => {
 
     expect(mockOnChange).toHaveBeenCalled();
     const lastCall = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
-    expect(lastCall.buildingDefaults!['b1']?.customColors?.[0]).toBe('#000000');
+    expect(lastCall.buildingDefaults['b1']?.customColors?.[0]).toBe('#000000');
   });
 
   it('switches buildings', () => {
@@ -102,8 +106,8 @@ describe('DrawingConfigurationPanel', () => {
 
     expect(mockOnChange).toHaveBeenCalled();
     const lastCall = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
-    expect(lastCall.buildingDefaults!['b2']?.width).toBe(8);
+    expect(lastCall.buildingDefaults['b2']?.width).toBe(8);
     // Ensure b1 config is preserved
-    expect(lastCall.buildingDefaults!['b1']?.width).toBe(5);
+    expect(lastCall.buildingDefaults['b1']?.width).toBe(5);
   });
 });
