@@ -8,6 +8,7 @@ import {
   QuizConfig,
   WidgetOutput,
   WidgetLayout,
+  FeaturePermission,
 } from '../types';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 
@@ -22,8 +23,13 @@ export const isWidgetLayout = (
   );
 };
 
-export const getTitle = (widget: WidgetData): string => {
+export const getTitle = (
+  widget: WidgetData,
+  permission?: FeaturePermission | null
+): string => {
   if (widget.customTitle) return widget.customTitle;
+  if (permission?.displayName) return permission.displayName;
+
   if (widget.type === 'sound') return 'Noise Meter';
   if (widget.type === 'checklist') return 'Task List';
   if (widget.type === 'random') return 'Selector';

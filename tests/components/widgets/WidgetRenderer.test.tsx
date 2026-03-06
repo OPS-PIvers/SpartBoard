@@ -112,6 +112,7 @@ describe('WidgetRenderer', () => {
     (useAuth as unknown as Mock).mockReturnValue({
       user: { uid: 'u1' },
       canAccessFeature: vi.fn(),
+      featurePermissions: [],
     });
     (useDashboard as unknown as Mock).mockReturnValue({});
     (useWindowSize as unknown as Mock).mockReturnValue({

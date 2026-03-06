@@ -5,6 +5,7 @@ import {
   TimeToolConfig,
   WidgetType,
   ChecklistConfig,
+  FeaturePermission,
 } from '../types';
 
 describe('widgetHelpers', () => {
@@ -15,6 +16,25 @@ describe('widgetHelpers', () => {
         type: 'time-tool',
       } as WidgetData;
       expect(getTitle(widget)).toBe('My Title');
+    });
+
+    it('returns admin displayName if present and no customTitle', () => {
+      const widget = { type: 'calendar' } as WidgetData;
+      const permission = {
+        displayName: 'District Calendar',
+      } as FeaturePermission;
+      expect(getTitle(widget, permission)).toBe('District Calendar');
+    });
+
+    it('prioritizes customTitle over admin displayName', () => {
+      const widget = {
+        type: 'calendar',
+        customTitle: 'Teacher Title',
+      } as WidgetData;
+      const permission = {
+        displayName: 'District Calendar',
+      } as FeaturePermission;
+      expect(getTitle(widget, permission)).toBe('Teacher Title');
     });
 
     it('returns "Noise Meter" for sound widget', () => {

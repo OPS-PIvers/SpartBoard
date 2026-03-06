@@ -92,7 +92,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   dashboardSettings,
 }) => {
   const windowSize = useWindowSize(!!widget.maximized);
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, featurePermissions } = useAuth();
 
   const handleToggleLive = async () => {
     try {
@@ -174,6 +174,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   const scaling = WIDGET_SCALING_CONFIG[widget.type];
   const effectiveWidth = widget.maximized ? windowSize.width : widget.w;
   const effectiveHeight = widget.maximized ? windowSize.height : widget.h;
+
+  const permission = useMemo(
+    () => featurePermissions.find((p) => p.widgetType === widget.type),
+    [featurePermissions, widget.type]
+  );
 
   // Header height and padding constants
   const HEADER_HEIGHT = UI_CONSTANTS.WIDGET_HEADER_HEIGHT;
@@ -277,7 +282,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   return (
     <DraggableWindow
       widget={widget}
-      title={getTitle(widget)}
+      title={getTitle(widget, permission)}
       settings={getWidgetSettings()}
       style={customStyle}
       skipCloseConfirmation={
