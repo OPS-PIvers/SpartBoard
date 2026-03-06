@@ -99,7 +99,8 @@ export const Dock: React.FC = () => {
     (type: WidgetType | InternalToolType): string => {
       const permission = featurePermissions.find((p) => p.widgetType === type);
       const staticLabel = TOOLS.find((t) => t.type === type)?.label ?? '';
-      return permission?.displayName ?? staticLabel;
+      const trimmed = permission?.displayName?.trim() ?? '';
+      return trimmed !== '' ? trimmed : staticLabel;
     },
     [featurePermissions]
   );
