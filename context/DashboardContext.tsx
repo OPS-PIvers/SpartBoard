@@ -1492,10 +1492,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (typeof raw.count === 'number') out.count = raw.count;
           break;
         case 'drawing':
-          if (raw.mode) out.mode = raw.mode;
-          if (typeof raw.width === 'number') out.width = raw.width;
-          if (Array.isArray(raw.customColors) && raw.customColors.length > 0)
-            out.customColors = raw.customColors;
+          if (raw.mode === 'window' || raw.mode === 'overlay') {
+            out.mode = raw.mode;
+          }
+          if (typeof raw.width === 'number') {
+            const roundedWidth = Math.round(raw.width);
+            if (roundedWidth >= 1 && roundedWidth <= 20) {
+              out.width = roundedWidth;
+            }
+          }
+          if (Array.isArray(raw.customColors)) {
+            const stringColors = raw.customColors.filter(
+              (c): c is string => typeof c === 'string' && c.trim() !== ''
+            );
+            if (stringColors.length > 0) {
+              const normalized: string[] = stringColors.slice(0, 5);
+              while (normalized.length < 5) {
+                normalized.push(normalized[normalized.length - 1]);
+              }
+              out.customColors = normalized;
+              // Also set the active color to the first preset
+              out.color = normalized[0];
+            }
+          }
           break;
         case 'scoreboard':
           if (Array.isArray(raw.teams) && raw.teams.length > 0) {

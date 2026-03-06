@@ -40,9 +40,18 @@ export const DrawingConfigurationPanel: React.FC<
 
   const activeMode = currentBuildingConfig.mode ?? 'window';
   const activeWidth = currentBuildingConfig.width ?? 4;
-  const activePalette =
-    currentBuildingConfig.customColors ??
-    WIDGET_PALETTE.slice(0, NUM_COLOR_PRESETS);
+
+  // Normalize palette to exactly 5 colors
+  const activePalette = (() => {
+    const raw = currentBuildingConfig.customColors ?? [];
+    const normalized = raw.slice(0, NUM_COLOR_PRESETS);
+    while (normalized.length < NUM_COLOR_PRESETS) {
+      normalized.push(
+        WIDGET_PALETTE[normalized.length % WIDGET_PALETTE.length]
+      );
+    }
+    return normalized;
+  })();
 
   const handleColorChange = (index: number, newColor: string) => {
     const nextColors = [...activePalette];
