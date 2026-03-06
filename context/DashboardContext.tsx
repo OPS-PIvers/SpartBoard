@@ -102,6 +102,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const dashboardsRef = useRef(dashboards);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [visibleTools, setVisibleTools] = useState<
@@ -1999,6 +2000,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGlobalStyle,
       toggleToolVisibility,
       setAllToolsVisibility,
+      selectedWidgetId,
+      setSelectedWidgetId,
       reorderTools,
       reorderLibrary,
       reorderDockItems,
@@ -2061,6 +2064,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGlobalStyle,
       toggleToolVisibility,
       setAllToolsVisibility,
+      selectedWidgetId,
+      setSelectedWidgetId,
       reorderTools,
       reorderLibrary,
       reorderDockItems,

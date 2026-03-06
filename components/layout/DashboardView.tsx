@@ -104,6 +104,7 @@ export const DashboardView: React.FC = () => {
     loadDashboard,
     minimizeAllWidgets,
     deleteAllWidgets,
+    setSelectedWidgetId,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
 
@@ -577,7 +578,10 @@ export const DashboardView: React.FC = () => {
       id="dashboard-root"
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
       style={backgroundStyles}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedWidgetId(null);
+      }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onTouchStart={handleTouchStart}

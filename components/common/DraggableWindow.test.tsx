@@ -142,6 +142,7 @@ describe('DraggableWindow', () => {
     (message: string, type?: 'info' | 'success' | 'error') => void
   >;
   let mockResetWidgetSize: Mock<(id: string) => void>;
+  let mockSetSelectedWidgetId: Mock<(id: string | null) => void>;
   let activeElementSpy: MockInstance;
 
   beforeEach(() => {
@@ -151,6 +152,7 @@ describe('DraggableWindow', () => {
     mockBringToFront = vi.fn();
     mockAddToast = vi.fn();
     mockResetWidgetSize = vi.fn();
+    mockSetSelectedWidgetId = vi.fn();
     vi.clearAllMocks();
     // Setup default spy to return null
     activeElementSpy = vi.spyOn(document, 'activeElement', 'get');
@@ -166,7 +168,8 @@ describe('DraggableWindow', () => {
   const renderComponent = (
     widgetProps: Partial<WidgetData> = {},
     children: React.ReactNode = <div>Content</div>,
-    settings: React.ReactNode = <div>Settings</div>
+    settings: React.ReactNode = <div>Settings</div>,
+    selectedWidgetId: string | null = null
   ) => {
     const widget = { ...mockWidget, ...widgetProps };
     return render(
@@ -179,6 +182,8 @@ describe('DraggableWindow', () => {
             bringToFront: mockBringToFront,
             addToast: mockAddToast,
             resetWidgetSize: mockResetWidgetSize,
+            selectedWidgetId,
+            setSelectedWidgetId: mockSetSelectedWidgetId,
           } as unknown as DashboardContextValue
         }
       >
@@ -209,6 +214,8 @@ describe('DraggableWindow', () => {
             bringToFront: mockBringToFront,
             addToast: mockAddToast,
             resetWidgetSize: mockResetWidgetSize,
+            selectedWidgetId: null,
+            setSelectedWidgetId: mockSetSelectedWidgetId,
           } as unknown as DashboardContextValue
         }
       >
@@ -238,6 +245,8 @@ describe('DraggableWindow', () => {
             bringToFront: mockBringToFront,
             addToast: mockAddToast,
             resetWidgetSize: mockResetWidgetSize,
+            selectedWidgetId: null,
+            setSelectedWidgetId: mockSetSelectedWidgetId,
           } as unknown as DashboardContextValue
         }
       >
@@ -400,12 +409,13 @@ describe('DraggableWindow', () => {
   });
 
   it('settings button toggles flipped to true when closed', () => {
-    renderComponent();
+    // Pass test-widget as selected so toolbar shows
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
 
     // Click widget to show toolbar
     const widgetEl = screen.getByText('Content').closest('.widget');
     if (!widgetEl) throw new Error('Widget element not found');
-    fireEvent.click(widgetEl);
+    // fireEvent.click(widgetEl); // No longer needed to show toolbar if we pass selectedId
 
     // Find settings button and click it
     const settingsBtn = screen.getByTitle('Settings');
@@ -417,12 +427,17 @@ describe('DraggableWindow', () => {
   });
 
   it('minimize closes settings panel', () => {
-    renderComponent({ flipped: true });
+    renderComponent(
+      { flipped: true },
+      <div>Content</div>,
+      <div>Settings</div>,
+      'test-widget'
+    );
 
     // Click widget to show toolbar, then minimize
     const widgetEl = screen.getByText('Content').closest('.widget');
     if (!widgetEl) throw new Error('Widget element not found');
-    fireEvent.click(widgetEl);
+    // fireEvent.click(widgetEl);
 
     const minimizeBtn = screen.getByTitle('Minimize');
     fireEvent.click(minimizeBtn);
@@ -593,12 +608,8 @@ describe('DraggableWindow', () => {
     const user = userEvent.setup();
     const { useClickOutside } = await import('../../hooks/useClickOutside');
 
-    renderComponent();
-
-    // Click to open toolbar
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const windowEl = screen.getByText('Content').parentElement!;
-    await user.click(windowEl);
+    // Pass test-widget as selected so toolbar shows
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
 
     // Verify title is rendered
     const titleEl = screen.getByText('Test Widget');

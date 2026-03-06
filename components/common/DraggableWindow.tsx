@@ -109,12 +109,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     addToast,
     resetWidgetSize,
     deleteAllWidgets,
+    selectedWidgetId,
+    setSelectedWidgetId,
   } = useDashboard();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showTools, setShowTools] = useState(false);
+  const showTools = selectedWidgetId === widget.id;
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
@@ -176,12 +178,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   stateRef.current = { isEditingTitle, saveTitle };
 
   const handleCloseTools = useCallback(() => {
-    setShowTools(false);
+    setSelectedWidgetId(null);
     const { isEditingTitle, saveTitle } = stateRef.current;
     if (isEditingTitle) {
       saveTitle();
     }
-  }, []);
+  }, [setSelectedWidgetId]);
 
   useClickOutside(menuRef, handleCloseTools, [windowRef]);
 
@@ -551,7 +553,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (showTools) {
         handleCloseTools();
       } else {
-        setShowTools(true);
+        setSelectedWidgetId(widget.id);
       }
     }
     dragDistanceRef.current = 0;
