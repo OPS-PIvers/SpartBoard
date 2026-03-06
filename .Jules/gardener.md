@@ -61,3 +61,9 @@
 **Plan:** Decomposed into `components/widgets/MiniApp/` with `Widget.tsx`, `components/SortableItem.tsx`, `components/GlobalAppRow.tsx`, `components/MiniAppEditor.tsx`, and extracted API logic to `hooks/useMiniAppSync.ts` hook.
 
 ## 2025-03-04 - [Refactor `generateWithAI` function] **Weed:** [Deeply nested if/else statements (Arrow code)] **Root Cause:** [The `generateWithAI` function had a long and repetitive `if / else if` chain defining system and user prompts depending on `genType`.] **Plan:** [Refactored to use a dictionary map (`promptMap`) mapping generation types to a lazy-evaluated function `() => ({ systemPrompt, userPrompt })`. This encapsulates the logic, scales well, and is immune to nullish properties on uncalled types.]
+
+## 2025-06-08 - Refactor NextUpWidget
+
+**Weed:** `NextUpWidget.tsx` was ~736 lines, acting as a "God Component" that managed both the main student queue widget UI and the live session settings panel.
+**Root Cause:** "God Component" pattern; features were added to the single file, mixing presentation and configuration concerns.
+**Plan:** Decomposed into `components/widgets/NextUp/` with `Widget.tsx` and `Settings.tsx` to separate the UI and configuration concerns, improving maintainability. Updated `WidgetRegistry.ts` to reflect the new structure.

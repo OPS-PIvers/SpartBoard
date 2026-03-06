@@ -118,7 +118,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsWidget'),
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
-  nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpWidget'),
+  nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -185,7 +185,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
-  nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpSettings'),
+  nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
