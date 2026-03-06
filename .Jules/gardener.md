@@ -59,3 +59,5 @@
 **Weed:** `MiniAppWidget.tsx` was over 1000 lines, mixing UI components (SortableItem, GlobalAppRow, MiniAppEditor) with complex API fetching logic.
 **Root Cause:** "God Component" pattern where the feature was built in a single file over time.
 **Plan:** Decomposed into `components/widgets/MiniApp/` with `Widget.tsx`, `components/SortableItem.tsx`, `components/GlobalAppRow.tsx`, `components/MiniAppEditor.tsx`, and extracted API logic to `hooks/useMiniAppSync.ts` hook.
+
+## 2025-03-04 - [Refactor `generateWithAI` function] **Weed:** [Deeply nested if/else statements (Arrow code)] **Root Cause:** [The `generateWithAI` function had a long and repetitive `if / else if` chain defining system and user prompts depending on `genType`.] **Plan:** [Refactored to use a dictionary map (`promptMap`) mapping generation types to a lazy-evaluated function `() => ({ systemPrompt, userPrompt })`. This encapsulates the logic, scales well, and is immune to nullish properties on uncalled types.]
