@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { CheckCircle2, Circle, Rocket } from 'lucide-react';
 import { OnboardingConfig, WidgetComponentProps } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useTranslation } from 'react-i18next';
 
 interface OnboardingTask {
   id: string;
@@ -9,33 +10,38 @@ interface OnboardingTask {
   hint: string;
 }
 
-const TASKS: OnboardingTask[] = [
-  {
-    id: 'add-widget',
-    label: 'Add a widget from the Dock',
-    hint: 'Click any icon in the toolbar at the bottom',
-  },
-  {
-    id: 'open-settings',
-    label: "Open a widget's settings",
-    hint: 'Click a widget, then press Alt+S or click the gear icon',
-  },
-  {
-    id: 'create-board',
-    label: 'Create a second board',
-    hint: 'Open the sidebar and click + New Board',
-  },
-  {
-    id: 'open-cheatsheet',
-    label: 'Open the Cheat Sheet',
-    hint: 'Press Ctrl/⌘+/ or click the ? button in the bottom-right',
-  },
-];
-
 export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { updateWidget, activeDashboard, dashboards } = useDashboard();
+
+  const tasks: OnboardingTask[] = useMemo(
+    () => [
+      {
+        id: 'add-widget',
+        label: t('widgets.onboarding.tasks.addWidget.label'),
+        hint: t('widgets.onboarding.tasks.addWidget.hint'),
+      },
+      {
+        id: 'open-settings',
+        label: t('widgets.onboarding.tasks.openSettings.label'),
+        hint: t('widgets.onboarding.tasks.openSettings.hint'),
+      },
+      {
+        id: 'create-board',
+        label: t('widgets.onboarding.tasks.createBoard.label'),
+        hint: t('widgets.onboarding.tasks.createBoard.hint'),
+      },
+      {
+        id: 'open-cheatsheet',
+        label: t('widgets.onboarding.tasks.openCheatsheet.label'),
+        hint: t('widgets.onboarding.tasks.openCheatsheet.hint'),
+      },
+    ],
+    [t]
+  );
+
   const config = widget.config as OnboardingConfig;
   const completedTasks = useMemo(
     () => config.completedTasks ?? [],
@@ -92,7 +98,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
     return () => window.removeEventListener('spart:cheatsheet-opened', handler);
   }, [completedTasks, markDone]);
 
-  const allDone = TASKS.every((t) => completedTasks.includes(t.id));
+  const allDone = tasks.every((t) => completedTasks.includes(t.id));
 
   return (
     <div
@@ -116,7 +122,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
           className="text-white font-black uppercase tracking-widest"
           style={{ fontSize: 'min(11px, 3.5cqmin)' }}
         >
-          Getting Started
+          {t('widgets.onboarding.title')}
         </span>
         {allDone && (
           <span
@@ -126,7 +132,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
               padding: 'min(2px, 0.6cqmin) min(6px, 1.5cqmin)',
             }}
           >
-            All done!
+            {t('widgets.onboarding.allDone')}
           </span>
         )}
       </div>
@@ -136,7 +142,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
         className="flex-1 flex flex-col overflow-y-auto bg-white/5"
         style={{ padding: 'min(8px, 2cqmin)', gap: 'min(6px, 1.5cqmin)' }}
       >
-        {TASKS.map((task) => {
+        {tasks.map((task) => {
           const done = completedTasks.includes(task.id);
           return (
             <button
@@ -207,7 +213,7 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
             className="text-green-300 font-bold"
             style={{ fontSize: 'min(11px, 3cqmin)' }}
           >
-            You&apos;re all set — close this widget anytime!
+            {t('widgets.onboarding.footer')}
           </span>
         </div>
       )}

@@ -282,6 +282,60 @@
       "deleteSticker": "Delete Sticker",
       "dragFromLibrary": "Drag stickers from library to the board",
       "stickerAdded": "Sticker added to board!"
+    },
+    "onboarding": {
+      "title": "Getting Started",
+      "allDone": "All done!",
+      "footer": "You're all set — close this widget anytime!",
+      "tasks": {
+        "addWidget": {
+          "label": "Add a widget from the Dock",
+          "hint": "Click any icon in the toolbar at the bottom"
+        },
+        "openSettings": {
+          "label": "Open a widget's settings",
+          "hint": "Click a widget, then press Alt+S or click the gear icon"
+        },
+        "createBoard": {
+          "label": "Create a second board",
+          "hint": "Open the sidebar and click + New Board"
+        },
+        "openCheatsheet": {
+          "label": "Open the Cheat Sheet",
+          "hint": "Press Ctrl/⌘+/ or click the ? button in the bottom-right"
+        }
+      }
+    },
+    "cheatSheet": {
+      "title": "Shortcuts & Gestures",
+      "keyboard": "Keyboard",
+      "smartboardGestures": "Smartboard Gestures",
+      "footer": "Press <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> anytime to open this panel",
+      "shortcuts": {
+        "openCheatSheet": "Open this cheat sheet",
+        "switchBoards": "Switch boards",
+        "widgetSettings": "Open / close widget settings",
+        "annotate": "Toggle annotation draw mode",
+        "maximize": "Maximize / restore widget",
+        "resetSize": "Reset widget to default size",
+        "minimizeFocused": "Minimize focused widget",
+        "minimizeAll": "Minimize all widgets",
+        "closeFocused": "Close focused widget",
+        "clearBoard": "Clear entire board"
+      },
+      "gestures": {
+        "switchBoards": "Switch boards",
+        "minimizeAll": "Minimize all widgets to dock",
+        "restoreAll": "Restore all widgets",
+        "zoom": "Zoom the board in/out",
+        "toggleAnnotation": "Toggle annotation on a widget",
+        "screenshot": "Screenshot a widget",
+        "minimizeWidget": "Minimize a widget"
+      }
+    },
+    "dashboard": {
+      "emptyBoardHint": "Drag tools from the Dock below to start",
+      "switchBoardsHint": "4-finger swipe left/right to switch boards"
     }
   },
   "admin": {

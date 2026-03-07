@@ -251,6 +251,60 @@
       "deleteSticker": "Eliminar Sticker",
       "dragFromLibrary": "Arrastra stickers desde la biblioteca al tablero",
       "stickerAdded": "¡Sticker añadido al tablero!"
+    },
+    "onboarding": {
+      "title": "Primeros Pasos",
+      "allDone": "¡Todo listo!",
+      "footer": "Ya estás listo. ¡Cierra este widget en cualquier momento!",
+      "tasks": {
+        "addWidget": {
+          "label": "Añade un widget desde el Dock",
+          "hint": "Haz clic en cualquier icono de la barra inferior"
+        },
+        "openSettings": {
+          "label": "Abre los ajustes de un widget",
+          "hint": "Haz clic en un widget, luego pulsa Alt+S o el icono del engranaje"
+        },
+        "createBoard": {
+          "label": "Crea un segundo tablero",
+          "hint": "Abre la barra lateral y haz clic en + Nuevo Tablero"
+        },
+        "openCheatsheet": {
+          "label": "Abre la Guía de Atajos",
+          "hint": "Pulsa Ctrl/⌘+/ o haz clic en el botón ? de la esquina inferior derecha"
+        }
+      }
+    },
+    "cheatSheet": {
+      "title": "Atajos y Gestos",
+      "keyboard": "Teclado",
+      "smartboardGestures": "Gestos de Smartboard",
+      "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir este panel",
+      "shortcuts": {
+        "openCheatSheet": "Abrir esta guía",
+        "switchBoards": "Cambiar de tablero",
+        "widgetSettings": "Abrir / cerrar ajustes de widget",
+        "annotate": "Alternar modo de dibujo",
+        "maximize": "Maximizar / restaurar widget",
+        "resetSize": "Restablecer tamaño predeterminado",
+        "minimizeFocused": "Minimizar widget enfocado",
+        "minimizeAll": "Minimizar todos los widgets",
+        "closeFocused": "Cerrar widget enfocado",
+        "clearBoard": "Limpiar tablero completo"
+      },
+      "gestures": {
+        "switchBoards": "Cambiar de tablero",
+        "minimizeAll": "Minimizar todo al Dock",
+        "restoreAll": "Restaurar todos los widgets",
+        "zoom": "Acercar / alejar tablero",
+        "toggleAnnotation": "Alternar anotación en un widget",
+        "screenshot": "Capturar un widget",
+        "minimizeWidget": "Minimizar un widget"
+      }
+    },
+    "dashboard": {
+      "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
+      "switchBoardsHint": "Desliza 4 dedos izquierda/derecha para cambiar de tablero"
     }
   }
 }

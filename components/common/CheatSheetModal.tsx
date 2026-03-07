@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Keyboard, Hand } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface CheatSheetModalProps {
   isOpen: boolean;
@@ -18,35 +19,6 @@ interface GestureRow {
   description: string;
 }
 
-const KEYBOARD_SHORTCUTS: ShortcutRow[] = [
-  { keys: ['Ctrl/⌘', '/'], description: 'Open this cheat sheet' },
-  { keys: ['Alt', '←/→'], description: 'Switch boards' },
-  { keys: ['Alt', 'S'], description: 'Open / close widget settings' },
-  { keys: ['Alt', 'D'], description: 'Toggle annotation draw mode' },
-  { keys: ['Alt', 'M'], description: 'Maximize / restore widget' },
-  { keys: ['Alt', 'R'], description: 'Reset widget to default size' },
-  { keys: ['Esc'], description: 'Minimize focused widget' },
-  { keys: ['Shift', 'Esc'], description: 'Minimize all widgets' },
-  { keys: ['Delete'], description: 'Close focused widget' },
-  { keys: ['Shift', 'Delete'], description: 'Clear entire board' },
-];
-
-const SMARTBOARD_GESTURES: GestureRow[] = [
-  { gesture: '4-finger swipe left/right', description: 'Switch boards' },
-  {
-    gesture: '4-finger swipe down',
-    description: 'Minimize all widgets to dock',
-  },
-  { gesture: '4-finger swipe up', description: 'Restore all widgets' },
-  { gesture: '2-finger pinch', description: 'Zoom the board in/out' },
-  {
-    gesture: '3-finger swipe up',
-    description: 'Toggle annotation on a widget',
-  },
-  { gesture: '3-finger swipe down', description: 'Screenshot a widget' },
-  { gesture: '2-finger swipe down', description: 'Minimize a widget' },
-];
-
 const KeyBadge: React.FC<{ label: string }> = ({ label }) => (
   <kbd className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-700 border border-slate-600 text-slate-200 text-xs font-mono shadow-sm">
     {label}
@@ -60,6 +32,88 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { t } = useTranslation();
+
+  const keyboardShortcuts: ShortcutRow[] = useMemo(
+    () => [
+      {
+        keys: ['Ctrl/⌘', '/'],
+        description: t('widgets.cheatSheet.shortcuts.openCheatSheet'),
+      },
+      {
+        keys: ['Alt', '←/→'],
+        description: t('widgets.cheatSheet.shortcuts.switchBoards'),
+      },
+      {
+        keys: ['Alt', 'S'],
+        description: t('widgets.cheatSheet.shortcuts.widgetSettings'),
+      },
+      {
+        keys: ['Alt', 'D'],
+        description: t('widgets.cheatSheet.shortcuts.annotate'),
+      },
+      {
+        keys: ['Alt', 'M'],
+        description: t('widgets.cheatSheet.shortcuts.maximize'),
+      },
+      {
+        keys: ['Alt', 'R'],
+        description: t('widgets.cheatSheet.shortcuts.resetSize'),
+      },
+      {
+        keys: ['Esc'],
+        description: t('widgets.cheatSheet.shortcuts.minimizeFocused'),
+      },
+      {
+        keys: ['Shift', 'Esc'],
+        description: t('widgets.cheatSheet.shortcuts.minimizeAll'),
+      },
+      {
+        keys: ['Delete'],
+        description: t('widgets.cheatSheet.shortcuts.closeFocused'),
+      },
+      {
+        keys: ['Shift', 'Delete'],
+        description: t('widgets.cheatSheet.shortcuts.clearBoard'),
+      },
+    ],
+    [t]
+  );
+
+  const smartboardGestures: GestureRow[] = useMemo(
+    () => [
+      {
+        gesture: t('widgets.cheatSheet.gestures.switchBoards'),
+        description: t('widgets.cheatSheet.gestures.switchBoards'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.minimizeAll'),
+        description: t('widgets.cheatSheet.gestures.minimizeAll'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.restoreAll'),
+        description: t('widgets.cheatSheet.gestures.restoreAll'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.zoom'),
+        description: t('widgets.cheatSheet.gestures.zoom'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.toggleAnnotation'),
+        description: t('widgets.cheatSheet.gestures.toggleAnnotation'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.screenshot'),
+        description: t('widgets.cheatSheet.gestures.screenshot'),
+      },
+      {
+        gesture: t('widgets.cheatSheet.gestures.minimizeWidget'),
+        description: t('widgets.cheatSheet.gestures.minimizeWidget'),
+      },
+    ],
+    [t]
+  );
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -105,7 +159,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Keyboard Shortcuts and Gestures"
+      aria-label={t('widgets.cheatSheet.title')}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -118,12 +172,12 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h2 className="text-white font-black uppercase tracking-widest text-sm">
-            Shortcuts &amp; Gestures
+            {t('widgets.cheatSheet.title')}
           </h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
-            aria-label="Close"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,11 +190,11 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
             <div className="flex items-center gap-2 mb-4">
               <Keyboard className="w-4 h-4 text-blue-400" />
               <h3 className="text-blue-400 font-bold uppercase tracking-wider text-xs">
-                Keyboard
+                {t('widgets.cheatSheet.keyboard')}
               </h3>
             </div>
             <ul className="space-y-3">
-              {KEYBOARD_SHORTCUTS.map((row) => (
+              {keyboardShortcuts.map((row) => (
                 <li
                   key={row.description}
                   className="flex items-center justify-between gap-3"
@@ -168,11 +222,11 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
             <div className="flex items-center gap-2 mb-4">
               <Hand className="w-4 h-4 text-emerald-400" />
               <h3 className="text-emerald-400 font-bold uppercase tracking-wider text-xs">
-                Smartboard Gestures
+                {t('widgets.cheatSheet.smartboardGestures')}
               </h3>
             </div>
             <ul className="space-y-3">
-              {SMARTBOARD_GESTURES.map((row) => (
+              {smartboardGestures.map((row) => (
                 <li key={row.description} className="flex items-start gap-3">
                   <span className="shrink-0 mt-0.5 inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-900/50 border border-emerald-700/40 text-emerald-300 text-xs font-medium whitespace-nowrap">
                     {row.gesture}
@@ -189,9 +243,10 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-3 border-t border-white/10 text-center">
           <p className="text-slate-500 text-xs">
-            Press <KeyBadge label="Ctrl/⌘" />
-            {' + '}
-            <KeyBadge label="/" /> anytime to open this panel
+            <Trans
+              i18nKey="widgets.cheatSheet.footer"
+              components={{ kbd: <kbd /> }}
+            />
           </p>
         </div>
       </div>

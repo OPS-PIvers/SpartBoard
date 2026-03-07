@@ -661,10 +661,10 @@ export const DashboardView: React.FC = () => {
           <div className="flex flex-col items-center gap-3 text-center opacity-25">
             <LayoutGrid className="w-12 h-12 text-white" />
             <p className="text-white font-black uppercase tracking-widest text-base">
-              Drag tools from the Dock below to start
+              {t('widgets.dashboard.emptyBoardHint')}
             </p>
             <p className="text-white/80 text-sm">
-              4-finger swipe left/right to switch boards
+              {t('widgets.dashboard.switchBoardsHint')}
             </p>
           </div>
         </div>
@@ -725,9 +725,9 @@ export const DashboardView: React.FC = () => {
       {/* Cheat Sheet Help Button */}
       <button
         onClick={() => setIsCheatSheetOpen(true)}
-        title="Keyboard Shortcuts & Gestures (Ctrl+/)"
+        title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
         className="fixed bottom-24 right-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
-        aria-label="Open Cheat Sheet"
+        aria-label={t('widgets.cheatSheet.title')}
       >
         <HelpCircle className="w-4 h-4" />
       </button>
