@@ -36,7 +36,8 @@ export type WidgetType =
   | 'breathing'
   | 'mathTools'
   | 'mathTool'
-  | 'nextUp';
+  | 'nextUp'
+  | 'onboarding';
 
 // --- ROSTER SYSTEM TYPES ---
 

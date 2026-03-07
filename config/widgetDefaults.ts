@@ -261,4 +261,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       },
     },
   },
+  onboarding: {
+    w: 380,
+    h: 440,
+    config: {
+      completedTasks: [],
+    },
+  },
 };

@@ -9,12 +9,15 @@ import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
+import { CheatSheetModal } from '@/components/common/CheatSheetModal';
 import {
   AlertCircle,
   CheckCircle2,
   Info,
   AlertTriangle,
   Loader2,
+  HelpCircle,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -109,6 +112,26 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetId,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
+
+  const [isCheatSheetOpen, setIsCheatSheetOpen] = React.useState(false);
+  const onboardingShownRef = React.useRef(false);
+
+  // Auto-add onboarding widget for brand-new users on their first empty board
+  React.useEffect(() => {
+    if (!activeDashboard) return;
+    if (onboardingShownRef.current) return;
+    if (localStorage.getItem('spart_onboarding_shown') === 'true') return;
+    const totalWidgets = dashboards.reduce(
+      (sum, d) => sum + d.widgets.length,
+      0
+    );
+    if (totalWidgets === 0) {
+      onboardingShownRef.current = true;
+      localStorage.setItem('spart_onboarding_shown', 'true');
+      addWidget('onboarding', { x: 60, y: 80, w: 380, h: 440 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDashboard?.id, dashboards.length]);
 
   const {
     session,
@@ -216,6 +239,13 @@ export const DashboardView: React.FC = () => {
             window.dispatchEvent(event);
           }
         }
+        return;
+      }
+
+      // Ctrl + /: Open Cheat Sheet
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setIsCheatSheetOpen((prev) => !prev);
         return;
       }
 
@@ -614,6 +644,21 @@ export const DashboardView: React.FC = () => {
       {/* Background Overlay for Depth (especially for images and videos) */}
       <div className="absolute inset-0 bg-black/10 pointer-events-none" />
 
+      {/* Empty Board Hint */}
+      {activeDashboard.widgets.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
+          <div className="flex flex-col items-center gap-3 text-center opacity-25">
+            <LayoutGrid className="w-12 h-12 text-white" />
+            <p className="text-white font-black uppercase tracking-widest text-base">
+              Drag tools from the Dock below to start
+            </p>
+            <p className="text-white/80 text-sm">
+              4-finger swipe left/right to switch boards
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Widget Surface */}
       <div
         key={activeDashboard.id}
@@ -665,6 +710,21 @@ export const DashboardView: React.FC = () => {
       <Dock />
       <ToastContainer />
       <AnnouncementOverlay />
+
+      {/* Cheat Sheet Help Button */}
+      <button
+        onClick={() => setIsCheatSheetOpen(true)}
+        title="Keyboard Shortcuts & Gestures (Ctrl+/)"
+        className="fixed bottom-24 right-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+        aria-label="Open Cheat Sheet"
+      >
+        <HelpCircle className="w-4 h-4" />
+      </button>
+
+      <CheatSheetModal
+        isOpen={isCheatSheetOpen}
+        onClose={() => setIsCheatSheetOpen(false)}
+      />
     </div>
   );
 };
