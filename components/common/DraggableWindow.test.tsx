@@ -418,7 +418,7 @@ describe('DraggableWindow', () => {
     // fireEvent.click(widgetEl); // No longer needed to show toolbar if we pass selectedId
 
     // Find settings button and click it
-    const settingsBtn = screen.getByTitle('Settings');
+    const settingsBtn = screen.getByTitle('Settings (Alt+S)');
     fireEvent.click(settingsBtn);
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
@@ -439,7 +439,7 @@ describe('DraggableWindow', () => {
     if (!widgetEl) throw new Error('Widget element not found');
     // fireEvent.click(widgetEl);
 
-    const minimizeBtn = screen.getByTitle('Minimize');
+    const minimizeBtn = screen.getByTitle('Minimize (Esc)');
     fireEvent.click(minimizeBtn);
 
     expect(mockUpdateWidget).toHaveBeenCalledWith(

@@ -1102,7 +1102,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           Array.isArray(parsed) &&
                           parsed.every((v) => typeof v === 'string')
                         ) {
-                          shownTips = parsed as string[];
+                          shownTips = parsed;
                         }
                       } catch {
                         // Corrupted storage value — treat as empty

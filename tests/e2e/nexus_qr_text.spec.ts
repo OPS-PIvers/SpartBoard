@@ -75,10 +75,9 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   await qrWidget.click({ position: { x: 20, y: 20 } });
 
   // Click Settings button in the toolbar (it appears in DOM when active)
-  // We target the button with title "Settings" which is unique to the widget toolbar
-  // (Admin settings has title "Admin Settings")
+  // The button aria-label includes the keyboard shortcut hint
   const settingsButton = page.getByRole('button', {
-    name: 'Settings',
+    name: 'Settings (Alt+S)',
     exact: true,
   });
   // Force click to ensure it works even if animation/position is tricky

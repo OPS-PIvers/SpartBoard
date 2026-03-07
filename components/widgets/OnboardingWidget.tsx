@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { CheckCircle2, Circle, Rocket } from 'lucide-react';
 import { OnboardingConfig, WidgetComponentProps } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -37,7 +37,10 @@ export const OnboardingWidget: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget, activeDashboard, dashboards } = useDashboard();
   const config = widget.config as OnboardingConfig;
-  const completedTasks: string[] = config.completedTasks ?? [];
+  const completedTasks = useMemo(
+    () => config.completedTasks ?? [],
+    [config.completedTasks]
+  );
 
   const markDone = useCallback(
     (taskId: string) => {
