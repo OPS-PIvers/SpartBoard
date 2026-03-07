@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
   Edit2,
   GripVertical,
@@ -13,29 +13,64 @@ import { db } from '@/config/firebase';
 import { MusicStation } from '@/types';
 import { Button } from '../common/Button';
 
+// Accepts only https YouTube or Spotify URLs that contain a recognisable video/track ID.
+const isValidStationUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    if (
+      parsed.hostname === 'youtu.be' ||
+      parsed.hostname.includes('youtube.com')
+    ) {
+      return /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/.test(
+        url
+      );
+    }
+    if (parsed.hostname.endsWith('spotify.com')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+// Accepts a valid https image URL or an empty string (thumbnail is optional).
+const isValidImageUrl = (url: string): boolean => {
+  if (!url) return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 export const MusicManager: React.FC = () => {
   const [stations, setStations] = useState<MusicStation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MusicStation>>({});
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStations = async () => {
-      try {
-        const docRef = doc(db, 'global_music_stations', 'library');
-        const docSnap = await getDoc(docRef);
+    const docRef = doc(db, 'global_music_stations', 'library');
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as { stations?: MusicStation[] };
           const loaded: MusicStation[] = data.stations ?? [];
           setStations(loaded.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+        } else {
+          setStations([]);
         }
-      } catch (err) {
+        setIsLoading(false);
+      },
+      (err) => {
         console.error('Failed to load music stations', err);
-      } finally {
         setIsLoading(false);
       }
-    };
-    void fetchStations();
+    );
+    return () => unsubscribe();
   }, []);
 
   const saveToFirestore = async (updated: MusicStation[]) => {
@@ -70,6 +105,15 @@ export const MusicManager: React.FC = () => {
 
   const saveEdit = () => {
     if (!editingId) return;
+    if (!isValidStationUrl(editForm.url ?? '')) {
+      setUrlError('Please enter a valid YouTube or Spotify URL (https only).');
+      return;
+    }
+    if (!isValidImageUrl(editForm.thumbnail ?? '')) {
+      setUrlError('Thumbnail must be a valid https image URL.');
+      return;
+    }
+    setUrlError(null);
     const updated = stations.map((s) =>
       s.id === editingId ? ({ ...s, ...editForm } as MusicStation) : s
     );
@@ -82,6 +126,7 @@ export const MusicManager: React.FC = () => {
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm({});
+    setUrlError(null);
   };
 
   const deleteStation = (id: string) => {
@@ -172,6 +217,11 @@ export const MusicManager: React.FC = () => {
                       }
                       className="col-span-2 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
                     />
+                    {urlError && (
+                      <p className="col-span-2 text-xs text-red-600">
+                        {urlError}
+                      </p>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2 pt-1">
                     <Button variant="ghost" size="sm" onClick={cancelEdit}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, Music, Pause, Play, Radio } from 'lucide-react';
-import { WidgetData, MusicConfig } from '@/types';
+import { WidgetData, MusicConfig, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
@@ -12,11 +12,12 @@ import { WidgetLayout } from './WidgetLayout';
 // Prevents collision when multiple MusicWidgets are mounted simultaneously.
 // ---------------------------------------------------------------------------
 
-let ytApiLoaded = false;
+// Use window.YT?.Player as the source of truth so the widget initialises
+// correctly if the API script was already loaded before this module ran.
 const ytPendingCallbacks: (() => void)[] = [];
 
 const loadYouTubeApi = (callback: () => void) => {
-  if (ytApiLoaded && window.YT?.Player) {
+  if (window.YT?.Player) {
     callback();
     return;
   }
@@ -27,7 +28,6 @@ const loadYouTubeApi = (callback: () => void) => {
     document.head.appendChild(tag);
   }
   window.onYouTubeIframeAPIReady = () => {
-    ytApiLoaded = true;
     ytPendingCallbacks.splice(0).forEach((cb) => cb());
   };
 };
@@ -39,9 +39,23 @@ const extractYouTubeId = (url: string): string | null => {
   return m ? m[1] : null;
 };
 
-const buildSpotifyEmbedUrl = (url: string): string => {
-  if (url.includes('/embed/')) return url;
-  return url.replace('spotify.com/', 'spotify.com/embed/');
+// Returns the Spotify embed URL, or null if the URL is not a valid https
+// Spotify URL. This prevents javascript: and other scheme injection into
+// the iframe src.
+const buildSpotifyEmbedUrl = (url: string): string | null => {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.protocol !== 'https:' ||
+      !parsed.hostname.endsWith('spotify.com')
+    ) {
+      return null;
+    }
+    if (parsed.pathname.includes('/embed/')) return url;
+    return url.replace('spotify.com/', 'spotify.com/embed/');
+  } catch {
+    return null;
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -53,18 +67,26 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as MusicConfig;
   const { stations } = useMusicStations();
   const [isPlaying, setIsPlaying] = useState(false);
+  // isPlayerReady ensures the sync effect only fires after the YT player
+  // has initialised, preventing missed play/pause commands.
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const playerRef = useRef<YTPlayer | null>(null);
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
   const timeToolWidget = widgets.find((w) => w.type === 'time-tool');
   const isTimeToolRunning = (
-    timeToolWidget?.config as { isRunning?: boolean } | undefined
+    timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;
 
   const activeStation = stations.find((s) => s.id === config.stationId);
   const youtubeId = activeStation ? extractYouTubeId(activeStation.url) : null;
-  const isSpotify = activeStation?.url.includes('spotify.com') ?? false;
+
+  // Validate the Spotify URL at render time so malicious schemes are rejected.
+  const spotifyEmbedUrl = activeStation?.url
+    ? buildSpotifyEmbedUrl(activeStation.url)
+    : null;
+  const isSpotify = spotifyEmbedUrl !== null;
 
   // YouTube player init / teardown
   useEffect(() => {
@@ -85,6 +107,9 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           modestbranding: 1,
         },
         events: {
+          onReady: () => {
+            if (!destroyed) setIsPlayerReady(true);
+          },
           onStateChange: (event) => {
             if (!destroyed) setIsPlaying(event.data === 1);
           },
@@ -94,6 +119,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
     return () => {
       destroyed = true;
+      setIsPlayerReady(false);
       if (playerRef.current?.destroy) {
         playerRef.current.destroy();
         playerRef.current = null;
@@ -102,16 +128,18 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
   }, [youtubeId, widget.id]);
 
-  // Nexus sync: play/pause with Time Tool
+  // Nexus sync: play/pause with Time Tool.
+  // isPlayerReady is in the dep array so this re-runs once the player is
+  // available, applying any state change that arrived before init completed.
   useEffect(() => {
-    if (!config.syncWithTimeTool || !youtubeId) return;
+    if (!config.syncWithTimeTool || !youtubeId || !isPlayerReady) return;
     if (typeof playerRef.current?.playVideo !== 'function') return;
     if (isTimeToolRunning) {
       playerRef.current.playVideo();
     } else {
       playerRef.current.pauseVideo();
     }
-  }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId]);
+  }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId, isPlayerReady]);
 
   const togglePlay = () => {
     if (typeof playerRef.current?.playVideo !== 'function') return;
@@ -137,15 +165,17 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
-  // Spotify fallback — embed iframe (cannot be API-controlled cross-origin)
-  if (isSpotify) {
+  // Spotify fallback — embed iframe (cannot be API-controlled cross-origin).
+  // spotifyEmbedUrl is non-null here because isSpotify === (spotifyEmbedUrl !== null).
+  if (isSpotify && spotifyEmbedUrl) {
     return (
       <WidgetLayout
         padding="p-0"
         content={
           <div className="w-full h-full overflow-hidden rounded-2xl">
             <iframe
-              src={buildSpotifyEmbedUrl(activeStation.url)}
+              src={spotifyEmbedUrl}
+              title={`Spotify: ${activeStation.title}`}
               width="100%"
               height="100%"
               allow="encrypted-media"
@@ -157,12 +187,31 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
+  // Station URL is neither valid Spotify nor a recognised YouTube URL.
+  if (!youtubeId) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <ScaledEmptyState
+            icon={Music}
+            title="Unsupported URL"
+            subtitle="This station's URL is not a valid YouTube or Spotify link."
+          />
+        }
+      />
+    );
+  }
+
   // YouTube chromeless player
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="w-full h-full bg-slate-900 rounded-2xl flex items-center px-3 gap-3 overflow-hidden relative shadow-inner">
+        <div
+          className="w-full h-full bg-slate-900 rounded-2xl flex items-center overflow-hidden relative shadow-inner"
+          style={{ padding: '0 min(12px, 3cqmin)', gap: 'min(12px, 3cqmin)' }}
+        >
           {/* Hidden 1×1 iframe mount point */}
           <div className="absolute top-0 left-0 w-px h-px overflow-hidden opacity-0 pointer-events-none">
             <div id={`yt-player-${widget.id}`} />
@@ -173,28 +222,57 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <img
               src={activeStation.thumbnail}
               alt={activeStation.title}
-              className="w-12 h-12 rounded-lg object-cover shadow-md shrink-0"
+              className="rounded-lg object-cover shadow-md shrink-0"
+              style={{
+                width: 'min(48px, 12cqmin)',
+                height: 'min(48px, 12cqmin)',
+              }}
             />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
-              <Music className="w-5 h-5 text-slate-500" />
+            <div
+              className="rounded-lg bg-slate-800 flex items-center justify-center shrink-0"
+              style={{
+                width: 'min(48px, 12cqmin)',
+                height: 'min(48px, 12cqmin)',
+              }}
+            >
+              <Music
+                className="text-slate-500"
+                style={{
+                  width: 'min(20px, 5cqmin)',
+                  height: 'min(20px, 5cqmin)',
+                }}
+              />
             </div>
           )}
 
           {/* Station info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-white text-sm font-bold truncate">
+            <div
+              className="flex items-center"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
+              <h3
+                className="text-white font-bold truncate"
+                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+              >
                 {activeStation.title}
               </h3>
               {config.syncWithTimeTool && (
                 <Link
-                  className="w-3 h-3 text-indigo-400 shrink-0"
+                  className="text-indigo-400 shrink-0"
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
                   aria-label="Synced with Time Tool"
                 />
               )}
             </div>
-            <p className="text-slate-400 text-xs truncate">
+            <p
+              className="text-slate-400 truncate"
+              style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+            >
               {activeStation.channel}
             </p>
           </div>
@@ -202,13 +280,31 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           {/* Play / Pause */}
           <button
             onClick={togglePlay}
-            className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-900 hover:scale-105 transition-transform shadow-lg shrink-0 mr-1"
+            className="bg-white rounded-full flex items-center justify-center text-slate-900 hover:scale-105 transition-transform shadow-lg shrink-0"
+            style={{
+              width: 'min(40px, 10cqmin)',
+              height: 'min(40px, 10cqmin)',
+              marginRight: 'min(4px, 1cqmin)',
+            }}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? (
-              <Pause className="w-5 h-5 fill-current" />
+              <Pause
+                className="fill-current"
+                style={{
+                  width: 'min(20px, 5cqmin)',
+                  height: 'min(20px, 5cqmin)',
+                }}
+              />
             ) : (
-              <Play className="w-5 h-5 fill-current ml-0.5" />
+              <Play
+                className="fill-current"
+                style={{
+                  width: 'min(20px, 5cqmin)',
+                  height: 'min(20px, 5cqmin)',
+                  marginLeft: 'min(2px, 0.5cqmin)',
+                }}
+              />
             )}
           </button>
         </div>
