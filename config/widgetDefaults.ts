@@ -268,4 +268,12 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       completedTasks: [],
     },
   },
+  music: {
+    w: 340,
+    h: 120,
+    config: {
+      stationId: '',
+      syncWithTimeTool: false,
+    },
+  },
 };

@@ -6,12 +6,14 @@ import {
   Image as ImageIcon,
   Zap,
   Bell,
+  Music,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
 import { AnnouncementsManager } from './AnnouncementsManager';
+import { MusicManager } from './MusicManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -46,7 +48,7 @@ const TabButton: React.FC<{
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    'features' | 'global' | 'backgrounds' | 'announcements'
+    'features' | 'global' | 'backgrounds' | 'announcements' | 'music'
   >('features');
 
   // Close modal on Escape key press
@@ -124,6 +126,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               icon={<Bell className="w-4 h-4" />}
               label="Announcements"
             />
+            <TabButton
+              id="tab-music"
+              controls="panel-music"
+              isActive={activeTab === 'music'}
+              onClick={() => setActiveTab('music')}
+              icon={<Music className="w-4 h-4" />}
+              label="Music Library"
+            />
           </div>
         </div>
 
@@ -185,6 +195,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 </p>
               </div>
               <BackgroundManager />
+            </div>
+          )}
+
+          {activeTab === 'music' && (
+            <div
+              id="panel-music"
+              role="tabpanel"
+              aria-labelledby="tab-music"
+              className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-800 mb-2">
+                  Music Library
+                </h3>
+                <p className="text-slate-600">
+                  Manage classroom radio stations available in the Music Widget.
+                </p>
+              </div>
+              <MusicManager />
             </div>
           )}
 

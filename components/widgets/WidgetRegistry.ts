@@ -120,6 +120,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
   nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpWidget'),
   onboarding: lazyNamed(() => import('./OnboardingWidget'), 'OnboardingWidget'),
+  music: lazyNamed(() => import('./MusicWidget'), 'MusicWidget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -188,6 +189,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
   nextUp: lazyNamed(() => import('./NextUpWidget'), 'NextUpSettings'),
   // onboarding has no settings panel
+  music: lazyNamed(() => import('./MusicWidget'), 'MusicSettings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -472,6 +474,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   onboarding: {
     baseWidth: 380,
     baseHeight: 440,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  music: {
+    baseWidth: 340,
+    baseHeight: 120,
     canSpread: true,
     skipScaling: true,
     padding: 0,
