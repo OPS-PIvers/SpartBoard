@@ -364,10 +364,8 @@ describe('PollSettings', () => {
     // Ensure anchor was assigned
     expect(mockAnchor).not.toBeNull();
     // Use type assertion since we mocked it manually
-    const anchor = mockAnchor as unknown as {
-      setAttribute: ReturnType<typeof vi.fn>;
-      click: ReturnType<typeof vi.fn>;
-    };
+    type MockedAnchor = { setAttribute: Mock; click: Mock };
+    const anchor = mockAnchor as unknown as MockedAnchor;
 
     expect(anchor.setAttribute).toHaveBeenCalledWith('href', 'blob:test-url');
     expect(anchor.setAttribute).toHaveBeenCalledWith(
