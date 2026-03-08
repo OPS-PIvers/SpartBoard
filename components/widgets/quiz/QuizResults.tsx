@@ -24,20 +24,7 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import { ScoreboardTeam } from '@/types';
-
-// Standalone colors to avoid tight coupling to another widget's UI components
-const SCOREBOARD_SYNC_COLORS = [
-  'bg-blue-500',
-  'bg-red-500',
-  'bg-green-500',
-  'bg-yellow-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-  'bg-orange-500',
-  'bg-teal-600',
-  'bg-cyan-500',
-];
+import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
 /**
  * Compute a student's percentage score by re-grading answers with gradeAnswer
@@ -88,20 +75,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       return;
     }
 
-    const newTeams: ScoreboardTeam[] = completed
-      .sort(
-        (a, b) =>
-          getResponseScore(b, quiz.questions) -
-          getResponseScore(a, quiz.questions)
-      )
-      .map((r, index) => {
-        return {
-          id: crypto.randomUUID(),
-          name: `PIN ${r.pin}`,
-          score: getResponseScore(r, quiz.questions),
-          color: SCOREBOARD_SYNC_COLORS[index % SCOREBOARD_SYNC_COLORS.length],
-        };
-      });
+    const studentsWithScores = completed.map((r) => ({
+      response: r,
+      score: getResponseScore(r, quiz.questions),
+    }));
+
+    const newTeams: ScoreboardTeam[] = studentsWithScores
+      .sort((a, b) => b.score - a.score)
+      .map(({ response, score }, index) => ({
+        id: crypto.randomUUID(),
+        name: `PIN ${response.pin}`,
+        score,
+        color: SCOREBOARD_COLORS[index % SCOREBOARD_COLORS.length],
+      }));
 
     const existingScoreboard = activeDashboard?.widgets.find(
       (w) => w.type === 'scoreboard'
