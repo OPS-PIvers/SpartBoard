@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizePrompt } from '../../functions/src/sanitize';
+import { sanitizePrompt } from '@/functions/src/sanitize';
 
 describe('AI Security Prompt Sanitization', () => {
   it('escapes common prompt injection characters', () => {

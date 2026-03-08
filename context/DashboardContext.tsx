@@ -1639,13 +1639,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               boardH: Math.min(BASE_BOARD_H, viewportHeight),
             };
           })();
-          const COL_W = BOARD_W / 12;
-          const ROW_H = BOARD_H / 12;
 
           // Margins to prevent widgets from hitting the exact edges of the screen
           const OFFSET_X = 60;
           const OFFSET_Y = 80;
           const GRID_GAP = 16; // 16px gap between widgets
+
+          // Compute grid cell sizes from the usable area after subtracting margins.
+          // Clamp to at least GRID_GAP + 1 to avoid zero/negative widget sizes.
+          const usableBoardW = Math.max(BOARD_W - 2 * OFFSET_X, GRID_GAP + 1);
+          const usableBoardH = Math.max(BOARD_H - 2 * OFFSET_Y, GRID_GAP + 1);
+          const COL_W = usableBoardW / 12;
+          const ROW_H = usableBoardH / 12;
 
           const newWidgets = widgetsToAdd.map((item, index) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
@@ -1682,8 +1687,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 ...defaults,
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
-                w: colSpan * COL_W - GRID_GAP,
-                h: rowSpan * ROW_H - GRID_GAP,
+                w: Math.max(1, colSpan * COL_W - GRID_GAP),
+                h: Math.max(1, rowSpan * ROW_H - GRID_GAP),
                 config: baseConfig,
               } as WidgetData;
             }
