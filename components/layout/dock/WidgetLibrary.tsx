@@ -49,7 +49,7 @@ const SortableLibraryTool = React.memo(
     tool: (typeof TOOLS)[0];
     isActive: boolean;
     isEditMode: boolean;
-    onToggle: () => void;
+    onToggle: (type: WidgetType | InternalToolType) => void;
     label?: string;
   }) => {
     const {
@@ -77,7 +77,7 @@ const SortableLibraryTool = React.memo(
         onClick={(e) => {
           // Prevent click if dragging happened
           if (e.defaultPrevented) return;
-          onToggle();
+          onToggle(tool.type);
         }}
         className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group active:scale-95 border-2 ${
           isActive
@@ -233,7 +233,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                         tool={tool}
                         isActive={false} // They are always inactive now due to filtering
                         isEditMode={isEditMode}
-                        onToggle={() => onToggle(tool.type)}
+                        onToggle={onToggle}
                         label={
                           getToolLabel ? getToolLabel(tool.type) : undefined
                         }
