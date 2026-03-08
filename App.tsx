@@ -5,7 +5,7 @@ import { useAuth } from './context/useAuth';
 import { DashboardProvider } from './context/DashboardContext';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { DriveDisconnectBanner } from './components/common/DriveDisconnectBanner';
-import { isConfigured } from './config/firebase';
+import { isConfigured, isAuthBypass } from './config/firebase';
 import { StudentProvider } from './components/student/StudentContexts';
 
 // Lazy load heavy components for code splitting
@@ -118,10 +118,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (
-    !isConfigured &&
-    window.location.search.indexOf('auth_bypass=true') === -1
-  ) {
+  if (!isConfigured && !isAuthBypass) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">

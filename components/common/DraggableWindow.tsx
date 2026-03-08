@@ -136,6 +136,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   >(null);
   const snapPreviewZoneRef = useRef<SnapZone | 'maximize' | null>(null);
 
+  useEffect(() => {
+    if (!showTools && showSnapMenu) {
+      setShowSnapMenu(false);
+      setSnapPreviewZone(null);
+      snapPreviewZoneRef.current = null;
+    }
+  }, [showTools, showSnapMenu]);
+
   // OPTIMIZATION: Transient drag state for direct DOM manipulation
   // This allows us to update the DOM directly during drag/resize without triggering React re-renders for the whole tree
   const dragState = useRef<{
@@ -1272,18 +1280,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         {SNAP_LAYOUTS.map((layout) => (
                           <div
                             key={layout.id}
-                            className="group relative flex gap-1.5 h-16 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+                            className="group relative p-1.5 rounded-xl hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
                           >
-                            {layout.zones.map((zone) => (
-                              <button
-                                key={zone.id}
-                                onClick={() => handleSnapToZone(zone)}
-                                // Touch targets are large and easily tappable
-                                className="bg-slate-300/80 hover:bg-indigo-500 hover:shadow-inner transition-all rounded-md flex-1 border border-slate-400/20 active:scale-95"
-                                style={{ flexBasis: `${zone.w * 100}%` }}
-                                aria-label={`${t('widgetWindow.snapTo')} ${layout.name} - ${zone.id}`}
-                              />
-                            ))}
+                            <div className="relative w-full h-16">
+                              {layout.zones.map((zone) => (
+                                <button
+                                  key={zone.id}
+                                  onClick={() => handleSnapToZone(zone)}
+                                  // Touch targets are large and easily tappable
+                                  className="absolute bg-slate-300/80 hover:bg-indigo-500 hover:shadow-inner transition-all rounded-md border border-slate-400/20 active:scale-95"
+                                  style={{
+                                    left: `${zone.x * 100}%`,
+                                    top: `${zone.y * 100}%`,
+                                    width: `${zone.w * 100}%`,
+                                    height: `${zone.h * 100}%`,
+                                  }}
+                                  aria-label={`${t('widgetWindow.snapTo')} ${layout.name} - ${zone.id}`}
+                                />
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>

@@ -6,11 +6,26 @@ export const SNAP_LAYOUT_CONSTANTS = {
   DOCK_HEIGHT: 100, // Reserved space for the bottom dock
 };
 
+const getDockReservedHeight = (fallbackHeight: number): number => {
+  if (typeof document === 'undefined') {
+    return fallbackHeight;
+  }
+  const dockElement = document.querySelector<HTMLElement>(
+    '[data-testid="dock"]'
+  );
+  if (!dockElement) {
+    return fallbackHeight;
+  }
+  const rect = dockElement.getBoundingClientRect();
+  return rect.height || fallbackHeight;
+};
+
 export const calculateSnapBounds = (zone: SnapZone) => {
   const { PADDING, GAP, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
+  const dockHeight = getDockReservedHeight(DOCK_HEIGHT);
 
   const safeWidth = window.innerWidth - PADDING * 2;
-  const safeHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
+  const safeHeight = window.innerHeight - dockHeight - PADDING * 2;
 
   // Calculate absolute positions
   const rawX = PADDING + zone.x * safeWidth;
