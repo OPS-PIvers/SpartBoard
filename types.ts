@@ -119,6 +119,20 @@ export interface Point {
   y: number;
 }
 
+/**
+ * Represents a position and span on a 12x12 spatial grid.
+ */
+export interface GridPosition {
+  /** 0-11 (X-axis starting point) */
+  col: number;
+  /** 0-11 (Y-axis starting point) */
+  row: number;
+  /** 1-12 (Width in columns) */
+  colSpan: number;
+  /** 1-12 (Height in rows) */
+  rowSpan: number;
+}
+
 export interface Path {
   points: Point[];
   color: string;

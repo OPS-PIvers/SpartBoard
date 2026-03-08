@@ -19,6 +19,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
   AddWidgetOverrides,
   NextUpConfig,
+  GridPosition,
 } from '../types';
 import { useAuth } from './useAuth';
 import { useFirestore } from '../hooks/useFirestore';
@@ -1603,7 +1604,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const addWidgets = useCallback(
-    (widgetsToAdd: { type: WidgetType; config?: WidgetConfig }[]) => {
+    (
+      widgetsToAdd: {
+        type: WidgetType;
+        config?: WidgetConfig;
+        gridConfig?: GridPosition;
+      }[]
+    ) => {
       if (!activeId) return;
       lastLocalUpdateAt.current = Date.now();
 
@@ -1612,41 +1619,70 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (d.id !== activeId) return d;
           let maxZ = d.widgets.reduce((max, w) => Math.max(max, w.z), 0);
 
-          const START_X = 50;
-          const START_Y = 80;
-          const COL_WIDTH = 300 + 50; // Width + Gap
+          // --- GRID SYSTEM CONSTANTS ---
+          // Base 16:9 canvas (1600x900).
+          // DraggableWindow scales these automatically if the screen is smaller.
+          const BOARD_W = 1600;
+          const BOARD_H = 900;
+          const COL_W = BOARD_W / 12;
+          const ROW_H = BOARD_H / 12;
+
+          // Margins to prevent widgets from hitting the exact edges of the screen
+          const OFFSET_X = 60;
+          const OFFSET_Y = 80;
+          const GRID_GAP = 16; // 16px gap between widgets
 
           const newWidgets = widgetsToAdd.map((item, index) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
             const adminConfig = getAdminBuildingConfig(item.type);
             maxZ++;
 
-            // 3-Column Grid Layout
+            // Base config from defaults, admin settings, and global persistence
+            const baseConfig = {
+              ...(defaults.config ?? {}),
+              ...adminConfig,
+              ...(PERSISTED_WIDGET_TYPES.includes(item.type)
+                ? (savedWidgetConfigs?.[item.type] ?? {})
+                : {}),
+              ...(item.config ?? {}),
+            } as WidgetConfig;
+
+            // 1. SMART LAYOUT: If AI provided spatial data
+            if (item.gridConfig) {
+              const { col, row, colSpan, rowSpan } = item.gridConfig;
+              return {
+                id: crypto.randomUUID(),
+                type: item.type,
+                flipped: false,
+                z: maxZ,
+                ...defaults,
+                x: col * COL_W + OFFSET_X,
+                y: row * ROW_H + OFFSET_Y,
+                w: colSpan * COL_W - GRID_GAP,
+                h: rowSpan * ROW_H - GRID_GAP,
+                config: baseConfig,
+              } as WidgetData;
+            }
+
+            // 2. FALLBACK LAYOUT: Legacy 3-column placement for missing gridConfigs
             const col = index % 3;
             const row = Math.floor(index / 3);
-
-            // Row height assumption
-            const ROW_HEIGHT = 250;
+            const START_X = 50;
+            const START_Y = 80;
+            const COL_WIDTH = 350;
+            const ROW_HEIGHT = 280;
 
             return {
               id: crypto.randomUUID(),
               type: item.type,
               x: START_X + col * COL_WIDTH,
               y: START_Y + row * ROW_HEIGHT,
-              w: defaults.w ?? 200,
-              h: defaults.h ?? 200,
+              w: defaults.w ?? 250,
+              h: defaults.h ?? 250,
               flipped: false,
               z: maxZ,
               ...defaults,
-              // Layer order: widget defaults → admin building defaults → saved global config → explicit item config
-              config: {
-                ...(defaults.config ?? {}),
-                ...adminConfig,
-                ...(PERSISTED_WIDGET_TYPES.includes(item.type)
-                  ? (savedWidgetConfigs?.[item.type] ?? {})
-                  : {}),
-                ...(item.config ?? {}),
-              },
+              config: baseConfig,
             } as WidgetData;
           });
 

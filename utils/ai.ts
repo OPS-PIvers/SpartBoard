@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import { WidgetType, WidgetConfig } from '@/types';
+import { WidgetType, WidgetConfig, GridPosition } from '@/types';
 import { TOOLS } from '@/config/tools';
 
 export interface GeneratedMiniApp {
@@ -13,6 +13,7 @@ export interface GeneratedMiniApp {
 export interface GeneratedWidget {
   type: WidgetType;
   config: WidgetConfig;
+  gridConfig?: GridPosition;
 }
 
 export interface GeneratedQuestion {

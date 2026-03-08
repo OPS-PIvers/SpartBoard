@@ -12,6 +12,7 @@ import {
   GlobalStyle,
   Student,
   AddWidgetOverrides,
+  GridPosition,
 } from '../types';
 
 export interface DashboardContextValue {
@@ -36,7 +37,11 @@ export interface DashboardContextValue {
   setDefaultDashboard: (id: string) => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (
-    widgetsToAdd: { type: WidgetType; config?: WidgetConfig }[]
+    widgetsToAdd: {
+      type: WidgetType;
+      config?: WidgetConfig;
+      gridConfig?: GridPosition;
+    }[]
   ) => void;
   removeWidget: (id: string) => void;
   duplicateWidget: (id: string) => void;

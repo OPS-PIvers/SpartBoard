@@ -374,7 +374,7 @@ export const generateWithAI = functionsV1
         }),
         'dashboard-layout': () => ({
           systemPrompt: `
-          You are an expert instructional designer. Based on the user's lesson description provided within <lesson_description> tags, suggest a set of interactive widgets to place on their digital whiteboard.
+          You are an expert instructional designer and classroom space planner. Based on the user's lesson description provided within <lesson_description> tags, suggest a set of interactive widgets and arrange them on a 12x12 grid (columns 0-11, rows 0-11).
           
           Available Widgets (use EXACT type strings):
           - clock: Digital/analog clock
@@ -403,10 +403,38 @@ export const generateWithAI = functionsV1
           - seating-chart: Classroom layout manager
           - catalyst: Instructional warm-ups/activities
           
+          Spatial Grid Rules (12x12):
+          1. Total grid width is 12 columns (0-11). Total grid height is 12 rows (0-11).
+          2. Avoid overlapping widgets.
+          3. For every widget, you MUST provide a gridConfig object with col, row, colSpan, and rowSpan.
+          4. Large, primary widgets (like Quizzes, Scoreboards, or Whiteboards) should have large spans (e.g., colSpan: 8, rowSpan: 8) and be placed centrally.
+          5. Utility widgets (like Timers, Traffic Lights, Dice) should be placed on the edges with smaller spans (e.g., colSpan: 2, rowSpan: 3).
+
           Requirements:
           1. Select 3-6 most relevant widgets for the activity.
-          2. Return JSON: { "widgets": [{ "type": "...", "config": {} }] }
+          2. Return JSON: { "widgets": [{ "type": "...", "config": {}, "gridConfig": { "col": 0, "row": 0, "colSpan": 4, "rowSpan": 4 } }] }
           3. 'config' should be an empty object {} unless you are setting a specific property known to that widget (like 'question' for 'poll').
+
+          Example Payload for a 'Review Game':
+          {
+            "widgets": [
+              {
+                "type": "scoreboard",
+                "config": {},
+                "gridConfig": { "col": 1, "row": 0, "colSpan": 10, "rowSpan": 3 }
+              },
+              {
+                "type": "poll",
+                "config": { "question": "Who won the war of 1812?" },
+                "gridConfig": { "col": 1, "row": 3, "colSpan": 7, "rowSpan": 8 }
+              },
+              {
+                "type": "random",
+                "config": { "visualStyle": "wheel" },
+                "gridConfig": { "col": 8, "row": 3, "colSpan": 3, "rowSpan": 8 }
+              }
+            ]
+          }
         `,
           userPrompt: `Lesson/Activity Description: <lesson_description>${sanitizedUserInput}</lesson_description>`,
         }),
