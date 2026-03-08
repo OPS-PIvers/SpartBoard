@@ -99,7 +99,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     let destroyed = false;
 
     loadYouTubeApi(() => {
-      if (destroyed) return;
+      if (destroyed || !window.YT) return;
       playerRef.current = new window.YT.Player(`yt-player-${widget.id}`, {
         height: '1',
         width: '1',
@@ -357,11 +357,19 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               return (
                 <button
                   key={station.id}
-                  onClick={() =>
+                  onClick={() => {
+                    const selectedIsSpotify =
+                      buildSpotifyEmbedUrl(station.url) !== null;
                     updateWidget(widget.id, {
-                      config: { ...config, stationId: station.id },
-                    })
-                  }
+                      config: {
+                        ...config,
+                        stationId: station.id,
+                        ...(selectedIsSpotify && config.syncWithTimeTool
+                          ? { syncWithTimeTool: false }
+                          : {}),
+                      },
+                    });
+                  }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
                     isActive
                       ? 'border-indigo-500 bg-indigo-50 shadow-sm'
@@ -427,7 +435,7 @@ interface YTPlayer {
 
 declare global {
   interface Window {
-    YT: {
+    YT?: {
       Player: new (
         elementId: string,
         options: {
@@ -442,6 +450,6 @@ declare global {
         }
       ) => YTPlayer;
     };
-    onYouTubeIframeAPIReady: () => void;
+    onYouTubeIframeAPIReady?: () => void;
   }
 }
