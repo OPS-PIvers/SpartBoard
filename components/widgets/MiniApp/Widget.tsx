@@ -84,7 +84,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             },
             body: JSON.stringify({
               sheetId: config.googleSheetId,
-              studentPin: studentPin,
+              studentPin: studentPin ?? 'Anonymous',
               data: data.payload,
             }),
           });

@@ -175,7 +175,10 @@ export const useLiveSession = (
   // STUDENT: Subscribe to My Student Status (Am I individually frozen?)
   useEffect(() => {
     if (role !== 'student' || !joinCode || !studentId) {
-      setTimeout(() => setIndividualFrozen(false), 0);
+      setTimeout(() => {
+        setIndividualFrozen(false);
+        setStudentPin(null);
+      }, 0);
       return;
     }
 
@@ -283,11 +286,12 @@ export const useLiveSession = (
     try {
       await updateDoc(studentRef, { status: 'disconnected' });
       setStudentId(null);
+      setStudentPin(null);
       setSession(null);
     } catch (err) {
       console.error('Failed to leave session:', err);
     }
-  }, [role, joinCode, studentId, setStudentId, setSession]);
+  }, [role, joinCode, studentId, setStudentId, setStudentPin, setSession]);
 
   const removeStudent = useCallback(
     async (targetStudentId: string) => {
