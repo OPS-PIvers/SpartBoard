@@ -77,6 +77,7 @@ export const StudentApp = () => {
     joinSession,
     leaveSession,
     studentId,
+    studentPin,
     individualFrozen,
   } = useLiveSession(undefined, 'student', joinedCode ?? undefined);
 
@@ -236,6 +237,7 @@ export const StudentApp = () => {
           endSession={asyncNoop}
           removeStudent={asyncNoop}
           toggleFreezeStudent={asyncNoop}
+          studentPin={studentPin}
           toggleGlobalFreeze={asyncNoop}
           updateWidget={noop}
           removeWidget={noop}

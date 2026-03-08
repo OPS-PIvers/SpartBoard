@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { X, Code2, Sparkles, Loader2, Save, Box } from 'lucide-react';
 import { WidgetLayout } from '../../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
@@ -46,13 +46,16 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
   const { driveService } = useGoogleDrive();
   const config = widget.config as MiniAppConfig;
   const { globalConfig } = useMiniAppGlobalConfig();
+  const lastSharedIdRef = useRef<string | null>(null);
 
   const shareSheetWithBot = useCallback(
     async (sheetId: string) => {
       if (!driveService || !globalConfig?.botEmail || !sheetId) return;
+      if (lastSharedIdRef.current === sheetId) return;
 
       try {
         await driveService.addEditorPermission(sheetId, globalConfig.botEmail);
+        lastSharedIdRef.current = sheetId;
         addToast('Sheet linked and shared with system!', 'success');
       } catch (e) {
         console.error(e);

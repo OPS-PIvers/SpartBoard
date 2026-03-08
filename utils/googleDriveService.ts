@@ -539,7 +539,31 @@ export class GoogleDriveService {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to grant permission: ${response.statusText}`);
+      let errorBody = '';
+      try {
+        errorBody = await response.text();
+      } catch (readError) {
+        console.error(
+          '[GoogleDriveService.addEditorPermission] Failed to read error body from Drive response',
+          readError
+        );
+      }
+      const parts: string[] = [
+        'Failed to grant editor permission.',
+        `status=${response.status}`,
+      ];
+      if (response.statusText) {
+        parts.push(`statusText=${response.statusText}`);
+      }
+      if (errorBody) {
+        parts.push(`body=${errorBody}`);
+      }
+      const message = parts.join(' ');
+      console.error(
+        '[GoogleDriveService.addEditorPermission] Drive API error',
+        message
+      );
+      throw new Error(message);
     }
   }
 }

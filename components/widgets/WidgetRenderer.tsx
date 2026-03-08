@@ -42,6 +42,7 @@ const LoadingFallback = () => (
 interface WidgetRendererProps {
   widget: WidgetData;
   isStudentView?: boolean;
+  studentPin?: string | null;
   // Session Props
   sessionCode?: string;
   isGlobalFrozen?: boolean;
@@ -76,6 +77,7 @@ interface WidgetRendererProps {
 const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   widget,
   isStudentView = false,
+  studentPin,
   sessionCode,
   isGlobalFrozen = false,
   isLive,
@@ -199,6 +201,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
           h={h}
           scale={scale}
           isStudentView={isStudentView}
+          studentPin={studentPin}
         />
       );
     },
@@ -329,6 +332,7 @@ interface InnerWidgetRendererProps {
   h: number;
   scale?: number;
   isStudentView: boolean;
+  studentPin?: string | null;
 }
 
 const InnerWidgetRenderer = memo(
@@ -338,6 +342,7 @@ const InnerWidgetRenderer = memo(
     h,
     scale,
     isStudentView,
+    studentPin,
   }: InnerWidgetRendererProps) {
     return (
       <WidgetLayoutWrapper
@@ -346,6 +351,7 @@ const InnerWidgetRenderer = memo(
         h={h}
         scale={scale}
         isStudentView={isStudentView}
+        studentPin={studentPin}
       />
     );
   },
@@ -355,6 +361,7 @@ const InnerWidgetRenderer = memo(
     if (prev.h !== next.h) return false;
     if (prev.scale !== next.scale) return false;
     if (prev.isStudentView !== next.isStudentView) return false;
+    if (prev.studentPin !== next.studentPin) return false;
 
     // Check widget props - explicitly ignoring x, y, z
     const pw = prev.widget;

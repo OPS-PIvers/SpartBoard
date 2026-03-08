@@ -1236,6 +1236,7 @@ export interface WidgetComponentProps {
   widget: WidgetData;
   isStudentView?: boolean;
   scale?: number;
+  studentPin?: string | null;
 }
 
 export interface WidgetLayout {

@@ -14,6 +14,7 @@ interface WidgetLayoutWrapperProps {
   h: number;
   scale?: number;
   isStudentView?: boolean;
+  studentPin?: string | null;
 }
 
 /**
@@ -26,6 +27,7 @@ export const WidgetLayoutWrapper: React.FC<WidgetLayoutWrapperProps> = ({
   h,
   scale,
   isStudentView = false,
+  studentPin,
 }) => {
   const WidgetComponent = WIDGET_COMPONENTS[widget.type];
 
@@ -41,6 +43,7 @@ export const WidgetLayoutWrapper: React.FC<WidgetLayoutWrapperProps> = ({
     widget: { ...widget, w, h },
     scale,
     isStudentView,
+    studentPin,
   };
 
   return (

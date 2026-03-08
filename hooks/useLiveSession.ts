@@ -85,6 +85,7 @@ export interface UseLiveSessionResult {
   toggleGlobalFreeze: (freeze: boolean) => Promise<void>;
   joinSession: (pin: string, unsanitizedCode: string) => Promise<string>;
   studentId: string | null;
+  studentPin: string | null;
   individualFrozen: boolean;
 }
 
@@ -99,6 +100,7 @@ export const useLiveSession = (
     role === 'teacher' || (role === 'student' && !!joinCode)
   );
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentPin, setStudentPin] = useState<string | null>(null);
   const [individualFrozen, setIndividualFrozen] = useState(false);
 
   // SESSION SUBSCRIPTION: Subscribe to session document (Teachers use userId, Students use joinCode)
@@ -188,6 +190,7 @@ export const useLiveSession = (
       if (docSnap.exists()) {
         const studentData = docSnap.data() as LiveStudent;
         setIndividualFrozen(studentData.status === 'frozen');
+        setStudentPin(studentData.pin);
       }
     });
 
@@ -264,6 +267,7 @@ export const useLiveSession = (
 
     await setDoc(doc(studentsRef, uid), newStudent);
     setStudentId(uid);
+    setStudentPin(sanitizedPin);
     return teacherId;
   };
 
@@ -452,6 +456,7 @@ export const useLiveSession = (
     toggleGlobalFreeze,
     joinSession,
     studentId,
+    studentPin,
     individualFrozen,
   };
 };

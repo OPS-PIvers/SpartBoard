@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
-  WidgetData,
   MiniAppItem,
   MiniAppConfig,
   GlobalMiniAppItem,
+  WidgetComponentProps,
 } from '@/types';
 import {
   Plus,
@@ -42,7 +42,6 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { useLiveSession } from '@/hooks/useLiveSession';
 import { SortableItem } from './components/SortableItem';
 import { GlobalAppRow } from './components/GlobalAppRow';
 import { MiniAppEditor } from './components/MiniAppEditor';
@@ -50,13 +49,13 @@ import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
 
 // --- MAIN WIDGET COMPONENT ---
-export const MiniAppWidget: React.FC<{
-  widget: WidgetData;
-  isStudentView?: boolean;
-}> = ({ widget, isStudentView }) => {
+export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
+  widget,
+  isStudentView,
+  studentPin,
+}) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
-  const { studentId } = useLiveSession(undefined, 'student');
   const config = widget.config as MiniAppConfig;
   const { activeApp } = config;
 
@@ -80,13 +79,12 @@ export const MiniAppWidget: React.FC<{
         try {
           await fetch(globalConfig.submissionUrl, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               sheetId: config.googleSheetId,
-              studentPin: studentId,
+              studentPin: studentPin,
               data: data.payload,
             }),
           });
@@ -95,7 +93,7 @@ export const MiniAppWidget: React.FC<{
         }
       }
     },
-    [globalConfig?.submissionUrl, config.googleSheetId, studentId]
+    [globalConfig?.submissionUrl, config.googleSheetId, studentPin]
   );
 
   useEffect(() => {
