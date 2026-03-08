@@ -346,7 +346,17 @@ export const generateWithAI = functionsV1
 
       const sanitizePrompt = (text?: string) => {
         if (!text) return '';
-        return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Escape characters used for prompt injection (like tags, delimiters, and control sequences)
+        return text
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\{/g, '&#123;')
+          .replace(/\}/g, '&#125;')
+          .replace(/\[/g, '&#91;')
+          .replace(/\]/g, '&#93;')
+          .replace(/`/g, '&#96;')
+          .replace(/[\n\r]/g, ' ')
+          .trim();
       };
 
       const sanitizedUserInput = sanitizePrompt(data?.prompt);

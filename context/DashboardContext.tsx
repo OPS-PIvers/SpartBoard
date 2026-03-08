@@ -39,6 +39,84 @@ import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { DashboardContext } from './DashboardContextValue';
 
+/** Validates and clamps grid coordinates to the 12x12 system */
+export const validateGridConfig = (pos: GridPosition): GridPosition | null => {
+  if (!pos) return null;
+  const col = Number(pos.col);
+  const row = Number(pos.row);
+  const colSpan = Number(pos.colSpan);
+  const rowSpan = Number(pos.rowSpan);
+
+  if (isNaN(col) || isNaN(row) || isNaN(colSpan) || isNaN(rowSpan)) {
+    return null;
+  }
+
+  // Clamp starting points to 0-11
+  const vCol = Math.max(0, Math.min(11, Math.floor(col)));
+  const vRow = Math.max(0, Math.min(11, Math.floor(row)));
+
+  // Clamp spans to at least 1, and ensure they don't exceed the grid boundary
+  const vColSpan = Math.max(1, Math.min(12 - vCol, Math.floor(colSpan)));
+  const vRowSpan = Math.max(1, Math.min(12 - vRow, Math.floor(rowSpan)));
+
+  return { col: vCol, row: vRow, colSpan: vColSpan, rowSpan: vRowSpan };
+};
+
+/** Basic sanitization for AI-generated widget configurations to prevent XSS/Injection */
+export const sanitizeAIConfig = (type: WidgetType, config: any): any => {
+  if (!config || typeof config !== 'object') return {};
+  const sanitized = { ...config };
+
+  // 1. Critical XSS prevention for widgets with HTML/Script capability
+  // AI is not intended to generate executable code via the layout tool.
+  if (type === 'miniApp' || type === 'embed') {
+    delete sanitized.html;
+    delete sanitized.activeApp;
+  }
+
+  // 2. URL validation for widgets that load external content
+  if (type === 'embed' || type === 'qr') {
+    if (typeof sanitized.url === 'string' && sanitized.url.trim() !== '') {
+      try {
+        const url = new URL(sanitized.url);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          sanitized.url = '';
+        }
+      } catch {
+        sanitized.url = '';
+      }
+    }
+  }
+
+  // 3. Type-safe content checks for common widgets
+  if (type === 'text') {
+    if (typeof sanitized.content !== 'string') sanitized.content = '';
+    if (typeof sanitized.fontSize === 'number') {
+      sanitized.fontSize = Math.max(8, Math.min(120, sanitized.fontSize));
+    }
+  }
+
+  if (type === 'poll') {
+    if (typeof sanitized.question !== 'string') sanitized.question = '';
+    if (Array.isArray(sanitized.options)) {
+      sanitized.options = sanitized.options.map((opt: any) => {
+        const label =
+          typeof opt === 'string'
+            ? opt
+            : typeof opt?.label === 'string'
+              ? opt.label
+              : String(opt?.label ?? opt ?? '');
+        return {
+          label,
+          votes: 0,
+        };
+      });
+    }
+  }
+
+  return sanitized;
+};
+
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (
   visibleTools: (WidgetType | InternalToolType)[]
@@ -1637,6 +1715,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const adminConfig = getAdminBuildingConfig(item.type);
             maxZ++;
 
+            // Sanitize AI-provided config and grid positions
+            const sanitizedInputConfig = sanitizeAIConfig(
+              item.type,
+              item.config
+            );
+            const validatedGrid = item.gridConfig
+              ? validateGridConfig(item.gridConfig)
+              : null;
+
             // Base config from defaults, admin settings, and global persistence
             const baseConfig = {
               ...(defaults.config ?? {}),
@@ -1644,12 +1731,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               ...(PERSISTED_WIDGET_TYPES.includes(item.type)
                 ? (savedWidgetConfigs?.[item.type] ?? {})
                 : {}),
-              ...(item.config ?? {}),
+              ...sanitizedInputConfig,
             } as WidgetConfig;
 
             // 1. SMART LAYOUT: If AI provided spatial data
-            if (item.gridConfig) {
-              const { col, row, colSpan, rowSpan } = item.gridConfig;
+            if (validatedGrid) {
+              const { col, row, colSpan, rowSpan } = validatedGrid;
               return {
                 id: crypto.randomUUID(),
                 type: item.type,
