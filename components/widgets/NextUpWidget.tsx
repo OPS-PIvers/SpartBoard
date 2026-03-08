@@ -5,11 +5,13 @@ import {
   NextUpQueueItem,
   WidgetData,
   NextUpSession,
+  TimeToolConfig,
 } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from './WidgetLayout';
+import { Toggle } from '@/components/common/Toggle';
 import {
   doc,
   setDoc,
@@ -38,7 +40,7 @@ const ENTRIES_SUBCOLLECTION = 'entries';
 export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
   const { driveService } = useGoogleDrive();
-  const { updateWidget } = useDashboard();
+  const { updateWidget, activeDashboard } = useDashboard();
   const { user } = useAuth();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
@@ -201,6 +203,23 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
     setQueue(updated);
     await syncToDrive(updated);
+
+    // Nexus: Auto-Start Timer integration
+    if (config.autoStartTimer && activeDashboard) {
+      const activeTimer = activeDashboard.widgets.find(
+        (w) => w.type === 'time-tool'
+      );
+      if (activeTimer) {
+        const timerConfig = activeTimer.config as TimeToolConfig;
+        updateWidget(activeTimer.id, {
+          config: {
+            ...timerConfig,
+            isRunning: true,
+            startTime: Date.now(),
+          },
+        });
+      }
+    }
   };
 
   const handleResetQueue = async () => {
@@ -634,6 +653,32 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
             </div>
           )}
+        </section>
+
+        {/* Connection Settings */}
+        <section className="space-y-4">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
+            Connections
+          </label>
+          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-600 block mb-1">
+                Auto-Start Timer
+              </span>
+              <span className="text-xxs text-slate-400 block max-w-[200px] leading-tight">
+                Automatically starts an active timer when moving to the next
+                student
+              </span>
+            </div>
+            <Toggle
+              checked={config.autoStartTimer ?? false}
+              onChange={(v) =>
+                updateWidget(widget.id, {
+                  config: { ...config, autoStartTimer: v },
+                })
+              }
+            />
+          </div>
         </section>
 
         {/* Display Settings */}

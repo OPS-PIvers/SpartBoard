@@ -34,6 +34,12 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 **Implementation:** `RandomWidget.tsx` provides a "Send to Scoreboard" button when groups are generated. It updates or creates a Scoreboard widget with the groups as teams.
 **Configuration:** Manual trigger via button in Randomizer (Groups mode).
 
+### NextUp -> Timer
+
+**Description:** Automatically starts the timer when advancing to the next student.
+**Implementation:** `NextUpWidget.tsx` checks for the `autoStartTimer` config. If enabled, advancing a student finds the active `time-tool` widget in the dashboard context and triggers `updateWidget` to start it and reset the start time.
+**Configuration:** Enabled via the "Auto-Start Timer" toggle in NextUp Settings.
+
 ## Planned Connections
 
 ## WILL NOT IMPLEMENT
