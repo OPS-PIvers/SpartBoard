@@ -205,17 +205,23 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     await syncToDrive(updated);
 
     // Nexus: Auto-Start Timer integration
-    if (config.autoStartTimer && activeDashboard) {
+    if (config.autoStartTimer && activeDashboard && nextIdx !== -1) {
       const activeTimer = activeDashboard.widgets.find(
         (w) => w.type === 'time-tool'
       );
       if (activeTimer) {
         const timerConfig = activeTimer.config as TimeToolConfig;
+        const isStopwatchMode = timerConfig.mode === 'stopwatch';
+        const resetElapsedTime = isStopwatchMode
+          ? 0
+          : (timerConfig.duration ?? timerConfig.elapsedTime ?? 0);
+
         updateWidget(activeTimer.id, {
           config: {
             ...timerConfig,
             isRunning: true,
             startTime: Date.now(),
+            elapsedTime: resetElapsedTime,
           },
         });
       }
