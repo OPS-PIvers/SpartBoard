@@ -41,6 +41,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@imgly/background-removal": "^1.7.0",
     "firebase": "^12.8.0",
+    "google-auth-library": "^10.6.1",
     "html-to-image": "^1.11.13",
     "i18next": "^25.8.13",
     "i18next-browser-languagedetector": "^8.2.1",
