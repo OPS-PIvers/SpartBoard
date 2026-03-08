@@ -129,5 +129,5 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 ## 2026-03-08 - Micro-Typography Standardization (Round 3)
 
-**Drift:** Identified remaining hardcoded font sizes (`text-[9px]`, `text-[10px]`, `text-[11px]`) in multiple admin panels and widgets including `DriveDisconnectBanner`, `TalkingToolConfigurationPanel`, `NextUpConfigurationPanel`, `CalendarConfigurationModal`, `ScheduleConfigurationPanel`, `MathToolWidget`, `Schedule/Settings`, and `CalendarWidget`.
-**Fix:** Refactored all remaining instances to use the standard Tailwind utility classes (`text-xxs` for 10px, `text-xxxs` for 8px/9px, and `text-xs` for 11px) to enforce design system consistency and eliminate "snowflakes".
+**Drift:** Identified remaining hardcoded font sizes (`text-[10px]`) in multiple admin panels and widgets including `DriveDisconnectBanner`, `TalkingToolConfigurationPanel`, `NextUpConfigurationPanel`, `CalendarConfigurationModal`, `ScheduleConfigurationPanel`, `MathToolWidget`, `Schedule/Settings`, and `CalendarWidget`.
+**Fix:** Refactored all remaining instances to use the standard Tailwind utility classes (`text-xxs` for 10px) to enforce design system consistency and eliminate "snowflakes". `text-[9px]` and `text-[11px]` were left untouched as standard sizes did not exist to map to.

@@ -378,7 +378,7 @@ export const MathToolSettings: React.FC<{ widget: WidgetData }> = ({
                     config: { ...config, rotation: deg },
                   })
                 }
-                className="px-1.5 py-0.5 text-xxxs font-bold bg-white border border-indigo-100 rounded text-indigo-600 hover:bg-indigo-50"
+                className="px-1.5 py-0.5 text-[9px] font-bold bg-white border border-indigo-100 rounded text-indigo-600 hover:bg-indigo-50"
               >
                 {deg}°
               </button>
