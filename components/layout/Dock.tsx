@@ -474,6 +474,7 @@ export const Dock: React.FC = () => {
       onPointerMove={handleDockPointerMove}
       onPointerUp={handleDockPointerUp}
       onPointerCancel={handleDockPointerUp}
+      data-role="dock"
       data-testid="dock"
       data-screenshot="exclude"
       className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-dock flex flex-col items-center gap-4 transition-all duration-300 select-none ${

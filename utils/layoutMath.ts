@@ -11,9 +11,9 @@ const getDockReservedHeight = (fallbackHeight: number): number => {
   if (typeof document === 'undefined') {
     return fallbackHeight;
   }
-  const dockElement = document.querySelector<HTMLElement>(
-    '[data-testid="dock"]'
-  );
+  const dockElement =
+    document.querySelector<HTMLElement>('[data-role="dock"]') ??
+    document.querySelector<HTMLElement>('[data-testid="dock"]');
   if (!dockElement) {
     return fallbackHeight;
   }

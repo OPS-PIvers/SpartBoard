@@ -20,7 +20,10 @@ export const isConfigured = !!apiKey;
  */
 export const isAuthBypass =
   import.meta.env.VITE_AUTH_BYPASS === 'true' ||
-  (typeof window !== 'undefined' &&
+  (import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1') &&
     new URLSearchParams(window.location.search).get('auth_bypass') === 'true');
 
 let app: FirebaseApp;
