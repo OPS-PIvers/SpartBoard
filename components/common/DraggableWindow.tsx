@@ -1146,7 +1146,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         createPortal(
           <div
             data-testid="snap-preview"
-            className="fixed z-[9998] bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
+            className="fixed z-snap-preview bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
             style={
               snapPreviewZone === 'maximize'
                 ? { top: 0, left: 0, width: '100vw', height: '100vh' }
@@ -1373,7 +1373,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     typeof document !== 'undefined' &&
                     createPortal(
                       <div
-                        className="fixed z-[10000] p-4 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-72 animate-in slide-in-from-bottom-2 fade-in duration-200"
+                        className="fixed z-modal p-4 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-72 animate-in slide-in-from-bottom-2 fade-in duration-200"
                         style={{
                           // Position above the button, centered horizontally
                           bottom: `${window.innerHeight - Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-y') ?? 0) + 12}px`,

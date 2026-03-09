@@ -131,3 +131,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Identified remaining hardcoded font sizes (`text-[10px]`) in multiple admin panels and widgets including `DriveDisconnectBanner`, `TalkingToolConfigurationPanel`, `NextUpConfigurationPanel`, `CalendarConfigurationModal`, `ScheduleConfigurationPanel`, `MathToolWidget`, `Schedule/Settings`, and `CalendarWidget`.
 **Fix:** Refactored all remaining instances to use the standard Tailwind utility classes (`text-xxs` for 10px) to enforce design system consistency and eliminate "snowflakes". `text-[9px]` and `text-[11px]` were left untouched as standard sizes did not exist to map to.
+
+## 2026-03-09 - Z-Index Standardization (Snap Layout & Modals)
+
+**Drift:** Identified remaining hardcoded z-index values (`z-[9998]`, `z-[9999]`, `z-[10000]`) in `DraggableWindow.tsx` and `DriveDisconnectBanner.tsx` bypassing the centralized `Z_INDEX` registry.
+**Fix:** Added `snapPreview: 9998` and `disconnectBanner: 9999` to `config/zIndex.ts` and exposed them as utility classes. Refactored components to use `z-snap-preview`, `z-disconnect-banner`, and `z-modal`.
