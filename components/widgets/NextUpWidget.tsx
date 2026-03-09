@@ -5,11 +5,14 @@ import {
   NextUpQueueItem,
   WidgetData,
   NextUpSession,
+  TimeToolConfig,
 } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from './WidgetLayout';
+import { Toggle } from '@/components/common/Toggle';
+import { resumeAudio } from '@/utils/timeToolAudio';
 import {
   doc,
   setDoc,
@@ -38,7 +41,7 @@ const ENTRIES_SUBCOLLECTION = 'entries';
 export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
   const { driveService } = useGoogleDrive();
-  const { updateWidget } = useDashboard();
+  const { updateWidget, activeDashboard } = useDashboard();
   const { user } = useAuth();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
@@ -191,7 +194,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     [config, driveService, widget.id, updateWidget]
   );
 
-  const handleNextStudent = async () => {
+  const handleNextStudent = () => {
     const updated = [...queue];
     const activeIdx = updated.findIndex((q) => q.status === 'active');
     if (activeIdx !== -1) updated[activeIdx].status = 'done';
@@ -200,7 +203,35 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     if (nextIdx !== -1) updated[nextIdx].status = 'active';
 
     setQueue(updated);
-    await syncToDrive(updated);
+
+    // Nexus: Auto-Start Timer integration
+    if (config.autoStartTimer && activeDashboard && nextIdx !== -1) {
+      const activeTimer = activeDashboard.widgets.find(
+        (w) => w.type === 'time-tool'
+      );
+      if (activeTimer) {
+        // Unlock audio context on user gesture
+        resumeAudio().catch(console.error);
+
+        const timerConfig = activeTimer.config as TimeToolConfig;
+        const isStopwatchMode = timerConfig.mode === 'stopwatch';
+        const resetElapsedTime = isStopwatchMode
+          ? 0
+          : (timerConfig.duration ?? timerConfig.elapsedTime ?? 0);
+
+        updateWidget(activeTimer.id, {
+          config: {
+            ...timerConfig,
+            isRunning: true,
+            startTime: Date.now(),
+            elapsedTime: resetElapsedTime,
+          },
+        });
+      }
+    }
+
+    // Sync to Drive after triggering updates so UI responds instantly
+    syncToDrive(updated).catch(console.error);
   };
 
   const handleResetQueue = async () => {
@@ -396,7 +427,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as NextUpConfig;
   const { user } = useAuth();
   const { driveService } = useGoogleDrive();
-  const { updateWidget } = useDashboard();
+  const { updateWidget, activeDashboard } = useDashboard();
 
   const [existingFiles, setExistingFiles] = useState<
     { id: string; name: string }[]
@@ -634,6 +665,39 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
             </div>
           )}
+        </section>
+
+        {/* Connection Settings */}
+        <section className="space-y-4">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block">
+            Connections
+          </label>
+          <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-600 block mb-1">
+                Auto-Start Timer
+              </span>
+              <span className="text-xxs text-slate-400 block max-w-[200px] leading-tight">
+                Automatically starts an active timer when moving to the next
+                student
+              </span>
+            </div>
+            {activeDashboard &&
+            activeDashboard.widgets.some((w) => w.type === 'time-tool') ? (
+              <Toggle
+                checked={config.autoStartTimer ?? false}
+                onChange={(v) =>
+                  updateWidget(widget.id, {
+                    config: { ...config, autoStartTimer: v },
+                  })
+                }
+              />
+            ) : (
+              <span className="text-xxs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">
+                No Timer on Board
+              </span>
+            )}
+          </div>
         </section>
 
         {/* Display Settings */}

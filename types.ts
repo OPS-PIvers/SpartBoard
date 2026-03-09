@@ -1091,6 +1091,7 @@ export interface NextUpConfig {
   createdAt: number; // Used for midnight auto-expiry
   lastUpdated: number;
   displayCount: number;
+  autoStartTimer?: boolean; // Nexus connection
   styling: {
     fontFamily: string;
     themeColor: string;
