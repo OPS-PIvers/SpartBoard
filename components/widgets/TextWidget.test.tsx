@@ -115,6 +115,66 @@ describe('TextWidget', () => {
     expect(editableDiv.innerHTML).toBe('');
   });
 
+  it('updates content when changed externally', () => {
+    const { container, rerender } = render(<TextWidget widget={mockWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+    expect(editableDiv).not.toBeNull();
+    expect(editableDiv.innerHTML).toBe('Hello World');
+
+    const updatedWidget = {
+      ...mockWidget,
+      config: { ...mockConfig, content: 'Updated External Content' },
+    };
+
+    rerender(<TextWidget widget={updatedWidget} />);
+
+    expect(editableDiv.innerHTML).toBe('Updated External Content');
+  });
+
+  it('does not update DOM from external change when editing', () => {
+    const { container, rerender } = render(<TextWidget widget={mockWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+    expect(editableDiv).not.toBeNull();
+    fireEvent.focus(editableDiv);
+    editableDiv.innerHTML = 'My Edit';
+
+    const updatedWidget = {
+      ...mockWidget,
+      config: { ...mockConfig, content: 'Updated External Content' },
+    };
+
+    rerender(<TextWidget widget={updatedWidget} />);
+
+    // Should not have overwritten since focus/isEditing is true
+    expect(editableDiv.innerHTML).toBe('My Edit');
+  });
+
+  it('handles null/empty content correctly on mount and update', () => {
+    // Mount with null content
+    const nullWidget = {
+      ...mockWidget,
+      config: { ...mockConfig, content: null as unknown as string },
+    };
+    const { container, rerender } = render(<TextWidget widget={nullWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+    expect(editableDiv).not.toBeNull();
+    expect(editableDiv.innerHTML).toBe('');
+
+    // Update with undefined content
+    const undefinedWidget = {
+      ...mockWidget,
+      config: { ...mockConfig, content: undefined as unknown as string },
+    };
+    rerender(<TextWidget widget={undefinedWidget} />);
+    expect(editableDiv.innerHTML).toBe('');
+  });
+
   it('updates content on input', () => {
     const { container } = render(<TextWidget widget={mockWidget} />);
     const editableDiv = container.querySelector(

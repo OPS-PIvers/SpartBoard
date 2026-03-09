@@ -33,7 +33,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       content !== lastExternalContent.current
     ) {
       lastExternalContent.current = content;
-      editorRef.current.innerHTML = content || '';
+      editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
     }
   }, [content]);
 
@@ -42,7 +42,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // and including `content` here would overwrite the DOM during typing.
   useEffect(() => {
     if (editorRef.current) {
-      editorRef.current.innerHTML = content || '';
+      editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
