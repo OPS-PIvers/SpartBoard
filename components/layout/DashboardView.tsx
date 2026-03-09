@@ -18,6 +18,7 @@ import {
   Loader2,
   HelpCircle,
   LayoutGrid,
+  Music,
 } from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -171,6 +172,36 @@ export const DashboardView: React.FC = () => {
   const initialPinchDistance = React.useRef<number | null>(null);
   const initialZoom = React.useRef<number>(1);
   const MIN_SWIPE_DISTANCE_PX = 100;
+
+  // Background YouTube audio control
+  const ytIframeRef = React.useRef<HTMLIFrameElement>(null);
+  const [isBgMuted, setIsBgMuted] = React.useState(true);
+
+  const toggleBgMute = React.useCallback(() => {
+    if (!ytIframeRef.current?.contentWindow) return;
+    const newMuted = !isBgMuted;
+    setIsBgMuted(newMuted);
+
+    ytIframeRef.current.contentWindow.postMessage(
+      JSON.stringify({
+        event: 'command',
+        func: newMuted ? 'mute' : 'unMute',
+        args: [],
+      }),
+      '*'
+    );
+
+    if (!newMuted) {
+      ytIframeRef.current.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'setVolume',
+          args: [100],
+        }),
+        '*'
+      );
+    }
+  }, [isBgMuted]);
 
   const currentIndex = useMemo(() => {
     if (!activeDashboard) return -1;
@@ -583,6 +614,10 @@ export const DashboardView: React.FC = () => {
     [activeDashboard]
   );
 
+  React.useEffect(() => {
+    setIsBgMuted(true);
+  }, [youTubeVideoId]);
+
   const backgroundStyles = useMemo(() => {
     if (!activeDashboard) return {};
     const bg = activeDashboard.background;
@@ -645,7 +680,8 @@ export const DashboardView: React.FC = () => {
       {youTubeVideoId && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
           <iframe
-            src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1`}
+            ref={ytIframeRef}
+            src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
             className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
             allow="autoplay; encrypted-media"
             title="Ambient background video"
@@ -739,6 +775,43 @@ export const DashboardView: React.FC = () => {
             </span>
           </button>
         </div>
+      )}
+
+      {/* Background YouTube Mute Toggle */}
+      {youTubeVideoId && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleBgMute();
+          }}
+          title={
+            isBgMuted
+              ? 'Enable background video sound'
+              : 'Mute background video'
+          }
+          className="fixed bottom-6 left-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+          aria-label="Toggle background video sound"
+        >
+          <div className="relative flex items-center justify-center w-full h-full">
+            <Music className="w-4 h-4" />
+            {isBgMuted && (
+              <div className="absolute inset-0 flex items-center justify-center text-red-500 pointer-events-none">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-6 h-6 opacity-80"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+              </div>
+            )}
+          </div>
+        </button>
       )}
 
       {/* Cheat Sheet Help Button */}
