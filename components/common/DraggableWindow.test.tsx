@@ -270,7 +270,7 @@ describe('DraggableWindow', () => {
     });
   });
 
-  it('updates position on pointer drag (using direct DOM manipulation for standard widgets)', () => {
+  it('updates position on pointer drag (using direct DOM manipulation for standard widgets)', async () => {
     renderComponent();
 
     const dragSurface = screen.getByTestId(
@@ -301,23 +301,27 @@ describe('DraggableWindow', () => {
 
     // BUT should update DOM directly
     // New position: 100 + (160 - 110) = 150
-    expect(windowEl.style.left).toBe('150px');
-    expect(windowEl.style.top).toBe('150px');
+    await waitFor(() => {
+      expect(windowEl.style.left).toBe('150px');
+      expect(windowEl.style.top).toBe('150px');
+    });
 
     // Clean up (Pointer Up)
     fireEvent.pointerUp(window, { pointerId: 1 });
 
     // NOW updateWidget should be called with final position
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'test-widget',
-      expect.objectContaining({
-        x: 150,
-        y: 150,
-      })
-    );
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'test-widget',
+        expect.objectContaining({
+          x: 150,
+          y: 150,
+        })
+      );
+    });
   });
 
-  it('triggers real-time updates for position-aware widgets (e.g. catalyst)', () => {
+  it('triggers real-time updates for position-aware widgets (e.g. catalyst)', async () => {
     const catalystWidget = {
       ...mockWidget,
       id: 'catalyst-1',
@@ -346,10 +350,12 @@ describe('DraggableWindow', () => {
     });
 
     // Catalyst should trigger updateWidget immediately during drag
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'catalyst-1',
-      expect.objectContaining({ x: 110, y: 110 })
-    );
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'catalyst-1',
+        expect.objectContaining({ x: 110, y: 110 })
+      );
+    });
   });
 
   it('minimizes on Escape key press', () => {
