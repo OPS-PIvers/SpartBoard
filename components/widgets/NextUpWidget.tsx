@@ -12,6 +12,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from './WidgetLayout';
 import { Toggle } from '@/components/common/Toggle';
+import { resumeAudio } from '@/utils/timeToolAudio';
 import {
   doc,
   setDoc,
@@ -193,7 +194,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     [config, driveService, widget.id, updateWidget]
   );
 
-  const handleNextStudent = async () => {
+  const handleNextStudent = () => {
     const updated = [...queue];
     const activeIdx = updated.findIndex((q) => q.status === 'active');
     if (activeIdx !== -1) updated[activeIdx].status = 'done';
@@ -202,7 +203,6 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     if (nextIdx !== -1) updated[nextIdx].status = 'active';
 
     setQueue(updated);
-    await syncToDrive(updated);
 
     // Nexus: Auto-Start Timer integration
     if (config.autoStartTimer && activeDashboard && nextIdx !== -1) {
@@ -210,6 +210,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         (w) => w.type === 'time-tool'
       );
       if (activeTimer) {
+        // Unlock audio context on user gesture
+        resumeAudio().catch(console.error);
+
         const timerConfig = activeTimer.config as TimeToolConfig;
         const isStopwatchMode = timerConfig.mode === 'stopwatch';
         const resetElapsedTime = isStopwatchMode
@@ -226,6 +229,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         });
       }
     }
+
+    // Sync to Drive after triggering updates so UI responds instantly
+    syncToDrive(updated).catch(console.error);
   };
 
   const handleResetQueue = async () => {
@@ -421,7 +427,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as NextUpConfig;
   const { user } = useAuth();
   const { driveService } = useGoogleDrive();
-  const { updateWidget } = useDashboard();
+  const { updateWidget, activeDashboard } = useDashboard();
 
   const [existingFiles, setExistingFiles] = useState<
     { id: string; name: string }[]
@@ -676,14 +682,21 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
                 student
               </span>
             </div>
-            <Toggle
-              checked={config.autoStartTimer ?? false}
-              onChange={(v) =>
-                updateWidget(widget.id, {
-                  config: { ...config, autoStartTimer: v },
-                })
-              }
-            />
+            {activeDashboard &&
+            activeDashboard.widgets.some((w) => w.type === 'time-tool') ? (
+              <Toggle
+                checked={config.autoStartTimer ?? false}
+                onChange={(v) =>
+                  updateWidget(widget.id, {
+                    config: { ...config, autoStartTimer: v },
+                  })
+                }
+              />
+            ) : (
+              <span className="text-xxs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">
+                No Timer on Board
+              </span>
+            )}
           </div>
         </section>
 
