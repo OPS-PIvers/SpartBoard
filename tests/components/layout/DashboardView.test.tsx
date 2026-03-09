@@ -94,6 +94,8 @@ describe('DashboardView Gestures & Navigation', () => {
       addToast: vi.fn(),
       minimizeAllWidgets: vi.fn(),
       deleteAllWidgets: vi.fn(),
+      zoom: 1,
+      setZoom: vi.fn(),
     });
   });
 
@@ -133,6 +135,8 @@ describe('DashboardView Gestures & Navigation', () => {
       minimizeAllWidgets: mockMinimizeAll,
       loadDashboard: mockLoadDashboard,
       toasts: [],
+      zoom: 1,
+      setZoom: vi.fn(),
     });
 
     render(<DashboardView />);
@@ -148,6 +152,8 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: mockDeleteAll,
       loadDashboard: mockLoadDashboard,
       toasts: [],
+      zoom: 1,
+      setZoom: vi.fn(),
     });
 
     render(<DashboardView />);
@@ -166,6 +172,8 @@ describe('DashboardView Gestures & Navigation', () => {
       removeToast: vi.fn(),
       minimizeAllWidgets: vi.fn(),
       deleteAllWidgets: vi.fn(),
+      zoom: 1,
+      setZoom: vi.fn(),
     });
 
     const { unmount } = render(<DashboardView />);
@@ -184,6 +192,8 @@ describe('DashboardView Gestures & Navigation', () => {
       removeToast: vi.fn(),
       minimizeAllWidgets: vi.fn(),
       deleteAllWidgets: vi.fn(),
+      zoom: 1,
+      setZoom: vi.fn(),
     });
 
     render(<DashboardView />);

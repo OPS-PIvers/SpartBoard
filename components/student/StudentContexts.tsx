@@ -158,6 +158,10 @@ const mockDashboard: DashboardContextValue = {
   updateDashboard: () => {
     // No-op
   },
+  zoom: 1,
+  setZoom: () => {
+    // No-op
+  },
   selectedWidgetId: null,
   setSelectedWidgetId: () => {
     // No-op

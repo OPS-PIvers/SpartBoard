@@ -107,6 +107,8 @@ describe('Global Escape Interaction', () => {
     visibleTools: [],
     dockItems: [],
     gradeFilter: 'all',
+    zoom: 1,
+    setZoom: vi.fn(),
   };
 
   afterEach(() => {

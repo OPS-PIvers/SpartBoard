@@ -184,6 +184,7 @@ describe('DraggableWindow', () => {
             resetWidgetSize: mockResetWidgetSize,
             selectedWidgetId,
             setSelectedWidgetId: mockSetSelectedWidgetId,
+            zoom: 1,
           } as unknown as DashboardContextValue
         }
       >
@@ -216,6 +217,7 @@ describe('DraggableWindow', () => {
             resetWidgetSize: mockResetWidgetSize,
             selectedWidgetId: null,
             setSelectedWidgetId: mockSetSelectedWidgetId,
+            zoom: 1,
           } as unknown as DashboardContextValue
         }
       >
@@ -247,6 +249,7 @@ describe('DraggableWindow', () => {
             resetWidgetSize: mockResetWidgetSize,
             selectedWidgetId: null,
             setSelectedWidgetId: mockSetSelectedWidgetId,
+            zoom: 1,
           } as unknown as DashboardContextValue
         }
       >
