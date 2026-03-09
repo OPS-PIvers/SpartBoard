@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { PollWidget, PollSettings } from './PollWidget';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
-import { vi, describe, it, expect, Mock, beforeEach } from 'vitest';
+import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
 import { WidgetData } from '../../types';
 import { GeneratedPoll } from '../../utils/ai';
 
@@ -48,6 +48,11 @@ describe('PollWidget', () => {
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     });
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders question and options, and allows voting', () => {
@@ -144,6 +149,11 @@ describe('PollSettings', () => {
       canAccessFeature: mockCanAccessFeature,
     });
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
   it('updates widget config when magic poll is generated', () => {
     const mockWidget: WidgetData = {
@@ -339,8 +349,11 @@ describe('PollSettings', () => {
     const mockCreateElement = vi.spyOn(document, 'createElement');
     const mockCreateObjectURL = vi.fn(() => 'blob:test-url');
     const mockRevokeObjectURL = vi.fn();
-    global.URL.createObjectURL = mockCreateObjectURL;
-    global.URL.revokeObjectURL = mockRevokeObjectURL;
+    vi.stubGlobal('URL', {
+      ...global.URL,
+      createObjectURL: mockCreateObjectURL,
+      revokeObjectURL: mockRevokeObjectURL,
+    });
 
     let mockAnchor: HTMLAnchorElement | null = null;
 
