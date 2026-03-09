@@ -4,7 +4,7 @@
  * and flattens all whitespace (newlines and carriage returns) into single spaces.
  */
 export const sanitizePrompt = (text?: string): string => {
-  if (!text) return '';
+  if (typeof text !== 'string' || text.length === 0) return '';
   return text
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

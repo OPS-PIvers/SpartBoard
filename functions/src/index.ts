@@ -385,6 +385,7 @@ export const generateWithAI = functionsV1
           - qr: QR code generator
           - embed: Website embedder
           - poll: Multiple choice poll
+          - quiz: Interactive classroom quizzes
           - webcam: Live camera feed with OCR capabilities
           - scoreboard: Point tracker
           - expectations: Classroom expectations icons
