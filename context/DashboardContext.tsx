@@ -107,6 +107,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const dashboardsRef = useRef(dashboards);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [zoom, setZoom] = useState<number>(1);
   const [visibleTools, setVisibleTools] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
@@ -2091,6 +2092,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      zoom,
+      setZoom,
     }),
     [
       dashboards,
@@ -2155,6 +2158,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      zoom,
+      setZoom,
     ]
   );
 

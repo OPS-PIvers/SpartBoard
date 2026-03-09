@@ -110,6 +110,8 @@ export const DashboardView: React.FC = () => {
     minimizeAllWidgets,
     deleteAllWidgets,
     setSelectedWidgetId,
+    zoom,
+    setZoom,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
 
@@ -160,7 +162,6 @@ export const DashboardView: React.FC = () => {
   const [animationClass, setAnimationClass] =
     React.useState<string>('animate-fade-in');
   const [isMinimized, setIsMinimized] = React.useState(false);
-  const [zoom, setZoom] = React.useState(1);
   const [zoomOrigin, setZoomOrigin] = React.useState({ x: 50, y: 50 });
 
   // Gesture Tracking
@@ -179,7 +180,7 @@ export const DashboardView: React.FC = () => {
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
-  }, [activeDashboard?.id, currentIndex]);
+  }, [activeDashboard?.id, currentIndex, setZoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
@@ -721,6 +722,24 @@ export const DashboardView: React.FC = () => {
       <Dock />
       <ToastContainer />
       <AnnouncementOverlay />
+
+      {/* Reset Zoom Indicator */}
+      {Math.abs(zoom - 1) > 0.01 && (
+        <div className="fixed top-20 right-6 z-toast animate-in fade-in zoom-in duration-200">
+          <button
+            onClick={() => setZoom(1)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 backdrop-blur-md border border-white/20 rounded-full text-white shadow-xl hover:bg-slate-800 transition-all group"
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-70 group-hover:opacity-100">
+              Zoom: {Math.round(zoom * 100)}%
+            </span>
+            <div className="w-px h-3 bg-white/20" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 group-hover:text-blue-300">
+              Reset
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Cheat Sheet Help Button */}
       <button

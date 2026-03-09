@@ -120,6 +120,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     deleteAllWidgets,
     selectedWidgetId,
     setSelectedWidgetId,
+    zoom,
   } = useDashboard();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -432,8 +433,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     dragDistanceRef.current = 0;
 
     document.body.classList.add('is-dragging-widget');
-    const startX = e.clientX - widget.x;
-    const startY = e.clientY - widget.y;
     const initialMouseX = e.clientX;
     const initialMouseY = e.clientY;
 
@@ -489,8 +488,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         setSnapPreviewZone(newZone);
       }
 
-      const newX = moveEvent.clientX - startX;
-      const newY = moveEvent.clientY - startY;
+      // Calculate movements relative to initial position, scaled by current zoom
+      const deltaX = (moveEvent.clientX - initialMouseX) / zoom;
+      const deltaY = (moveEvent.clientY - initialMouseY) / zoom;
+
+      const newX = widget.x + deltaX;
+      const newY = widget.y + deltaY;
 
       // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
       if (!POSITION_AWARE_WIDGETS.includes(widget.type) && windowRef.current) {

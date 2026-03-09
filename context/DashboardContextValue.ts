@@ -65,6 +65,10 @@ export interface DashboardContextValue {
   updateDashboard: (updates: Partial<Dashboard>) => void;
   clearAllStickers: () => void;
 
+  // Zoom system
+  zoom: number;
+  setZoom: (zoom: number) => void;
+
   // Selection system
   selectedWidgetId: string | null;
   setSelectedWidgetId: (id: string | null) => void;
