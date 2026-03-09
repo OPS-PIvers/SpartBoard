@@ -223,7 +223,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`w-full h-full rounded-2xl flex flex-col items-center justify-center text-center overflow-hidden relative select-none ${
+          className={`w-full h-full rounded-2xl flex flex-col [@container(min-width:300px)]:flex-row items-center justify-center text-center [@container(min-width:300px)]:text-left overflow-hidden relative select-none transition-all duration-500 ${
             !isTransparent ? 'shadow-inner' : ''
           }`}
           style={{
@@ -243,16 +243,16 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div id={`yt-player-${widget.id}`} />
           </div>
 
-          {/* Album art */}
+          {/* Album art + Controls */}
           <div className="relative shrink-0 group">
             {activeStation.thumbnail ? (
               <img
                 src={activeStation.thumbnail}
                 alt={activeStation.title}
-                className="rounded-3xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:rotate-1"
+                className={`rounded-3xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 ${isPlaying ? 'animate-pulse-slow' : ''}`}
                 style={{
-                  width: 'min(160px, 48cqmin)',
-                  height: 'min(160px, 48cqmin)',
+                  width: 'min(140px, 45cqmin)',
+                  height: 'min(140px, 45cqmin)',
                   border: `min(4px, 1cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
                 }}
               />
@@ -262,8 +262,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'
                 }`}
                 style={{
-                  width: 'min(160px, 48cqmin)',
-                  height: 'min(160px, 48cqmin)',
+                  width: 'min(140px, 45cqmin)',
+                  height: 'min(140px, 45cqmin)',
                   border: `min(4px, 1cqmin) solid ${activeStation.color || '#e2e8f0'}44`,
                 }}
               >
@@ -279,23 +279,35 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </div>
             )}
 
-            {/* Play overlay on image */}
-            {!isPlaying && isPlayerReady && (
-              <div
-                className="absolute inset-0 bg-black/10 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                onClick={togglePlay}
-              >
-                <div className="bg-white/90 rounded-full p-4 shadow-xl backdrop-blur-sm">
-                  <Play className="text-slate-900 fill-current w-8 h-8 ml-1" />
+            {/* Play/Pause overlay */}
+            <div
+              className={`absolute inset-0 rounded-3xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                isPlaying
+                  ? 'bg-black/0 hover:bg-black/20 opacity-0 hover:opacity-100'
+                  : 'bg-black/10 opacity-100'
+              }`}
+              onClick={togglePlay}
+            >
+              {!isPlayerReady ? (
+                <div className="bg-white/90 rounded-full p-2 shadow-xl backdrop-blur-sm">
+                  <div className="w-6 h-6 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin" />
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="bg-white/90 rounded-full p-4 shadow-xl backdrop-blur-sm transform transition-transform active:scale-90">
+                  {isPlaying ? (
+                    <Pause className="text-slate-900 fill-current w-8 h-8" />
+                  ) : (
+                    <Play className="text-slate-900 fill-current w-8 h-8 ml-1" />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Station info */}
-          <div className="w-full flex flex-col items-center min-w-0">
+          <div className="flex-1 flex flex-col items-center [@container(min-width:300px)]:items-start min-w-0">
             <div
-              className="flex items-center justify-center w-full"
+              className="flex items-center justify-center [@container(min-width:300px)]:justify-start w-full"
               style={{ gap: 'min(10px, 2.5cqmin)' }}
             >
               <h3
@@ -332,65 +344,23 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             >
               {activeStation.channel}
             </p>
-          </div>
 
-          {/* Play / Pause / Loading */}
-          <div
-            className="flex items-center justify-center shrink-0 w-full"
-            style={{ marginTop: 'min(8px, 1cqmin)' }}
-          >
-            {!isPlayerReady ? (
+            {/* Status indicator for wide view */}
+            {isPlayerReady && (
               <div
-                className="animate-pulse font-black uppercase tracking-[0.2em]"
-                style={{
-                  fontSize: 'min(12px, 3.5cqmin)',
-                  color: textColor,
-                  opacity: 0.5,
-                }}
+                className="hidden [@container(min-width:300px)]:flex items-center gap-2 mt-auto"
+                style={{ marginTop: 'min(12px, 3cqmin)' }}
               >
-                Initialising...
+                <div
+                  className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
+                />
+                <span
+                  className="text-[10px] font-black uppercase tracking-widest opacity-40"
+                  style={{ color: textColor }}
+                >
+                  {isPlaying ? 'Now Playing' : 'Paused'}
+                </span>
               </div>
-            ) : (
-              <button
-                onClick={togglePlay}
-                className="rounded-full flex items-center justify-center transition-all active:scale-90 shadow-xl group/btn"
-                style={{
-                  width: 'min(80px, 24cqmin)',
-                  height: 'min(80px, 24cqmin)',
-                  backgroundColor: isPlaying
-                    ? isTransparent
-                      ? '#ffffff22'
-                      : '#f1f5f9'
-                    : activeStation.color || '#2d3f89',
-                  color: isPlaying
-                    ? isTransparent
-                      ? '#ffffff'
-                      : '#475569'
-                    : 'white',
-                  border:
-                    isTransparent && isPlaying ? '1px solid #ffffff44' : 'none',
-                }}
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? (
-                  <Pause
-                    className="fill-current transition-transform group-hover/btn:scale-110"
-                    style={{
-                      width: 'min(36px, 11cqmin)',
-                      height: 'min(36px, 11cqmin)',
-                    }}
-                  />
-                ) : (
-                  <Play
-                    className="fill-current transition-transform group-hover/btn:scale-110"
-                    style={{
-                      width: 'min(36px, 11cqmin)',
-                      height: 'min(36px, 11cqmin)',
-                      marginLeft: 'min(6px, 1.5cqmin)',
-                    }}
-                  />
-                )}
-              </button>
             )}
           </div>
         </div>
