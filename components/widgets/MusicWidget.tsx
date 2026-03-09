@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, Music, Pause, Play, Radio } from 'lucide-react';
+import { Link, Music, Palette, Pause, Play, Radio } from 'lucide-react';
 import { WidgetData, MusicConfig, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { Toggle } from '../common/Toggle';
 import { WidgetLayout } from './WidgetLayout';
+import { WIDGET_PALETTE, STANDARD_COLORS } from '@/config/colors';
+import { SettingsLabel } from '../common/SettingsLabel';
 
 // ---------------------------------------------------------------------------
 // YouTube IFrame API singleton
@@ -69,6 +71,7 @@ const buildSpotifyEmbedUrl = (url: string): string | null => {
 export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
   const config = widget.config as MusicConfig;
+  const { bgColor = '#ffffff', textColor = STANDARD_COLORS.slate } = config;
   const { stations } = useMusicStations();
   const [isPlaying, setIsPlaying] = useState(false);
   // isPlayerReady ensures the sync effect only fires after the YT player
@@ -212,15 +215,29 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
+  const isTransparent = bgColor === 'transparent';
+
   // YouTube chromeless player
   return (
     <WidgetLayout
       padding="p-0"
       content={
         <div
-          className="w-full h-full bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-center overflow-hidden relative shadow-inner select-none"
-          style={{ padding: 'min(20px, 6cqmin)', gap: 'min(12px, 4cqmin)' }}
+          className={`w-full h-full rounded-2xl flex flex-col items-center justify-center text-center overflow-hidden relative select-none ${
+            !isTransparent ? 'shadow-inner' : ''
+          }`}
+          style={{
+            padding: 'min(24px, 7cqmin)',
+            gap: 'min(16px, 5cqmin)',
+            backgroundColor: bgColor,
+          }}
         >
+          {/* Background Branding Accent */}
+          <div
+            className="absolute top-0 left-0 w-full h-1.5 opacity-80"
+            style={{ backgroundColor: activeStation.color || '#2d3f89' }}
+          />
+
           {/* Hidden 1×1 iframe mount point */}
           <div className="absolute top-0 left-0 w-px h-px overflow-hidden opacity-0 pointer-events-none">
             <div id={`yt-player-${widget.id}`} />
@@ -232,25 +249,31 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <img
                 src={activeStation.thumbnail}
                 alt={activeStation.title}
-                className="rounded-2xl object-cover shadow-2xl transition-transform duration-500 group-hover:scale-105"
+                className="rounded-3xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:rotate-1"
                 style={{
-                  width: 'min(140px, 45cqmin)',
-                  height: 'min(140px, 45cqmin)',
+                  width: 'min(160px, 48cqmin)',
+                  height: 'min(160px, 48cqmin)',
+                  border: `min(4px, 1cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
                 }}
               />
             ) : (
               <div
-                className="rounded-2xl bg-slate-800 flex items-center justify-center shadow-2xl"
+                className={`rounded-3xl flex items-center justify-center shadow-2xl ${
+                  isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'
+                }`}
                 style={{
-                  width: 'min(140px, 45cqmin)',
-                  height: 'min(140px, 45cqmin)',
+                  width: 'min(160px, 48cqmin)',
+                  height: 'min(160px, 48cqmin)',
+                  border: `min(4px, 1cqmin) solid ${activeStation.color || '#e2e8f0'}44`,
                 }}
               >
                 <Music
-                  className="text-slate-500"
+                  className={
+                    isTransparent ? 'text-slate-400' : 'text-slate-300'
+                  }
                   style={{
-                    width: 'min(60px, 20cqmin)',
-                    height: 'min(60px, 20cqmin)',
+                    width: 'min(64px, 20cqmin)',
+                    height: 'min(64px, 20cqmin)',
                   }}
                 />
               </div>
@@ -259,10 +282,12 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {/* Play overlay on image */}
             {!isPlaying && isPlayerReady && (
               <div
-                className="absolute inset-0 bg-black/20 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute inset-0 bg-black/10 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={togglePlay}
               >
-                <Play className="text-white fill-current w-1/3 h-1/3" />
+                <div className="bg-white/90 rounded-full p-4 shadow-xl backdrop-blur-sm">
+                  <Play className="text-slate-900 fill-current w-8 h-8 ml-1" />
+                </div>
               </div>
             )}
           </div>
@@ -271,31 +296,38 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div className="w-full flex flex-col items-center min-w-0">
             <div
               className="flex items-center justify-center w-full"
-              style={{ gap: 'min(10px, 2cqmin)' }}
+              style={{ gap: 'min(10px, 2.5cqmin)' }}
             >
               <h3
-                className="text-white font-bold truncate max-w-[90%]"
-                style={{ fontSize: 'min(32px, 10cqmin)', lineHeight: 1.1 }}
+                className="font-black truncate max-w-[90%]"
+                style={{
+                  fontSize: 'min(36px, 11cqmin)',
+                  lineHeight: 1.1,
+                  color: textColor,
+                }}
               >
                 {activeStation.title}
               </h3>
               {config.syncWithTimeTool && (
                 <Link
-                  className="text-indigo-400 shrink-0"
+                  className="shrink-0"
                   style={{
-                    width: 'min(20px, 5cqmin)',
-                    height: 'min(20px, 5cqmin)',
+                    width: 'min(24px, 6cqmin)',
+                    height: 'min(24px, 6cqmin)',
+                    color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
+                    opacity: textColor === '#ffffff' ? 0.8 : 1,
                   }}
                   aria-label="Synced with Time Tool"
                 />
               )}
             </div>
             <p
-              className="text-slate-400 truncate max-w-[85%]"
+              className="font-bold truncate max-w-[85%]"
               style={{
-                fontSize: 'min(20px, 6cqmin)',
+                fontSize: 'min(22px, 6.5cqmin)',
                 marginTop: 'min(4px, 1cqmin)',
-                opacity: 0.8,
+                opacity: 0.7,
+                color: textColor,
               }}
             >
               {activeStation.channel}
@@ -304,41 +336,57 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
           {/* Play / Pause / Loading */}
           <div
-            className="flex items-center justify-center shrink-0"
-            style={{ marginTop: 'min(12px, 2cqmin)' }}
+            className="flex items-center justify-center shrink-0 w-full"
+            style={{ marginTop: 'min(8px, 1cqmin)' }}
           >
             {!isPlayerReady ? (
               <div
-                className="text-slate-500 animate-pulse font-bold uppercase tracking-widest"
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                className="animate-pulse font-black uppercase tracking-[0.2em]"
+                style={{
+                  fontSize: 'min(12px, 3.5cqmin)',
+                  color: textColor,
+                  opacity: 0.5,
+                }}
               >
-                Initialising Player...
+                Initialising...
               </div>
             ) : (
               <button
                 onClick={togglePlay}
-                className="bg-white rounded-full flex items-center justify-center text-slate-900 hover:scale-110 active:scale-95 transition-all shadow-2xl"
+                className="rounded-full flex items-center justify-center transition-all active:scale-90 shadow-xl group/btn"
                 style={{
-                  width: 'min(80px, 22cqmin)',
-                  height: 'min(80px, 22cqmin)',
+                  width: 'min(80px, 24cqmin)',
+                  height: 'min(80px, 24cqmin)',
+                  backgroundColor: isPlaying
+                    ? isTransparent
+                      ? '#ffffff22'
+                      : '#f1f5f9'
+                    : activeStation.color || '#2d3f89',
+                  color: isPlaying
+                    ? isTransparent
+                      ? '#ffffff'
+                      : '#475569'
+                    : 'white',
+                  border:
+                    isTransparent && isPlaying ? '1px solid #ffffff44' : 'none',
                 }}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
                   <Pause
-                    className="fill-current"
+                    className="fill-current transition-transform group-hover/btn:scale-110"
                     style={{
-                      width: 'min(40px, 11cqmin)',
-                      height: 'min(40px, 11cqmin)',
+                      width: 'min(36px, 11cqmin)',
+                      height: 'min(36px, 11cqmin)',
                     }}
                   />
                 ) : (
                   <Play
-                    className="fill-current"
+                    className="fill-current transition-transform group-hover/btn:scale-110"
                     style={{
-                      width: 'min(40px, 11cqmin)',
-                      height: 'min(40px, 11cqmin)',
-                      marginLeft: 'min(5px, 1.5cqmin)',
+                      width: 'min(36px, 11cqmin)',
+                      height: 'min(36px, 11cqmin)',
+                      marginLeft: 'min(6px, 1.5cqmin)',
                     }}
                   />
                 )}
@@ -360,10 +408,21 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
 
+  const { bgColor = '#ffffff', textColor = STANDARD_COLORS.slate } = config;
+
   const activeStation = stations.find((s) => s.id === config.stationId);
   const isSpotify = activeStation?.url
     ? buildSpotifyEmbedUrl(activeStation.url) !== null
     : false;
+
+  const bgColors = [
+    { hex: '#ffffff', label: 'White' },
+    { hex: '#f8fafc', label: 'Slate' },
+    { hex: '#1e293b', label: 'Dark' },
+    { hex: 'transparent', label: 'Transparent' },
+  ];
+
+  const textColors = [...WIDGET_PALETTE, '#ffffff'];
 
   return (
     <div className="space-y-5">
@@ -385,7 +444,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
             {stations.map((station) => {
               const isActive = config.stationId === station.id;
               return (
@@ -428,6 +487,55 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             })}
           </div>
         )}
+      </div>
+
+      {/* Colors */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <SettingsLabel icon={Palette}>Background</SettingsLabel>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {bgColors.map((c) => (
+              <button
+                key={c.hex}
+                onClick={() =>
+                  updateWidget(widget.id, {
+                    config: { ...config, bgColor: c.hex },
+                  })
+                }
+                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                  bgColor === c.hex
+                    ? 'border-indigo-500 scale-110 shadow-md'
+                    : 'border-slate-200'
+                } ${c.hex === 'transparent' ? 'bg-[url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAACVJREFUGF5jYACC/wwMIAYDAwMIAIn///8DAxgDCAKEMDAwgAgABswNCv79YRAAAAAASUVORK5CYII=")]' : ''}`}
+                style={{
+                  backgroundColor: c.hex !== 'transparent' ? c.hex : undefined,
+                }}
+                title={c.label}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {textColors.map((c) => (
+              <button
+                key={c}
+                onClick={() =>
+                  updateWidget(widget.id, {
+                    config: { ...config, textColor: c },
+                  })
+                }
+                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                  textColor === c
+                    ? 'border-indigo-500 scale-110 shadow-md'
+                    : 'border-slate-200'
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Nexus sync toggle */}

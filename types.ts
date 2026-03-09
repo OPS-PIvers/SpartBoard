@@ -1140,6 +1140,8 @@ export interface MusicStation {
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
+  bgColor?: string;
+  textColor?: string;
 }
 
 // Union of all widget configs
