@@ -120,7 +120,7 @@ describe('TextWidget', () => {
     const editableDiv = container.querySelector(
       'div[contentEditable="true"]'
     ) as HTMLElement;
-
+    expect(editableDiv).not.toBeNull();
     expect(editableDiv.innerHTML).toBe('Hello World');
 
     const updatedWidget = {
@@ -138,7 +138,7 @@ describe('TextWidget', () => {
     const editableDiv = container.querySelector(
       'div[contentEditable="true"]'
     ) as HTMLElement;
-
+    expect(editableDiv).not.toBeNull();
     fireEvent.focus(editableDiv);
     editableDiv.innerHTML = 'My Edit';
 
@@ -163,7 +163,7 @@ describe('TextWidget', () => {
     const editableDiv = container.querySelector(
       'div[contentEditable="true"]'
     ) as HTMLElement;
-
+    expect(editableDiv).not.toBeNull();
     expect(editableDiv.innerHTML).toBe('');
 
     // Update with undefined content
