@@ -21,18 +21,7 @@ import {
 } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 
-const TEAM_COLORS = [
-  'bg-blue-500',
-  'bg-red-500',
-  'bg-green-500',
-  'bg-yellow-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-  'bg-orange-500',
-  'bg-teal-600',
-  'bg-cyan-500',
-];
+import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
 import { RandomSlots } from './RandomSlots';
 import { RandomFlash } from './RandomFlash';

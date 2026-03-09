@@ -14,18 +14,7 @@ interface ScoreboardConfigurationPanelProps {
 
 // Must match TEAM_COLORS in ScoreboardItem.tsx — these are the only valid
 // color classes the scoreboard widget knows how to render.
-const SCOREBOARD_COLORS = [
-  'bg-blue-500',
-  'bg-red-500',
-  'bg-green-500',
-  'bg-yellow-500',
-  'bg-purple-500',
-  'bg-pink-500',
-  'bg-indigo-500',
-  'bg-orange-500',
-  'bg-teal-600',
-  'bg-cyan-500',
-];
+import { SCOREBOARD_COLORS as AVAILABLE_COLORS } from '@/config/scoreboard';
 
 const DEFAULT_TEAMS: ScoreboardDefaultTeam[] = [
   { id: crypto.randomUUID(), name: 'Team A', color: 'bg-blue-500' },
@@ -66,8 +55,7 @@ export const ScoreboardConfigurationPanel: React.FC<
   };
 
   const handleAddTeam = () => {
-    const nextColor =
-      SCOREBOARD_COLORS[teams.length % SCOREBOARD_COLORS.length];
+    const nextColor = AVAILABLE_COLORS[teams.length % AVAILABLE_COLORS.length];
     handleUpdateBuilding({
       teams: [
         ...teams,
@@ -178,7 +166,7 @@ export const ScoreboardConfigurationPanel: React.FC<
 
                 {/* Color palette row */}
                 <div className="flex gap-1 pl-6">
-                  {SCOREBOARD_COLORS.map((colorClass) => (
+                  {AVAILABLE_COLORS.map((colorClass) => (
                     <button
                       key={colorClass}
                       onClick={() =>

@@ -58,7 +58,7 @@ describe('ScoreboardItem', () => {
     );
     const teamName = screen.getByText('Alpha');
     expect(teamName).toBeInTheDocument();
-    expect(teamName).toHaveClass('text-slate-600');
+    expect(teamName).toHaveClass('text-blue-600');
   });
 
   it('applies default styles when no color is provided', () => {

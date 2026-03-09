@@ -22,6 +22,9 @@ import { QuizResponse, QuizData, QuizQuestion } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import { useDashboard } from '@/context/useDashboard';
+import { ScoreboardTeam } from '@/types';
+import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
 /**
  * Compute a student's percentage score by re-grading answers with gradeAnswer
@@ -46,6 +49,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   responses,
   onBack,
 }) => {
+  const { activeDashboard, updateWidget, addWidget, addToast } = useDashboard();
   const { googleAccessToken } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
@@ -64,6 +68,53 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           ) / completed.length
         )
       : null;
+
+  const handleSendToScoreboard = () => {
+    if (completed.length === 0) {
+      addToast('No completed students yet', 'error');
+      return;
+    }
+
+    const studentsWithScores = completed.map((r) => ({
+      response: r,
+      score: getResponseScore(r, quiz.questions),
+    }));
+
+    const newTeams: ScoreboardTeam[] = studentsWithScores
+      .sort((a, b) => b.score - a.score)
+      .map(({ response, score }, index) => ({
+        id: crypto.randomUUID(),
+        name: `PIN ${response.pin}`,
+        score,
+        color: SCOREBOARD_COLORS[index % SCOREBOARD_COLORS.length],
+      }));
+
+    const existingScoreboard = activeDashboard?.widgets.find(
+      (w) => w.type === 'scoreboard'
+    );
+
+    if (existingScoreboard) {
+      updateWidget(existingScoreboard.id, {
+        config: {
+          teams: newTeams,
+        },
+      });
+      addToast(
+        `Updated scoreboard with ${newTeams.length} students.`,
+        'success'
+      );
+    } else {
+      addWidget('scoreboard', {
+        config: {
+          teams: newTeams,
+        },
+      });
+      addToast(
+        `Created scoreboard with ${newTeams.length} students.`,
+        'success'
+      );
+    }
+  };
 
   const handleExport = async () => {
     if (!googleAccessToken) {
@@ -125,6 +176,25 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           </p>
         </div>
 
+        {completed.length > 0 && (
+          <button
+            onClick={handleSendToScoreboard}
+            className="flex items-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+            }}
+          >
+            <Trophy
+              style={{
+                width: 'min(14px, 4cqmin)',
+                height: 'min(14px, 4cqmin)',
+              }}
+            />
+            SEND TO SCOREBOARD
+          </button>
+        )}
         {exportUrl ? (
           <a
             href={exportUrl}
