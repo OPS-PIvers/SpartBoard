@@ -6,6 +6,8 @@ import {
   Columns3,
   SquareSplitVertical,
   Layout,
+  Grid3X3,
+  Rows3,
 } from 'lucide-react';
 
 export interface SnapZone {
@@ -45,6 +47,58 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
     ],
   },
   {
+    id: 'grid-3x3',
+    nameKey: 'nineGrid',
+    icon: <Grid3X3 className="w-5 h-5" />,
+    zones: [
+      { id: 'r1-c1', x: 0, y: 0, w: 0.33, h: 0.33 },
+      { id: 'r1-c2', x: 0.33, y: 0, w: 0.34, h: 0.33 },
+      { id: 'r1-c3', x: 0.67, y: 0, w: 0.33, h: 0.33 },
+      { id: 'r2-c1', x: 0, y: 0.33, w: 0.33, h: 0.34 },
+      { id: 'r2-c2', x: 0.33, y: 0.33, w: 0.34, h: 0.34 },
+      { id: 'r2-c3', x: 0.67, y: 0.33, w: 0.33, h: 0.34 },
+      { id: 'r3-c1', x: 0, y: 0.67, w: 0.33, h: 0.33 },
+      { id: 'r3-c2', x: 0.33, y: 0.67, w: 0.34, h: 0.33 },
+      { id: 'r3-c3', x: 0.67, y: 0.67, w: 0.33, h: 0.33 },
+    ],
+  },
+  {
+    id: 'top-half-bottom-3',
+    nameKey: 'topPriority3',
+    icon: <Layout className="w-5 h-5 -rotate-90" />,
+    zones: [
+      { id: 'top-half', x: 0, y: 0, w: 1, h: 0.5 },
+      { id: 'bottom-1', x: 0, y: 0.5, w: 0.33, h: 0.5 },
+      { id: 'bottom-2', x: 0.33, y: 0.5, w: 0.34, h: 0.5 },
+      { id: 'bottom-3', x: 0.67, y: 0.5, w: 0.33, h: 0.5 },
+    ],
+  },
+  {
+    id: 'bottom-half-top-3',
+    nameKey: 'bottomPriority3',
+    icon: <Layout className="w-5 h-5 rotate-90" />,
+    zones: [
+      { id: 'top-1', x: 0, y: 0, w: 0.33, h: 0.5 },
+      { id: 'top-2', x: 0.33, y: 0, w: 0.34, h: 0.5 },
+      { id: 'top-3', x: 0.67, y: 0, w: 0.33, h: 0.5 },
+      { id: 'bottom-half', x: 0, y: 0.5, w: 1, h: 0.5 },
+    ],
+  },
+  {
+    id: 'sandwich-3',
+    nameKey: 'middlePriority3',
+    icon: <Rows3 className="w-5 h-5" />,
+    zones: [
+      { id: 'top-1', x: 0, y: 0, w: 0.33, h: 0.33 },
+      { id: 'top-2', x: 0.33, y: 0, w: 0.34, h: 0.33 },
+      { id: 'top-3', x: 0.67, y: 0, w: 0.33, h: 0.33 },
+      { id: 'middle-wide', x: 0, y: 0.33, w: 1, h: 0.34 },
+      { id: 'bottom-1', x: 0, y: 0.67, w: 0.33, h: 0.33 },
+      { id: 'bottom-2', x: 0.33, y: 0.67, w: 0.34, h: 0.33 },
+      { id: 'bottom-3', x: 0.67, y: 0.67, w: 0.33, h: 0.33 },
+    ],
+  },
+  {
     id: 'sidebar-left',
     nameKey: 'sidebarLeft',
     icon: <Sidebar className="w-5 h-5" />,
@@ -79,6 +133,16 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
     zones: [
       { id: 'top', x: 0, y: 0, w: 1, h: 0.5 },
       { id: 'bottom', x: 0, y: 0.5, w: 1, h: 0.5 },
+    ],
+  },
+  {
+    id: 'three-rows',
+    nameKey: 'threeRows',
+    icon: <Rows3 className="w-5 h-5" />,
+    zones: [
+      { id: 'row-1', x: 0, y: 0, w: 1, h: 0.33 },
+      { id: 'row-2', x: 0, y: 0.33, w: 1, h: 0.34 },
+      { id: 'row-3', x: 0, y: 0.67, w: 1, h: 0.33 },
     ],
   },
   {
