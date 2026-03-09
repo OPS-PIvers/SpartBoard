@@ -1,4 +1,4 @@
-import { SnapZone } from '../config/snapLayouts';
+import { SnapZone } from '@/config/snapLayouts';
 
 export const SNAP_LAYOUT_CONSTANTS = {
   PADDING: 16, // Gap from edges of the screen
@@ -18,10 +18,17 @@ const getDockReservedHeight = (fallbackHeight: number): number => {
     return fallbackHeight;
   }
   const rect = dockElement.getBoundingClientRect();
-  return rect.height || fallbackHeight;
+  // We reserve everything from the dock's top to the bottom of the viewport
+  // to prevent widgets from overlapping any part of the dock area.
+  return window.innerHeight - rect.top || fallbackHeight;
 };
 
 export const calculateSnapBounds = (zone: SnapZone) => {
+  // SSR Guard: return a safe fallback if window is not available
+  if (typeof window === 'undefined') {
+    return { x: 0, y: 0, w: 0, h: 0 };
+  }
+
   const { PADDING, GAP, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
   const dockHeight = getDockReservedHeight(DOCK_HEIGHT);
 

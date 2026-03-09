@@ -1067,19 +1067,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           <div
             data-testid="snap-preview"
             className="fixed z-[9998] bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
-            style={(() => {
-              const zoneForBounds =
-                snapPreviewZone === 'maximize'
-                  ? ({ id: 'maximize', x: 0, y: 0, w: 1, h: 1 } as SnapZone)
-                  : snapPreviewZone;
-              const bounds = calculateSnapBounds(zoneForBounds);
-              return {
-                top: bounds.y,
-                left: bounds.x,
-                width: bounds.w,
-                height: bounds.h,
-              };
-            })()}
+            style={
+              snapPreviewZone === 'maximize'
+                ? { top: 0, left: 0, width: '100vw', height: '100vh' }
+                : (() => {
+                    const bounds = calculateSnapBounds(snapPreviewZone);
+                    return {
+                      top: bounds.y,
+                      left: bounds.x,
+                      width: bounds.w,
+                      height: bounds.h,
+                    };
+                  })()
+            }
           />,
           document.body
         )}
