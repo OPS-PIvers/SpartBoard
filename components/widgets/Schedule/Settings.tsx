@@ -544,7 +544,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                                   : [...s.days, d.id];
                                 handleUpdateSchedule(s.id, { days: newDays });
                               }}
-                              className={`w-6 h-6 rounded-md text-[10px] font-bold transition-colors ${
+                              className={`w-6 h-6 rounded-md text-xxs font-bold transition-colors ${
                                 isSelected
                                   ? 'bg-blue-500 text-white'
                                   : isOnly

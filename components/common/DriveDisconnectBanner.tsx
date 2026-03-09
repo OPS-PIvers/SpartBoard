@@ -70,7 +70,7 @@ export const DriveDisconnectBanner: React.FC = () => {
           <p className="text-xs font-bold text-slate-800 leading-tight mb-0.5">
             Drive Disconnected
           </p>
-          <p className="text-[10px] text-slate-500 leading-tight">
+          <p className="text-xxs text-slate-500 leading-tight">
             Reconnect to resume auto-save.
           </p>
         </div>

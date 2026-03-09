@@ -423,7 +423,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
                 Sync Building Schedule
               </span>
               {lastSyncAt && (
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
+                <span className="text-xxs text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
                   <RefreshCw className="w-2.5 h-2.5" />
                   Synced{' '}
                   {new Date(lastSyncAt).toLocaleTimeString([], {
@@ -587,7 +587,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
           </label>
           <button
             onClick={() => setShowInstructions(!showInstructions)}
-            className="text-[10px] font-black text-blue-500 uppercase tracking-tight flex items-center gap-1 hover:text-blue-600 transition-colors"
+            className="text-xxs font-black text-blue-500 uppercase tracking-tight flex items-center gap-1 hover:text-blue-600 transition-colors"
           >
             <HelpCircle className="w-3 h-3" /> Instructions
           </button>
@@ -735,7 +735,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
               className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 shadow-sm group"
             >
               <div className="min-w-0">
-                <div className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                <div className="text-xxs font-black text-rose-500 uppercase tracking-wider">
                   {event.date}
                 </div>
                 <div className="text-sm font-bold text-slate-700 truncate">
@@ -759,7 +759,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
           {events.length === 0 && (
             <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-2xl bg-slate-50/50">
-              <p className="text-[10px] italic">No local events added.</p>
+              <p className="text-xxs italic">No local events added.</p>
             </div>
           )}
         </div>

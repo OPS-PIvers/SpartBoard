@@ -132,7 +132,7 @@ export const TalkingToolConfigurationPanel: React.FC<
 
             {/* Stems List */}
             <div className="p-4 space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+              <label className="text-xxs font-black text-slate-400 uppercase tracking-widest block mb-2">
                 Sentence Stems
               </label>
               {cat.stems.map((stem) => (

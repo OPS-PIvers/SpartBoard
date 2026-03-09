@@ -98,7 +98,7 @@ export const NextUpConfigurationPanel: React.FC<
             }
             className="w-full accent-brand-blue-primary cursor-pointer"
           />
-          <p className="text-[10px] text-slate-400 font-medium italic leading-relaxed">
+          <p className="text-xxs text-slate-400 font-medium italic leading-relaxed">
             Sets how many upcoming students are shown on the teacher board by
             default.
           </p>

@@ -351,7 +351,7 @@ export const MathToolSettings: React.FC<{ widget: WidgetData }> = ({
               onClick={() =>
                 updateWidget(widget.id, { config: { ...config, rotation: 0 } })
               }
-              className="text-[10px] font-black text-indigo-600 hover:underline"
+              className="text-xxs font-black text-indigo-600 hover:underline"
             >
               Reset
             </button>
