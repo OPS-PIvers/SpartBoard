@@ -31,11 +31,20 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* Base body styles are handled by Tailwind's preflight and classes, 
+/* Base body styles are handled by Tailwind's preflight and classes,
    but specific overrides can go here if needed */
+
+/* Prevent iOS Safari elastic/bounce scroll on the root viewport */
+html {
+  overscroll-behavior: none;
+  height: 100%;
+}
+
 body {
   overflow: hidden;
-  /* color/bg are typically set in App or specific components with Tailwind, 
+  overscroll-behavior: none;
+  height: 100%;
+  /* color/bg are typically set in App or specific components with Tailwind,
      but setting defaults here ensures consistency */
   color: #1e293b;
   background-color: #f8fafc;

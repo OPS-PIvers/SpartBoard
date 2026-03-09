@@ -79,18 +79,14 @@ test('Snap Layouts verification', async ({ page }) => {
     );
     await bottomZone.evaluate((el) => (el as HTMLElement).click());
 
-    // Verify widget position/size reaches expected bounds
+    // Verify widget position/size reaches expected bounds.
+    // calculateSnapBounds uses safeHeight = viewportH - PADDING*2 with no dock
+    // subtraction — the dock floats above widgets rather than reserving space.
     await expect(async () => {
       const box = await widget.boundingBox();
       if (!box) throw new Error('Bounding box not found');
 
-      const dock = page.locator('[data-testid="dock"]');
-      const dockBox = await dock.boundingBox();
-      const dockOffsetTop = dockBox?.y ?? 620;
-
-      const dockHeight = 720 - dockOffsetTop;
-
-      const safeHeight = 720 - dockHeight - 32;
+      const safeHeight = 720 - 32; // viewportHeight - PADDING * 2
       const expectedY = Math.round(16 + 0.5 * safeHeight + 6);
       const expectedH = Math.round(0.5 * safeHeight - 6);
 

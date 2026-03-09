@@ -165,6 +165,70 @@ export const DashboardView: React.FC = () => {
   const [isMinimized, setIsMinimized] = React.useState(false);
   const [zoomOrigin, setZoomOrigin] = React.useState({ x: 50, y: 50 });
 
+  const dashboardRef = React.useRef<HTMLDivElement>(null);
+  // Cached per-gesture: did the touch start inside a scrollable widget?
+  const touchStartInScrollable = React.useRef(false);
+
+  // Prevent iOS Safari viewport bounce on the board background.
+  // Strategy:
+  //  - On touchstart: walk the DOM once (getComputedStyle is expensive) to
+  //    determine whether the touch originated inside a scrollable element.
+  //    Cache the result so touchmove is O(1).
+  //  - On touchmove: multi-touch (pinch / 4-finger gestures) always calls
+  //    preventDefault() so our custom zoom/swipe handlers win regardless of
+  //    where the fingers landed.  Single-touch only prevents the bounce if
+  //    the gesture did NOT start inside a scrollable widget.
+  //  - Guard every preventDefault() with e.cancelable (required by spec when
+  //    the listener is already in a non-cancelable scroll sequence).
+  React.useEffect(() => {
+    const el = dashboardRef.current;
+    if (!el) return;
+
+    const hasScrollableAncestor = (target: EventTarget | null): boolean => {
+      let node: Node | null = target as Node;
+      while (node && node !== el) {
+        if (node instanceof HTMLElement) {
+          const { overflowY, overflowX } = window.getComputedStyle(node);
+          const scrollableY =
+            (overflowY === 'auto' || overflowY === 'scroll') &&
+            node.scrollHeight > node.clientHeight;
+          const scrollableX =
+            (overflowX === 'auto' || overflowX === 'scroll') &&
+            node.scrollWidth > node.clientWidth;
+          if (scrollableY || scrollableX) return true;
+        }
+        node = (node as HTMLElement).parentElement;
+      }
+      return false;
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartInScrollable.current = hasScrollableAncestor(e.target);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.cancelable) return;
+      // Multi-touch gestures (pinch-zoom, 4-finger swipe) must always be
+      // intercepted so our custom handlers aren't bypassed by the browser.
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        return;
+      }
+      // Single touch: allow the browser to handle it (so widget lists can
+      // scroll) only if the gesture started inside a scrollable ancestor.
+      if (!touchStartInScrollable.current) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
+
   // Gesture Tracking
   const gestureStart = React.useRef<{ x: number; y: number } | null>(null);
   const gestureCurrent = React.useRef<{ x: number; y: number } | null>(null);
@@ -663,6 +727,7 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div
+      ref={dashboardRef}
       id="dashboard-root"
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
       style={backgroundStyles}
