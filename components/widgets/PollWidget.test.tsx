@@ -1,18 +1,18 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PollWidget, PollSettings } from './PollWidget';
-import { useDashboard } from '../../context/useDashboard';
-import { useAuth } from '../../context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
-import { WidgetData } from '../../types';
-import { GeneratedPoll } from '../../utils/ai';
+import { WidgetData } from '@/types';
+import { GeneratedPoll } from '@/utils/ai';
 
 // Mock useDashboard
-vi.mock('../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
 // Mock useAuth
-vi.mock('../../context/useAuth', () => ({
+vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
@@ -263,9 +263,7 @@ describe('PollSettings', () => {
     });
 
     // Remove option
-    const removeBtns = screen.getAllByRole('button', {
-      name: /Remove Option/i,
-    });
+    const removeBtns = screen.getAllByTitle('Remove Option');
     expect(removeBtns).toHaveLength(1);
     fireEvent.click(removeBtns[0]);
 
@@ -391,7 +389,5 @@ describe('PollSettings', () => {
       'Results exported to CSV',
       'success'
     );
-
-    mockCreateElement.mockRestore();
   });
 });
