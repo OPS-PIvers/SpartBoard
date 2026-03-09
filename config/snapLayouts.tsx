@@ -18,7 +18,7 @@ export interface SnapZone {
 
 export interface SnapLayout {
   id: string;
-  name: string;
+  nameKey: string;
   icon: React.ReactNode;
   zones: SnapZone[];
 }
@@ -26,7 +26,7 @@ export interface SnapLayout {
 export const SNAP_LAYOUTS: SnapLayout[] = [
   {
     id: 'split-half',
-    name: 'Split Screen',
+    nameKey: 'splitScreen',
     icon: <Columns className="w-5 h-5" />,
     zones: [
       { id: 'left-half', x: 0, y: 0, w: 0.5, h: 1 },
@@ -35,7 +35,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'grid-2x2',
-    name: 'Four Grid',
+    nameKey: 'fourGrid',
     icon: <Grid2x2 className="w-5 h-5" />,
     zones: [
       { id: 'top-left', x: 0, y: 0, w: 0.5, h: 0.5 },
@@ -46,7 +46,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'sidebar-left',
-    name: 'Sidebar Left',
+    nameKey: 'sidebarLeft',
     icon: <Sidebar className="w-5 h-5" />,
     zones: [
       { id: 'side', x: 0, y: 0, w: 0.34, h: 1 },
@@ -55,7 +55,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'sidebar-right',
-    name: 'Sidebar Right',
+    nameKey: 'sidebarRight',
     icon: <Sidebar className="w-5 h-5 rotate-180" />,
     zones: [
       { id: 'main', x: 0, y: 0, w: 0.66, h: 1 },
@@ -64,7 +64,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'three-columns',
-    name: 'Three Columns',
+    nameKey: 'threeColumns',
     icon: <Columns3 className="w-5 h-5" />,
     zones: [
       { id: 'left', x: 0, y: 0, w: 0.33, h: 1 },
@@ -74,7 +74,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'split-vertical',
-    name: 'Top/Bottom',
+    nameKey: 'topBottom',
     icon: <SquareSplitVertical className="w-5 h-5" />,
     zones: [
       { id: 'top', x: 0, y: 0, w: 1, h: 0.5 },
@@ -83,7 +83,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'priority-left',
-    name: 'Priority Left',
+    nameKey: 'priorityLeft',
     icon: <Layout className="w-5 h-5" />,
     zones: [
       { id: 'main', x: 0, y: 0, w: 0.5, h: 1 },
@@ -93,7 +93,7 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
   },
   {
     id: 'priority-right',
-    name: 'Priority Right',
+    nameKey: 'priorityRight',
     icon: <Layout className="w-5 h-5 rotate-180" />,
     zones: [
       { id: 'top-side', x: 0, y: 0, w: 0.5, h: 0.5 },

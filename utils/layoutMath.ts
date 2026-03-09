@@ -4,6 +4,7 @@ export const SNAP_LAYOUT_CONSTANTS = {
   PADDING: 16, // Gap from edges of the screen
   GAP: 12, // Gap between widgets (slightly larger for touch)
   DOCK_HEIGHT: 100, // Reserved space for the bottom dock
+  EDGE_THRESHOLD: 40, // Edge Detection Threshold for Large Touch Panels
 };
 
 const getDockReservedHeight = (fallbackHeight: number): number => {

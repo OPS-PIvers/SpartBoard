@@ -122,6 +122,16 @@
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
+    "layouts": {
+      "splitScreen": "Split Screen",
+      "fourGrid": "Four Grid",
+      "sidebarLeft": "Sidebar Left",
+      "sidebarRight": "Sidebar Right",
+      "threeColumns": "Three Columns",
+      "topBottom": "Top/Bottom",
+      "priorityLeft": "Priority Left",
+      "priorityRight": "Priority Right"
+    },
     "clearEntireBoard": "Are you sure you want to clear the entire board?"
   },
   "login": {

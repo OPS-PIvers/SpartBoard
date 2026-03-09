@@ -5,7 +5,7 @@ test('Snap Layouts verification', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
 
   await test.step('Navigating to dashboard', async () => {
-    await page.goto('http://localhost:3000/?auth_bypass=true');
+    await page.goto('/');
     await page.waitForSelector('#dashboard-root', { timeout: 30000 });
   });
 
@@ -95,7 +95,7 @@ test('Snap Layouts verification', async ({ page }) => {
     await page.mouse.down();
     await page.mouse.move(1275, 300, { steps: 10 });
 
-    const preview = page.locator('div.fixed.bg-indigo-500\\/20');
+    const preview = page.getByTestId('snap-preview');
     await expect(preview).toBeVisible();
 
     await page.mouse.up();

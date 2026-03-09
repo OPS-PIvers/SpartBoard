@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -135,6 +141,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     SnapZone | 'maximize' | null
   >(null);
   const snapPreviewZoneRef = useRef<SnapZone | 'maximize' | null>(null);
+
+  // Pre-cached zones for edge detection optimization
+  const splitLayout = useMemo(
+    () => SNAP_LAYOUTS.find((l) => l.id === 'split-half'),
+    []
+  );
+  const leftHalfZone = useMemo(
+    () => splitLayout?.zones.find((z) => z.id === 'left-half') ?? null,
+    [splitLayout]
+  );
+  const rightHalfZone = useMemo(
+    () => splitLayout?.zones.find((z) => z.id === 'right-half') ?? null,
+    [splitLayout]
+  );
 
   useEffect(() => {
     if (!showTools && showSnapMenu) {
@@ -402,17 +422,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       );
 
       // Edge Detection Threshold for Large Touch Panels
-      const EDGE_THRESHOLD = 40;
       const screenW = window.innerWidth;
-      const isLeftEdge = moveEvent.clientX <= EDGE_THRESHOLD;
-      const isRightEdge = moveEvent.clientX >= screenW - EDGE_THRESHOLD;
-      const isTopEdge = moveEvent.clientY <= EDGE_THRESHOLD;
+      const isLeftEdge =
+        moveEvent.clientX <= SNAP_LAYOUT_CONSTANTS.EDGE_THRESHOLD;
+      const isRightEdge =
+        moveEvent.clientX >= screenW - SNAP_LAYOUT_CONSTANTS.EDGE_THRESHOLD;
+      const isTopEdge =
+        moveEvent.clientY <= SNAP_LAYOUT_CONSTANTS.EDGE_THRESHOLD;
 
-      const splitLayout = SNAP_LAYOUTS.find((l) => l.id === 'split-half');
       const newZone = isLeftEdge
-        ? (splitLayout?.zones.find((z) => z.id === 'left-half') ?? null)
+        ? leftHalfZone
         : isRightEdge
-          ? (splitLayout?.zones.find((z) => z.id === 'right-half') ?? null)
+          ? rightHalfZone
           : isTopEdge
             ? 'maximize'
             : null;
@@ -1044,25 +1065,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div
+            data-testid="snap-preview"
             className="fixed z-[9998] bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
-            style={
-              snapPreviewZone === 'maximize'
-                ? {
-                    top: SNAP_LAYOUT_CONSTANTS.PADDING,
-                    left: SNAP_LAYOUT_CONSTANTS.PADDING,
-                    width: `calc(100vw - ${SNAP_LAYOUT_CONSTANTS.PADDING * 2}px)`,
-                    height: `calc(100vh - ${SNAP_LAYOUT_CONSTANTS.DOCK_HEIGHT + SNAP_LAYOUT_CONSTANTS.PADDING * 2}px)`,
-                  } // Accounts for dock and padding
-                : (() => {
-                    const bounds = calculateSnapBounds(snapPreviewZone);
-                    return {
-                      top: bounds.y,
-                      left: bounds.x,
-                      width: bounds.w,
-                      height: bounds.h,
-                    };
-                  })()
-            }
+            style={(() => {
+              const zoneForBounds =
+                snapPreviewZone === 'maximize'
+                  ? ({ id: 'maximize', x: 0, y: 0, w: 1, h: 1 } as SnapZone)
+                  : snapPreviewZone;
+              const bounds = calculateSnapBounds(zoneForBounds);
+              return {
+                top: bounds.y,
+                left: bounds.x,
+                width: bounds.w,
+                height: bounds.h,
+              };
+            })()}
           />,
           document.body
         )}
@@ -1295,7 +1312,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                     width: `${zone.w * 100}%`,
                                     height: `${zone.h * 100}%`,
                                   }}
-                                  aria-label={`${t('widgetWindow.snapTo')} ${layout.name} - ${zone.id}`}
+                                  aria-label={`${t('widgetWindow.snapTo')} ${t(`widgetWindow.layouts.${layout.nameKey}`)} - ${zone.id}`}
                                 />
                               ))}
                             </div>
