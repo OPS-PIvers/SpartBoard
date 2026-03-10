@@ -6,8 +6,7 @@ describe('layoutMath', () => {
   beforeEach(() => {
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1920);
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(1080);
-    // Explicitly clear document.body to prevent leakage from other tests
-    document.body.innerHTML = '';
+    vi.spyOn(document, 'querySelector').mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -38,6 +37,20 @@ describe('layoutMath', () => {
       const { PADDING, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
       const expectedWidth = window.innerWidth - PADDING * 2;
       const expectedHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
+
+      if (bounds.h !== expectedHeight) {
+        const debugInfo = {
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          dockElement: document.querySelector('[data-role="dock"]'),
+          fallbackHeight: DOCK_HEIGHT,
+          bounds_h: bounds.h,
+          bounds_w: bounds.w,
+        };
+        expect(bounds.h).toBe(
+          `FAILED: expected ${expectedHeight}, but got ${bounds.h}. Debug info: ${JSON.stringify(debugInfo)}`
+        );
+      }
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
