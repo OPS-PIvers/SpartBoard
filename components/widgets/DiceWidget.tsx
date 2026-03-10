@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '../../context/useDashboard';
 import { WidgetData, DiceConfig, DEFAULT_GLOBAL_STYLE } from '../../types';
 import { Dices, Hash, RefreshCw } from 'lucide-react';
@@ -100,14 +100,18 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       : new Array<number>(diceCount).fill(1)
   );
   const [isRolling, setIsRolling] = useState(false);
+  // Ref so the remote-sync effect can read the current isRolling without
+  // listing it as a dependency (avoids overwriting locally-rolled values
+  // when the local roll finishes and isRolling flips back to false).
+  const isRollingRef = useRef(false);
+  isRollingRef.current = isRolling;
 
   // Sync board display when a remote roll is persisted to widget config
   useEffect(() => {
-    if (!isRolling && config.lastRoll && config.lastRoll.length === diceCount) {
+    if (!isRollingRef.current && config.lastRoll?.length === diceCount) {
       setValues(config.lastRoll);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.lastRoll]);
+  }, [config.lastRoll, diceCount]);
 
   const roll = async () => {
     if (isRolling) return;

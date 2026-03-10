@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Shuffle, RotateCcw } from 'lucide-react';
 import { WidgetData, RandomConfig } from '@/types';
 
@@ -30,6 +30,16 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
   // We only call updateWidget once (with the final pick) to avoid spamming
   // Firestore and triggering re-renders on all connected clients.
   const [animatedName, setAnimatedName] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up any in-flight interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const names = parseNames(config.firstNames ?? '', config.lastNames ?? '');
   const remaining = config.remainingStudents ?? names;
@@ -42,11 +52,14 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
     let frames = 0;
     const pool = remaining.length > 0 ? remaining : names;
 
-    const interval = setInterval(() => {
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       setAnimatedName(pool[Math.floor(Math.random() * pool.length)]);
       frames++;
       if (frames >= 10) {
-        clearInterval(interval);
+        const ref = intervalRef.current;
+        if (ref !== null) clearInterval(ref);
+        intervalRef.current = null;
         const finalPick = pool[Math.floor(Math.random() * pool.length)];
         const newRemaining = remaining.filter((n) => n !== finalPick);
         // Single write to shared state — the final result only

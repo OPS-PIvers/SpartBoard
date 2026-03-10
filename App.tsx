@@ -137,15 +137,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Mobile Remote Control — same auth requirements as the main teacher view
-  if (isRemoteRoute) {
-    return (
-      <AuthProvider>
-        <AuthenticatedApp isRemote={true} />
-      </AuthProvider>
-    );
-  }
-
   if (!isConfigured && !isAuthBypass) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -168,6 +159,15 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Mobile Remote Control — same auth requirements as the main teacher view
+  if (isRemoteRoute) {
+    return (
+      <AuthProvider>
+        <AuthenticatedApp isRemote={true} />
+      </AuthProvider>
     );
   }
 

@@ -1,4 +1,5 @@
 import React, { memo, Suspense, useMemo, useCallback } from 'react';
+import { Z_INDEX } from '@/config/zIndex';
 import { Minimize2 } from 'lucide-react';
 import {
   WidgetData,
@@ -176,7 +177,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     ? { display: 'none' }
     : isSpotlighted
       ? {
-          zIndex: 9001,
+          zIndex: Z_INDEX.backdrop + 1,
           outline: '3px solid #facc15', // yellow-400 ring
           outlineOffset: '2px',
           boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
@@ -297,7 +298,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     return (
       <div
         className="fixed inset-0 bg-slate-900/95 backdrop-blur-md flex items-center justify-center"
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: Z_INDEX.maximized }}
       >
         <div
           className="w-full h-full relative"

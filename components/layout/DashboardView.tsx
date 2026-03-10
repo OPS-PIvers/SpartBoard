@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { isExternalBackground } from '@/utils/backgrounds';
@@ -783,7 +784,7 @@ export const DashboardView: React.FC = () => {
       {activeDashboard.settings?.spotlightWidgetId && (
         <div
           className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-all duration-500 ease-in-out"
-          style={{ zIndex: 9000 }}
+          style={{ zIndex: Z_INDEX.backdrop }}
           onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
           aria-hidden="true"
         />

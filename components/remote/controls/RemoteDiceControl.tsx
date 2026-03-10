@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Dices } from 'lucide-react';
 import { WidgetData, DiceConfig } from '@/types';
 
@@ -56,9 +56,28 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
   const count = Math.min(6, Math.max(1, config.count ?? 1));
 
   const [values, setValues] = useState<number[]>(() =>
-    Array.from({ length: count }, () => Math.ceil(Math.random() * 6))
+    config.lastRoll?.length === count
+      ? config.lastRoll
+      : Array.from({ length: count }, () => Math.ceil(Math.random() * 6))
   );
   const [isRolling, setIsRolling] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sync display when a board-side roll updates config.lastRoll
+  useEffect(() => {
+    if (config.lastRoll?.length === count) {
+      setValues(config.lastRoll);
+    }
+  }, [config.lastRoll, count]);
+
+  // Clean up any in-flight interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const roll = useCallback(() => {
     if (isRolling) return;
@@ -66,13 +85,16 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
 
     // Animate through random values for 500ms, then persist final result
     let frames = 0;
-    const interval = setInterval(() => {
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       setValues(
         Array.from({ length: count }, () => Math.ceil(Math.random() * 6))
       );
       frames++;
       if (frames >= 8) {
-        clearInterval(interval);
+        const ref = intervalRef.current;
+        if (ref !== null) clearInterval(ref);
+        intervalRef.current = null;
         const finalValues = Array.from({ length: count }, () =>
           Math.ceil(Math.random() * 6)
         );
