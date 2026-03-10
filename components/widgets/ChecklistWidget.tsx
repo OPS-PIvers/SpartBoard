@@ -21,6 +21,14 @@ import {
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { SettingsLabel } from '../common/SettingsLabel';
 
+// Available container height devoted to item rows (cqh units), after header/footer/padding.
+const CHECKLIST_CONTENT_HEIGHT_CQH = 75;
+// Fraction of each item's height slot used as the font size.
+const CHECKLIST_FONT_HEIGHT_FRACTION = 0.5;
+// Cap item count for font scaling: beyond this threshold items scroll rather
+// than forcing the font to become unreadably small.
+const CHECKLIST_MAX_ITEMS_FOR_FONT_SCALE = 15;
+
 interface ChecklistRowProps {
   id: string;
   label: string;
@@ -30,11 +38,21 @@ interface ChecklistRowProps {
 
 const ChecklistRow = React.memo<ChecklistRowProps>(
   ({ id, label, isCompleted, onToggle }) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        onToggle(id);
+      }
+    };
     return (
       <li
+        role="checkbox"
+        aria-checked={isCompleted}
+        tabIndex={0}
         onClick={() => onToggle(id)}
+        onKeyDown={handleKeyDown}
         className="group/item flex items-start cursor-pointer select-none"
-        style={{ gap: '0.5em' }}
+        style={{ gap: 'min(8px, 2cqmin)' }}
       >
         <div className="shrink-0 transition-transform active:scale-90 flex items-center justify-center h-[1.2em]">
           {isCompleted ? (
@@ -179,16 +197,26 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // Compute item-count-aware font size:
-  // - cqw-based: font shrinks when widget is narrow, preventing text wrapping
-  // - cqh-based: font shrinks when there are more items so they all fit vertically
-  // ~75cqh is available after header/footer; each item gets 50% of its share for font
-  const displayItemCount = Math.max(
-    mode === 'manual' ? items.length : students.length,
-    1
+  // Compute item-count-aware font size.
+  // cqw: font shrinks proportionally when the widget is narrow, preventing
+  //   text from wrapping and forcing the user to resize wide.
+  // cqh/itemCount: font shrinks to fit all items vertically; capped at
+  //   CHECKLIST_MAX_ITEMS_FOR_FONT_SCALE so the font stays readable in long
+  //   scrollable lists (items beyond the cap simply scroll into view).
+  // Note: cqw/cqh are intentional here — cqmin tracks the smaller axis and
+  //   stops responding to width changes once width exceeds height.
+  const rawItemCount = mode === 'manual' ? items.length : students.length;
+  const cappedItemCount = Math.min(
+    Math.max(rawItemCount, 1),
+    CHECKLIST_MAX_ITEMS_FOR_FONT_SCALE
   );
   const heightCoeff =
-    Math.round(((75 / displayItemCount) * 0.5 * scaleMultiplier) * 10) / 10;
+    Math.round(
+      ((CHECKLIST_CONTENT_HEIGHT_CQH / cappedItemCount) *
+        CHECKLIST_FONT_HEIGHT_FRACTION *
+        scaleMultiplier) *
+        10
+    ) / 10;
   const dynamicFontSize = `min(${18 * scaleMultiplier}px, ${heightCoeff}cqh, ${6 * scaleMultiplier}cqw)`;
 
   if (!hasContent) {
