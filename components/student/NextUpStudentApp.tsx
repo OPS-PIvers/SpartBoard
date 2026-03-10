@@ -36,7 +36,8 @@ export const NextUpStudentApp: React.FC = () => {
         setAuthInitialized(true);
       } catch (err) {
         console.error('Anonymous auth failed:', err);
-        // Treat as non-fatal, but it might cause Firestore permission errors later
+        setError('Authentication failed. Please refresh and try again.');
+        setLoading(false);
         setAuthInitialized(true);
       }
     };
