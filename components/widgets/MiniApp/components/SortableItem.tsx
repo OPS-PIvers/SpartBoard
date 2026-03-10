@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Play, Pencil, Trash2, Cast, Radio } from 'lucide-react';
+import {
+  GripVertical,
+  Play,
+  Pencil,
+  Trash2,
+  Cast,
+  Radio,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { MiniAppItem } from '@/types';
 
 interface SortableItemProps {
@@ -11,6 +20,7 @@ interface SortableItemProps {
   onDelete: (id: string) => void;
   isLive?: boolean;
   onToggleLive?: (app: MiniAppItem) => void;
+  onCopyLink?: (code: string) => void;
   sessionCode?: string;
 }
 
@@ -21,8 +31,18 @@ export const SortableItem: React.FC<SortableItemProps> = ({
   onDelete,
   isLive = false,
   onToggleLive,
+  onCopyLink,
   sessionCode,
 }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (sessionCode && onCopyLink) {
+      onCopyLink(sessionCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
   const {
     attributes,
     listeners,
@@ -87,12 +107,25 @@ export const SortableItem: React.FC<SortableItemProps> = ({
             {app.title}
           </h4>
           {isLive && sessionCode && (
-            <span
-              className="bg-indigo-100 text-indigo-700 font-mono font-black px-1.5 py-0.5 rounded text-[10px] tracking-wider border border-indigo-200 animate-in fade-in"
-              title="Live Session Code"
-            >
-              {sessionCode}
-            </span>
+            <div className="flex items-center gap-1">
+              <span
+                className="bg-indigo-100 text-indigo-700 font-mono font-black px-1.5 py-0.5 rounded text-[10px] tracking-wider border border-indigo-200 animate-in fade-in"
+                title="Live Session Code"
+              >
+                {sessionCode}
+              </span>
+              <button
+                onClick={handleCopy}
+                className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Copy Student Link"
+              >
+                {copied ? (
+                  <Check className="w-3 h-3 text-emerald-500" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
           )}
         </div>
         <div

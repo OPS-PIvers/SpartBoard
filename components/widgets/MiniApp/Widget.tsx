@@ -17,6 +17,8 @@ import {
   X,
   Cast,
   Radio,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { generateMiniAppCode } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
@@ -127,6 +129,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = (code: string) => {
+    const url = `${window.location.origin}/join?code=${code}`;
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -470,19 +481,32 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 </button>
 
                 {isLive && session?.code && (
-                  <div
-                    className="flex items-center gap-1.5 bg-indigo-900/40 backdrop-blur-md text-white px-2 py-1 rounded-lg border border-white/20 font-mono tracking-wider font-black"
-                    style={{ fontSize: 'min(12px, 3cqmin)' }}
-                  >
-                    <Radio
-                      style={{
-                        width: 'min(10px, 2.5cqmin)',
-                        height: 'min(10px, 2.5cqmin)',
-                      }}
-                      className="animate-pulse"
-                    />
-                    {session.code}
-                  </div>
+                  <>
+                    <div
+                      className="flex items-center gap-1.5 bg-indigo-900/40 backdrop-blur-md text-white px-2 py-1 rounded-lg border border-white/20 font-mono tracking-wider font-black"
+                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    >
+                      <Radio
+                        style={{
+                          width: 'min(10px, 2.5cqmin)',
+                          height: 'min(10px, 2.5cqmin)',
+                        }}
+                        className="animate-pulse"
+                      />
+                      {session.code}
+                    </div>
+                    <button
+                      onClick={() => handleCopyLink(session.code)}
+                      className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all border border-white/10"
+                      title="Copy Student Link"
+                    >
+                      {copied ? (
+                        <Check className="w-3 h-3 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -848,6 +872,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         onDelete={handleDelete}
                         isLive={isLive && activeAppId === app.id}
                         onToggleLive={handleToggleLive}
+                        onCopyLink={handleCopyLink}
                         sessionCode={session?.code}
                       />
                     ))}
@@ -907,6 +932,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     isSaving={savingGlobalId === app.id}
                     isLive={isLive && activeAppId === app.id}
                     onToggleLive={handleToggleLive}
+                    onCopyLink={handleCopyLink}
                     sessionCode={session?.code}
                   />
                 ))
