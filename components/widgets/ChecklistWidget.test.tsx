@@ -138,6 +138,63 @@ describe('ChecklistWidget', () => {
     });
   });
 
+  it('toggles item completion on Space keydown', () => {
+    const itemsWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        items: [{ id: '1', text: 'Task 1', completed: false }],
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={itemsWidget} />);
+
+    const row = screen.getByRole('checkbox', { name: 'Task 1' });
+    fireEvent.keyDown(row, { key: ' ', repeat: false });
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('checklist-1', {
+      config: expect.objectContaining({
+        items: [{ id: '1', text: 'Task 1', completed: true }],
+      }),
+    });
+  });
+
+  it('toggles item completion on Enter keydown', () => {
+    const itemsWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        items: [{ id: '1', text: 'Task 1', completed: false }],
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={itemsWidget} />);
+
+    const row = screen.getByRole('checkbox', { name: 'Task 1' });
+    fireEvent.keyDown(row, { key: 'Enter', repeat: false });
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('checklist-1', {
+      config: expect.objectContaining({
+        items: [{ id: '1', text: 'Task 1', completed: true }],
+      }),
+    });
+  });
+
+  it('does not toggle on repeated keydown events (key held)', () => {
+    const itemsWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        items: [{ id: '1', text: 'Task 1', completed: false }],
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={itemsWidget} />);
+
+    const row = screen.getByRole('checkbox', { name: 'Task 1' });
+    fireEvent.keyDown(row, { key: ' ', repeat: true });
+    fireEvent.keyDown(row, { key: 'Enter', repeat: true });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   it('resets all checks when reset button is clicked', () => {
     const itemsWidget = {
       ...mockWidget,
