@@ -250,9 +250,10 @@ export const useLiveSession = (
     );
     // Reject duplicate PINs to prevent students from being indistinguishable
     // in the teacher's roster view during live sessions.
+    // Allow if the PIN is already in use by the CURRENT user (re-join scenario).
     const existingSnap = await getDocs(studentsRef);
     const pinInUse = existingSnap.docs.some(
-      (d) => (d.data() as { pin?: string }).pin === sanitizedPin
+      (d) => (d.data() as { pin?: string }).pin === sanitizedPin && d.id !== uid
     );
     if (pinInUse) {
       throw new Error(

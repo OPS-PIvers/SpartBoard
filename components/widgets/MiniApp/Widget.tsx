@@ -61,8 +61,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { user } = useAuth();
-  const config = (widget.config || {}) as MiniAppConfig;
-  const activeApp = config.activeApp || null;
+  const config = (widget.config ?? {}) as MiniAppConfig;
+  const activeApp = config.activeApp ?? null;
   const activeAppId = activeApp?.id;
 
   const { session, startSession, endSession } = useLiveSession(
@@ -581,7 +581,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               ref={iframeRef}
               srcDoc={activeApp.html}
               className="flex-1 w-full border-none bg-white" // Keep bg-white for iframe content visibility
-              sandbox="allow-scripts allow-forms allow-popups allow-modals"
+              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin"
               title={activeApp.title}
             />
             {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}
