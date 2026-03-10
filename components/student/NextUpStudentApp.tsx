@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, collection, addDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '@/config/firebase';
 import { NextUpSession } from '@/types';
 import {
   ListOrdered,
@@ -18,11 +19,30 @@ export const NextUpStudentApp: React.FC = () => {
   const widgetId = params.get('id');
 
   const [session, setSession] = useState<NextUpSession | null>(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Sign in anonymously on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
+        setAuthInitialized(true);
+      } catch (err) {
+        console.error('Anonymous auth failed:', err);
+        setError('Authentication failed. Please refresh and try again.');
+        setLoading(false);
+        setAuthInitialized(true);
+      }
+    };
+    void initAuth();
+  }, []);
 
   useEffect(() => {
     if (!widgetId) {
@@ -30,6 +50,8 @@ export const NextUpStudentApp: React.FC = () => {
       setLoading(false);
       return;
     }
+
+    if (!authInitialized) return;
 
     const sessionRef = doc(db, SESSIONS_COLLECTION, widgetId);
     return onSnapshot(
@@ -59,11 +81,11 @@ export const NextUpStudentApp: React.FC = () => {
         setLoading(false);
       }
     );
-  }, [widgetId]);
+  }, [widgetId, authInitialized]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !widgetId || submitting) return;
+    if (!name.trim() || !widgetId || submitting || !auth.currentUser) return;
 
     setSubmitting(true);
     try {
@@ -86,12 +108,12 @@ export const NextUpStudentApp: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (!authInitialized || loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
         <p className="text-slate-500 mt-4 font-medium">
-          Connecting to queue...
+          {!authInitialized ? 'Initializing...' : 'Connecting to queue...'}
         </p>
       </div>
     );
