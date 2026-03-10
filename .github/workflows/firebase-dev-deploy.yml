@@ -68,16 +68,26 @@ jobs:
         id: extract_branch
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
+      - name: Create Service Account File
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+
+      - name: Deploy Firebase Rules and Functions
+        run: pnpm exec firebase deploy --only functions,firestore,storage --project spartboard
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+
       - name: Deploy to Firebase Preview Channel
         id: deploy
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
           OUTPUT=$(pnpm exec firebase hosting:channel:deploy ${{ steps.extract_branch.outputs.branch }} --expires 30d --project spartboard --json)
-          rm -f service-account.json
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -o '"url": *"[^"]*"' | head -n 1 | cut -d '"' -f 4)
           echo "details_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Cleanup Service Account File
+        if: always()
+        run: rm -f service-account.json
 
       - name: Comment deployment URL
         run: |
