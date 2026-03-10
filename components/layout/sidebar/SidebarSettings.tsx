@@ -7,6 +7,8 @@ import {
   Save,
   Languages,
   RefreshCw,
+  Smartphone,
+  ExternalLink,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { Toggle } from '@/components/common/Toggle';
@@ -247,6 +249,41 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
                 })
               }
             />
+          </div>
+        </div>
+
+        {/* Remote Control */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <Smartphone className="w-4 h-4 text-slate-400" />
+            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
+              Remote Control
+            </label>
+          </div>
+
+          <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
+            Control your board from your phone while you move around the
+            classroom.
+          </p>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center gap-4">
+            <div className="w-32 h-32 bg-white rounded-lg border border-slate-100 p-2 flex items-center justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(
+                  window.location.origin + '/remote'
+                )}`}
+                alt="Remote Control QR Code"
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <button
+              onClick={() => window.open('/remote', '_blank')}
+              className="w-full py-2 bg-slate-800 text-white rounded-lg font-bold text-xxxs uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Open Remote View
+            </button>
           </div>
         </div>
 
