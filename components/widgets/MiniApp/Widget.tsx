@@ -205,7 +205,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleSavePasted = async () => {
     if (!user || !activeApp) return;
-    const title = pendingSaveTitle.trim() || activeApp.title || 'Untitled App';
+    const title =
+      pendingSaveTitle.trim() || (activeApp.title ?? 'Untitled App');
     try {
       const id = activeApp.id;
       const appsRef = collection(db, 'users', user.uid, 'miniapps');
