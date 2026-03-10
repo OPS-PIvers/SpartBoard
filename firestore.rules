@@ -241,8 +241,13 @@ service cloud.firestore {
     // AI Usage Tracking — users can increment their own daily count
     match /ai_usage/{usageId} {
       // Document ID is formatted as {uid}_{YYYY-MM-DD}
-      allow read: if request.auth != null && (usageId.startsWith(request.auth.uid + '_') || isAdmin());
-      allow write: if request.auth != null && usageId.startsWith(request.auth.uid + '_');
+      // Security rule replacement for startsWith: usageId >= prefix && usageId < prefix + '\uf8ff'
+      allow read: if request.auth != null && (
+        (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff') || 
+        isAdmin()
+      );
+      allow write: if request.auth != null && 
+        (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff');
     }
 
     // Default deny all other collections
