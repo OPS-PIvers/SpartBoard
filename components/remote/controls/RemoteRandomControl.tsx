@@ -72,8 +72,10 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
   const pickedName =
     typeof picked === 'string'
       ? picked
-      : Array.isArray(picked)
-        ? picked[0]
+      : Array.isArray(picked) && picked.length > 0
+        ? typeof picked[0] === 'string'
+          ? (picked[0] as string)
+          : ((picked[0] as { names: string[] }).names?.[0] ?? null)
         : null;
 
   return (
