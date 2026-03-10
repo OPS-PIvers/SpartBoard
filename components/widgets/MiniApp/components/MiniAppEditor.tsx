@@ -7,6 +7,7 @@ import {
   Save,
   FileSpreadsheet,
   Globe,
+  Info,
 } from 'lucide-react';
 import { WidgetLayout } from '../../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
@@ -56,6 +57,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
   const { globalConfig } = useMiniAppGlobalConfig();
   const lastSharedIdRef = useRef<string | null>(null);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const shareSheetWithBot = useCallback(
     async (sheetId: string) => {
@@ -263,14 +265,56 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
           {/* Results Collection Section */}
           <div className="bg-slate-50 border-t border-slate-200 p-4 shrink-0 flex flex-col gap-3 -mx-4 -mb-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-                Collect Live Results
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Collect Live Results
+                </span>
+                <button
+                  onClick={() => setShowHelp(!showHelp)}
+                  className="p-1 text-slate-400 hover:text-indigo-500 transition-colors"
+                  title="How to use results collection"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <Toggle
                 checked={!!config.collectResults}
                 onChange={handleToggleCollect}
               />
             </div>
+
+            {showHelp && (
+              <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-2 animate-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xxs font-black text-indigo-600 uppercase tracking-widest">
+                    Developer Guide
+                  </h4>
+                  <button
+                    onClick={() => setShowHelp(false)}
+                    className="text-slate-300 hover:text-slate-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-600 leading-relaxed">
+                  To save data to your sheet, your app must send a message to
+                  the parent window. Include this code in your mini-app&apos;s
+                  JavaScript:
+                </p>
+                <pre className="p-2 bg-slate-900 rounded-lg text-[9px] text-emerald-400 font-mono overflow-x-auto">
+                  {`window.parent.postMessage({
+  type: 'SPART_MINIAPP_RESULT',
+  payload: {
+    score: 100,
+    item: 'Apple'
+  }
+}, '*');`}
+                </pre>
+                <p className="text-[9px] text-slate-400 italic">
+                  Note: The payload can be any JSON object.
+                </p>
+              </div>
+            )}
 
             {config.collectResults && (
               <div className="animate-in fade-in slide-in-from-top-2">
