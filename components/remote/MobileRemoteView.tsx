@@ -6,16 +6,32 @@
  * teacher can control timers, scoreboards, dice etc. from their phone
  * while the desktop board stays visible to students.
  *
- * View State Controls (Spotlight & Full Screen) write to DashboardSettings,
- * which triggers an auto-save to Firestore and propagates in real-time to
- * every open desktop tab subscribed to the same dashboard.
+ * Architecture — write-through, snapshot-based:
+ *   • On mount (and on manual Sync) the component takes a point-in-time
+ *     snapshot of the active dashboard from Firestore / DashboardContext.
+ *   • All writes (updateWidget, updateDashboardSettings) are applied to
+ *     the LOCAL snapshot immediately AND forwarded to Firestore via the
+ *     context so the desktop sees them in real-time.
+ *   • The component intentionally does NOT react to Firestore snapshots
+ *     after the initial load.  This prevents the stale-data revert problem
+ *     where Firestore echoes an old state back and overwrites the user's
+ *     in-progress changes on the remote.
+ *   • Pressing the Sync button re-reads the latest state from the context
+ *     (which itself is always up-to-date from Firestore) so the teacher
+ *     can pull in any board changes made on the desktop.
  */
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, LayoutGrid, Loader2 } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetType } from '@/types';
+import { WidgetData, WidgetType, DashboardSettings } from '@/types';
 import { RemoteWidgetCard } from './RemoteWidgetCard';
 
 /** Widget types with full custom remote controls — sorted to the front of the carousel */
@@ -49,26 +65,96 @@ export const MobileRemoteView: React.FC = () => {
   const { t } = useTranslation();
   const {
     activeDashboard,
-    updateWidget,
-    updateDashboardSettings,
+    updateWidget: ctxUpdateWidget,
+    updateDashboardSettings: ctxUpdateDashboardSettings,
     loadDashboard,
     dashboards,
   } = useDashboard();
+
+  // ---- Local snapshot state ----
+  // Initialised once from activeDashboard, then only updated on manual Sync.
+  // This prevents Firestore echo snapshots from reverting the remote UI.
+  const [localWidgets, setLocalWidgets] = useState<WidgetData[] | null>(null);
+  const [localSettings, setLocalSettings] = useState<
+    DashboardSettings | undefined
+  >(undefined);
+  const [syncing, setSyncing] = useState(false);
+
+  // Seed local snapshot when activeDashboard first becomes available.
+  useEffect(() => {
+    if (activeDashboard && localWidgets === null) {
+      setLocalWidgets([...activeDashboard.widgets]);
+      setLocalSettings(
+        activeDashboard.settings ? { ...activeDashboard.settings } : undefined
+      );
+    }
+  }, [activeDashboard, localWidgets]);
+
+  // Manual sync — pull latest state from context (which reflects Firestore).
+  const handleSync = useCallback(() => {
+    if (!activeDashboard) return;
+    setSyncing(true);
+    setLocalWidgets([...activeDashboard.widgets]);
+    setLocalSettings(
+      activeDashboard.settings ? { ...activeDashboard.settings } : undefined
+    );
+    setTimeout(() => setSyncing(false), 600);
+  }, [activeDashboard]);
+
+  // Write-through updateWidget: update local snapshot AND write to Firestore.
+  const handleUpdateWidget = useCallback(
+    (id: string, updates: Partial<WidgetData>) => {
+      setLocalWidgets((prev) => {
+        if (!prev) return prev;
+        return prev.map((w) => {
+          if (w.id !== id) return w;
+          return {
+            ...w,
+            ...updates,
+            config: updates.config
+              ? { ...w.config, ...updates.config }
+              : w.config,
+          };
+        });
+      });
+      ctxUpdateWidget(id, updates);
+    },
+    [ctxUpdateWidget]
+  );
+
+  // Write-through updateDashboardSettings: update local snapshot AND write to Firestore.
+  const handleUpdateDashboardSettings = useCallback(
+    (updates: Partial<DashboardSettings>) => {
+      setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
+      ctxUpdateDashboardSettings(updates);
+    },
+    [ctxUpdateDashboardSettings]
+  );
+
+  // Reset local snapshot when switching dashboards so the new dashboard
+  // seeds fresh state from the context.
+  const handleLoadDashboard = useCallback(
+    (id: string) => {
+      setLocalWidgets(null);
+      setLocalSettings(undefined);
+      loadDashboard(id);
+    },
+    [loadDashboard]
+  );
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const remoteWidgets = React.useMemo(() => {
-    if (!activeDashboard) return [];
-    return activeDashboard.widgets
+    if (!localWidgets) return [];
+    return localWidgets
       .filter((w) => !REMOTE_SKIP_TYPES.includes(w.type))
       .sort((a, b) => {
-        // Put actively controlled types first
         const aSupported = REMOTE_SUPPORTED_TYPES.includes(a.type) ? 0 : 1;
         const bSupported = REMOTE_SUPPORTED_TYPES.includes(b.type) ? 0 : 1;
         return aSupported - bSupported || b.z - a.z;
       });
-  }, [activeDashboard]);
+  }, [localWidgets]);
 
   const scrollToIndex = useCallback(
     (index: number) => {
@@ -81,7 +167,6 @@ export const MobileRemoteView: React.FC = () => {
     [remoteWidgets.length]
   );
 
-  // Track current card via scroll position
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -89,7 +174,7 @@ export const MobileRemoteView: React.FC = () => {
     setCurrentIndex(idx);
   }, []);
 
-  if (!activeDashboard) {
+  if (!activeDashboard || localWidgets === null) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex items-center justify-center">
         <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
@@ -117,7 +202,7 @@ export const MobileRemoteView: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-slate-950 flex flex-col overflow-hidden select-none">
-      {/* Top bar — Dashboard switcher */}
+      {/* Top bar — Dashboard switcher + Sync */}
       <div
         className="flex items-center justify-between px-4 shrink-0 bg-slate-950/80 backdrop-blur-md border-b border-white/5"
         style={{
@@ -128,7 +213,7 @@ export const MobileRemoteView: React.FC = () => {
         <button
           onClick={() => {
             if (dashboards.length > 1 && dashboardIndex > 0) {
-              loadDashboard(dashboards[dashboardIndex - 1].id);
+              handleLoadDashboard(dashboards[dashboardIndex - 1].id);
               setCurrentIndex(0);
               if (scrollRef.current) scrollRef.current.scrollLeft = 0;
             }
@@ -147,13 +232,26 @@ export const MobileRemoteView: React.FC = () => {
           <span className="text-white/40 text-xs">Remote Control</span>
         </div>
 
+        {/* Sync button — manually pull the latest board state from Firestore */}
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="p-2 text-white/40 hover:text-white transition-colors disabled:opacity-40"
+          aria-label="Sync board state"
+          title="Sync — pull latest board state from the desktop"
+        >
+          <RefreshCw
+            className={`w-5 h-5 ${syncing ? 'animate-spin text-blue-400' : ''}`}
+          />
+        </button>
+
         <button
           onClick={() => {
             if (
               dashboards.length > 1 &&
               dashboardIndex < dashboards.length - 1
             ) {
-              loadDashboard(dashboards[dashboardIndex + 1].id);
+              handleLoadDashboard(dashboards[dashboardIndex + 1].id);
               setCurrentIndex(0);
               if (scrollRef.current) scrollRef.current.scrollLeft = 0;
             }
@@ -174,7 +272,6 @@ export const MobileRemoteView: React.FC = () => {
           scrollSnapType: 'x mandatory',
           scrollBehavior: 'smooth',
           WebkitOverflowScrolling: 'touch',
-          // Hide scrollbar
           msOverflowStyle: 'none',
           scrollbarWidth: 'none',
         }}
@@ -184,9 +281,9 @@ export const MobileRemoteView: React.FC = () => {
           <RemoteWidgetCard
             key={widget.id}
             widget={widget}
-            dashboardSettings={activeDashboard.settings}
-            updateWidget={updateWidget}
-            updateDashboardSettings={updateDashboardSettings}
+            dashboardSettings={localSettings}
+            updateWidget={handleUpdateWidget}
+            updateDashboardSettings={handleUpdateDashboardSettings}
           />
         ))}
       </div>

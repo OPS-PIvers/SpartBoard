@@ -181,7 +181,6 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
           outline: '3px solid #facc15', // yellow-400 ring
           outlineOffset: '2px',
           boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
-          position: 'relative', // Ensure z-index is applied
         }
       : {};
 
