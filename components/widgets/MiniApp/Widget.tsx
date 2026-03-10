@@ -61,7 +61,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { user } = useAuth();
+<<<<<<< HEAD
   const config = (widget.config || {}) as MiniAppConfig;
+=======
+  const config = (widget.config ?? {}) as MiniAppConfig;
+>>>>>>> 8f9f59ee ([AI] fix: resolve student join permissions, session re-entry, and MiniApp sandbox restriction)
   const activeApp = config.activeApp ?? null;
   const activeAppId = activeApp?.id;
 
@@ -582,7 +586,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               ref={iframeRef}
               srcDoc={activeApp.html}
               className="flex-1 w-full border-none bg-white" // Keep bg-white for iframe content visibility
-              sandbox="allow-scripts allow-forms allow-popups allow-modals"
+              sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin"
               title={activeApp.title}
             />
             {/* Save-to-library overlay (shown when user pastes HTML and hasn't saved yet) */}
