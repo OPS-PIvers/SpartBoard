@@ -6,6 +6,8 @@ describe('layoutMath', () => {
   beforeEach(() => {
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(1920);
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(1080);
+    // Explicitly clear document.body to prevent leakage from other tests
+    document.body.innerHTML = '';
   });
 
   afterEach(() => {
@@ -29,14 +31,13 @@ describe('layoutMath', () => {
     });
 
     it('should calculate bounds correctly without dock element (fallback height)', () => {
-      vi.spyOn(document, 'querySelector').mockReturnValue(null);
-
+      // document.querySelector is already mocked to return null in beforeEach
       const zone: SnapZone = { ...defaultZone, x: 0, y: 0, w: 1, h: 1 };
       const bounds = calculateSnapBounds(zone);
 
       const { PADDING, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
-      const expectedWidth = 1920 - PADDING * 2;
-      const expectedHeight = 1080 - DOCK_HEIGHT - PADDING * 2;
+      const expectedWidth = window.innerWidth - PADDING * 2;
+      const expectedHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
@@ -49,15 +50,16 @@ describe('layoutMath', () => {
         getBoundingClientRect: vi.fn().mockReturnValue({ top: 900 }),
       } as unknown as Element;
 
-      vi.spyOn(document, 'querySelector').mockReturnValue(mockDockElement);
+      document.querySelector = vi.fn().mockReturnValue(mockDockElement);
 
       const zone: SnapZone = { ...defaultZone, x: 0, y: 0, w: 1, h: 1 };
       const bounds = calculateSnapBounds(zone);
 
       const { PADDING } = SNAP_LAYOUT_CONSTANTS;
-      const dockReservedHeight = 1080 - 900; // 180
-      const expectedWidth = 1920 - PADDING * 2;
-      const expectedHeight = 1080 - dockReservedHeight - PADDING * 2;
+      const dockReservedHeight = window.innerHeight - 900; // Depends on current window.innerHeight
+      const expectedWidth = window.innerWidth - PADDING * 2;
+      const expectedHeight =
+        window.innerHeight - dockReservedHeight - PADDING * 2;
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
@@ -70,7 +72,7 @@ describe('layoutMath', () => {
         getBoundingClientRect: vi.fn().mockReturnValue({ top: 800 }),
       } as unknown as Element;
 
-      vi.spyOn(document, 'querySelector').mockImplementation((selector) => {
+      document.querySelector = vi.fn().mockImplementation((selector) => {
         if (selector === '[data-role="dock"]') return null;
         if (selector === '[data-testid="dock"]') return mockDockElement;
         return null;
@@ -80,9 +82,10 @@ describe('layoutMath', () => {
       const bounds = calculateSnapBounds(zone);
 
       const { PADDING } = SNAP_LAYOUT_CONSTANTS;
-      const dockReservedHeight = 1080 - 800; // 280
-      const expectedWidth = 1920 - PADDING * 2;
-      const expectedHeight = 1080 - dockReservedHeight - PADDING * 2;
+      const dockReservedHeight = window.innerHeight - 800;
+      const expectedWidth = window.innerWidth - PADDING * 2;
+      const expectedHeight =
+        window.innerHeight - dockReservedHeight - PADDING * 2;
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
@@ -92,17 +95,18 @@ describe('layoutMath', () => {
 
     it('should fall back to DOCK_HEIGHT if reserved height is <= 0', () => {
       const mockDockElement = {
-        getBoundingClientRect: vi.fn().mockReturnValue({ top: 1100 }), // Below viewport
+        // Return a value higher than any reasonable window height to simulate off-screen
+        getBoundingClientRect: vi.fn().mockReturnValue({ top: 5000 }),
       } as unknown as Element;
 
-      vi.spyOn(document, 'querySelector').mockReturnValue(mockDockElement);
+      document.querySelector = vi.fn().mockReturnValue(mockDockElement);
 
       const zone: SnapZone = { ...defaultZone, x: 0, y: 0, w: 1, h: 1 };
       const bounds = calculateSnapBounds(zone);
 
       const { PADDING, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
-      const expectedWidth = 1920 - PADDING * 2;
-      const expectedHeight = 1080 - DOCK_HEIGHT - PADDING * 2;
+      const expectedWidth = window.innerWidth - PADDING * 2;
+      const expectedHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
@@ -117,8 +121,8 @@ describe('layoutMath', () => {
       const bounds = calculateSnapBounds(zone);
 
       const { PADDING, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
-      const expectedWidth = 1920 - PADDING * 2;
-      const expectedHeight = 1080 - DOCK_HEIGHT - PADDING * 2;
+      const expectedWidth = window.innerWidth - PADDING * 2;
+      const expectedHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
 
       expect(bounds.x).toBe(PADDING);
       expect(bounds.y).toBe(PADDING);
@@ -127,8 +131,6 @@ describe('layoutMath', () => {
     });
 
     it('should calculate bounds with gaps for half zones', () => {
-      vi.spyOn(document, 'querySelector').mockReturnValue(null);
-
       const leftZone: SnapZone = {
         ...defaultZone,
         x: 0,
@@ -148,8 +150,8 @@ describe('layoutMath', () => {
       const rightBounds = calculateSnapBounds(rightZone);
 
       const { PADDING, GAP, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
-      const safeWidth = 1920 - PADDING * 2;
-      const safeHeight = 1080 - DOCK_HEIGHT - PADDING * 2;
+      const safeWidth = window.innerWidth - PADDING * 2;
+      const safeHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
 
       // Left zone should have half a gap subtracted from its width
       expect(leftBounds.w).toBe(Math.round(0.5 * safeWidth - GAP / 2));
@@ -167,9 +169,16 @@ describe('layoutMath', () => {
     });
 
     it('should clamp safe dimensions to at least 0 on tiny viewports', () => {
-      vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(10);
-      vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(10);
-      vi.spyOn(document, 'querySelector').mockReturnValue(null);
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 10,
+      });
+      Object.defineProperty(window, 'innerHeight', {
+        writable: true,
+        configurable: true,
+        value: 10,
+      });
 
       const zone: SnapZone = { ...defaultZone, x: 0, y: 0, w: 1, h: 1 };
       const bounds = calculateSnapBounds(zone);
@@ -184,8 +193,6 @@ describe('layoutMath', () => {
     });
 
     it('should subtract gaps from height for stacked zones', () => {
-      vi.spyOn(document, 'querySelector').mockReturnValue(null);
-
       const topZone: SnapZone = {
         ...defaultZone,
         x: 0,
@@ -205,7 +212,7 @@ describe('layoutMath', () => {
       const bottomBounds = calculateSnapBounds(bottomZone);
 
       const { PADDING, GAP, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
-      const safeHeight = 1080 - DOCK_HEIGHT - PADDING * 2;
+      const safeHeight = window.innerHeight - DOCK_HEIGHT - PADDING * 2;
 
       // Top zone should have half a gap subtracted from its height
       expect(topBounds.h).toBe(Math.round(0.5 * safeHeight - GAP / 2));
