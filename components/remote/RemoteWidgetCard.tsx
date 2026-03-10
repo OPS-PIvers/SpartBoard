@@ -14,6 +14,15 @@ import { RemoteScoreboardControl } from './controls/RemoteScoreboardControl';
 import { RemoteDiceControl } from './controls/RemoteDiceControl';
 import { RemoteRandomControl } from './controls/RemoteRandomControl';
 import { RemoteTrafficLightControl } from './controls/RemoteTrafficLightControl';
+import { RemoteClockControl } from './controls/RemoteClockControl';
+import { RemoteChecklistControl } from './controls/RemoteChecklistControl';
+import { RemotePollControl } from './controls/RemotePollControl';
+import { RemoteExpectationsControl } from './controls/RemoteExpectationsControl';
+import { RemoteScheduleControl } from './controls/RemoteScheduleControl';
+import { RemoteBreathingControl } from './controls/RemoteBreathingControl';
+import { RemoteMusicControl } from './controls/RemoteMusicControl';
+import { RemoteNextUpControl } from './controls/RemoteNextUpControl';
+import { RemoteSoundControl } from './controls/RemoteSoundControl';
 
 interface RemoteWidgetCardProps {
   widget: WidgetData;
@@ -28,6 +37,36 @@ const WIDGET_LABELS: Partial<Record<string, string>> = {
   dice: 'Dice',
   random: 'Random Picker',
   traffic: 'Traffic Light',
+  clock: 'Clock',
+  checklist: 'Checklist',
+  poll: 'Poll',
+  expectations: 'Expectations',
+  schedule: 'Schedule',
+  breathing: 'Breathing',
+  music: 'Music',
+  nextUp: 'Next Up',
+  sound: 'Noise Meter',
+  text: 'Note',
+  qr: 'QR Code',
+  embed: 'Embed',
+  webcam: 'Webcam',
+  weather: 'Weather',
+  calendar: 'Calendar',
+  lunchCount: 'Lunch Count',
+  instructionalRoutines: 'Routines',
+  'seating-chart': 'Seating Chart',
+  catalyst: 'Catalyst',
+  'catalyst-instruction': 'Catalyst Step',
+  'catalyst-visual': 'Catalyst Visual',
+  smartNotebook: 'Smart Notebook',
+  recessGear: 'Recess Gear',
+  pdf: 'PDF Viewer',
+  quiz: 'Quiz',
+  'talking-tool': 'Talking Tool',
+  mathTools: 'Math Tools',
+  mathTool: 'Math Tool',
+  materials: 'Materials',
+  miniApp: 'Mini App',
 };
 
 const renderControls = (
@@ -54,6 +93,37 @@ const renderControls = (
           updateWidget={updateWidget}
         />
       );
+    case 'clock':
+      return <RemoteClockControl widget={widget} updateWidget={updateWidget} />;
+    case 'checklist':
+      return (
+        <RemoteChecklistControl widget={widget} updateWidget={updateWidget} />
+      );
+    case 'poll':
+      return <RemotePollControl widget={widget} updateWidget={updateWidget} />;
+    case 'expectations':
+      return (
+        <RemoteExpectationsControl
+          widget={widget}
+          updateWidget={updateWidget}
+        />
+      );
+    case 'schedule':
+      return (
+        <RemoteScheduleControl widget={widget} updateWidget={updateWidget} />
+      );
+    case 'breathing':
+      return (
+        <RemoteBreathingControl widget={widget} updateWidget={updateWidget} />
+      );
+    case 'music':
+      return <RemoteMusicControl widget={widget} updateWidget={updateWidget} />;
+    case 'nextUp':
+      return (
+        <RemoteNextUpControl widget={widget} updateWidget={updateWidget} />
+      );
+    case 'sound':
+      return <RemoteSoundControl widget={widget} updateWidget={updateWidget} />;
     default:
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-white/40 p-8 text-center">

@@ -18,21 +18,31 @@ import { useDashboard } from '@/context/useDashboard';
 import { WidgetType } from '@/types';
 import { RemoteWidgetCard } from './RemoteWidgetCard';
 
-/** Widget types that have interactive remote controls or benefit from display actions */
+/** Widget types with full custom remote controls — sorted to the front of the carousel */
 const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
   'time-tool',
   'scoreboard',
   'dice',
   'random',
   'traffic',
+  'clock',
+  'checklist',
+  'poll',
+  'expectations',
+  'schedule',
+  'breathing',
+  'music',
+  'nextUp',
+  'sound',
 ];
 
-/** Widget types that are always skipped on the remote (decorative / not interactive) */
+/** Widget types that are always skipped on the remote (truly non-interactive) */
 const REMOTE_SKIP_TYPES: WidgetType[] = [
   'sticker',
   'stickers',
   'drawing',
   'onboarding',
+  'classes', // empty config, no remote actions
 ];
 
 export const MobileRemoteView: React.FC = () => {
