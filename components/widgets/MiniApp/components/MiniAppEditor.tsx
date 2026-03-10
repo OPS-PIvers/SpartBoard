@@ -69,9 +69,13 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
       } catch (e) {
         console.error(e);
         const errorMsg = e instanceof Error ? e.message : '';
-        if (errorMsg.includes('403') || errorMsg.includes('Authorization')) {
+        if (
+          errorMsg.includes('403') ||
+          errorMsg.includes('Authorization') ||
+          errorMsg.includes('appNotAuthorizedToFile')
+        ) {
           addToast(
-            `Automated sharing failed. Please manually share your sheet with ${globalConfig.botEmail} as an Editor.`,
+            `Permission denied. Please click 'Reset' to create a new sheet or manually share your existing sheet with ${globalConfig.botEmail} as an Editor.`,
             'error'
           );
         } else {
@@ -96,6 +100,18 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
     } else if (checked && config.googleSheetId) {
       await shareSheetWithBot(config.googleSheetId);
     }
+  };
+
+  const handleUnlinkSheet = () => {
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        googleSheetUrl: undefined,
+        googleSheetId: undefined,
+      },
+    });
+    lastSharedIdRef.current = null;
+    addToast('Sheet unlinked.', 'info');
   };
 
   const handleCreateNewSheet = async () => {
@@ -267,21 +283,35 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                   </div>
                 ) : config.googleSheetId ? (
                   <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                      <span className="text-xs font-bold text-emerald-700 uppercase tracking-tight">
-                        Results Sheet Ready
-                      </span>
+                    <div className="flex-1 min-w-0 mr-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-tight truncate">
+                          Results Linked
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-emerald-600/70 font-medium truncate">
+                        Google Sheet is connected
+                      </p>
                     </div>
-                    <a
-                      href={config.googleSheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xxs font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
-                    >
-                      <Globe className="w-3 h-3" />
-                      Open Sheet
-                    </a>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={handleUnlinkSheet}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Unlink and use a different sheet"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={config.googleSheetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xxs font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                      >
+                        <Globe className="w-3 h-3" />
+                        Open
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl">

@@ -143,7 +143,12 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   miniApp: {
     w: 500,
     h: 600,
-    config: { activeApp: null },
+    config: {
+      activeApp: null,
+      collectResults: false,
+      googleSheetId: undefined,
+      googleSheetUrl: undefined,
+    },
   },
   materials: {
     w: 340,
