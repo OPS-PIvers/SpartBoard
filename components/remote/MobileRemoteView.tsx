@@ -79,16 +79,18 @@ export const MobileRemoteView: React.FC = () => {
     DashboardSettings | undefined
   >(undefined);
   const [syncing, setSyncing] = useState(false);
+  const isInitialized = useRef(false);
 
   // Seed local snapshot when activeDashboard first becomes available.
   useEffect(() => {
-    if (activeDashboard && localWidgets === null) {
+    if (activeDashboard && !isInitialized.current) {
       setLocalWidgets([...activeDashboard.widgets]);
       setLocalSettings(
         activeDashboard.settings ? { ...activeDashboard.settings } : undefined
       );
+      isInitialized.current = true;
     }
-  }, [activeDashboard, localWidgets]);
+  }, [activeDashboard]);
 
   // Manual sync — pull latest state from context (which reflects Firestore).
   const handleSync = useCallback(() => {
@@ -135,6 +137,7 @@ export const MobileRemoteView: React.FC = () => {
   // seeds fresh state from the context.
   const handleLoadDashboard = useCallback(
     (id: string) => {
+      isInitialized.current = false;
       setLocalWidgets(null);
       setLocalSettings(undefined);
       loadDashboard(id);
