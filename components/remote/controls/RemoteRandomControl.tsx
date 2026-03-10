@@ -46,7 +46,7 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
   const picked = config.lastResult;
 
   const pickStudent = useCallback(() => {
-    if (isPicking || remaining.length === 0) return;
+    if (isPicking || names.length === 0) return;
     setIsPicking(true);
 
     let frames = 0;
@@ -61,7 +61,7 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
         if (ref !== null) clearInterval(ref);
         intervalRef.current = null;
         const finalPick = pool[Math.floor(Math.random() * pool.length)];
-        const newRemaining = remaining.filter((n) => n !== finalPick);
+        const newRemaining = pool.filter((n) => n !== finalPick);
         // Single write to shared state — the final result only
         updateWidget(widget.id, {
           config: {

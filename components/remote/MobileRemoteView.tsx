@@ -119,7 +119,7 @@ export const MobileRemoteView: React.FC = () => {
     <div className="h-screen w-screen bg-slate-950 flex flex-col overflow-hidden select-none">
       {/* Top bar — Dashboard switcher */}
       <div
-        className="flex items-center justify-between px-4 pt-safe shrink-0 bg-slate-950/80 backdrop-blur-md border-b border-white/5"
+        className="flex items-center justify-between px-4 shrink-0 bg-slate-950/80 backdrop-blur-md border-b border-white/5"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 0.75rem)',
           paddingBottom: '0.5rem',
@@ -130,6 +130,7 @@ export const MobileRemoteView: React.FC = () => {
             if (dashboards.length > 1 && dashboardIndex > 0) {
               loadDashboard(dashboards[dashboardIndex - 1].id);
               setCurrentIndex(0);
+              if (scrollRef.current) scrollRef.current.scrollLeft = 0;
             }
           }}
           disabled={dashboardIndex <= 0}
@@ -154,6 +155,7 @@ export const MobileRemoteView: React.FC = () => {
             ) {
               loadDashboard(dashboards[dashboardIndex + 1].id);
               setCurrentIndex(0);
+              if (scrollRef.current) scrollRef.current.scrollLeft = 0;
             }
           }}
           disabled={dashboardIndex >= dashboards.length - 1}
@@ -192,7 +194,7 @@ export const MobileRemoteView: React.FC = () => {
       {/* Bottom pagination dots */}
       {remoteWidgets.length > 1 && (
         <div
-          className="flex items-center justify-center gap-1.5 pb-safe shrink-0"
+          className="flex items-center justify-center gap-1.5 shrink-0"
           style={{
             paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
             paddingTop: '0.5rem',

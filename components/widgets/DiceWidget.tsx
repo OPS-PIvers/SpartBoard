@@ -89,7 +89,7 @@ const DiceFace: React.FC<{
 import { WidgetLayout } from './WidgetLayout';
 
 export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard } = useDashboard();
+  const { activeDashboard, updateWidget } = useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as DiceConfig;
   const diceCount = config.count ?? 1;
@@ -130,6 +130,14 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       if (rolls >= maxRolls) {
         clearInterval(interval);
+        const finalValues = Array.from(
+          { length: diceCount },
+          () => Math.floor(Math.random() * 6) + 1
+        );
+        setValues(finalValues);
+        updateWidget(widget.id, {
+          config: { ...config, lastRoll: finalValues } as DiceConfig,
+        });
         setIsRolling(false);
       }
     }, 100);
