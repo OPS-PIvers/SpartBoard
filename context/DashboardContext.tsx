@@ -411,13 +411,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // local edits that haven't been flushed yet.
           const currentActive = prev.find((p) => p.id === activeIdRef.current);
 
-          // Initialize saved-data refs from the CURRENT LOCAL STATE the first
-          // time the active dashboard is known. We must use the local state
+          // Initialize (or re-initialize on dashboard switch) saved-data refs
+          // from the CURRENT LOCAL STATE. We must use the local state
           // (currentActive), NOT the incoming server snapshot. Initialising
           // from the server snapshot would make hasUnsavedLocalChanges
           // incorrectly true on the desktop — which causes the surgical merge
           // to reject every phone remote update (spotlight, maximize, etc.).
-          if (currentActive && lastSavedDataRef.current === '') {
+          //
+          // We also re-initialize whenever the active dashboard changes so that
+          // stale refs from the previously-active dashboard don't incorrectly
+          // flag hasUnsavedLocalChanges on the newly-switched dashboard.
+          if (
+            currentActive &&
+            (lastSavedDataRef.current === '' ||
+              currentActive.id !== lastSavedDashboardIdRef.current)
+          ) {
             lastSavedDataRef.current = serializeDashboard(currentActive);
             lastSavedFieldsRef.current = {
               widgets: JSON.stringify(currentActive.widgets),
@@ -426,6 +434,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               libraryOrder: JSON.stringify(currentActive.libraryOrder ?? []),
               settings: JSON.stringify(currentActive.settings ?? {}),
             };
+            lastSavedDashboardIdRef.current = currentActive.id;
           }
 
           const hasUnsavedLocalChanges =
@@ -504,9 +513,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }
 
-          // No local conflicts — accept the server state. Sync the saved-data
+          // No local conflicts — accept the server state. Sync all saved-data
           // refs to match so that subsequent phone remote changes don't
-          // incorrectly trigger hasUnsavedLocalChanges on the desktop.
+          // incorrectly trigger hasUnsavedLocalChanges on the desktop, and so
+          // the structural-change debounce baseline stays accurate.
           if (serverActive) {
             lastSavedDataRef.current = serializeDashboard(serverActive);
             lastSavedFieldsRef.current = {
@@ -516,6 +526,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               libraryOrder: JSON.stringify(serverActive.libraryOrder ?? []),
               settings: JSON.stringify(serverActive.settings ?? {}),
             };
+            lastWidgetCountRef.current = serverActive.widgets.length;
+            lastSavedDashboardIdRef.current = serverActive.id;
             if (serverActive.updatedAt) {
               lastSavedAtRef.current = serverActive.updatedAt;
             }
@@ -606,6 +618,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const lastSavedDataRef = useRef<string>('');
   const lastSavedAtRef = useRef<number>(0);
   const lastWidgetCountRef = useRef<number>(0);
+  // Track which dashboard the saved-data refs correspond to so they can be
+  // re-initialised when the user switches dashboards.
+  const lastSavedDashboardIdRef = useRef<string | null>(null);
   // Track per-field last-saved state so the surgical merge can determine
   // which fields actually changed locally vs. which should accept server updates.
   const lastSavedFieldsRef = useRef<{
