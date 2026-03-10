@@ -401,6 +401,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
 
+        // Initialize lastSavedDataRef from server data if it's the first load
+        // so that surgical merge doesn't incorrectly block remote updates.
+        const serverActiveToInit = migratedDashboards.find(
+          (d) => d.id === activeIdRef.current
+        );
+        if (serverActiveToInit && lastSavedDataRef.current === '') {
+          lastSavedDataRef.current = serializeDashboard(serverActiveToInit);
+          lastSavedFieldsRef.current = {
+            widgets: JSON.stringify(serverActiveToInit.widgets),
+            background: serverActiveToInit.background,
+            name: serverActiveToInit.name,
+            libraryOrder: JSON.stringify(serverActiveToInit.libraryOrder ?? []),
+            settings: JSON.stringify(serverActiveToInit.settings ?? {}),
+          };
+        }
+
         setDashboards((prev) => {
           const now = Date.now();
           const isRecentlyUpdatedLocally =
@@ -449,9 +465,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 // locally-modified fields. Fields unchanged locally accept the
                 // server value, so remote edits (e.g. name change in another
                 // tab) aren't discarded when only widgets changed locally.
-                const localWidgets = JSON.stringify(currentActive.widgets);
+                const localWidgetsJson = JSON.stringify(currentActive.widgets);
                 const widgetsChangedLocally =
-                  localWidgets !== lastSavedFieldsRef.current.widgets;
+                  localWidgetsJson !== lastSavedFieldsRef.current.widgets;
                 const backgroundChangedLocally =
                   currentActive.background !==
                   lastSavedFieldsRef.current.background;
@@ -463,23 +479,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     lastSavedFieldsRef.current.libraryOrder;
                 const settingsChangedLocally =
                   JSON.stringify(currentActive.settings ?? {}) !==
-                  (lastSavedFieldsRef.current.settings || '{}');
+                  (lastSavedFieldsRef.current.settings ?? '{}');
 
                 return {
                   ...db,
-                  ...(widgetsChangedLocally && {
-                    widgets: currentActive.widgets,
-                  }),
-                  ...(backgroundChangedLocally && {
-                    background: currentActive.background,
-                  }),
-                  ...(nameChangedLocally && { name: currentActive.name }),
-                  ...(libraryOrderChangedLocally && {
-                    libraryOrder: currentActive.libraryOrder,
-                  }),
-                  ...(settingsChangedLocally && {
-                    settings: currentActive.settings,
-                  }),
+                  widgets: widgetsChangedLocally
+                    ? currentActive.widgets
+                    : db.widgets,
+                  background: backgroundChangedLocally
+                    ? currentActive.background
+                    : db.background,
+                  name: nameChangedLocally ? currentActive.name : db.name,
+                  libraryOrder: libraryOrderChangedLocally
+                    ? currentActive.libraryOrder
+                    : db.libraryOrder,
+                  settings: settingsChangedLocally
+                    ? currentActive.settings
+                    : db.settings,
                 };
               }
               return db;
