@@ -42,6 +42,12 @@ playwright-report/
 # Vitest
 coverage/
 .env
+.env.*
+
+# Secrets
+*.pem
+*.key
+*.cert
 
 .gemini/
 gha-creds-*.jsoneslint-output.txt

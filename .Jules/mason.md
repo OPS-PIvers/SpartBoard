@@ -14,4 +14,6 @@
 
 ## 2026-03-08 - [DRY GitHub Actions] **Bottleneck:** Repeated setup boilerplate across multiple CI jobs (Node.js setup, pnpm install) slowed down workflow authoring and increased maintenance overhead. **Fix:** Consolidated setup steps into a single composite action at `.github/actions/setup/action.yml` to enforce DRY principles.
 
+## 2026-03-09 - [Loose Infrastructure Constraints] **Bottleneck:** The project lacked strict version enforcement for Node/pnpm at the root level, and `.gitignore` missed sensitive certificates (`*.pem`, `*.key`) potentially leading to secret leaks and 'works on my machine' build issues. **Fix:** Added strict `engines` block to `package.json` to enforce Node 20+ and pnpm 10.0+, and secured `.gitignore` by ignoring all standard certificate and private key formats.
+
 ## 2026-03-11 - [ESLint Type Resolution Failure] **Bottleneck:** `typescript-eslint`'s `projectService: true` failed to resolve types for cloud function dependencies (like `google-auth-library`), causing `@typescript-eslint/no-unsafe-*` errors and breaking the validation pipeline. **Fix:** Replaced `projectService: true` with an explicit `project: ['./tsconfig.json', './functions/tsconfig.json']` array in `eslint.config.js` to ensure the linter correctly parses and resolves types for both the frontend root and the `functions/` subdirectory.

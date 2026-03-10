@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "packageManager": "pnpm@10.30.2",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "node scripts/generate-version.js && vite",
     "build": "node scripts/generate-version.js && vite build",
