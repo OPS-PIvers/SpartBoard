@@ -244,11 +244,20 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       setFontSize(Math.round(lo * 10) / 10);
     };
 
-    const observer = new ResizeObserver(fitText);
+    let debounceTimeout: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(fitText, 50);
+    };
+
+    const observer = new ResizeObserver(handleResize);
     observer.observe(container);
     fitText();
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(debounceTimeout);
+    };
   }, [items, students, mode, scaleMultiplier]);
 
   if (!hasContent) {
