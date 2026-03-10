@@ -59,8 +59,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { user } = useAuth();
-  const config = widget.config as MiniAppConfig;
-  const { activeApp } = config;
+  const config = (widget.config || {}) as MiniAppConfig;
+  const activeApp = config.activeApp || null;
+  const activeAppId = activeApp?.id;
 
   const { session, startSession, endSession } = useLiveSession(
     user?.uid,
@@ -153,15 +154,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   // --- HANDLERS ---
 
-  const handleToggleLive = async () => {
+  const handleToggleLive = async (app?: MiniAppItem) => {
     try {
       if (isLive) {
         await endSession();
       } else {
+        // If an app was clicked directly from the list, run it first
+        if (app && activeApp?.id !== app.id) {
+          updateWidget(widget.id, {
+            config: { ...config, activeApp: app },
+          });
+        }
+
         await startSession(
           widget.id,
           widget.type,
-          widget.config,
+          app ? { ...config, activeApp: app } : widget.config,
           activeDashboard?.background
         );
         addToast('App is now live for students!', 'success');
@@ -838,6 +846,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         onRun={handleRun}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        isLive={isLive && activeAppId === app.id}
+                        onToggleLive={handleToggleLive}
+                        sessionCode={session?.code}
                       />
                     ))}
                   </SortableContext>
@@ -894,6 +905,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     onRun={handleRun}
                     onSaveToLibrary={handleSaveToLibrary}
                     isSaving={savingGlobalId === app.id}
+                    isLive={isLive && activeAppId === app.id}
+                    onToggleLive={handleToggleLive}
+                    sessionCode={session?.code}
                   />
                 ))
               )}
