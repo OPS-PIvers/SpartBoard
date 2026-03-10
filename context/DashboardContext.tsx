@@ -401,118 +401,122 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
 
-        setDashboards((prev) => {
-          const now = Date.now();
-          const isRecentlyUpdatedLocally =
-            now - lastLocalUpdateAt.current < 5000;
+        // ---- Conflict-detection and merge ----
+        // All ref reads and writes happen here, OUTSIDE the setDashboards
+        // callback, because React StrictMode double-invokes state updater
+        // functions and any ref mutation inside that callback would corrupt
+        // the state on the second (committed) invocation — causing every
+        // second phone remote action to be silently rejected.
+        const currentActive = dashboardsRef.current.find(
+          (p) => p.id === activeIdRef.current
+        );
 
-          // Check if local state has unsaved changes by comparing against
-          // what was last saved. This prevents server data from overwriting
-          // local edits that haven't been flushed yet.
-          const currentActive = prev.find((p) => p.id === activeIdRef.current);
+        // Initialize (or re-initialize on dashboard switch) saved-data refs
+        // from the CURRENT LOCAL STATE, not the incoming server snapshot.
+        // Initialising from the server snapshot would make hasUnsavedLocalChanges
+        // incorrectly true on the desktop, blocking every phone remote update.
+        // Re-initialize on dashboard switch so stale refs from the previous
+        // dashboard don't incorrectly flag unsaved changes on the new one.
+        if (
+          currentActive &&
+          (lastSavedDataRef.current === '' ||
+            currentActive.id !== lastSavedDashboardIdRef.current)
+        ) {
+          lastSavedDataRef.current = serializeDashboard(currentActive);
+          lastSavedFieldsRef.current = {
+            widgets: JSON.stringify(currentActive.widgets),
+            background: currentActive.background,
+            name: currentActive.name,
+            libraryOrder: JSON.stringify(currentActive.libraryOrder ?? []),
+            settings: JSON.stringify(currentActive.settings ?? {}),
+          };
+          lastSavedDashboardIdRef.current = currentActive.id;
+        }
 
-          // Initialize (or re-initialize on dashboard switch) saved-data refs
-          // from the CURRENT LOCAL STATE. We must use the local state
-          // (currentActive), NOT the incoming server snapshot. Initialising
-          // from the server snapshot would make hasUnsavedLocalChanges
-          // incorrectly true on the desktop — which causes the surgical merge
-          // to reject every phone remote update (spotlight, maximize, etc.).
-          //
-          // We also re-initialize whenever the active dashboard changes so that
-          // stale refs from the previously-active dashboard don't incorrectly
-          // flag hasUnsavedLocalChanges on the newly-switched dashboard.
-          if (
-            currentActive &&
-            (lastSavedDataRef.current === '' ||
-              currentActive.id !== lastSavedDashboardIdRef.current)
-          ) {
-            lastSavedDataRef.current = serializeDashboard(currentActive);
-            lastSavedFieldsRef.current = {
-              widgets: JSON.stringify(currentActive.widgets),
-              background: currentActive.background,
-              name: currentActive.name,
-              libraryOrder: JSON.stringify(currentActive.libraryOrder ?? []),
-              settings: JSON.stringify(currentActive.settings ?? {}),
-            };
-            lastSavedDashboardIdRef.current = currentActive.id;
-          }
+        const now = Date.now();
+        const isRecentlyUpdatedLocally =
+          now - lastLocalUpdateAt.current < 5000;
 
-          const hasUnsavedLocalChanges =
-            currentActive &&
-            lastSavedDataRef.current !== '' &&
-            serializeDashboard(currentActive) !== lastSavedDataRef.current;
+        // Check if local state has unsaved changes by comparing against
+        // what was last saved. This prevents server data from overwriting
+        // local edits that haven't been flushed yet.
+        const hasUnsavedLocalChanges =
+          currentActive &&
+          lastSavedDataRef.current !== '' &&
+          serializeDashboard(currentActive) !== lastSavedDataRef.current;
 
-          // Detect stale snapshots from Firestore latency compensation
-          const serverActive = migratedDashboards.find(
-            (d) => d.id === activeIdRef.current
-          );
-          // Use <= to handle cases where timestamps match exactly (fast echoes)
-          const isStaleSnapshot =
-            serverActive &&
-            (serverActive.updatedAt ?? 0) <= lastSavedAtRef.current;
+        // Detect stale snapshots from Firestore latency compensation
+        const serverActive = migratedDashboards.find(
+          (d) => d.id === activeIdRef.current
+        );
+        // Use <= to handle cases where timestamps match exactly (fast echoes)
+        const isStaleSnapshot =
+          serverActive &&
+          (serverActive.updatedAt ?? 0) <= lastSavedAtRef.current;
 
-          if (
-            hasPendingWrites ||
-            isRecentlyUpdatedLocally ||
-            hasUnsavedLocalChanges ||
-            pendingSaveCountRef.current > 0 ||
-            isStaleSnapshot
-          ) {
-            return migratedDashboards.map((db) => {
-              if (db.id === activeIdRef.current && currentActive) {
-                // If we have pending writes, this snapshot is just a local echo of what we
-                // just did. Trust our current active state completely to avoid reverts.
-                if (hasPendingWrites) {
-                  return currentActive;
-                }
+        let newDashboards: Dashboard[];
 
-                // If the snapshot is stale (older than our last save), ignore it completely
-                // and keep our local state to prevent overwriting with old data.
-                if (isStaleSnapshot) {
-                  return currentActive;
-                }
-
-                // SURGICAL MERGE: Start from server snapshot but only preserve
-                // locally-modified fields. Fields unchanged locally accept the
-                // server value, so remote edits (e.g. name change in another
-                // tab) aren't discarded when only widgets changed locally.
-                const localWidgetsJson = JSON.stringify(currentActive.widgets);
-                const widgetsChangedLocally =
-                  localWidgetsJson !== lastSavedFieldsRef.current.widgets;
-                const backgroundChangedLocally =
-                  currentActive.background !==
-                  lastSavedFieldsRef.current.background;
-                const nameChangedLocally =
-                  currentActive.name !== lastSavedFieldsRef.current.name;
-                const libraryOrderChangedLocally =
-                  currentActive.libraryOrder &&
-                  JSON.stringify(currentActive.libraryOrder) !==
-                    lastSavedFieldsRef.current.libraryOrder;
-                const settingsChangedLocally =
-                  JSON.stringify(currentActive.settings ?? {}) !==
-                  (lastSavedFieldsRef.current.settings ?? '{}');
-
-                return {
-                  ...db,
-                  widgets: widgetsChangedLocally
-                    ? currentActive.widgets
-                    : db.widgets,
-                  background: backgroundChangedLocally
-                    ? currentActive.background
-                    : db.background,
-                  name: nameChangedLocally ? currentActive.name : db.name,
-                  libraryOrder: libraryOrderChangedLocally
-                    ? currentActive.libraryOrder
-                    : db.libraryOrder,
-                  settings: settingsChangedLocally
-                    ? currentActive.settings
-                    : db.settings,
-                };
+        if (
+          hasPendingWrites ||
+          isRecentlyUpdatedLocally ||
+          hasUnsavedLocalChanges ||
+          pendingSaveCountRef.current > 0 ||
+          isStaleSnapshot
+        ) {
+          newDashboards = migratedDashboards.map((db) => {
+            if (db.id === activeIdRef.current && currentActive) {
+              // If we have pending writes, this snapshot is just a local echo of what we
+              // just did. Trust our current active state completely to avoid reverts.
+              if (hasPendingWrites) {
+                return currentActive;
               }
-              return db;
-            });
-          }
 
+              // If the snapshot is stale (older than our last save), ignore it completely
+              // and keep our local state to prevent overwriting with old data.
+              if (isStaleSnapshot) {
+                return currentActive;
+              }
+
+              // SURGICAL MERGE: Start from server snapshot but only preserve
+              // locally-modified fields. Fields unchanged locally accept the
+              // server value, so remote edits (e.g. name change in another
+              // tab) aren't discarded when only widgets changed locally.
+              const localWidgetsJson = JSON.stringify(currentActive.widgets);
+              const widgetsChangedLocally =
+                localWidgetsJson !== lastSavedFieldsRef.current.widgets;
+              const backgroundChangedLocally =
+                currentActive.background !==
+                lastSavedFieldsRef.current.background;
+              const nameChangedLocally =
+                currentActive.name !== lastSavedFieldsRef.current.name;
+              const libraryOrderChangedLocally =
+                currentActive.libraryOrder &&
+                JSON.stringify(currentActive.libraryOrder) !==
+                  lastSavedFieldsRef.current.libraryOrder;
+              const settingsChangedLocally =
+                JSON.stringify(currentActive.settings ?? {}) !==
+                (lastSavedFieldsRef.current.settings ?? '{}');
+
+              return {
+                ...db,
+                widgets: widgetsChangedLocally
+                  ? currentActive.widgets
+                  : db.widgets,
+                background: backgroundChangedLocally
+                  ? currentActive.background
+                  : db.background,
+                name: nameChangedLocally ? currentActive.name : db.name,
+                libraryOrder: libraryOrderChangedLocally
+                  ? currentActive.libraryOrder
+                  : db.libraryOrder,
+                settings: settingsChangedLocally
+                  ? currentActive.settings
+                  : db.settings,
+              };
+            }
+            return db;
+          });
+        } else {
           // No local conflicts — accept the server state. Sync all saved-data
           // refs to match so that subsequent phone remote changes don't
           // incorrectly trigger hasUnsavedLocalChanges on the desktop, and so
@@ -532,8 +536,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               lastSavedAtRef.current = serverActive.updatedAt;
             }
           }
-          return migratedDashboards;
-        });
+          newDashboards = migratedDashboards;
+        }
+
+        setDashboards(newDashboards);
 
         // Update libraryOrder state from active dashboard if it changed on server
         const activeOnServer = migratedDashboards.find(
