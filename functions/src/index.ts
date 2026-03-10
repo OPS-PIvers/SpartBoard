@@ -285,7 +285,7 @@ export const generateWithAI = functionsV1
       // 4. Check and increment daily usage
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       const usageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
-      const DAILY_LIMIT = globalPerm?.config?.dailyLimit || 20;
+      const DAILY_LIMIT = globalPerm?.config?.dailyLimit ?? 20;
 
       try {
         await db.runTransaction(async (transaction) => {
@@ -773,7 +773,7 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       );
 
       const sessionIdFromName = session.name?.split('/').pop();
-      const sessionId = sessionIdFromName || session.id;
+      const sessionId = sessionIdFromName ?? session.id;
 
       if (!sessionId) {
         throw new functionsV2.https.HttpsError(
@@ -801,7 +801,7 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
         console.error('Jules API Error Status:', error.response?.status);
 
         const data = error.response?.data as JulesError | undefined;
-        errorMessage = data?.error?.message || error.message;
+        errorMessage = data?.error?.message ?? error.message;
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
