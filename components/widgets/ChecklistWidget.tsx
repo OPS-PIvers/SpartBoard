@@ -39,8 +39,9 @@ interface ChecklistRowProps {
 const ChecklistRow = React.memo<ChecklistRowProps>(
   ({ id, label, isCompleted, onToggle }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
+      // Prevent page scroll on Space; block key-repeat for both keys
+      if (e.key === ' ') e.preventDefault();
+      if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
         onToggle(id);
       }
     };
