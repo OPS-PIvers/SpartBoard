@@ -434,8 +434,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const now = Date.now();
-        const isRecentlyUpdatedLocally =
-          now - lastLocalUpdateAt.current < 5000;
+        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 5000;
 
         // Check if local state has unsaved changes by comparing against
         // what was last saved. This prevents server data from overwriting
