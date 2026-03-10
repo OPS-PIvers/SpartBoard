@@ -212,9 +212,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const heightCoeff =
     Math.round(
-      ((CHECKLIST_CONTENT_HEIGHT_CQH / cappedItemCount) *
+      (CHECKLIST_CONTENT_HEIGHT_CQH / cappedItemCount) *
         CHECKLIST_FONT_HEIGHT_FRACTION *
-        scaleMultiplier) *
+        scaleMultiplier *
         10
     ) / 10;
   const dynamicFontSize = `min(${18 * scaleMultiplier}px, ${heightCoeff}cqh, ${6 * scaleMultiplier}cqw)`;
