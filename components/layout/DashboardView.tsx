@@ -795,9 +795,17 @@ export const DashboardView: React.FC = () => {
         key={activeDashboard.id}
         className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
         style={{
+          // Only set transform when it actually changes something.
+          // transform: scale(1) still creates a CSS stacking context, which
+          // traps child z-indices and prevents the spotlighted widget from
+          // appearing above the backdrop overlay (z-index: 9900).
+          // When zoom === 1 and not minimized, omit the transform entirely so
+          // DraggableWindow z-indices participate in the root stacking context.
           transform: isMinimized
             ? `translateY(80vh) scale(${zoom})`
-            : `scale(${zoom})`,
+            : zoom !== 1
+              ? `scale(${zoom})`
+              : undefined,
           transformOrigin: isMinimized
             ? 'bottom center'
             : `${zoomOrigin.x}% ${zoomOrigin.y}%`,

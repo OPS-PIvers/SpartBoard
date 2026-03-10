@@ -212,6 +212,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Refs to prevent race conditions
   const lastLocalUpdateAt = useRef<number>(0);
+  // True when the most recent dashboard change was a settings-only update
+  // (e.g. spotlight/maximize toggle).  Used to apply a faster Firestore
+  // write debounce for these small, high-priority changes.
+  const lastUpdateWasSettingsOnly = useRef<boolean>(false);
   // Counter (not boolean) to correctly track overlapping in-flight saves
   const pendingSaveCountRef = useRef<number>(0);
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
@@ -667,11 +671,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Detect structural changes (adding/removing widgets) for more aggressive saving
     const isStructuralChange =
       active.widgets.length !== lastWidgetCountRef.current;
-    const debounceMs = isStructuralChange ? 200 : 800; // 200ms for add/remove, 800ms for config/moving
+    // Settings-only changes (spotlight, maximize) are small and urgent —
+    // use a fast 100 ms debounce so the desktop board reflects remote-
+    // controlled presentation changes with minimal perceived delay.
+    const debounceMs = isStructuralChange
+      ? 200 // add/remove widget
+      : lastUpdateWasSettingsOnly.current
+        ? 100 // settings toggle (spotlight, maximize, etc.)
+        : 800; // widget config / position
 
     const showSavingTimer = setTimeout(() => setIsSaving(true), 0);
     auxTimers.add(showSavingTimer);
     saveTimerRef.current = setTimeout(() => {
+      lastUpdateWasSettingsOnly.current = false; // reset after consuming debounce
       const savedData = currentData;
       // Capture per-field state at save time for field-granular merge decisions
       const savedFields = {
@@ -1866,6 +1878,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string, updates: Partial<WidgetData>) => {
       if (!activeIdRef.current) return;
       lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeIdRef.current) return d;
@@ -2049,6 +2062,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (updates: Partial<Dashboard['settings']>) => {
       if (!activeIdRef.current) return;
       lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = true;
       setDashboards((prev) =>
         prev.map((d) =>
           d.id === activeIdRef.current
