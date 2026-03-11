@@ -202,26 +202,23 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // Refs for the scrollable container and the item list — used by the
-  // ResizeObserver to binary-search the largest font size that makes all
-  // items fit without scrolling.
+  // Refs for the scrollable container and the item list
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [fontSize, setFontSize] = useState(14);
-  const isMeasuringRef = useRef(false);
 
-  // Auto-fit: find the largest font size where every item fits in the
-  // available container height.  Runs whenever the container is resized
-  // (drag-to-resize) or the item list changes (add/remove/edit items).
+  // STABILITY FIX: Use debounced dimensions instead of ResizeObserver to avoid
+  // feedback loops where font-size changes trigger scrollbars which trigger
+  // ResizeObserver notifications.
+  const debouncedW = useDebounce(widget.w, 100);
+  const debouncedH = useDebounce(widget.h, 100);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     const list = listRef.current;
     if (!container || !list) return;
 
     const fitText = () => {
-      // Guard against nested ResizeObserver calls during binary search
-      if (isMeasuringRef.current) return;
-
       const maxFontSize = CHECKLIST_MAX_FONT_PX * scaleMultiplier;
       const cs = getComputedStyle(container);
       const availableHeight =
@@ -229,10 +226,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         parseFloat(cs.paddingTop) -
         parseFloat(cs.paddingBottom);
 
-      // Don't attempt to fit if height is not yet available
       if (availableHeight <= 0) return;
 
-      isMeasuringRef.current = true;
       const originalFontSize = list.style.fontSize;
 
       // Binary search: 10 iterations → ~0.1 px precision
@@ -242,7 +237,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         const mid = (lo + hi) / 2;
         list.style.fontSize = `${mid}px`;
         // Reading scrollHeight forces a synchronous layout reflow.
-        // We use a small 0.5px margin to avoid sub-pixel jitter.
+        // Margin of 0.5px prevents sub-pixel jitter from triggering scroll.
         if (list.scrollHeight <= availableHeight + 0.5) {
           lo = mid;
         } else {
@@ -250,35 +245,21 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         }
       }
 
-      // Restore style immediately so measuring didn't permanently change DOM
+      // Restore style; React will apply the stable result via state
       list.style.fontSize = originalFontSize;
-      isMeasuringRef.current = false;
 
-      // Round DOWN to the nearest 0.1px to ensure it definitely fits
+      // Round DOWN to nearest 0.1px for safety
       const finalSize = Math.floor(lo * 10) / 10;
 
-      // Only update state if the change is significant (> 0.2px) to prevent loops
       setFontSize((current) => {
+        // Hysteresis: Only update if change > 0.2px to prevent oscillation
         if (Math.abs(current - finalSize) < 0.2) return current;
         return finalSize;
       });
     };
 
-    let debounceTimeout: ReturnType<typeof setTimeout>;
-    const handleResize = () => {
-      clearTimeout(debounceTimeout);
-      debounceTimeout = setTimeout(fitText, 50);
-    };
-
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(container);
     fitText();
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(debounceTimeout);
-    };
-  }, [items, students, mode, scaleMultiplier]);
+  }, [debouncedW, debouncedH, items, students, mode, scaleMultiplier]);
 
   if (!hasContent) {
     return (
