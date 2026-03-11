@@ -445,6 +445,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  const handlePickRef = useRef(handlePick);
+  handlePickRef.current = handlePick;
+
   useEffect(() => {
     if (
       config.externalTrigger &&
@@ -452,11 +455,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ) {
       lastExternalTriggerRef.current = config.externalTrigger;
       if (!isSpinning) {
-        void handlePick();
+        void handlePickRef.current();
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.externalTrigger, isSpinning]); // Note: intentionally omitted handlePick to avoid dependency cycles if it isn't stable
+  }, [config.externalTrigger, isSpinning]);
 
   // Use the longest individual word (not full name length) so that a single
   // word is never forced to wrap. cqw (container-width-relative) units ensure
