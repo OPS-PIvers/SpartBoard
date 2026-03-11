@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -207,16 +208,20 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [fontSize, setFontSize] = useState(14);
+  const isMeasuringRef = useRef(false);
 
   // Auto-fit: find the largest font size where every item fits in the
   // available container height.  Runs whenever the container is resized
   // (drag-to-resize) or the item list changes (add/remove/edit items).
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     const list = listRef.current;
     if (!container || !list) return;
 
     const fitText = () => {
+      // Guard against nested ResizeObserver calls during binary search
+      if (isMeasuringRef.current) return;
+
       const maxFontSize = CHECKLIST_MAX_FONT_PX * scaleMultiplier;
       const cs = getComputedStyle(container);
       const availableHeight =
@@ -224,7 +229,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         parseFloat(cs.paddingTop) -
         parseFloat(cs.paddingBottom);
 
+      // Don't attempt to fit if height is not yet available
       if (availableHeight <= 0) return;
+
+      isMeasuringRef.current = true;
+      const originalFontSize = list.style.fontSize;
 
       // Binary search: 10 iterations → ~0.1 px precision
       let lo = CHECKLIST_MIN_FONT_PX;
@@ -232,16 +241,27 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       for (let i = 0; i < 10; i++) {
         const mid = (lo + hi) / 2;
         list.style.fontSize = `${mid}px`;
-        // Reading scrollHeight forces a synchronous layout reflow
-        if (list.scrollHeight <= availableHeight + 1) {
+        // Reading scrollHeight forces a synchronous layout reflow.
+        // We use a small 0.5px margin to avoid sub-pixel jitter.
+        if (list.scrollHeight <= availableHeight + 0.5) {
           lo = mid;
         } else {
           hi = mid;
         }
       }
-      // Reset inline style; React will apply via state on next render
-      list.style.fontSize = '';
-      setFontSize(Math.round(lo * 10) / 10);
+
+      // Restore style immediately so measuring didn't permanently change DOM
+      list.style.fontSize = originalFontSize;
+      isMeasuringRef.current = false;
+
+      // Round DOWN to the nearest 0.1px to ensure it definitely fits
+      const finalSize = Math.floor(lo * 10) / 10;
+
+      // Only update state if the change is significant (> 0.2px) to prevent loops
+      setFontSize((current) => {
+        if (Math.abs(current - finalSize) < 0.2) return current;
+        return finalSize;
+      });
     };
 
     let debounceTimeout: ReturnType<typeof setTimeout>;
