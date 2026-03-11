@@ -57,6 +57,18 @@ const serializeDashboard = (d: Dashboard): string =>
     settings: d.settings,
   });
 
+/** Capture the serialized state used to populate lastSaved* refs. */
+const getDashboardSaveState = (d: Dashboard) => ({
+  serializedData: serializeDashboard(d),
+  fields: {
+    widgets: JSON.stringify(d.widgets),
+    background: d.background,
+    name: d.name,
+    libraryOrder: JSON.stringify(d.libraryOrder ?? []),
+    settings: JSON.stringify(d.settings ?? {}),
+  },
+});
+
 const PERSISTED_WIDGET_TYPES: WidgetType[] = [
   'schedule',
   'calendar',
@@ -293,8 +305,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveDashboards = useCallback(
     async (dashboardsToSave: Dashboard[]) => {
-      // For plural saves (like reordering), we'll do Firestore first
-      await saveDashboardsFirestore(dashboardsToSave);
+      // For plural saves (like reordering), we'll do Firestore first.
+      // CRITICAL: Scrub PII from every dashboard before writing to Firestore.
+      await saveDashboardsFirestore(dashboardsToSave.map(scrubDashboardPII));
 
       // Then background sync to Drive
       if (!isAdmin && driveService) {
@@ -427,14 +440,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           (lastSavedDataRef.current === '' ||
             currentActive.id !== lastSavedDashboardIdRef.current)
         ) {
-          lastSavedDataRef.current = serializeDashboard(currentActive);
-          lastSavedFieldsRef.current = {
-            widgets: JSON.stringify(currentActive.widgets),
-            background: currentActive.background,
-            name: currentActive.name,
-            libraryOrder: JSON.stringify(currentActive.libraryOrder ?? []),
-            settings: JSON.stringify(currentActive.settings ?? {}),
-          };
+          const { serializedData: initData, fields: initFields } =
+            getDashboardSaveState(currentActive);
+          lastSavedDataRef.current = initData;
+          lastSavedFieldsRef.current = initFields;
           lastSavedDashboardIdRef.current = currentActive.id;
         }
 
@@ -526,14 +535,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // incorrectly trigger hasUnsavedLocalChanges on the desktop, and so
           // the structural-change debounce baseline stays accurate.
           if (serverActive) {
-            lastSavedDataRef.current = serializeDashboard(serverActive);
-            lastSavedFieldsRef.current = {
-              widgets: JSON.stringify(serverActive.widgets),
-              background: serverActive.background,
-              name: serverActive.name,
-              libraryOrder: JSON.stringify(serverActive.libraryOrder ?? []),
-              settings: JSON.stringify(serverActive.settings ?? {}),
-            };
+            const { serializedData: serverData, fields: serverFields } =
+              getDashboardSaveState(serverActive);
+            lastSavedDataRef.current = serverData;
+            lastSavedFieldsRef.current = serverFields;
             lastWidgetCountRef.current = serverActive.widgets.length;
             lastSavedDashboardIdRef.current = serverActive.id;
             if (serverActive.updatedAt) {
@@ -683,14 +688,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSavedDashboardIdRef.current !== null &&
       lastSavedDashboardIdRef.current !== active.id;
     if (lastSavedDataRef.current === '' || isDashboardSwitch) {
-      lastSavedDataRef.current = currentData;
-      lastSavedFieldsRef.current = {
-        widgets: JSON.stringify(active.widgets),
-        background: active.background,
-        name: active.name,
-        libraryOrder: JSON.stringify(active.libraryOrder ?? []),
-        settings: JSON.stringify(active.settings ?? {}),
-      };
+      const { serializedData: initSavedData, fields: initSavedFields } =
+        getDashboardSaveState(active);
+      lastSavedDataRef.current = initSavedData;
+      lastSavedFieldsRef.current = initSavedFields;
       lastWidgetCountRef.current = active.widgets.length;
       lastSavedDashboardIdRef.current = active.id;
       // Seed the stale-snapshot guard from the dashboard's own updatedAt so
@@ -819,7 +820,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastExportedDataRef.current = currentData;
           // If we got a new ID (e.g. first sync), save it back to Firestore silently
           if (newFileId !== active.driveFileId) {
-            void saveDashboardFirestore({ ...active, driveFileId: newFileId });
+            // CRITICAL: Scrub PII before writing directly to Firestore.
+            void saveDashboardFirestore({
+              ...scrubDashboardPII(active),
+              driveFileId: newFileId,
+            });
           }
         })
         .catch((err: unknown) => {
