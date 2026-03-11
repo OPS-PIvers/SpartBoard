@@ -57,11 +57,6 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     name: string;
   } | null>(null);
 
-  const handleRename = React.useCallback(
-    (id: string, name: string) => setEditingDashboard({ id, name }),
-    []
-  );
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -87,38 +82,35 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     }
   };
 
-  const handleShare = React.useCallback(
-    async (db?: Dashboard) => {
-      if (!canAccessFeature('dashboard-sharing')) {
-        addToast(t('toasts.boardSharingDisabled'), 'error');
-        return;
-      }
-      const target = db ?? activeDashboard;
-      if (!target) return;
+  const handleShare = async (db?: Dashboard) => {
+    if (!canAccessFeature('dashboard-sharing')) {
+      addToast(t('toasts.boardSharingDisabled'), 'error');
+      return;
+    }
+    const target = db ?? activeDashboard;
+    if (!target) return;
 
-      addToast(t('toasts.generatingShareLink'), 'info');
+    addToast(t('toasts.generatingShareLink'), 'info');
+
+    try {
+      const shareId = await shareDashboard(target);
+      const url = `${window.location.origin}/share/${shareId}`;
 
       try {
-        const shareId = await shareDashboard(target);
-        const url = `${window.location.origin}/share/${shareId}`;
-
-        try {
-          await navigator.clipboard.writeText(url);
-          addToast(t('toasts.linkCopied'), 'success');
-        } catch (clipErr) {
-          console.warn(
-            'Initial clipboard write failed, likely focus issue:',
-            clipErr
-          );
-          addToast(t('toasts.boardShared'), 'success');
-        }
-      } catch (err) {
-        console.error('Share failed:', err);
-        addToast(t('toasts.shareFailed'), 'error');
+        await navigator.clipboard.writeText(url);
+        addToast(t('toasts.linkCopied'), 'success');
+      } catch (clipErr) {
+        console.warn(
+          'Initial clipboard write failed, likely focus issue:',
+          clipErr
+        );
+        addToast(t('toasts.boardShared'), 'success');
       }
-    },
-    [activeDashboard, addToast, canAccessFeature, shareDashboard, t]
-  );
+    } catch (err) {
+      console.error('Share failed:', err);
+      addToast(t('toasts.shareFailed'), 'error');
+    }
+  };
 
   const handleImport = () => {
     const data = prompt(t('sidebar.boards.enterBoardData'));
@@ -191,7 +183,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                     db={db}
                     isActive={activeDashboard?.id === db.id}
                     onLoad={loadDashboard}
-                    onRename={handleRename}
+                    onRename={(id, name) => setEditingDashboard({ id, name })}
                     onDelete={deleteDashboard}
                     onSetDefault={setDefaultDashboard}
                     onDuplicate={duplicateDashboard}
