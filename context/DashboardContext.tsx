@@ -452,7 +452,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const now = Date.now();
-        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 5000;
+        // 1500 ms covers the 800 ms widget-config debounce + Firestore round-trip.
+        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 1500;
 
         // Check if local state has unsaved changes by comparing against
         // what was last saved. This prevents server data from overwriting
@@ -462,14 +463,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastSavedDataRef.current !== '' &&
           serializeDashboard(currentActive) !== lastSavedDataRef.current;
 
-        // Detect stale snapshots from Firestore latency compensation
+        // serverActive is used both in the merge path and in the else-branch below.
         const serverActive = migratedDashboards.find(
           (d) => d.id === activeIdRef.current
         );
-        // Use <= to handle cases where timestamps match exactly (fast echoes)
-        const isStaleSnapshot =
-          serverActive &&
-          (serverActive.updatedAt ?? 0) <= lastSavedAtRef.current;
 
         let newDashboards: Dashboard[];
 
@@ -477,8 +474,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           hasPendingWrites ||
           isRecentlyUpdatedLocally ||
           hasUnsavedLocalChanges ||
-          pendingSaveCountRef.current > 0 ||
-          isStaleSnapshot
+          pendingSaveCountRef.current > 0
         ) {
           newDashboards = migratedDashboards.map((db) => {
             if (db.id === activeIdRef.current && currentActive) {
@@ -488,19 +484,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 return currentActive;
               }
 
-              // If the snapshot is stale (older than our last save), ignore it completely
-              // and keep our local state to prevent overwriting with old data.
-              if (isStaleSnapshot) {
-                return currentActive;
-              }
-
               // SURGICAL MERGE: Start from server snapshot but only preserve
               // locally-modified fields. Fields unchanged locally accept the
-              // server value, so remote edits (e.g. name change in another
-              // tab) aren't discarded when only widgets changed locally.
-              const localWidgetsJson = JSON.stringify(currentActive.widgets);
-              const widgetsChangedLocally =
-                localWidgetsJson !== lastSavedFieldsRef.current.widgets;
+              // server value, so remote edits (e.g. checklist toggle, spotlight)
+              // aren't discarded when unrelated local state changed (e.g. timer tick).
               const backgroundChangedLocally =
                 currentActive.background !==
                 lastSavedFieldsRef.current.background;
@@ -514,11 +501,75 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 JSON.stringify(currentActive.settings ?? {}) !==
                 (lastSavedFieldsRef.current.settings ?? '{}');
 
+              // Per-widget merge: only keep a widget's local config when THAT
+              // specific widget changed locally (e.g. running timer). Accept the
+              // server config for widgets untouched locally so remote controls
+              // (checklist toggles, remote timer start/stop, etc.) take effect
+              // even while other widgets are actively updating.
+              let lastSavedWidgets: WidgetData[] = [];
+              try {
+                lastSavedWidgets = JSON.parse(
+                  lastSavedFieldsRef.current.widgets || '[]'
+                ) as WidgetData[];
+              } catch {
+                lastSavedWidgets = currentActive.widgets;
+              }
+              const lastSavedById = new Map(
+                lastSavedWidgets.map((w) => [w.id, w])
+              );
+              const localById = new Map(
+                currentActive.widgets.map((w) => [w.id, w])
+              );
+              const LAYOUT_FIELDS = [
+                'x',
+                'y',
+                'w',
+                'h',
+                'z',
+                'minimized',
+                'flipped',
+              ] as const;
+              const mergedWidgets = db.widgets
+                .filter((sw) => {
+                  // Exclude widgets deleted locally
+                  // (present in lastSaved but absent from current local state)
+                  return !(lastSavedById.has(sw.id) && !localById.has(sw.id));
+                })
+                .map((sw) => {
+                  const lw = localById.get(sw.id);
+                  const saved = lastSavedById.get(sw.id);
+                  if (!lw) return sw; // new widget from server → accept
+                  if (!saved) return lw; // new widget locally → keep
+                  const configChangedLocally =
+                    JSON.stringify(lw.config) !== JSON.stringify(saved.config);
+                  const layoutChangedLocally = LAYOUT_FIELDS.some(
+                    (f) => lw[f] !== saved[f]
+                  );
+                  return {
+                    ...sw,
+                    config: configChangedLocally ? lw.config : sw.config,
+                    ...(layoutChangedLocally
+                      ? {
+                          x: lw.x,
+                          y: lw.y,
+                          w: lw.w,
+                          h: lw.h,
+                          z: lw.z,
+                          minimized: lw.minimized,
+                          flipped: lw.flipped,
+                        }
+                      : {}),
+                  };
+                });
+              // Append widgets added locally that aren't on the server yet
+              const serverIds = new Set(db.widgets.map((w) => w.id));
+              const localOnlyWidgets = currentActive.widgets.filter(
+                (w) => !serverIds.has(w.id)
+              );
+
               return {
                 ...db,
-                widgets: widgetsChangedLocally
-                  ? currentActive.widgets
-                  : db.widgets,
+                widgets: [...mergedWidgets, ...localOnlyWidgets],
                 background: backgroundChangedLocally
                   ? currentActive.background
                   : db.background,
