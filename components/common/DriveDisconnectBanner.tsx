@@ -60,7 +60,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   if (!user || isConnected || dismissed) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] animate-in slide-in-from-bottom-2 duration-300">
+    <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">
       <div className="bg-white rounded-xl shadow-xl border border-amber-200 p-3 flex items-center gap-3 max-w-[280px]">
         <div className="flex-shrink-0">
           <GoogleDriveIcon className="w-5 h-5 opacity-60" />
