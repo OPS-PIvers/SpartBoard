@@ -136,6 +136,7 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Discovered multiple hardcoded z-index values (e.g., `z-[9998]`, `z-[9999]`, `z-[10000]`) in `DraggableWindow.tsx` and `DriveDisconnectBanner.tsx`, which bypassed the centralized `Z_INDEX` registry.
 **Fix:**
+
 1. Added `snapPreview: 9998` and `systemBanner: 9999` to `config/zIndex.ts` and exposed them as utility classes in `tailwind.config.js`.
 2. Refactored `DraggableWindow.tsx` to use `z-snap-preview` for the visual overlay and `z-modal` for the snap layout menu.
 3. Refactored `DriveDisconnectBanner.tsx` to use `z-system-banner`.
