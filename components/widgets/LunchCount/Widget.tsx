@@ -393,12 +393,24 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar animate-in fade-in duration-300"
             style={{ padding: 'min(10px, 2cqmin)', gap: 'min(10px, 2cqmin)' }}
           >
-            <div className="bg-brand-red-lighter/10 border-2 border-brand-red-lighter rounded-2xl flex flex-col p-4 shadow-sm">
-              <div className="flex flex-col mb-2">
-                <span className="font-black uppercase text-brand-red-primary tracking-tighter text-sm">
+            <div
+              className="bg-brand-red-lighter/10 border-2 border-brand-red-lighter rounded-2xl flex flex-col shadow-sm"
+              style={{ padding: 'min(16px, 4cqmin)' }}
+            >
+              <div
+                className="flex flex-col"
+                style={{ marginBottom: 'min(8px, 2cqmin)' }}
+              >
+                <span
+                  className="font-black uppercase text-brand-red-primary tracking-tighter"
+                  style={{ fontSize: 'min(14px, 4cqmin)' }}
+                >
                   Hot Lunch
                 </span>
-                <span className="font-bold text-slate-700 text-lg leading-tight">
+                <span
+                  className="font-bold text-slate-700 leading-tight"
+                  style={{ fontSize: 'min(18px, 6cqmin)' }}
+                >
                   {config.isManualMode
                     ? config.manualHotLunch || 'Not Specified'
                     : (cachedMenu?.hotLunch ?? 'Loading...')}
@@ -406,12 +418,24 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               </div>
             </div>
 
-            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex flex-col p-4 shadow-sm">
-              <div className="flex flex-col mb-2">
-                <span className="font-black uppercase text-emerald-600 tracking-tighter text-sm">
+            <div
+              className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex flex-col shadow-sm"
+              style={{ padding: 'min(16px, 4cqmin)' }}
+            >
+              <div
+                className="flex flex-col"
+                style={{ marginBottom: 'min(8px, 2cqmin)' }}
+              >
+                <span
+                  className="font-black uppercase text-emerald-600 tracking-tighter"
+                  style={{ fontSize: 'min(14px, 4cqmin)' }}
+                >
                   Bento Box
                 </span>
-                <span className="font-bold text-slate-700 text-lg leading-tight">
+                <span
+                  className="font-bold text-slate-700 leading-tight"
+                  style={{ fontSize: 'min(18px, 6cqmin)' }}
+                >
                   {config.isManualMode
                     ? config.manualBentoBox || 'Not Specified'
                     : (cachedMenu?.bentoBox ?? 'Loading...')}
