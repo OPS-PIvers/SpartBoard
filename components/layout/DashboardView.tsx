@@ -154,6 +154,8 @@ export const DashboardView: React.FC = () => {
     }
   }, [activeDashboard, dashboards, addWidget]);
 
+  const { canAccessFeature } = useAuth();
+
   const {
     session,
     students,
@@ -164,7 +166,12 @@ export const DashboardView: React.FC = () => {
     removeStudent,
     toggleFreezeStudent,
     toggleGlobalFreeze,
-  } = useLiveSession(user?.uid, 'teacher');
+  } = useLiveSession(
+    user?.uid,
+    'teacher',
+    undefined,
+    canAccessFeature('live-session')
+  );
 
   const [prevIndex, setPrevIndex] = React.useState<number>(-1);
   const [animationClass, setAnimationClass] =
