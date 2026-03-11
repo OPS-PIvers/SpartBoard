@@ -170,18 +170,22 @@ export const useFirestore = (userId: string | null) => {
   }, [dashboardsRef]);
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<void> => {
+    async (dashboard: Dashboard): Promise<number> => {
       if (isAuthBypass) {
         mockStore.saveDashboard(dashboard);
-        return Promise.resolve();
+        return Date.now();
       }
 
       if (!dashboardsRef) throw new Error('User not authenticated');
       const docRef = doc(dashboardsRef, dashboard.id);
+      // Capture updatedAt before the write so callers can use it directly as
+      // the stale-snapshot threshold (avoids Firestore round-trip inflation).
+      const updatedAt = Date.now();
       await setDoc(docRef, {
         ...dashboard,
-        updatedAt: Date.now(),
+        updatedAt,
       });
+      return updatedAt;
     },
     [dashboardsRef]
   );

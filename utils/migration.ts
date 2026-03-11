@@ -56,7 +56,7 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
 export const migrateLocalStorageToFirestore = async (
   userId: string,
-  saveDashboard: (dashboard: Dashboard) => Promise<void>
+  saveDashboard: (dashboard: Dashboard) => Promise<number | void>
 ): Promise<number> => {
   const localData = localStorage.getItem('classroom_dashboards');
   if (!localData) return 0;

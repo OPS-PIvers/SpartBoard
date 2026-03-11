@@ -57,6 +57,18 @@ const serializeDashboard = (d: Dashboard): string =>
     settings: d.settings,
   });
 
+/** Capture the serialized state used to populate lastSaved* refs. */
+const getDashboardSaveState = (d: Dashboard) => ({
+  serializedData: serializeDashboard(d),
+  fields: {
+    widgets: JSON.stringify(d.widgets),
+    background: d.background,
+    name: d.name,
+    libraryOrder: JSON.stringify(d.libraryOrder ?? []),
+    settings: JSON.stringify(d.settings ?? {}),
+  },
+});
+
 const PERSISTED_WIDGET_TYPES: WidgetType[] = [
   'schedule',
   'calendar',
@@ -234,7 +246,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // --- DRIVE WRAPPERS & CALLBACKS ---
 
   const saveDashboard = useCallback(
-    async (dashboard: Dashboard) => {
+    async (dashboard: Dashboard): Promise<number> => {
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
 
@@ -273,7 +285,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         } catch (e) {
           // Abort Firestore save to avoid losing PII when Drive is temporarily unavailable.
           console.error('[PII] Failed to save PII supplement to Drive:', e);
-          return;
+          // Reject so callers treat this as a genuine failure rather than a
+          // silent success — prevents success toasts, ref updates, and
+          // localStorage removal in migration from happening on an aborted save.
+          throw new Error(
+            '[PII] Aborted dashboard save because PII supplement could not be saved to Drive'
+          );
         }
       }
 
@@ -282,7 +299,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // NEVER reach Firestore — they are preserved in Drive only.
       const scrubbed = scrubDashboardPII(dashboard);
 
-      await saveDashboardFirestore({
+      return saveDashboardFirestore({
         ...scrubbed,
         driveFileId,
       });
@@ -292,8 +309,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveDashboards = useCallback(
     async (dashboardsToSave: Dashboard[]) => {
-      // For plural saves (like reordering), we'll do Firestore first
-      await saveDashboardsFirestore(dashboardsToSave);
+      // For plural saves (like reordering), we'll do Firestore first.
+      // CRITICAL: Scrub PII from every dashboard before writing to Firestore.
+      await saveDashboardsFirestore(dashboardsToSave.map(scrubDashboardPII));
 
       // Then background sync to Drive
       if (!isAdmin && driveService) {
@@ -426,14 +444,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           (lastSavedDataRef.current === '' ||
             currentActive.id !== lastSavedDashboardIdRef.current)
         ) {
-          lastSavedDataRef.current = serializeDashboard(currentActive);
-          lastSavedFieldsRef.current = {
-            widgets: JSON.stringify(currentActive.widgets),
-            background: currentActive.background,
-            name: currentActive.name,
-            libraryOrder: JSON.stringify(currentActive.libraryOrder ?? []),
-            settings: JSON.stringify(currentActive.settings ?? {}),
-          };
+          const { serializedData: initData, fields: initFields } =
+            getDashboardSaveState(currentActive);
+          lastSavedDataRef.current = initData;
+          lastSavedFieldsRef.current = initFields;
           lastSavedDashboardIdRef.current = currentActive.id;
         }
 
@@ -525,14 +539,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // incorrectly trigger hasUnsavedLocalChanges on the desktop, and so
           // the structural-change debounce baseline stays accurate.
           if (serverActive) {
-            lastSavedDataRef.current = serializeDashboard(serverActive);
-            lastSavedFieldsRef.current = {
-              widgets: JSON.stringify(serverActive.widgets),
-              background: serverActive.background,
-              name: serverActive.name,
-              libraryOrder: JSON.stringify(serverActive.libraryOrder ?? []),
-              settings: JSON.stringify(serverActive.settings ?? {}),
-            };
+            const { serializedData: serverData, fields: serverFields } =
+              getDashboardSaveState(serverActive);
+            lastSavedDataRef.current = serverData;
+            lastSavedFieldsRef.current = serverFields;
             lastWidgetCountRef.current = serverActive.widgets.length;
             lastSavedDashboardIdRef.current = serverActive.id;
             if (serverActive.updatedAt) {
@@ -567,16 +577,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             widgets: [],
             createdAt: Date.now(),
           };
-          void saveDashboard(defaultDb).then(() => {
-            setToasts((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                message: 'Welcome! Board created',
-                type: 'info' as const,
-              },
-            ]);
-          });
+          void saveDashboard(defaultDb)
+            .then(() => {
+              setToasts((prev) => [
+                ...prev,
+                {
+                  id: crypto.randomUUID(),
+                  message: 'Welcome! Board created',
+                  type: 'info' as const,
+                },
+              ]);
+            })
+            .catch(console.error);
         }
 
         setLoading(false);
@@ -668,6 +680,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    // First run after initial load OR after a dashboard switch: initialize save
+    // refs from the loaded data WITHOUT triggering a redundant Firestore write.
+    //
+    // Without this guard the first effect run (or post-switch run) would see
+    // lastSavedDataRef.current differing from currentData and schedule a write
+    // of the just-loaded Firestore data back to Firestore.  That write advances
+    // lastSavedAtRef.current to the current time, causing the isStaleSnapshot
+    // check in the onSnapshot handler to block ANY concurrent remote-control
+    // update whose Firestore updatedAt timestamp falls within the round-trip
+    // window — making the /remote URL appear to have no effect on the main board.
+    const isDashboardSwitch =
+      lastSavedDashboardIdRef.current !== null &&
+      lastSavedDashboardIdRef.current !== active.id;
+    if (lastSavedDataRef.current === '' || isDashboardSwitch) {
+      const { serializedData: initSavedData, fields: initSavedFields } =
+        getDashboardSaveState(active);
+      lastSavedDataRef.current = initSavedData;
+      lastSavedFieldsRef.current = initSavedFields;
+      lastWidgetCountRef.current = active.widgets.length;
+      lastSavedDashboardIdRef.current = active.id;
+      // Seed the stale-snapshot guard from the dashboard's own updatedAt so
+      // that any remote save with a more-recent timestamp is accepted immediately.
+      if (active.updatedAt) {
+        lastSavedAtRef.current = active.updatedAt;
+      }
+      if (pendingSaveCountRef.current === 0) {
+        setIsSaving(false);
+      }
+      return;
+    }
+
     // Detect structural changes (adding/removing widgets) for more aggressive saving
     const isStructuralChange =
       active.widgets.length !== lastWidgetCountRef.current;
@@ -696,12 +739,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
       saveDashboard(active)
-        .then(() => {
-          // Only update refs on success so failed saves are retried
-          const now = Date.now();
+        .then((savedUpdatedAt) => {
+          // Use the timestamp that was actually written to Firestore (captured
+          // before the setDoc call) rather than Date.now() after the round-trip.
+          // This prevents the ~200 ms inflation that would otherwise cause the
+          // isStaleSnapshot check to block concurrent remote-control updates.
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
-          lastSavedAtRef.current = now;
+          lastSavedAtRef.current = savedUpdatedAt;
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -769,7 +814,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastExportedDataRef.current = currentData;
           // If we got a new ID (e.g. first sync), save it back to Firestore silently
           if (newFileId !== active.driveFileId) {
-            void saveDashboardFirestore({ ...active, driveFileId: newFileId });
+            // CRITICAL: Scrub PII before writing directly to Firestore.
+            void saveDashboardFirestore({
+              ...scrubDashboardPII(active),
+              driveFileId: newFileId,
+            });
           }
         })
         .catch((err: unknown) => {
