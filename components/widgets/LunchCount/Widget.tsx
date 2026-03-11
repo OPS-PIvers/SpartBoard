@@ -328,10 +328,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
   };
 
-  const isSecondary =
-    schoolSite === 'orono-middle-school' || schoolSite === 'orono-high-school';
-
-  if (isSecondary) {
+  if (
+    schoolSite === 'orono-middle-school' ||
+    schoolSite === 'orono-high-school'
+  ) {
     return (
       <WidgetLayout
         padding="p-0"
@@ -376,6 +376,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   height: 'min(32px, 8cqmin)',
                 }}
                 disabled={isSyncing}
+                aria-label="Refresh menu"
               >
                 <RefreshCw
                   style={{
