@@ -11,10 +11,10 @@ import {
   WeatherGlobalConfig,
   DEFAULT_GLOBAL_STYLE,
   GlobalWeatherData,
-} from '../../../types';
+} from '@/types';
 import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
 
-import { WidgetLayout } from '../WidgetLayout';
+import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
