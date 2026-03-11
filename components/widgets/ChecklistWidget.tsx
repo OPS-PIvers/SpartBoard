@@ -1,11 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDashboard } from '../../context/useDashboard';
 import {
   ChecklistConfig,
@@ -17,78 +10,88 @@ import {
 import { useDebounce } from '../../hooks/useDebounce';
 import { RosterModeControl } from '../common/RosterModeControl';
 import {
-  CheckSquare,
-  Square,
   ListPlus,
   Type,
   Users,
   RefreshCw,
   BookOpen,
+  Circle,
+  CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { SettingsLabel } from '../common/SettingsLabel';
 
-// Minimum font size (px) — below this items scroll rather than become unreadable.
-const CHECKLIST_MIN_FONT_PX = 8;
-// Maximum font size (px) before scaleMultiplier is applied.
-const CHECKLIST_MAX_FONT_PX = 48;
-
-interface ChecklistRowProps {
+interface ChecklistCardProps {
   id: string;
   label: string;
   isCompleted: boolean;
   onToggle: (id: string) => void;
+  textSize: string;
+  iconSize: string;
+  cardPadding: string;
+  cardGap: string;
 }
 
-const ChecklistRow = React.memo<ChecklistRowProps>(
-  ({ id, label, isCompleted, onToggle }) => {
+const ChecklistCard = React.memo<ChecklistCardProps>(
+  ({
+    id,
+    label,
+    isCompleted,
+    onToggle,
+    textSize,
+    iconSize,
+    cardPadding,
+    cardGap,
+  }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      // Prevent page scroll on Space; block key-repeat for both keys
       if (e.key === ' ') e.preventDefault();
       if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
         onToggle(id);
       }
     };
     return (
-      <li
+      <div
         role="checkbox"
         aria-checked={isCompleted}
         tabIndex={0}
         onClick={() => onToggle(id)}
         onKeyDown={handleKeyDown}
-        className="group/item flex items-start cursor-pointer select-none"
-        style={{ gap: 'min(8px, 2cqmin)' }}
+        className={`w-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] ${
+          isCompleted
+            ? 'border-slate-200 bg-slate-100/80'
+            : 'border-slate-200 bg-white'
+        }`}
+        style={{ gap: cardGap, padding: cardPadding }}
       >
-        <div className="shrink-0 transition-transform active:scale-90 flex items-center justify-center h-[1.2em]">
+        <div className="shrink-0 transition-transform active:scale-90">
           {isCompleted ? (
-            <CheckSquare
-              className="text-green-500 fill-green-50"
-              style={{
-                width: 'min(24px, 1.1em)',
-                height: 'min(24px, 1.1em)',
-              }}
+            <CheckCircle2
+              className="text-green-500"
+              style={{ width: iconSize, height: iconSize }}
             />
           ) : (
-            <Square
-              className="text-slate-300"
-              style={{
-                width: 'min(24px, 1.1em)',
-                height: 'min(24px, 1.1em)',
-              }}
+            <Circle
+              className="text-indigo-300"
+              style={{ width: iconSize, height: iconSize }}
             />
           )}
         </div>
         <span
-          className={`font-medium leading-tight transition-all ${isCompleted ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-700'}`}
-          style={{ fontSize: '1em' }}
+          className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all ${
+            isCompleted
+              ? 'text-slate-400 line-through decoration-slate-300'
+              : 'text-slate-700'
+          }`}
+          style={{ fontSize: textSize }}
         >
           {label}
         </span>
-      </li>
+      </div>
     );
   }
 );
-ChecklistRow.displayName = 'ChecklistRow';
+ChecklistCard.displayName = 'ChecklistCard';
 
 import { WidgetLayout } from './WidgetLayout';
 
@@ -114,9 +117,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     [rosters, activeRosterId]
   );
 
-  // Process Roster Names — always returns { id, label } objects.
-  // In class mode, `id` is the student's UUID (keeps PII out of completedNames).
-  // In custom mode, `id` and `label` are both the entered name string.
   const students = useMemo((): { id: string; label: string }[] => {
     if (mode !== 'roster') return [];
 
@@ -144,8 +144,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     return combined;
   }, [firstNames, lastNames, mode, rosterMode, activeRoster]);
 
-  // Use refs to keep callback stable so we don't break memoization of children
-  // This allows toggleItem to be stable across renders even when state changes
   const latestState = useRef({
     items,
     completedNames,
@@ -200,68 +198,21 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const removeCompleted = () => {
+    if (mode === 'manual') {
+      const remaining = items.filter((i) => !i.completed);
+      updateWidget(widget.id, { config: { ...config, items: remaining } });
+    }
+  };
+
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // Refs for the scrollable container and the item list
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const [fontSize, setFontSize] = useState(14);
-
-  // STABILITY FIX: Use debounced dimensions instead of ResizeObserver to avoid
-  // feedback loops.
-  const debouncedW = useDebounce(widget.w, 100);
-  const debouncedH = useDebounce(widget.h, 100);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const fitText = () => {
-      const itemCount = mode === 'manual' ? items.length : students.length;
-      if (itemCount === 0) return;
-
-      const cs = getComputedStyle(container);
-      const availableHeight =
-        container.clientHeight -
-        parseFloat(cs.paddingTop) -
-        parseFloat(cs.paddingBottom);
-
-      if (availableHeight <= 0) return;
-
-      // DETERMINISTIC CALCULATION:
-      // We want to fit N items into availableHeight.
-      // Each item is 1em (text) + 0.4em (gap) = 1.4em total height per item.
-      // Final item doesn't have a gap below it, so: Height = (N * 1.4em) - 0.4em
-      // fontSize = Height / (N * 1.4 - 0.4)
-      // We add a 5% safety margin to account for line-height variations.
-      const rawFontSize = (availableHeight * 0.95) / (itemCount * 1.4 - 0.4);
-
-      // Clamp to min/max
-      const maxFontSize = CHECKLIST_MAX_FONT_PX * scaleMultiplier;
-      const clampedSize = Math.min(
-        maxFontSize,
-        Math.max(CHECKLIST_MIN_FONT_PX, rawFontSize)
-      );
-
-      // Round DOWN to nearest 0.1px for consistency
-      const finalSize = Math.floor(clampedSize * 10) / 10;
-
-      setFontSize((current) => {
-        // Hysteresis: Only update if change > 0.5px to prevent jitter during resize
-        if (Math.abs(current - finalSize) < 0.5) return current;
-        return finalSize;
-      });
-    };
-
-    fitText();
-  }, [
-    debouncedW,
-    debouncedH,
-    items.length,
-    students.length,
-    mode,
-    scaleMultiplier,
-  ]);
+  // Scaled sizing values derived from scaleMultiplier
+  const sm = scaleMultiplier;
+  const textSize = `min(${Math.round(18 * sm)}px, ${(5 * sm).toFixed(1)}cqmin)`;
+  const iconSize = `min(${Math.round(28 * sm)}px, ${(7 * sm).toFixed(1)}cqmin)`;
+  const cardPadding = `min(${Math.round(10 * sm)}px, ${(2.2 * sm).toFixed(1)}cqmin) min(${Math.round(14 * sm)}px, ${(3 * sm).toFixed(1)}cqmin)`;
+  const cardGap = `min(${Math.round(10 * sm)}px, ${(2.2 * sm).toFixed(1)}cqmin)`;
 
   if (!hasContent) {
     return (
@@ -304,63 +255,87 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           className={`h-full w-full relative overflow-hidden flex flex-col group font-${globalStyle.fontFamily}`}
         >
           <div
-            ref={containerRef}
-            className="flex-1 overflow-y-auto custom-scrollbar"
+            className="flex-1 overflow-y-auto custom-scrollbar flex flex-col"
             style={{
-              padding: 'min(12px, 2.5cqmin) min(16px, 3.5cqmin)',
+              padding:
+                'min(10px, 2.2cqmin) min(12px, 2.5cqmin) min(6px, 1.5cqmin)',
+              gap: `min(${Math.round(8 * sm)}px, ${(1.8 * sm).toFixed(1)}cqmin)`,
             }}
           >
-            <ul
-              ref={listRef}
-              style={{ gap: '0.4em', fontSize: `${fontSize}px` }}
-              className="flex flex-col"
-            >
-              {mode === 'manual'
-                ? items.map((item) => (
-                    <ChecklistRow
-                      key={item.id}
-                      id={item.id}
-                      label={item.text}
-                      isCompleted={item.completed}
-                      onToggle={toggleItem}
-                    />
-                  ))
-                : students.map((student) => (
-                    <ChecklistRow
-                      key={student.id}
-                      id={student.id}
-                      label={student.label}
-                      isCompleted={completedNames.includes(student.id)}
-                      onToggle={toggleItem}
-                    />
-                  ))}
-            </ul>
+            {mode === 'manual'
+              ? items.map((item) => (
+                  <ChecklistCard
+                    key={item.id}
+                    id={item.id}
+                    label={item.text}
+                    isCompleted={item.completed}
+                    onToggle={toggleItem}
+                    textSize={textSize}
+                    iconSize={iconSize}
+                    cardPadding={cardPadding}
+                    cardGap={cardGap}
+                  />
+                ))
+              : students.map((student) => (
+                  <ChecklistCard
+                    key={student.id}
+                    id={student.id}
+                    label={student.label}
+                    isCompleted={completedNames.includes(student.id)}
+                    onToggle={toggleItem}
+                    textSize={textSize}
+                    iconSize={iconSize}
+                    cardPadding={cardPadding}
+                    cardGap={cardGap}
+                  />
+                ))}
           </div>
         </div>
       }
       footer={
         <div
           style={{
-            padding: '0 min(16px, 3.5cqmin) min(12px, 2.5cqmin)',
+            padding: '0 min(12px, 2.5cqmin) min(10px, 2.2cqmin)',
+            display: 'flex',
+            gap: 'min(8px, 1.8cqmin)',
           }}
         >
           <button
             onClick={resetToday}
-            className="w-full flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
+            className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
             style={{
-              gap: 'min(8px, 2cqmin)',
-              padding: 'min(10px, 2.5cqmin)',
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin)',
               fontSize: 'min(11px, 3cqmin)',
             }}
           >
             <RefreshCw
               style={{
-                width: 'min(14px, 3.5cqmin)',
-                height: 'min(14px, 3.5cqmin)',
+                width: 'min(13px, 3.2cqmin)',
+                height: 'min(13px, 3.2cqmin)',
               }}
-            />{' '}
+            />
             Reset Checks
           </button>
+          {mode === 'manual' && (
+            <button
+              onClick={removeCompleted}
+              className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
+              }}
+            >
+              <Trash2
+                style={{
+                  width: 'min(13px, 3.2cqmin)',
+                  height: 'min(13px, 3.2cqmin)',
+                }}
+              />
+              Remove Completed
+            </button>
+          )}
         </div>
       }
     />
