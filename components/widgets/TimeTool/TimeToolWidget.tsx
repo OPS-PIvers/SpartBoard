@@ -24,6 +24,7 @@ import {
 import { WIDGET_PALETTE, STANDARD_COLORS } from '../../../config/colors';
 import { WidgetLayout } from '../WidgetLayout';
 import { SettingsLabel } from '../../common/SettingsLabel';
+import { Toggle } from '../../common/Toggle';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -560,6 +561,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
   const {
     timerEndVoiceLevel,
     timerEndTrafficColor,
+    timerEndTriggerRandom,
     fontFamily = 'global',
     clockStyle = 'modern',
     themeColor = STANDARD_COLORS.slate,
@@ -571,6 +573,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
 
   const hasTrafficLight = activeDashboard?.widgets.some(
     (w) => w.type === 'traffic'
+  );
+
+  const hasRandomizer = activeDashboard?.widgets.some(
+    (w) => w.type === 'random'
   );
 
   const fonts = [
@@ -913,6 +919,41 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               >
                 {t('widgets.timeTool.go')}
               </button>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-2 border-t border-slate-100 mt-4">
+          <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
+            Auto-Pick Random Student:
+          </p>
+          {!hasRandomizer ? (
+            <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
+              <span className="text-lg mt-px">&#128161;</span>
+              <p className="font-medium leading-snug">
+                Add a Randomizer widget to auto-pick the next student when the
+                timer ends.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-indigo-900">
+                  Auto-Pick Next
+                </p>
+                <p className="text-xxxs text-indigo-600 uppercase">
+                  Trigger Randomizer when timer ends
+                </p>
+              </div>
+              <Toggle
+                checked={!!timerEndTriggerRandom}
+                onChange={(checked) =>
+                  updateWidget(widget.id, {
+                    config: { ...config, timerEndTriggerRandom: checked },
+                  })
+                }
+                size="md"
+              />
             </div>
           )}
         </div>

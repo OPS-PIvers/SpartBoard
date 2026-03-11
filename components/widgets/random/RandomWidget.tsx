@@ -112,6 +112,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
 
+  const lastExternalTriggerRef = useRef(config.externalTrigger ?? 0);
+
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId),
     [rosters, activeRosterId]
@@ -442,6 +444,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }, 500);
     }
   };
+
+  useEffect(() => {
+    if (
+      config.externalTrigger &&
+      config.externalTrigger > lastExternalTriggerRef.current
+    ) {
+      lastExternalTriggerRef.current = config.externalTrigger;
+      if (!isSpinning) {
+        void handlePick();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.externalTrigger, isSpinning]); // Note: intentionally omitted handlePick to avoid dependency cycles if it isn't stable
 
   // Use the longest individual word (not full name length) so that a single
   // word is never forced to wrap. cqw (container-width-relative) units ensure

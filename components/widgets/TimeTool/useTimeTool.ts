@@ -145,6 +145,21 @@ export const useTimeTool = (widget: WidgetData) => {
               });
             }
           }
+
+          // Auto-pick next student in Randomizer
+          if (config.timerEndTriggerRandom && activeDashboard) {
+            const randomWidget = activeDashboard.widgets.find(
+              (w) => w.type === 'random'
+            );
+            if (randomWidget) {
+              updateWidget(randomWidget.id, {
+                config: {
+                  ...randomWidget.config,
+                  externalTrigger: Date.now(),
+                } as WidgetConfig,
+              });
+            }
+          }
           return;
         }
       } else {
@@ -165,6 +180,7 @@ export const useTimeTool = (widget: WidgetData) => {
     config.selectedSound,
     config.timerEndVoiceLevel,
     config.timerEndTrafficColor,
+    config.timerEndTriggerRandom,
     activeDashboard,
     updateWidget,
     handleStop,
