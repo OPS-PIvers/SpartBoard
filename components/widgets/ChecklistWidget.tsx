@@ -208,18 +208,18 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const [fontSize, setFontSize] = useState(14);
 
   // STABILITY FIX: Use debounced dimensions instead of ResizeObserver to avoid
-  // feedback loops where font-size changes trigger scrollbars which trigger
-  // ResizeObserver notifications.
+  // feedback loops.
   const debouncedW = useDebounce(widget.w, 100);
   const debouncedH = useDebounce(widget.h, 100);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const list = listRef.current;
-    if (!container || !list) return;
+    if (!container) return;
 
     const fitText = () => {
-      const maxFontSize = CHECKLIST_MAX_FONT_PX * scaleMultiplier;
+      const itemCount = mode === 'manual' ? items.length : students.length;
+      if (itemCount === 0) return;
+
       const cs = getComputedStyle(container);
       const availableHeight =
         container.clientHeight -
@@ -228,38 +228,40 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
       if (availableHeight <= 0) return;
 
-      const originalFontSize = list.style.fontSize;
+      // DETERMINISTIC CALCULATION:
+      // We want to fit N items into availableHeight.
+      // Each item is 1em (text) + 0.4em (gap) = 1.4em total height per item.
+      // Final item doesn't have a gap below it, so: Height = (N * 1.4em) - 0.4em
+      // fontSize = Height / (N * 1.4 - 0.4)
+      // We add a 5% safety margin to account for line-height variations.
+      const rawFontSize = (availableHeight * 0.95) / (itemCount * 1.4 - 0.4);
 
-      // Binary search: 10 iterations → ~0.1 px precision
-      let lo = CHECKLIST_MIN_FONT_PX;
-      let hi = maxFontSize;
-      for (let i = 0; i < 10; i++) {
-        const mid = (lo + hi) / 2;
-        list.style.fontSize = `${mid}px`;
-        // Reading scrollHeight forces a synchronous layout reflow.
-        // Margin of 0.5px prevents sub-pixel jitter from triggering scroll.
-        if (list.scrollHeight <= availableHeight + 0.5) {
-          lo = mid;
-        } else {
-          hi = mid;
-        }
-      }
+      // Clamp to min/max
+      const maxFontSize = CHECKLIST_MAX_FONT_PX * scaleMultiplier;
+      const clampedSize = Math.min(
+        maxFontSize,
+        Math.max(CHECKLIST_MIN_FONT_PX, rawFontSize)
+      );
 
-      // Restore style; React will apply the stable result via state
-      list.style.fontSize = originalFontSize;
-
-      // Round DOWN to nearest 0.1px for safety
-      const finalSize = Math.floor(lo * 10) / 10;
+      // Round DOWN to nearest 0.1px for consistency
+      const finalSize = Math.floor(clampedSize * 10) / 10;
 
       setFontSize((current) => {
-        // Hysteresis: Only update if change > 0.2px to prevent oscillation
-        if (Math.abs(current - finalSize) < 0.2) return current;
+        // Hysteresis: Only update if change > 0.5px to prevent jitter during resize
+        if (Math.abs(current - finalSize) < 0.5) return current;
         return finalSize;
       });
     };
 
     fitText();
-  }, [debouncedW, debouncedH, items, students, mode, scaleMultiplier]);
+  }, [
+    debouncedW,
+    debouncedH,
+    items.length,
+    students.length,
+    mode,
+    scaleMultiplier,
+  ]);
 
   if (!hasContent) {
     return (
