@@ -141,4 +141,30 @@ describe('LunchCountWidget', () => {
     // We can't easily simulate the full dnd-kit drag-and-drop in jsdom
     // without more setup, but we've verified the refactor structure.
   });
+
+  it('renders correctly for middle school without interactive DND', () => {
+    const widget = createWidget({
+      schoolSite: 'orono-middle-school',
+      cachedMenu: {
+        hotLunch: 'Pizza',
+        bentoBox: 'Yogurt Parfait',
+        date: new Date().toISOString(),
+      },
+    });
+
+    render(<LunchCountWidget widget={widget} />);
+
+    // Check that we're showing the secondary view header
+    expect(screen.getByText("Today's Lunch Menu")).toBeTruthy();
+
+    // Check for Hot Lunch value
+    expect(screen.getByText('Pizza')).toBeTruthy();
+
+    // Check for Bento Box value
+    expect(screen.getByText('Yogurt Parfait')).toBeTruthy();
+
+    // Verify it does NOT render the interactive elements
+    expect(screen.queryByText('Assign 2 More Students')).toBeNull();
+    expect(screen.queryByText('John Doe')).toBeNull(); // Missing interactive student items
+  });
 });

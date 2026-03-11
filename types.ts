@@ -633,7 +633,11 @@ export interface LunchMenuDay {
 }
 
 export interface LunchCountConfig {
-  schoolSite: 'schumann-elementary' | 'orono-intermediate-school';
+  schoolSite:
+    | 'schumann-elementary'
+    | 'orono-intermediate-school'
+    | 'orono-middle-school'
+    | 'orono-high-school';
   cachedMenu?: LunchMenuDay | null;
   lastSyncDate?: string | null;
   isManualMode: boolean;

@@ -38,12 +38,14 @@ export const BUILDINGS: Building[] = [
     name: 'Orono Middle School',
     gradeLevels: ['6-8'],
     gradeLabel: '6-8',
+    supportsLunchCount: true,
   },
   {
     id: 'orono-high-school',
     name: 'Orono High School',
     gradeLevels: ['9-12'],
     gradeLabel: '9-12',
+    supportsLunchCount: true,
   },
 ];
 
