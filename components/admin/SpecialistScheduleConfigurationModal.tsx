@@ -106,16 +106,15 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     }
   };
 
-  const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig = useMemo(
     () =>
-      buildingDefaults[selectedBuildingId] ?? {
+      config.buildingDefaults?.[selectedBuildingId] ?? {
         cycleLength: 6,
         startDate: toDateStr(new Date()),
         schoolDays: [],
         dayLabel: 'Day',
       },
-    [buildingDefaults, selectedBuildingId]
+    [config.buildingDefaults, selectedBuildingId]
   );
 
   const updateBuilding = (
