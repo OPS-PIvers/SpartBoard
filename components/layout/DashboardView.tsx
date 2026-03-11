@@ -662,7 +662,7 @@ export const DashboardView: React.FC = () => {
       {/* Spotlight Dimming Overlay — dims everything except the spotlighted widget */}
       {activeDashboard.settings?.spotlightWidgetId && (
         <div
-          className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-all duration-500 ease-in-out"
+          className="absolute inset-0 bg-slate-900/80 transition-all duration-500 ease-in-out"
           style={{ zIndex: Z_INDEX.backdrop }}
           onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
           aria-hidden="true"
