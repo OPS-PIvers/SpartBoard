@@ -153,6 +153,10 @@ describe('DraggableWindow', () => {
     mockAddToast = vi.fn();
     mockResetWidgetSize = vi.fn();
     mockSetSelectedWidgetId = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
     vi.clearAllMocks();
     // Setup default spy to return null
     activeElementSpy = vi.spyOn(document, 'activeElement', 'get');
@@ -466,30 +470,49 @@ describe('DraggableWindow', () => {
       } as CSSStyleDeclaration);
     });
 
-    it('minimizes on 2-finger swipe down (> 100px)', () => {
+    it('minimizes on 1-finger drag to the bottom edge', async () => {
+      // Set explicit window dimensions
+      Object.defineProperty(window, 'innerHeight', {
+        writable: true,
+        configurable: true,
+        value: 1000,
+      });
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1000,
+      });
+
       renderComponent();
-      const windowEl = screen.getByTestId('draggable-window');
+      const dragSurface = screen.getByTestId('drag-surface');
 
-      // Start (2 fingers)
-      fireEvent.touchStart(windowEl, {
-        touches: [{ clientY: 100 }, { clientY: 100 }],
+      // Start drag in the middle
+      fireEvent.pointerDown(dragSurface, {
+        clientX: 500,
+        clientY: 500,
+        pointerId: 1,
       });
 
-      // Move (2 fingers, down 150px)
-      fireEvent.touchMove(windowEl, {
-        touches: [{ clientY: 250 }, { clientY: 250 }],
+      // Move to bottom edge (threshold is 15 in layoutMath.ts)
+      fireEvent.pointerMove(window, {
+        clientX: 500,
+        clientY: 990, // Within 15px of 1000
+        pointerId: 1,
       });
 
-      // End
-      fireEvent.touchEnd(windowEl, {
-        changedTouches: [{ clientY: 250 }, { clientY: 250 }],
-        touches: [],
+      // Release
+      fireEvent.pointerUp(window, {
+        clientX: 500,
+        clientY: 990,
+        pointerId: 1,
       });
 
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'test-widget',
-        expect.objectContaining({ minimized: true, flipped: false })
-      );
+      await waitFor(() => {
+        expect(mockUpdateWidget).toHaveBeenCalledWith(
+          'test-widget',
+          expect.objectContaining({ minimized: true, flipped: false })
+        );
+      });
     });
 
     it('takes screenshot on 3-finger swipe down (> 100px)', () => {

@@ -136,9 +136,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [snapPreviewZone, setSnapPreviewZone] = useState<
-    SnapZone | 'maximize' | null
+    SnapZone | 'maximize' | 'minimize' | null
   >(null);
-  const snapPreviewZoneRef = useRef<SnapZone | 'maximize' | null>(null);
+  const snapPreviewZoneRef = useRef<SnapZone | 'maximize' | 'minimize' | null>(
+    null
+  );
 
   // Pre-cached zones for edge detection optimization
   const splitLayout = useMemo(
@@ -176,17 +178,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     [gridLayout]
   );
 
-  // Top/Bottom half zones
+  // Top half zone
   const verticalSplitLayout = useMemo(
     () => SNAP_LAYOUTS.find((l) => l.id === 'split-vertical'),
     []
   );
   const topHalfZone = useMemo(
     () => verticalSplitLayout?.zones.find((z) => z.id === 'top') ?? null,
-    [verticalSplitLayout]
-  );
-  const bottomHalfZone = useMemo(
-    () => verticalSplitLayout?.zones.find((z) => z.id === 'bottom') ?? null,
     [verticalSplitLayout]
   );
 
@@ -472,7 +470,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const isTopEdge = moveEvent.clientY <= threshold;
         const isBottomEdge = moveEvent.clientY >= screenH - threshold;
 
-        let newZone: SnapZone | 'maximize' | null = null;
+        let newZone: SnapZone | 'maximize' | 'minimize' | null = null;
 
         if (isLeftEdge && isTopEdge) {
           newZone = topLeftZone;
@@ -489,7 +487,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         } else if (isTopEdge) {
           newZone = topHalfZone;
         } else if (isBottomEdge) {
-          newZone = bottomHalfZone;
+          newZone = 'minimize';
         }
 
         if (snapPreviewZoneRef.current !== newZone) {
@@ -549,6 +547,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       if (finalSnapZone) {
         if (finalSnapZone === 'maximize') {
           handleMaximizeToggle();
+        } else if (finalSnapZone === 'minimize') {
+          updateWidget(widget.id, { minimized: true, flipped: false });
+          handleCloseTools();
         } else {
           handleSnapToZone(finalSnapZone);
         }
@@ -893,11 +894,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     if (Math.abs(deltaY) < MIN_GESTURE_SWIPE_DISTANCE) return;
 
-    if (touches === 2 && deltaY > 0) {
-      // 2-Finger Swipe Down: Minimize
-      updateWidget(widget.id, { minimized: true, flipped: false });
-      handleCloseTools();
-    } else if (touches === 3) {
+    if (touches === 3) {
       if (deltaY > 0 && canScreenshot && !isCapturing) {
         // 3-Finger Swipe Down: Screenshot
         void takeScreenshot();
@@ -1152,15 +1149,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             style={
               snapPreviewZone === 'maximize'
                 ? { top: 0, left: 0, width: '100vw', height: '100vh' }
-                : (() => {
-                    const bounds = calculateSnapBounds(snapPreviewZone);
-                    return {
-                      top: bounds.y,
-                      left: bounds.x,
-                      width: bounds.w,
-                      height: bounds.h,
-                    };
-                  })()
+                : snapPreviewZone === 'minimize'
+                  ? {
+                      bottom: 'env(safe-area-inset-bottom, 0px)',
+                      left: '50%',
+                      width: 'min(400px, 80vw)',
+                      height: '12px',
+                      transform: 'translateX(-50%)',
+                      borderRadius: '12px 12px 0 0',
+                    }
+                  : (() => {
+                      const bounds = calculateSnapBounds(snapPreviewZone);
+                      return {
+                        top: bounds.y,
+                        left: bounds.x,
+                        width: bounds.w,
+                        height: bounds.h,
+                      };
+                    })()
             }
           />,
           document.body

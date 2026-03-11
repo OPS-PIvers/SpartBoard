@@ -103,7 +103,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.screenshot'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerSwipeDown'),
+        gesture: t('widgets.cheatSheet.gestureNames.dragDownToDock'),
         description: t('widgets.cheatSheet.gestures.minimizeWidget'),
       },
     ],
