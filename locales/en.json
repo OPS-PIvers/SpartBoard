@@ -171,7 +171,8 @@
       "syncSuccess": "Menu synced from Nutrislice",
       "syncError": "Failed to sync menu",
       "noHotLunch": "No Hot Lunch Listed",
-      "noBentoBox": "No Bento Box Listed"
+      "noBentoBox": "No Bento Box Listed",
+      "hotLunch": "Hot Lunch"
     },
     "seatingChart": {
       "emptyStateFreeform": "Add furniture from the sidebar.",

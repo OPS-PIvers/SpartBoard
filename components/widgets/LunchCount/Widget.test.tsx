@@ -154,14 +154,11 @@ describe('LunchCountWidget', () => {
 
     render(<LunchCountWidget widget={widget} />);
 
-    // Check that we're showing the secondary view header
-    expect(screen.getByText("Today's Lunch Menu")).toBeTruthy();
+    // Check that we're showing the featured view header
+    expect(screen.getByText('Hot Lunch')).toBeTruthy();
 
     // Check for Hot Lunch value
     expect(screen.getByText('Pizza')).toBeTruthy();
-
-    // Check for Bento Box value
-    expect(screen.getByText('Yogurt Parfait')).toBeTruthy();
 
     // Verify it does NOT render the interactive elements
     expect(screen.queryByText('Assign 2 More Students')).toBeNull();
