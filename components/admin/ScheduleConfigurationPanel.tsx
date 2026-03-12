@@ -72,81 +72,81 @@ interface SortableItemProps {
   onDelete: () => void;
 }
 
-const SortableItem: React.FC<SortableItemProps> = ({
-  item,
-  onUpdate,
-  onDelete,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id ?? '' });
+const SortableItem: React.FC<SortableItemProps> = React.memo(
+  ({ item, onUpdate, onDelete }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id ?? '' });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : undefined,
-  };
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 50 : undefined,
+    };
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-white border rounded-lg p-2 flex items-center gap-3 shadow-sm group ${
-        isDragging
-          ? 'border-brand-blue-primary shadow-lg opacity-50'
-          : 'border-slate-200'
-      }`}
-    >
+    return (
       <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors"
+        ref={setNodeRef}
+        style={style}
+        className={`bg-white border rounded-lg p-2 flex items-center gap-3 shadow-sm group ${
+          isDragging
+            ? 'border-brand-blue-primary shadow-lg opacity-50'
+            : 'border-slate-200'
+        }`}
       >
-        <GripVertical className="w-4 h-4" />
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors"
+        >
+          <GripVertical className="w-4 h-4" />
+        </div>
+        <div className="flex-1 grid grid-cols-12 gap-2">
+          <div className="col-span-6">
+            <input
+              type="text"
+              value={item.task}
+              onChange={(e) => onUpdate({ task: e.target.value })}
+              placeholder="Task Name"
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+            />
+          </div>
+          <div className="col-span-2">
+            <input
+              type="time"
+              value={item.startTime}
+              onChange={(e) => onUpdate({ startTime: e.target.value })}
+              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
+            />
+          </div>
+          <div className="col-span-2">
+            <input
+              type="time"
+              value={item.endTime}
+              onChange={(e) => onUpdate({ endTime: e.target.value })}
+              className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
+            />
+          </div>
+          <div className="col-span-2 flex items-center justify-end">
+            <button
+              onClick={onDelete}
+              className="text-red-400 hover:text-red-600 p-1 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="flex-1 grid grid-cols-12 gap-2">
-        <div className="col-span-6">
-          <input
-            type="text"
-            value={item.task}
-            onChange={(e) => onUpdate({ task: e.target.value })}
-            placeholder="Task Name"
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
-          />
-        </div>
-        <div className="col-span-2">
-          <input
-            type="time"
-            value={item.startTime}
-            onChange={(e) => onUpdate({ startTime: e.target.value })}
-            className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
-          />
-        </div>
-        <div className="col-span-2">
-          <input
-            type="time"
-            value={item.endTime}
-            onChange={(e) => onUpdate({ endTime: e.target.value })}
-            className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
-          />
-        </div>
-        <div className="col-span-2 flex items-center justify-end">
-          <button
-            onClick={onDelete}
-            className="text-red-400 hover:text-red-600 p-1 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+    );
+  }
+);
+
+SortableItem.displayName = 'SortableItem';
 
 export const ScheduleConfigurationPanel: React.FC<
   ScheduleConfigurationPanelProps
