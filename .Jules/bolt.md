@@ -17,5 +17,3 @@
 ## 2026-03-08 - [Avoid `useState` Based Debounce] **Learning:** [Replacing closure-based `setTimeout` debouncing inside `useEffect` with generic `useDebounce` hooks that internally use `useState` decreases performance by causing extra unneeded re-renders when the debounced value resolves.] **Action:** [Before refactoring custom debounce logic, check if the goal is to avoid re-renders. If so, preserve the closure-based timeout approach.]
 
 ## 2026-03-08 - [Memoize dnd-kit Items] **Learning:** [Sortable list items inside `SortableContext` (like `dnd-kit`) are re-rendered frequently during drag operations if not memoized, causing layout jank.] **Action:** [Always wrap child elements of `SortableContext.map` with `React.memo()` and set `.displayName` to optimize drag-and-drop lists.]
-
-## 2026-03-12 - [Memoize dnd-kit Items] **Learning:** [Sortable list items inside `SortableContext` (like `dnd-kit`) are re-rendered frequently during drag operations if not memoized, causing layout jank.] **Action:** [Always wrap child elements of `SortableContext.map` with `React.memo()` and set `.displayName` to optimize drag-and-drop lists.]

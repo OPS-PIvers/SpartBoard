@@ -68,8 +68,8 @@ const sortByTime = (items: ScheduleItem[]): ScheduleItem[] =>
 
 interface SortableItemProps {
   item: ScheduleItem;
-  onUpdate: (updates: Partial<ScheduleItem>) => void;
-  onDelete: () => void;
+  onUpdate: (itemId: string, updates: Partial<ScheduleItem>) => void;
+  onDelete: (itemId: string) => void;
 }
 
 const SortableItem: React.FC<SortableItemProps> = React.memo(
@@ -111,7 +111,9 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
             <input
               type="text"
               value={item.task}
-              onChange={(e) => onUpdate({ task: e.target.value })}
+              onChange={(e) =>
+                item.id && onUpdate(item.id, { task: e.target.value })
+              }
               placeholder="Task Name"
               className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
             />
@@ -120,7 +122,9 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
             <input
               type="time"
               value={item.startTime}
-              onChange={(e) => onUpdate({ startTime: e.target.value })}
+              onChange={(e) =>
+                item.id && onUpdate(item.id, { startTime: e.target.value })
+              }
               className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
             />
           </div>
@@ -128,13 +132,15 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
             <input
               type="time"
               value={item.endTime}
-              onChange={(e) => onUpdate({ endTime: e.target.value })}
+              onChange={(e) =>
+                item.id && onUpdate(item.id, { endTime: e.target.value })
+              }
               className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
             />
           </div>
           <div className="col-span-2 flex items-center justify-end">
             <button
-              onClick={onDelete}
+              onClick={() => item.id && onDelete(item.id)}
               className="text-red-400 hover:text-red-600 p-1 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -216,7 +222,7 @@ export const ScheduleConfigurationPanel: React.FC<
   })();
 
   const activeSchedule = schedules.find((s) => s.id === activeScheduleId);
-  const items = activeSchedule?.items ?? [];
+  const items = useMemo(() => activeSchedule?.items ?? [], [activeSchedule]);
 
   // Ensure all items have IDs for dnd-kit compatibility
   React.useEffect(() => {
@@ -269,13 +275,16 @@ export const ScheduleConfigurationPanel: React.FC<
     }
   };
 
-  const handleUpdateActiveItems = (newItems: ScheduleItem[]) => {
-    if (!activeScheduleId) return;
-    const newSchedules = schedules.map((s) =>
-      s.id === activeScheduleId ? { ...s, items: newItems } : s
-    );
-    handleUpdateBuilding({ schedules: newSchedules });
-  };
+  const handleUpdateActiveItems = useCallback(
+    (newItems: ScheduleItem[]) => {
+      if (!activeScheduleId) return;
+      const newSchedules = schedules.map((s) =>
+        s.id === activeScheduleId ? { ...s, items: newItems } : s
+      );
+      handleUpdateBuilding({ schedules: newSchedules });
+    },
+    [schedules, activeScheduleId, handleUpdateBuilding]
+  );
 
   const handleAddItem = () => {
     const newItem: ScheduleItem = {
@@ -290,21 +299,27 @@ export const ScheduleConfigurationPanel: React.FC<
     handleUpdateActiveItems(newItems);
   };
 
-  const handleUpdateItem = (itemId: string, updates: Partial<ScheduleItem>) => {
-    const newItems = items.map((item) =>
-      item.id === itemId ? { ...item, ...updates } : item
-    );
-    handleUpdateActiveItems(newItems);
-  };
+  const handleUpdateItem = useCallback(
+    (itemId: string, updates: Partial<ScheduleItem>) => {
+      const newItems = items.map((item) =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+      handleUpdateActiveItems(newItems);
+    },
+    [items, handleUpdateActiveItems]
+  );
 
   const handleSortByTime = () => {
     handleUpdateActiveItems(sortByTime(items));
   };
 
-  const handleDeleteItem = (itemId: string) => {
-    const newItems = items.filter((item) => item.id !== itemId);
-    handleUpdateActiveItems(newItems);
-  };
+  const handleDeleteItem = useCallback(
+    (itemId: string) => {
+      const newItems = items.filter((item) => item.id !== itemId);
+      handleUpdateActiveItems(newItems);
+    },
+    [items, handleUpdateActiveItems]
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -491,19 +506,21 @@ export const ScheduleConfigurationPanel: React.FC<
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={items.map((item) => item.id ?? '')}
+                  items={items
+                    .filter((item) => item.id)
+                    .map((item) => item.id as string)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {items.map((item) => (
-                    <SortableItem
-                      key={item.id}
-                      item={item}
-                      onUpdate={(updates) =>
-                        item.id && handleUpdateItem(item.id, updates)
-                      }
-                      onDelete={() => item.id && handleDeleteItem(item.id)}
-                    />
-                  ))}
+                  {items
+                    .filter((item) => item.id)
+                    .map((item) => (
+                      <SortableItem
+                        key={item.id}
+                        item={item}
+                        onUpdate={handleUpdateItem}
+                        onDelete={handleDeleteItem}
+                      />
+                    ))}
                 </SortableContext>
               </DndContext>
               {items.length === 0 && (
