@@ -1,6 +1,10 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { getTitle, getDefaultWidgetConfig, isWidgetLayout } from './widgetHelpers';
+import {
+  getTitle,
+  getDefaultWidgetConfig,
+  isWidgetLayout,
+} from './widgetHelpers';
 import {
   WidgetData,
   TimeToolConfig,
@@ -8,6 +12,7 @@ import {
   ChecklistConfig,
   FeaturePermission,
   WidgetLayout,
+  WidgetOutput,
 } from '../types';
 
 describe('widgetHelpers', () => {
@@ -19,20 +24,22 @@ describe('widgetHelpers', () => {
 
     it('returns false for a React element', () => {
       const element = React.createElement('div', null, 'test content');
-      expect(isWidgetLayout(element)).toBe(false);
+      expect(isWidgetLayout(element as unknown as WidgetOutput)).toBe(false);
     });
 
     it('returns false for null', () => {
-      expect(isWidgetLayout(null as any)).toBe(false);
+      expect(isWidgetLayout(null as unknown as WidgetOutput)).toBe(false);
     });
 
     it('returns false for a string', () => {
-      expect(isWidgetLayout('just a string' as any)).toBe(false);
+      expect(isWidgetLayout('just a string' as unknown as WidgetOutput)).toBe(
+        false
+      );
     });
 
     it('returns false for an object without content property', () => {
       const obj = { someOtherProp: 'test' };
-      expect(isWidgetLayout(obj as any)).toBe(false);
+      expect(isWidgetLayout(obj as unknown as WidgetOutput)).toBe(false);
     });
   });
 
