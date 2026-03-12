@@ -16,7 +16,6 @@ import {
   Camera,
   Maximize,
   Minimize2,
-  ChevronRight,
   Copy,
   Eraser,
   Undo2,
@@ -143,7 +142,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const showTools = selectedWidgetId === widget.id;
-  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
   const [shouldRenderSettings, setShouldRenderSettings] = useState(
@@ -1403,30 +1401,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       variant="danger"
                       className="hover:!bg-red-500/20"
                     />
-                    <IconButton
-                      onClick={() => setIsToolbarExpanded(!isToolbarExpanded)}
-                      icon={<ChevronRight className="w-3.5 h-3.5" />}
-                      label={
-                        isToolbarExpanded
-                          ? t('widgetWindow.collapseToolbar')
-                          : t('widgetWindow.expandToolbar')
-                      }
-                      size="sm"
-                      variant="glass"
-                      className={isToolbarExpanded ? 'rotate-180' : ''}
-                    />
                   </div>
                 </div>
               )}
             </div>
 
-            <div
-              className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-in-out ${
-                isToolbarExpanded
-                  ? 'max-w-[500px] opacity-100 ml-0'
-                  : 'max-w-0 opacity-0 ml-0'
-              }`}
-            >
+            <div className="flex items-center gap-1 overflow-hidden transition-all duration-300 ease-in-out max-w-[500px] opacity-100 ml-0">
               <div className="h-4 w-px bg-slate-300/50" />
 
               <div className="flex items-center gap-1">
