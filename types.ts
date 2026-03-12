@@ -1284,6 +1284,7 @@ export interface WidgetComponentProps {
   isStudentView?: boolean;
   scale?: number;
   studentPin?: string | null;
+  isSpotlighted?: boolean;
 }
 
 export interface WidgetLayout {

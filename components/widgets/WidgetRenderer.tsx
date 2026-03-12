@@ -217,6 +217,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
           scale={scale}
           isStudentView={isStudentView}
           studentPin={studentPin}
+          isSpotlighted={isSpotlighted}
         />
       );
     },
@@ -238,6 +239,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       widget.annotation,
       positionKey,
       isStudentView,
+      isSpotlighted,
     ]
   );
 
@@ -349,6 +351,7 @@ interface InnerWidgetRendererProps {
   scale?: number;
   isStudentView: boolean;
   studentPin?: string | null;
+  isSpotlighted: boolean;
 }
 
 const InnerWidgetRenderer = memo(
@@ -359,6 +362,7 @@ const InnerWidgetRenderer = memo(
     scale,
     isStudentView,
     studentPin,
+    isSpotlighted,
   }: InnerWidgetRendererProps) {
     return (
       <WidgetLayoutWrapper
@@ -368,6 +372,7 @@ const InnerWidgetRenderer = memo(
         scale={scale}
         isStudentView={isStudentView}
         studentPin={studentPin}
+        isSpotlighted={isSpotlighted}
       />
     );
   },
@@ -378,6 +383,7 @@ const InnerWidgetRenderer = memo(
     if (prev.scale !== next.scale) return false;
     if (prev.isStudentView !== next.isStudentView) return false;
     if (prev.studentPin !== next.studentPin) return false;
+    if (prev.isSpotlighted !== next.isSpotlighted) return false;
 
     // Check widget props - explicitly ignoring x, y, z
     const pw = prev.widget;

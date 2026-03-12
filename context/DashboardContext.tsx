@@ -452,8 +452,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const now = Date.now();
-        // 1500 ms covers the 800 ms widget-config debounce + Firestore round-trip.
-        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 1500;
+        // 2500 ms covers debounced config updates + Firestore round-trip + some jitter.
+        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 2500;
 
         // Check if local state has unsaved changes by comparing against
         // what was last saved. This prevents server data from overwriting
@@ -532,6 +532,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 'z',
                 'minimized',
                 'flipped',
+                'maximized',
               ] as const;
               const mergedWidgets = db.widgets
                 .filter((sw) => {

@@ -152,9 +152,11 @@ export const RemoteWidgetCard: React.FC<RemoteWidgetCardProps> = ({
   const isSpotlighted = dashboardSettings?.spotlightWidgetId === widget.id;
 
   const handleMaximize = () => {
-    updateWidget(widget.id, { maximized: !isMaximized, flipped: false });
-    // Clear spotlight if we're entering maximize
-    if (!isMaximized) {
+    const nextMaximized = !isMaximized;
+    updateWidget(widget.id, { maximized: nextMaximized, flipped: false });
+    // If we're entering maximize, also clear any existing spotlight to keep it clean.
+    // Users can still re-activate spotlight manually while maximized if they want the overlay.
+    if (nextMaximized && isSpotlighted) {
       updateDashboardSettings({ spotlightWidgetId: null });
     }
   };
