@@ -116,7 +116,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           <div
             className={`w-full text-center font-bold truncate mb-2 ${getTitleFontClass()}`}
             style={{
-              fontSize: 'min(24px, 6cqmin)',
+              fontSize: 'min(24px, max(14px, 7cqmin))',
               color: titleColor,
               opacity: gridItems.length === 0 ? 0.3 : 1,
             }}
@@ -175,7 +175,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                   }}
                   className="mb-2 opacity-20"
                 />
-                <span style={{ fontSize: 'min(14px, 3.5cqmin)' }}>
+                <span style={{ fontSize: 'min(14px, 4cqmin)' }}>
                   {isFocused ? 'Select items below' : 'Nothing needed yet'}
                 </span>
               </div>
@@ -186,7 +186,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           {isFocused && selectionItems.length > 0 && (
             <div
               className="w-full flex-shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
-              style={{ minHeight: 'min(70px, 18cqmin)' }}
+              style={{ minHeight: 'max(64px, min(80px, 20cqmin))' }}
             >
               {selectionItems.map((item) => {
                 const isActive = activeSet.has(item.id);
@@ -200,26 +200,26 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                         : 'bg-white/40 border-transparent text-slate-400'
                     }`}
                     style={{
-                      width: 'min(60px, 15cqmin)',
-                      height: 'min(60px, 15cqmin)',
+                      width: 'max(54px, min(70px, 18cqmin))',
+                      height: 'max(54px, min(70px, 18cqmin))',
                       gap: '2px',
                     }}
                   >
                     <item.icon
                       style={{
-                        width: 'min(24px, 6cqmin)',
-                        height: 'min(24px, 6cqmin)',
+                        width: 'max(20px, min(28px, 8cqmin))',
+                        height: 'max(20px, min(28px, 8cqmin))',
                       }}
                       className={isActive ? 'text-blue-600' : 'opacity-40'}
                     />
                     <span
                       className="text-xxxs font-bold uppercase truncate w-full px-1 text-center"
-                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                      style={{ fontSize: 'max(8px, min(10px, 3cqmin))' }}
                     >
                       {item.label}
                     </span>
                     {isActive && (
-                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white" />
+                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-sm" />
                     )}
                   </button>
                 );
