@@ -24,8 +24,6 @@ import {
   Settings,
   LayoutGrid,
   List,
-  CarFront,
-  Loader2,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Toast } from '@/components/common/Toast';
@@ -37,86 +35,6 @@ import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StickerGlobalConfig } from '@/types';
-
-const CarRiderProAdminConfig: React.FC = () => {
-  const [url, setUrl] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      if (isAuthBypass) return; // Skip if offline/bypass
-      try {
-        const docSnap = await getDoc(
-          doc(db, 'global_permissions', 'car-rider-pro')
-        );
-        if (docSnap.exists()) setUrl(String(docSnap.data().url ?? ''));
-      } catch (err) {
-        console.error('Failed to fetch Car Rider Pro config', err);
-      }
-    };
-    void fetchConfig();
-  }, []);
-
-  const handleSave = async () => {
-    if (isAuthBypass) return;
-    setIsSaving(true);
-    try {
-      await setDoc(
-        doc(db, 'global_permissions', 'car-rider-pro'),
-        { url },
-        { merge: true }
-      );
-    } catch (err) {
-      console.error('Failed to save Car Rider Pro config', err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm mb-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-          <CarFront className="w-5 h-5" />
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-slate-900">
-            Car Rider Pro Integration
-          </h3>
-          <p className="text-sm text-slate-500">
-            Set the global district login URL for the dismissal widget.
-          </p>
-        </div>
-      </div>
-      <div className="flex gap-3 items-end">
-        <div className="flex-1">
-          <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
-            District Portal URL
-          </label>
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://carriderpro.com/login/your-district"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
-        <button
-          onClick={() => void handleSave()}
-          disabled={isSaving}
-          className="px-6 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
-        >
-          {isSaving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          SAVE
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export const FeaturePermissionsManager: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -368,9 +286,6 @@ export const FeaturePermissionsManager: React.FC = () => {
           onClose={() => setMessage(null)}
         />
       )}
-
-      {/* Centrally managed tools */}
-      <CarRiderProAdminConfig />
 
       {/* Header with View Toggle */}
       <div className="flex items-center justify-between mb-4">
