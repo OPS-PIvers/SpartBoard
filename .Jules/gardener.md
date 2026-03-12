@@ -61,3 +61,9 @@
 **Plan:** Decomposed into `components/widgets/MiniApp/` with `Widget.tsx`, `components/SortableItem.tsx`, `components/GlobalAppRow.tsx`, `components/MiniAppEditor.tsx`, and extracted API logic to `hooks/useMiniAppSync.ts` hook.
 
 ## 2025-03-04 - [Refactor `generateWithAI` function] **Weed:** [Deeply nested if/else statements (Arrow code)] **Root Cause:** [The `generateWithAI` function had a long and repetitive `if / else if` chain defining system and user prompts depending on `genType`.] **Plan:** [Refactored to use a dictionary map (`promptMap`) mapping generation types to a lazy-evaluated function `() => ({ systemPrompt, userPrompt })`. This encapsulates the logic, scales well, and is immune to nullish properties on uncalled types.]
+
+## 2025-06-08 - Refactor WeatherWidget
+
+**Weed:** `WeatherWidget.tsx` was ~930 lines, mixing UI components (Widget, Settings) with complex API fetching logic for OpenWeather and EarthNetworks.
+**Root Cause:** "God Component" pattern where the feature was built out in a single file organically over time.
+**Plan:** Decomposed into `components/widgets/Weather/` with `Widget.tsx`, `Settings.tsx`, extracted constants/types into `constants.ts`, and extracted all API logic into `useWeather.ts`.
