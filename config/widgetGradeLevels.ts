@@ -79,6 +79,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   breathing: ALL_GRADE_LEVELS,
   record: ALL_GRADE_LEVELS,
   magic: ALL_GRADE_LEVELS,
+  remote: ALL_GRADE_LEVELS,
   mathTools: ALL_GRADE_LEVELS,
   mathTool: [],
   nextUp: ALL_GRADE_LEVELS,
