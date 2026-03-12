@@ -113,6 +113,8 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         startDate: toDateStr(new Date()),
         schoolDays: [],
         dayLabel: 'Day',
+        customDayNames: {},
+        blocks: [],
       },
     [config.buildingDefaults, selectedBuildingId]
   );
@@ -130,6 +132,30 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         },
       },
     }));
+  };
+
+  const updateBlock = (
+    index: number,
+    field: 'startDate' | 'endDate' | 'dayNumber',
+    value: string | number
+  ) => {
+    const newBlocks = [...(currentBuildingConfig.blocks ?? [])];
+    if (newBlocks.length < 10) {
+      // Initialize blocks if empty
+      for (let i = 0; i < 10; i++) {
+        if (!newBlocks[i]) {
+          newBlocks[i] = { dayNumber: i + 1, startDate: '', endDate: '' };
+        }
+      }
+    }
+    newBlocks[index] = { ...newBlocks[index], [field]: value };
+    updateBuilding({ blocks: newBlocks });
+  };
+
+  const updateDayName = (dayNumber: number, name: string) => {
+    const newNames = { ...(currentBuildingConfig.customDayNames ?? {}) };
+    newNames[dayNumber] = name;
+    updateBuilding({ customDayNames: newNames });
   };
 
   // Calendar Helpers
@@ -191,12 +217,31 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
   // Rotation Preview
   const currentPreviewDay = useMemo(() => {
+    const todayStr = toDateStr(new Date());
+
+    // Check blocks first (Intermediate)
+    if (currentBuildingConfig.blocks?.length) {
+      const activeBlock = currentBuildingConfig.blocks.find(
+        (b) => todayStr >= b.startDate && todayStr <= b.endDate
+      );
+      if (activeBlock) {
+        const customName =
+          currentBuildingConfig.customDayNames?.[activeBlock.dayNumber];
+        return (
+          customName ??
+          `${currentBuildingConfig.dayLabel} ${activeBlock.dayNumber}`
+        );
+      }
+    }
+
     if (!currentBuildingConfig.schoolDays.length) return null;
     const sorted = [...currentBuildingConfig.schoolDays].sort();
-    const todayStr = toDateStr(new Date());
     const index = sorted.indexOf(todayStr);
     if (index === -1) return 'No School';
-    return (index % currentBuildingConfig.cycleLength) + 1;
+
+    const dayNumber = (index % currentBuildingConfig.cycleLength) + 1;
+    const customName = currentBuildingConfig.customDayNames?.[dayNumber];
+    return customName ?? `${currentBuildingConfig.dayLabel} ${dayNumber}`;
   }, [currentBuildingConfig]);
 
   if (!isOpen) return null;
@@ -277,13 +322,32 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </span>
                         <div className="flex bg-white rounded-lg p-1 border border-slate-200">
                           <button
-                            onClick={() => updateBuilding({ cycleLength: 6 })}
+                            onClick={() =>
+                              updateBuilding({
+                                cycleLength: 6,
+                                dayLabel: 'Day',
+                                blocks: [],
+                              })
+                            }
                             className={`px-3 py-1 text-xs font-bold rounded ${currentBuildingConfig.cycleLength === 6 ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                           >
                             6-Day
                           </button>
                           <button
-                            onClick={() => updateBuilding({ cycleLength: 10 })}
+                            onClick={() =>
+                              updateBuilding({
+                                cycleLength: 10,
+                                dayLabel: 'Block',
+                                blocks:
+                                  currentBuildingConfig.blocks?.length === 10
+                                    ? currentBuildingConfig.blocks
+                                    : Array.from({ length: 10 }, (_, i) => ({
+                                        dayNumber: i + 1,
+                                        startDate: '',
+                                        endDate: '',
+                                      })),
+                              })
+                            }
                             className={`px-3 py-1 text-xs font-bold rounded ${currentBuildingConfig.cycleLength === 10 ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                           >
                             10-Block
@@ -293,7 +357,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-700">
-                          Day Label
+                          Default Day Label
                         </span>
                         <input
                           type="text"
@@ -306,18 +370,55 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         />
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700">
-                          Start Date
-                        </span>
-                        <input
-                          type="date"
-                          value={currentBuildingConfig.startDate}
-                          onChange={(e) =>
-                            updateBuilding({ startDate: e.target.value })
-                          }
-                          className="px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
-                        />
+                      {currentBuildingConfig.cycleLength === 6 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">
+                            Start Date
+                          </span>
+                          <input
+                            type="date"
+                            value={currentBuildingConfig.startDate}
+                            onChange={(e) =>
+                              updateBuilding({ startDate: e.target.value })
+                            }
+                            className="px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-teal-700 focus:ring-2 focus:ring-teal-500 outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom Day Names */}
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                      <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                        <Settings2 className="w-4 h-4 text-teal-500" /> Custom
+                        Day Names
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Array.from(
+                          { length: currentBuildingConfig.cycleLength },
+                          (_, i) => i + 1
+                        ).map((num) => (
+                          <div
+                            key={num}
+                            className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100"
+                          >
+                            <span className="text-xxs font-black text-slate-400 w-4">
+                              {num}
+                            </span>
+                            <input
+                              type="text"
+                              value={
+                                currentBuildingConfig.customDayNames?.[num] ??
+                                ''
+                              }
+                              onChange={(e) =>
+                                updateDayName(num, e.target.value)
+                              }
+                              placeholder={`${currentBuildingConfig.dayLabel ?? 'Day'} ${num}`}
+                              className="flex-1 text-xs font-bold text-slate-700 focus:outline-none"
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -334,11 +435,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           {currentBuildingConfig.cycleLength}-
                           {currentBuildingConfig.dayLabel}
                         </strong>{' '}
-                        rotation with{' '}
-                        <strong>
-                          {currentBuildingConfig.schoolDays.length}
-                        </strong>{' '}
-                        school days configured.
+                        rotation.
                       </p>
                       {currentPreviewDay && (
                         <div className="pt-2 flex items-center gap-2">
@@ -348,112 +445,191 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           <span className="bg-white px-2 py-0.5 rounded-lg border border-teal-200 text-teal-700 font-black text-xs">
                             {currentPreviewDay === 'No School'
                               ? 'Non-School Day'
-                              : `${currentBuildingConfig.dayLabel} ${currentPreviewDay}`}
+                              : currentPreviewDay}
                           </span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Right: Calendar Marking */}
+                  {/* Right: Calendar Marking or Block Selection */}
                   <div className="space-y-4">
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                      <div className="bg-slate-50 p-3 flex items-center justify-between border-b border-slate-200">
-                        <button
-                          onClick={() =>
-                            setCurrentMonth(
-                              new Date(
-                                currentMonth.getFullYear(),
-                                currentMonth.getMonth() - 1,
-                                1
-                              )
-                            )
-                          }
-                          className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
-                        >
-                          <ChevronLeft className="w-5 h-5 text-slate-600" />
-                        </button>
-                        <h4 className="font-bold text-slate-700">
-                          {currentMonth.toLocaleDateString(undefined, {
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </h4>
-                        <button
-                          onClick={() =>
-                            setCurrentMonth(
-                              new Date(
-                                currentMonth.getFullYear(),
-                                currentMonth.getMonth() + 1,
-                                1
-                              )
-                            )
-                          }
-                          className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
-                        >
-                          <ChevronRight className="w-5 h-5 text-slate-600" />
-                        </button>
-                      </div>
-
-                      <div className="p-3">
-                        <div className="grid grid-cols-7 mb-2">
-                          {['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'].map((d) => (
-                            <div
-                              key={d}
-                              className="text-center text-[10px] font-black text-slate-400 uppercase"
-                            >
-                              {d}
-                            </div>
-                          ))}
+                    {currentBuildingConfig.cycleLength === 10 ? (
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-full max-h-[500px]">
+                        <div className="bg-slate-50 p-4 border-b border-slate-200">
+                          <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs flex items-center gap-2">
+                            <CalendarDays className="w-4 h-4 text-teal-500" />{' '}
+                            Block Date Ranges
+                          </h4>
+                          <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">
+                            Configure explicit windows for each block
+                          </p>
                         </div>
-                        <div className="grid grid-cols-7 gap-1">
-                          {daysInMonth.map((date, i) => {
-                            if (!date) return <div key={`pad-${i}`} />;
-                            const dateStr = toDateStr(date);
-                            const isSelected =
-                              currentBuildingConfig.schoolDays.includes(
-                                dateStr
-                              );
-                            const isToday = dateStr === toDateStr(new Date());
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                            (num, i) => (
+                              <div
+                                key={num}
+                                className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-teal-700 uppercase tracking-widest">
+                                    {currentBuildingConfig.customDayNames?.[
+                                      num
+                                    ] ?? `Block ${num}`}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      Start Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        currentBuildingConfig.blocks?.[i]
+                                          ?.startDate ?? ''
+                                      }
+                                      onChange={(e) =>
+                                        updateBlock(
+                                          i,
+                                          'startDate',
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                      End Date
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        currentBuildingConfig.blocks?.[i]
+                                          ?.endDate ?? ''
+                                      }
+                                      onChange={(e) =>
+                                        updateBlock(
+                                          i,
+                                          'endDate',
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded font-bold text-slate-600 focus:ring-1 focus:ring-teal-500 outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div className="bg-slate-50 p-3 flex items-center justify-between border-b border-slate-200">
+                          <button
+                            onClick={() =>
+                              setCurrentMonth(
+                                new Date(
+                                  currentMonth.getFullYear(),
+                                  currentMonth.getMonth() - 1,
+                                  1
+                                )
+                              )
+                            }
+                            className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
+                          >
+                            <ChevronLeft className="w-5 h-5 text-slate-600" />
+                          </button>
+                          <h4 className="font-bold text-slate-700">
+                            {currentMonth.toLocaleDateString(undefined, {
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </h4>
+                          <button
+                            onClick={() =>
+                              setCurrentMonth(
+                                new Date(
+                                  currentMonth.getFullYear(),
+                                  currentMonth.getMonth() + 1,
+                                  1
+                                )
+                              )
+                            }
+                            className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5 text-slate-600" />
+                          </button>
+                        </div>
 
-                            return (
-                              <button
-                                key={dateStr}
-                                onClick={() => toggleSchoolDay(date)}
-                                className={`
+                        <div className="p-3">
+                          <div className="grid grid-cols-7 mb-2">
+                            {['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'].map(
+                              (d) => (
+                                <div
+                                  key={d}
+                                  className="text-center text-[10px] font-black text-slate-400 uppercase"
+                                >
+                                  {d}
+                                </div>
+                              )
+                            )}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1">
+                            {daysInMonth.map((date, i) => {
+                              if (!date) return <div key={`pad-${i}`} />;
+                              const dateStr = toDateStr(date);
+                              const isSelected =
+                                currentBuildingConfig.schoolDays.includes(
+                                  dateStr
+                                );
+                              const isToday = dateStr === toDateStr(new Date());
+
+                              return (
+                                <button
+                                  key={dateStr}
+                                  onClick={() => toggleSchoolDay(date)}
+                                  className={`
                                   aspect-square flex items-center justify-center text-xs rounded-lg font-bold transition-all
                                   ${isSelected ? 'bg-teal-600 text-white shadow-sm scale-105' : 'hover:bg-slate-100 text-slate-600'}
                                   ${isToday ? 'ring-2 ring-teal-200' : ''}
                                 `}
-                              >
-                                {date.getDate()}
-                              </button>
-                            );
-                          })}
+                                >
+                                  {date.getDate()}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        className="flex-1 text-[10px]"
-                        onClick={selectAllWeekdays}
-                      >
-                        Select M-F
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className="flex-1 text-[10px]"
-                        onClick={clearMonth}
-                      >
-                        Clear Month
-                      </Button>
-                    </div>
+                    {currentBuildingConfig.cycleLength !== 10 && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          className="flex-1 text-[10px]"
+                          onClick={selectAllWeekdays}
+                        >
+                          Select M-F
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="flex-1 text-[10px]"
+                          onClick={clearMonth}
+                        >
+                          Clear Month
+                        </Button>
+                      </div>
+                    )}
 
                     <p className="text-[11px] text-slate-400 italic text-center px-4 leading-tight">
-                      Click dates to mark them as school days. The rotation only
-                      advances on marked days.
+                      {currentBuildingConfig.cycleLength === 10
+                        ? 'Set explicit date ranges for each of the 10 rotation blocks.'
+                        : 'Click dates to mark them as school days. The rotation only advances on marked days.'}
                     </p>
                   </div>
                 </div>

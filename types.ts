@@ -1139,6 +1139,10 @@ export interface SpecialistScheduleBuildingConfig {
   schoolDays: string[];
   /** Custom label for "Day" (e.g., "Day" for Schumann, "Block" for Intermediate) */
   dayLabel?: string;
+  /** Custom names for each day in the cycle (e.g., { 1: "Day 1", 2: "Music Day" }) */
+  customDayNames?: Record<number, string>;
+  /** Explicit date blocks for 10-block rotation (Intermediate School) */
+  blocks?: { dayNumber: number; startDate: string; endDate: string }[];
 }
 
 export interface SpecialistScheduleGlobalConfig {

@@ -70,9 +70,17 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     startDate: toDateStr(new Date()),
     schoolDays: [],
     dayLabel: 'Day',
+    customDayNames: {} as Record<number, string>,
+    blocks: [],
   };
 
-  const { cycleLength = 6, schoolDays = [], dayLabel = 'Day' } = buildingConfig;
+  const {
+    cycleLength = 6,
+    schoolDays = [],
+    dayLabel = 'Day',
+    customDayNames = {} as Record<number, string>,
+    blocks = [],
+  } = buildingConfig;
 
   const {
     cycleDays = [],
@@ -91,23 +99,49 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   const todayStr = useMemo(() => toDateStr(now), [now]);
 
-  // Determine the current Day Number
-  const { currentDayNumber, isSchoolDay } = useMemo(() => {
+  // Determine the current Day Number and Label
+  const { currentDayNumber, currentDayLabel, isSchoolDay } = useMemo(() => {
+    // Check for explicit blocks first (Intermediate School style)
+    if (blocks && blocks.length > 0) {
+      const activeBlock = blocks.find(
+        (b) => todayStr >= b.startDate && todayStr <= b.endDate
+      );
+      if (activeBlock) {
+        const customName = customDayNames?.[activeBlock.dayNumber];
+        return {
+          currentDayNumber: activeBlock.dayNumber,
+          currentDayLabel: customName ?? `${dayLabel} ${activeBlock.dayNumber}`,
+          isSchoolDay: true,
+        };
+      }
+    }
+
     if (!schoolDays.length)
-      return { currentDayNumber: null, isSchoolDay: false };
+      return {
+        currentDayNumber: null,
+        currentDayLabel: 'Non-School Day',
+        isSchoolDay: false,
+      };
 
     const sortedSchoolDays = [...schoolDays].sort();
     const todayIndex = sortedSchoolDays.indexOf(todayStr);
 
     if (todayIndex === -1) {
-      // Not a school day. Let's find the next school day or just show null.
-      return { currentDayNumber: null, isSchoolDay: false };
+      return {
+        currentDayNumber: null,
+        currentDayLabel: 'Non-School Day',
+        isSchoolDay: false,
+      };
     }
 
-    // dayNumber = ((index) % cycleLength) + 1
     const num = (todayIndex % cycleLength) + 1;
-    return { currentDayNumber: num, isSchoolDay: true };
-  }, [schoolDays, todayStr, cycleLength]);
+    const customName = customDayNames?.[num];
+    return {
+      currentDayNumber: num,
+      currentDayLabel: customName ?? `${dayLabel} ${num}`,
+      isSchoolDay: true,
+    };
+  }, [schoolDays, todayStr, cycleLength, blocks, customDayNames, dayLabel]);
 
   const currentItems = useMemo(() => {
     if (currentDayNumber === null) return [];
@@ -190,9 +224,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 className="font-black text-slate-800"
                 style={{ fontSize: 'min(18px, 4.5cqmin)' }}
               >
-                {isSchoolDay && currentDayNumber
-                  ? `${dayLabel} ${currentDayNumber}`
-                  : 'Non-School Day'}
+                {currentDayLabel}
                 {specialistClass && (
                   <span
                     className="ml-2 text-slate-400 font-bold"
@@ -304,7 +336,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               <ScaledEmptyState
                 icon={Clock}
                 title="Empty Schedule"
-                subtitle={`No items added for ${dayLabel} ${currentDayNumber}.`}
+                subtitle={`No items added for ${currentDayLabel}.`}
                 className="opacity-40"
               />
             )}

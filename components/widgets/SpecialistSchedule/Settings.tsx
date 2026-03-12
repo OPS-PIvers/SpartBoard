@@ -46,9 +46,14 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   const buildingConfig = globalConfig?.buildingDefaults?.[buildingId] ?? {
     cycleLength: 6,
     dayLabel: 'Day',
+    customDayNames: {} as Record<number, string>,
   };
 
-  const { cycleLength = 6, dayLabel = 'Day' } = buildingConfig;
+  const {
+    cycleLength = 6,
+    dayLabel = 'Day',
+    customDayNames = {} as Record<number, string>,
+  } = buildingConfig;
 
   const {
     cycleDays = [],
@@ -279,23 +284,34 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Day Selector */}
               <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2">
                 {Array.from({ length: cycleLength }, (_, i) => i + 1).map(
-                  (num) => (
-                    <button
-                      key={num}
-                      onClick={() => setSelectedCycleDay(num)}
-                      className={`
-                      shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center transition-all border-2
+                  (num) => {
+                    const customName = customDayNames?.[num];
+                    return (
+                      <button
+                        key={num}
+                        onClick={() => setSelectedCycleDay(num)}
+                        className={`
+                      shrink-0 min-w-12 h-12 px-2 rounded-xl flex flex-col items-center justify-center transition-all border-2
                       ${selectedCycleDay === num ? 'border-teal-600 bg-teal-50 text-teal-700' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}
                     `}
-                    >
-                      <span className="text-[10px] font-black uppercase tracking-tighter">
-                        {dayLabel}
-                      </span>
-                      <span className="text-lg font-black leading-none">
-                        {num}
-                      </span>
-                    </button>
-                  )
+                      >
+                        {customName ? (
+                          <span className="text-xs font-black truncate max-w-[80px]">
+                            {customName}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-[10px] font-black uppercase tracking-tighter">
+                              {dayLabel}
+                            </span>
+                            <span className="text-lg font-black leading-none">
+                              {num}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  }
                 )}
               </div>
 
@@ -303,7 +319,9 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
-                    <Clock className="w-3 h-3" /> {dayLabel} {selectedCycleDay}{' '}
+                    <Clock className="w-3 h-3" />{' '}
+                    {customDayNames?.[selectedCycleDay] ??
+                      `${dayLabel} ${selectedCycleDay}`}{' '}
                     Schedule
                   </label>
                   <button
