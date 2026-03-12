@@ -198,6 +198,45 @@ describe('ChecklistWidget', () => {
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
+  it('removes completed items when Remove Completed is clicked', () => {
+    const itemsWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        items: [
+          { id: '1', text: 'Task 1', completed: true },
+          { id: '2', text: 'Task 2', completed: false },
+          { id: '3', text: 'Task 3', completed: true },
+        ],
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={itemsWidget} />);
+
+    fireEvent.click(screen.getByText('Remove Completed'));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('checklist-1', {
+      config: expect.objectContaining({
+        items: [{ id: '2', text: 'Task 2', completed: false }],
+      }),
+    });
+  });
+
+  it('does not show Remove Completed button in roster mode', () => {
+    const rosterWidget = {
+      ...mockWidget,
+      config: {
+        ...mockWidget.config,
+        mode: 'roster' as const,
+        completedNames: ['Alice'],
+        firstNames: 'Alice\nBob',
+        lastNames: '',
+      } as ChecklistConfig,
+    };
+    render(<ChecklistWidget widget={rosterWidget} />);
+
+    expect(screen.queryByText('Remove Completed')).not.toBeInTheDocument();
+  });
+
   it('resets all checks when reset button is clicked', () => {
     const itemsWidget = {
       ...mockWidget,

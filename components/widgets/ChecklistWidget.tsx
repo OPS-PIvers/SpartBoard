@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { SettingsLabel } from '../common/SettingsLabel';
+import { WidgetLayout } from './WidgetLayout';
 
 interface ChecklistCardProps {
   id: string;
@@ -51,49 +52,50 @@ const ChecklistCard = React.memo<ChecklistCardProps>(
       }
     };
     return (
-      <div
-        role="checkbox"
-        aria-checked={isCompleted}
-        tabIndex={0}
-        onClick={() => onToggle(id)}
-        onKeyDown={handleKeyDown}
-        className={`w-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] ${
-          isCompleted
-            ? 'border-slate-200 bg-slate-100/80'
-            : 'border-slate-200 bg-white'
-        }`}
-        style={{ gap: cardGap, padding: cardPadding }}
-      >
-        <div className="shrink-0 transition-transform active:scale-90">
-          {isCompleted ? (
-            <CheckCircle2
-              className="text-green-500"
-              style={{ width: iconSize, height: iconSize }}
-            />
-          ) : (
-            <Circle
-              className="text-indigo-300"
-              style={{ width: iconSize, height: iconSize }}
-            />
-          )}
-        </div>
-        <span
-          className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all ${
+      <div role="listitem">
+        <div
+          role="checkbox"
+          aria-checked={isCompleted}
+          aria-label={label}
+          tabIndex={0}
+          onClick={() => onToggle(id)}
+          onKeyDown={handleKeyDown}
+          className={`w-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] ${
             isCompleted
-              ? 'text-slate-400 line-through decoration-slate-300'
-              : 'text-slate-700'
+              ? 'border-slate-200 bg-slate-100/80'
+              : 'border-slate-200 bg-white'
           }`}
-          style={{ fontSize: textSize }}
+          style={{ gap: cardGap, padding: cardPadding }}
         >
-          {label}
-        </span>
+          <div className="shrink-0 transition-transform active:scale-90">
+            {isCompleted ? (
+              <CheckCircle2
+                className="text-green-500"
+                style={{ width: iconSize, height: iconSize }}
+              />
+            ) : (
+              <Circle
+                className="text-indigo-300"
+                style={{ width: iconSize, height: iconSize }}
+              />
+            )}
+          </div>
+          <span
+            className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all ${
+              isCompleted
+                ? 'text-slate-400 line-through decoration-slate-300'
+                : 'text-slate-700'
+            }`}
+            style={{ fontSize: textSize }}
+          >
+            {label}
+          </span>
+        </div>
       </div>
     );
   }
 );
 ChecklistCard.displayName = 'ChecklistCard';
-
-import { WidgetLayout } from './WidgetLayout';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -241,6 +243,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           className={`h-full w-full relative overflow-hidden flex flex-col group font-${globalStyle.fontFamily}`}
         >
           <div
+            role="list"
             className="flex-1 overflow-y-auto custom-scrollbar flex flex-col"
             style={{
               padding:
