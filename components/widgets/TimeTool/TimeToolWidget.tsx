@@ -580,9 +580,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
     (w) => w.type === 'random'
   );
 
-  const hasNextUp = activeDashboard?.widgets.some(
-    (w) => w.type === 'nextUp'
-  );
+  const hasNextUp = activeDashboard?.widgets.some((w) => w.type === 'nextUp');
 
   const fonts = [
     { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
@@ -971,7 +969,8 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
             <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
               <span className="text-lg mt-px">&#128161;</span>
               <p className="font-medium leading-snug">
-                Add a NextUp widget to automatically advance to the next student when the timer ends!
+                Add a NextUp widget to automatically advance to the next student
+                when the timer ends!
               </p>
             </div>
           ) : (

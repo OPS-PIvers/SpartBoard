@@ -230,7 +230,13 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     }
 
     await syncToDrive(updated);
-  }, [queue, config.autoStartTimer, activeDashboard, syncToDrive, updateWidget]);
+  }, [
+    queue,
+    config.autoStartTimer,
+    activeDashboard,
+    syncToDrive,
+    updateWidget,
+  ]);
 
   // Nexus: External trigger (e.g., from Time Tool auto-advance)
   useEffect(() => {
