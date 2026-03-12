@@ -14,10 +14,10 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      doc(db, 'global_permissions', 'car-rider-pro'),
+      doc(db, 'feature_permissions', 'car-rider-pro'),
       (docSnap) => {
         if (docSnap.exists()) {
-          setUrl(String(docSnap.data()?.url ?? ''));
+          setUrl(String(docSnap.data()?.config?.url ?? ''));
         } else {
           setUrl('');
         }
