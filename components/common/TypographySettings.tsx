@@ -2,20 +2,18 @@ import React from 'react';
 import { Type, Palette } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { FONTS, FONT_COLORS } from '../../config/fonts';
-import { WidgetConfig, WidgetData } from '../../types';
+import { WidgetConfig } from '../../types';
 
 interface TypographySettingsProps<T extends WidgetConfig> {
-  widgetId: string;
   config: T;
-  updateWidget: (id: string, updates: Partial<WidgetData>) => void;
+  updateConfig: (updates: Partial<T>) => void;
 }
 
 export const TypographySettings = <
   T extends WidgetConfig & { fontFamily?: string; fontColor?: string },
 >({
-  widgetId,
   config,
-  updateWidget,
+  updateConfig,
 }: TypographySettingsProps<T>) => {
   const { fontFamily = 'global', fontColor = '#334155' } = config;
 
@@ -28,14 +26,7 @@ export const TypographySettings = <
           {FONTS.map((f) => (
             <button
               key={f.id}
-              onClick={() =>
-                updateWidget(widgetId, {
-                  config: {
-                    ...config,
-                    fontFamily: f.id,
-                  } as unknown as WidgetConfig,
-                })
-              }
+              onClick={() => updateConfig({ fontFamily: f.id } as Partial<T>)}
               className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
                 fontFamily === f.id || (!fontFamily && f.id === 'global')
                   ? 'border-indigo-500 bg-indigo-50'
@@ -58,14 +49,7 @@ export const TypographySettings = <
           {FONT_COLORS.map((color) => (
             <button
               key={color}
-              onClick={() =>
-                updateWidget(widgetId, {
-                  config: {
-                    ...config,
-                    fontColor: color,
-                  } as unknown as WidgetConfig,
-                })
-              }
+              onClick={() => updateConfig({ fontColor: color } as Partial<T>)}
               className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
                 fontColor === color
                   ? 'border-slate-800 scale-110 shadow-sm'
@@ -73,6 +57,7 @@ export const TypographySettings = <
               }`}
               style={{ backgroundColor: color }}
               title={color}
+              aria-label={`Select font color ${color}`}
             />
           ))}
         </div>

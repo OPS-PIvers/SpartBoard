@@ -13,6 +13,7 @@ import {
   GlobalWeatherData,
 } from '@/types';
 import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
+import { getFontClass } from '@/utils/styles';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -36,11 +37,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     fontColor = '#334155',
   } = config;
 
-  const getFontClass = () => {
-    if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;
-    if (fontFamily.startsWith('font-')) return fontFamily;
-    return `font-${fontFamily}`;
-  };
+  const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
   const weatherPermission = featurePermissions.find(
     (p) => p.widgetType === 'weather'
@@ -258,7 +255,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full ${getFontClass()}`}
+          className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
           style={{
             gap: hideClothing ? '2cqh' : 'min(12px, 2.5cqmin)',
             padding: hideClothing ? '4cqh' : 'min(8px, 2cqmin)',

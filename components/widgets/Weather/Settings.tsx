@@ -561,9 +561,12 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
       <hr className="border-slate-100" />
 
       <TypographySettings
-        widgetId={widget.id}
         config={config}
-        updateWidget={updateWidget}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates },
+          })
+        }
       />
     </div>
   );
