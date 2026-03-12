@@ -12,11 +12,11 @@ import {
   Video,
   FlipHorizontal,
 } from 'lucide-react';
-import { WidgetData, TextConfig, WidgetConfig } from '../../types';
-import { ScaledEmptyState } from '../common/ScaledEmptyState';
-import { useAuth } from '../../context/useAuth';
-import { useDashboard } from '../../context/useDashboard';
-import { extractTextWithGemini } from '../../utils/ai';
+import { WidgetData, TextConfig } from '@/types';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { extractTextWithGemini } from '@/utils/ai';
 import Tesseract from 'tesseract.js';
 
 interface CapturedItem {
@@ -175,9 +175,9 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
         : extractedText;
       updateWidget(existingTextWidget.id, {
         config: {
-          ...existingTextWidget.config,
+          ...existingConfig,
           content: newContent,
-        } as unknown as WidgetConfig,
+        },
       });
       addToast('Text appended to Notes', 'success');
     } else {
@@ -187,7 +187,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
         y: _widget.y,
         config: {
           content: extractedText,
-        } as TextConfig,
+        },
       });
       addToast('Created new Notes widget with text', 'success');
     }
