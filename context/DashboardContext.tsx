@@ -2138,6 +2138,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 ...w,
                 minimized: false,
                 flipped: false,
+                maximized: false,
               })),
             }
           : d

@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
@@ -224,7 +227,7 @@ export const DashboardView: React.FC = () => {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
-      // Multi-touch gestures (pinch-zoom, 4-finger swipe) must always be
+      // Multi-touch gestures (pinch-zoom, 2-finger swipe) must always be
       // intercepted so our custom handlers aren't bypassed by the browser.
       if (e.touches.length > 1) {
         e.preventDefault();

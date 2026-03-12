@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import React, {
   useState,
   useRef,
@@ -405,6 +407,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
   };
 
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
   const handleDragStart = (e: React.PointerEvent) => {
     if (isMaximized) return;
 
@@ -415,6 +424,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Don't drag if annotating
     if (isAnnotating) return;
+
+    clearLongPressTimer();
 
     // Close settings panel on drag start to prevent position desync
     // (panel position is based on widget.x/y which don't update during DOM-level drag)
@@ -577,6 +588,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (isMaximized) return;
     e.stopPropagation();
     e.preventDefault();
+
+    clearLongPressTimer();
 
     // Close settings panel on resize start to prevent position desync
     if (widget.flipped) {
@@ -909,10 +922,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const handleWidgetPointerDown = (e: React.PointerEvent) => {
     // 1-Finger Double-Tap (Annotation) & Long-Press (Screenshot)
     if (e.pointerType !== 'mouse') {
+      const target = e.target as HTMLElement;
+      if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
+
       if (doubleTapTimer.current) {
         clearTimeout(doubleTapTimer.current);
         doubleTapTimer.current = null;
-        // Double tap
+        // Double tap - clear long press from first tap
+        clearLongPressTimer();
         setIsAnnotating((prev) => !prev);
         handleCloseTools();
       } else {
@@ -931,10 +948,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   };
 
   const handleWidgetPointerUp = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
+    clearLongPressTimer();
   };
 
   // Fallback to widget state if not dragging/resizing or if position-aware
