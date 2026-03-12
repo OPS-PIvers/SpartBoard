@@ -511,8 +511,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 lastSavedWidgets = JSON.parse(
                   lastSavedFieldsRef.current.widgets || '[]'
                 ) as WidgetData[];
-              } catch {
-                lastSavedWidgets = currentActive.widgets;
+              } catch (e) {
+                console.error(
+                  'Failed to parse last saved widgets state. Preserving local state.',
+                  e
+                );
+                lastSavedWidgets = [];
               }
               const lastSavedById = new Map(
                 lastSavedWidgets.map((w) => [w.id, w])
@@ -549,15 +553,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     ...sw,
                     config: configChangedLocally ? lw.config : sw.config,
                     ...(layoutChangedLocally
-                      ? {
-                          x: lw.x,
-                          y: lw.y,
-                          w: lw.w,
-                          h: lw.h,
-                          z: lw.z,
-                          minimized: lw.minimized,
-                          flipped: lw.flipped,
-                        }
+                      ? LAYOUT_FIELDS.reduce(
+                          (acc, field) => ({
+                            ...acc,
+                            [field]: lw[field as keyof WidgetData],
+                          }),
+                          {}
+                        )
                       : {}),
                   };
                 });
