@@ -110,15 +110,20 @@ describe('DraggableWindow (Tests folder)', () => {
     const settingsBtn = settingsIcon.closest('button');
     const closeBtn = closeIcon.closest('button');
 
-    const container = settingsBtn?.parentElement;
-    const children = Array.from(container?.children ?? []);
+    // Due to refactoring into one continuous toolbar, grab all buttons within the tools menu
+    const toolbarContainer = screen
+      .getByTestId('settings-icon')
+      .closest('[data-settings-exclude]');
+    const allButtons = Array.from(
+      toolbarContainer?.querySelectorAll('button') ?? []
+    );
 
     if (!settingsBtn || !closeBtn) {
       throw new Error('Buttons not found');
     }
 
-    expect(children.indexOf(settingsBtn)).toBeLessThan(
-      children.indexOf(closeBtn)
+    expect(allButtons.indexOf(settingsBtn)).toBeLessThan(
+      allButtons.indexOf(closeBtn)
     );
   });
 

@@ -1386,203 +1386,197 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : ''
                       }
                     />
-                    <IconButton
-                      onClick={() => {
-                        if (skipCloseConfirmation) {
-                          removeWidget(widget.id);
-                        } else {
-                          setShowConfirm(true);
-                          handleCloseTools();
-                        }
-                      }}
-                      icon={<X className="w-3.5 h-3.5" />}
-                      label={t('widgetWindow.close')}
-                      size="sm"
-                      variant="danger"
-                      className="hover:!bg-red-500/20"
-                    />
                   </div>
                 </div>
               )}
-            </div>
 
-            <div className="flex items-center gap-1 overflow-hidden transition-all duration-300 ease-in-out max-w-[500px] opacity-100 ml-0">
-              <div className="h-4 w-px bg-slate-300/50" />
+              <div className="h-4 w-px bg-slate-300/50 ml-1" />
 
-              <div className="flex items-center gap-1">
-                {headerActions && (
-                  <div className="flex items-center text-slate-700">
-                    {headerActions}
-                  </div>
-                )}
-                {canScreenshot && (
-                  <IconButton
-                    onClick={() => {
-                      void takeScreenshot();
-                      let shownTips: string[] = [];
-                      try {
-                        const raw = localStorage.getItem('spart_shown_tips');
-                        const parsed: unknown = raw ? JSON.parse(raw) : [];
-                        if (
-                          Array.isArray(parsed) &&
-                          parsed.every((v) => typeof v === 'string')
-                        ) {
-                          shownTips = parsed;
-                        }
-                      } catch {
-                        // Corrupted storage value — treat as empty
-                      }
-                      if (!shownTips.includes('screenshot-gesture')) {
-                        shownTips.push('screenshot-gesture');
-                        localStorage.setItem(
-                          'spart_shown_tips',
-                          JSON.stringify(shownTips)
-                        );
-                        setTimeout(() => {
-                          addToast(
-                            t('widgetWindow.screenshotGestureProTip'),
-                            'info'
-                          );
-                        }, 1200);
-                      }
-                    }}
-                    disabled={isCapturing}
-                    icon={<Camera className="w-3.5 h-3.5" />}
-                    label={`${t('widgetWindow.takeScreenshot')} (3-finger swipe \u2193)`}
-                    size="sm"
-                    variant="glass"
-                  />
-                )}
+              {headerActions && (
+                <div className="flex items-center text-slate-700">
+                  {headerActions}
+                </div>
+              )}
+              {canScreenshot && (
                 <IconButton
                   onClick={() => {
-                    setIsAnnotating(!isAnnotating);
-                    handleCloseTools();
-                  }}
-                  icon={<Highlighter className="w-3.5 h-3.5" />}
-                  label={`${t('widgetWindow.annotate')} (Alt+D)`}
-                  size="sm"
-                  variant="glass"
-                  active={isAnnotating}
-                  className={
-                    isAnnotating ? '!bg-indigo-50 !text-indigo-600' : ''
-                  }
-                />
-                <IconButton
-                  onClick={() => duplicateWidget(widget.id)}
-                  icon={<Copy className="w-3.5 h-3.5" />}
-                  label={t('widgetWindow.duplicate')}
-                  size="sm"
-                  variant="glass"
-                />
-
-                {/* NEW: Snap Layouts Button & Popover */}
-                <div className="relative flex items-center">
-                  <IconButton
-                    ref={(el) => {
-                      if (el) {
-                        const rect = el.getBoundingClientRect();
-                        const menuX = rect.left + rect.width / 2;
-                        const menuY = rect.top;
-                        el.dataset.menuX = menuX.toString();
-                        el.dataset.menuY = menuY.toString();
+                    void takeScreenshot();
+                    let shownTips: string[] = [];
+                    try {
+                      const raw = localStorage.getItem('spart_shown_tips');
+                      const parsed: unknown = raw ? JSON.parse(raw) : [];
+                      if (
+                        Array.isArray(parsed) &&
+                        parsed.every((v) => typeof v === 'string')
+                      ) {
+                        shownTips = parsed;
                       }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSnapMenu(!showSnapMenu);
-                    }}
-                    icon={<LayoutTemplate className="w-3.5 h-3.5" />}
-                    label={t('widgetWindow.snapLayout')}
-                    size="sm"
-                    variant="glass"
-                    active={showSnapMenu}
-                  />
+                    } catch {
+                      // Corrupted storage value — treat as empty
+                    }
+                    if (!shownTips.includes('screenshot-gesture')) {
+                      shownTips.push('screenshot-gesture');
+                      localStorage.setItem(
+                        'spart_shown_tips',
+                        JSON.stringify(shownTips)
+                      );
+                      setTimeout(() => {
+                        addToast(
+                          t('widgetWindow.screenshotGestureProTip'),
+                          'info'
+                        );
+                      }, 1200);
+                    }
+                  }}
+                  disabled={isCapturing}
+                  icon={<Camera className="w-3.5 h-3.5" />}
+                  label={`${t('widgetWindow.takeScreenshot')} (3-finger swipe \u2193)`}
+                  size="sm"
+                  variant="glass"
+                />
+              )}
+              <IconButton
+                onClick={() => {
+                  setIsAnnotating(!isAnnotating);
+                  handleCloseTools();
+                }}
+                icon={<Highlighter className="w-3.5 h-3.5" />}
+                label={`${t('widgetWindow.annotate')} (Alt+D)`}
+                size="sm"
+                variant="glass"
+                active={isAnnotating}
+                className={isAnnotating ? '!bg-indigo-50 !text-indigo-600' : ''}
+              />
+              <IconButton
+                onClick={() => duplicateWidget(widget.id)}
+                icon={<Copy className="w-3.5 h-3.5" />}
+                label={t('widgetWindow.duplicate')}
+                size="sm"
+                variant="glass"
+              />
 
-                  {showSnapMenu &&
-                    typeof document !== 'undefined' &&
-                    createPortal(
-                      <div
-                        ref={snapMenuRef}
-                        className="fixed z-modal p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-48 animate-in slide-in-from-top-2 fade-in duration-200"
-                        style={{
-                          // Position below the button, centered horizontally
-                          top: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-y') ?? 0) + 40}px`,
-                          left: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-x') ?? 0)}px`,
-                          transform: 'translateX(-50%)',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center gap-2 mb-2 px-1">
-                          <LayoutTemplate className="w-3.5 h-3.5 text-indigo-500" />
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                            {t('widgetWindow.chooseLayout')}
-                          </span>
-                        </div>
+              {/* NEW: Snap Layouts Button & Popover */}
+              <div className="relative flex items-center">
+                <IconButton
+                  ref={(el) => {
+                    if (el) {
+                      const rect = el.getBoundingClientRect();
+                      const menuX = rect.left + rect.width / 2;
+                      const menuY = rect.top;
+                      el.dataset.menuX = menuX.toString();
+                      el.dataset.menuY = menuY.toString();
+                    }
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSnapMenu(!showSnapMenu);
+                  }}
+                  icon={<LayoutTemplate className="w-3.5 h-3.5" />}
+                  label={t('widgetWindow.snapLayout')}
+                  size="sm"
+                  variant="glass"
+                  active={showSnapMenu}
+                />
 
-                        <div className="grid grid-cols-2 gap-2">
-                          {SNAP_LAYOUTS.map((layout) => (
-                            <div
-                              key={layout.id}
-                              className="group relative p-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
-                            >
-                              <div className="relative w-full h-8 bg-slate-50 rounded-md overflow-hidden">
-                                {layout.zones.map((zone) => (
-                                  <button
-                                    key={zone.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSnapToZone(zone);
-                                    }}
-                                    className="absolute bg-slate-300 hover:bg-indigo-500 transition-all rounded-[2px] border border-white/50 active:scale-90"
-                                    style={{
-                                      left: `${zone.x * 100}%`,
-                                      top: `${zone.y * 100}%`,
-                                      width: `${zone.w * 100}%`,
-                                      height: `${zone.h * 100}%`,
-                                    }}
-                                    title={`${t('widgetWindow.snapTo')} ${t(`widgetWindow.layouts.${layout.nameKey}`)}`}
-                                    aria-label={`${t('widgetWindow.snapTo')} ${t(`widgetWindow.layouts.${layout.nameKey}`)} - ${zone.id}`}
-                                  />
-                                ))}
-                              </div>
+                {showSnapMenu &&
+                  typeof document !== 'undefined' &&
+                  createPortal(
+                    <div
+                      ref={snapMenuRef}
+                      className="fixed z-modal p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-48 animate-in slide-in-from-top-2 fade-in duration-200"
+                      style={{
+                        // Position below the button, centered horizontally
+                        top: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-y') ?? 0) + 40}px`,
+                        left: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-x') ?? 0)}px`,
+                        transform: 'translateX(-50%)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <LayoutTemplate className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          {t('widgetWindow.chooseLayout')}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        {SNAP_LAYOUTS.map((layout) => (
+                          <div
+                            key={layout.id}
+                            className="group relative p-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
+                          >
+                            <div className="relative w-full h-8 bg-slate-50 rounded-md overflow-hidden">
+                              {layout.zones.map((zone) => (
+                                <button
+                                  key={zone.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSnapToZone(zone);
+                                  }}
+                                  className="absolute bg-slate-300 hover:bg-indigo-500 transition-all rounded-[2px] border border-white/50 active:scale-90"
+                                  style={{
+                                    left: `${zone.x * 100}%`,
+                                    top: `${zone.y * 100}%`,
+                                    width: `${zone.w * 100}%`,
+                                    height: `${zone.h * 100}%`,
+                                  }}
+                                  title={`${t('widgetWindow.snapTo')} ${t(`widgetWindow.layouts.${layout.nameKey}`)}`}
+                                  aria-label={`${t('widgetWindow.snapTo')} ${t(`widgetWindow.layouts.${layout.nameKey}`)} - ${zone.id}`}
+                                />
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>,
-                      document.body
-                    )}
-                </div>
-                <IconButton
-                  onClick={handleMaximizeToggle}
-                  icon={
-                    isMaximized ? (
-                      <Minimize2 className="w-3.5 h-3.5" />
-                    ) : (
-                      <Maximize className="w-3.5 h-3.5" />
-                    )
-                  }
-                  label={
-                    isMaximized
-                      ? `${t('widgetWindow.restore')} (Alt+M)`
-                      : `${t('widgetWindow.maximize')} (Alt+M)`
-                  }
-                  size="sm"
-                  variant="glass"
-                />
-                <IconButton
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      minimized: true,
-                      flipped: false,
-                    })
-                  }
-                  icon={<Minus className="w-3.5 h-3.5" />}
-                  label={`${t('widgetWindow.minimize')} (Esc)`}
-                  size="sm"
-                  variant="glass"
-                />
+                          </div>
+                        ))}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
               </div>
+              <IconButton
+                onClick={handleMaximizeToggle}
+                icon={
+                  isMaximized ? (
+                    <Minimize2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Maximize className="w-3.5 h-3.5" />
+                  )
+                }
+                label={
+                  isMaximized
+                    ? `${t('widgetWindow.restore')} (Alt+M)`
+                    : `${t('widgetWindow.maximize')} (Alt+M)`
+                }
+                size="sm"
+                variant="glass"
+              />
+              <IconButton
+                onClick={() =>
+                  updateWidget(widget.id, {
+                    minimized: true,
+                    flipped: false,
+                  })
+                }
+                icon={<Minus className="w-3.5 h-3.5" />}
+                label={`${t('widgetWindow.minimize')} (Esc)`}
+                size="sm"
+                variant="glass"
+              />
+              <IconButton
+                onClick={() => {
+                  if (skipCloseConfirmation) {
+                    removeWidget(widget.id);
+                  } else {
+                    setShowConfirm(true);
+                    handleCloseTools();
+                  }
+                }}
+                icon={<X className="w-3.5 h-3.5" />}
+                label={t('widgetWindow.close')}
+                size="sm"
+                variant="danger"
+                className="hover:!bg-red-500/20"
+              />
             </div>
           </div>,
           document.body
