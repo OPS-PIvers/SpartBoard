@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
