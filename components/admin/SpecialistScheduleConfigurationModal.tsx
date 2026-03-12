@@ -7,6 +7,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import {
@@ -31,6 +33,20 @@ const toDateStr = (d: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const SCHUMANN_DEFAULT_OPTIONS = [
+  '🎵 Music',
+  '👟 PE',
+  '🎨 Art',
+  '🌐 Spanish',
+  '📖 Media',
+];
+const INTERMEDIATE_DEFAULT_OPTIONS = [
+  '🎵 Music',
+  '👟 PE',
+  '🎨 Art',
+  '🌐 Spanish',
+];
+
 export const SpecialistScheduleConfigurationModal: React.FC<
   SpecialistScheduleConfigurationModalProps
 > = ({ isOpen, onClose }) => {
@@ -47,6 +63,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     BUILDINGS[0].id
   );
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [newOption, setNewOption] = useState('');
 
   const fetchConfig = useCallback(async () => {
     if (isAuthBypass) {
@@ -115,6 +132,12 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         dayLabel: 'Day',
         customDayNames: {},
         blocks: [],
+        specialistOptions:
+          selectedBuildingId === 'schumann-elementary'
+            ? SCHUMANN_DEFAULT_OPTIONS
+            : selectedBuildingId === 'orono-intermediate-school'
+              ? INTERMEDIATE_DEFAULT_OPTIONS
+              : [],
       },
     [config.buildingDefaults, selectedBuildingId]
   );
@@ -156,6 +179,26 @@ export const SpecialistScheduleConfigurationModal: React.FC<
     const newNames = { ...(currentBuildingConfig.customDayNames ?? {}) };
     newNames[dayNumber] = name;
     updateBuilding({ customDayNames: newNames });
+  };
+
+  const addOption = () => {
+    if (!newOption.trim()) return;
+    const currentOptions = currentBuildingConfig.specialistOptions ?? [];
+    if (currentOptions.includes(newOption.trim())) {
+      setNewOption('');
+      return;
+    }
+    updateBuilding({
+      specialistOptions: [...currentOptions, newOption.trim()],
+    });
+    setNewOption('');
+  };
+
+  const removeOption = (option: string) => {
+    const currentOptions = currentBuildingConfig.specialistOptions ?? [];
+    updateBuilding({
+      specialistOptions: currentOptions.filter((o) => o !== option),
+    });
   };
 
   // Calendar Helpers
@@ -248,7 +291,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
@@ -307,7 +350,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">
                   {/* Left: Rotation Settings */}
                   <div className="space-y-6">
                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-6">
@@ -361,7 +404,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </span>
                         <input
                           type="text"
-                          value={currentBuildingConfig.dayLabel}
+                          value={currentBuildingConfig.dayLabel ?? ''}
                           onChange={(e) =>
                             updateBuilding({ dayLabel: e.target.value })
                           }
@@ -421,34 +464,91 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         ))}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="bg-teal-50 p-5 rounded-2xl border border-teal-100 space-y-2">
-                      <h4 className="text-xs font-black text-teal-800 uppercase tracking-widest">
-                        Current Summary
+                  {/* Middle: Specialist Options */}
+                  <div className="space-y-6">
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 h-full flex flex-col">
+                      <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                        <Settings2 className="w-4 h-4 text-teal-500" />{' '}
+                        Specialist Classes
                       </h4>
-                      <p className="text-xs text-teal-700/70">
-                        {selectedBuildingId === 'schumann-elementary'
-                          ? 'Schumann Elementary'
-                          : 'Intermediate School'}{' '}
-                        is currently using a{' '}
-                        <strong>
-                          {currentBuildingConfig.cycleLength}-
-                          {currentBuildingConfig.dayLabel}
-                        </strong>{' '}
-                        rotation.
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">
+                        Predefined options for teachers
                       </p>
-                      {currentPreviewDay && (
-                        <div className="pt-2 flex items-center gap-2">
-                          <span className="text-xxs font-bold text-teal-600 uppercase tracking-widest">
-                            Today is:
-                          </span>
-                          <span className="bg-white px-2 py-0.5 rounded-lg border border-teal-200 text-teal-700 font-black text-xs">
-                            {currentPreviewDay === 'No School'
-                              ? 'Non-School Day'
-                              : currentPreviewDay}
-                          </span>
-                        </div>
-                      )}
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newOption}
+                          onChange={(e) => setNewOption(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && addOption()}
+                          placeholder="e.g. 🎨 Art"
+                          className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold"
+                        />
+                        <button
+                          onClick={addOption}
+                          className="p-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-1 min-h-[200px]">
+                        {(currentBuildingConfig.specialistOptions ?? []).map(
+                          (option) => (
+                            <div
+                              key={option}
+                              className="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-100 group"
+                            >
+                              <span className="text-xs font-bold text-slate-700">
+                                {option}
+                              </span>
+                              <button
+                                onClick={() => removeOption(option)}
+                                className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )
+                        )}
+                        {(currentBuildingConfig.specialistOptions ?? [])
+                          .length === 0 && (
+                          <div className="text-center py-8 text-slate-300 italic text-xs">
+                            No options added.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-teal-50 p-4 rounded-xl border border-teal-100 space-y-2 shrink-0">
+                        <h4 className="text-xs font-black text-teal-800 uppercase tracking-widest">
+                          Current Summary
+                        </h4>
+                        <p className="text-xs text-teal-700/70">
+                          {selectedBuildingId === 'schumann-elementary'
+                            ? 'Schumann Elementary'
+                            : 'Intermediate School'}{' '}
+                          is currently using a{' '}
+                          <strong>
+                            {currentBuildingConfig.cycleLength}-
+                            {currentBuildingConfig.dayLabel}
+                          </strong>{' '}
+                          rotation.
+                        </p>
+                        {currentPreviewDay && (
+                          <div className="pt-1 flex items-center gap-2">
+                            <span className="text-xxs font-bold text-teal-600 uppercase tracking-widest">
+                              Today is:
+                            </span>
+                            <span className="bg-white px-2 py-0.5 rounded-lg border border-teal-200 text-teal-700 font-black text-xs">
+                              {currentPreviewDay === 'No School'
+                                ? 'Non-School Day'
+                                : currentPreviewDay}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

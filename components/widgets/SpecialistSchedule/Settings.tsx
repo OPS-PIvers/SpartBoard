@@ -6,6 +6,7 @@ import {
   SpecialistScheduleConfig,
   SpecialistScheduleItem,
   SpecialistScheduleGlobalConfig,
+  SpecialistScheduleRecurringItem,
 } from '@/types';
 import {
   Settings2,
@@ -17,6 +18,8 @@ import {
   Palette,
   Save,
   Users,
+  Calendar,
+  Repeat,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 
@@ -25,6 +28,22 @@ const FONTS = [
   { id: 'font-mono', label: 'Digital', icon: '01' },
   { id: 'font-sans', label: 'Modern', icon: 'Aa' },
   { id: 'font-handwritten', label: 'School', icon: '✏️' },
+];
+
+const RECURRING_DEFAULTS = [
+  { task: '🍴 Lunch', startTime: '11:00', endTime: '11:30' },
+  { task: '🛝 Recess', startTime: '11:30', endTime: '12:00' },
+  { task: '🚌 Dismissal', startTime: '15:30', endTime: '15:45' },
+];
+
+const DAYS_OF_WEEK = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
 ];
 
 export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
@@ -47,12 +66,14 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     cycleLength: 6,
     dayLabel: 'Day',
     customDayNames: {} as Record<number, string>,
+    specialistOptions: [],
   };
 
   const {
     cycleLength = 6,
     dayLabel = 'Day',
     customDayNames = {} as Record<number, string>,
+    specialistOptions = [],
   } = buildingConfig;
 
   const {
@@ -61,14 +82,20 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     cardColor = '#ffffff',
     cardOpacity = 1,
     specialistClass = '',
+    recurringItems = [],
   } = config;
 
-  const [activeTab, setActiveTab] = useState<'general' | 'schedules'>(
-    'general'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'general' | 'schedules' | 'recurring'
+  >('general');
   const [selectedCycleDay, setSelectedCycleDay] = useState(1);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  const [tempItem, setTempItem] = useState<SpecialistScheduleItem | null>(null);
+  const [editingRecurringIndex, setEditingRecurringIndex] = useState<
+    number | null
+  >(null);
+  const [tempItem, setTempItem] = useState<
+    SpecialistScheduleItem | SpecialistScheduleRecurringItem | null
+  >(null);
 
   // Schedule Item Helpers
   const currentDayConfig = cycleDays.find(
@@ -135,6 +162,72 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  const startEditRecurring = (index: number) => {
+    setEditingRecurringIndex(index);
+    setTempItem({ ...recurringItems[index] });
+  };
+
+  const startAddRecurring = (type: 'daily' | 'weekly') => {
+    setEditingRecurringIndex(-1);
+    setTempItem({
+      id: crypto.randomUUID(),
+      startTime: '',
+      endTime: '',
+      task: '',
+      type,
+      dayOfWeek: type === 'weekly' ? 5 : undefined,
+    } as SpecialistScheduleRecurringItem);
+  };
+
+  const addRecurringDefault = (def: {
+    task: string;
+    startTime: string;
+    endTime: string;
+  }) => {
+    const newItem: SpecialistScheduleRecurringItem = {
+      id: crypto.randomUUID(),
+      ...def,
+      type: 'daily',
+    };
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        recurringItems: [...recurringItems, newItem],
+      } as SpecialistScheduleConfig,
+    });
+  };
+
+  const saveRecurring = () => {
+    if (!tempItem) return;
+    const newItems =
+      editingRecurringIndex === -1
+        ? [...recurringItems, tempItem as SpecialistScheduleRecurringItem]
+        : recurringItems.map((it, i) =>
+            i === editingRecurringIndex
+              ? (tempItem as SpecialistScheduleRecurringItem)
+              : it
+          );
+
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        recurringItems: newItems,
+      } as SpecialistScheduleConfig,
+    });
+    setEditingRecurringIndex(null);
+    setTempItem(null);
+  };
+
+  const deleteRecurring = (index: number) => {
+    const newItems = recurringItems.filter((_, i) => i !== index);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        recurringItems: newItems,
+      } as SpecialistScheduleConfig,
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* Tabs */}
@@ -149,7 +242,13 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           onClick={() => setActiveTab('schedules')}
           className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'schedules' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
-          Schedules
+          Rotation
+        </button>
+        <button
+          onClick={() => setActiveTab('recurring')}
+          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'recurring' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+        >
+          Recurring
         </button>
       </div>
 
@@ -266,14 +365,6 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
             </div>
           </section>
-
-          <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex gap-3">
-            <Settings2 className="w-5 h-5 text-blue-500 shrink-0" />
-            <p className="text-[11px] text-blue-700 leading-tight">
-              <strong>Admin Config:</strong> The rotation ({cycleLength}-
-              {dayLabel}) and school days are managed by school administrators.
-            </p>
-          </div>
         </div>
       )}
 
@@ -393,6 +484,25 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
                     Activity Name
                   </label>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {specialistOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() =>
+                          setTempItem((prev) =>
+                            prev ? { ...prev, task: opt } : null
+                          )
+                        }
+                        className={`px-2 py-1 rounded-lg border text-xxs font-bold transition-all ${
+                          tempItem?.task === opt
+                            ? 'bg-teal-600 text-white border-teal-600'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
                     value={tempItem?.task}
@@ -402,7 +512,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                       )
                     }
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
-                    placeholder="e.g. Art, PE, Music"
+                    placeholder="Type activity name..."
                     autoFocus
                   />
                 </div>
@@ -452,6 +562,255 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   variant="primary"
                   className="flex-1 bg-teal-600 hover:bg-teal-700 border-none"
                   onClick={saveItem}
+                  disabled={!tempItem?.task || !tempItem?.startTime}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Save
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'recurring' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {editingRecurringIndex === null ? (
+            <div className="space-y-6">
+              {/* Daily Recurring */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Repeat className="w-3 h-3" /> Every Day
+                  </label>
+                  <button
+                    onClick={() => startAddRecurring('daily')}
+                    className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Daily
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {RECURRING_DEFAULTS.map((def) => {
+                    const exists = recurringItems.some(
+                      (ri) => ri.task === def.task && ri.type === 'daily'
+                    );
+                    if (exists) return null;
+                    return (
+                      <button
+                        key={def.task}
+                        onClick={() => addRecurringDefault(def)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:border-teal-500 hover:bg-teal-50 transition-all flex items-center gap-2"
+                      >
+                        <Plus className="w-3 h-3 text-teal-500" /> {def.task}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2">
+                  {recurringItems
+                    .filter((ri) => ri.type === 'daily')
+                    .map((item) => {
+                      const actualIndex = recurringItems.indexOf(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between group shadow-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-black text-teal-600 tabular-nums">
+                              {item.startTime}
+                              {item.endTime ? ` - ${item.endTime}` : ''}
+                            </span>
+                            <div className="font-bold text-slate-700 truncate">
+                              {item.task}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => startEditRecurring(actualIndex)}
+                              className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+                            >
+                              <Settings2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteRecurring(actualIndex)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </section>
+
+              {/* Weekly Recurring */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Calendar className="w-3 h-3" /> Specific Day of Week
+                  </label>
+                  <button
+                    onClick={() => startAddRecurring('weekly')}
+                    className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Weekly
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {recurringItems
+                    .filter((ri) => ri.type === 'weekly')
+                    .map((item) => {
+                      const actualIndex = recurringItems.indexOf(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between group shadow-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">
+                                Every {DAYS_OF_WEEK[item.dayOfWeek ?? 0]}
+                              </span>
+                              <span className="text-xs font-black text-teal-600 tabular-nums">
+                                {item.startTime}
+                                {item.endTime ? ` - ${item.endTime}` : ''}
+                              </span>
+                            </div>
+                            <div className="font-bold text-slate-700 truncate">
+                              {item.task}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => startEditRecurring(actualIndex)}
+                              className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+                            >
+                              <Settings2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteRecurring(actualIndex)}
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </section>
+            </div>
+          ) : (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-black text-slate-800 uppercase tracking-wider text-sm">
+                  {editingRecurringIndex === -1
+                    ? 'Add Recurring'
+                    : 'Edit Recurring'}
+                </h4>
+                <button
+                  onClick={() => setEditingRecurringIndex(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {tempItem &&
+                  'type' in tempItem &&
+                  tempItem.type === 'weekly' && (
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                        Repeat Every
+                      </label>
+                      <select
+                        value={tempItem.dayOfWeek}
+                        onChange={(e) =>
+                          setTempItem({
+                            ...tempItem,
+                            dayOfWeek: parseInt(e.target.value),
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold text-sm"
+                      >
+                        {DAYS_OF_WEEK.map((day, i) => (
+                          <option key={day} value={i}>
+                            {day}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                    Activity Name
+                  </label>
+                  <input
+                    type="text"
+                    value={tempItem?.task}
+                    onChange={(e) =>
+                      setTempItem((prev) =>
+                        prev ? { ...prev, task: e.target.value } : null
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. Lunch, Recess..."
+                    autoFocus
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                      Start Time
+                    </label>
+                    <input
+                      type="time"
+                      value={tempItem?.startTime}
+                      onChange={(e) =>
+                        setTempItem((prev) =>
+                          prev ? { ...prev, startTime: e.target.value } : null
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                      End Time
+                    </label>
+                    <input
+                      type="time"
+                      value={tempItem?.endTime}
+                      onChange={(e) =>
+                        setTempItem((prev) =>
+                          prev ? { ...prev, endTime: e.target.value } : null
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setEditingRecurringIndex(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 border-none"
+                  onClick={saveRecurring}
                   disabled={!tempItem?.task || !tempItem?.startTime}
                 >
                   <Save className="w-4 h-4 mr-2" /> Save

@@ -7,6 +7,7 @@ import {
   SpecialistScheduleGlobalConfig,
   ClockConfig,
   DEFAULT_GLOBAL_STYLE,
+  SpecialistScheduleItem,
 } from '@/types';
 import { Calendar, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -88,6 +89,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     cardColor = '#ffffff',
     cardOpacity = 1,
     specialistClass = '',
+    recurringItems = [],
   } = config;
 
   const [now, setNow] = useState(new Date());
@@ -98,6 +100,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   }, []);
 
   const todayStr = useMemo(() => toDateStr(now), [now]);
+  const dayOfWeek = now.getDay(); // 0-6
 
   // Determine the current Day Number and Label
   const { currentDayNumber, currentDayLabel, isSchoolDay } = useMemo(() => {
@@ -143,11 +146,37 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     };
   }, [schoolDays, todayStr, cycleLength, blocks, customDayNames, dayLabel]);
 
+  // Merge rotation items, daily items, and weekly items
   const currentItems = useMemo(() => {
-    if (currentDayNumber === null) return [];
-    const dayConfig = cycleDays.find((d) => d.dayNumber === currentDayNumber);
-    return dayConfig?.items ?? [];
-  }, [currentDayNumber, cycleDays]);
+    let merged: SpecialistScheduleItem[] = [];
+
+    // 1. Add rotation-specific items (only on school days)
+    if (isSchoolDay && currentDayNumber !== null) {
+      const dayConfig = cycleDays.find((d) => d.dayNumber === currentDayNumber);
+      if (dayConfig) {
+        merged = [...dayConfig.items];
+      }
+    }
+
+    // 2. Add daily recurring items
+    const dailyItems = recurringItems.filter((ri) => ri.type === 'daily');
+    merged = [...merged, ...dailyItems];
+
+    // 3. Add weekly recurring items for today
+    const weeklyItems = recurringItems.filter(
+      (ri) => ri.type === 'weekly' && ri.dayOfWeek === dayOfWeek
+    );
+    merged = [...merged, ...weeklyItems];
+
+    // 4. Sort by startTime
+    merged.sort((a, b) => {
+      const timeA = parseTime(a.startTime);
+      const timeB = parseTime(b.startTime);
+      return timeA - timeB;
+    });
+
+    return merged;
+  }, [currentDayNumber, cycleDays, isSchoolDay, recurringItems, dayOfWeek]);
 
   const activeIndex = useMemo(() => {
     if (!currentItems.length) return -1;
@@ -323,20 +352,15 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               );
             })}
 
-            {!isSchoolDay && (
-              <ScaledEmptyState
-                icon={Calendar}
-                title="No School"
-                subtitle="Today is not marked as a school day in the rotation."
-                className="opacity-40"
-              />
-            )}
-
-            {isSchoolDay && currentItems.length === 0 && (
+            {currentItems.length === 0 && (
               <ScaledEmptyState
                 icon={Clock}
                 title="Empty Schedule"
-                subtitle={`No items added for ${currentDayLabel}.`}
+                subtitle={
+                  isSchoolDay
+                    ? `No items added for ${currentDayLabel}.`
+                    : 'Non-school day. Only recurring items would show here.'
+                }
                 className="opacity-40"
               />
             )}

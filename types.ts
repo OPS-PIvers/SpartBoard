@@ -1127,6 +1127,11 @@ export interface SpecialistScheduleItem {
   linkedWidgets?: WidgetType[];
 }
 
+export interface SpecialistScheduleRecurringItem extends SpecialistScheduleItem {
+  type: 'daily' | 'weekly';
+  dayOfWeek?: number; // 0-6 (Sunday-Saturday), only for 'weekly'
+}
+
 export interface SpecialistScheduleCycleDay {
   dayNumber: number; // 1 to cycleLength
   items: SpecialistScheduleItem[];
@@ -1143,6 +1148,8 @@ export interface SpecialistScheduleBuildingConfig {
   customDayNames?: Record<number, string>;
   /** Explicit date blocks for 10-block rotation (Intermediate School) */
   blocks?: { dayNumber: number; startDate: string; endDate: string }[];
+  /** Predefined specialist options for this building (e.g., ["🎵 Music", "👟 PE"]) */
+  specialistOptions?: string[];
 }
 
 export interface SpecialistScheduleGlobalConfig {
@@ -1155,6 +1162,8 @@ export interface SpecialistScheduleConfig {
   specialistClass?: string;
   /** Mapping of Day Number (1-based) to its schedule items. */
   cycleDays: SpecialistScheduleCycleDay[];
+  /** Items that repeat every day or on specific days of the week */
+  recurringItems?: SpecialistScheduleRecurringItem[];
   fontFamily?: string;
   cardColor?: string;
   cardOpacity?: number;
