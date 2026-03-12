@@ -26,6 +26,7 @@ vi.mock('lucide-react', () => ({
   RefreshCw: () => <div />,
   BookOpen: () => <div />,
   Trash2: () => <div data-testid="trash-2" />,
+  Palette: () => <div data-testid="palette" />,
 }));
 
 const mockUpdateWidget = vi.fn();

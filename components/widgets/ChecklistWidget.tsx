@@ -22,6 +22,48 @@ import {
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { SettingsLabel } from '../common/SettingsLabel';
 import { WidgetLayout } from './WidgetLayout';
+import { Palette } from 'lucide-react';
+
+const FONTS = [
+  { id: 'global', label: 'Inherit', icon: 'G' },
+  { id: 'font-mono', label: 'Digital', icon: '01' },
+  { id: 'font-sans', label: 'Modern', icon: 'Aa' },
+  { id: 'font-handwritten', label: 'School', icon: '✏️' },
+];
+
+const PALETTE = [
+  '#ffffff', // Default white
+  '#f8fafc', // slate-50
+  '#f0f9ff', // sky-50
+  '#f5f3ff', // violet-50
+  '#fff7ed', // orange-50
+  '#f0fdf4', // green-50
+  '#fff1f2', // rose-50
+];
+
+const FONT_COLORS = [
+  '#334155', // slate-700 (default)
+  '#1e293b', // slate-800
+  '#000000', // pure black
+  '#2d3f89', // brand-blue
+  '#ad2122', // brand-red
+  '#166534', // green-800
+  '#1e40af', // blue-800
+];
+
+const hexToRgba = (hex: string, alpha: number): string => {
+  const clean = (hex ?? '#ffffff').replace('#', '');
+  const a =
+    typeof alpha === 'number' && !isNaN(alpha)
+      ? Math.max(0, Math.min(1, alpha))
+      : 1;
+  if (clean.length !== 6) return `rgba(255, 255, 255, ${a})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(255, 255, 255, ${a})`;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
 
 interface ChecklistCardProps {
   id: string;
@@ -32,6 +74,9 @@ interface ChecklistCardProps {
   iconSize: string;
   cardPadding: string;
   cardGap: string;
+  cardColor: string;
+  cardOpacity: number;
+  fontColor: string;
 }
 
 const ChecklistCard = React.memo<ChecklistCardProps>(
@@ -44,6 +89,9 @@ const ChecklistCard = React.memo<ChecklistCardProps>(
     iconSize,
     cardPadding,
     cardGap,
+    cardColor,
+    cardOpacity,
+    fontColor,
   }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === ' ') e.preventDefault();
@@ -51,8 +99,14 @@ const ChecklistCard = React.memo<ChecklistCardProps>(
         onToggle(id);
       }
     };
+
+    // Use the user-selected card color. Completed items get a neutral gray tint.
+    const bgColor = isCompleted
+      ? hexToRgba('#cbd5e1', cardOpacity) // slate-300
+      : hexToRgba(cardColor, cardOpacity);
+
     return (
-      <div role="listitem">
+      <div role="listitem" className="flex-1 min-h-0 flex flex-col">
         <div
           role="checkbox"
           aria-checked={isCompleted}
@@ -60,12 +114,14 @@ const ChecklistCard = React.memo<ChecklistCardProps>(
           tabIndex={0}
           onClick={() => onToggle(id)}
           onKeyDown={handleKeyDown}
-          className={`w-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] ${
-            isCompleted
-              ? 'border-slate-200 bg-slate-100/80'
-              : 'border-slate-200 bg-white'
+          className={`w-full h-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] ${
+            isCompleted ? 'border-slate-200' : 'border-slate-200'
           }`}
-          style={{ gap: cardGap, padding: cardPadding }}
+          style={{
+            gap: cardGap,
+            padding: cardPadding,
+            backgroundColor: bgColor,
+          }}
         >
           <div className="shrink-0 transition-transform active:scale-90">
             {isCompleted ? (
@@ -81,12 +137,12 @@ const ChecklistCard = React.memo<ChecklistCardProps>(
             )}
           </div>
           <span
-            className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all ${
-              isCompleted
-                ? 'text-slate-400 line-through decoration-slate-300'
-                : 'text-slate-700'
-            }`}
-            style={{ fontSize: textSize }}
+            className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all`}
+            style={{
+              fontSize: textSize,
+              color: isCompleted ? '#94a3b8' : fontColor, // slate-400 for completed
+              textDecoration: isCompleted ? 'line-through' : 'none',
+            }}
           >
             {label}
           </span>
@@ -112,7 +168,17 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     lastNames = '',
     completedNames = [],
     scaleMultiplier = 1,
+    fontFamily = 'global',
+    cardColor = '#ffffff',
+    cardOpacity = 1,
+    fontColor = '#334155',
   } = config;
+
+  const getFontClass = () => {
+    if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;
+    if (fontFamily.startsWith('font-')) return fontFamily;
+    return `font-${fontFamily}`;
+  };
 
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId),
@@ -244,10 +310,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className="flex-1 overflow-y-auto custom-scrollbar flex flex-col"
+            className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${getFontClass()}`}
             style={{
-              padding:
-                'min(10px, 2.2cqmin) min(12px, 2.5cqmin) min(6px, 1.5cqmin)',
+              padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
               gap: `min(${Math.round(8 * sm)}px, ${(1.8 * sm).toFixed(1)}cqmin)`,
             }}
           >
@@ -263,6 +328,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     iconSize={iconSize}
                     cardPadding={cardPadding}
                     cardGap={cardGap}
+                    cardColor={cardColor}
+                    cardOpacity={cardOpacity}
+                    fontColor={fontColor}
                   />
                 ))
               : students.map((student) => (
@@ -276,55 +344,58 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     iconSize={iconSize}
                     cardPadding={cardPadding}
                     cardGap={cardGap}
+                    cardColor={cardColor}
+                    cardOpacity={cardOpacity}
+                    fontColor={fontColor}
                   />
                 ))}
-          </div>
-        </div>
-      }
-      footer={
-        <div
-          style={{
-            padding: '0 min(12px, 2.5cqmin) min(10px, 2.2cqmin)',
-            display: 'flex',
-            gap: 'min(8px, 1.8cqmin)',
-          }}
-        >
-          <button
-            onClick={resetToday}
-            className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin)',
-              fontSize: 'min(11px, 3cqmin)',
-            }}
-          >
-            <RefreshCw
+
+            {/* Action Buttons - Moved inside scrollable area for consistent spacing */}
+            <div
               style={{
-                width: 'min(13px, 3.2cqmin)',
-                height: 'min(13px, 3.2cqmin)',
-              }}
-            />
-            Reset Checks
-          </button>
-          {mode === 'manual' && (
-            <button
-              onClick={removeCompleted}
-              className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin)',
-                fontSize: 'min(11px, 3cqmin)',
+                display: 'flex',
+                gap: 'min(8px, 1.8cqmin)',
+                marginTop: `min(${Math.round(4 * sm)}px, ${(1 * sm).toFixed(1)}cqmin)`, // Add small extra gap before buttons
               }}
             >
-              <Trash2
+              <button
+                onClick={resetToday}
+                className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
                 style={{
-                  width: 'min(13px, 3.2cqmin)',
-                  height: 'min(13px, 3.2cqmin)',
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(8px, 2cqmin)',
+                  fontSize: 'min(11px, 3cqmin)',
                 }}
-              />
-              Remove Completed
-            </button>
-          )}
+              >
+                <RefreshCw
+                  style={{
+                    width: 'min(13px, 3.2cqmin)',
+                    height: 'min(13px, 3.2cqmin)',
+                  }}
+                />
+                Reset Checks
+              </button>
+              {mode === 'manual' && (
+                <button
+                  onClick={removeCompleted}
+                  className="flex-1 flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(8px, 2cqmin)',
+                    fontSize: 'min(11px, 3cqmin)',
+                  }}
+                >
+                  <Trash2
+                    style={{
+                      width: 'min(13px, 3.2cqmin)',
+                      height: 'min(13px, 3.2cqmin)',
+                    }}
+                  />
+                  Remove Completed
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       }
     />
@@ -343,6 +414,10 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     firstNames = '',
     lastNames = '',
     scaleMultiplier = 1,
+    fontFamily = 'global',
+    cardColor = '#ffffff',
+    cardOpacity = 1,
+    fontColor = '#334155',
   } = config;
 
   const [localText, setLocalText] = React.useState(
@@ -533,6 +608,126 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
           <span className="w-10 text-center font-mono  text-slate-700 text-xs">
             {scaleMultiplier}x
           </span>
+        </div>
+      </div>
+
+      <hr className="border-slate-100" />
+
+      {/* Typography */}
+      <div>
+        <SettingsLabel icon={Type}>Typography</SettingsLabel>
+        <div className="grid grid-cols-4 gap-2">
+          {FONTS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: { ...config, fontFamily: f.id } as ChecklistConfig,
+                })
+              }
+              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                fontFamily === f.id || (!fontFamily && f.id === 'global')
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
+              <span className="text-xxxs uppercase text-slate-600 font-bold">
+                {f.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Font Color */}
+      <div>
+        <SettingsLabel icon={Palette}>Font Color</SettingsLabel>
+        <div className="flex flex-wrap gap-2 px-1">
+          {FONT_COLORS.map((color) => (
+            <button
+              key={color}
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: { ...config, fontColor: color } as ChecklistConfig,
+                })
+              }
+              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
+                fontColor === color
+                  ? 'border-slate-800 scale-110 shadow-sm'
+                  : 'border-transparent'
+              }`}
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Card Style */}
+      <div>
+        <SettingsLabel icon={Palette}>Card Style</SettingsLabel>
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
+          {/* Card Color */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                Card Color
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {cardColor}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PALETTE.map((color) => (
+                <button
+                  key={color}
+                  onClick={() =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        cardColor: color,
+                      } as ChecklistConfig,
+                    })
+                  }
+                  className={`w-6 h-6 rounded-md border transition-all hover:scale-110 ${
+                    cardColor === color
+                      ? 'border-indigo-500 ring-2 ring-indigo-200'
+                      : 'border-slate-200'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Card Opacity */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                Opacity
+              </span>
+              <span className="text-xs text-slate-500 tabular-nums font-bold">
+                {Math.round(cardOpacity * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={cardOpacity}
+              onChange={(e) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    cardOpacity: parseFloat(e.target.value),
+                  } as ChecklistConfig,
+                })
+              }
+              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
         </div>
       </div>
     </div>

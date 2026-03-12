@@ -226,6 +226,10 @@ export interface ChecklistConfig {
   firstNames?: string;
   lastNames?: string;
   completedNames?: string[]; // Tracks IDs or Names checked in roster mode
+  fontFamily?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontColor?: string;
 }
 
 export interface RandomGroup {
