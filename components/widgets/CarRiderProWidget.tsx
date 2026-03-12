@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { WidgetData } from '../../types';
+import { WidgetData } from '@/types';
 import { CarFront, ExternalLink, Loader2 } from 'lucide-react';
-import { ScaledEmptyState } from '../common/ScaledEmptyState';
-import { WidgetLayout } from './WidgetLayout';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '@/config/firebase';
 
 export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
@@ -41,14 +41,22 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         content={
           <div className="w-full h-full flex items-center justify-center bg-slate-50">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+            <Loader2
+              className="animate-spin text-slate-300"
+              style={{
+                width: 'min(32px, 8cqmin)',
+                height: 'min(32px, 8cqmin)',
+              }}
+            />
           </div>
         }
       />
     );
   }
 
-  if (!url) {
+  const isValidUrl = url?.startsWith('https://');
+
+  if (!url || !isValidUrl) {
     return (
       <WidgetLayout
         padding="p-0"
@@ -56,7 +64,11 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
           <ScaledEmptyState
             icon={CarFront}
             title="Car Rider Pro Disabled"
-            subtitle="Your district administrator has not configured the global login link yet."
+            subtitle={
+              !url
+                ? 'Your district administrator has not configured the global login link yet.'
+                : 'The configured login link is invalid or insecure.'
+            }
           />
         }
       />

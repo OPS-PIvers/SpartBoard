@@ -102,7 +102,7 @@ const CarRiderProAdminConfig: React.FC = () => {
           />
         </div>
         <button
-          onClick={handleSave}
+          onClick={() => void handleSave()}
           disabled={isSaving}
           className="px-6 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
         >
