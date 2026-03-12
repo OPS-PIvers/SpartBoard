@@ -228,7 +228,11 @@
       "autoPickRandomStudent": "Auto-Pick Random Student",
       "addRandomizerTip": "Add a Randomizer widget to auto-pick the next student when the timer ends.",
       "autoPickNext": "Auto-Pick Next",
-      "triggerRandomizerWhenTimerEnds": "Trigger Randomizer when timer ends"
+      "triggerRandomizerWhenTimerEnds": "Trigger Randomizer when timer ends",
+      "autoAdvanceNextUpQueue": "Auto-Advance NextUp Queue",
+      "addNextUpTip": "Add a NextUp widget to automatically advance to the next student when the timer ends!",
+      "autoAdvanceNext": "Auto-Advance Next",
+      "advanceQueueOnEnd": "Advance the queue when timer ends"
     },
     "weather": {
       "actual": "Actual",

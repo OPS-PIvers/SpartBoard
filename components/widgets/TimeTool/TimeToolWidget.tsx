@@ -963,24 +963,23 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Nexus Connection: NextUp Auto-Advance */}
         <div className="pt-2 border-t border-slate-100 mt-4">
           <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
-            Auto-Advance NextUp Queue:
+            {t('widgets.timeTool.autoAdvanceNextUpQueue')}:
           </p>
           {!hasNextUp ? (
             <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
               <span className="text-lg mt-px">&#128161;</span>
               <p className="font-medium leading-snug">
-                Add a NextUp widget to automatically advance to the next student
-                when the timer ends!
+                {t('widgets.timeTool.addNextUpTip')}
               </p>
             </div>
           ) : (
             <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-indigo-900">
-                  Auto-Advance Next
+                  {t('widgets.timeTool.autoAdvanceNext')}
                 </p>
                 <p className="text-xxxs text-indigo-600 uppercase">
-                  Advance the queue when timer ends
+                  {t('widgets.timeTool.advanceQueueOnEnd')}
                 </p>
               </div>
               <Toggle
