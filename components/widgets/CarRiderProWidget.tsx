@@ -84,21 +84,13 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <WidgetLayout
       padding="p-0"
-      header={
-        <div
-          className="w-full flex items-center justify-between border-b border-slate-100/30 cursor-move hover:bg-slate-900/5 transition-colors group/crp-header px-2"
-          style={{ height: 'min(20px, 4cqmin)' }}
-        >
-          <div className="w-4" /> {/* Spacer */}
-          <div
-            className="bg-slate-400/30 rounded-full group-hover/crp-header:bg-slate-400/50 transition-colors"
-            style={{ width: 'min(32px, 8cqmin)', height: 'min(4px, 1cqmin)' }}
-          />
+      content={
+        <div className="w-full h-full relative group/crp-content">
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-400 hover:text-blue-500 transition-colors"
+            className="absolute top-2 right-2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors"
             title="Open in new tab"
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -109,15 +101,13 @@ export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             />
           </a>
+          <iframe
+            title="Car Rider Pro"
+            src={url}
+            className="w-full h-full border-none"
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+          />
         </div>
-      }
-      content={
-        <iframe
-          title="Car Rider Pro"
-          src={url}
-          className="w-full h-full border-none"
-          sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-        />
       }
     />
   );

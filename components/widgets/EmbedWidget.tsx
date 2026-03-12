@@ -127,25 +127,14 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <WidgetLayout
       padding="p-0"
-      header={
-        <div
-          className="w-full flex items-center justify-between border-b border-slate-100/30 cursor-move hover:bg-slate-900/5 transition-colors group/embed-header px-2"
-          style={{ height: 'min(20px, 4cqmin)' }}
-        >
-          <div className="w-4" /> {/* Spacer */}
-          <div
-            className="bg-slate-400/30 rounded-full group-hover/embed-header:bg-slate-400/50 transition-colors"
-            style={{
-              width: 'min(32px, 8cqmin)',
-              height: 'min(4px, 1cqmin)',
-            }}
-          />
+      content={
+        <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative group/embed-content">
           {mode === 'url' && url && (
             <a
               href={sanitizedUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-blue-500 transition-colors"
+              className="absolute top-2 right-2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors"
               title="Open in new tab"
               onClick={(e) => e.stopPropagation()}
             >
@@ -157,11 +146,6 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               />
             </a>
           )}
-          {mode !== 'url' && <div className="w-4" />}
-        </div>
-      }
-      content={
-        <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative">
           {mode === 'url' && isActuallyEmbeddable === false ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50">
               <div className="bg-amber-100 p-4 rounded-full mb-4">
