@@ -51,3 +51,4 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 ## WILL NOT IMPLEMENT
 
 - **Poll -> Scoreboard:** this is not a connection that adds meaningful value.
+## 2026-03-11 - [OCR to Notes] **Source:** Webcam **Destination:** Text **Value:** Instantly converts physical documents into editable digital text on the dashboard.

@@ -12,9 +12,10 @@ import {
   Video,
   FlipHorizontal,
 } from 'lucide-react';
-import { WidgetData } from '../../types';
+import { WidgetData, TextConfig, WidgetConfig } from '../../types';
 import { ScaledEmptyState } from '../common/ScaledEmptyState';
 import { useAuth } from '../../context/useAuth';
+import { useDashboard } from '../../context/useDashboard';
 import { extractTextWithGemini } from '../../utils/ai';
 import Tesseract from 'tesseract.js';
 
@@ -35,6 +36,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
 }) => {
   const { featurePermissions } = useAuth();
+  const { activeDashboard, updateWidget, addWidget, addToast } = useDashboard();
   const webcamPermission = featurePermissions.find(
     (p) => p.widgetType === 'webcam'
   );
@@ -155,6 +157,49 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
       setTimeout(() => setCopied(false), 2000);
     }
   }, [extractedText]);
+
+  const handleSendToNotes = useCallback(() => {
+    if (!extractedText) return;
+
+    // Find an existing text widget
+    const existingTextWidget = activeDashboard?.widgets.find(
+      (w) => w.type === 'text'
+    );
+
+    if (existingTextWidget) {
+      // Append text
+      const existingConfig = existingTextWidget.config as TextConfig;
+      const currentContent = existingConfig.content ?? '';
+      const newContent = currentContent
+        ? `${currentContent}<br/><br/>${extractedText}`
+        : extractedText;
+      updateWidget(existingTextWidget.id, {
+        config: {
+          ...existingTextWidget.config,
+          content: newContent,
+        } as unknown as WidgetConfig,
+      });
+      addToast('Text appended to Notes', 'success');
+    } else {
+      // Create new text widget
+      addWidget('text', {
+        x: _widget.x + _widget.w + 20,
+        y: _widget.y,
+        config: {
+          content: extractedText,
+        } as TextConfig,
+      });
+      addToast('Created new Notes widget with text', 'success');
+    }
+    setShowTextModal(false);
+  }, [
+    extractedText,
+    activeDashboard,
+    updateWidget,
+    addWidget,
+    addToast,
+    _widget,
+  ]);
 
   const takePhoto = useCallback(() => {
     if (videoRef.current) {
@@ -432,6 +477,17 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                 className="p-4 border-t border-white/10 flex justify-end gap-3"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}
               >
+                <button
+                  onClick={handleSendToNotes}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
+                  style={{
+                    fontSize: 'min(12px, 3cqmin)',
+                    padding: 'min(8px, 1.5cqmin) min(16px, 3cqmin)',
+                  }}
+                >
+                  <FileText style={{ width: 'min(14px, 3.5cqmin)' }} />
+                  Send to Notes
+                </button>
                 <button
                   onClick={handleCopy}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
