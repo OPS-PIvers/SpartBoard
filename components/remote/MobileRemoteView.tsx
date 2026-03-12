@@ -192,11 +192,10 @@ export const MobileRemoteView: React.FC = () => {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center gap-4 p-8 text-center">
         <Smartphone className="w-12 h-12 text-white/20" />
-        <p className="text-white/60 font-semibold">
-          Remote Control Disabled
-        </p>
+        <p className="text-white/60 font-semibold">Remote Control Disabled</p>
         <p className="text-white/40 text-sm">
-          Enable Remote Control from the Dock on your main board to start controlling widgets here.
+          Enable Remote Control from the Dock on your main board to start
+          controlling widgets here.
         </p>
       </div>
     );

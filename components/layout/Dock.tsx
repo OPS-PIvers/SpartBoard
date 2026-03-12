@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, Users, Cast, Square, Smartphone } from 'lucide-react';
+import { LayoutGrid, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -630,7 +630,8 @@ export const Dock: React.FC = () => {
                 if (type === 'record')
                   return canAccessFeature('screen-recording');
                 if (type === 'magic') return canAccessFeature('magic-layout');
-                if (type === 'remote') return canAccessFeature('remote-control');
+                if (type === 'remote')
+                  return canAccessFeature('remote-control');
                 return canAccessWidget(type as WidgetType);
               }}
               matchesUserBuilding={matchesUserBuilding}
@@ -790,7 +791,9 @@ export const Dock: React.FC = () => {
                               onRestore={() => undefined}
                               onDelete={() => undefined}
                               onDeleteAll={() => undefined}
-                              onRemoveFromDock={() => toggleToolVisibility(tool.type)}
+                              onRemoveFromDock={() =>
+                                toggleToolVisibility(tool.type)
+                              }
                               isEditMode={isEditMode}
                               onLongPress={handleLongPress}
                               globalStyle={globalStyle}

@@ -558,8 +558,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
                   // If remote control is OFF, do not accept incoming server
                   // changes for existing widgets when resolving conflicts.
-                  const keepLocalConfig = configChangedLocally || !remoteControlEnabled;
-                  const keepLocalLayout = layoutChangedLocally || !remoteControlEnabled;
+                  const keepLocalConfig =
+                    configChangedLocally || !remoteControlEnabled;
+                  const keepLocalLayout =
+                    layoutChangedLocally || !remoteControlEnabled;
 
                   return {
                     ...sw,
