@@ -62,7 +62,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
       {/* Toggle button */}
       <button
         onClick={toggleSession}
-        className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 ${
+        className={`touch-manipulation flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 ${
           config.isActive
             ? 'bg-red-500 hover:bg-red-600 text-white'
             : 'bg-green-500 hover:bg-green-600 text-white'
@@ -89,7 +89,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
           <button
             onClick={() => setDisplayCount(-1)}
             disabled={(config.displayCount ?? 5) <= 1}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
+            className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
           >
             −
           </button>
@@ -100,7 +100,7 @@ export const RemoteNextUpControl: React.FC<RemoteNextUpControlProps> = ({
           <button
             onClick={() => setDisplayCount(1)}
             disabled={(config.displayCount ?? 5) >= 20}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
+            className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
           >
             +
           </button>

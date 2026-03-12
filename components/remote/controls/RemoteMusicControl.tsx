@@ -68,7 +68,7 @@ export const RemoteMusicControl: React.FC<RemoteMusicControlProps> = ({
               <button
                 key={station.id}
                 onClick={() => selectStation(station.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                className={`touch-manipulation flex items-center gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
                   isActive
                     ? 'bg-blue-500/20 border-blue-400/50 text-white'
                     : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'

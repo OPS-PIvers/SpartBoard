@@ -92,7 +92,8 @@ export interface UseLiveSessionResult {
 export const useLiveSession = (
   userId: string | undefined,
   role: 'teacher' | 'student',
-  joinCode?: string
+  joinCode?: string,
+  canAccess: boolean = true
 ): UseLiveSessionResult => {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [students, setStudents] = useState<LiveStudent[]>([]);
@@ -413,6 +414,16 @@ export const useLiveSession = (
       await Promise.all(disconnectPromises);
     }
   }, [userId]);
+
+  // AUTO-END SESSION: If feature is disabled globally, end the session automatically
+  useEffect(() => {
+    if (role === 'teacher' && session?.isActive && !canAccess) {
+      console.warn(
+        '[LiveSession] Feature disabled globally. Ending session...'
+      );
+      void endSession();
+    }
+  }, [canAccess, session?.isActive, role, endSession]);
 
   const toggleFreezeStudent = useCallback(
     async (

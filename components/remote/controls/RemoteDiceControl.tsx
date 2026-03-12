@@ -140,7 +140,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
       <button
         onClick={roll}
         disabled={isRolling}
-        className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-lg shadow-lg transition-all active:scale-95"
+        className="touch-manipulation flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-lg shadow-lg transition-all active:scale-95"
         aria-label="Roll dice"
       >
         <Dices className="w-6 h-6" />
@@ -152,7 +152,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
         <button
           onClick={() => changeCount(-1)}
           disabled={count <= 1}
-          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
+          className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
           aria-label="Fewer dice"
         >
           −
@@ -163,7 +163,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
         <button
           onClick={() => changeCount(1)}
           disabled={count >= 6}
-          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
+          className="touch-manipulation w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white disabled:opacity-40 font-bold text-lg flex items-center justify-center transition-all active:scale-95"
           aria-label="More dice"
         >
           +

@@ -34,11 +34,12 @@ import { InstructionalRoutinesManager } from '@/components/admin/InstructionalRo
 import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
+import { CarRiderProConfigurationModal } from '@/components/admin/CarRiderProConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StickerGlobalConfig } from '@/types';
 
 export const FeaturePermissionsManager: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
   >(new Map());
@@ -676,6 +677,13 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'car-rider-pro' && (
+        <CarRiderProConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool?.type === 'miniApp' && (
         <MiniAppLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
@@ -686,6 +694,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'stickers',
           'calendar',
           'specialist-schedule',
+          'car-rider-pro',
           'miniApp',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal

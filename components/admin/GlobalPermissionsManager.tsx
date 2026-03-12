@@ -85,7 +85,7 @@ const GLOBAL_FEATURES: {
 ];
 
 export const GlobalPermissionsManager: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [permissions, setPermissions] = useState<
     Map<string, GlobalFeaturePermission>
   >(new Map());

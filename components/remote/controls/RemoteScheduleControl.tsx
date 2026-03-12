@@ -86,7 +86,7 @@ export const RemoteScheduleControl: React.FC<RemoteScheduleControlProps> = ({
         </div>
         <button
           onClick={resetAll}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white/60 text-xs font-bold transition-all active:scale-95"
+          className="touch-manipulation flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white/60 text-xs font-bold transition-all active:scale-95"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           Reset
@@ -104,7 +104,7 @@ export const RemoteScheduleControl: React.FC<RemoteScheduleControlProps> = ({
             <button
               key={item.id ?? index}
               onClick={() => toggleItem(index)}
-              className={`flex items-start gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
+              className={`touch-manipulation flex items-start gap-3 w-full px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
                 item.done
                   ? 'bg-green-500/10 border-green-500/20 text-white/40'
                   : 'bg-white/5 border-white/10 text-white'

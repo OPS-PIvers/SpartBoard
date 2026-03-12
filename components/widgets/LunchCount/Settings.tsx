@@ -8,6 +8,8 @@ import { School, Users, Clock, GraduationCap } from 'lucide-react';
 const SCHOOL_OPTIONS = [
   { id: 'schumann-elementary', label: 'Schumann Elementary' },
   { id: 'orono-intermediate-school', label: 'Orono Intermediate' },
+  { id: 'orono-middle-school', label: 'Orono Middle School' },
+  { id: 'orono-high-school', label: 'Orono High School' },
 ];
 
 /** Grade levels available at each school */
@@ -25,6 +27,17 @@ const GRADE_OPTIONS: Record<
     { value: '3', label: '3' },
     { value: '4', label: '4' },
     { value: '5', label: '5' },
+  ],
+  'orono-middle-school': [
+    { value: '6', label: '6' },
+    { value: '7', label: '7' },
+    { value: '8', label: '8' },
+  ],
+  'orono-high-school': [
+    { value: '9', label: '9' },
+    { value: '10', label: '10' },
+    { value: '11', label: '11' },
+    { value: '12', label: '12' },
   ],
 };
 

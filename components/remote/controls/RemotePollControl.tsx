@@ -97,14 +97,14 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                   <button
                     onClick={() => adjustVote(i, -1)}
                     disabled={(opt.votes ?? 0) <= 0}
-                    className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 font-bold flex items-center justify-center transition-all active:scale-95"
+                    className="touch-manipulation flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 font-bold flex items-center justify-center transition-all active:scale-95"
                     aria-label={`Remove vote from ${opt.label}`}
                   >
                     <Minus className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => adjustVote(i, 1)}
-                    className="flex-1 py-2 rounded-xl bg-white/20 hover:bg-white/30 font-bold flex items-center justify-center transition-all active:scale-95"
+                    className="touch-manipulation flex-1 py-2 rounded-xl bg-white/20 hover:bg-white/30 font-bold flex items-center justify-center transition-all active:scale-95"
                     aria-label={`Add vote to ${opt.label}`}
                   >
                     <Plus className="w-4 h-4" />
@@ -121,7 +121,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         <div className="px-4 pb-3 shrink-0">
           <button
             onClick={resetVotes}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 font-bold transition-all active:scale-95"
+            className="touch-manipulation w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 font-bold transition-all active:scale-95"
           >
             <RotateCcw className="w-4 h-4" />
             Reset All Votes

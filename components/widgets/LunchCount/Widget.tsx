@@ -328,6 +328,127 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
   };
 
+  if (
+    schoolSite === 'orono-middle-school' ||
+    schoolSite === 'orono-high-school'
+  ) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        header={
+          <div
+            className="flex justify-between items-center border-b border-slate-100 bg-slate-50/50"
+            style={{
+              padding: 'min(10px, 2cqmin)',
+              gap: 'min(12px, 2.5cqmin)',
+            }}
+          >
+            <div className="flex flex-col shrink-0">
+              <h3
+                style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                className="font-black text-slate-700 uppercase tracking-widest"
+              >
+                Today&apos;s Lunch Menu
+              </h3>
+              <p
+                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                className="font-bold text-slate-500 uppercase tracking-tighter"
+              >
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </p>
+            </div>
+            <div
+              className="flex shrink-0"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
+              <Button
+                onClick={() => void fetchNutrislice()}
+                variant="ghost"
+                size="sm"
+                className="rounded-xl bg-white border border-slate-200"
+                style={{
+                  padding: 'min(6px, 1.5cqmin)',
+                  width: 'min(32px, 8cqmin)',
+                  height: 'min(32px, 8cqmin)',
+                }}
+                disabled={isSyncing}
+                aria-label="Refresh menu"
+              >
+                <RefreshCw
+                  style={{
+                    width: 'min(16px, 4.5cqmin)',
+                    height: 'min(16px, 4.5cqmin)',
+                  }}
+                  className={isSyncing ? 'animate-spin' : ''}
+                />
+              </Button>
+            </div>
+          </div>
+        }
+        content={
+          <div
+            className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar animate-in fade-in duration-300"
+            style={{ padding: 'min(10px, 2cqmin)', gap: 'min(10px, 2cqmin)' }}
+          >
+            <div
+              className="bg-brand-red-lighter/10 border-2 border-brand-red-lighter rounded-2xl flex flex-col shadow-sm"
+              style={{ padding: 'min(16px, 4cqmin)' }}
+            >
+              <div
+                className="flex flex-col"
+                style={{ marginBottom: 'min(8px, 2cqmin)' }}
+              >
+                <span
+                  className="font-black uppercase text-brand-red-primary tracking-tighter"
+                  style={{ fontSize: 'min(14px, 4cqmin)' }}
+                >
+                  Hot Lunch
+                </span>
+                <span
+                  className="font-bold text-slate-700 leading-tight"
+                  style={{ fontSize: 'min(18px, 6cqmin)' }}
+                >
+                  {config.isManualMode
+                    ? config.manualHotLunch || 'Not Specified'
+                    : (cachedMenu?.hotLunch ?? 'Loading...')}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex flex-col shadow-sm"
+              style={{ padding: 'min(16px, 4cqmin)' }}
+            >
+              <div
+                className="flex flex-col"
+                style={{ marginBottom: 'min(8px, 2cqmin)' }}
+              >
+                <span
+                  className="font-black uppercase text-emerald-600 tracking-tighter"
+                  style={{ fontSize: 'min(14px, 4cqmin)' }}
+                >
+                  Bento Box
+                </span>
+                <span
+                  className="font-bold text-slate-700 leading-tight"
+                  style={{ fontSize: 'min(18px, 6cqmin)' }}
+                >
+                  {config.isManualMode
+                    ? config.manualBentoBox || 'Not Specified'
+                    : (cachedMenu?.bentoBox ?? 'Loading...')}
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}

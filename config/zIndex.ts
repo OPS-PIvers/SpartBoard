@@ -31,9 +31,11 @@ export const Z_INDEX = {
   // Overlay layers
   backdrop: 9900, // Dimmed backgrounds
   overlay: 9910, // Full-screen overlays (e.g. DrawingWidget)
+  confirmOverlay: 9950, // Confirmation dialogs within widgets
   announcementOverlay: 9985, // Windowed announcements
   announcementMaximized: 9990, // Maximized announcements
-  confirmOverlay: 9950, // Confirmation dialogs within widgets
+  snapPreview: 9998, // Drag-to-edge visual preview
+  systemBanner: 9999, // System-level persistent banners (e.g. Disconnect)
   modal: 10000, // Standard Modals (e.g. Settings, Reports)
   modalContent: 10001, // Content within modals (dropdowns etc)
   modalNested: 10100, // Modals on top of modals (e.g. Drive Picker, Library)

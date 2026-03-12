@@ -30,7 +30,7 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        project: ['./tsconfig.json', './functions/tsconfig.json'],
         tsconfigRootDir: __dirname,
         ecmaFeatures: {
           jsx: true,

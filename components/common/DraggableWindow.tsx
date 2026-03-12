@@ -58,6 +58,13 @@ const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE
 
 const MIN_GESTURE_SWIPE_DISTANCE = 100;
 const DRAG_CLICK_THRESHOLD_PX = 25;
+const INVISIBLE_EDGE_PAD = 10; // px of invisible grab zone extending outside widget bounds
+
+const getPinchDistance = (touches: React.TouchList): number => {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+};
 
 interface DraggableWindowProps {
   widget: WidgetData;
@@ -65,6 +72,7 @@ interface DraggableWindowProps {
   settings: React.ReactNode;
   title: string;
   style?: React.CSSProperties; // Added style prop
+  isSpotlighted?: boolean; // Added isSpotlighted prop
   skipCloseConfirmation?: boolean;
   headerActions?: React.ReactNode;
   globalStyle: GlobalStyle;
@@ -105,6 +113,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   settings,
   title,
   style,
+  isSpotlighted = false,
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
@@ -234,6 +243,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     startY: number;
     currentY: number;
     touches: number;
+  } | null>(null);
+
+  // Pinch-to-resize tracking for 2-finger gestures on the widget window
+  const pinchStateRef = useRef<{
+    startDistance: number;
+    startW: number;
+    startH: number;
+    startX: number;
+    startY: number;
+    pinchMidX: number;
+    pinchMidY: number;
+    currentW: number;
+    currentH: number;
+    currentX: number;
+    currentY: number;
   } | null>(null);
 
   const saveTitle = useCallback(() => {
@@ -713,7 +737,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     window.addEventListener('pointercancel', onPointerUp);
   };
 
-  const transparency = widget.transparency ?? globalStyle.windowTransparency;
+  // Force 100% opacity when spotlighted so it stands out against the dimming overlay
+  // This prevents the "dimmed text" issue reported by users.
+  const transparency = isSpotlighted
+    ? 1
+    : (widget.transparency ?? globalStyle.windowTransparency);
   const isSelected =
     !isMaximized && (showTools || isDragging || isResizing || widget.flipped);
 
@@ -855,9 +883,41 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       currentY: avgY,
       touches: e.touches.length,
     };
+
+    // Pinch-to-resize: track 2-finger pinch to resize the widget window itself
+    if (e.touches.length === 2 && !isMaximized) {
+      const startDistance = getPinchDistance(e.touches);
+      // Only start pinch tracking if we have a valid, non-zero distance
+      if (isFinite(startDistance) && startDistance > 0) {
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        pinchStateRef.current = {
+          startDistance,
+          startW: widget.w,
+          startH: widget.h,
+          startX: widget.x,
+          startY: widget.y,
+          pinchMidX: midX,
+          pinchMidY: midY,
+          currentW: widget.w,
+          currentH: widget.h,
+          currentX: widget.x,
+          currentY: widget.y,
+        };
+      } else {
+        pinchStateRef.current = null;
+      }
+    } else {
+      pinchStateRef.current = null;
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // Reset pinch state if finger count changes
+    if (pinchStateRef.current && e.touches.length !== 2) {
+      pinchStateRef.current = null;
+    }
+
     if (!gestureStartRef.current) return;
 
     // Validate touch count consistency
@@ -879,18 +939,75 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const avgY = totalY / e.touches.length;
 
     gestureStartRef.current.currentY = avgY;
+
+    // Pinch-to-resize: scale widget window based on distance change between 2 fingers
+    if (e.touches.length === 2 && pinchStateRef.current && !isMaximized) {
+      const currentDistance = getPinchDistance(e.touches);
+      const scale = currentDistance / pinchStateRef.current.startDistance;
+      // Guard against invalid scale (NaN or non-positive) from malformed touch data
+      if (!isFinite(scale) || scale <= 0) return;
+
+      const newW = Math.max(
+        150,
+        Math.round(pinchStateRef.current.startW * scale)
+      );
+      const newH = Math.max(
+        100,
+        Math.round(pinchStateRef.current.startH * scale)
+      );
+
+      // Keep the pinch midpoint fixed relative to widget — widget grows/shrinks around it
+      const relMidX =
+        pinchStateRef.current.pinchMidX - pinchStateRef.current.startX;
+      const relMidY =
+        pinchStateRef.current.pinchMidY - pinchStateRef.current.startY;
+      const newX = pinchStateRef.current.pinchMidX - relMidX * scale;
+      const newY = pinchStateRef.current.pinchMidY - relMidY * scale;
+
+      pinchStateRef.current.currentW = newW;
+      pinchStateRef.current.currentH = newH;
+      pinchStateRef.current.currentX = newX;
+      pinchStateRef.current.currentY = newY;
+
+      // Direct DOM update for smooth 60fps performance (same pattern as drag/resize)
+      if (windowRef.current) {
+        windowRef.current.style.width = `${newW}px`;
+        windowRef.current.style.height = `${newH}px`;
+        windowRef.current.style.left = `${newX}px`;
+        windowRef.current.style.top = `${newY}px`;
+      }
+    }
   };
 
   const handleTouchEnd = (_e: React.TouchEvent) => {
+    // Commit pinch resize to widget state
+    if (pinchStateRef.current) {
+      const { currentW, currentH, currentX, currentY, startW, startH } =
+        pinchStateRef.current;
+      if (currentW !== startW || currentH !== startH) {
+        updateWidget(widget.id, {
+          w: currentW,
+          h: currentH,
+          x: currentX,
+          y: currentY,
+        });
+      }
+      pinchStateRef.current = null;
+    }
+
     if (!gestureStartRef.current) return;
 
     // Use stored currentY which was updated in touchMove
-    const { startY, currentY, touches } = gestureStartRef.current;
+    const {
+      startY,
+      currentY: gestureCurrentY,
+      touches,
+    } = gestureStartRef.current;
 
     // Reset immediately to avoid double triggers
     gestureStartRef.current = null;
 
-    const deltaY = currentY - startY;
+    const deltaY = gestureCurrentY - startY;
 
     if (Math.abs(deltaY) < MIN_GESTURE_SWIPE_DISTANCE) return;
 
@@ -926,6 +1043,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onContextMenu={(e) => e.preventDefault()}
       transparency={transparency}
       disableBlur={isDragging || isResizing}
       allowInvisible={true}
@@ -1139,13 +1257,77 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         </div>
       </div>
 
+      {/* Invisible edge grab zones — extend INVISIBLE_EDGE_PAD px outside the widget's visual
+          bounds so users can reliably grab and drag widgets whose content fills edge-to-edge.
+          No visual appearance; only the pointer hit area is expanded. */}
+      {!isMaximized && !isAnnotating && (
+        <>
+          {/* Top */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: -INVISIBLE_EDGE_PAD,
+              left: 0,
+              right: 0,
+              height: INVISIBLE_EDGE_PAD,
+              touchAction: 'none',
+              cursor: 'grab',
+            }}
+            onPointerDown={handleDragStart}
+          />
+          {/* Bottom */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              bottom: -INVISIBLE_EDGE_PAD,
+              left: 0,
+              right: 0,
+              height: INVISIBLE_EDGE_PAD,
+              touchAction: 'none',
+              cursor: 'grab',
+            }}
+            onPointerDown={handleDragStart}
+          />
+          {/* Left */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: -INVISIBLE_EDGE_PAD,
+              top: 0,
+              bottom: 0,
+              width: INVISIBLE_EDGE_PAD,
+              touchAction: 'none',
+              cursor: 'grab',
+            }}
+            onPointerDown={handleDragStart}
+          />
+          {/* Right */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              right: -INVISIBLE_EDGE_PAD,
+              top: 0,
+              bottom: 0,
+              width: INVISIBLE_EDGE_PAD,
+              touchAction: 'none',
+              cursor: 'grab',
+            }}
+            onPointerDown={handleDragStart}
+          />
+        </>
+      )}
+
       {/* Drag-to-Edge Visual Preview Overlay */}
       {snapPreviewZone &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
             data-testid="snap-preview"
-            className="fixed z-[9998] bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
+            className="fixed z-snap-preview bg-indigo-500/20 border-2 border-indigo-400/50 backdrop-blur-[2px] rounded-2xl transition-all duration-200 ease-out pointer-events-none"
             style={
               snapPreviewZone === 'maximize'
                 ? { top: 0, left: 0, width: '100vw', height: '100vh' }
@@ -1176,7 +1358,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   return (
     <>
-      {isMaximized && typeof document !== 'undefined'
+      {(isMaximized || isSpotlighted) && typeof document !== 'undefined'
         ? createPortal(content, document.body)
         : content}
 
@@ -1382,7 +1564,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     createPortal(
                       <div
                         ref={snapMenuRef}
-                        className="fixed z-[10000] p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-48 animate-in slide-in-from-top-2 fade-in duration-200"
+                        className="fixed z-modal p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-48 animate-in slide-in-from-top-2 fade-in duration-200"
                         style={{
                           // Position below the button, centered horizontally
                           top: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-y') ?? 0) + 40}px`,

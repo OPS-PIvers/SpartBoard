@@ -75,6 +75,8 @@ export default {
         'announcement-overlay': Z_INDEX.announcementOverlay.toString(),
         'announcement-maximized': Z_INDEX.announcementMaximized.toString(),
         'confirm-overlay': Z_INDEX.confirmOverlay.toString(),
+        'snap-preview': Z_INDEX.snapPreview.toString(),
+        'system-banner': Z_INDEX.systemBanner.toString(),
         modal: Z_INDEX.modal.toString(),
         'modal-content': Z_INDEX.modalContent.toString(),
         popover: Z_INDEX.popover.toString(),

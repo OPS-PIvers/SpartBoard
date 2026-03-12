@@ -281,6 +281,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       syncWithTimeTool: false,
     },
   },
+  'car-rider-pro': {
+    w: 450,
+    h: 600,
+    config: {},
+  },
   'specialist-schedule': {
     w: 300,
     h: 400,

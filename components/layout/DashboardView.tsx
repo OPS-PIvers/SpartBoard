@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -154,6 +155,8 @@ export const DashboardView: React.FC = () => {
     }
   }, [activeDashboard, dashboards, addWidget]);
 
+  const { canAccessFeature } = useAuth();
+
   const {
     session,
     students,
@@ -164,7 +167,12 @@ export const DashboardView: React.FC = () => {
     removeStudent,
     toggleFreezeStudent,
     toggleGlobalFreeze,
-  } = useLiveSession(user?.uid, 'teacher');
+  } = useLiveSession(
+    user?.uid,
+    'teacher',
+    undefined,
+    canAccessFeature('live-session')
+  );
 
   const [prevIndex, setPrevIndex] = React.useState<number>(-1);
   const [animationClass, setAnimationClass] =
@@ -234,12 +242,6 @@ export const DashboardView: React.FC = () => {
       el.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
-
-  // Gesture Tracking
-  const gestureStart = React.useRef<{ x: number; y: number } | null>(null);
-  const gestureCurrent = React.useRef<{ x: number; y: number } | null>(null);
-  const isFourFingerGesture = React.useRef(false);
-  const MIN_SWIPE_DISTANCE_PX = 100;
 
   // Background YouTube audio control
   const ytIframeRef = React.useRef<HTMLIFrameElement>(null);
@@ -388,87 +390,6 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     t,
   ]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 4) {
-      isFourFingerGesture.current = true;
-      gestureStart.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-      gestureCurrent.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-    } else {
-      isFourFingerGesture.current = false;
-      gestureStart.current = null;
-      gestureCurrent.current = null;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isFourFingerGesture.current && gestureStart.current) {
-      if (e.touches.length !== 4) {
-        isFourFingerGesture.current = false;
-        gestureStart.current = null;
-        gestureCurrent.current = null;
-        return;
-      }
-
-      e.preventDefault();
-      gestureCurrent.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (
-      isFourFingerGesture.current &&
-      gestureStart.current &&
-      gestureCurrent.current
-    ) {
-      const deltaX = gestureCurrent.current.x - gestureStart.current.x;
-      const deltaY = gestureCurrent.current.y - gestureStart.current.y;
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
-
-      // Determine dominant direction
-      if (absY > absX && absY > MIN_SWIPE_DISTANCE_PX) {
-        // Vertical Swipe
-        if (deltaY > 0) {
-          // Swipe Down -> Minimize All to Dock
-          minimizeAllWidgets();
-        } else {
-          // Swipe Up -> Restore
-          setIsMinimized(false);
-        }
-      } else if (absX > absY && absX > MIN_SWIPE_DISTANCE_PX) {
-        // Horizontal Swipe (with wrapping)
-        if (deltaX < 0) {
-          // Swipe Left -> Next Board
-          if (dashboards.length > 1) {
-            const nextIdx = (currentIndex + 1) % dashboards.length;
-            loadDashboard(dashboards[nextIdx].id);
-          }
-        } else {
-          // Swipe Right -> Prev Board
-          if (dashboards.length > 1) {
-            const nextIdx =
-              (currentIndex - 1 + dashboards.length) % dashboards.length;
-            loadDashboard(dashboards[nextIdx].id);
-          }
-        }
-      }
-
-      // Reset
-      isFourFingerGesture.current = false;
-      gestureStart.current = null;
-      gestureCurrent.current = null;
-    }
-  };
 
   const handleDragOver = (e: React.DragEvent) => {
     if (
@@ -707,9 +628,6 @@ export const DashboardView: React.FC = () => {
       }}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Ambient YouTube Video Layer */}
       {youTubeVideoId && (
@@ -742,27 +660,28 @@ export const DashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* Spotlight Dimming Overlay — dims everything except the spotlighted widget */}
-      {activeDashboard.settings?.spotlightWidgetId && (
-        <div
-          className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-all duration-500 ease-in-out"
-          style={{ zIndex: Z_INDEX.backdrop }}
-          onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
-          aria-hidden="true"
-        />
-      )}
+      {/* Spotlight Dimming Overlay — rendered as a portal at document.body so it
+          sits in the root stacking context. The spotlighted widget is also 
+          rendered via a portal in DraggableWindow, ensuring it sits above 
+          this backdrop regardless of parent stacking contexts (like animations). */}
+      {activeDashboard.settings?.spotlightWidgetId &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-slate-900/80 transition-all duration-500 ease-in-out"
+            style={{ zIndex: Z_INDEX.backdrop }}
+            onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
+            aria-hidden="true"
+          />,
+          document.body
+        )}
 
       {/* Dynamic Widget Surface */}
       <div
         key={activeDashboard.id}
         className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
         style={{
-          // Only set transform when it actually changes something.
-          // transform: scale(1) still creates a CSS stacking context, which
-          // traps child z-indices and prevents the spotlighted widget from
-          // appearing above the backdrop overlay (z-index: 9900).
-          // When zoom === 1 and not minimized, omit the transform entirely so
-          // DraggableWindow z-indices participate in the root stacking context.
+          // Note: transform and opacity transitions here create CSS stacking contexts.
+          // Spotlighted widgets escape this by portaling to document.body.
           transform: isMinimized ? 'translateY(80vh)' : undefined,
           transformOrigin: isMinimized ? 'bottom center' : 'center center',
           opacity: isMinimized ? 0 : 1,

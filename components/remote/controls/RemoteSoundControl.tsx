@@ -79,7 +79,7 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
               <button
                 key={value}
                 onClick={() => setVisual(value)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
+                className={`touch-manipulation flex items-center gap-3 px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
                   isActive
                     ? 'bg-blue-500/20 border-blue-400/50 text-white'
                     : 'bg-white/5 border-white/10 text-white/50'
@@ -97,7 +97,7 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
       {/* Auto traffic light toggle */}
       <button
         onClick={toggleTrafficLight}
-        className={`flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 ${
+        className={`touch-manipulation flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 ${
           config.autoTrafficLight
             ? 'bg-green-500/20 border-green-400/50 text-white'
             : 'bg-white/5 border-white/10 text-white/60'

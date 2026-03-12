@@ -13,6 +13,9 @@ const ToggleRow: React.FC<{
 }> = ({ label, value, onToggle }) => (
   <button
     onClick={onToggle}
+    // touch-action:manipulation prevents the 300 ms ghost-click delay on mobile
+    // and stops double-fire events that would immediately re-toggle the value.
+    style={{ touchAction: 'manipulation' }}
     className={`flex items-center justify-between w-full px-4 py-4 rounded-2xl border transition-all active:scale-95 ${
       value
         ? 'bg-blue-500/20 border-blue-400/60 text-white'
@@ -41,9 +44,11 @@ export const RemoteClockControl: React.FC<RemoteClockControlProps> = ({
 }) => {
   const config = widget.config as ClockConfig;
 
+  // Send only the changed field — the context merge handles the rest.
+  // This avoids stale full-config spreads when renders are batched.
   const toggle = (field: keyof ClockConfig) =>
     updateWidget(widget.id, {
-      config: { ...config, [field]: !config[field] },
+      config: { [field]: !config[field] },
     });
 
   // Live time display — ticks so the preview stays current

@@ -224,7 +224,11 @@
       "go": "Go",
       "backspace": "Backspace",
       "confirmTime": "Confirm time",
-      "closeKeypad": "Close keypad"
+      "closeKeypad": "Close keypad",
+      "autoPickRandomStudent": "Auto-Pick Random Student",
+      "addRandomizerTip": "Add a Randomizer widget to auto-pick the next student when the timer ends.",
+      "autoPickNext": "Auto-Pick Next",
+      "triggerRandomizerWhenTimerEnds": "Trigger Randomizer when timer ends"
     },
     "weather": {
       "actual": "Actual",

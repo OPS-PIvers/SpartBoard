@@ -100,7 +100,7 @@ export const RemoteExpectationsControl: React.FC<
                 <button
                   key={level}
                   onClick={() => setVoiceLevel(level)}
-                  className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
+                  className={`touch-manipulation flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
                     isActive
                       ? color
                       : 'bg-white/5 border-white/10 text-white/40'
@@ -130,7 +130,7 @@ export const RemoteExpectationsControl: React.FC<
                 <button
                   key={value}
                   onClick={() => setWorkMode(value)}
-                  className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
+                  className={`touch-manipulation flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
                     isActive
                       ? 'bg-blue-500/20 border-blue-400/50 text-blue-300'
                       : 'bg-white/5 border-white/10 text-white/50'
@@ -157,7 +157,7 @@ export const RemoteExpectationsControl: React.FC<
                 <button
                   key={value}
                   onClick={() => setInteractionMode(value)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
+                  className={`touch-manipulation flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-bold transition-all active:scale-95 ${
                     isActive
                       ? 'bg-purple-500/20 border-purple-400/50 text-purple-300'
                       : 'bg-white/5 border-white/10 text-white/50'

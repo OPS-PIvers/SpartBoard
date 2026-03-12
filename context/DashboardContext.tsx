@@ -453,7 +453,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const now = Date.now();
-        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 5000;
+        // 2500 ms covers debounced config updates + Firestore round-trip + some jitter.
+        const isRecentlyUpdatedLocally = now - lastLocalUpdateAt.current < 2500;
 
         // Check if local state has unsaved changes by comparing against
         // what was last saved. This prevents server data from overwriting
@@ -463,14 +464,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           lastSavedDataRef.current !== '' &&
           serializeDashboard(currentActive) !== lastSavedDataRef.current;
 
-        // Detect stale snapshots from Firestore latency compensation
+        // serverActive is used both in the merge path and in the else-branch below.
         const serverActive = migratedDashboards.find(
           (d) => d.id === activeIdRef.current
         );
-        // Use <= to handle cases where timestamps match exactly (fast echoes)
-        const isStaleSnapshot =
-          serverActive &&
-          (serverActive.updatedAt ?? 0) <= lastSavedAtRef.current;
 
         let newDashboards: Dashboard[];
 
@@ -478,8 +475,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           hasPendingWrites ||
           isRecentlyUpdatedLocally ||
           hasUnsavedLocalChanges ||
-          pendingSaveCountRef.current > 0 ||
-          isStaleSnapshot
+          pendingSaveCountRef.current > 0
         ) {
           newDashboards = migratedDashboards.map((db) => {
             if (db.id === activeIdRef.current && currentActive) {
@@ -489,19 +485,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 return currentActive;
               }
 
-              // If the snapshot is stale (older than our last save), ignore it completely
-              // and keep our local state to prevent overwriting with old data.
-              if (isStaleSnapshot) {
-                return currentActive;
-              }
-
               // SURGICAL MERGE: Start from server snapshot but only preserve
               // locally-modified fields. Fields unchanged locally accept the
-              // server value, so remote edits (e.g. name change in another
-              // tab) aren't discarded when only widgets changed locally.
-              const localWidgetsJson = JSON.stringify(currentActive.widgets);
-              const widgetsChangedLocally =
-                localWidgetsJson !== lastSavedFieldsRef.current.widgets;
+              // server value, so remote edits (e.g. checklist toggle, spotlight)
+              // aren't discarded when unrelated local state changed (e.g. timer tick).
               const backgroundChangedLocally =
                 currentActive.background !==
                 lastSavedFieldsRef.current.background;
@@ -515,11 +502,78 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 JSON.stringify(currentActive.settings ?? {}) !==
                 (lastSavedFieldsRef.current.settings ?? '{}');
 
+              // Per-widget merge: only keep a widget's local config when THAT
+              // specific widget changed locally (e.g. running timer). Accept the
+              // server config for widgets untouched locally so remote controls
+              // (checklist toggles, remote timer start/stop, etc.) take effect
+              // even while other widgets are actively updating.
+              let lastSavedWidgets: WidgetData[] = [];
+              try {
+                lastSavedWidgets = JSON.parse(
+                  lastSavedFieldsRef.current.widgets || '[]'
+                ) as WidgetData[];
+              } catch (e) {
+                console.error(
+                  'Failed to parse last saved widgets state. Preserving local state.',
+                  e
+                );
+                lastSavedWidgets = [];
+              }
+              const lastSavedById = new Map(
+                lastSavedWidgets.map((w) => [w.id, w])
+              );
+              const localById = new Map(
+                currentActive.widgets.map((w) => [w.id, w])
+              );
+              const LAYOUT_FIELDS = [
+                'x',
+                'y',
+                'w',
+                'h',
+                'z',
+                'minimized',
+                'flipped',
+                'maximized',
+              ] as const;
+              const mergedWidgets = db.widgets
+                .filter((sw) => {
+                  // Exclude widgets deleted locally
+                  // (present in lastSaved but absent from current local state)
+                  return !(lastSavedById.has(sw.id) && !localById.has(sw.id));
+                })
+                .map((sw) => {
+                  const lw = localById.get(sw.id);
+                  const saved = lastSavedById.get(sw.id);
+                  if (!lw) return sw; // new widget from server → accept
+                  if (!saved) return lw; // new widget locally → keep
+                  const configChangedLocally =
+                    JSON.stringify(lw.config) !== JSON.stringify(saved.config);
+                  const layoutChangedLocally = LAYOUT_FIELDS.some(
+                    (f) => lw[f] !== saved[f]
+                  );
+                  return {
+                    ...sw,
+                    config: configChangedLocally ? lw.config : sw.config,
+                    ...(layoutChangedLocally
+                      ? LAYOUT_FIELDS.reduce(
+                          (acc, field) => ({
+                            ...acc,
+                            [field]: lw[field as keyof WidgetData],
+                          }),
+                          {}
+                        )
+                      : {}),
+                  };
+                });
+              // Append widgets added locally that aren't on the server yet
+              const serverIds = new Set(db.widgets.map((w) => w.id));
+              const localOnlyWidgets = currentActive.widgets.filter(
+                (w) => !serverIds.has(w.id)
+              );
+
               return {
                 ...db,
-                widgets: widgetsChangedLocally
-                  ? currentActive.widgets
-                  : db.widgets,
+                widgets: [...mergedWidgets, ...localOnlyWidgets],
                 background: backgroundChangedLocally
                   ? currentActive.background
                   : db.background,
@@ -546,9 +600,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedFieldsRef.current = serverFields;
             lastWidgetCountRef.current = serverActive.widgets.length;
             lastSavedDashboardIdRef.current = serverActive.id;
-            if (serverActive.updatedAt) {
-              lastSavedAtRef.current = serverActive.updatedAt;
-            }
           }
           newDashboards = migratedDashboards;
         }
@@ -638,7 +689,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // cleaned up when the effect re-runs or the component unmounts.
   const auxTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const lastSavedDataRef = useRef<string>('');
-  const lastSavedAtRef = useRef<number>(0);
   const lastWidgetCountRef = useRef<number>(0);
   // Track which dashboard the saved-data refs correspond to so they can be
   // re-initialised when the user switches dashboards.
@@ -685,12 +735,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // refs from the loaded data WITHOUT triggering a redundant Firestore write.
     //
     // Without this guard the first effect run (or post-switch run) would see
-    // lastSavedDataRef.current differing from currentData and schedule a write
-    // of the just-loaded Firestore data back to Firestore.  That write advances
-    // lastSavedAtRef.current to the current time, causing the isStaleSnapshot
-    // check in the onSnapshot handler to block ANY concurrent remote-control
-    // update whose Firestore updatedAt timestamp falls within the round-trip
-    // window — making the /remote URL appear to have no effect on the main board.
+    // lastSavedDataRef.current differing from currentData and schedule a
+    // redundant write of the just-loaded Firestore data back to Firestore,
+    // incrementing pendingSaveCountRef and causing the onSnapshot merge path
+    // to discard concurrent remote-control updates during the round-trip window.
     const isDashboardSwitch =
       lastSavedDashboardIdRef.current !== null &&
       lastSavedDashboardIdRef.current !== active.id;
@@ -701,11 +749,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastSavedFieldsRef.current = initSavedFields;
       lastWidgetCountRef.current = active.widgets.length;
       lastSavedDashboardIdRef.current = active.id;
-      // Seed the stale-snapshot guard from the dashboard's own updatedAt so
-      // that any remote save with a more-recent timestamp is accepted immediately.
-      if (active.updatedAt) {
-        lastSavedAtRef.current = active.updatedAt;
-      }
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -740,14 +783,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
       saveDashboard(active)
-        .then((savedUpdatedAt) => {
-          // Use the timestamp that was actually written to Firestore (captured
-          // before the setDoc call) rather than Date.now() after the round-trip.
-          // This prevents the ~200 ms inflation that would otherwise cause the
-          // isStaleSnapshot check to block concurrent remote-control updates.
+        .then(() => {
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
-          lastSavedAtRef.current = savedUpdatedAt;
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1

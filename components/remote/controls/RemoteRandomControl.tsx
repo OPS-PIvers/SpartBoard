@@ -121,7 +121,7 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
       <div className="flex gap-3">
         <button
           onClick={resetPool}
-          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 font-bold text-sm transition-all active:scale-95"
+          className="touch-manipulation flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 font-bold text-sm transition-all active:scale-95"
           aria-label="Reset pool"
         >
           <RotateCcw className="w-4 h-4" />
@@ -130,7 +130,7 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
         <button
           onClick={pickStudent}
           disabled={isPicking || names.length === 0}
-          className="flex items-center gap-3 px-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-lg shadow-lg transition-all active:scale-95"
+          className="touch-manipulation flex items-center gap-3 px-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-black text-lg shadow-lg transition-all active:scale-95"
           aria-label="Pick a student"
         >
           <Shuffle className="w-5 h-5" />

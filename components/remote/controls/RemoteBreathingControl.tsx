@@ -64,7 +64,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
               <button
                 key={value}
                 onClick={() => set({ pattern: value })}
-                className={`flex items-center justify-between px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
+                className={`touch-manipulation flex items-center justify-between px-4 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
                   isActive
                     ? 'bg-blue-500/20 border-blue-400/50 text-white'
                     : 'bg-white/5 border-white/10 text-white/50'
@@ -91,7 +91,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
               <button
                 key={value}
                 onClick={() => set({ visual: value })}
-                className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
+                className={`touch-manipulation flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border font-bold transition-all active:scale-95 ${
                   isActive
                     ? 'bg-blue-500/20 border-blue-400/50 text-blue-300'
                     : 'bg-white/5 border-white/10 text-white/40'
@@ -116,7 +116,7 @@ export const RemoteBreathingControl: React.FC<RemoteBreathingControlProps> = ({
             <button
               key={color}
               onClick={() => set({ color })}
-              className="w-10 h-10 rounded-full transition-all active:scale-95"
+              className="touch-manipulation w-10 h-10 rounded-full transition-all active:scale-95"
               style={{
                 background: color,
                 outline:

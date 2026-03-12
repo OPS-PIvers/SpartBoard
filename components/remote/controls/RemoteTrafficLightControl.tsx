@@ -57,7 +57,7 @@ export const RemoteTrafficLightControl: React.FC<
             <button
               key={color}
               onClick={() => setLight(color)}
-              className={`w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center gap-2 font-bold text-white transition-all active:scale-95 ${
+              className={`touch-manipulation w-32 h-32 rounded-full border-4 flex flex-col items-center justify-center gap-2 font-bold text-white transition-all active:scale-95 ${
                 isActive
                   ? `${bg} ${border} shadow-2xl ${glow}`
                   : 'bg-white/10 border-white/20 opacity-50 hover:opacity-80'
@@ -85,7 +85,7 @@ export const RemoteTrafficLightControl: React.FC<
               config: { ...config, active: undefined },
             })
           }
-          className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 text-sm font-bold transition-all active:scale-95"
+          className="touch-manipulation px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 text-sm font-bold transition-all active:scale-95"
           aria-label="Turn off all lights"
         >
           Turn Off

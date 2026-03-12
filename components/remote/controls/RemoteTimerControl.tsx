@@ -23,7 +23,6 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
   const isTimer = config.mode === 'timer';
 
   // Tick every second while running so the display stays live.
-  // `now` is updated via useEffect to keep Date.now() out of render.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!config.isRunning) return;
@@ -34,9 +33,6 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
   const togglePlay = () => {
     const ts = Date.now();
     if (config.isRunning) {
-      // Capture current display time before stopping so the widget resumes
-      // from the right position.  In timer mode elapsedTime counts DOWN (it
-      // IS the remaining seconds); in stopwatch mode it counts UP.
       const delta = config.startTime
         ? Math.floor((ts - config.startTime) / 1000)
         : 0;
@@ -59,8 +55,6 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
   };
 
   const resetTimer = () => {
-    // Timer mode: reset to duration (elapsedTime = remaining = duration).
-    // Stopwatch mode: reset to 0.
     const resetTime = isTimer ? config.duration : 0;
     updateWidget(widget.id, {
       config: {
@@ -73,7 +67,6 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
   };
 
   const setPreset = (seconds: number) => {
-    // elapsedTime stores remaining time in timer mode, so set it to the new duration.
     updateWidget(widget.id, {
       config: {
         ...config,
@@ -85,8 +78,6 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
     });
   };
 
-  // Live display time — timer counts DOWN, stopwatch counts UP.
-  // `now` is kept current by a 1 s interval (only runs while isRunning).
   const delta =
     config.isRunning && config.startTime
       ? Math.floor((now - config.startTime) / 1000)
@@ -94,9 +85,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
   const displayTime = isTimer
     ? Math.max(0, config.elapsedTime - delta)
     : config.elapsedTime + delta;
-
   const remaining = displayTime;
-
   const progress =
     isTimer && config.duration > 0
       ? Math.min(1, 1 - displayTime / config.duration)
@@ -147,14 +136,14 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
       <div className="flex gap-4">
         <button
           onClick={resetTimer}
-          className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95"
+          className="touch-manipulation w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all active:scale-95"
           aria-label="Reset"
         >
           <RotateCcw className="w-6 h-6" />
         </button>
         <button
           onClick={togglePlay}
-          className={`w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg ${
+          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg ${
             config.isRunning
               ? 'bg-red-500/80 border-red-400 hover:bg-red-500'
               : 'bg-blue-500/80 border-blue-400 hover:bg-blue-500'
@@ -167,7 +156,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
             <Play className="w-8 h-8 ml-1" />
           )}
         </button>
-        <div className="w-14 h-14" /> {/* spacer for symmetry */}
+        <div className="w-14 h-14" /> {/* spacer */}
       </div>
 
       {/* Duration Presets (timer only) */}
@@ -177,7 +166,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
             <button
               key={s}
               onClick={() => setPreset(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
+              className={`touch-manipulation px-3 py-1.5 rounded-lg text-sm font-bold transition-all active:scale-95 ${
                 config.duration === s
                   ? 'bg-blue-500 text-white'
                   : 'bg-white/10 hover:bg-white/20 text-white/80'

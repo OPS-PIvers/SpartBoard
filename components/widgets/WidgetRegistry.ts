@@ -73,7 +73,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'ExpectationsWidget'
   ),
   poll: lazyNamed(() => import('./PollWidget'), 'PollWidget'),
-  weather: lazyNamed(() => import('./WeatherWidget'), 'WeatherWidget'),
+  weather: lazyNamed(() => import('./Weather/Widget'), 'WeatherWidget'),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleWidget'),
   calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarWidget'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountWidget'),
@@ -121,6 +121,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
   onboarding: lazyNamed(() => import('./OnboardingWidget'), 'OnboardingWidget'),
   music: lazyNamed(() => import('./MusicWidget'), 'MusicWidget'),
+  'car-rider-pro': lazyNamed(
+    () => import('./CarRiderProWidget'),
+    'CarRiderProWidget'
+  ),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleWidget'
@@ -145,7 +149,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamSettings'),
   calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarSettings'),
-  weather: lazyNamed(() => import('./WeatherWidget'), 'WeatherSettings'),
+  weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountSettings'),
   poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
   instructionalRoutines: lazyNamed(
@@ -194,6 +198,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
   music: lazyNamed(() => import('./MusicWidget'), 'MusicSettings'),
+  'car-rider-pro': lazyNamed(
+    () => import('./CarRiderProWidget'),
+    'CarRiderProSettings'
+  ),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleSettings'
@@ -489,6 +497,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   music: {
     baseWidth: 400,
     baseHeight: 80,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'car-rider-pro': {
+    baseWidth: 450,
+    baseHeight: 600,
     canSpread: true,
     skipScaling: true,
     padding: 0,
