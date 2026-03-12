@@ -661,10 +661,9 @@ export const DashboardView: React.FC = () => {
       )}
 
       {/* Spotlight Dimming Overlay — rendered as a portal at document.body so it
-          sits in the root stacking context, clear of any will-change / container-type
-          stacking contexts inside the dashboard tree. The spotlighted widget uses
-          position:fixed (set via customStyle in WidgetRenderer) so it also
-          participates in the root stacking context and sits above this backdrop. */}
+          sits in the root stacking context. The spotlighted widget is also 
+          rendered via a portal in DraggableWindow, ensuring it sits above 
+          this backdrop regardless of parent stacking contexts (like animations). */}
       {activeDashboard.settings?.spotlightWidgetId &&
         createPortal(
           <div
@@ -681,12 +680,8 @@ export const DashboardView: React.FC = () => {
         key={activeDashboard.id}
         className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
         style={{
-          // Only set transform when it actually changes something.
-          // transform: scale(1) still creates a CSS stacking context, which
-          // traps child z-indices and prevents the spotlighted widget from
-          // appearing above the backdrop overlay (z-index: 9900).
-          // When zoom === 1 and not minimized, omit the transform entirely so
-          // DraggableWindow z-indices participate in the root stacking context.
+          // Note: transform and opacity transitions here create CSS stacking contexts.
+          // Spotlighted widgets escape this by portaling to document.body.
           transform: isMinimized ? 'translateY(80vh)' : undefined,
           transformOrigin: isMinimized ? 'bottom center' : 'center center',
           opacity: isMinimized ? 0 : 1,

@@ -17,10 +17,15 @@ vi.mock('@/components/widgets/stickers/StickerItemWidget', () => ({
   StickerItemWidget: () => <div data-testid="sticker-widget">Sticker</div>,
 }));
 
+const mockDraggableWindow = vi.fn();
 vi.mock('@/components/common/DraggableWindow', () => ({
-  DraggableWindow: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="draggable-window">{children}</div>
-  ),
+  DraggableWindow: (props: {
+    children: React.ReactNode;
+    isSpotlighted?: boolean;
+  }) => {
+    mockDraggableWindow(props);
+    return <div data-testid="draggable-window">{props.children}</div>;
+  },
 }));
 
 // Capture ScalableWidget props to verify optimization
@@ -144,5 +149,19 @@ describe('WidgetRenderer', () => {
 
     // The children prop (render callback) should be referentially equal
     expect(firstRenderProps.children).toBe(secondRenderProps.children);
+  });
+
+  it('passes isSpotlighted correctly to DraggableWindow', () => {
+    const spotlightProps = {
+      ...mockProps,
+      dashboardSettings: { spotlightWidgetId: 'w1' },
+    };
+    render(<WidgetRenderer {...spotlightProps} />);
+
+    expect(mockDraggableWindow).toHaveBeenCalled();
+    const props = mockDraggableWindow.mock.calls[0][0] as {
+      isSpotlighted: boolean;
+    };
+    expect(props.isSpotlighted).toBe(true);
   });
 });

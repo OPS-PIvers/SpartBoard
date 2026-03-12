@@ -303,6 +303,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       title={getTitle(widget, permission)}
       settings={getWidgetSettings()}
       style={customStyle}
+      isSpotlighted={isSpotlighted}
       skipCloseConfirmation={
         widget.type === 'classes' || dashboardSettings?.disableCloseConfirmation
       }

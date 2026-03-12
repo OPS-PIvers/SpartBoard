@@ -72,6 +72,7 @@ interface DraggableWindowProps {
   settings: React.ReactNode;
   title: string;
   style?: React.CSSProperties; // Added style prop
+  isSpotlighted?: boolean; // Added isSpotlighted prop
   skipCloseConfirmation?: boolean;
   headerActions?: React.ReactNode;
   globalStyle: GlobalStyle;
@@ -112,6 +113,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   settings,
   title,
   style,
+  isSpotlighted = false,
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
@@ -735,7 +737,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     window.addEventListener('pointercancel', onPointerUp);
   };
 
-  const transparency = widget.transparency ?? globalStyle.windowTransparency;
+  // Force 100% opacity when spotlighted so it stands out against the dimming overlay
+  // This prevents the "dimmed text" issue reported by users.
+  const transparency = isSpotlighted
+    ? 1
+    : (widget.transparency ?? globalStyle.windowTransparency);
   const isSelected =
     !isMaximized && (showTools || isDragging || isResizing || widget.flipped);
 
@@ -1352,7 +1358,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   return (
     <>
-      {isMaximized && typeof document !== 'undefined'
+      {(isMaximized || isSpotlighted) && typeof document !== 'undefined'
         ? createPortal(content, document.body)
         : content}
 
