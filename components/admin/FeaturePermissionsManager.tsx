@@ -681,9 +681,13 @@ export const FeaturePermissionsManager: React.FC = () => {
       )}
 
       {activeModalTool &&
-        !['instructionalRoutines', 'stickers', 'calendar', 'miniApp'].includes(
-          activeModalTool.type
-        ) && (
+        ![
+          'instructionalRoutines',
+          'stickers',
+          'calendar',
+          'specialist-schedule',
+          'miniApp',
+        ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
             permission={getPermission(activeModalTool.type)}
