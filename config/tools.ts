@@ -71,6 +71,12 @@ export const TOOLS: ToolMetadata[] = [
   },
   { type: 'weather', icon: CloudSun, label: 'Weather', color: 'bg-sky-400' },
   { type: 'schedule', icon: Calendar, label: 'Schedule', color: 'bg-teal-600' },
+  {
+    type: 'specialist-schedule',
+    icon: CalendarDays,
+    label: 'Specialist',
+    color: 'bg-teal-700',
+  },
   { type: 'calendar', icon: Calendar, label: 'Events', color: 'bg-rose-500' },
   {
     type: 'lunchCount',
@@ -143,12 +149,6 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-brand-blue-primary',
   },
   { type: 'music', icon: Music, label: 'Music', color: 'bg-emerald-500' },
-  {
-    type: 'specialist-schedule',
-    icon: CalendarDays,
-    label: 'Specialist',
-    color: 'bg-teal-700',
-  },
   { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
 
   {
