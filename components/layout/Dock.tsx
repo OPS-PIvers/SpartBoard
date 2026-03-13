@@ -395,7 +395,7 @@ export const Dock: React.FC = () => {
   const handleLongPress = useCallback(() => {
     setIsEditMode(true);
     setShowLibrary(true);
-  }, [setIsEditMode, setShowLibrary]);
+  }, []);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
