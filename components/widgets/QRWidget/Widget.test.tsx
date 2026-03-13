@@ -1,11 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
-import { QRWidget, QRSettings } from './QRWidget';
-import { WidgetData, QRConfig, TextConfig } from '../../types';
-import { useDashboard } from '../../context/useDashboard';
+import { QRWidget } from './Widget';
+import { QRSettings } from './Settings';
+import { WidgetData, QRConfig, TextConfig } from '../../../types';
+import { useDashboard } from '../../../context/useDashboard';
 
 // Mock the context using the standard pattern
-vi.mock('../../context/useDashboard', () => ({
+vi.mock('../../../context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
