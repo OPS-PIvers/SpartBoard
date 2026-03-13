@@ -101,30 +101,29 @@ describe('DraggableWindow (Tests folder)', () => {
     // Toolbar should now be visible because selectedWidgetId matches
     // Check for icons
     const settingsIcon = screen.getByTestId('settings-icon');
-    const chevronIcon = screen.getByTestId('chevron-icon');
     const closeIcon = screen.getByTestId('close-icon');
 
     expect(settingsIcon).toBeInTheDocument();
-    expect(chevronIcon).toBeInTheDocument();
     expect(closeIcon).toBeInTheDocument();
 
-    // Verify order: Settings -> Close -> Chevron
+    // Verify order: Settings -> Close
     const settingsBtn = settingsIcon.closest('button');
     const closeBtn = closeIcon.closest('button');
-    const chevronBtn = chevronIcon.closest('button');
 
-    const container = settingsBtn?.parentElement;
-    const children = Array.from(container?.children ?? []);
+    // Due to refactoring into one continuous toolbar, grab all buttons within the tools menu
+    const toolbarContainer = screen
+      .getByTestId('settings-icon')
+      .closest('[data-settings-exclude]');
+    const allButtons = Array.from(
+      toolbarContainer?.querySelectorAll('button') ?? []
+    );
 
-    if (!settingsBtn || !closeBtn || !chevronBtn) {
+    if (!settingsBtn || !closeBtn) {
       throw new Error('Buttons not found');
     }
 
-    expect(children.indexOf(settingsBtn)).toBeLessThan(
-      children.indexOf(closeBtn)
-    );
-    expect(children.indexOf(closeBtn)).toBeLessThan(
-      children.indexOf(chevronBtn)
+    expect(allButtons.indexOf(settingsBtn)).toBeLessThan(
+      allButtons.indexOf(closeBtn)
     );
   });
 
