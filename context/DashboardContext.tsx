@@ -583,6 +583,64 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 (w) => !serverIds.has(w.id)
               );
 
+              // SURGICAL MERGE STATE UPDATE
+              // To prevent the "rejected server update" race condition, we MUST immediately
+              // update `lastSavedFieldsRef` to match the fields we just ACCEPTED from the server.
+              // Otherwise, if the server sends another update before our local auto-save completes,
+              // the client will mistakenly see its new state (the one we just accepted) as a "local change"
+              // relative to the stale `lastSavedFieldsRef`, and it will reject the server's new update.
+              if (!backgroundChangedLocally) {
+                lastSavedFieldsRef.current.background = db.background;
+              }
+              if (!nameChangedLocally) {
+                lastSavedFieldsRef.current.name = db.name;
+              }
+              if (!libraryOrderChangedLocally) {
+                lastSavedFieldsRef.current.libraryOrder = JSON.stringify(
+                  db.libraryOrder ?? []
+                );
+              }
+              if (!settingsChangedLocally) {
+                lastSavedFieldsRef.current.settings = JSON.stringify(
+                  db.settings ?? {}
+                );
+              }
+              // For widgets, construct the array of what we would have saved if we had
+              // accepted the server's widget baseline for non-locally-modified widgets.
+              const nextLastSavedWidgets = db.widgets.map((sw) => {
+                const lw = localById.get(sw.id);
+                const saved = lastSavedById.get(sw.id);
+                if (!lw) return sw;
+                if (!saved) return sw;
+
+                const configChangedLocally =
+                  JSON.stringify(lw.config) !== JSON.stringify(saved.config);
+                const layoutChangedLocally = LAYOUT_FIELDS.some(
+                  (f) => lw[f] !== saved[f]
+                );
+
+                const keepLocalConfig =
+                  configChangedLocally || !remoteControlEnabled;
+                const keepLocalLayout =
+                  layoutChangedLocally || !remoteControlEnabled;
+
+                return {
+                  ...sw,
+                  config: keepLocalConfig ? saved.config : sw.config,
+                  ...(keepLocalLayout
+                    ? LAYOUT_FIELDS.reduce(
+                        (acc, field) => ({
+                          ...acc,
+                          [field]: saved[field as keyof WidgetData],
+                        }),
+                        {}
+                      )
+                    : {}),
+                };
+              });
+              lastSavedFieldsRef.current.widgets =
+                JSON.stringify(nextLastSavedWidgets);
+
               return {
                 ...db,
                 widgets: [...mergedWidgets, ...localOnlyWidgets],
