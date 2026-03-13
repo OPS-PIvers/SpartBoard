@@ -83,6 +83,10 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
   const boardGestures: GestureRow[] = useMemo(
     () => [
       {
+        gesture: t('widgets.cheatSheet.gestureNames.twoFingerSwipeLR'),
+        description: t('widgets.cheatSheet.gestures.switchBoards'),
+      },
+      {
         gesture: t('widgets.cheatSheet.gestureNames.twoFingerSwipeDown'),
         description: t('widgets.cheatSheet.gestures.minimizeAll'),
       },
@@ -110,7 +114,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
     () => [
       {
         gesture: t('widgets.cheatSheet.gestureNames.widgetTwoFingerSwipeDown'),
-        description: t('widgets.cheatSheet.gestures.minimizeWidget'),
+        description: t('widgets.cheatSheet.gestures.minimizeOrRestoreWidget'),
       },
       {
         gesture: t('widgets.cheatSheet.gestureNames.widgetTwoFingerSwipeUp'),
