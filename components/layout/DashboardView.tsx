@@ -302,7 +302,7 @@ export const DashboardView: React.FC = () => {
             if (widgetEl) {
               const id = widgetEl.dataset.widgetId;
               if (id) {
-                const w = activeDashboard.widgets.find((w) => w.id === id);
+                const w = activeDashboard?.widgets.find((w) => w.id === id);
                 if (w) {
                   if (!w.maximized) {
                     updateWidget(id, { maximized: true });
