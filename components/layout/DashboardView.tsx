@@ -254,6 +254,9 @@ export const DashboardView: React.FC = () => {
   // `touches` has already decremented to 0 as fingers lift, so we cannot
   // rely on it there to distinguish 1-finger from 2-finger gestures.
   const gestureFingerCount = React.useRef(0);
+  // Previous pinch midpoint — used to extract the translation component of a
+  // pinch gesture so zoom and pan work as a single natural motion.
+  const lastPinchOrigin = React.useRef<[number, number] | null>(null);
 
   useGesture(
     {
@@ -266,12 +269,24 @@ export const DashboardView: React.FC = () => {
       }) => {
         if (first) {
           isPinching.current = true;
+          lastPinchOrigin.current = [ox, oy];
           const rect = dashboardRef.current?.getBoundingClientRect();
           if (rect) {
             const xPct = ((ox - rect.left) / rect.width) * 100;
             const yPct = ((oy - rect.top) / rect.height) * 100;
             setPinchOrigin({ x: `${xPct}%`, y: `${yPct}%` });
           }
+        } else if (lastPinchOrigin.current) {
+          // Pan: translate the board by however far the pinch midpoint moved.
+          // This makes zoom + pan a single intuitive two-finger gesture —
+          // spread/close to zoom, slide together to pan, mix freely.
+          const [lox, loy] = lastPinchOrigin.current;
+          const dpx = ox - lox;
+          const dpy = oy - loy;
+          if (dpx !== 0 || dpy !== 0) {
+            setPanOffset((prev) => ({ x: prev.x + dpx, y: prev.y + dpy }));
+          }
+          lastPinchOrigin.current = last ? null : [ox, oy];
         }
         if (last) {
           isPinching.current = false;
@@ -299,9 +314,15 @@ export const DashboardView: React.FC = () => {
           gestureFingerCount.current = touches;
         }
 
+        const widgetEl = (event.target as HTMLElement).closest?.(
+          '.widget'
+        ) as HTMLElement | null;
+
         if (!last) {
-          // Live 2-finger pan while zoomed in
-          if (gestureFingerCount.current >= 2 && zoom > 1) {
+          // 1-finger drag on background while zoomed → pan.
+          // Much more reliable than 2-finger drag (which conflicts with pinch)
+          // and works even when widgets cover the whole viewport.
+          if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
             setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
           }
           return;
@@ -311,13 +332,10 @@ export const DashboardView: React.FC = () => {
         const peakFingers = gestureFingerCount.current;
         gestureFingerCount.current = 0;
 
-        const widgetEl = (event.target as HTMLElement).closest?.(
-          '.widget'
-        ) as HTMLElement | null;
-
         if (peakFingers >= 2) {
-          // When zoomed the 2-finger gesture was used for panning — skip
-          // minimize/restore to avoid accidental actions while navigating.
+          // When zoomed the 2-finger gesture was handled as pinch+pan above.
+          // Skip swipe actions to avoid accidental minimize/restore while
+          // navigating the zoomed board.
           if (zoom > 1) return;
 
           // Use cumulative movement (total displacement from gesture start)
@@ -357,9 +375,10 @@ export const DashboardView: React.FC = () => {
             }
           }
         } else {
-          // Single-finger gesture: left-edge swipe → open sidebar
+          // Single-finger gesture: left-edge swipe → open sidebar.
+          // Disabled while zoomed to avoid conflict with 1-finger pan.
           if (widgetEl) return;
-          if (swipeX > 0 && dirX > 0 && initialX < 40) {
+          if (zoom <= 1 && swipeX > 0 && dirX > 0 && initialX < 40) {
             window.dispatchEvent(new CustomEvent('open-sidebar'));
           }
         }

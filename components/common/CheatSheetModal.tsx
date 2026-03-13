@@ -95,6 +95,10 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.zoom'),
       },
       {
+        gesture: t('widgets.cheatSheet.gestureNames.oneFingerDrag'),
+        description: t('widgets.cheatSheet.gestures.panBoard'),
+      },
+      {
         gesture: t('widgets.cheatSheet.gestureNames.oneFingerSwipeEdge'),
         description: t('widgets.cheatSheet.gestures.openSidebar'),
       },

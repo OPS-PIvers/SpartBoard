@@ -351,7 +351,8 @@
         "switchBoards": "Switch boards",
         "minimizeAll": "Minimize all to dock",
         "restoreAll": "Restore all widgets",
-        "zoom": "Zoom board in/out",
+        "zoom": "Zoom and pan board (slide fingers to pan while pinching)",
+        "panBoard": "Pan board while zoomed",
         "toggleAnnotation": "Toggle annotation",
         "screenshot": "Take screenshot",
         "minimizeWidget": "Minimize widget",
@@ -364,6 +365,7 @@
       "gestureNames": {
         "oneFingerDoubleTap": "1-finger double tap",
         "oneFingerLongPress": "1-finger long press",
+        "oneFingerDrag": "1-finger drag on background",
         "oneFingerSwipeEdge": "1-finger swipe from left edge",
         "twoFingerSwipeLR": "2-finger swipe \u2190/\u2192",
         "twoFingerSwipeDown": "2-finger swipe \u2193",
