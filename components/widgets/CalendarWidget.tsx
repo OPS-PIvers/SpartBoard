@@ -268,7 +268,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                     className="w-full h-full flex flex-col justify-center rounded-xl transition-all relative overflow-hidden"
                     style={{
                       backgroundColor: bgColor,
-                      padding: 'clamp(6px, 6cqmin, 16px) clamp(8px, 5cqmin, 20px)',
+                      padding:
+                        'clamp(6px, 6cqmin, 16px) clamp(8px, 5cqmin, 20px)',
                       border: `1px solid ${isToday ? 'rgba(99, 102, 241, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
                       borderLeft: isToday
                         ? 'min(4px, 2cqmin) solid rgb(99, 102, 241)'
