@@ -24,7 +24,7 @@ export const UpdateNotification = ({
   if (!updateAvailable || dismissed) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+    <div className="fixed bottom-4 right-4 z-toast animate-in slide-in-from-bottom-5 fade-in duration-300">
       <div
         className="bg-slate-800 text-white p-4 rounded-lg shadow-lg flex items-center gap-4 max-w-md border border-slate-700"
         role="status"

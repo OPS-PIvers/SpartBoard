@@ -204,7 +204,7 @@ export const FolderItem = React.memo(
                 e.stopPropagation();
                 onDelete(folder.id);
               }}
-              className="absolute -top-2 -right-2 z-50 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all"
+              className="absolute -top-2 -right-2 z-controls bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all"
             >
               <X className="w-2.5 h-2.5" />
             </button>

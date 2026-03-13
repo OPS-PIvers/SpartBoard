@@ -228,7 +228,7 @@ export const ToolDockItem = React.memo(
                 e.stopPropagation();
                 onRemoveFromDock();
               }}
-              className="absolute -top-2 -right-2 z-50 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all animate-in zoom-in duration-200"
+              className="absolute -top-2 -right-2 z-controls bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all animate-in zoom-in duration-200"
               title="Remove from Dock"
             >
               <X className="w-2.5 h-2.5" />

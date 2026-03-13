@@ -96,6 +96,7 @@
     "collapseToolbar": "Symbolleiste reduzieren",
     "screenshotSaved": "Screenshot gespeichert",
     "screenshotFailed": "Screenshot konnte nicht gespeichert werden",
+    "takeScreenshotLongPress": "Screenshot aufnehmen (langer Druck)",
     "screenshotGestureProTip": "Pro-Tipp: Drücke lange auf ein Widget, um einen Screenshot zu machen!",
     "eraser": "Radierer",
     "undo": "Rückgängig",
@@ -176,18 +177,19 @@
         "switchBoards": "Tafeln wechseln",
         "minimizeAll": "Alle zum Dock minimieren",
         "restoreAll": "Alle Widgets wiederherstellen",
-        "zoom": "Tafel vergrößern/verkleinern",
-        "toggleAnnotation": "Anmerkung umschalten",
+        "toggleAnnotation": "Anmerkungsmodus umschalten (ca. 0,6 s halten)",
         "screenshot": "Screenshot aufnehmen",
-        "minimizeWidget": "Widget minimieren"
+        "minimizeWidget": "Widget minimieren",
+        "panBoard": "Tafel verschieben"
       },
       "gestureNames": {
-        "oneFingerDoubleTap": "1-finger double tap",
-        "oneFingerLongPress": "1-finger long press",
+        "oneFingerDoubleTap": "1-Finger-Doppeltippen",
+        "oneFingerLongPress": "1-Finger-Langer Druck",
+        "oneFingerDrag": "1-Finger-Ziehen auf Hintergrund",
         "twoFingerSwipeLR": "2-Finger-Wischen \u2190/\u2192",
         "twoFingerSwipeDown": "2-Finger-Wischen \u2193",
         "twoFingerSwipeUp": "2-Finger-Wischen \u2191",
-        "twoFingerPinch": "2-Finger-Pinch",
+        "twoFingerLongPress": "2-Finger-Langer Druck",
         "dragDownToDock": "Nach unten zum Dock ziehen \u2193",
         "widgetTwoFingerSwipeDown": "2-Finger-Wischen \u2193",
         "widgetTwoFingerSwipeUp": "2-Finger-Wischen \u2191"
@@ -195,7 +197,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
-      "switchBoardsHint": "2-Finger-Wischen links/rechts, um Tafeln zu wechseln"
+      "switchBoardsHint": "Tafelwechsel über die Tafelauswahl in der oberen Symbolleiste"
     }
   }
 }

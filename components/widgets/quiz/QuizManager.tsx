@@ -79,7 +79,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     <div className="flex flex-col h-full font-sans relative">
       {/* Mode Selection Modal */}
       {selectedForLive && (
-        <div className="absolute inset-0 z-50 bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-brand-blue-primary p-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-white">

@@ -77,7 +77,7 @@ const RotationOverlay: React.FC<{
   onRotate: (newRotation: number) => void;
 }> = ({ rotation, onRotate }) => {
   return (
-    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-dropdown pointer-events-none">
       <button
         onClick={(e) => {
           e.stopPropagation();

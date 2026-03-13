@@ -509,7 +509,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
             </div>
 
             <div className="px-2">
-              <h5 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-2">
+              <h5 className="font-black text-slate-400 uppercase tracking-widest text-xxs mb-2">
                 Developer Note
               </h5>
               <p className="text-xxs text-slate-400 leading-relaxed italic">

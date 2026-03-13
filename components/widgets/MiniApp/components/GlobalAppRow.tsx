@@ -63,7 +63,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           {isLive && sessionCode && (
             <div className="flex items-center gap-1">
               <span
-                className="bg-violet-100 text-violet-700 font-mono font-black px-1.5 py-0.5 rounded text-[10px] tracking-wider border border-violet-200 animate-in fade-in"
+                className="bg-violet-100 text-violet-700 font-mono font-black px-1.5 py-0.5 rounded text-xxs tracking-wider border border-violet-200 animate-in fade-in"
                 title="Live Session Code"
               >
                 {sessionCode}

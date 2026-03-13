@@ -4,8 +4,6 @@ import {
   getTitle,
   getDefaultWidgetConfig,
   isWidgetLayout,
-  calculatePinchScale,
-  calculatePinchOrigin,
 } from './widgetHelpers';
 import {
   WidgetData,
@@ -45,85 +43,6 @@ describe('widgetHelpers', () => {
     it('returns false for an object without content property', () => {
       const obj = { someOtherProp: 'test' };
       expect(isWidgetLayout(obj as unknown as WidgetOutput)).toBe(false);
-    });
-  });
-
-  describe('calculatePinchScale', () => {
-    it('returns null for invalid inputs', () => {
-      expect(calculatePinchScale(0, 1.5)).toBe(null);
-      expect(calculatePinchScale(-1, 1.5)).toBe(null);
-      expect(calculatePinchScale(1, NaN)).toBe(null);
-      expect(calculatePinchScale(1, Infinity)).toBe(null);
-    });
-
-    it('scales up and clamps at 3x', () => {
-      const result = calculatePinchScale(1, 4);
-      expect(result?.newScaleMultiplier).toBe(3);
-      expect(result?.relativeScale).toBe(3);
-    });
-
-    it('scales down and clamps at 1x', () => {
-      const result = calculatePinchScale(1, 0.2);
-      expect(result?.newScaleMultiplier).toBe(1);
-      expect(result?.relativeScale).toBe(1);
-    });
-
-    it('calculates relative scale correctly from 2x base', () => {
-      // Starting at 2x zoom, zoom in by another 1.2x -> 2.4x
-      const result = calculatePinchScale(2, 1.2);
-      expect(result?.newScaleMultiplier).toBe(2.4);
-      expect(result?.relativeScale).toBe(1.2);
-    });
-
-    it('handles clamping correctly when starting at bounds', () => {
-      // Already at 3x, zooming in more
-      const resultIn = calculatePinchScale(3, 1.5);
-      expect(resultIn?.newScaleMultiplier).toBe(3);
-      expect(resultIn?.relativeScale).toBe(1);
-
-      // Already at 1x, zooming out more
-      const resultOut = calculatePinchScale(1, 0.5);
-      expect(resultOut?.newScaleMultiplier).toBe(1);
-      expect(resultOut?.relativeScale).toBe(1);
-    });
-  });
-
-  describe('calculatePinchOrigin', () => {
-    const mockRect = {
-      left: 100,
-      top: 100,
-      width: 400,
-      height: 400,
-    } as DOMRect;
-
-    it('returns 50,50 for less than 2 touches', () => {
-      expect(calculatePinchOrigin([], mockRect)).toEqual({ x: 50, y: 50 });
-      expect(
-        calculatePinchOrigin([{ clientX: 0, clientY: 0 }], mockRect)
-      ).toEqual({ x: 50, y: 50 });
-    });
-
-    it('calculates midpoint relative to rect', () => {
-      // Fingers at (100, 100) and (200, 200) -> Midpoint (150, 150)
-      // Relative to rect starting at (100, 100) -> Midpoint is (50, 50)
-      // In 400x400 rect, (50, 50) is (12.5%, 12.5%)
-      const touches = [
-        { clientX: 100, clientY: 100 },
-        { clientX: 200, clientY: 200 },
-      ];
-      const result = calculatePinchOrigin(touches, mockRect);
-      expect(result.x).toBe(12.5);
-      expect(result.y).toBe(12.5);
-    });
-
-    it('clamps origin to 0-100%', () => {
-      const touches = [
-        { clientX: 0, clientY: 0 },
-        { clientX: 50, clientY: 50 },
-      ];
-      const result = calculatePinchOrigin(touches, mockRect);
-      expect(result.x).toBe(0);
-      expect(result.y).toBe(0);
     });
   });
 

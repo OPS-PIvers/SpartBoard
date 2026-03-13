@@ -96,6 +96,7 @@
     "collapseToolbar": "Réduire la barre",
     "screenshotSaved": "Capture d'écran enregistrée",
     "screenshotFailed": "Échec de la capture d'écran",
+    "takeScreenshotLongPress": "Capture d'écran (appui long)",
     "screenshotGestureProTip": "Astuce : faites un appui long avec un doigt sur le widget pour prendre une capture plus rapidement !",
     "eraser": "Gomme",
     "undo": "Annuler",
@@ -176,26 +177,27 @@
         "switchBoards": "Changer de tableau",
         "minimizeAll": "Tout réduire vers le dock",
         "restoreAll": "Restaurer tous les widgets",
-        "zoom": "Zoomer / dézoomer le tableau",
-        "toggleAnnotation": "Basculer l'annotation",
+        "toggleAnnotation": "Activer/désactiver l'annotation (maintenir ~0,6 s)",
         "screenshot": "Prendre une capture d'écran",
-        "minimizeWidget": "Réduire le widget"
+        "minimizeWidget": "Réduire le widget",
+        "panBoard": "Déplacer le tableau"
       },
       "gestureNames": {
-        "oneFingerDoubleTap": "1-finger double tap",
-        "oneFingerLongPress": "1-finger long press",
-        "twoFingerSwipeLR": "Balayage à 4 doigts \u2190/\u2192",
-        "twoFingerSwipeDown": "Balayage à 4 doigts \u2193",
-        "twoFingerSwipeUp": "Balayage à 4 doigts \u2191",
-        "twoFingerPinch": "Pincement à 2 doigts",
+        "oneFingerDoubleTap": "Double touche à 1 doigt",
+        "oneFingerLongPress": "Appui long à 1 doigt",
+        "oneFingerDrag": "Glisser à 1 doigt sur le fond",
+        "twoFingerSwipeLR": "Balayage à 2 doigts \u2190/\u2192",
+        "twoFingerSwipeDown": "Balayage à 2 doigts \u2193",
+        "twoFingerSwipeUp": "Balayage à 2 doigts \u2191",
+        "twoFingerLongPress": "Appui long à 2 doigts",
         "dragDownToDock": "Glisser vers le dock \u2193",
-        "widgetTwoFingerSwipeDown": "Balayage à 3 doigts \u2193",
-        "widgetTwoFingerSwipeUp": "Balayage à 3 doigts \u2191"
+        "widgetTwoFingerSwipeDown": "Balayage à 2 doigts \u2193",
+        "widgetTwoFingerSwipeUp": "Balayage à 2 doigts \u2191"
       }
     },
     "dashboard": {
       "emptyBoardHint": "Faites glisser des outils depuis le Dock ci-dessous pour commencer",
-      "switchBoardsHint": "Balayage à 4 doigts gauche/droite pour changer de tableau"
+      "switchBoardsHint": "Utilisez le sélecteur de tableau dans la barre d'outils supérieure"
     }
   }
 }

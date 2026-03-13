@@ -58,60 +58,6 @@ export const getTitle = (
   return widget.type.charAt(0).toUpperCase() + widget.type.slice(1);
 };
 
-export interface PinchScaleResult {
-  newScaleMultiplier: number;
-  relativeScale: number;
-}
-
-/**
- * Calculates the new content scale multiplier based on a pinch gesture.
- */
-export function calculatePinchScale(
-  startScale: number,
-  gestureScale: number
-): PinchScaleResult | null {
-  if (!Number.isFinite(startScale) || startScale <= 0) {
-    return null;
-  }
-  if (!Number.isFinite(gestureScale)) {
-    return null;
-  }
-
-  let newScaleMultiplier = startScale * gestureScale;
-  // Clamp it to reasonable bounds (1x to 3x)
-  newScaleMultiplier = Math.max(1, Math.min(newScaleMultiplier, 3));
-
-  const relativeScale = newScaleMultiplier / startScale;
-  if (!Number.isFinite(relativeScale)) {
-    return null;
-  }
-
-  return { newScaleMultiplier, relativeScale };
-}
-
-/**
- * Calculates the midpoint of two touch points relative to an element.
- * Used for zoom-at-point origin.
- */
-export function calculatePinchOrigin(
-  touches: { clientX: number; clientY: number }[],
-  elementRect: DOMRect
-): { x: number; y: number } {
-  if (touches.length < 2) return { x: 50, y: 50 }; // Default to center
-
-  const midX = (touches[0].clientX + touches[1].clientX) / 2;
-  const midY = (touches[0].clientY + touches[1].clientY) / 2;
-
-  // Convert to percentage relative to element
-  const x = ((midX - elementRect.left) / elementRect.width) * 100;
-  const y = ((midY - elementRect.top) / elementRect.height) * 100;
-
-  return {
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y)),
-  };
-}
-
 /**
  * Get the default configuration for a widget type.
  * Returns an empty object for widgets that don't require configuration.

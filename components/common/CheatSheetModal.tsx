@@ -83,10 +83,6 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
   const boardGestures: GestureRow[] = useMemo(
     () => [
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerSwipeLR'),
-        description: t('widgets.cheatSheet.gestures.switchBoards'),
-      },
-      {
         gesture: t('widgets.cheatSheet.gestureNames.twoFingerSwipeDown'),
         description: t('widgets.cheatSheet.gestures.minimizeAll'),
       },
@@ -95,8 +91,8 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.restoreAll'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerPinch'),
-        description: t('widgets.cheatSheet.gestures.zoom'),
+        gesture: t('widgets.cheatSheet.gestureNames.oneFingerDrag'),
+        description: t('widgets.cheatSheet.gestures.panBoard'),
       },
       {
         gesture: t('widgets.cheatSheet.gestureNames.oneFingerSwipeEdge'),
@@ -121,11 +117,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.maximizeWidget'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerPinch'),
-        description: t('widgets.cheatSheet.gestures.resize'),
-      },
-      {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerDoubleTap'),
+        gesture: t('widgets.cheatSheet.gestureNames.twoFingerLongPress'),
         description: t('widgets.cheatSheet.gestures.toggleAnnotation'),
       },
       {
@@ -251,7 +243,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
             <div className="space-y-6">
               {/* Board Context */}
               <section>
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="h-px bg-slate-800 flex-1" />
                   {t('widgets.cheatSheet.boardGestures')}
                   <span className="h-px bg-slate-800 flex-1" />
@@ -275,7 +267,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
 
               {/* Widget Context */}
               <section>
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="h-px bg-slate-800 flex-1" />
                   {t('widgets.cheatSheet.widgetGestures')}
                   <span className="h-px bg-slate-800 flex-1" />
