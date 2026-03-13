@@ -272,15 +272,20 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         {
           padding: scalingConfig.padding ?? PADDING,
           containerType: 'size',
-          '--transient-zoom': 1, // Default, updated via CSS var in DraggableWindow
+          '--transient-zoom': 1,
+          '--transient-pan-x': '0px',
+          '--transient-pan-y': '0px',
+          '--pinch-origin-x': '50%',
+          '--pinch-origin-y': '50%',
         } as React.CSSProperties
       }
     >
       <div
         className="h-full w-full"
         style={{
-          transform: `scale(calc(${contentScaleMultiplier} * var(--transient-zoom, 1)))`,
-          transformOrigin: 'center center',
+          transform: `translate(calc(${widget.contentOffsetX ?? 0}px + var(--transient-pan-x, 0px)), calc(${widget.contentOffsetY ?? 0}px + var(--transient-pan-y, 0px))) scale(calc(${contentScaleMultiplier} * var(--transient-zoom, 1)))`,
+          transformOrigin:
+            'var(--pinch-origin-x, 50%) var(--pinch-origin-y, 50%)',
           willChange: 'transform',
         }}
       >
@@ -297,6 +302,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       headerHeight={HEADER_HEIGHT}
       padding={scalingConfig.padding ?? PADDING}
       contentScaleMultiplier={contentScaleMultiplier}
+      contentOffsetX={widget.contentOffsetX}
+      contentOffsetY={widget.contentOffsetY}
     >
       {renderScalableContent}
     </ScalableWidget>

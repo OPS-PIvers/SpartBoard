@@ -5,6 +5,7 @@ import {
   getDefaultWidgetConfig,
   isWidgetLayout,
   calculatePinchScale,
+  calculatePinchOrigin,
 } from './widgetHelpers';
 import {
   WidgetData,
@@ -73,6 +74,45 @@ describe('widgetHelpers', () => {
       const resultOut = calculatePinchScale(0.5, 0.5);
       expect(resultOut?.newScaleMultiplier).toBe(0.5);
       expect(resultOut?.relativeScale).toBe(1);
+    });
+  });
+
+  describe('calculatePinchOrigin', () => {
+    const mockRect = {
+      left: 100,
+      top: 100,
+      width: 400,
+      height: 400,
+    } as DOMRect;
+
+    it('returns 50,50 for less than 2 touches', () => {
+      expect(calculatePinchOrigin([], mockRect)).toEqual({ x: 50, y: 50 });
+      expect(
+        calculatePinchOrigin([{ clientX: 0, clientY: 0 }], mockRect)
+      ).toEqual({ x: 50, y: 50 });
+    });
+
+    it('calculates midpoint relative to rect', () => {
+      // Fingers at (100, 100) and (200, 200) -> Midpoint (150, 150)
+      // Relative to rect starting at (100, 100) -> Midpoint is (50, 50)
+      // In 400x400 rect, (50, 50) is (12.5%, 12.5%)
+      const touches = [
+        { clientX: 100, clientY: 100 },
+        { clientX: 200, clientY: 200 },
+      ];
+      const result = calculatePinchOrigin(touches, mockRect);
+      expect(result.x).toBe(12.5);
+      expect(result.y).toBe(12.5);
+    });
+
+    it('clamps origin to 0-100%', () => {
+      const touches = [
+        { clientX: 0, clientY: 0 },
+        { clientX: 50, clientY: 50 },
+      ];
+      const result = calculatePinchOrigin(touches, mockRect);
+      expect(result.x).toBe(0);
+      expect(result.y).toBe(0);
     });
   });
   describe('getTitle', () => {

@@ -33,7 +33,10 @@ import {
 } from '../../types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
-import { calculatePinchScale } from '@/utils/widgetHelpers';
+import {
+  calculatePinchScale,
+  calculatePinchOrigin,
+} from '@/utils/widgetHelpers';
 import { useScreenshot } from '../../hooks/useScreenshot';
 import { useDashboard } from '../../context/useDashboard';
 import { GlassCard } from './GlassCard';
@@ -426,6 +429,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const handleDragStart = (e: React.PointerEvent) => {
     if (isMaximized) return;
+
+    // IMPORTANT: If zoomed in and using touch, bypass standard dragging to allow 1-finger pan via useGesture
+    const isZoomed = (widget.contentScaleMultiplier ?? 1) > 1;
+    if (isZoomed && e.pointerType !== 'mouse') {
+      return;
+    }
 
     // Don't drag if clicking interactive elements or resize handle
     const target = e.target as HTMLElement;
@@ -854,10 +863,66 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   useGesture(
     {
-      onDrag: ({ swipe: [, swipeY], direction: [, dirY], touches, event }) => {
+      onDrag: ({
+        offset: [x, y],
+        first,
+        last,
+        memo,
+        touches,
+        swipe: [, swipeY],
+        direction: [, dirY],
+        event,
+      }) => {
         const target = event.target as HTMLElement;
-        if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
 
+        if (first) {
+          const isBlocked = !!target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR);
+          const isZoomed = (widget.contentScaleMultiplier ?? 1) > 1;
+
+          // Capture allow/block decision on first frame
+          if (isBlocked || isMaximized) {
+            return { allowPan: false };
+          }
+
+          // If zoomed in and 1 finger, it's a pan gesture
+          if (isZoomed && touches === 1) {
+            return {
+              allowPan: true,
+              startX: widget.contentOffsetX ?? 0,
+              startY: widget.contentOffsetY ?? 0,
+            };
+          }
+
+          return { allowPan: false };
+        }
+
+        const state = memo as
+          | { allowPan: boolean; startX: number; startY: number }
+          | undefined;
+
+        if (state?.allowPan) {
+          if (event.cancelable) event.preventDefault();
+
+          // Apply real-time pan using CSS variables
+          if (windowRef.current && !last) {
+            windowRef.current.style.setProperty('--transient-pan-x', `${x}px`);
+            windowRef.current.style.setProperty('--transient-pan-y', `${y}px`);
+          }
+
+          if (last) {
+            if (windowRef.current) {
+              windowRef.current.style.removeProperty('--transient-pan-x');
+              windowRef.current.style.removeProperty('--transient-pan-y');
+            }
+            updateWidget(widget.id, {
+              contentOffsetX: state.startX + x,
+              contentOffsetY: state.startY + y,
+            });
+          }
+          return memo as unknown;
+        }
+
+        // --- ORIGINAL SWIPE GESTURES ---
         // 2-finger swipe down
         if (touches === 2 && swipeY > 0 && dirY > 0) {
           if (isMaximized) {
@@ -877,6 +942,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           }
           handleCloseTools();
         }
+
+        return memo as unknown;
       },
       onPinch: ({ offset: [scale], first, last, event, memo }) => {
         const target = event.target as HTMLElement;
@@ -892,6 +959,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           }
 
           if (event.cancelable) event.preventDefault();
+
+          // Calculate pinch origin relative to widget
+          const rect = windowRef.current?.getBoundingClientRect();
+          const touchEvent = event as unknown as TouchEvent;
+          const origin =
+            rect && touchEvent.touches
+              ? calculatePinchOrigin(Array.from(touchEvent.touches), rect)
+              : { x: 50, y: 50 };
+
+          if (windowRef.current) {
+            windowRef.current.style.setProperty(
+              '--pinch-origin-x',
+              `${origin.x}%`
+            );
+            windowRef.current.style.setProperty(
+              '--pinch-origin-y',
+              `${origin.y}%`
+            );
+          }
 
           const rawStartScale = widget.contentScaleMultiplier ?? 1;
           const safeStartScale =

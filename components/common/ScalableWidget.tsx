@@ -9,6 +9,8 @@ interface ScalableWidgetProps {
   padding?: number;
   headerHeight?: number;
   contentScaleMultiplier?: number;
+  contentOffsetX?: number;
+  contentOffsetY?: number;
   children:
     | React.ReactNode
     | ((props: {
@@ -27,6 +29,8 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
   padding = 0,
   headerHeight = 0,
   contentScaleMultiplier = 1,
+  contentOffsetX = 0,
+  contentOffsetY = 0,
   children,
 }) => {
   const safeContentScaleMultiplier =
@@ -105,8 +109,9 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
         style={{
           width: internalW,
           height: internalH,
-          transform: `scale(calc(${renderScale} * ${safeContentScaleMultiplier} * var(--transient-zoom, 1)))`,
-          transformOrigin: 'center center',
+          transform: `translate(calc(${contentOffsetX}px + var(--transient-pan-x, 0px)), calc(${contentOffsetY}px + var(--transient-pan-y, 0px))) scale(calc(${renderScale} * ${safeContentScaleMultiplier} * var(--transient-zoom, 1)))`,
+          transformOrigin:
+            'var(--pinch-origin-x, 50%) var(--pinch-origin-y, 50%)',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
