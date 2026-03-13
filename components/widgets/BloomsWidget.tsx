@@ -5,31 +5,29 @@ import { BLOOMS_DATA } from '@/config/bloomsData';
 import { ChevronRight, Settings2, Trash2, Plus, Info } from 'lucide-react';
 
 const LEVELS = [
-  { id: 'level-6', label: 'Evaluation', color: 'rgba(157, 78, 221, 0.4)' },
+  { id: 'level-6', label: 'Evaluation', color: 'rgba(157, 78, 221, 0.6)' },
   {
     id: 'level-5',
     label: 'Synthesis or Create',
-    color: 'rgba(114, 9, 183, 0.4)',
+    color: 'rgba(114, 9, 183, 0.6)',
   },
-  { id: 'level-4', label: 'Analysis', color: 'rgba(72, 12, 168, 0.4)' },
-  { id: 'level-3', label: 'Application', color: 'rgba(63, 55, 201, 0.4)' },
+  { id: 'level-4', label: 'Analysis', color: 'rgba(72, 12, 168, 0.6)' },
+  { id: 'level-3', label: 'Application', color: 'rgba(63, 55, 201, 0.6)' },
   {
     id: 'level-2',
     label: 'Understanding/Comprehension',
-    color: 'rgba(72, 149, 239, 0.4)',
+    color: 'rgba(72, 149, 239, 0.6)',
   },
   {
     id: 'level-1',
     label: 'Recall/Knowledge/Memory',
-    color: 'rgba(76, 201, 240, 0.4)',
+    color: 'rgba(76, 201, 240, 0.6)',
   },
 ].reverse(); // Pyramid base is level 1
 
 export const BloomsWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as BloomsConfig;
-  const [rotation, setRotation] = useState({ x: -10, y: 0 });
-  const [isHovered, setIsHovered] = useState(false);
 
   const activeLevelId = config.activeLevel;
 
@@ -58,80 +56,37 @@ export const BloomsWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isHovered) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 60;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -60;
-    setRotation({ x: -10 + y, y: x });
-  };
-
   return (
-    <div className="h-full w-full flex flex-col relative overflow-hidden">
-      {/* 3D Scene Container */}
-      <div
-        className="flex-1 relative cursor-grab active:cursor-grabbing preserve-3d"
-        style={{ perspective: '1000px' }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => {
-          setIsHovered(false);
-          setRotation({ x: -10, y: 0 });
-        }}
-        onMouseMove={handleMouseMove}
-      >
-        <div
-          className="absolute inset-0 flex items-center justify-center transition-transform duration-700 ease-out preserve-3d"
-          style={{
-            transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y + (isHovered ? 15 : 0)}deg)`,
-          }}
-        >
-          {/* The Pyramid */}
-          <div className="relative w-64 h-64 preserve-3d">
-            {/* Pyramid Sides */}
-            {[0, 90, 180, 270].map((rot) => (
-              <div
-                key={rot}
-                className="absolute inset-0 preserve-3d"
-                style={{
-                  transform: `rotateY(${rot}deg) translateZ(0px) rotateX(30deg)`,
-                  transformOrigin: 'bottom center',
-                }}
-              >
-                {/* Each side is composed of levels */}
-                <div className="w-full h-full flex flex-col-reverse items-center">
-                  {LEVELS.map((level, idx) => (
-                    <div
-                      key={level.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleLevelClick(level.id);
-                      }}
-                      className={`
-                        w-full cursor-pointer transition-all duration-300 relative
-                        flex items-center justify-center border border-white/20
-                        hover:brightness-125 backdrop-blur-sm
-                        ${activeLevelId === level.id ? 'brightness-150 scale-105 z-10' : 'opacity-80 hover:opacity-100'}
-                      `}
-                      style={{
-                        height: `${100 / 6}%`,
-                        backgroundColor: level.color,
-                        clipPath: `polygon(${idx * 8.33}% 100%, ${100 - idx * 8.33}% 100%, ${100 - (idx + 1) * 8.33}% 0%, ${(idx + 1) * 8.33}% 0%)`,
-                        width: '100%',
-                        marginTop: '-1px',
-                      }}
-                    >
-                      {/* Only show label on the front face (rot=0) */}
-                      {rot === 0 && (
-                        <span className="text-[8px] md:text-[10px] text-white font-bold text-center px-1 drop-shadow-md select-none">
-                          {level.label}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="h-full w-full flex flex-col relative overflow-hidden bg-slate-50/30">
+      {/* 2D Pyramid Container */}
+      <div className="flex-1 relative flex items-center justify-center p-8">
+        <div className="w-full max-w-[320px] aspect-square relative flex flex-col-reverse items-center">
+          {LEVELS.map((level, idx) => (
+            <button
+              key={level.id}
+              onClick={() => handleLevelClick(level.id)}
+              className={`
+                w-full transition-all duration-300 relative group
+                flex items-center justify-center border-b border-white/20
+                hover:brightness-110 active:scale-[0.98]
+                ${activeLevelId === level.id ? 'brightness-125 z-10 shadow-lg' : 'opacity-90 hover:opacity-100'}
+              `}
+              style={{
+                height: `${100 / 6}%`,
+                backgroundColor: level.color,
+                clipPath: `polygon(${idx * 8.33}% 100%, ${100 - idx * 8.33}% 100%, ${100 - (idx + 1) * 8.33}% 0%, ${(idx + 1) * 8.33}% 0%)`,
+                marginTop: '-1px',
+              }}
+            >
+              <span className="text-[10px] md:text-xs text-white font-bold text-center px-4 drop-shadow-md select-none group-hover:scale-110 transition-transform">
+                {level.label}
+              </span>
+
+              {activeLevelId === level.id && (
+                <div className="absolute inset-0 border-2 border-white/40 pointer-events-none" />
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -140,7 +95,7 @@ export const BloomsWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         className={`
           absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 
           transition-all duration-500 ease-in-out z-20 overflow-hidden
-          ${activeLevelId ? 'h-1/2' : 'h-0'}
+          ${activeLevelId ? 'h-[60%]' : 'h-0'}
         `}
       >
         {activeLevelData && (
@@ -151,18 +106,18 @@ export const BloomsWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </h3>
               <button
                 onClick={() => activeLevelId && handleLevelClick(activeLevelId)}
-                className="p-1 hover:bg-slate-100 rounded-full text-slate-400"
+                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
               >
                 <ChevronRight className="w-5 h-5 rotate-90" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2 pb-4">
                 {activeLevelData.starters.map((starter, i) => (
                   <div
                     key={i}
-                    className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-slate-600 hover:bg-indigo-50 hover:border-indigo-100 transition-colors"
+                    className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-slate-600 hover:bg-indigo-50 hover:border-indigo-100 transition-colors cursor-default"
                   >
                     {starter}
                   </div>
@@ -175,8 +130,8 @@ export const BloomsWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       {/* Instructions if nothing selected */}
       {!activeLevelId && (
-        <div className="absolute bottom-4 left-0 right-0 text-center animate-bounce pointer-events-none">
-          <span className="text-xxs text-slate-400 bg-white/50 px-2 py-1 rounded-full backdrop-blur-sm">
+        <div className="absolute bottom-4 left-0 right-0 text-center animate-pulse pointer-events-none">
+          <span className="text-[10px] text-slate-400 bg-white/80 px-3 py-1.5 rounded-full shadow-sm">
             Click a level to see question starters
           </span>
         </div>
