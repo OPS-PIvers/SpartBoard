@@ -45,6 +45,8 @@ describe('CalendarWidget handleStartTimer', () => {
       y: 0,
       w: 400,
       h: 400,
+      z: 1,
+      flipped: false,
       config: {
         events: [
           {
