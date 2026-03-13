@@ -271,6 +271,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
   const bgColor = hexToRgba(cardColor, cardOpacity);
 
+  const now = new Date();
+  const nowSeconds =
+    now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+
   if (isBlocked) {
     return (
       <WidgetLayout
@@ -314,11 +318,6 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               if (isToday && event.time) {
                 const startSeconds = parseTimeSeconds(event.time);
                 if (startSeconds >= 0) {
-                  const now = new Date();
-                  const nowSeconds =
-                    now.getHours() * 3600 +
-                    now.getMinutes() * 60 +
-                    now.getSeconds();
                   canStartTimer = startSeconds > nowSeconds;
                 }
               }
@@ -369,7 +368,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                       {canStartTimer && (
                         <button
                           onClick={() => handleStartTimer(event)}
-                          className="text-slate-400 hover:text-indigo-500 transition-colors shrink-0 ml-1"
+                          className="text-slate-400 hover:text-indigo-500 transition-colors shrink-0"
+                          style={{ marginLeft: 'min(4px, 1cqmin)' }}
                           title="Start countdown to event"
                         >
                           <Timer
