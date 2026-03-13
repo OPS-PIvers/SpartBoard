@@ -247,47 +247,92 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
 
+  const [pinchOrigin, setPinchOrigin] = React.useState({ x: '50%', y: '50%' });
+  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+  const isPinching = React.useRef(false);
+
   useGesture(
     {
-      onPinch: ({ event, offset: [zoomVal], first }) => {
-        if ((event.target as HTMLElement).closest?.('.widget')) return;
+      onPinch: ({
+        event,
+        offset: [zoomVal],
+        first,
+        last,
+        origin: [ox, oy],
+      }) => {
+        if (first) {
+          isPinching.current = true;
+          const rect = dashboardRef.current?.getBoundingClientRect();
+          if (rect) {
+            const xPct = ((ox - rect.left) / rect.width) * 100;
+            const yPct = ((oy - rect.top) / rect.height) * 100;
+            setPinchOrigin({ x: `${xPct}%`, y: `${yPct}%` });
+          }
+        }
+        if (last) {
+          isPinching.current = false;
+        }
         if (first && event.cancelable) event.preventDefault();
         setZoom(zoomVal);
       },
       onDrag: ({
-        swipe: [swipeX, swipeY],
-        direction: [dirX, dirY],
+        swipe: [, swipeY],
+        direction: [, dirY],
+        delta: [dx, dy],
         touches,
-        initial: [x],
         event,
       }) => {
-        const isWidget = (event.target as HTMLElement).closest?.('.widget');
+        if (isPinching.current) return;
+        const widgetEl = (event.target as HTMLElement).closest?.(
+          '.widget'
+        ) as HTMLElement;
 
         if (touches === 2) {
+          // 2-Finger SWIPE DOWN
           if (swipeY > 0 && dirY > 0) {
-            minimizeAllWidgets();
-          } else if (swipeY < 0 && dirY < 0) {
-            restoreAllWidgets();
-          } else if (swipeX !== 0) {
-            if (swipeX > 0 && dirX > 0 && dashboards.length > 1) {
-              const nextIdx =
-                (currentIndex - 1 + dashboards.length) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
-            } else if (swipeX < 0 && dirX < 0 && dashboards.length > 1) {
-              const nextIdx = (currentIndex + 1) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
+            if (widgetEl) {
+              const id = widgetEl.dataset.widgetId;
+              if (id) updateWidget(id, { minimized: true, flipped: false });
+            } else {
+              minimizeAllWidgets();
             }
           }
+          // 2-Finger SWIPE UP
+          else if (swipeY < 0 && dirY < 0) {
+            if (widgetEl) {
+              const id = widgetEl.dataset.widgetId;
+              if (id) {
+                const w = activeDashboard.widgets.find((w) => w.id === id);
+                if (w) {
+                  if (!w.maximized) {
+                    updateWidget(id, { maximized: true });
+                  } else {
+                    updateDashboardSettings({ spotlightWidgetId: id });
+                  }
+                }
+              }
+            } else {
+              restoreAllWidgets();
+            }
+          }
+          // 2-Finger PAN
+          else if (zoom > 1) {
+            setPanOffset((prev) => ({
+              x: prev.x + dx,
+              y: prev.y + dy,
+            }));
+          }
         } else if (touches === 1) {
-          if (isWidget) return;
-          if (swipeX > 0 && dirX > 0 && x < 40) {
+          if (widgetEl) return;
+          // Edge-swipe sidebar trigger
+          const x = (event as unknown as TouchEvent).touches?.[0]?.clientX ?? 0;
+          if (x < 40 && dirY === 0) {
             const customEvent = new CustomEvent('open-sidebar');
             window.dispatchEvent(customEvent);
           }
         }
       },
       onPinchStart: ({ event }) => {
-        if ((event.target as HTMLElement).closest?.('.widget')) return;
         if (event.cancelable) event.preventDefault();
       },
     },
@@ -353,7 +398,16 @@ export const DashboardView: React.FC = () => {
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+    setPinchOrigin({ x: '50%', y: '50%' });
   }, [activeDashboard?.id, currentIndex, setZoom]);
+
+  React.useEffect(() => {
+    if (zoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+      setPinchOrigin({ x: '50%', y: '50%' });
+    }
+  }, [zoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
@@ -719,8 +773,8 @@ export const DashboardView: React.FC = () => {
         className={`absolute inset-0 transition-transform duration-300 ease-out ${backgroundClasses}`}
         style={{
           ...backgroundStyles,
-          transform: `scale(${zoom})`,
-          transformOrigin: 'center center',
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transformOrigin: `${pinchOrigin.x} ${pinchOrigin.y}`,
         }}
       >
         {/* Ambient YouTube Video Layer */}

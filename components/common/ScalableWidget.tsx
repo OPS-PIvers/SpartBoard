@@ -8,9 +8,6 @@ interface ScalableWidgetProps {
   canSpread?: boolean;
   padding?: number;
   headerHeight?: number;
-  contentScaleMultiplier?: number;
-  contentOffsetX?: number;
-  contentOffsetY?: number;
   children:
     | React.ReactNode
     | ((props: {
@@ -28,26 +25,18 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
   canSpread = true,
   padding = 0,
   headerHeight = 0,
-  contentScaleMultiplier = 1,
-  contentOffsetX = 0,
-  contentOffsetY = 0,
   children,
 }) => {
-  const safeContentScaleMultiplier =
-    Number.isFinite(contentScaleMultiplier) && contentScaleMultiplier > 0
-      ? contentScaleMultiplier
-      : 1;
-
   const { scale, renderScale, internalW, internalH } = useMemo(() => {
     const availableW = Math.max(10, width - padding * 2);
     const availableH = Math.max(10, height - headerHeight - padding * 2);
 
     if (baseWidth <= 0 || baseHeight <= 0) {
       return {
-        scale: 1 * safeContentScaleMultiplier,
-        renderScale: 1 * safeContentScaleMultiplier,
-        internalW: availableW / safeContentScaleMultiplier,
-        internalH: availableH / safeContentScaleMultiplier,
+        scale: 1,
+        renderScale: 1,
+        internalW: availableW,
+        internalH: availableH,
       };
     }
 
@@ -59,7 +48,7 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
       // Keep renderScale as just the fit-to-container factor (capped at 1)
       const renderScale = Math.min(baseScale, 1);
       return {
-        scale: baseScale * safeContentScaleMultiplier,
+        scale: baseScale,
         renderScale,
         internalW: availableW / renderScale,
         internalH: availableH / renderScale,
@@ -67,21 +56,12 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
     }
 
     return {
-      scale: baseScale * safeContentScaleMultiplier,
+      scale: baseScale,
       renderScale: baseScale,
       internalW: baseWidth,
       internalH: baseHeight,
     };
-  }, [
-    width,
-    height,
-    baseWidth,
-    baseHeight,
-    canSpread,
-    padding,
-    headerHeight,
-    safeContentScaleMultiplier,
-  ]);
+  }, [width, height, baseWidth, baseHeight, canSpread, padding, headerHeight]);
 
   const renderContent = () => {
     if (typeof children === 'function') {
@@ -109,9 +89,8 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
         style={{
           width: internalW,
           height: internalH,
-          transform: `translate(calc(${contentOffsetX}px + var(--transient-pan-x, 0px)), calc(${contentOffsetY}px + var(--transient-pan-y, 0px))) scale(calc(${renderScale} * ${safeContentScaleMultiplier} * var(--transient-zoom, 1)))`,
-          transformOrigin:
-            'var(--pinch-origin-x, 50%) var(--pinch-origin-y, 50%)',
+          transform: `scale(${renderScale})`,
+          transformOrigin: 'center center',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
