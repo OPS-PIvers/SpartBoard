@@ -276,10 +276,11 @@ export const DashboardView: React.FC = () => {
         setZoom(zoomVal);
       },
       onDrag: ({
-        swipe: [, swipeY],
-        direction: [, dirY],
+        swipe: [swipeX, swipeY],
+        direction: [dirX, dirY],
         delta: [dx, dy],
         touches,
+        initial: [initialX],
         event,
       }) => {
         if (isPinching.current) return;
@@ -324,9 +325,9 @@ export const DashboardView: React.FC = () => {
           }
         } else if (touches === 1) {
           if (widgetEl) return;
-          // Edge-swipe sidebar trigger
-          const x = (event as unknown as TouchEvent).touches?.[0]?.clientX ?? 0;
-          if (x < 40 && dirY === 0) {
+          // Edge-swipe sidebar trigger: must be a rightward swipe that started
+          // within the left 40px edge — not just any tap on the background.
+          if (swipeX > 0 && dirX > 0 && initialX < 40) {
             const customEvent = new CustomEvent('open-sidebar');
             window.dispatchEvent(customEvent);
           }
