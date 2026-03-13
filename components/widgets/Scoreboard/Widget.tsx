@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { useDashboard } from '../../context/useDashboard';
+import { useDashboard } from '../../../context/useDashboard';
 import {
   WidgetData,
   ScoreboardConfig,
   ScoreboardTeam,
   DEFAULT_GLOBAL_STYLE,
-} from '../../types';
+} from '../../../types';
 import { Trophy } from 'lucide-react';
-import { ScaledEmptyState } from '../common/ScaledEmptyState';
-import { ScoreboardItem } from './ScoreboardItem';
-import { WidgetLayout } from './WidgetLayout';
+import { ScaledEmptyState } from '../../common/ScaledEmptyState';
+import { ScoreboardItem } from './components/ScoreboardItem';
+import { WidgetLayout } from '../WidgetLayout';
 
 const DEFAULT_TEAMS: ScoreboardTeam[] = [
   { id: 'team-a', name: 'Team A', score: 0, color: 'bg-blue-500' },

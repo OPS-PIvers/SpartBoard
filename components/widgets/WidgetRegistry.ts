@@ -67,7 +67,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedWidget'),
   drawing: lazyNamed(() => import('./DrawingWidget/Widget'), 'DrawingWidget'),
   qr: lazyNamed(() => import('./QRWidget'), 'QRWidget'),
-  scoreboard: lazyNamed(() => import('./ScoreboardWidget'), 'ScoreboardWidget'),
+  scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardWidget'),
   expectations: lazyNamed(
     () => import('./ExpectationsWidget'),
     'ExpectationsWidget'
@@ -146,10 +146,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'DrawingSettings'
   ),
   qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
-  scoreboard: lazyNamed(
-    () => import('./ScoreboardSettings'),
-    'ScoreboardSettings'
-  ),
+  scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardSettings'),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamSettings'),
   calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
   weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),

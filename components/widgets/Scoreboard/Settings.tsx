@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useDashboard } from '../../context/useDashboard';
+import { useDashboard } from '../../../context/useDashboard';
 import {
   WidgetData,
   ScoreboardConfig,
   ScoreboardTeam,
   RandomConfig,
   RandomGroup,
-} from '../../types';
-import { useDebounce } from '../../hooks/useDebounce';
+} from '../../../types';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { Plus, Trash2, Users, RefreshCw } from 'lucide-react';
-import { Button } from '../common/Button';
-import { TEAM_COLORS } from './ScoreboardItem';
-import { SettingsLabel } from '../common/SettingsLabel';
+import { Button } from '../../common/Button';
+import { TEAM_COLORS } from './components/ScoreboardItem';
+import { SettingsLabel } from '../../common/SettingsLabel';
 
 const TeamNameInput: React.FC<{
   value: string;
