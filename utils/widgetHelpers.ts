@@ -78,8 +78,8 @@ export function calculatePinchScale(
   }
 
   let newScaleMultiplier = startScale * gestureScale;
-  // Clamp it to reasonable bounds (0.5x to 3x)
-  newScaleMultiplier = Math.max(0.5, Math.min(newScaleMultiplier, 3));
+  // Clamp it to reasonable bounds (1x to 3x)
+  newScaleMultiplier = Math.max(1, Math.min(newScaleMultiplier, 3));
 
   const relativeScale = newScaleMultiplier / startScale;
   if (!Number.isFinite(relativeScale)) {

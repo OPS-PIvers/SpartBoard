@@ -122,6 +122,7 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
+    zoom,
     setZoom,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
@@ -248,6 +249,7 @@ export const DashboardView: React.FC = () => {
   useGesture(
     {
       onPinch: ({ event, offset: [zoomVal], first }) => {
+        if ((event.target as HTMLElement).closest?.('.widget')) return;
         if (first && event.cancelable) event.preventDefault();
         setZoom(zoomVal);
       },
@@ -256,7 +258,10 @@ export const DashboardView: React.FC = () => {
         direction: [dirX, dirY],
         touches,
         initial: [x],
+        event,
       }) => {
+        const isWidget = (event.target as HTMLElement).closest?.('.widget');
+
         if (touches === 2) {
           if (swipeY > 0 && dirY > 0) {
             minimizeAllWidgets();
@@ -273,6 +278,7 @@ export const DashboardView: React.FC = () => {
             }
           }
         } else if (touches === 1) {
+          if (isWidget) return;
           if (swipeX > 0 && dirX > 0 && x < 40) {
             const customEvent = new CustomEvent('open-sidebar');
             window.dispatchEvent(customEvent);
@@ -280,13 +286,14 @@ export const DashboardView: React.FC = () => {
         }
       },
       onPinchStart: ({ event }) => {
+        if ((event.target as HTMLElement).closest?.('.widget')) return;
         if (event.cancelable) event.preventDefault();
       },
     },
     {
       target: dashboardRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.1, max: 5 }, modifierKey: null },
+      pinch: { scaleBounds: { min: 0.1, max: 5 }, modifierKey: 'ctrlKey' },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );
@@ -640,17 +647,22 @@ export const DashboardView: React.FC = () => {
     // YouTube backgrounds are rendered via an iframe — skip CSS background
     if (youTubeVideoId) return {};
 
+    const styles: React.CSSProperties = {
+      transform: `scale(${zoom})`,
+      transformOrigin: 'center center',
+    };
+
     // Check if it's a URL or Base64 image
     if (isExternalBackground(bg)) {
-      return {
+      Object.assign(styles, {
         backgroundImage: `url("${bg}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-      };
+      });
     }
-    return {};
-  }, [activeDashboard, youTubeVideoId]);
+    return styles;
+  }, [activeDashboard, youTubeVideoId, zoom]);
 
   const backgroundClasses = useMemo(() => {
     if (!activeDashboard) return '';

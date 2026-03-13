@@ -305,7 +305,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const canScreenshot = !SCREENSHOT_BLACKLIST.includes(widget.type);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
+    // DO NOT stop propagation here, otherwise DashboardView misses 2-finger swipes
     bringToFront(widget.id);
     // Explicitly focus the widget so it can receive keyboard events
     (e.currentTarget as HTMLElement).focus();
@@ -920,9 +920,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           return memo as unknown;
         }
 
-        // --- ORIGINAL SWIPE GESTURES ---
-        // 2-finger swipe down
+        // --- RESTORED LOCAL SWIPE GESTURES ---
+        // 2-finger swipe down -> minimize this widget
         if (touches === 2 && swipeY > 0 && dirY > 0) {
+          if (event.cancelable) event.preventDefault();
+          event.stopPropagation();
           if (isMaximized) {
             handleMaximizeToggle();
           } else {
@@ -930,8 +932,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           }
           handleCloseTools();
         }
-        // 2-finger swipe up
+        // 2-finger swipe up -> maximize/spotlight this widget
         else if (touches === 2 && swipeY < 0 && dirY < 0) {
+          if (event.cancelable) event.preventDefault();
+          event.stopPropagation();
           if (!isMaximized) {
             handleMaximizeToggle();
           } else {
@@ -1035,7 +1039,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     {
       target: windowRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.5, max: 3 }, modifierKey: null },
+      pinch: { scaleBounds: { min: 1, max: 3 }, modifierKey: 'ctrlKey' },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );

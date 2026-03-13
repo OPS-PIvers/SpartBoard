@@ -62,10 +62,10 @@ describe('widgetHelpers', () => {
       expect(result?.relativeScale).toBe(3);
     });
 
-    it('scales down and clamps at 0.5x', () => {
+    it('scales down and clamps at 1x', () => {
       const result = calculatePinchScale(1, 0.2);
-      expect(result?.newScaleMultiplier).toBe(0.5);
-      expect(result?.relativeScale).toBe(0.5);
+      expect(result?.newScaleMultiplier).toBe(1);
+      expect(result?.relativeScale).toBe(1);
     });
 
     it('calculates relative scale correctly from 2x base', () => {
@@ -81,9 +81,9 @@ describe('widgetHelpers', () => {
       expect(resultIn?.newScaleMultiplier).toBe(3);
       expect(resultIn?.relativeScale).toBe(1);
 
-      // Already at 0.5x, zooming out more
-      const resultOut = calculatePinchScale(0.5, 0.5);
-      expect(resultOut?.newScaleMultiplier).toBe(0.5);
+      // Already at 1x, zooming out more
+      const resultOut = calculatePinchScale(1, 0.5);
+      expect(resultOut?.newScaleMultiplier).toBe(1);
       expect(resultOut?.relativeScale).toBe(1);
     });
   });
