@@ -30,7 +30,7 @@ test.describe(APP_NAME, () => {
 
   test('can add a Clock widget', async ({ page }) => {
     // Open Dock (it is minimized by default)
-    const openToolsButton = page.getByTitle('Open Tools');
+    const openToolsButton = page.locator('button[aria-label="Open Tools"]');
     await expect(openToolsButton).toBeVisible();
     await openToolsButton.click();
 

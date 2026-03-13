@@ -1071,6 +1071,7 @@ export const Dock: React.FC = () => {
                 backgroundColor: `rgba(45, 63, 137, ${globalStyle.dockTransparency + 0.4})`, // Slightly more opaque than expanded
               }}
               title={t('sidebar.header.openTools')}
+              aria-label={t('sidebar.header.openTools')}
             >
               <LayoutGrid className="w-6 h-6" />
             </button>
