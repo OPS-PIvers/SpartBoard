@@ -509,7 +509,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
 
           {/* Gallery Overlay */}
           {showGallery && (
-            <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="absolute inset-0 z-widget-internal-overlay bg-slate-950/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom duration-300">
               <div
                 className="flex items-center justify-between border-b border-white/20 shrink-0"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}

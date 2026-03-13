@@ -363,7 +363,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                           </span>
                         ) : (
                           <>
-                            <span className="text-[10px] font-black uppercase tracking-tighter">
+                            <span className="text-xxs font-black uppercase tracking-tighter">
                               {dayLabel}
                             </span>
                             <span className="text-lg font-black leading-none">
@@ -452,7 +452,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                     Activity Name
                   </label>
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -489,7 +489,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                       Start Time
                     </label>
                     <input
@@ -504,7 +504,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                       End Time
                     </label>
                     <input
@@ -644,7 +644,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">
+                              <span className="bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded text-xxs font-black uppercase">
                                 Every {DAYS_OF_WEEK[item.dayOfWeek ?? 0]}
                               </span>
                               <span className="text-xs font-black text-teal-600 tabular-nums">
@@ -697,7 +697,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   'type' in tempItem &&
                   tempItem.type === 'weekly' && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                      <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                         Repeat Every
                       </label>
                       <select
@@ -720,7 +720,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   )}
 
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                     Activity Name
                   </label>
                   <input
@@ -738,7 +738,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                       Start Time
                     </label>
                     <input
@@ -753,7 +753,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
+                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
                       End Time
                     </label>
                     <input

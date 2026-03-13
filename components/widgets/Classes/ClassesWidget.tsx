@@ -141,7 +141,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
             <div className="w-full h-full flex flex-col relative overflow-hidden">
               {confirmDeleteId && (
                 <div
-                  className="absolute inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center text-center animate-in fade-in duration-200 backdrop-blur-sm"
+                  className="absolute inset-0 z-widget-internal-overlay bg-slate-900/90 flex flex-col items-center justify-center text-center animate-in fade-in duration-200 backdrop-blur-sm"
                   style={{ padding: 'min(16px, 3.5cqmin)' }}
                 >
                   <p

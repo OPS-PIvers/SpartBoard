@@ -1192,7 +1192,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           {isFlashing && (
             <div
               data-screenshot="flash"
-              className="absolute inset-0 bg-white z-50 animate-out fade-out duration-300 pointer-events-none isFlashing"
+              className="absolute inset-0 bg-white z-widget-internal-overlay animate-out fade-out duration-300 pointer-events-none isFlashing"
             />
           )}
           {children}
@@ -1217,7 +1217,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   });
                 }}
               />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
                 <div className="flex items-center gap-1 px-1">
                   {WIDGET_PALETTE.slice(0, 5).map((c) => (
                     <button
@@ -1602,7 +1602,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       >
                         <div className="flex items-center gap-2 mb-2 px-1">
                           <LayoutTemplate className="w-3.5 h-3.5 text-indigo-500" />
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          <span className="text-xxs font-black text-slate-500 uppercase tracking-widest">
                             {t('widgetWindow.chooseLayout')}
                           </span>
                         </div>
