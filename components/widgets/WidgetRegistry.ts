@@ -61,7 +61,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   text: lazyNamed(() => import('./TextWidget'), 'TextWidget'),
   checklist: lazyNamed(() => import('./Checklist'), 'ChecklistWidget'),
   random: lazyNamed(() => import('./random/RandomWidget'), 'RandomWidget'),
-  dice: lazyNamed(() => import('./DiceWidget'), 'DiceWidget'),
+  dice: lazyNamed(() => import('./DiceWidget'), 'Widget'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundWidget'),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamWidget'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedWidget'),
@@ -138,7 +138,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   text: lazyNamed(() => import('./TextWidget'), 'TextSettings'),
   checklist: lazyNamed(() => import('./Checklist'), 'ChecklistSettings'),
   random: lazyNamed(() => import('./random/RandomSettings'), 'RandomSettings'),
-  dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
+  dice: lazyNamed(() => import('./DiceWidget'), 'Settings'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedSettings'),
   drawing: lazyNamed(

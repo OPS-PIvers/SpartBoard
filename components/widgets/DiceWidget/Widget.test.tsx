@@ -1,12 +1,12 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
-import { useDashboard } from '../../context/useDashboard';
-import { DashboardContextValue } from '../../context/DashboardContextValue';
-import { WidgetData, DiceConfig } from '../../types';
-import { DiceWidget } from './DiceWidget';
+import { useDashboard } from '../../../context/useDashboard';
+import { DashboardContextValue } from '../../../context/DashboardContextValue';
+import { WidgetData, DiceConfig } from '../../../types';
+import { DiceWidget } from './Widget';
 
 // Mock dependencies
-vi.mock('../../context/useDashboard');
+vi.mock('../../../context/useDashboard');
 vi.mock('lucide-react', () => ({
   Dices: () => <div data-testid="dices-icon" />,
   Hash: () => <div data-testid="hash-icon" />,
