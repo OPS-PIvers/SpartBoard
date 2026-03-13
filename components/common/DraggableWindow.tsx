@@ -1338,7 +1338,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     }}
                     disabled={isCapturing}
                     icon={<Camera className="w-3.5 h-3.5" />}
-                    label={`${t('widgetWindow.takeScreenshot')} (3-finger swipe \u2193)`}
+                    label={`${t('widgetWindow.takeScreenshot')} (long press)`}
                     size="sm"
                     variant="glass"
                   />

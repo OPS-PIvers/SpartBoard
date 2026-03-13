@@ -359,7 +359,7 @@
         "fullscreen": "Toggle Fullscreen",
         "spotlight": "Spotlight widget",
         "resize": "Resize widget",
-        "maximizeWidget": "Maximize widget"
+        "maximizeWidget": "Maximize widget (swipe ↑ again to spotlight)"
       },
       "gestureNames": {
         "oneFingerDoubleTap": "1-finger double tap",
@@ -377,7 +377,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Drag tools from the Dock below to start",
-      "switchBoardsHint": "2-finger swipe left/right to switch boards"
+      "switchBoardsHint": "Use the board switcher in the top toolbar to switch boards"
     }
   },
   "admin": {

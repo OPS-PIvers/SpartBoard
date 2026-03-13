@@ -250,6 +250,10 @@ export const DashboardView: React.FC = () => {
   const [pinchOrigin, setPinchOrigin] = React.useState({ x: '50%', y: '50%' });
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
   const isPinching = React.useRef(false);
+  // Track the peak touch count across a gesture.  At gesture end (`last`),
+  // `touches` has already decremented to 0 as fingers lift, so we cannot
+  // rely on it there to distinguish 1-finger from 2-finger gestures.
+  const gestureFingerCount = React.useRef(0);
 
   useGesture(
     {
@@ -276,60 +280,87 @@ export const DashboardView: React.FC = () => {
         setZoom(zoomVal);
       },
       onDrag: ({
-        swipe: [swipeX, swipeY],
-        direction: [dirX, dirY],
+        first,
+        last,
+        swipe: [swipeX],
+        direction: [dirX],
         delta: [dx, dy],
+        movement: [mx, my],
         touches,
         initial: [initialX],
         event,
       }) => {
         if (isPinching.current) return;
+
+        // Update peak finger count — touches has already dropped to 0 by the
+        // time `last` fires, so we capture the high-water mark here instead.
+        if (first) gestureFingerCount.current = touches;
+        else if (touches > gestureFingerCount.current) {
+          gestureFingerCount.current = touches;
+        }
+
+        if (!last) {
+          // Live 2-finger pan while zoomed in
+          if (gestureFingerCount.current >= 2 && zoom > 1) {
+            setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          }
+          return;
+        }
+
+        // === Gesture ended — evaluate action ===
+        const peakFingers = gestureFingerCount.current;
+        gestureFingerCount.current = 0;
+
         const widgetEl = (event.target as HTMLElement).closest?.(
           '.widget'
-        ) as HTMLElement;
+        ) as HTMLElement | null;
 
-        if (touches === 2) {
-          // 2-Finger SWIPE DOWN
-          if (swipeY > 0 && dirY > 0) {
-            if (widgetEl) {
-              const id = widgetEl.dataset.widgetId;
-              if (id) updateWidget(id, { minimized: true, flipped: false });
-            } else {
-              minimizeAllWidgets();
-            }
-          }
-          // 2-Finger SWIPE UP
-          else if (swipeY < 0 && dirY < 0) {
-            if (widgetEl) {
-              const id = widgetEl.dataset.widgetId;
-              if (id) {
-                const w = activeDashboard?.widgets.find((w) => w.id === id);
-                if (w) {
-                  if (!w.maximized) {
-                    updateWidget(id, { maximized: true });
-                  } else {
-                    updateDashboardSettings({ spotlightWidgetId: id });
-                  }
-                }
+        if (peakFingers >= 2) {
+          // When zoomed the 2-finger gesture was used for panning — skip
+          // minimize/restore to avoid accidental actions while navigating.
+          if (zoom > 1) return;
+
+          // Use cumulative movement (total displacement from gesture start)
+          // for direction detection.  Velocity-based `swipe` values are only
+          // non-zero on the last frame, when `touches` is already 0 — making
+          // them unreliable for multi-touch swipes.
+          const SWIPE_MIN_PX = 60;
+          const isVertical =
+            Math.abs(my) > Math.abs(mx) && Math.abs(my) >= SWIPE_MIN_PX;
+
+          if (isVertical) {
+            if (my > 0) {
+              // 2-Finger Swipe DOWN → minimize
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) updateWidget(id, { minimized: true, flipped: false });
+              } else {
+                minimizeAllWidgets();
               }
             } else {
-              restoreAllWidgets();
+              // 2-Finger Swipe UP → maximize (or spotlight if already maximized)
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) {
+                  const w = activeDashboard?.widgets.find((w) => w.id === id);
+                  if (w) {
+                    if (!w.maximized) {
+                      updateWidget(id, { maximized: true });
+                    } else {
+                      updateDashboardSettings({ spotlightWidgetId: id });
+                    }
+                  }
+                }
+              } else {
+                restoreAllWidgets();
+              }
             }
           }
-          // 2-Finger PAN
-          else if (zoom > 1) {
-            setPanOffset((prev) => ({
-              x: prev.x + dx,
-              y: prev.y + dy,
-            }));
-          }
-        } else if (touches === 1) {
+        } else {
+          // Single-finger gesture: left-edge swipe → open sidebar
           if (widgetEl) return;
-          // Edge-swipe sidebar trigger: must be a rightward swipe that started
-          // within the left 40px edge — not just any tap on the background.
           if (swipeX > 0 && dirX > 0 && initialX < 40) {
-            const customEvent = new CustomEvent('open-sidebar');
-            window.dispatchEvent(customEvent);
+            window.dispatchEvent(new CustomEvent('open-sidebar'));
           }
         }
       },

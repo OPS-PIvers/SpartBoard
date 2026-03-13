@@ -195,7 +195,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
-      "switchBoardsHint": "2-Finger-Wischen links/rechts, um Tafeln zu wechseln"
+      "switchBoardsHint": "Tafelwechsel über die Tafelauswahl in der oberen Symbolleiste"
     }
   }
 }
