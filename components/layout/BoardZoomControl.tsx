@@ -5,6 +5,10 @@ import { useDashboard } from '@/context/useDashboard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 
+// First zoom level applied when the collapsed FAB is clicked — small enough
+// to feel like a gentle nudge rather than a jarring jump.
+const INITIAL_ZOOM = 1.2;
+
 export const BoardZoomControl: React.FC = () => {
   const { t } = useTranslation();
   const { zoom, setZoom } = useDashboard();
@@ -15,7 +19,7 @@ export const BoardZoomControl: React.FC = () => {
   if (zoom === 1) {
     return (
       <button
-        onClick={() => setZoom(1.5)}
+        onClick={() => setZoom(INITIAL_ZOOM)}
         title={t('common.zoom') ?? 'Zoom (Ctrl + scroll)'}
         className="fixed bottom-16 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
         aria-label={t('common.zoom') ?? 'Zoom'}

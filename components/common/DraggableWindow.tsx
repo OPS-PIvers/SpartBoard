@@ -944,6 +944,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       onPointerDownCapture={handleWidgetPointerDown}
       onPointerMoveCapture={handleWidgetPointerMove}
       onPointerUpCapture={handleWidgetPointerUp}
+      onPointerCancelCapture={handleWidgetPointerUp}
       onContextMenu={(e) => e.preventDefault()}
       transparency={transparency}
       disableBlur={isDragging || isResizing}

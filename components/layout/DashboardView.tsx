@@ -348,6 +348,16 @@ export const DashboardView: React.FC = () => {
           }
         }
       },
+      onWheel: ({ event }) => {
+        // Only intercept Ctrl/Meta + scroll — leave normal scrolling alone.
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        if (event.deltaY === 0) return;
+        const WHEEL_ZOOM_STEP = 0.1;
+        const next =
+          event.deltaY < 0 ? zoom + WHEEL_ZOOM_STEP : zoom - WHEEL_ZOOM_STEP;
+        setZoom(Math.min(5, Math.max(1, next)));
+      },
     },
     {
       target: dashboardRef,
