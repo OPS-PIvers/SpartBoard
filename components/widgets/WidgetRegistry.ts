@@ -120,7 +120,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
   nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
   onboarding: lazyNamed(() => import('./OnboardingWidget'), 'OnboardingWidget'),
-  music: lazyNamed(() => import('./MusicWidget'), 'MusicWidget'),
+  music: lazyNamed(() => import('./MusicWidget/index'), 'MusicWidget'),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Widget'),
     'CarRiderProWidget'
@@ -200,7 +200,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
-  music: lazyNamed(() => import('./MusicWidget'), 'MusicSettings'),
+  music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
