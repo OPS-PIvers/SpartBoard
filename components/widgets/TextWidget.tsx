@@ -4,9 +4,11 @@ import { WidgetData, TextConfig, DEFAULT_GLOBAL_STYLE } from '../../types';
 import { STICKY_NOTE_COLORS } from '../../config/colors';
 import { FileText, MessageSquare, ShieldCheck, Star } from 'lucide-react';
 import { sanitizeHtml } from '../../utils/security';
+import { getFontClass } from '../../utils/styles';
 
 import { WidgetLayout } from './WidgetLayout';
 import { SettingsLabel } from '../common/SettingsLabel';
+import { TypographySettings } from '../common/TypographySettings';
 
 const PLACEHOLDER_TEXT = 'Click to edit...';
 
@@ -18,7 +20,11 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     content = '',
     bgColor = STICKY_NOTE_COLORS.yellow,
     fontSize = 18,
+    fontFamily = 'global',
+    fontColor = '#334155',
   } = config;
+
+  const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
@@ -99,8 +105,8 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`h-full w-full font-${globalStyle.fontFamily} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative`}
-          style={{ padding: 'min(16px, 3.5cqmin)' }}
+          className={`h-full w-full ${fontClass} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative`}
+          style={{ padding: 'min(16px, 3.5cqmin)', color: fontColor }}
         >
           {/* Background color overlay */}
           <div
@@ -232,6 +238,17 @@ export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </span>
         </div>
       </div>
+
+      <hr className="border-slate-100" />
+
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates },
+          })
+        }
+      />
     </div>
   );
 };

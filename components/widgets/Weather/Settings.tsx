@@ -27,6 +27,7 @@ import {
   STATION_CONFIG,
   EARTH_NETWORKS_API,
 } from './constants';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -556,6 +557,17 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       )}
+
+      <hr className="border-slate-100" />
+
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates },
+          })
+        }
+      />
     </div>
   );
 };

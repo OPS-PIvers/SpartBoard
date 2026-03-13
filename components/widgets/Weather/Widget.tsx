@@ -13,6 +13,7 @@ import {
   GlobalWeatherData,
 } from '@/types';
 import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
+import { getFontClass } from '@/utils/styles';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -32,7 +33,11 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     showFeelsLike: localShowFeelsLike,
     hideClothing,
     syncBackground,
+    fontFamily = 'global',
+    fontColor = '#334155',
   } = config;
+
+  const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
   const weatherPermission = featurePermissions.find(
     (p) => p.widgetType === 'weather'
@@ -250,7 +255,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full font-${globalStyle.fontFamily}`}
+          className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
           style={{
             gap: hideClothing ? '2cqh' : 'min(12px, 2.5cqmin)',
             padding: hideClothing ? '4cqh' : 'min(8px, 2cqmin)',
@@ -276,11 +281,12 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {getIcon('1em')}
               </div>
               <div
-                className="font-black text-slate-800 tabular-nums leading-none"
+                className="font-black tabular-nums leading-none"
                 style={{
                   fontSize: hideClothing
                     ? 'min(75cqh, 40cqw)'
                     : 'clamp(32px, 35cqmin, 400px)',
+                  color: fontColor,
                 }}
               >
                 {showFeelsLike && feelsLike !== undefined
@@ -292,12 +298,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
             {(showFeelsLike || feelsLike !== undefined) && (
               <div
-                className="font-black text-slate-600 uppercase tracking-wider whitespace-nowrap leading-none text-center"
+                className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
                 style={{
                   fontSize: hideClothing
                     ? 'min(10cqh, 40cqw)'
                     : 'min(14px, 5cqmin)',
                   marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
+                  color: fontColor,
+                  opacity: 0.8,
                 }}
               >
                 {showFeelsLike
@@ -326,8 +334,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {displayImage}
               </div>
               <div
-                className="font-bold text-slate-700 leading-tight"
-                style={{ fontSize: 'min(20px, 6cqmin)' }}
+                className="font-bold leading-tight"
+                style={{ fontSize: 'min(20px, 6cqmin)', color: fontColor }}
               >
                 {displayMessage}
               </div>

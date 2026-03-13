@@ -216,6 +216,8 @@ export interface TextConfig {
   content: string;
   bgColor: string;
   fontSize: number;
+  fontFamily?: string;
+  fontColor?: string;
 }
 
 export interface ChecklistConfig {
@@ -381,6 +383,8 @@ export interface WeatherConfig {
   showFeelsLike?: boolean;
   hideClothing?: boolean;
   syncBackground?: boolean;
+  fontFamily?: string;
+  fontColor?: string;
 }
 
 export interface WeatherTemperatureRange {
