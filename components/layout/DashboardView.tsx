@@ -382,7 +382,12 @@ export const DashboardView: React.FC = () => {
           // Single-finger gesture: left-edge swipe → open sidebar.
           // Disabled while zoomed to avoid conflict with 1-finger pan.
           if (widgetEl) return;
-          if (zoom <= 1 && swipeX > 0 && dirX > 0 && initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX) {
+          if (
+            zoom <= 1 &&
+            swipeX > 0 &&
+            dirX > 0 &&
+            initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX
+          ) {
             window.dispatchEvent(new CustomEvent('open-sidebar'));
           }
         }
