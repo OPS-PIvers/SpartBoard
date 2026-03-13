@@ -1,3 +1,9 @@
+/**
+ * Converts a hex color string and an alpha value into an rgba() CSS string.
+ * @param hex The hex color string (e.g., '#ff0000'). Defaults to white if invalid.
+ * @param alpha The alpha transparency value (0-1). Defaults to 1 if invalid.
+ * @returns An rgba() color string.
+ */
 export const hexToRgba = (hex: string, alpha: number): string => {
   const clean = (hex ?? '#ffffff').replace('#', '');
   const a =
