@@ -65,7 +65,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundWidget'),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamWidget'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedWidget'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingWidget'),
+  drawing: lazyNamed(() => import('./DrawingWidget/Widget'), 'DrawingWidget'),
   qr: lazyNamed(() => import('./QRWidget'), 'QRWidget'),
   scoreboard: lazyNamed(() => import('./ScoreboardWidget'), 'ScoreboardWidget'),
   expectations: lazyNamed(
@@ -141,7 +141,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedSettings'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingSettings'),
+  drawing: lazyNamed(
+    () => import('./DrawingWidget/Settings'),
+    'DrawingSettings'
+  ),
   qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
   scoreboard: lazyNamed(
     () => import('./ScoreboardSettings'),
