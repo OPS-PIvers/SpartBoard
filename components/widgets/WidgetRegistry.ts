@@ -59,7 +59,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'TrafficLightWidget'
   ),
   text: lazyNamed(() => import('./TextWidget'), 'TextWidget'),
-  checklist: lazyNamed(() => import('./ChecklistWidget'), 'ChecklistWidget'),
+  checklist: lazyNamed(() => import('./Checklist'), 'ChecklistWidget'),
   random: lazyNamed(() => import('./random/RandomWidget'), 'RandomWidget'),
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceWidget'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundWidget'),
@@ -136,7 +136,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
 > = {
   clock: lazyNamed(() => import('./ClockWidget'), 'ClockSettings'),
   text: lazyNamed(() => import('./TextWidget'), 'TextSettings'),
-  checklist: lazyNamed(() => import('./ChecklistWidget'), 'ChecklistSettings'),
+  checklist: lazyNamed(() => import('./Checklist'), 'ChecklistSettings'),
   random: lazyNamed(() => import('./random/RandomSettings'), 'RandomSettings'),
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),

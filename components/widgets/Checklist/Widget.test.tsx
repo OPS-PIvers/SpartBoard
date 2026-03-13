@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
-import { ChecklistSettings, ChecklistWidget } from './ChecklistWidget';
-import { useDashboard } from '../../context/useDashboard';
-import { DashboardContextValue } from '../../context/DashboardContextValue';
+import { ChecklistWidget } from './Widget';
+import { ChecklistSettings } from './Settings';
+import { useDashboard } from '@/context/useDashboard';
+import { DashboardContextValue } from '@/context/DashboardContextValue';
 import {
   InstructionalRoutinesConfig,
   WidgetData,
   ChecklistConfig,
-} from '../../types';
+} from '@/types';
 
 // Mock dependencies
-vi.mock('../../context/useDashboard');
-vi.mock('../common/RosterModeControl', () => ({
+vi.mock('@/context/useDashboard');
+vi.mock('../../common/RosterModeControl', () => ({
   RosterModeControl: () => <div data-testid="roster-mode-control" />,
 }));
 vi.mock('lucide-react', () => ({
