@@ -13,6 +13,7 @@ import { Dock } from './Dock';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { BoardZoomControl } from './BoardZoomControl';
 import {
   AlertCircle,
   CheckCircle2,
@@ -122,6 +123,7 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
+    zoom,
     setZoom,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
@@ -245,35 +247,86 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
 
+  const [pinchOrigin, setPinchOrigin] = React.useState({ x: '50%', y: '50%' });
+  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+  const isPinching = React.useRef(false);
+
   useGesture(
     {
-      onPinch: ({ event, offset: [zoomVal], first }) => {
+      onPinch: ({
+        event,
+        offset: [zoomVal],
+        first,
+        last,
+        origin: [ox, oy],
+      }) => {
+        if (first) {
+          isPinching.current = true;
+          const rect = dashboardRef.current?.getBoundingClientRect();
+          if (rect) {
+            const xPct = ((ox - rect.left) / rect.width) * 100;
+            const yPct = ((oy - rect.top) / rect.height) * 100;
+            setPinchOrigin({ x: `${xPct}%`, y: `${yPct}%` });
+          }
+        }
+        if (last) {
+          isPinching.current = false;
+        }
         if (first && event.cancelable) event.preventDefault();
         setZoom(zoomVal);
       },
       onDrag: ({
-        swipe: [swipeX, swipeY],
-        direction: [dirX, dirY],
+        swipe: [, swipeY],
+        direction: [, dirY],
+        delta: [dx, dy],
         touches,
-        initial: [x],
+        event,
       }) => {
+        if (isPinching.current) return;
+        const widgetEl = (event.target as HTMLElement).closest?.(
+          '.widget'
+        ) as HTMLElement;
+
         if (touches === 2) {
+          // 2-Finger SWIPE DOWN
           if (swipeY > 0 && dirY > 0) {
-            minimizeAllWidgets();
-          } else if (swipeY < 0 && dirY < 0) {
-            restoreAllWidgets();
-          } else if (swipeX !== 0) {
-            if (swipeX > 0 && dirX > 0 && dashboards.length > 1) {
-              const nextIdx =
-                (currentIndex - 1 + dashboards.length) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
-            } else if (swipeX < 0 && dirX < 0 && dashboards.length > 1) {
-              const nextIdx = (currentIndex + 1) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
+            if (widgetEl) {
+              const id = widgetEl.dataset.widgetId;
+              if (id) updateWidget(id, { minimized: true, flipped: false });
+            } else {
+              minimizeAllWidgets();
             }
           }
+          // 2-Finger SWIPE UP
+          else if (swipeY < 0 && dirY < 0) {
+            if (widgetEl) {
+              const id = widgetEl.dataset.widgetId;
+              if (id) {
+                const w = activeDashboard?.widgets.find((w) => w.id === id);
+                if (w) {
+                  if (!w.maximized) {
+                    updateWidget(id, { maximized: true });
+                  } else {
+                    updateDashboardSettings({ spotlightWidgetId: id });
+                  }
+                }
+              }
+            } else {
+              restoreAllWidgets();
+            }
+          }
+          // 2-Finger PAN
+          else if (zoom > 1) {
+            setPanOffset((prev) => ({
+              x: prev.x + dx,
+              y: prev.y + dy,
+            }));
+          }
         } else if (touches === 1) {
-          if (swipeX > 0 && dirX > 0 && x < 40) {
+          if (widgetEl) return;
+          // Edge-swipe sidebar trigger
+          const x = (event as unknown as TouchEvent).touches?.[0]?.clientX ?? 0;
+          if (x < 40 && dirY === 0) {
             const customEvent = new CustomEvent('open-sidebar');
             window.dispatchEvent(customEvent);
           }
@@ -286,7 +339,11 @@ export const DashboardView: React.FC = () => {
     {
       target: dashboardRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.1, max: 5 }, modifierKey: null },
+      pinch: {
+        scaleBounds: { min: 1, max: 5 },
+        modifierKey: 'ctrlKey',
+        wheelFactor: 0.05,
+      },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );
@@ -341,7 +398,16 @@ export const DashboardView: React.FC = () => {
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+    setPinchOrigin({ x: '50%', y: '50%' });
   }, [activeDashboard?.id, currentIndex, setZoom]);
+
+  React.useEffect(() => {
+    if (zoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+      setPinchOrigin({ x: '50%', y: '50%' });
+    }
+  }, [zoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
@@ -640,17 +706,22 @@ export const DashboardView: React.FC = () => {
     // YouTube backgrounds are rendered via an iframe — skip CSS background
     if (youTubeVideoId) return {};
 
+    const styles: React.CSSProperties = {
+      transform: `scale(${zoom})`,
+      transformOrigin: 'center center',
+    };
+
     // Check if it's a URL or Base64 image
     if (isExternalBackground(bg)) {
-      return {
+      Object.assign(styles, {
         backgroundImage: `url("${bg}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-      };
+      });
     }
-    return {};
-  }, [activeDashboard, youTubeVideoId]);
+    return styles;
+  }, [activeDashboard, youTubeVideoId, zoom]);
 
   const backgroundClasses = useMemo(() => {
     if (!activeDashboard) return '';
@@ -680,9 +751,8 @@ export const DashboardView: React.FC = () => {
     <div
       ref={dashboardRef}
       id="dashboard-root"
-      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
+      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
       style={{
-        ...backgroundStyles,
         touchAction: 'none',
       }}
       onClick={(e) => {
@@ -701,41 +771,101 @@ export const DashboardView: React.FC = () => {
         }
       }}
     >
-      {/* Ambient YouTube Video Layer */}
-      {youTubeVideoId && (
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-          <iframe
-            ref={ytIframeRef}
-            src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
-            className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
-            allow="autoplay; encrypted-media"
-            title="Ambient background video"
-          />
-        </div>
-      )}
-
-      {/* Background Overlay for Depth (especially for images and videos) */}
-      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-
-      {/* Empty Board Hint */}
-      {activeDashboard.widgets.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
-          <div className="flex flex-col items-center gap-3 text-center opacity-25">
-            <LayoutGrid className="w-12 h-12 text-white" />
-            <p className="text-white font-black uppercase tracking-widest text-base">
-              {t('widgets.dashboard.emptyBoardHint')}
-            </p>
-            <p className="text-white/80 text-sm">
-              {t('widgets.dashboard.switchBoardsHint')}
-            </p>
+      {/* ZOOMABLE SURFACE: Contains background and widgets */}
+      <div
+        className={`absolute inset-0 transition-transform duration-300 ease-out ${backgroundClasses}`}
+        style={{
+          ...backgroundStyles,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transformOrigin: `${pinchOrigin.x} ${pinchOrigin.y}`,
+        }}
+      >
+        {/* Ambient YouTube Video Layer */}
+        {youTubeVideoId && (
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
+            <iframe
+              ref={ytIframeRef}
+              src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
+              className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
+              allow="autoplay; encrypted-media"
+              title="Ambient background video"
+            />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Spotlight Dimming Overlay — rendered as a portal at document.body so it
-          sits in the root stacking context. The spotlighted widget is also 
-          rendered via a portal in DraggableWindow, ensuring it sits above 
-          this backdrop regardless of parent stacking contexts (like animations). */}
+        {/* Background Overlay for Depth */}
+        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+
+        {/* Empty Board Hint */}
+        {activeDashboard.widgets.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
+            <div className="flex flex-col items-center gap-3 text-center opacity-25">
+              <LayoutGrid className="w-12 h-12 text-white" />
+              <p className="text-white font-black uppercase tracking-widest text-base">
+                {t('widgets.dashboard.emptyBoardHint')}
+              </p>
+              <p className="text-white/80 text-sm">
+                {t('widgets.dashboard.switchBoardsHint')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Widget Surface */}
+        <div
+          key={activeDashboard.id}
+          className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
+          style={{
+            // Note: transform and opacity transitions here create CSS stacking contexts.
+            // Spotlighted widgets escape this by portaling to document.body.
+            transform: isMinimized ? 'translateY(80vh)' : undefined,
+            transformOrigin: isMinimized ? 'bottom center' : 'center center',
+            opacity: isMinimized ? 0 : 1,
+            pointerEvents: isMinimized ? 'none' : 'auto',
+          }}
+        >
+          {activeDashboard.widgets.map((widget) => {
+            const isLive =
+              session?.isActive && session?.activeWidgetId === widget.id;
+            return (
+              <WidgetRenderer
+                key={widget.id}
+                widget={widget}
+                isStudentView={false}
+                sessionCode={session?.code}
+                isGlobalFrozen={session?.frozen ?? false}
+                isLive={isLive ?? false}
+                students={isLive ? students : EMPTY_STUDENTS}
+                updateSessionConfig={updateSessionConfig}
+                updateSessionBackground={updateSessionBackground}
+                startSession={startSession}
+                endSession={endSession}
+                removeStudent={removeStudent}
+                toggleFreezeStudent={toggleFreezeStudent}
+                toggleGlobalFreeze={toggleGlobalFreeze}
+                updateWidget={updateWidget}
+                removeWidget={removeWidget}
+                duplicateWidget={duplicateWidget}
+                bringToFront={bringToFront}
+                addToast={addToast}
+                globalStyle={globalStyle}
+                dashboardBackground={activeDashboard.background}
+                dashboardSettings={activeDashboard.settings}
+                updateDashboardSettings={updateDashboardSettings}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FIXED UI: Outside the zoom container */}
+      <Sidebar />
+      <Dock />
+      <ToastContainer />
+      <AnnouncementOverlay />
+      <BoardZoomControl />
+
+      {/* Spotlight Dimming Overlay */}
       {activeDashboard.settings?.spotlightWidgetId &&
         createPortal(
           <div
@@ -746,57 +876,6 @@ export const DashboardView: React.FC = () => {
           />,
           document.body
         )}
-
-      {/* Dynamic Widget Surface */}
-      <div
-        key={activeDashboard.id}
-        className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
-        style={{
-          // Note: transform and opacity transitions here create CSS stacking contexts.
-          // Spotlighted widgets escape this by portaling to document.body.
-          transform: isMinimized ? 'translateY(80vh)' : undefined,
-          transformOrigin: isMinimized ? 'bottom center' : 'center center',
-          opacity: isMinimized ? 0 : 1,
-          pointerEvents: isMinimized ? 'none' : 'auto',
-        }}
-      >
-        {activeDashboard.widgets.map((widget) => {
-          const isLive =
-            session?.isActive && session?.activeWidgetId === widget.id;
-          return (
-            <WidgetRenderer
-              key={widget.id}
-              widget={widget}
-              isStudentView={false}
-              sessionCode={session?.code}
-              isGlobalFrozen={session?.frozen ?? false}
-              isLive={isLive ?? false}
-              students={isLive ? students : EMPTY_STUDENTS}
-              updateSessionConfig={updateSessionConfig}
-              updateSessionBackground={updateSessionBackground}
-              startSession={startSession}
-              endSession={endSession}
-              removeStudent={removeStudent}
-              toggleFreezeStudent={toggleFreezeStudent}
-              toggleGlobalFreeze={toggleGlobalFreeze}
-              updateWidget={updateWidget}
-              removeWidget={removeWidget}
-              duplicateWidget={duplicateWidget}
-              bringToFront={bringToFront}
-              addToast={addToast}
-              globalStyle={globalStyle}
-              dashboardBackground={activeDashboard.background}
-              dashboardSettings={activeDashboard.settings}
-              updateDashboardSettings={updateDashboardSettings}
-            />
-          );
-        })}
-      </div>
-
-      <Sidebar />
-      <Dock />
-      <ToastContainer />
-      <AnnouncementOverlay />
 
       {/* Background YouTube Mute Toggle */}
       {youTubeVideoId && (

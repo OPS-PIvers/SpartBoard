@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useGesture } from '@use-gesture/react';
 import {
   X,
   Settings,
@@ -32,10 +31,6 @@ import {
 } from '../../types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
-import {
-  calculatePinchScale,
-  calculatePinchOrigin,
-} from '@/utils/widgetHelpers';
 import { useScreenshot } from '../../hooks/useScreenshot';
 import { useDashboard } from '../../context/useDashboard';
 import { GlassCard } from './GlassCard';
@@ -119,7 +114,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   title,
   style,
   isSpotlighted = false,
-  updateDashboardSettings: propUpdateDashboardSettings,
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
@@ -136,11 +130,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     selectedWidgetId,
     setSelectedWidgetId,
     zoom,
-    updateDashboardSettings: contextUpdateDashboardSettings,
   } = useDashboard();
-
-  const updateDashboardSettings =
-    propUpdateDashboardSettings ?? contextUpdateDashboardSettings;
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -305,7 +295,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const canScreenshot = !SCREENSHOT_BLACKLIST.includes(widget.type);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
+    // DO NOT stop propagation here, otherwise DashboardView misses 2-finger swipes
     bringToFront(widget.id);
     // Explicitly focus the widget so it can receive keyboard events
     (e.currentTarget as HTMLElement).focus();
@@ -427,12 +417,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const handleDragStart = (e: React.PointerEvent) => {
     if (isMaximized) return;
-
-    // IMPORTANT: If zoomed in and using touch, bypass standard dragging to allow 1-finger pan via useGesture
-    const isZoomed = (widget.contentScaleMultiplier ?? 1) > 1;
-    if (isZoomed && e.pointerType !== 'mouse') {
-      return;
-    }
 
     // Don't drag if clicking interactive elements or resize handle
     const target = e.target as HTMLElement;
@@ -858,187 +842,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     updateWidget,
     handleCloseTools,
   ]);
-
-  useGesture(
-    {
-      onDrag: ({
-        offset: [x, y],
-        first,
-        last,
-        memo,
-        touches,
-        swipe: [, swipeY],
-        direction: [, dirY],
-        event,
-      }) => {
-        const target = event.target as HTMLElement;
-
-        if (first) {
-          const isBlocked = !!target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR);
-          const isZoomed = (widget.contentScaleMultiplier ?? 1) > 1;
-
-          // Capture allow/block decision on first frame
-          if (isBlocked || isMaximized) {
-            return { allowPan: false };
-          }
-
-          // If zoomed in and 1 finger, it's a pan gesture
-          if (isZoomed && touches === 1) {
-            return {
-              allowPan: true,
-              startX: widget.contentOffsetX ?? 0,
-              startY: widget.contentOffsetY ?? 0,
-            };
-          }
-
-          return { allowPan: false };
-        }
-
-        const state = memo as
-          | { allowPan: boolean; startX: number; startY: number }
-          | undefined;
-
-        if (state?.allowPan) {
-          if (event.cancelable) event.preventDefault();
-
-          // Apply real-time pan using CSS variables
-          if (windowRef.current && !last) {
-            windowRef.current.style.setProperty('--transient-pan-x', `${x}px`);
-            windowRef.current.style.setProperty('--transient-pan-y', `${y}px`);
-          }
-
-          if (last) {
-            if (windowRef.current) {
-              windowRef.current.style.removeProperty('--transient-pan-x');
-              windowRef.current.style.removeProperty('--transient-pan-y');
-            }
-            updateWidget(widget.id, {
-              contentOffsetX: state.startX + x,
-              contentOffsetY: state.startY + y,
-            });
-          }
-          return memo as unknown;
-        }
-
-        // --- ORIGINAL SWIPE GESTURES ---
-        // 2-finger swipe down
-        if (touches === 2 && swipeY > 0 && dirY > 0) {
-          if (isMaximized) {
-            handleMaximizeToggle();
-          } else {
-            updateWidget(widget.id, { minimized: true });
-          }
-          handleCloseTools();
-        }
-        // 2-finger swipe up
-        else if (touches === 2 && swipeY < 0 && dirY < 0) {
-          if (!isMaximized) {
-            handleMaximizeToggle();
-          } else {
-            // If already maximized, spotlight this widget (dim others)
-            updateDashboardSettings({ spotlightWidgetId: widget.id });
-          }
-          handleCloseTools();
-        }
-
-        return memo as unknown;
-      },
-      onPinch: ({ offset: [scale], first, last, event, memo }) => {
-        const target = event.target as HTMLElement;
-
-        if (first) {
-          const isBlocked = !!target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR);
-          // If the gesture starts over a blocked element or while maximized,
-          // record that we should ignore this pinch for all subsequent frames.
-          if (isBlocked || isMaximized) {
-            return {
-              allowPinch: false,
-            };
-          }
-
-          if (event.cancelable) event.preventDefault();
-
-          // Calculate pinch origin relative to widget
-          const rect = windowRef.current?.getBoundingClientRect();
-          const touchEvent = event as unknown as TouchEvent;
-          const origin =
-            rect && touchEvent.touches
-              ? calculatePinchOrigin(Array.from(touchEvent.touches), rect)
-              : { x: 50, y: 50 };
-
-          if (windowRef.current) {
-            windowRef.current.style.setProperty(
-              '--pinch-origin-x',
-              `${origin.x}%`
-            );
-            windowRef.current.style.setProperty(
-              '--pinch-origin-y',
-              `${origin.y}%`
-            );
-          }
-
-          const rawStartScale = widget.contentScaleMultiplier ?? 1;
-          const safeStartScale =
-            Number.isFinite(rawStartScale) && rawStartScale > 0
-              ? rawStartScale
-              : 1;
-
-          return {
-            startScale: safeStartScale,
-            allowPinch: true,
-          };
-        }
-
-        const startState = memo as
-          | {
-              startScale: number;
-              allowPinch: boolean;
-            }
-          | undefined;
-
-        // If we never initialized pinch state, or this gesture was marked as
-        // disallowed on the first frame, do nothing.
-        if (!startState || startState.allowPinch === false) {
-          return memo as unknown;
-        }
-
-        if (event.cancelable) event.preventDefault();
-
-        const { startScale } = startState;
-        const pinchResult = calculatePinchScale(startScale, scale);
-
-        if (!pinchResult) {
-          return memo as unknown;
-        }
-
-        const { newScaleMultiplier, relativeScale } = pinchResult;
-
-        // Provide real-time visual feedback using a CSS variable
-        if (windowRef.current && !last) {
-          windowRef.current.style.setProperty(
-            '--transient-zoom',
-            relativeScale.toString()
-          );
-        }
-
-        if (last) {
-          if (windowRef.current) {
-            windowRef.current.style.removeProperty('--transient-zoom');
-          }
-          updateWidget(widget.id, {
-            contentScaleMultiplier: newScaleMultiplier,
-          });
-        }
-        return memo as unknown;
-      },
-    },
-    {
-      target: windowRef,
-      eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.5, max: 3 }, modifierKey: null },
-      drag: { swipe: { velocity: 0.5, distance: 50 } },
-    }
-  );
 
   const doubleTapTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
