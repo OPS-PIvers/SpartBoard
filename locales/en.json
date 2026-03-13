@@ -356,6 +356,7 @@
         "toggleAnnotation": "Toggle annotation draw mode (hold ~0.6s)",
         "screenshot": "Take screenshot",
         "minimizeWidget": "Minimize widget",
+        "minimizeOrRestoreWidget": "Minimize widget (or restore if maximized)",
         "openSidebar": "Open sidebar",
         "fullscreen": "Toggle Fullscreen",
         "spotlight": "Spotlight widget",

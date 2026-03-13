@@ -304,12 +304,40 @@ export const DashboardView: React.FC = () => {
             Math.abs(my) > Math.abs(mx) &&
             Math.abs(my) >= SWIPE_MIN_DISTANCE_PX;
 
-          if (isVertical) {
+          const isHorizontal =
+            Math.abs(mx) > Math.abs(my) &&
+            Math.abs(mx) >= SWIPE_MIN_DISTANCE_PX;
+
+          if (isHorizontal) {
+            // 2-Finger Swipe LEFT/RIGHT → switch boards (wrap-around)
+            if (dashboards.length > 1 && !touchStartInScrollable.current) {
+              if (mx < 0) {
+                const nextIdx = (currentIndex + 1) % dashboards.length;
+                loadDashboard(dashboards[nextIdx].id);
+                addToast(dashboards[nextIdx].name, 'info');
+              } else {
+                const nextIdx =
+                  (currentIndex - 1 + dashboards.length) % dashboards.length;
+                loadDashboard(dashboards[nextIdx].id);
+                addToast(dashboards[nextIdx].name, 'info');
+              }
+            }
+          } else if (isVertical) {
             if (my > 0) {
-              // 2-Finger Swipe DOWN → minimize
+              // 2-Finger Swipe DOWN:
+              //   - On maximized widget → restore to normal size
+              //   - On normal widget → minimize it
+              //   - On background → minimize all widgets
               if (widgetEl) {
                 const id = widgetEl.dataset.widgetId;
-                if (id) updateWidget(id, { minimized: true, flipped: false });
+                if (id) {
+                  const w = activeDashboard?.widgets.find((w) => w.id === id);
+                  if (w?.maximized) {
+                    updateWidget(id, { maximized: false });
+                  } else {
+                    updateWidget(id, { minimized: true, flipped: false });
+                  }
+                }
               } else {
                 minimizeAllWidgets();
               }
