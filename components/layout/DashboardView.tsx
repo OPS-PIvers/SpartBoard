@@ -33,6 +33,10 @@ import { extractYouTubeId } from '@/utils/url';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
+// Gesture constants
+const SWIPE_MIN_DISTANCE_PX = 60; // minimum travel to count as a deliberate swipe
+const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar open
+
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
   return (
@@ -192,7 +196,7 @@ export const DashboardView: React.FC = () => {
   //  - On touchstart: walk the DOM once (getComputedStyle is expensive) to
   //    determine whether the touch originated inside a scrollable element.
   //    Cache the result so touchmove is O(1).
-  //  - On touchmove: multi-touch (pinch / 2-finger gestures) always calls
+  //  - On touchmove: multi-touch (2-finger gestures) always calls
   //    preventDefault() so our custom zoom/swipe handlers win regardless of
   //    where the fingers landed.  Single-touch only prevents the bounce if
   //    the gesture did NOT start inside a scrollable widget.
@@ -226,7 +230,7 @@ export const DashboardView: React.FC = () => {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
-      // Multi-touch gestures (pinch-zoom, 2-finger swipe) must always be
+      // Multi-touch gestures (2-finger swipe, etc.) must always be
       // intercepted so our custom handlers aren't bypassed by the browser.
       if (e.touches.length > 1) {
         e.preventDefault();
@@ -247,58 +251,117 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
 
+  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+  // Track the peak touch count across a gesture.  At gesture end (`last`),
+  // `touches` has already decremented to 0 as fingers lift, so we cannot
+  // rely on it there to distinguish 1-finger from 2-finger gestures.
+  const gestureFingerCount = React.useRef(0);
+
   useGesture(
     {
-      onPinch: ({ event, offset: [zoomVal], first }) => {
-        if ((event.target as HTMLElement).closest?.('.widget')) return;
-        if (first && event.cancelable) event.preventDefault();
-        setZoom(zoomVal);
-      },
       onDrag: ({
-        swipe: [swipeX, swipeY],
-        direction: [dirX, dirY],
+        first,
+        last,
+        swipe: [swipeX],
+        direction: [dirX],
+        delta: [dx, dy],
+        movement: [mx, my],
         touches,
-        initial: [x],
+        initial: [initialX],
         event,
       }) => {
-        const isWidget = (event.target as HTMLElement).closest?.('.widget');
+        // Update peak finger count — touches has already dropped to 0 by the
+        // time `last` fires, so we capture the high-water mark here instead.
+        if (first) gestureFingerCount.current = touches;
+        else if (touches > gestureFingerCount.current) {
+          gestureFingerCount.current = touches;
+        }
 
-        if (touches === 2) {
-          if (swipeY > 0 && dirY > 0) {
-            minimizeAllWidgets();
-          } else if (swipeY < 0 && dirY < 0) {
-            restoreAllWidgets();
-          } else if (swipeX !== 0) {
-            if (swipeX > 0 && dirX > 0 && dashboards.length > 1) {
-              const nextIdx =
-                (currentIndex - 1 + dashboards.length) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
-            } else if (swipeX < 0 && dirX < 0 && dashboards.length > 1) {
-              const nextIdx = (currentIndex + 1) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
+        const widgetEl = (event.target as HTMLElement).closest<HTMLElement>(
+          '.widget'
+        );
+
+        if (!last) {
+          // 1-finger drag on empty background while zoomed → pan.
+          // Disabled when the gesture starts on a widget to avoid interfering
+          // with widget interactions.
+          if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
+            setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          }
+          return;
+        }
+
+        // === Gesture ended — evaluate action ===
+        const peakFingers = gestureFingerCount.current;
+        gestureFingerCount.current = 0;
+
+        if (peakFingers >= 2) {
+          // Use cumulative movement (total displacement from gesture start)
+          // for direction detection.  Velocity-based `swipe` values are only
+          // non-zero on the last frame, when `touches` is already 0 — making
+          // them unreliable for multi-touch swipes.
+          const isVertical =
+            Math.abs(my) > Math.abs(mx) &&
+            Math.abs(my) >= SWIPE_MIN_DISTANCE_PX;
+
+          if (isVertical) {
+            if (my > 0) {
+              // 2-Finger Swipe DOWN → minimize
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) updateWidget(id, { minimized: true, flipped: false });
+              } else {
+                minimizeAllWidgets();
+              }
+            } else {
+              // 2-Finger Swipe UP → maximize (or spotlight if already maximized)
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) {
+                  const w = activeDashboard?.widgets.find((w) => w.id === id);
+                  if (w) {
+                    if (!w.maximized) {
+                      updateWidget(id, { maximized: true });
+                    } else {
+                      updateDashboardSettings({ spotlightWidgetId: id });
+                    }
+                  }
+                }
+              } else {
+                restoreAllWidgets();
+              }
             }
           }
-        } else if (touches === 1) {
-          if (isWidget) return;
-          if (swipeX > 0 && dirX > 0 && x < 40) {
-            const customEvent = new CustomEvent('open-sidebar');
-            window.dispatchEvent(customEvent);
+        } else if (peakFingers === 1) {
+          // Single touch (not a mouse drag): left-edge swipe → open sidebar.
+          // Gated to peakFingers === 1 so a desktop mouse drag near the left
+          // edge (peakFingers = 0) never accidentally opens the sidebar.
+          // Also disabled while zoomed to avoid conflict with 1-finger pan.
+          if (widgetEl) return;
+          if (
+            zoom <= 1 &&
+            swipeX > 0 &&
+            dirX > 0 &&
+            initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX
+          ) {
+            window.dispatchEvent(new CustomEvent('open-sidebar'));
           }
         }
       },
-      onPinchStart: ({ event }) => {
-        if ((event.target as HTMLElement).closest?.('.widget')) return;
-        if (event.cancelable) event.preventDefault();
+      onWheel: ({ event }) => {
+        // Only intercept Ctrl/Meta + scroll — leave normal scrolling alone.
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        if (event.deltaY === 0) return;
+        const WHEEL_ZOOM_STEP = 0.1;
+        const next =
+          event.deltaY < 0 ? zoom + WHEEL_ZOOM_STEP : zoom - WHEEL_ZOOM_STEP;
+        setZoom(Math.min(5, Math.max(1, next)));
       },
     },
     {
       target: dashboardRef,
       eventOptions: { passive: false },
-      pinch: {
-        scaleBounds: { min: 1, max: 5 },
-        modifierKey: 'ctrlKey',
-        wheelFactor: 0.05,
-      },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );
@@ -353,7 +416,14 @@ export const DashboardView: React.FC = () => {
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
   }, [activeDashboard?.id, currentIndex, setZoom]);
+
+  React.useEffect(() => {
+    if (zoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [zoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
@@ -719,7 +789,7 @@ export const DashboardView: React.FC = () => {
         className={`absolute inset-0 transition-transform duration-300 ease-out ${backgroundClasses}`}
         style={{
           ...backgroundStyles,
-          transform: `scale(${zoom})`,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
           transformOrigin: 'center center',
         }}
       >
@@ -832,7 +902,7 @@ export const DashboardView: React.FC = () => {
               ? 'Enable background video sound'
               : 'Mute background video'
           }
-          className="fixed bottom-6 left-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+          className="fixed bottom-6 left-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
           aria-label="Toggle background video sound"
         >
           <div className="relative flex items-center justify-center w-full h-full">
@@ -861,7 +931,7 @@ export const DashboardView: React.FC = () => {
       <button
         onClick={() => setIsCheatSheetOpen(true)}
         title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
-        className="fixed bottom-6 right-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+        className="fixed bottom-6 right-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
         aria-label={t('widgets.cheatSheet.title')}
       >
         <HelpCircle className="w-4 h-4" />

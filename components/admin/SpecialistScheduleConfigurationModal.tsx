@@ -473,7 +473,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         <Settings2 className="w-4 h-4 text-teal-500" />{' '}
                         Specialist Classes
                       </h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">
+                      <p className="text-xxs text-slate-400 font-bold uppercase">
                         Predefined options for teachers
                       </p>
 
@@ -560,7 +560,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             <CalendarDays className="w-4 h-4 text-teal-500" />{' '}
                             Block Date Ranges
                           </h4>
-                          <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">
+                          <p className="text-xxs text-slate-400 font-bold mt-1 uppercase">
                             Configure explicit windows for each block
                           </p>
                         </div>
@@ -670,7 +670,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                               (d) => (
                                 <div
                                   key={d}
-                                  className="text-center text-[10px] font-black text-slate-400 uppercase"
+                                  className="text-center text-xxs font-black text-slate-400 uppercase"
                                 >
                                   {d}
                                 </div>
@@ -710,14 +710,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       <div className="flex gap-2">
                         <Button
                           variant="secondary"
-                          className="flex-1 text-[10px]"
+                          className="flex-1 text-xxs"
                           onClick={selectAllWeekdays}
                         >
                           Select M-F
                         </Button>
                         <Button
                           variant="secondary"
-                          className="flex-1 text-[10px]"
+                          className="flex-1 text-xxs"
                           onClick={clearMonth}
                         >
                           Clear Month

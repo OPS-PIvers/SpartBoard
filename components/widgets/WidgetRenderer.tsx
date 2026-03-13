@@ -192,8 +192,6 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   const effectiveWidth = widget.maximized ? windowSize.width : widget.w;
   const effectiveHeight = widget.maximized ? windowSize.height : widget.h;
 
-  const contentScaleMultiplier = widget.contentScaleMultiplier ?? 1;
-
   const permission = useMemo(
     () => featurePermissions.find((p) => p.widgetType === widget.type),
     [featurePermissions, widget.type]
@@ -239,7 +237,6 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       widget.isLive,
       widget.transparency,
       widget.annotation,
-      widget.contentScaleMultiplier,
       positionKey,
       isStudentView,
       isSpotlighted,
@@ -268,29 +265,12 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   const finalContent = scalingConfig.skipScaling ? (
     <div
       className="h-full w-full relative"
-      style={
-        {
-          padding: scalingConfig.padding ?? PADDING,
-          containerType: 'size',
-          '--transient-zoom': 1,
-          '--transient-pan-x': '0px',
-          '--transient-pan-y': '0px',
-          '--pinch-origin-x': '50%',
-          '--pinch-origin-y': '50%',
-        } as React.CSSProperties
-      }
+      style={{
+        padding: scalingConfig.padding ?? PADDING,
+        containerType: 'size',
+      }}
     >
-      <div
-        className="h-full w-full"
-        style={{
-          transform: `translate(calc(${widget.contentOffsetX ?? 0}px + var(--transient-pan-x, 0px)), calc(${widget.contentOffsetY ?? 0}px + var(--transient-pan-y, 0px))) scale(calc(${contentScaleMultiplier} * var(--transient-zoom, 1)))`,
-          transformOrigin:
-            'var(--pinch-origin-x, 50%) var(--pinch-origin-y, 50%)',
-          willChange: 'transform',
-        }}
-      >
-        {getWidgetContentInternal(effectiveWidth, effectiveHeight)}
-      </div>
+      {getWidgetContentInternal(effectiveWidth, effectiveHeight)}
     </div>
   ) : (
     <ScalableWidget
@@ -301,9 +281,6 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       canSpread={scalingConfig.canSpread ?? true}
       headerHeight={HEADER_HEIGHT}
       padding={scalingConfig.padding ?? PADDING}
-      contentScaleMultiplier={contentScaleMultiplier}
-      contentOffsetX={widget.contentOffsetX}
-      contentOffsetY={widget.contentOffsetY}
     >
       {renderScalableContent}
     </ScalableWidget>

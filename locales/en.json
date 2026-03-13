@@ -109,6 +109,7 @@
     "screenshotSaved": "Screenshot saved",
     "screenshotFailed": "Failed to save screenshot",
     "takeScreenshot": "Take Screenshot",
+    "takeScreenshotLongPress": "Take Screenshot (long press)",
     "screenshotGestureProTip": "Pro-tip: Long-press on a widget to take a screenshot!",
     "annotate": "Annotate",
     "duplicate": "Duplicate",
@@ -351,25 +352,25 @@
         "switchBoards": "Switch boards",
         "minimizeAll": "Minimize all to dock",
         "restoreAll": "Restore all widgets",
-        "zoom": "Zoom board in/out",
-        "toggleAnnotation": "Toggle annotation",
+        "panBoard": "Pan board while zoomed",
+        "toggleAnnotation": "Toggle annotation draw mode (hold ~0.6s)",
         "screenshot": "Take screenshot",
         "minimizeWidget": "Minimize widget",
         "openSidebar": "Open sidebar",
         "fullscreen": "Toggle Fullscreen",
         "spotlight": "Spotlight widget",
         "resize": "Resize widget",
-        "maximizeWidget": "Maximize widget"
+        "maximizeWidget": "Maximize widget (swipe ↑ again to spotlight)"
       },
       "gestureNames": {
         "oneFingerDoubleTap": "1-finger double tap",
         "oneFingerLongPress": "1-finger long press",
+        "oneFingerDrag": "1-finger drag on background",
         "oneFingerSwipeEdge": "1-finger swipe from left edge",
         "twoFingerSwipeLR": "2-finger swipe \u2190/\u2192",
         "twoFingerSwipeDown": "2-finger swipe \u2193",
         "twoFingerSwipeUp": "2-finger swipe \u2191",
-        "twoFingerPinch": "2-finger pinch",
-        "twoFingerDoubleTap": "2-finger double tap",
+        "twoFingerLongPress": "2-finger long press",
         "dragDownToDock": "Drag down to dock \u2193",
         "widgetTwoFingerSwipeDown": "2-finger swipe \u2193",
         "widgetTwoFingerSwipeUp": "2-finger swipe \u2191"
@@ -377,7 +378,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Drag tools from the Dock below to start",
-      "switchBoardsHint": "2-finger swipe left/right to switch boards"
+      "switchBoardsHint": "Use the board switcher in the top toolbar to switch boards"
     }
   },
   "admin": {
