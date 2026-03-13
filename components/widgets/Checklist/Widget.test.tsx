@@ -13,7 +13,7 @@ import {
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
-vi.mock('../../common/RosterModeControl', () => ({
+vi.mock('@/components/common/RosterModeControl', () => ({
   RosterModeControl: () => <div data-testid="roster-mode-control" />,
 }));
 vi.mock('lucide-react', () => ({
