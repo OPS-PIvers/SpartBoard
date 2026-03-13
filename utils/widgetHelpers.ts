@@ -42,6 +42,7 @@ export const getTitle = (
   if (widget.type === 'sticker') return 'Sticker';
   if (widget.type === 'seating-chart') return 'Seating Chart';
   if (widget.type === 'talking-tool') return 'Talking Tool';
+  if (widget.type === 'blooms') return "Bloom's Taxonomy";
   if (widget.type === 'smartNotebook') return 'Notebook Viewer';
   if (widget.type === 'catalyst-instruction') {
     const cfg = widget.config as CatalystInstructionConfig;
@@ -64,5 +65,5 @@ export const getTitle = (
  */
 export const getDefaultWidgetConfig = (type: WidgetType): WidgetConfig => {
   const config = WIDGET_DEFAULTS[type].config ?? {};
-  return structuredClone(config);
+  return structuredClone(config) as WidgetConfig;
 };

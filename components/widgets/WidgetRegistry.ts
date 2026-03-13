@@ -101,6 +101,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./CatalystVisualWidget'),
     'CatalystVisualWidget'
   ),
+  blooms: lazyNamed(() => import('./BloomsWidget'), 'BloomsWidget'),
   smartNotebook: lazyNamed(
     () => import('./SmartNotebookWidget'),
     'SmartNotebookWidget'
@@ -175,6 +176,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./CatalystVisualWidget'),
     'CatalystVisualSettings'
   ),
+  blooms: lazyNamed(() => import('./BloomsWidget'), 'BloomsSettings'),
   smartNotebook: DefaultSettings,
   traffic: DefaultSettings,
   expectations: lazyNamed(

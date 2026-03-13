@@ -35,6 +35,7 @@ import {
   Music,
   CarFront,
   Smartphone,
+  Triangle,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -119,6 +120,12 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-teal-500',
   },
   { type: 'catalyst', icon: Zap, label: 'Catalyst', color: 'bg-indigo-600' },
+  {
+    type: 'blooms',
+    icon: Triangle,
+    label: "Bloom's",
+    color: 'bg-indigo-400',
+  },
   {
     type: 'smartNotebook',
     icon: BookOpen,

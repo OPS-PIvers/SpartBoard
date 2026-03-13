@@ -71,6 +71,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   catalyst: ALL_GRADE_LEVELS,
   'catalyst-instruction': [],
   'catalyst-visual': [],
+  blooms: ALL_GRADE_LEVELS,
   smartNotebook: ALL_GRADE_LEVELS,
   recessGear: ['k-2', '3-5'],
   pdf: ALL_GRADE_LEVELS,

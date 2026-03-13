@@ -28,6 +28,7 @@ export type WidgetType =
   | 'catalyst'
   | 'catalyst-instruction'
   | 'catalyst-visual'
+  | 'blooms'
   | 'smartNotebook'
   | 'recessGear'
   | 'pdf'
@@ -1219,6 +1220,16 @@ export interface CarRiderProConfig {
   cardOpacity?: number;
 }
 
+export interface BloomsLevel {
+  level: string;
+  starters: string[];
+}
+
+export interface BloomsConfig {
+  customStarters?: BloomsLevel[];
+  activeLevel?: string | null; // Currently selected level for the drawer/detail view
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | ClockConfig
@@ -1250,6 +1261,7 @@ export type WidgetConfig =
   | CatalystConfig
   | CatalystInstructionConfig
   | CatalystVisualConfig
+  | BloomsConfig
   | SmartNotebookConfig
   | RecessGearConfig
   | PdfConfig
@@ -1323,33 +1335,35 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                         ? CatalystInstructionConfig
                                                         : T extends 'catalyst-visual'
                                                           ? CatalystVisualConfig
-                                                          : T extends 'smartNotebook'
-                                                            ? SmartNotebookConfig
-                                                            : T extends 'recessGear'
-                                                              ? RecessGearConfig
-                                                              : T extends 'pdf'
-                                                                ? PdfConfig
-                                                                : T extends 'quiz'
-                                                                  ? QuizConfig
-                                                                  : T extends 'talking-tool'
-                                                                    ? TalkingToolConfig
-                                                                    : T extends 'breathing'
-                                                                      ? BreathingConfig
-                                                                      : T extends 'mathTools'
-                                                                        ? MathToolsConfig
-                                                                        : T extends 'mathTool'
-                                                                          ? MathToolConfig
-                                                                          : T extends 'nextUp'
-                                                                            ? NextUpConfig
-                                                                            : T extends 'onboarding'
-                                                                              ? OnboardingConfig
-                                                                              : T extends 'car-rider-pro'
-                                                                                ? CarRiderProConfig
-                                                                                : T extends 'music'
-                                                                                  ? MusicConfig
-                                                                                  : T extends 'specialist-schedule'
-                                                                                    ? SpecialistScheduleConfig
-                                                                                    : never;
+                                                          : T extends 'blooms'
+                                                            ? BloomsConfig
+                                                            : T extends 'smartNotebook'
+                                                              ? SmartNotebookConfig
+                                                              : T extends 'recessGear'
+                                                                ? RecessGearConfig
+                                                                : T extends 'pdf'
+                                                                  ? PdfConfig
+                                                                  : T extends 'quiz'
+                                                                    ? QuizConfig
+                                                                    : T extends 'talking-tool'
+                                                                      ? TalkingToolConfig
+                                                                      : T extends 'breathing'
+                                                                        ? BreathingConfig
+                                                                        : T extends 'mathTools'
+                                                                          ? MathToolsConfig
+                                                                          : T extends 'mathTool'
+                                                                            ? MathToolConfig
+                                                                            : T extends 'nextUp'
+                                                                              ? NextUpConfig
+                                                                              : T extends 'onboarding'
+                                                                                ? OnboardingConfig
+                                                                                : T extends 'car-rider-pro'
+                                                                                  ? CarRiderProConfig
+                                                                                  : T extends 'music'
+                                                                                    ? MusicConfig
+                                                                                    : T extends 'specialist-schedule'
+                                                                                      ? SpecialistScheduleConfig
+                                                                                      : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

@@ -195,6 +195,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 400,
     config: { routineId: '', stepIndex: 0 },
   },
+  blooms: {
+    w: 400,
+    h: 400,
+    config: { customStarters: [], activeLevel: null },
+  },
   smartNotebook: {
     w: 600,
     h: 500,
