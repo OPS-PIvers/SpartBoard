@@ -196,7 +196,7 @@ export const DashboardView: React.FC = () => {
   //  - On touchstart: walk the DOM once (getComputedStyle is expensive) to
   //    determine whether the touch originated inside a scrollable element.
   //    Cache the result so touchmove is O(1).
-  //  - On touchmove: multi-touch (pinch / 2-finger gestures) always calls
+  //  - On touchmove: multi-touch (2-finger gestures) always calls
   //    preventDefault() so our custom zoom/swipe handlers win regardless of
   //    where the fingers landed.  Single-touch only prevents the bounce if
   //    the gesture did NOT start inside a scrollable widget.
@@ -230,7 +230,7 @@ export const DashboardView: React.FC = () => {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
-      // Multi-touch gestures (pinch-zoom, 2-finger swipe) must always be
+      // Multi-touch gestures (2-finger swipe, etc.) must always be
       // intercepted so our custom handlers aren't bypassed by the browser.
       if (e.touches.length > 1) {
         e.preventDefault();
@@ -251,53 +251,14 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
 
-  const [pinchOrigin, setPinchOrigin] = React.useState({ x: '50%', y: '50%' });
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
-  const isPinching = React.useRef(false);
   // Track the peak touch count across a gesture.  At gesture end (`last`),
   // `touches` has already decremented to 0 as fingers lift, so we cannot
   // rely on it there to distinguish 1-finger from 2-finger gestures.
   const gestureFingerCount = React.useRef(0);
-  // Previous pinch midpoint — used to extract the translation component of a
-  // pinch gesture so zoom and pan work as a single natural motion.
-  const lastPinchOrigin = React.useRef<[number, number] | null>(null);
 
   useGesture(
     {
-      onPinch: ({
-        event,
-        offset: [zoomVal],
-        first,
-        last,
-        origin: [ox, oy],
-      }) => {
-        if (first) {
-          isPinching.current = true;
-          lastPinchOrigin.current = [ox, oy];
-          const rect = dashboardRef.current?.getBoundingClientRect();
-          if (rect) {
-            const xPct = ((ox - rect.left) / rect.width) * 100;
-            const yPct = ((oy - rect.top) / rect.height) * 100;
-            setPinchOrigin({ x: `${xPct}%`, y: `${yPct}%` });
-          }
-        } else if (lastPinchOrigin.current) {
-          // Pan: translate the board by however far the pinch midpoint moved.
-          // This makes zoom + pan a single intuitive two-finger gesture —
-          // spread/close to zoom, slide together to pan, mix freely.
-          const [lox, loy] = lastPinchOrigin.current;
-          const dpx = ox - lox;
-          const dpy = oy - loy;
-          if (dpx !== 0 || dpy !== 0) {
-            setPanOffset((prev) => ({ x: prev.x + dpx, y: prev.y + dpy }));
-          }
-          lastPinchOrigin.current = last ? null : [ox, oy];
-        }
-        if (last) {
-          isPinching.current = false;
-        }
-        if (first && event.cancelable) event.preventDefault();
-        setZoom(zoomVal);
-      },
       onDrag: ({
         first,
         last,
@@ -309,8 +270,6 @@ export const DashboardView: React.FC = () => {
         initial: [initialX],
         event,
       }) => {
-        if (isPinching.current) return;
-
         // Update peak finger count — touches has already dropped to 0 by the
         // time `last` fires, so we capture the high-water mark here instead.
         if (first) gestureFingerCount.current = touches;
@@ -324,7 +283,6 @@ export const DashboardView: React.FC = () => {
 
         if (!last) {
           // 1-finger drag on empty background while zoomed → pan.
-          // Much more reliable than 2-finger drag (which conflicts with pinch).
           // Disabled when the gesture starts on a widget to avoid interfering
           // with widget interactions.
           if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
@@ -338,11 +296,6 @@ export const DashboardView: React.FC = () => {
         gestureFingerCount.current = 0;
 
         if (peakFingers >= 2) {
-          // When zoomed the 2-finger gesture was handled as pinch+pan above.
-          // Skip swipe actions to avoid accidental minimize/restore while
-          // navigating the zoomed board.
-          if (zoom > 1) return;
-
           // Use cumulative movement (total displacement from gesture start)
           // for direction detection.  Velocity-based `swipe` values are only
           // non-zero on the last frame, when `touches` is already 0 — making
@@ -395,18 +348,10 @@ export const DashboardView: React.FC = () => {
           }
         }
       },
-      onPinchStart: ({ event }) => {
-        if (event.cancelable) event.preventDefault();
-      },
     },
     {
       target: dashboardRef,
       eventOptions: { passive: false },
-      pinch: {
-        scaleBounds: { min: 1, max: 5 },
-        modifierKey: 'ctrlKey',
-        wheelFactor: 0.05,
-      },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );
@@ -462,13 +407,11 @@ export const DashboardView: React.FC = () => {
     setIsMinimized(false);
     setZoom(1);
     setPanOffset({ x: 0, y: 0 });
-    setPinchOrigin({ x: '50%', y: '50%' });
   }, [activeDashboard?.id, currentIndex, setZoom]);
 
   React.useEffect(() => {
     if (zoom === 1) {
       setPanOffset({ x: 0, y: 0 });
-      setPinchOrigin({ x: '50%', y: '50%' });
     }
   }, [zoom]);
 
@@ -837,7 +780,7 @@ export const DashboardView: React.FC = () => {
         style={{
           ...backgroundStyles,
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
-          transformOrigin: `${pinchOrigin.x} ${pinchOrigin.y}`,
+          transformOrigin: 'center center',
         }}
       >
         {/* Ambient YouTube Video Layer */}

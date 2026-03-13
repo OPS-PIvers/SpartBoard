@@ -91,10 +91,6 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.restoreAll'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerPinch'),
-        description: t('widgets.cheatSheet.gestures.zoom'),
-      },
-      {
         gesture: t('widgets.cheatSheet.gestureNames.oneFingerDrag'),
         description: t('widgets.cheatSheet.gestures.panBoard'),
       },
@@ -121,7 +117,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.maximizeWidget'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerDoubleTap'),
+        gesture: t('widgets.cheatSheet.gestureNames.twoFingerLongPress'),
         description: t('widgets.cheatSheet.gestures.toggleAnnotation'),
       },
       {

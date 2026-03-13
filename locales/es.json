@@ -297,8 +297,7 @@
         "switchBoards": "Cambiar de tablero",
         "minimizeAll": "Minimizar todo al Dock",
         "restoreAll": "Restaurar todos los widgets",
-        "zoom": "Acercar / alejar tablero",
-        "toggleAnnotation": "Alternar anotación",
+        "toggleAnnotation": "Activar/desactivar anotación (mantener ~0,6 s)",
         "screenshot": "Tomar captura",
         "minimizeWidget": "Minimizar widget",
         "panBoard": "Desplazar tablero"
@@ -310,7 +309,7 @@
         "twoFingerSwipeLR": "Deslizar 2 dedos \u2190/\u2192",
         "twoFingerSwipeDown": "Deslizar 2 dedos \u2193",
         "twoFingerSwipeUp": "Deslizar 2 dedos \u2191",
-        "twoFingerPinch": "Pellizcar 2 dedos",
+        "twoFingerLongPress": "Mantener 2 dedos (~0,6 s)",
         "dragDownToDock": "Arrastrar al dock \u2193",
         "widgetTwoFingerSwipeDown": "Deslizar 2 dedos \u2193",
         "widgetTwoFingerSwipeUp": "Deslizar 2 dedos \u2191"

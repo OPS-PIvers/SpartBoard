@@ -426,10 +426,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Don't drag if annotating
     if (isAnnotating) return;
 
+    // Don't start a drag on a non-primary touch/pen pointer — if isPrimary is
+    // false another touch is already active, meaning this is a multi-touch gesture.
+    if ((e.pointerType === 'touch' || e.pointerType === 'pen') && !e.isPrimary)
+      return;
+
     clearLongPressTimer();
-    if (doubleTapTimer.current) {
-      clearTimeout(doubleTapTimer.current);
-      doubleTapTimer.current = null;
+    if (twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
     }
 
     // Close settings panel on drag start to prevent position desync
@@ -469,6 +474,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
 
       dragAnimationFrame = requestAnimationFrame(() => {
+        // If a second touch arrived mid-drag, freeze the widget and clear snap
+        // preview — wait for pointerup to commit/clean up normally.
+        if (activeTouchCount.current > 1) {
+          setSnapPreviewZone(null);
+          snapPreviewZoneRef.current = null;
+          return;
+        }
+
         dragDistanceRef.current = Math.sqrt(
           Math.pow(moveEvent.clientX - initialMouseX, 2) +
             Math.pow(moveEvent.clientY - initialMouseY, 2)
@@ -595,9 +608,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     e.preventDefault();
 
     clearLongPressTimer();
-    if (doubleTapTimer.current) {
-      clearTimeout(doubleTapTimer.current);
-      doubleTapTimer.current = null;
+    if (twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
     }
 
     // Close settings panel on resize start to prevent position desync
@@ -843,8 +856,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     handleCloseTools,
   ]);
 
-  const doubleTapTimer = useRef<NodeJS.Timeout | null>(null);
+  const twoFingerLongPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressStartPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressMoved = useRef(0);
   const activeTouchCount = useRef(0);
 
   const handleWidgetPointerDown = (e: React.PointerEvent) => {
@@ -854,27 +869,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       const target = e.target as HTMLElement;
       if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
 
-      // 2-Finger Double-Tap (Annotation Toggle)
+      // 2-Finger Long-Press (~600ms) → Toggle annotation draw mode
       if (activeTouchCount.current === 2) {
-        if (doubleTapTimer.current) {
-          clearTimeout(doubleTapTimer.current);
-          doubleTapTimer.current = null;
-          // Clear long press if any (unlikely with 2 fingers but safe)
-          clearLongPressTimer();
-          setIsAnnotating((prev) => !prev);
-          handleCloseTools();
-        } else {
-          doubleTapTimer.current = setTimeout(() => {
-            doubleTapTimer.current = null;
-          }, 300);
-        }
+        // Cancel any pending 1-finger long press since we now have 2 fingers
+        clearLongPressTimer();
+        // Start a 2-finger long press timer
+        twoFingerLongPressTimer.current = setTimeout(() => {
+          twoFingerLongPressTimer.current = null;
+          if (activeTouchCount.current >= 2) {
+            setIsAnnotating((prev) => !prev);
+            handleCloseTools();
+          }
+        }, 600);
       }
 
       // 1-Finger Long-Press (Screenshot)
       if (activeTouchCount.current === 1) {
+        longPressStartPos.current = { x: e.clientX, y: e.clientY };
+        longPressMoved.current = 0;
         longPressTimer.current = setTimeout(() => {
-          // Verify still only 1 finger and hasn't started dragging
-          if (activeTouchCount.current === 1 && !isDragging) {
+          longPressTimer.current = null;
+          const LONG_PRESS_MOVE_TOLERANCE_PX = 15;
+          if (
+            activeTouchCount.current === 1 &&
+            longPressMoved.current < LONG_PRESS_MOVE_TOLERANCE_PX
+          ) {
             if (canScreenshot && !isCapturing) {
               void takeScreenshot();
               handleCloseTools();
@@ -885,9 +904,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
   };
 
+  const handleWidgetPointerMove = (e: React.PointerEvent) => {
+    if (
+      (e.pointerType === 'touch' || e.pointerType === 'pen') &&
+      longPressTimer.current &&
+      longPressStartPos.current
+    ) {
+      const dx = e.clientX - longPressStartPos.current.x;
+      const dy = e.clientY - longPressStartPos.current.y;
+      longPressMoved.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  };
+
   const handleWidgetPointerUp = () => {
     activeTouchCount.current = Math.max(0, activeTouchCount.current - 1);
     clearLongPressTimer();
+    // Cancel 2-finger long press if either finger lifts before threshold
+    if (activeTouchCount.current < 2 && twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
+    }
   };
 
   // Fallback to widget state if not dragging/resizing or if position-aware
@@ -906,6 +942,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       onClick={handleWidgetClick}
       onKeyDown={handleKeyDown}
       onPointerDownCapture={handleWidgetPointerDown}
+      onPointerMoveCapture={handleWidgetPointerMove}
       onPointerUpCapture={handleWidgetPointerUp}
       onContextMenu={(e) => e.preventDefault()}
       transparency={transparency}
