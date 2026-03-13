@@ -681,7 +681,10 @@ export const DashboardView: React.FC = () => {
       ref={dashboardRef}
       id="dashboard-root"
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
-      style={backgroundStyles}
+      style={{
+        ...backgroundStyles,
+        touchAction: 'none',
+      }}
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);

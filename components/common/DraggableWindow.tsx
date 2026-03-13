@@ -1110,7 +1110,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       allowInvisible={true}
       selected={isSelected}
       cornerRadius={isMaximized ? 'none' : undefined}
-      className={`absolute select-none widget group will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
+      className={`absolute select-none widget touch-none group will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
         isMaximized ? 'border-none !shadow-none' : ''
       } `}
       style={{
