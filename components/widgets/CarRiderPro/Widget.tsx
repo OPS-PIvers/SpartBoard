@@ -3,7 +3,7 @@ import { WidgetData } from '@/types';
 import { CarFront, ExternalLink, Loader2 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { useCarRiderProConfig } from './hooks/useCarRiderProConfig';
+import { useCarRiderProConfig } from '@/components/widgets/CarRiderPro/hooks/useCarRiderProConfig';
 
 export const CarRiderProWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
