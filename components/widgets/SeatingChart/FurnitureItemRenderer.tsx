@@ -120,7 +120,7 @@ export const FurnitureItemRenderer = memo(
         {mode === 'setup' && isSingleSelected && (
           <div
             onPointerDown={(e) => onResizeStart(e, item.id)}
-            className="absolute -bottom-2 -right-2 w-6 h-6 flex items-center justify-center cursor-nwse-resize z-50 bg-white shadow rounded-full border border-slate-200 hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition-colors"
+            className="absolute -bottom-2 -right-2 w-6 h-6 flex items-center justify-center cursor-nwse-resize z-widget-resize bg-white shadow rounded-full border border-slate-200 hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition-colors"
           >
             <Maximize2 className="w-3 h-3 rotate-90" />
           </div>

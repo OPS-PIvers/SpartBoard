@@ -296,7 +296,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
+                <p className="text-xxs text-slate-600 leading-relaxed">
                   To save data to your sheet, your app must send a message to
                   the parent window. Include this code in your mini-app&apos;s
                   JavaScript:
@@ -334,7 +334,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                           Results Linked
                         </span>
                       </div>
-                      <p className="text-[10px] text-emerald-600/70 font-medium truncate">
+                      <p className="text-xxs text-emerald-600/70 font-medium truncate">
                         Google Sheet is connected
                       </p>
                     </div>

@@ -1,23 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
-import { DrawingWidget } from './DrawingWidget';
-import { WidgetData, DrawingConfig } from '../../types';
-import { useDashboard } from '../../context/useDashboard';
-import { useAuth } from '../../context/useAuth';
-import { useLiveSession } from '../../hooks/useLiveSession';
-import { useScreenshot } from '../../hooks/useScreenshot';
+import { DrawingWidget } from './Widget';
+import { WidgetData, DrawingConfig } from '../../../types';
+import { useDashboard } from '../../../context/useDashboard';
+import { useAuth } from '../../../context/useAuth';
+import { useLiveSession } from '../../../hooks/useLiveSession';
+import { useScreenshot } from '../../../hooks/useScreenshot';
 
 // Mock hooks
-vi.mock('../../context/useDashboard', () => ({
+vi.mock('../../../context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
-vi.mock('../../context/useAuth', () => ({
+vi.mock('../../../context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
-vi.mock('../../hooks/useLiveSession', () => ({
+vi.mock('../../../hooks/useLiveSession', () => ({
   useLiveSession: vi.fn(),
 }));
-vi.mock('../../hooks/useScreenshot', () => ({
+vi.mock('../../../hooks/useScreenshot', () => ({
   useScreenshot: vi.fn(),
 }));
 

@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '../../context/useDashboard';
-import { Smartphone, ExternalLink } from 'lucide-react';
+import { Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { Z_INDEX } from '../../config/zIndex';
 import { Toggle } from '../common/Toggle';
 
@@ -13,8 +13,23 @@ interface Props {
 const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
   const { activeDashboard, updateDashboardSettings } = useDashboard();
   const menuRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   const enabled = activeDashboard?.settings?.remoteControlEnabled ?? true;
+  const remoteUrl = window.location.origin + '/remote';
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+    remoteUrl
+  )}`;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(remoteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -91,6 +106,42 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
             }
           />
         </div>
+
+        {enabled && (
+          <div className="space-y-4 pt-2 animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 shadow-inner">
+              <div className="bg-white p-2 rounded-lg border border-slate-200">
+                <img
+                  src={qrUrl}
+                  alt="Remote QR Code"
+                  className="w-32 h-32 object-contain"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                Scan to Control Board
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 flex items-center justify-between gap-2 overflow-hidden group hover:border-slate-300 transition-colors">
+                <span className="text-[10px] font-mono text-slate-400 truncate">
+                  {remoteUrl}
+                </span>
+                <button
+                  onClick={handleCopyLink}
+                  className={`shrink-0 p-1 rounded-md transition-all ${
+                    copied
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                  }`}
+                  title="Copy Remote Link"
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-2 border-t bg-slate-50">

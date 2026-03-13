@@ -1,21 +1,39 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { RotateCcw, ZoomIn, ZoomOut, Search } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
+
+// First zoom level applied when the collapsed FAB is clicked — small enough
+// to feel like a gentle nudge rather than a jarring jump.
+const INITIAL_ZOOM = 1.2;
 
 export const BoardZoomControl: React.FC = () => {
   const { t } = useTranslation();
   const { zoom, setZoom } = useDashboard();
 
-  if (zoom === 1) return null;
-
   const percentage = Math.round(zoom * 100);
 
+  // Collapsed FAB when at 100% — always visible so users know zoom exists
+  if (zoom === 1) {
+    return (
+      <button
+        onClick={() => setZoom(INITIAL_ZOOM)}
+        title={t('common.zoom') ?? 'Zoom (Ctrl + scroll)'}
+        className="fixed bottom-16 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+        aria-label={t('common.zoom') ?? 'Zoom'}
+        style={{ zIndex: Z_INDEX.critical }}
+      >
+        <Search className="w-4 h-4" />
+      </button>
+    );
+  }
+
+  // Expanded panel when zoomed
   return (
     <div
-      className="fixed bottom-20 right-4 z-critical flex flex-col items-center gap-2 animate-in slide-in-from-right-4 fade-in duration-300"
+      className="fixed bottom-16 right-4 flex flex-col items-center gap-2 animate-in slide-in-from-right-4 fade-in duration-300"
       style={{ zIndex: Z_INDEX.critical }}
     >
       <div className="bg-white/80 backdrop-blur-md border border-white/40 shadow-xl rounded-2xl p-1.5 flex flex-col gap-1 items-center">

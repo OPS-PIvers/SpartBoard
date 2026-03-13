@@ -49,7 +49,7 @@ const MiniAppSettings = lazyNamed(
 );
 
 export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
-  clock: lazyNamed(() => import('./ClockWidget'), 'ClockWidget'),
+  clock: lazyNamed(() => import('./ClockWidget/Widget'), 'ClockWidget'),
   'time-tool': lazyNamed(
     () => import('./TimeTool/TimeToolWidget'),
     'TimeToolWidget'
@@ -65,7 +65,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundWidget'),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamWidget'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedWidget'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingWidget'),
+  drawing: lazyNamed(() => import('./DrawingWidget/Widget'), 'DrawingWidget'),
   qr: lazyNamed(() => import('./QRWidget'), 'QRWidget'),
   scoreboard: lazyNamed(() => import('./ScoreboardWidget'), 'ScoreboardWidget'),
   expectations: lazyNamed(
@@ -75,7 +75,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   poll: lazyNamed(() => import('./PollWidget'), 'PollWidget'),
   weather: lazyNamed(() => import('./Weather/Widget'), 'WeatherWidget'),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleWidget'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarWidget'),
+  calendar: lazyNamed(() => import('./Calendar/Widget'), 'CalendarWidget'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountWidget'),
   classes: lazy(() => import('./Classes/ClassesWidget')), // Default export
   instructionalRoutines: lazyNamed(
@@ -134,21 +134,24 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  clock: lazyNamed(() => import('./ClockWidget'), 'ClockSettings'),
+  clock: lazyNamed(() => import('./ClockWidget/Settings'), 'ClockSettings'),
   text: lazyNamed(() => import('./TextWidget'), 'TextSettings'),
   checklist: lazyNamed(() => import('./ChecklistWidget'), 'ChecklistSettings'),
   random: lazyNamed(() => import('./random/RandomSettings'), 'RandomSettings'),
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),
   embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedSettings'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingSettings'),
+  drawing: lazyNamed(
+    () => import('./DrawingWidget/Settings'),
+    'DrawingSettings'
+  ),
   qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
   scoreboard: lazyNamed(
     () => import('./ScoreboardSettings'),
     'ScoreboardSettings'
   ),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamSettings'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarSettings'),
+  calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
   weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountSettings'),
   poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
