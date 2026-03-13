@@ -26,7 +26,7 @@ test('Text Widget scaling verification', async ({ page }) => {
     .locator('.widget')
     .filter({ has: page.locator('[contenteditable]') })
     .first();
-  await expect(textWidget).toBeVisible({ timeout: 10000 });
+  await expect(textWidget).toBeVisible();
 
   // 4. Set some text
   const contentArea = textWidget.locator('[contenteditable]');

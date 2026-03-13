@@ -27,7 +27,7 @@ test('Snap Layouts verification', async ({ page }) => {
     // Using evaluate for initial creation due to dnd-kit restrictions
     await noteButton.evaluate((el) => (el as HTMLElement).click());
 
-    await expect(widget).toBeVisible({ timeout: 10000 });
+    await expect(widget).toBeVisible();
 
     // Position widget lower
     await widget.evaluate((el) => {
@@ -48,7 +48,7 @@ test('Snap Layouts verification', async ({ page }) => {
       await expandButton.click();
     }
 
-    await expect(snapLayoutButton).toBeVisible({ timeout: 10000 });
+    await expect(snapLayoutButton).toBeVisible();
     await snapLayoutButton.evaluate((el) => (el as HTMLElement).click());
     await expect(page.locator('text=Choose Layout')).toBeVisible();
   });

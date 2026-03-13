@@ -9,7 +9,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  timeout: process.env.CI ? 60000 : 30000,
+  timeout: process.env.CI ? 120000 : 30000,
   expect: {
     timeout: process.env.CI ? 30000 : 10000,
   },

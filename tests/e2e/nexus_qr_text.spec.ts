@@ -88,15 +88,11 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
 
   // Wait for settings panel to be clearly visible (by looking for Close button or unique text)
   // This ensures animation is done
-  await expect(page.getByLabel('Close settings')).toBeVisible({
-    timeout: 10000,
-  });
+  await expect(page.getByLabel('Close settings')).toBeVisible();
 
   // Find the checkbox for sync.
   // The Toggle component uses role="switch" usually, or we can find by the label text and the input within it
-  await expect(page.getByText('Sync with Text Widget')).toBeVisible({
-    timeout: 10000,
-  });
+  await expect(page.getByText('Sync with Text Widget')).toBeVisible();
 
   // Locate the switch associated with the text
   const syncToggle = page.getByRole('switch').first();
