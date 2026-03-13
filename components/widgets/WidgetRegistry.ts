@@ -75,7 +75,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   poll: lazyNamed(() => import('./PollWidget'), 'PollWidget'),
   weather: lazyNamed(() => import('./Weather/Widget'), 'WeatherWidget'),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleWidget'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarWidget'),
+  calendar: lazyNamed(() => import('./Calendar/Widget'), 'CalendarWidget'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountWidget'),
   classes: lazy(() => import('./Classes/ClassesWidget')), // Default export
   instructionalRoutines: lazyNamed(
@@ -148,7 +148,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'ScoreboardSettings'
   ),
   webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamSettings'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarSettings'),
+  calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
   weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountSettings'),
   poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
