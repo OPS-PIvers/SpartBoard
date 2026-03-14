@@ -120,7 +120,10 @@ function ToolContent({
 
     default:
       return (
-        <div className="text-slate-400 text-sm p-4">
+        <div
+          className="text-slate-400 p-4"
+          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+        >
           Unknown tool: {toolType}
         </div>
       );
@@ -169,7 +172,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
       <div className="h-full w-full overflow-visible group relative">
         <Suspense
           fallback={
-            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            <div
+              className="h-full flex items-center justify-center text-slate-400"
+              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+            >
               Loading…
             </div>
           }
@@ -224,7 +230,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
       content={
         <Suspense
           fallback={
-            <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
+            <div
+              className="flex-1 flex items-center justify-center text-slate-400"
+              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+            >
               Loading…
             </div>
           }

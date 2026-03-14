@@ -15,7 +15,12 @@ export const RotationOverlay: React.FC<{
         className="p-1.5 bg-white/90 backdrop-blur shadow-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-white hover:text-indigo-600 active:scale-95 transition-all pointer-events-auto"
         title="Rotate Clockwise (15°)"
       >
-        <RotateCw size={14} />
+        <RotateCw
+          style={{
+            width: 'min(14px, 3.5cqmin)',
+            height: 'min(14px, 3.5cqmin)',
+          }}
+        />
       </button>
       <button
         onClick={(e) => {
@@ -25,7 +30,12 @@ export const RotationOverlay: React.FC<{
         className="p-1.5 bg-white/90 backdrop-blur shadow-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-white hover:text-indigo-600 active:scale-95 transition-all pointer-events-auto"
         title="Rotate Counter-Clockwise (15°)"
       >
-        <RotateCcw size={14} />
+        <RotateCcw
+          style={{
+            width: 'min(14px, 3.5cqmin)',
+            height: 'min(14px, 3.5cqmin)',
+          }}
+        />
       </button>
     </div>
   );
