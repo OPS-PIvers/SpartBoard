@@ -159,6 +159,17 @@ describe('DashboardContext AI Security Helpers', () => {
       ) as Record<string, unknown>;
       expect(sanitizedInvalid.lastResult).toBeUndefined();
       expect(sanitizedInvalid.remainingStudents).toBeUndefined();
+
+      const configWithMixedArrayTypes = {
+        lastResult: ['Winner 1', 123, { object: true }, 'Winner 2'],
+        remainingStudents: ['Alice', 456, 'Bob', null],
+      };
+      const sanitizedMixedArray = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithMixedArrayTypes as unknown as Partial<WidgetConfig>
+      ) as RandomConfig;
+      expect(sanitizedMixedArray.lastResult).toEqual(['Winner 1', 'Winner 2']);
+      expect(sanitizedMixedArray.remainingStudents).toEqual(['Alice', 'Bob']);
     });
   });
 
