@@ -102,6 +102,65 @@ describe('DashboardContext AI Security Helpers', () => {
       expect(sanitized.options[1]).toEqual({ label: 'Bad', votes: 0 });
       expect(sanitized.options[2]).toEqual({ label: '123', votes: 0 });
     });
+
+    it('sanitizes scoreboard teams', () => {
+      const configWithArray = {
+        teams: [
+          'Eagles',
+          { name: 'Tigers', score: 50, color: '#f00' },
+          123,
+        ],
+      };
+      const sanitizedArray = sanitizeAIConfig(
+        'scoreboard' as WidgetType,
+        configWithArray as unknown as Partial<WidgetConfig>
+      ) as any;
+
+      expect(sanitizedArray.teams).toHaveLength(3);
+      expect(sanitizedArray.teams[0].name).toBe('Eagles');
+      expect(sanitizedArray.teams[0].score).toBe(0);
+      expect(sanitizedArray.teams[0].id).toBeDefined();
+
+      expect(sanitizedArray.teams[1].name).toBe('Tigers');
+      expect(sanitizedArray.teams[1].score).toBe(50);
+      expect(sanitizedArray.teams[1].color).toBe('#f00');
+
+      expect(sanitizedArray.teams[2].name).toBe('Team 3');
+      expect(sanitizedArray.teams[2].score).toBe(0);
+
+      const configWithNonArray = {
+        teams: 'Not an array',
+      };
+      const sanitizedNonArray = sanitizeAIConfig(
+        'scoreboard' as WidgetType,
+        configWithNonArray as unknown as Partial<WidgetConfig>
+      ) as any;
+      expect(sanitizedNonArray.teams).toBeUndefined();
+    });
+
+    it('sanitizes random config fields', () => {
+      const configWithValidTypes = {
+        lastResult: 'Winner',
+        remainingStudents: ['Alice', 'Bob'],
+      };
+      const sanitizedValid = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithValidTypes as unknown as Partial<WidgetConfig>
+      ) as any;
+      expect(sanitizedValid.lastResult).toBe('Winner');
+      expect(sanitizedValid.remainingStudents).toEqual(['Alice', 'Bob']);
+
+      const configWithInvalidTypes = {
+        lastResult: 123,
+        remainingStudents: 'Not an array',
+      };
+      const sanitizedInvalid = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithInvalidTypes as unknown as Partial<WidgetConfig>
+      ) as any;
+      expect(sanitizedInvalid.lastResult).toBeUndefined();
+      expect(sanitizedInvalid.remainingStudents).toBeUndefined();
+    });
   });
 
   describe('validateGridConfig', () => {
