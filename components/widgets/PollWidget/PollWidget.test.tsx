@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PollWidget, PollSettings } from './PollWidget';
+import { PollWidget, PollSettings } from '.';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
@@ -17,7 +17,7 @@ vi.mock('@/context/useAuth', () => ({
 }));
 
 // Mock MagicInput to simulate interaction
-vi.mock('../common/MagicInput', () => ({
+vi.mock('@/components/common/MagicInput', () => ({
   MagicInput: ({
     onSuccess,
     buttonLabel,
