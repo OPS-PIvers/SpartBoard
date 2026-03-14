@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TextWidget, TextSettings } from './TextWidget';
-import { WidgetData, TextConfig } from '../../types';
-import { useDashboard } from '../../context/useDashboard';
+import { TextWidget, TextSettings } from './index';
+import { WidgetData, TextConfig } from '../../../types';
+import { useDashboard } from '../../../context/useDashboard';
 
 // Mock useDashboard
 const mockUpdateWidget = vi.fn();
@@ -11,7 +11,7 @@ const mockDashboardContext = {
   updateWidget: mockUpdateWidget,
 };
 
-vi.mock('../../context/useDashboard');
+vi.mock('../../../context/useDashboard');
 
 describe('TextWidget', () => {
   beforeEach(() => {
