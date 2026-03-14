@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { WidgetData, WidgetComponentProps } from '@/types';
-import { WIDGET_COMPONENTS } from './WidgetRegistry';
+import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">

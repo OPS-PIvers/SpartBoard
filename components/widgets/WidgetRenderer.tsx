@@ -15,7 +15,7 @@ import { StickerItemWidget } from './stickers/StickerItemWidget';
 import { getTitle } from '@/utils/widgetHelpers';
 import { getJoinUrl } from '@/utils/urlHelpers';
 import { ScalableWidget } from '../common/ScalableWidget';
-import { WidgetLayoutWrapper } from './WidgetLayoutWrapper';
+import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
 import { UI_CONSTANTS } from '@/config/layout';

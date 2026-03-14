@@ -67,7 +67,7 @@ vi.mock('@/components/widgets/WidgetRegistry', () => ({
   DEFAULT_SCALING_CONFIG: { baseWidth: 200, baseHeight: 200 },
 }));
 
-vi.mock('@/components/widgets/WidgetLayoutWrapper', () => ({
+vi.mock('@/components/widgets/WidgetLayout/WidgetLayoutWrapper', () => ({
   WidgetLayoutWrapper: () => (
     <div data-testid="widget-content">Widget Content</div>
   ),
