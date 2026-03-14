@@ -174,16 +174,16 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
           const deletePromises = (
             notebookToDelete.pagePaths || notebookToDelete.pageUrls
           ).map((pathOrUrl) =>
-            deleteFile(pathOrUrl).catch(() => {
-              /* ignore */
+            deleteFile(pathOrUrl).catch((err) => {
+              console.error('Failed to delete notebook page file:', err);
             })
           );
           await Promise.all(deletePromises);
 
           if (notebookToDelete.assetUrls) {
             const assetDeletePromises = notebookToDelete.assetUrls.map((url) =>
-              deleteFile(url).catch(() => {
-                /* ignore */
+              deleteFile(url).catch((err) => {
+                console.error('Failed to delete notebook asset file:', err);
               })
             );
             await Promise.all(assetDeletePromises);
