@@ -16,8 +16,8 @@ export default tseslint.config(
     ignores: [
       'dist',
       'node_modules',
-      '*.config.js',
-      '*.config.ts',
+      '**/*.config.js',
+      '**/*.config.ts',
       'scripts',
       'functions/lib',
       'coverage',

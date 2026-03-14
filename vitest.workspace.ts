@@ -1,4 +1,1 @@
-export default [
-  'vitest.config.ts',
-  'functions/vitest.config.ts'
-];
+export default ['vitest.config.ts', 'functions/vitest.config.ts'];

@@ -8,6 +8,8 @@ import {
   TextConfig,
   PollConfig,
   WidgetConfig,
+  ScoreboardConfig,
+  RandomConfig,
 } from '@/types';
 
 describe('DashboardContext AI Security Helpers', () => {
@@ -105,28 +107,25 @@ describe('DashboardContext AI Security Helpers', () => {
 
     it('sanitizes scoreboard teams', () => {
       const configWithArray = {
-        teams: [
-          'Eagles',
-          { name: 'Tigers', score: 50, color: '#f00' },
-          123,
-        ],
+        teams: ['Eagles', { name: 'Tigers', score: 50, color: '#f00' }, 123],
       };
       const sanitizedArray = sanitizeAIConfig(
         'scoreboard' as WidgetType,
         configWithArray as unknown as Partial<WidgetConfig>
-      ) as any;
+      ) as ScoreboardConfig;
 
-      expect(sanitizedArray.teams).toHaveLength(3);
-      expect(sanitizedArray.teams[0].name).toBe('Eagles');
-      expect(sanitizedArray.teams[0].score).toBe(0);
-      expect(sanitizedArray.teams[0].id).toBeDefined();
+      const teams = sanitizedArray.teams ?? [];
+      expect(teams).toHaveLength(3);
+      expect(teams[0].name).toBe('Eagles');
+      expect(teams[0].score).toBe(0);
+      expect(teams[0].id).toBeDefined();
 
-      expect(sanitizedArray.teams[1].name).toBe('Tigers');
-      expect(sanitizedArray.teams[1].score).toBe(50);
-      expect(sanitizedArray.teams[1].color).toBe('#f00');
+      expect(teams[1].name).toBe('Tigers');
+      expect(teams[1].score).toBe(50);
+      expect(teams[1].color).toBe('#f00');
 
-      expect(sanitizedArray.teams[2].name).toBe('Team 3');
-      expect(sanitizedArray.teams[2].score).toBe(0);
+      expect(teams[2].name).toBe('Team 3');
+      expect(teams[2].score).toBe(0);
 
       const configWithNonArray = {
         teams: 'Not an array',
@@ -134,7 +133,7 @@ describe('DashboardContext AI Security Helpers', () => {
       const sanitizedNonArray = sanitizeAIConfig(
         'scoreboard' as WidgetType,
         configWithNonArray as unknown as Partial<WidgetConfig>
-      ) as any;
+      ) as Record<string, unknown>;
       expect(sanitizedNonArray.teams).toBeUndefined();
     });
 
@@ -146,7 +145,7 @@ describe('DashboardContext AI Security Helpers', () => {
       const sanitizedValid = sanitizeAIConfig(
         'random' as WidgetType,
         configWithValidTypes as unknown as Partial<WidgetConfig>
-      ) as any;
+      ) as RandomConfig;
       expect(sanitizedValid.lastResult).toBe('Winner');
       expect(sanitizedValid.remainingStudents).toEqual(['Alice', 'Bob']);
 
@@ -157,7 +156,7 @@ describe('DashboardContext AI Security Helpers', () => {
       const sanitizedInvalid = sanitizeAIConfig(
         'random' as WidgetType,
         configWithInvalidTypes as unknown as Partial<WidgetConfig>
-      ) as any;
+      ) as Record<string, unknown>;
       expect(sanitizedInvalid.lastResult).toBeUndefined();
       expect(sanitizedInvalid.remainingStudents).toBeUndefined();
     });
