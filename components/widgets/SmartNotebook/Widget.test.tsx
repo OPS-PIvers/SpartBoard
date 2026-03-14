@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
-import { SmartNotebookWidget } from './SmartNotebookWidget';
+import { SmartNotebookWidget } from './Widget';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';

@@ -102,7 +102,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'CatalystVisualWidget'
   ),
   smartNotebook: lazyNamed(
-    () => import('./SmartNotebookWidget'),
+    () => import('./SmartNotebook'),
     'SmartNotebookWidget'
   ),
   recessGear: lazyNamed(
