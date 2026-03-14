@@ -113,7 +113,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./Breathing/BreathingWidget'),
     'BreathingWidget'
   ),
-  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsWidget'),
+  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsWidget'),
   mathTool: lazyNamed(
     () => import('./MathToolInstance/index'),
     'MathToolInstanceWidget'
@@ -193,7 +193,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./Breathing/BreathingSettings'),
     'BreathingSettings'
   ),
-  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
+  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsSettings'),
   mathTool: lazyNamed(
     () => import('./MathToolInstance/index'),
     'MathToolInstanceSettings'
