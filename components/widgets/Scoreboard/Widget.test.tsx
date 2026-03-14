@@ -1,23 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ScoreboardWidget } from './ScoreboardWidget';
-import { ScoreboardSettings } from './ScoreboardSettings';
-import { useDashboard } from '../../context/useDashboard';
+import { ScoreboardWidget } from './Widget';
+import { ScoreboardSettings } from './Settings';
+import { useDashboard } from '@/context/useDashboard';
 import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
-import * as ScoreboardItemModule from './ScoreboardItem';
+import * as ScoreboardItemModule from './components/ScoreboardItem';
 import {
   WidgetData,
   ScoreboardConfig,
   RandomConfig,
   WidgetType,
   ScoreboardTeam,
-} from '../../types';
+} from '@/types';
 
-vi.mock('../../context/useDashboard');
+vi.mock('@/context/useDashboard');
 
 // Mock ScoreboardItem to spy on renders
-vi.mock('./ScoreboardItem', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./ScoreboardItem')>();
+vi.mock('./components/ScoreboardItem', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./components/ScoreboardItem')>();
   const React = await import('react');
   const { vi } = await import('vitest');
 

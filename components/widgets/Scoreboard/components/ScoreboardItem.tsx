@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScoreboardTeam } from '../../types';
+import { ScoreboardTeam } from '@/types';
 import { Plus, Minus } from 'lucide-react';
 
 import {
