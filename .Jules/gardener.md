@@ -79,3 +79,8 @@
 **Weed:** Monolithic files holding multiple components and settings (`ScoreboardWidget.tsx`, `ScoreboardItem.tsx`, `ScoreboardSettings.tsx` scattered in the root widgets folder).
 **Root Cause:** Fast iteration led to grouping disparate logic (main widget UI, individual items, settings panels) loosely in the same directory, violating separation of concerns.
 **Plan:** Created a `components/widgets/Scoreboard` directory. Moved the main widget, settings, and sub-components into this logical directory structure and created an `index.ts` to cleanly export the primary interfaces. Updated the WidgetRegistry to use the clean entry point.
+
+## 2024-03-14 - Decomposed ExpectationsWidget
+**Weed:** Monolithic component file containing both main widget and settings UI (`ExpectationsWidget.tsx`).
+**Root Cause:** Rapid prototyping led to combining distinct components (main widget and its configuration settings) into a single large file, which reduces maintainability and separation of concerns.
+**Plan:** Decomposed the file into a dedicated directory (`components/widgets/Expectations/`) containing `Widget.tsx`, `Settings.tsx`, and `index.ts`, updating `WidgetRegistry.ts` and test files accordingly.
