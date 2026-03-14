@@ -16,6 +16,19 @@ export const getJoinUrl = (): string => {
 };
 
 /**
+ * Ensures a URL string has a protocol prefix (http:// or https://).
+ * Defaults to https:// if missing.
+ * @param url The original URL to check
+ * @returns The protocol-prefixed URL
+ */
+export const ensureProtocol = (url: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+/**
  * Converts various service URLs (YouTube, Google Docs/Slides/Sheets/Forms) to their embeddable counterparts.
  * @param url The original URL to convert
  * @returns The embeddable URL

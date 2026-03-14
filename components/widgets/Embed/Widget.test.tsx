@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { EmbedWidget, EmbedSettings } from './EmbedWidget';
-import { WidgetData, EmbedConfig } from '../../types';
+import { EmbedWidget, EmbedSettings } from './index';
+import { WidgetData, EmbedConfig } from '../../../types';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Mock dependencies
 const mockUpdateWidget = vi.fn();
-vi.mock('../../context/useDashboard', () => ({
+vi.mock('../../../context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget: mockUpdateWidget,
   }),
