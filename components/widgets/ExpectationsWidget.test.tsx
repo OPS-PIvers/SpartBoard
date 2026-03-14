@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ExpectationsWidget, ExpectationsSettings } from './ExpectationsWidget';
+import {
+  ExpectationsWidget,
+  ExpectationsSettings,
+} from './ExpectationsWidget/index';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { WidgetData, ExpectationsConfig } from '../../types';
