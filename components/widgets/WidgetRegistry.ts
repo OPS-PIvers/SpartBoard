@@ -202,7 +202,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
   mathTool: lazyNamed(
     () => import('./MathToolInstanceWidget'),
-    'MathToolSettings'
+    'MathToolInstanceSettings'
   ),
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
