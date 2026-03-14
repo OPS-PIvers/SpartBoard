@@ -1,5 +1,5 @@
 import React from 'react';
-import { WidgetData, CatalystVisualConfig } from '../../../types';
+import { WidgetData, CatalystVisualConfig } from '@/types';
 import * as Icons from 'lucide-react';
 import {
   Hand,
