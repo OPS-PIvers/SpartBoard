@@ -174,20 +174,28 @@ export const sanitizeAIConfig = (
 
   if (type === 'random') {
     const c = sanitized as unknown as Partial<RandomConfig>;
+
     // Clear lastResult if it's not a simple string or array
-    if (
-      typeof c.lastResult !== 'undefined' &&
-      typeof c.lastResult !== 'string' &&
-      !Array.isArray(c.lastResult)
-    ) {
-      delete c.lastResult;
+    if (typeof c.lastResult !== 'undefined') {
+      if (typeof c.lastResult === 'string') {
+        // Valid string, keep it
+      } else if (Array.isArray(c.lastResult)) {
+        // Filter out non-string items from array
+        c.lastResult = c.lastResult.filter((item) => typeof item === 'string');
+      } else {
+        delete c.lastResult;
+      }
     }
-    // Ensure remainingStudents is an array if present
-    if (
-      typeof c.remainingStudents !== 'undefined' &&
-      !Array.isArray(c.remainingStudents)
-    ) {
-      delete c.remainingStudents;
+
+    // Ensure remainingStudents is an array and only contains strings
+    if (typeof c.remainingStudents !== 'undefined') {
+      if (!Array.isArray(c.remainingStudents)) {
+        delete c.remainingStudents;
+      } else {
+        c.remainingStudents = c.remainingStudents.filter(
+          (item) => typeof item === 'string'
+        );
+      }
     }
   }
 

@@ -8,6 +8,8 @@ import {
   TextConfig,
   PollConfig,
   WidgetConfig,
+  ScoreboardConfig,
+  RandomConfig,
 } from '@/types';
 
 describe('DashboardContext AI Security Helpers', () => {
@@ -101,6 +103,73 @@ describe('DashboardContext AI Security Helpers', () => {
       expect(sanitized.options[0]).toEqual({ label: 'Good', votes: 0 });
       expect(sanitized.options[1]).toEqual({ label: 'Bad', votes: 0 });
       expect(sanitized.options[2]).toEqual({ label: '123', votes: 0 });
+    });
+
+    it('sanitizes scoreboard teams', () => {
+      const configWithArray = {
+        teams: ['Eagles', { name: 'Tigers', score: 50, color: '#f00' }, 123],
+      };
+      const sanitizedArray = sanitizeAIConfig(
+        'scoreboard' as WidgetType,
+        configWithArray as unknown as Partial<WidgetConfig>
+      ) as ScoreboardConfig;
+
+      const teams = sanitizedArray.teams ?? [];
+      expect(teams).toHaveLength(3);
+      expect(teams[0].name).toBe('Eagles');
+      expect(teams[0].score).toBe(0);
+      expect(teams[0].id).toBeDefined();
+
+      expect(teams[1].name).toBe('Tigers');
+      expect(teams[1].score).toBe(50);
+      expect(teams[1].color).toBe('#f00');
+
+      expect(teams[2].name).toBe('Team 3');
+      expect(teams[2].score).toBe(0);
+
+      const configWithNonArray = {
+        teams: 'Not an array',
+      };
+      const sanitizedNonArray = sanitizeAIConfig(
+        'scoreboard' as WidgetType,
+        configWithNonArray as unknown as Partial<WidgetConfig>
+      ) as Record<string, unknown>;
+      expect(sanitizedNonArray.teams).toBeUndefined();
+    });
+
+    it('sanitizes random config fields', () => {
+      const configWithValidTypes = {
+        lastResult: 'Winner',
+        remainingStudents: ['Alice', 'Bob'],
+      };
+      const sanitizedValid = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithValidTypes as unknown as Partial<WidgetConfig>
+      ) as RandomConfig;
+      expect(sanitizedValid.lastResult).toBe('Winner');
+      expect(sanitizedValid.remainingStudents).toEqual(['Alice', 'Bob']);
+
+      const configWithInvalidTypes = {
+        lastResult: 123,
+        remainingStudents: 'Not an array',
+      };
+      const sanitizedInvalid = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithInvalidTypes as unknown as Partial<WidgetConfig>
+      ) as Record<string, unknown>;
+      expect(sanitizedInvalid.lastResult).toBeUndefined();
+      expect(sanitizedInvalid.remainingStudents).toBeUndefined();
+
+      const configWithMixedArrayTypes = {
+        lastResult: ['Winner 1', 123, { object: true }, 'Winner 2'],
+        remainingStudents: ['Alice', 456, 'Bob', null],
+      };
+      const sanitizedMixedArray = sanitizeAIConfig(
+        'random' as WidgetType,
+        configWithMixedArrayTypes as unknown as Partial<WidgetConfig>
+      ) as RandomConfig;
+      expect(sanitizedMixedArray.lastResult).toEqual(['Winner 1', 'Winner 2']);
+      expect(sanitizedMixedArray.remainingStudents).toEqual(['Alice', 'Bob']);
     });
   });
 
