@@ -79,3 +79,9 @@
 **Weed:** Monolithic files holding multiple components and settings (`ScoreboardWidget.tsx`, `ScoreboardItem.tsx`, `ScoreboardSettings.tsx` scattered in the root widgets folder).
 **Root Cause:** Fast iteration led to grouping disparate logic (main widget UI, individual items, settings panels) loosely in the same directory, violating separation of concerns.
 **Plan:** Created a `components/widgets/Scoreboard` directory. Moved the main widget, settings, and sub-components into this logical directory structure and created an `index.ts` to cleanly export the primary interfaces. Updated the WidgetRegistry to use the clean entry point.
+
+## 2026-03-14 - Decomposed MathToolInstanceWidget
+
+**Weed:** Monolithic files holding multiple components and settings (`MathToolInstanceWidget.tsx` contained `MathToolInstanceWidget`, `MathToolInstanceSettings`, and `RotationOverlay`).
+**Root Cause:** The `MathToolInstanceWidget` became too large over time as more configuration types, modes, and display options were added to mathematical tools (ruler, protractor, number-line, etc.), making it hard to navigate.
+**Plan:** Created a `components/widgets/MathToolInstance` directory. Moved the main widget, settings, internal overlay component, and shared constants into this logical directory structure and created an `index.ts` to cleanly export the primary interfaces. Updated the WidgetRegistry to use the clean entry point.
