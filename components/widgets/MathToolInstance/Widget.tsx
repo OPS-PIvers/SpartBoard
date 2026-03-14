@@ -1,11 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useRef } from 'react';
 import { WidgetData, MathToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { CSS_PPI, getMathToolMeta } from '../math-tools/mathToolUtils';
+import { CSS_PPI } from '../math-tools/mathToolUtils';
 import { StickerPieceSVG } from '../math-tools/StickerPieces';
 import { WidgetLayout } from '../WidgetLayout';
 import { ROTATABLE_TOOLS } from './constants';
-import { RotationOverlay } from './RotationOverlay';
+import { RotationHandle } from './RotationHandle';
 
 // Lazy load all tool components to keep the bundle lean
 const RulerTool = lazy(() =>
@@ -135,6 +135,7 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as MathToolConfig;
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleUpdate = (updates: Partial<MathToolConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
@@ -146,7 +147,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
   // ---- Sticker mode: bare SVG piece, no header chrome ----
   if (config.stickerMode && config.stickerPiece) {
     return (
-      <div className="h-full w-full flex items-center justify-center p-1 group relative overflow-visible">
+      <div
+        ref={containerRef}
+        className="h-full w-full flex items-center justify-center p-1 group relative overflow-visible"
+      >
         <div
           className="transition-transform duration-200 will-change-transform"
           style={{ transform: `rotate(${rotation}deg)` }}
@@ -157,9 +161,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
           />
         </div>
         {isRotatable && (
-          <RotationOverlay
+          <RotationHandle
             rotation={rotation}
             onRotate={(r) => handleUpdate({ rotation: r })}
+            containerRef={containerRef}
           />
         )}
       </div>
@@ -169,7 +174,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
   // ---- Sticker mode: whole tool (ruler / protractor) without header badge ----
   if (config.stickerMode) {
     return (
-      <div className="h-full w-full overflow-visible group relative">
+      <div
+        ref={containerRef}
+        className="h-full w-full overflow-visible group relative"
+      >
         <Suspense
           fallback={
             <div
@@ -187,9 +195,10 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
             <ToolContent config={config} onUpdate={handleUpdate} />
           </div>
           {isRotatable && (
-            <RotationOverlay
+            <RotationHandle
               rotation={rotation}
               onRotate={(r) => handleUpdate({ rotation: r })}
+              containerRef={containerRef}
             />
           )}
         </Suspense>
@@ -197,35 +206,9 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  // ---- Normal mode: header badge + tool content ----
-  const meta = getMathToolMeta(config.toolType ?? 'ruler-in');
-
-  const header = (
-    <div
-      className="flex items-center shrink-0"
-      style={{ gap: 'min(8px, 2cqmin)' }}
-    >
-      <span className="leading-none" style={{ fontSize: 'min(24px, 10cqmin)' }}>
-        {meta.emoji}
-      </span>
-      <span
-        className="font-black text-slate-600 uppercase tracking-widest"
-        style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-      >
-        {meta.label}
-      </span>
-      <span
-        className="ml-auto text-slate-300 font-mono"
-        style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-      >
-        {config.pixelsPerInch ?? CSS_PPI} px/in
-      </span>
-    </div>
-  );
-
+  // ---- Normal (interactive) mode: content fills widget, no redundant header ----
   return (
     <WidgetLayout
-      header={header}
       contentClassName="flex flex-col flex-1 min-h-0 overflow-visible relative group"
       content={
         <Suspense
@@ -239,15 +222,17 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
           }
         >
           <div
-            className="flex-1 flex items-center justify-center transition-transform duration-200 will-change-transform"
+            ref={containerRef}
+            className="flex-1 flex items-center justify-center transition-transform duration-200 will-change-transform relative group"
             style={{ transform: `rotate(${rotation}deg)` }}
           >
             <ToolContent config={config} onUpdate={handleUpdate} />
           </div>
           {isRotatable && (
-            <RotationOverlay
+            <RotationHandle
               rotation={rotation}
               onRotate={(r) => handleUpdate({ rotation: r })}
+              containerRef={containerRef}
             />
           )}
         </Suspense>

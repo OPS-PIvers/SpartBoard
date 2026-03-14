@@ -65,6 +65,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
     addWidget('mathTool', {
       w: meta.defaultW,
       h: meta.defaultH,
+      transparency: 0,
       config: {
         toolType,
         pixelsPerInch: ppi,
@@ -79,6 +80,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
     addWidget('mathTool', {
       w: subItem.spawnW,
       h: subItem.spawnH,
+      transparency: 0,
       config: {
         toolType,
         pixelsPerInch: ppi,
