@@ -54,10 +54,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./TimeTool/TimeToolWidget'),
     'TimeToolWidget'
   ),
-  traffic: lazyNamed(
-    () => import('./TrafficLightWidget/Widget'),
-    'TrafficLightWidget'
-  ),
+  traffic: lazy(() => import('./TrafficLightWidget')),
   text: lazyNamed(() => import('./TextWidget'), 'TextWidget'),
   checklist: lazyNamed(() => import('./Checklist'), 'ChecklistWidget'),
   random: lazyNamed(() => import('./random/RandomWidget'), 'RandomWidget'),
