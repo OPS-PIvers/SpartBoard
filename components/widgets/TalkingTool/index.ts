@@ -1,0 +1,1 @@
+export { TalkingToolWidget } from './Widget';

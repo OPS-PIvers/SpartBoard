@@ -111,10 +111,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
-  'talking-tool': lazyNamed(
-    () => import('./TalkingToolWidget'),
-    'TalkingToolWidget'
-  ),
+  'talking-tool': lazyNamed(() => import('./TalkingTool'), 'TalkingToolWidget'),
   breathing: lazyNamed(
     () => import('./Breathing/BreathingWidget'),
     'BreathingWidget'

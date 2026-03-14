@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { TalkingToolWidget } from './TalkingToolWidget';
+import { TalkingToolWidget } from './Widget';
 import { WidgetData, FeaturePermission } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { AuthContextType } from '@/context/AuthContextValue';

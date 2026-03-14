@@ -1,27 +1,13 @@
 import React, { useState } from 'react';
-import {
-  Quote,
-  Ear,
-  MessageCircle,
-  BookOpen,
-  MessageSquare,
-} from 'lucide-react';
+import { Quote } from 'lucide-react';
 import { WidgetComponentProps, TalkingToolGlobalConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
+import { getIcon } from './constants';
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Ear,
-  MessageCircle,
-  BookOpen,
-  MessageSquare,
-};
-
-const getIcon = (iconName: string) => {
-  return ICON_MAP[iconName] || MessageSquare;
-};
-
-export const TalkingToolWidget: React.FC<WidgetComponentProps> = () => {
+export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
+  widget: _widget,
+}) => {
   const { featurePermissions } = useAuth();
 
   // Get config from feature permissions
