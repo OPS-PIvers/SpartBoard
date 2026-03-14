@@ -105,7 +105,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./SmartNotebookWidget'),
     'SmartNotebookWidget'
   ),
-  recessGear: lazyNamed(() => import('./RecessGearWidget'), 'RecessGearWidget'),
+  recessGear: lazyNamed(
+    () => import('./RecessGear/Widget'),
+    'RecessGearWidget'
+  ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
   'talking-tool': lazyNamed(
@@ -187,7 +190,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleSettings'),
   classes: DefaultSettings,
   recessGear: lazyNamed(
-    () => import('./RecessGearWidget'),
+    () => import('./RecessGear/Settings'),
     'RecessGearSettings'
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfSettings'),

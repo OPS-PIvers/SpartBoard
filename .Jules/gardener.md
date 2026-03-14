@@ -1,3 +1,9 @@
+## 2026-03-13 - Refactored RecessGearWidget
+
+**Weed:** Monolithic Widget Structure (>300 lines mixing widget and settings components).
+**Root Cause:** Early development pattern of grouping all logic per widget into a single file, leading to poor separation of concerns and maintainability issues as widgets grow.
+**Plan:** Decompose the monolithic file into a modular directory structure (Widget.tsx, Settings.tsx, Widget.test.tsx, index.ts). Update WidgetRegistry.ts to load the separate files, preventing unnecessary bundling.
+
 # Gardener's Journal
 
 ## 2025-06-04 - Refactor LunchCountWidget

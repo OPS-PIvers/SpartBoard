@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
 import { render, screen } from '@testing-library/react';
-import { RecessGearWidget, RecessGearSettings } from './RecessGearWidget';
-import { WidgetData, RecessGearConfig, WeatherConfig } from '../../types';
+import { RecessGearWidget } from './Widget';
+import { RecessGearSettings } from './Settings';
+import { WidgetData, RecessGearConfig, WeatherConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { useDashboard } from '../../context/useDashboard';
+import { useDashboard } from '@/context/useDashboard';
 
 // Mock dependencies
-vi.mock('../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
-vi.mock('../../hooks/useFeaturePermissions', () => ({
+vi.mock('@/hooks/useFeaturePermissions', () => ({
   useFeaturePermissions: vi.fn(() => ({
     subscribeToPermission: vi.fn((_type, callback) => {
       // Use setTimeout to avoid synchronous state update during render/effect loop
@@ -28,7 +29,7 @@ vi.mock('../../hooks/useFeaturePermissions', () => ({
   })),
 }));
 
-vi.mock('../../hooks/useFirestore', () => ({
+vi.mock('@/hooks/useFirestore', () => ({
   useFirestore: vi.fn(() => ({
     getDocument: vi.fn(),
   })),
