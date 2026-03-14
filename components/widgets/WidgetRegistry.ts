@@ -122,7 +122,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'MathToolInstanceWidget'
   ),
   nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
-  onboarding: lazyNamed(() => import('./OnboardingWidget'), 'OnboardingWidget'),
+  onboarding: lazyNamed(() => import('./Onboarding'), 'OnboardingWidget'),
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicWidget'),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Widget'),
