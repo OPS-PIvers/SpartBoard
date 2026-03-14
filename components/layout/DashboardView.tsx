@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
-import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { isExternalBackground } from '@/utils/backgrounds';
@@ -910,8 +909,7 @@ export const DashboardView: React.FC = () => {
       {activeDashboard.settings?.spotlightWidgetId &&
         createPortal(
           <div
-            className="fixed inset-0 bg-slate-900/80 transition-all duration-500 ease-in-out"
-            style={{ zIndex: Z_INDEX.backdrop }}
+            className="fixed inset-0 z-backdrop bg-slate-900/80 transition-all duration-500 ease-in-out"
             onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
             aria-hidden="true"
           />,
