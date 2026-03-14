@@ -1,8 +1,12 @@
 import React from 'react';
 import * as Icons from 'lucide-react';
-import { CatalystCategory, CatalystRoutine, CatalystConfig } from '../../types';
-import { DEFAULT_CATALYST_CATEGORIES } from '../../config/catalystDefaults';
-import { CATALYST_ROUTINES } from '../../config/catalystRoutines';
+import {
+  CatalystCategory,
+  CatalystRoutine,
+  CatalystConfig,
+} from '../../../types';
+import { DEFAULT_CATALYST_CATEGORIES } from '../../../config/catalystDefaults';
+import { CATALYST_ROUTINES } from '../../../config/catalystRoutines';
 
 /**
  * Validates if a string is a safe icon URL (HTTPS or reasonable data URL)

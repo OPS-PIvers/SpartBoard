@@ -1,5 +1,5 @@
 import React from 'react';
-import { WidgetData, CatalystVisualConfig } from '../../types';
+import { WidgetData, CatalystVisualConfig } from '../../../types';
 import * as Icons from 'lucide-react';
 import {
   Hand,
@@ -10,7 +10,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-import { WidgetLayout } from './WidgetLayout';
+import { WidgetLayout } from '../WidgetLayout';
 
 export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
   widget,

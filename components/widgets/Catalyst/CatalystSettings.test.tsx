@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CatalystSettings } from './CatalystSettings';
-import { WidgetData } from '../../types';
+import { WidgetData } from '../../../types';
 
 describe('CatalystSettings', () => {
   const createWidget = (): WidgetData => {

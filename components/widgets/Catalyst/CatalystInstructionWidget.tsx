@@ -1,7 +1,7 @@
 import React from 'react';
-import { WidgetData, CatalystInstructionConfig } from '../../types';
+import { WidgetData, CatalystInstructionConfig } from '../../../types';
 
-import { WidgetLayout } from './WidgetLayout';
+import { WidgetLayout } from '../WidgetLayout';
 
 export const CatalystInstructionWidget: React.FC<{ widget: WidgetData }> = ({
   widget,

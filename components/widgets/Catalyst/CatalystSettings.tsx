@@ -1,5 +1,5 @@
 import React from 'react';
-import { WidgetData } from '../../types';
+import { WidgetData } from '../../../types';
 import { Settings2 } from 'lucide-react';
 
 interface CatalystSettingsProps {

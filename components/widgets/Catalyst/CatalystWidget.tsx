@@ -1,13 +1,13 @@
 import React from 'react';
-import { useDashboard } from '../../context/useDashboard';
-import { useAuth } from '../../context/useAuth';
+import { useDashboard } from '../../../context/useDashboard';
+import { useAuth } from '../../../context/useAuth';
 import {
   WidgetData,
   CatalystConfig,
   WidgetType,
   WidgetConfig,
   CatalystRoutine,
-} from '../../types';
+} from '../../../types';
 import { Zap, BookOpen, ChevronLeft } from 'lucide-react';
 import {
   renderCatalystIcon,
@@ -16,7 +16,7 @@ import {
   mergeCatalystRoutines,
 } from './catalystHelpers';
 
-import { WidgetLayout } from './WidgetLayout';
+import { WidgetLayout } from '../WidgetLayout';
 import { CatalystSettings } from './CatalystSettings'; // Import the new settings component
 
 export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({

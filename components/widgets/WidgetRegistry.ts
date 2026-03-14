@@ -92,13 +92,16 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./SeatingChart/Widget'),
     'SeatingChartWidget'
   ),
-  catalyst: lazyNamed(() => import('./CatalystWidget'), 'CatalystWidget'),
+  catalyst: lazyNamed(
+    () => import('./Catalyst/CatalystWidget'),
+    'CatalystWidget'
+  ),
   'catalyst-instruction': lazyNamed(
-    () => import('./CatalystInstructionWidget'),
+    () => import('./Catalyst/CatalystInstructionWidget'),
     'CatalystInstructionWidget'
   ),
   'catalyst-visual': lazyNamed(
-    () => import('./CatalystVisualWidget'),
+    () => import('./Catalyst/CatalystVisualWidget'),
     'CatalystVisualWidget'
   ),
   smartNotebook: lazyNamed(
@@ -172,13 +175,16 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./SeatingChart/Settings'),
     'SeatingChartSettings'
   ),
-  catalyst: lazyNamed(() => import('./CatalystWidget'), 'CatalystSettings'),
+  catalyst: lazyNamed(
+    () => import('./Catalyst/CatalystWidget'),
+    'CatalystSettings'
+  ),
   'catalyst-instruction': lazyNamed(
-    () => import('./CatalystInstructionWidget'),
+    () => import('./Catalyst/CatalystInstructionWidget'),
     'CatalystInstructionSettings'
   ),
   'catalyst-visual': lazyNamed(
-    () => import('./CatalystVisualWidget'),
+    () => import('./Catalyst/CatalystVisualWidget'),
     'CatalystVisualSettings'
   ),
   smartNotebook: DefaultSettings,
