@@ -1,12 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizImporter } from './QuizImporter';
-import { generateQuiz } from '../../../utils/ai';
+import { generateQuiz } from '@/utils/ai';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Mock generateQuiz
-vi.mock('../../../utils/ai', () => ({
+vi.mock('@/utils/ai', () => ({
   generateQuiz: vi.fn(),
 }));
 
@@ -127,7 +127,7 @@ describe('QuizImporter', () => {
     };
 
     vi.mocked(generateQuiz).mockResolvedValue(
-      mockQuizData as unknown as import('../../../utils/ai').GeneratedQuiz
+      mockQuizData as unknown as import('@/utils/ai').GeneratedQuiz
     );
 
     render(
@@ -188,7 +188,7 @@ describe('QuizImporter', () => {
     };
 
     vi.mocked(generateQuiz).mockResolvedValue(
-      mockQuizData as unknown as import('../../../utils/ai').GeneratedQuiz
+      mockQuizData as unknown as import('@/utils/ai').GeneratedQuiz
     );
 
     render(
