@@ -63,7 +63,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 
 ### Option 2: Local Development
 
-**Prerequisites:** Node.js (v20+ recommended), pnpm (v10+)
+**Prerequisites:** Node.js (v20+ recommended), pnpm (v9+)
 
 1.  **Clone the repository:**
 
