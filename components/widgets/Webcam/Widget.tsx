@@ -142,7 +142,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     } finally {
       setIsExtracting(false);
     }
-  }, [isMirrored, ocrMode]);
+  }, [isMirrored, ocrMode, showAlert]);
 
   const handleCopy = useCallback(() => {
     if (extractedText) {

@@ -9,7 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
-import { DialogVariant } from '@/context/DialogContext';
+import { DialogVariant } from '@/context/DialogContextValue';
 
 // ─── Variant config ───────────────────────────────────────────────────────────
 

@@ -89,7 +89,6 @@ const QuizJoinFlow: React.FC = () => {
     reportTabSwitch,
     warningCount,
   } = useQuizSessionStudent();
-  const { showAlert } = useDialog();
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
@@ -274,10 +273,19 @@ const ActiveQuiz: React.FC<{
   reportTabSwitch,
   warningCount,
 }) => {
+  const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
 
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
+
+  const handleAutoSubmit = useCallback(async () => {
+    await showAlert(
+      'You have left the quiz 3 times. Your quiz is being auto-submitted.',
+      { title: 'Quiz Auto-Submitted', variant: 'warning' }
+    );
+    await onComplete();
+  }, [showAlert, onComplete]);
 
   // The Visibility Tracker
   useEffect(() => {
@@ -309,13 +317,7 @@ const ActiveQuiz: React.FC<{
           // Auto-submit if they breach the threshold (e.g., 3 strikes)
           if (newTotal >= 3) {
             // Use a slight delay so the UI can update before the dialog
-            setTimeout(async () => {
-              await showAlert(
-                'You have left the quiz 3 times. Your quiz is being auto-submitted.',
-                { title: 'Quiz Auto-Submitted', variant: 'warning' }
-              );
-              await onComplete();
-            }, 100);
+            setTimeout(() => void handleAutoSubmit(), 100);
           }
         } catch (err) {
           console.error('Failed to report tab switch:', err);
@@ -349,6 +351,7 @@ const ActiveQuiz: React.FC<{
     session.status,
     reportTabSwitch,
     onComplete,
+    handleAutoSubmit,
     showCheatWarning,
     myResponse?.status,
   ]);

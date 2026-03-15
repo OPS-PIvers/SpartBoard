@@ -563,6 +563,7 @@ export const DashboardView: React.FC = () => {
     activeDashboard,
     minimizeAllWidgets,
     deleteAllWidgets,
+    showConfirm,
     t,
   ]);
 

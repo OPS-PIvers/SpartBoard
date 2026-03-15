@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { DialogContext, DialogContextValue } from './DialogContext';
+import { DialogContext, DialogContextValue } from './DialogContextValue';
 
 export const useDialog = (): DialogContextValue => {
   const ctx = useContext(DialogContext);
