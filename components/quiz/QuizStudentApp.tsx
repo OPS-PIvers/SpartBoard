@@ -24,6 +24,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useQuizSessionStudent } from '@/hooks/useQuizSession';
 import { QuizSession, QuizPublicQuestion } from '@/types';
+import { useDialog } from '@/context/useDialog';
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ const QuizJoinFlow: React.FC = () => {
     reportTabSwitch,
     warningCount,
   } = useQuizSessionStudent();
+  const { showAlert } = useDialog();
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
@@ -306,10 +308,11 @@ const ActiveQuiz: React.FC<{
 
           // Auto-submit if they breach the threshold (e.g., 3 strikes)
           if (newTotal >= 3) {
-            // Use a slight delay so the UI can update before the blocking alert
+            // Use a slight delay so the UI can update before the dialog
             setTimeout(async () => {
-              alert(
-                'You have left the quiz 3 times. Your quiz is being auto-submitted.'
+              await showAlert(
+                'You have left the quiz 3 times. Your quiz is being auto-submitted.',
+                { title: 'Quiz Auto-Submitted', variant: 'warning' }
               );
               await onComplete();
             }, 100);

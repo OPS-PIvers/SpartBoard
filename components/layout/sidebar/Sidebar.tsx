@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDialog } from '@/context/useDialog';
 import {
   X,
   Menu,
@@ -35,6 +36,7 @@ type MenuSection = 'main' | 'boards' | 'backgrounds' | 'style' | 'settings';
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
+  const { showConfirm } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -164,10 +166,16 @@ export const Sidebar: React.FC = () => {
         />
 
         <IconButton
-          onClick={() => {
-            if (window.confirm(t('sidebar.confirmClearBoard'))) {
-              clearAllWidgets();
-            }
+          onClick={async () => {
+            const confirmed = await showConfirm(
+              t('sidebar.confirmClearBoard'),
+              {
+                title: 'Clear Board',
+                variant: 'danger',
+                confirmLabel: 'Clear All',
+              }
+            );
+            if (confirmed) clearAllWidgets();
           }}
           icon={<Trash2 className="w-5 h-5" />}
           label={t('sidebar.header.clearAllWindows')}

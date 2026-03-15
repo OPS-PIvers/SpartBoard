@@ -16,6 +16,7 @@ import { WidgetData, TextConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
 import Tesseract from 'tesseract.js';
 import { WidgetLayout } from '../WidgetLayout';
@@ -26,6 +27,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { featurePermissions } = useAuth();
   const { activeDashboard, updateWidget, addWidget, addToast } = useDashboard();
+  const { showAlert, showConfirm } = useDialog();
   const webcamPermission = featurePermissions.find(
     (p) => p.widgetType === 'webcam'
   );
@@ -133,7 +135,10 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
       setShowTextModal(true);
     } catch (err) {
       console.error('OCR Error:', err);
-      alert('Failed to extract text. Please try again.');
+      await showAlert('Failed to extract text. Please try again.', {
+        title: 'OCR Failed',
+        variant: 'error',
+      });
     } finally {
       setIsExtracting(false);
     }
@@ -227,11 +232,19 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     link.click();
   }, []);
 
-  const clearPhotos = useCallback(() => {
-    if (confirm('Are you sure you want to delete all photos?')) {
+  const clearPhotos = useCallback(async () => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete all photos?',
+      {
+        title: 'Delete All Photos',
+        variant: 'danger',
+        confirmLabel: 'Delete All',
+      }
+    );
+    if (confirmed) {
       setCapturedItems([]);
     }
-  }, []);
+  }, [showConfirm]);
 
   const deletePhoto = useCallback((id: string) => {
     setCapturedItems((prev) => prev.filter((item) => item.id !== id));

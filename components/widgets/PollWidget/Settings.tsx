@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, PollConfig } from '@/types';
+import { useDialog } from '@/context/useDialog';
 import {
   RotateCcw,
   Plus,
@@ -20,6 +21,7 @@ import { OptionInput } from './components/OptionInput';
 
 export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
+  const { showConfirm } = useDialog();
   const { canAccessFeature } = useAuth();
   const config = (widget.config || {}) as PollConfig;
   const { question = 'Vote Now!' } = config;
@@ -42,17 +44,18 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
-  const importFromRoster = () => {
+  const importFromRoster = async () => {
     if (!activeRoster) {
       addToast('No active class roster selected!', 'error');
       return;
     }
 
-    if (
-      options.length > 0 &&
-      !confirm('This will replace current options. Continue?')
-    ) {
-      return;
+    if (options.length > 0) {
+      const confirmed = await showConfirm(
+        'This will replace current options. Continue?',
+        { title: 'Replace Options', confirmLabel: 'Replace' }
+      );
+      if (!confirmed) return;
     }
 
     const newOptions = activeRoster.students.map((s) => ({
@@ -114,8 +117,12 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
-  const handleReset = () => {
-    if (!confirm('Are you sure you want to reset the poll?')) return;
+  const handleReset = async () => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to reset the poll?',
+      { title: 'Reset Poll', variant: 'warning', confirmLabel: 'Reset' }
+    );
+    if (!confirmed) return;
     updateWidget(widget.id, {
       config: {
         ...config,

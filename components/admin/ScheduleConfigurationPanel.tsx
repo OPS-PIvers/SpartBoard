@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { BUILDINGS } from '@/config/buildings';
+import { useDialog } from '@/context/useDialog';
 import {
   ScheduleGlobalConfig,
   BuildingScheduleDefaults,
@@ -161,6 +162,7 @@ export const ScheduleConfigurationPanel: React.FC<
     BUILDINGS[0].id
   );
 
+  const { showConfirm } = useDialog();
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -266,9 +268,13 @@ export const ScheduleConfigurationPanel: React.FC<
     handleUpdateBuilding({ schedules: newSchedules });
   };
 
-  const handleDeleteSchedule = (id: string | null) => {
+  const handleDeleteSchedule = async (id: string | null) => {
     if (!id) return;
-    if (confirm('Are you sure you want to delete this schedule?')) {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this schedule?',
+      { title: 'Delete Schedule', variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (confirmed) {
       const newSchedules = schedules.filter((s) => s.id !== id);
       handleUpdateBuilding({ schedules: newSchedules });
       if (activeScheduleId === id) setActiveScheduleId(null);

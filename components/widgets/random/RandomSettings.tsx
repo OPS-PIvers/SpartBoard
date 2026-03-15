@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDashboard } from '../../../context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig } from '../../../types';
 import { RosterModeControl } from '../../common/RosterModeControl';
 import { Toggle } from '../../common/Toggle';
@@ -21,6 +22,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const { showConfirm } = useDialog();
   const config = widget.config as RandomConfig;
   const {
     firstNames = '',
@@ -326,8 +328,16 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           <button
-            onClick={() => {
-              if (confirm('Clear all custom student data?')) {
+            onClick={async () => {
+              const confirmed = await showConfirm(
+                'Clear all custom student data?',
+                {
+                  title: 'Clear Student Data',
+                  variant: 'danger',
+                  confirmLabel: 'Clear',
+                }
+              );
+              if (confirmed) {
                 updateWidget(widget.id, {
                   config: {
                     ...config,

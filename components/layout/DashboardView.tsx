@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { isExternalBackground } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
@@ -111,6 +112,7 @@ const ToastContainer: React.FC = () => {
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
   const {
     activeDashboard,
     dashboards,
@@ -501,9 +503,13 @@ export const DashboardView: React.FC = () => {
         e.preventDefault();
 
         if (e.shiftKey || e.altKey) {
-          if (confirm(t('sidebar.confirmClearBoard'))) {
-            deleteAllWidgets();
-          }
+          void showConfirm(t('sidebar.confirmClearBoard'), {
+            title: 'Clear Board',
+            variant: 'danger',
+            confirmLabel: 'Clear All',
+          }).then((confirmed) => {
+            if (confirmed) deleteAllWidgets();
+          });
         } else if (activeDashboard && activeDashboard.widgets.length > 0) {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];

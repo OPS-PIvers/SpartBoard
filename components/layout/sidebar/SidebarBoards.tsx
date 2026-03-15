@@ -22,6 +22,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { Dashboard } from '@/types';
 import { SortableDashboardItem } from './SortableDashboardItem';
+import { useDialog } from '@/context/useDialog';
 
 interface SidebarBoardsProps {
   isVisible: boolean;
@@ -34,6 +35,7 @@ interface DashboardData {
 
 export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
   const { t } = useTranslation();
+  const { showPrompt } = useDialog();
   const {
     dashboards,
     activeDashboard,
@@ -115,8 +117,13 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     }
   };
 
-  const handleImport = () => {
-    const data = prompt(t('sidebar.boards.enterBoardData'));
+  const handleImport = async () => {
+    const data = await showPrompt(t('sidebar.boards.enterBoardData'), {
+      title: 'Import Board',
+      placeholder: '{"name":"...","widgets":[...]}',
+      multiline: true,
+      confirmLabel: 'Import',
+    });
     if (data) {
       try {
         const parsed = JSON.parse(data) as DashboardData;

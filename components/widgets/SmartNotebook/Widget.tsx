@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, SmartNotebookConfig, NotebookItem } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
 import {
   collection,
@@ -23,6 +24,7 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
   const { uploadFile, deleteFile } = useStorage();
   const config = widget.config as SmartNotebookConfig;
   const { activeNotebookId } = config;
@@ -165,7 +167,12 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!user) return;
-    if (confirm('Delete this notebook?')) {
+    const confirmed = await showConfirm('Delete this notebook?', {
+      title: 'Delete Notebook',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       try {
         const notebookToDelete = notebooks.find((n) => n.id === id);
         if (notebookToDelete) {

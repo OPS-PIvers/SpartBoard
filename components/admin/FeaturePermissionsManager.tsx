@@ -36,8 +36,10 @@ import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigura
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StickerGlobalConfig } from '@/types';
+import { useDialog } from '@/context/useDialog';
 
 export const FeaturePermissionsManager: React.FC = () => {
+  const { showConfirm } = useDialog();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
@@ -691,14 +693,18 @@ export const FeaturePermissionsManager: React.FC = () => {
           <GenericConfigurationModal
             tool={activeModalTool}
             permission={getPermission(activeModalTool.type)}
-            onClose={() => {
+            onClose={async () => {
               const toolType = activeModalTool?.type;
               if (toolType && unsavedChanges.has(toolType)) {
-                if (
-                  window.confirm(
-                    'You have unsaved changes. Are you sure you want to discard them?'
-                  )
-                ) {
+                const confirmed = await showConfirm(
+                  'You have unsaved changes. Are you sure you want to discard them?',
+                  {
+                    title: 'Discard Changes',
+                    variant: 'warning',
+                    confirmLabel: 'Discard',
+                  }
+                );
+                if (confirmed) {
                   setUnsavedChanges((prev) => {
                     const next = new Set(prev);
                     next.delete(toolType);
