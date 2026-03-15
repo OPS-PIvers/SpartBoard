@@ -338,4 +338,17 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       revealMode: 'flip',
     } as RevealGridConfig,
   },
+  numberLine: {
+    w: 700,
+    h: 200,
+    config: {
+      min: -10,
+      max: 10,
+      step: 1,
+      displayMode: 'integers',
+      markers: [],
+      jumps: [],
+      showArrows: true,
+    },
+  },
 };

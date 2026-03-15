@@ -137,6 +137,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'GraphicOrganizerWidget'
   ),
   'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Widget'),
+  numberLine: lazyNamed(
+    () => import('./NumberLine/Widget'),
+    'NumberLineWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -225,6 +229,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'GraphicOrganizerSettings'
   ),
   'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Settings'),
+  numberLine: lazyNamed(
+    () => import('./NumberLine/Settings'),
+    'NumberLineSettings'
+  ),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -544,6 +552,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'reveal-grid': {
     baseWidth: 600,
     baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  numberLine: {
+    baseWidth: 700,
+    baseHeight: 200,
     canSpread: true,
     skipScaling: true,
     padding: 0,

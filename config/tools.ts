@@ -163,6 +163,12 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Next Up',
     color: 'bg-brand-blue-primary',
   },
+  {
+    type: 'numberLine',
+    icon: ListOrdered,
+    label: 'Number Line',
+    color: 'bg-blue-600',
+  },
   { type: 'music', icon: Music, label: 'Music', color: 'bg-emerald-500' },
   { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
 
