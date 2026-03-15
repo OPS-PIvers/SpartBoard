@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { useAuth } from '../../../context/useAuth';
-import { useFeaturePermissions } from '../../../hooks/useFeaturePermissions';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import {
   WidgetData,
   ScheduleConfig,
@@ -10,7 +10,8 @@ import {
   WidgetType,
   FeaturePermission,
   ScheduleGlobalConfig,
-} from '../../../types';
+  CalendarConfig,
+} from '@/types';
 import {
   Type,
   Clock,
@@ -158,8 +159,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       return;
     }
 
-    const calConfig =
-      calendarWidget.config as import('../../../types').CalendarConfig;
+    const calConfig = calendarWidget.config as CalendarConfig;
     const events = calConfig.events ?? [];
     const today = new Date().toISOString().split('T')[0];
 

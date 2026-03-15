@@ -24,7 +24,7 @@ export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animationRef = useRef<number>(null);
+  const animationRef = useRef<number | null>(null);
 
   const { w, h } = widget;
 

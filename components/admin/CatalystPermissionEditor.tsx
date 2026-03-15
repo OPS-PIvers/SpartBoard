@@ -3,9 +3,9 @@ import {
   CatalystGlobalConfig,
   CatalystCategory,
   CatalystRoutine,
-} from '../../types';
-import { CATALYST_ROUTINES } from '../../config/catalystRoutines';
-import { DEFAULT_CATALYST_CATEGORIES } from '../../config/catalystDefaults';
+} from '@/types';
+import { CATALYST_ROUTINES } from '@/config/catalystRoutines';
+import { DEFAULT_CATALYST_CATEGORIES } from '@/config/catalystDefaults';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import {
   renderCatalystIcon,
@@ -15,8 +15,8 @@ import {
 } from '@/components/widgets/Catalyst';
 import { CategoryEditor } from './catalyst/CategoryEditor';
 import { RoutineEditor } from './catalyst/RoutineEditor';
-import { useStorage } from '../../hooks/useStorage';
-import { useAuth } from '../../context/useAuth';
+import { useStorage } from '@/hooks/useStorage';
+import { useAuth } from '@/context/useAuth';
 
 /**
  * Compares two categories for equality by comparing relevant fields explicitly.

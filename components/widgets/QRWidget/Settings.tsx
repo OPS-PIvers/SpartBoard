@@ -1,8 +1,8 @@
 import React from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { WidgetData, QRConfig } from '../../../types';
+import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, QRConfig } from '@/types';
 import { Link, AlertCircle } from 'lucide-react';
-import { Toggle } from '../../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 
 export const QRSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
