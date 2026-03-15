@@ -91,7 +91,6 @@
     "firebase-functions-test": "^3.4.1",
     "firebase-tools": "^15.8.0",
     "globals": "^17.2.0",
-    "google-auth-library": "^10.6.1",
     "hono": "^4.11.4",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",

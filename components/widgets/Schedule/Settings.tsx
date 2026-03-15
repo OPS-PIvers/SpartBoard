@@ -26,6 +26,7 @@ import {
   Settings2,
   ChevronRight,
   LayoutGrid,
+  CalendarDays,
 } from 'lucide-react';
 import { Toggle } from '../../common/Toggle';
 import { Button } from '../../common/Button';
@@ -146,6 +147,52 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       mode: 'clock',
       linkedWidgets: [],
     });
+  };
+
+  const handleImportFromCalendar = () => {
+    const calendarWidget = activeDashboard?.widgets.find(
+      (w) => w.type === 'calendar'
+    );
+    if (!calendarWidget) {
+      addToast('No Calendar widget found on dashboard.', 'error');
+      return;
+    }
+
+    const calConfig = calendarWidget.config as import('../../../types').CalendarConfig;
+    const events = calConfig.events ?? [];
+    const today = new Date().toISOString().split('T')[0];
+
+    // Filter events for today that have a title
+    const todaysEvents = events.filter(
+      (e) => e.date === today && e.title?.trim()
+    );
+
+    if (todaysEvents.length === 0) {
+      addToast('No events found for today in the Calendar.', 'info');
+      return;
+    }
+
+    // Map to ScheduleItem
+    const newItems: ScheduleItem[] = todaysEvents.map((e) => {
+      // Create valid item
+      const startTime = e.time ?? '';
+      return {
+        id: crypto.randomUUID(),
+        task: e.title,
+        startTime,
+        time: startTime, // legacy support
+        endTime: '',
+        mode: 'clock',
+        linkedWidgets: [],
+      };
+    });
+
+    // Append and sort
+    const combined = [...items, ...newItems];
+    const sorted = sortByTime(combined);
+
+    handleUpdateActiveItems(sorted);
+    addToast(`Imported ${newItems.length} event(s) from Calendar.`, 'success');
   };
 
   const handleSave = () => {
@@ -640,6 +687,13 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
             <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
               <Clock className="w-3 h-3" /> {activeSchedule?.name}
             </label>
+            <button
+              onClick={handleImportFromCalendar}
+              className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium"
+              title="Import today's events from Calendar widget"
+            >
+              <CalendarDays className="w-3 h-3" /> Import
+            </button>
             <button
               onClick={handleStartAdd}
               className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
