@@ -689,6 +689,7 @@ export interface TimeToolConfig {
   timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
   timerEndTriggerRandom?: boolean; // Whether to trigger random picker when timer ends
   timerEndTriggerNextUp?: boolean; // Whether to advance NextUp queue when timer ends
+  timerEndTriggerMiniApp?: boolean; // Whether to notify MiniApp when timer ends
   themeColor?: string;
   glow?: boolean;
   fontFamily?: string;
@@ -724,6 +725,7 @@ export interface MiniAppConfig {
   collectResults?: boolean; // Toggle switch state
   googleSheetId?: string; // Extracted Sheet ID
   googleSheetUrl?: string; // Original pasted URL for UI
+  externalTrigger?: number; // Nexus connection
 }
 
 // Add new Global Config type

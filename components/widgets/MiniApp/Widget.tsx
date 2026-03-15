@@ -76,6 +76,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const { library, globalLibrary } = useMiniAppSync(addToast);
   const { globalConfig } = useMiniAppGlobalConfig();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const lastTriggerRef = useRef(config.externalTrigger ?? 0);
+
+  // Nexus connection: Listen for external triggers (e.g. from TimeTool)
+  useEffect(() => {
+    if (
+      config.externalTrigger &&
+      config.externalTrigger > lastTriggerRef.current
+    ) {
+      lastTriggerRef.current = config.externalTrigger;
+      // Notify the MiniApp iframe that the timer has ended
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'SPART_TIMER_ENDED', payload: { action: 'TIMER_ENDED' } },
+        '*'
+      );
+    }
+  }, [config.externalTrigger]);
 
   // 2. STUDENT LISTENER: Listen for iframe messages and POST to Apps Script
   const handleMessage = useCallback(

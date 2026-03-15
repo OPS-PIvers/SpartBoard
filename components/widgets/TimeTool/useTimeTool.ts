@@ -184,6 +184,25 @@ export const useTimeTool = (widget: WidgetData) => {
             }
           }
 
+          // Auto-notify MiniApp
+          if (
+            config.timerEndTriggerMiniApp &&
+            activeDashboard &&
+            config.duration > 0
+          ) {
+            const miniAppWidget = activeDashboard.widgets.find(
+              (w) => w.type === 'miniApp'
+            );
+            if (miniAppWidget) {
+              updateWidget(miniAppWidget.id, {
+                config: {
+                  ...miniAppWidget.config,
+                  externalTrigger: Date.now(),
+                } as WidgetConfig,
+              });
+            }
+          }
+
           return;
         }
       } else {
@@ -206,6 +225,7 @@ export const useTimeTool = (widget: WidgetData) => {
     config.timerEndTrafficColor,
     config.timerEndTriggerRandom,
     config.timerEndTriggerNextUp,
+    config.timerEndTriggerMiniApp,
     config.duration,
     activeDashboard,
     updateWidget,

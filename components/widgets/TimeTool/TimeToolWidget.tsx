@@ -563,6 +563,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
     timerEndTrafficColor,
     timerEndTriggerRandom,
     timerEndTriggerNextUp,
+    timerEndTriggerMiniApp,
     fontFamily = 'global',
     clockStyle = 'modern',
     themeColor = STANDARD_COLORS.slate,
@@ -581,6 +582,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
   );
 
   const hasNextUp = activeDashboard?.widgets.some((w) => w.type === 'nextUp');
+
+  const hasMiniApp = activeDashboard?.widgets.some(
+    (w) => w.type === 'miniApp'
+  );
 
   const fonts = [
     { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
@@ -963,23 +968,23 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Nexus Connection: NextUp Auto-Advance */}
         <div className="pt-2 border-t border-slate-100 mt-4">
           <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
-            {t('widgets.timeTool.autoAdvanceNextUpQueue')}:
+            {t('widgets.timeTool.autoAdvanceNextUpQueue', 'Auto-Advance NextUp Queue')}:
           </p>
           {!hasNextUp ? (
             <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
               <span className="text-lg mt-px">&#128161;</span>
               <p className="font-medium leading-snug">
-                {t('widgets.timeTool.addNextUpTip')}
+                {t('widgets.timeTool.addNextUpTip', 'Add a NextUp widget to automatically advance the queue when timer ends.')}
               </p>
             </div>
           ) : (
             <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-indigo-900">
-                  {t('widgets.timeTool.autoAdvanceNext')}
+                  {t('widgets.timeTool.autoAdvanceNext', 'Auto-Advance Next')}
                 </p>
                 <p className="text-xxxs text-indigo-600 uppercase">
-                  {t('widgets.timeTool.advanceQueueOnEnd')}
+                  {t('widgets.timeTool.advanceQueueOnEnd', 'Advance queue when timer ends')}
                 </p>
               </div>
               <Toggle
@@ -987,6 +992,41 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                 onChange={(checked) =>
                   updateWidget(widget.id, {
                     config: { ...config, timerEndTriggerNextUp: checked },
+                  })
+                }
+                size="md"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Nexus Connection: MiniApp Notification */}
+        <div className="pt-2 border-t border-slate-100 mt-4">
+          <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
+            {t('widgets.timeTool.notifyMiniApp', 'Notify Mini-App')}:
+          </p>
+          {!hasMiniApp ? (
+            <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
+              <span className="text-lg mt-px">&#128161;</span>
+              <p className="font-medium leading-snug">
+                {t('widgets.timeTool.addMiniAppTip', 'Add a Mini-App widget to automatically notify it when the timer ends.')}
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-2xl shadow-sm">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-indigo-900">
+                  {t('widgets.timeTool.sendTimeUp', "Send 'Time's Up' Event")}
+                </p>
+                <p className="text-xxxs text-indigo-600 uppercase">
+                  {t('widgets.timeTool.notifyAppOnEnd', 'Notify app when timer ends')}
+                </p>
+              </div>
+              <Toggle
+                checked={!!timerEndTriggerMiniApp}
+                onChange={(checked) =>
+                  updateWidget(widget.id, {
+                    config: { ...config, timerEndTriggerMiniApp: checked },
                   })
                 }
                 size="md"
