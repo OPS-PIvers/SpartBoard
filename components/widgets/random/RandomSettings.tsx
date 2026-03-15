@@ -4,6 +4,7 @@ import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig } from '../../../types';
 import { RosterModeControl } from '../../common/RosterModeControl';
 import { Toggle } from '../../common/Toggle';
+import { Card } from '../../common/Card';
 import {
   Users,
   UserPlus,
@@ -113,7 +114,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         }
       />
 
-      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-2xl shadow-sm">
+      <Card padding="sm" className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
             className={`p-2 rounded-lg ${soundEnabled ? 'bg-brand-blue-lighter text-brand-blue-primary' : 'bg-slate-100 text-slate-400'}`}
@@ -142,7 +143,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
           }
           size="md"
         />
-      </div>
+      </Card>
 
       {/* Automation - Nexus Connection */}
       {mode === 'single' && (
@@ -242,7 +243,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       {mode === 'groups' && (
-        <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+        <Card padding="md" className="border-slate-100">
           <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
             <Hash className="w-3 h-3" /> Group Size
           </label>
@@ -267,7 +268,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               {groupSize}
             </span>
           </div>
-        </div>
+        </Card>
       )}
 
       {rosterMode === 'custom' && (
