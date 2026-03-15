@@ -4,6 +4,10 @@ const WEBSERVER_TIMEOUT = 120 * 1000;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  timeout: process.env.CI ? 120000 : 30000,
+  expect: {
+    timeout: process.env.CI ? 30000 : 10000,
+  },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -20,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: process.env.CI ? 'pnpm run build && pnpm run preview' : 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: WEBSERVER_TIMEOUT,
