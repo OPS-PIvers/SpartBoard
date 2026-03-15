@@ -107,7 +107,10 @@ Use these standardized components to maintain consistency:
 
 ### Unit Tests (Vitest)
 
-- **Co-location**: Place test files next to the source file (e.g., `Widget.test.tsx` next to `Widget.tsx`).
+- **File placement** — Two patterns coexist; follow the convention that fits the test's scope:
+  - **Co-located** (preferred for component/widget tests): place `Widget.test.tsx` next to `Widget.tsx` inside `components/`.
+  - **Centralized** (`tests/` directory): use for integration tests, context tests, cross-cutting utilities, and anything that doesn't belong to a single component (e.g., `tests/DashboardContext_sharing.test.tsx`, `tests/utils/`).
+  - Utility tests live next to their source in `utils/` (e.g., `utils/migration.test.ts`).
 - **Best Practices**:
   - Use `@testing-library/react` and `@testing-library/user-event`.
   - Avoid `container.querySelector`. Use accessible queries (`getByRole`, `getByText`, `getByLabelText`).
@@ -169,7 +172,7 @@ When a Playwright selector fails, follow this order before asking a human:
 3.  **Floating Promises**: Always handle promises. Use `void` if you intentionally want to ignore the result (e.g., `void myFunction()`), or `await` it.
 4.  **Accessibility**:
     - Hidden inputs (like file uploads) must have `aria-label`.
-    - Icon-only buttons must have `aria-label`.
+    - Icon-only buttons must have either `aria-label` **or** `title` — both are acceptable. Many layout buttons (e.g., dock open/close, sidebar toggle) use `title`; component-level icon buttons (e.g., `IconButton`) use `aria-label`. When writing Playwright selectors, check for `title` first (it is more common in layout-level elements); see the Verified UI Selectors table above.
 5.  **React Hooks**:
     - `useEffect` must return `undefined` or a cleanup function. Do not return `null` or `false`.
     - Dependency arrays must be exhaustive (enforced by linter).
