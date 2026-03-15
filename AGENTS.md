@@ -128,23 +128,27 @@ Use these standardized components to maintain consistency:
 
 These are the canonical, stable selectors for key interactive elements. **Do not guess or invent selectors** — use these.
 
-| Element | Selector | Notes |
-|---|---|---|
-| Open the widget dock (collapsed → expanded) | `page.getByTitle('Open Tools')` | The collapsed dock shows a single blue `LayoutGrid` icon button with `title="Open Tools"`. Click it to expand the full toolbar. |
-| Dock container (once expanded) | `page.locator('[data-testid="dock"]')` | The outer dock wrapper always present in the DOM. |
-| Sidebar / menu button | `page.getByTitle('Open Menu')` | Top-left hamburger/menu button. |
-| Add a specific widget | `page.getByRole('button', { name: /WidgetLabel/i }).first()` | After the dock is open. Use `.click({ force: true })` in case of animation overlap. |
-| A mounted widget on the board | `page.locator('.widget').first()` | Widgets receive a `.widget` class from `DraggableWindow`. |
+| Element                                     | Selector                                                     | Notes                                                                                                                           |
+| ------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Open the widget dock (collapsed → expanded) | `page.getByTitle('Open Tools')`                              | The collapsed dock shows a single blue `LayoutGrid` icon button with `title="Open Tools"`. Click it to expand the full toolbar. |
+| Dock container (once expanded)              | `page.locator('[data-testid="dock"]')`                       | The outer dock wrapper always present in the DOM.                                                                               |
+| Sidebar / menu button                       | `page.getByTitle('Open Menu')`                               | Top-left hamburger/menu button.                                                                                                 |
+| Add a specific widget                       | `page.getByRole('button', { name: /WidgetLabel/i }).first()` | After the dock is open. Use `.click({ force: true })` in case of animation overlap.                                             |
+| A mounted widget on the board               | `page.locator('.widget').first()`                            | Widgets receive a `.widget` class from `DraggableWindow`.                                                                       |
 
 **Example — opening the dock and adding a Clock widget:**
 
 ```ts
 // 1. Open the collapsed dock
 await page.getByTitle('Open Tools').click();
-await page.waitForTimeout(500); // let the expand animation finish
+// With animations disabled, wait for the dock container to be visible before proceeding.
+await expect(page.locator('[data-testid="dock"]')).toBeVisible();
 
 // 2. Click the Clock tool button
-await page.getByRole('button', { name: /Clock/i }).first().click({ force: true });
+await page
+  .getByRole('button', { name: /Clock/i })
+  .first()
+  .click({ force: true });
 
 // 3. Assert widget appeared
 await expect(page.locator('.widget').first()).toBeVisible({ timeout: 10_000 });
