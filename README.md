@@ -26,7 +26,7 @@ SPART Board is an interactive, widget-based application built with **React 19**,
 - **Backend:** Firebase (Auth, Firestore, Storage, Cloud Functions)
 - **State Management:** React Context (`DashboardContext`, `AuthContext`) + Firestore (real-time)
 - **AI:** Google Gemini API (`@google/genai`)
-- **Testing:** Vitest (Unit), Playwright (E2E), Istanbul (Coverage)
+- **Testing:** Vitest (Unit & Coverage via `@vitest/coverage-v8`), Playwright (E2E)
 - **Tooling:** ESLint, Prettier, Husky, Lint-staged
 
 ## 🗄️ State Management
@@ -63,7 +63,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 
 ### Option 2: Local Development
 
-**Prerequisites:** Node.js (v20+ recommended), pnpm (v9+)
+**Prerequisites:** Node.js (v20+ recommended), pnpm (v10+)
 
 1.  **Clone the repository:**
 
@@ -101,7 +101,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 
 ## 📂 Project Structure
 
-This project uses a **flat file structure** (no `src/` directory). All source code resides at the project root.
+This project primarily uses a **flat file structure**, with most source code residing at the project root rather than in a traditional `src/` directory.
 
 - `components/` - React components (Widgets, Layout, Admin, Auth, Common)
 - `config/` - Application configuration and metadata (tools, grade levels, themes)
