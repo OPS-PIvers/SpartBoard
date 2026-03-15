@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PollWidget, PollSettings } from '.';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -94,7 +94,7 @@ describe('PollWidget', () => {
     });
   });
 
-  it('resets the poll when Reset Poll is clicked', () => {
+  it('resets the poll when Reset Poll is clicked', async () => {
     const mockWidget: WidgetData = {
       id: 'poll-1',
       type: 'poll',
@@ -113,23 +113,22 @@ describe('PollWidget', () => {
       },
     };
 
-    // Mock window.confirm to return true
-    vi.spyOn(window, 'confirm').mockImplementation(() => true);
-
     render(<PollWidget widget={mockWidget} />);
 
     const resetBtn = screen.getByRole('button', { name: /Reset Poll/i });
     fireEvent.click(resetBtn);
 
-    expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
-      config: {
-        question: 'Test',
-        options: [
-          { label: 'A', votes: 0 },
-          { label: 'B', votes: 0 },
-        ],
-      },
-    });
+    await waitFor(() =>
+      expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
+        config: {
+          question: 'Test',
+          options: [
+            { label: 'A', votes: 0 },
+            { label: 'B', votes: 0 },
+          ],
+        },
+      })
+    );
   });
 });
 

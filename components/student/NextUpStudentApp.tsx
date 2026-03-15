@@ -3,6 +3,7 @@ import { doc, onSnapshot, collection, addDoc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/config/firebase';
 import { NextUpSession } from '@/types';
+import { useDialog } from '@/context/useDialog';
 import {
   ListOrdered,
   UserPlus,
@@ -17,6 +18,7 @@ const ENTRIES_SUBCOLLECTION = 'entries';
 export const NextUpStudentApp: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const widgetId = params.get('id');
+  const { showAlert } = useDialog();
 
   const [session, setSession] = useState<NextUpSession | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
@@ -102,7 +104,10 @@ export const NextUpStudentApp: React.FC = () => {
       setSubmitted(true);
     } catch (err) {
       console.error('Failed to join queue:', err);
-      alert('Failed to join queue. Please try again.');
+      await showAlert('Failed to join queue. Please try again.', {
+        title: 'Error',
+        variant: 'error',
+      });
     } finally {
       setSubmitting(false);
     }

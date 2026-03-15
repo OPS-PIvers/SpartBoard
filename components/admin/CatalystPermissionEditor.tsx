@@ -17,6 +17,7 @@ import { CategoryEditor } from './catalyst/CategoryEditor';
 import { RoutineEditor } from './catalyst/RoutineEditor';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 
 /**
  * Compares two categories for equality by comparing relevant fields explicitly.
@@ -88,6 +89,7 @@ export const CatalystPermissionEditor: React.FC<
   const prevConfigRef = useRef<CatalystGlobalConfig | undefined>(config);
   const { uploadFile } = useStorage();
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
 
   const handleUploadImage = async (file: File): Promise<string> => {
     const uid = user?.uid ?? 'admin';
@@ -180,7 +182,7 @@ export const CatalystPermissionEditor: React.FC<
     onShowMessage('success', 'Category saved');
   };
 
-  const handleDeleteCategory = (id: string) => {
+  const handleDeleteCategory = async (id: string) => {
     const isCategoryInUse = routines.some((r) => r.category === id);
     if (isCategoryInUse) {
       onShowMessage(
@@ -190,7 +192,12 @@ export const CatalystPermissionEditor: React.FC<
       return;
     }
 
-    if (confirm('Delete this category?')) {
+    const confirmed = await showConfirm('Delete this category?', {
+      title: 'Delete Category',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       const newCategories = categories.filter((c) => c.id !== id);
       setCategories(newCategories);
       saveConfig(newCategories, routines);
@@ -211,8 +218,13 @@ export const CatalystPermissionEditor: React.FC<
     onShowMessage('success', 'Routine saved');
   };
 
-  const handleDeleteRoutine = (id: string) => {
-    if (confirm('Delete this routine?')) {
+  const handleDeleteRoutine = async (id: string) => {
+    const confirmed = await showConfirm('Delete this routine?', {
+      title: 'Delete Routine',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       const newRoutines = routines.filter((r) => r.id !== id);
       setRoutines(newRoutines);
       saveConfig(categories, newRoutines);

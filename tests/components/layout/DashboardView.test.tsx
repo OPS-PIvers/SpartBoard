@@ -1,4 +1,4 @@
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardView } from '../../../components/layout/DashboardView';
 import { useDashboard } from '../../../context/useDashboard';
@@ -147,7 +147,7 @@ describe('DashboardView Gestures & Navigation', () => {
     expect(mockMinimizeAll).toHaveBeenCalled();
   });
 
-  it('triggers delete all on Shift + Delete', () => {
+  it('triggers delete all on Shift + Delete', async () => {
     const mockDeleteAll = vi.fn();
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       activeDashboard: mockDashboards[1],
@@ -161,7 +161,7 @@ describe('DashboardView Gestures & Navigation', () => {
 
     render(<DashboardView />);
     fireEvent.keyDown(window, { key: 'Delete', shiftKey: true });
-    expect(mockDeleteAll).toHaveBeenCalled();
+    await waitFor(() => expect(mockDeleteAll).toHaveBeenCalled());
   });
 
   it('wraps around when navigating at boundaries', () => {

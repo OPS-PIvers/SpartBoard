@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { ListOrdered, RefreshCcw } from 'lucide-react';
+import { useDialog } from '@/context/useDialog';
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const ENTRIES_SUBCOLLECTION = 'entries';
@@ -28,6 +29,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
   const { driveService } = useGoogleDrive();
   const { updateWidget, activeDashboard } = useDashboard();
+  const { showConfirm } = useDialog();
   const { user } = useAuth();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
@@ -250,8 +252,11 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   }, [config.externalTrigger, handleNextStudent]);
 
   const handleResetQueue = async () => {
-    if (!window.confirm('Reset the current queue? This will clear all names.'))
-      return;
+    const confirmed = await showConfirm(
+      'Reset the current queue? This will clear all names.',
+      { title: 'Reset Queue', variant: 'warning', confirmLabel: 'Reset' }
+    );
+    if (!confirmed) return;
     const updated: NextUpQueueItem[] = [];
     setQueue(updated);
     await syncToDrive(updated);

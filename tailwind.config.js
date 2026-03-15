@@ -83,6 +83,7 @@ export default {
         'tool-menu': Z_INDEX.toolMenu.toString(),
         tooltip: Z_INDEX.tooltip.toString(),
         toast: Z_INDEX.toast.toString(),
+        dialog: Z_INDEX.dialog.toString(),
         critical: Z_INDEX.critical.toString(),
         cursor: Z_INDEX.cursor.toString(),
         'sticker-control': Z_INDEX.stickerControl.toString(),

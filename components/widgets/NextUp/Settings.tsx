@@ -3,6 +3,7 @@ import { WidgetData, NextUpConfig, NextUpSession } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { Plus, RefreshCcw, Check, Trash2, Copy } from 'lucide-react';
@@ -17,6 +18,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   const { user } = useAuth();
   const { driveService } = useGoogleDrive();
   const { updateWidget } = useDashboard();
+  const { showAlert, showConfirm, showPrompt } = useDialog();
 
   const [existingFiles, setExistingFiles] = useState<
     { id: string; name: string }[]
@@ -53,7 +55,11 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
     let name = '';
 
     if (type === 'new') {
-      const title = window.prompt('Enter a title for this queue session:');
+      const title = await showPrompt('Enter a title for this queue session:', {
+        title: 'New Queue Session',
+        placeholder: 'e.g. Period 3 Help Queue',
+        confirmLabel: 'Create',
+      });
       if (!title) return;
       name = title;
       try {
@@ -65,7 +71,10 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
         fileId = file.id;
       } catch (error) {
         console.error('Failed to create queue file in Drive:', error);
-        alert('Failed to create queue file in Drive');
+        await showAlert('Failed to create queue file in Drive', {
+          title: 'Drive Error',
+          variant: 'error',
+        });
         return;
       }
     } else {
@@ -102,20 +111,26 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
         });
       } catch (error) {
         console.error('[NextUp] Failed to start session:', error);
-        alert('Failed to start live session. Please check your permissions.');
+        await showAlert(
+          'Failed to start live session. Please check your permissions.',
+          { title: 'Session Error', variant: 'error' }
+        );
       }
     }
   };
 
   const handleEndSession = async (save: boolean) => {
-    if (
-      !window.confirm(
-        save
-          ? 'End session and keep the data in your Drive?'
-          : 'End session and DELETE the data from your Drive?'
-      )
-    )
-      return;
+    const confirmed = await showConfirm(
+      save
+        ? 'End session and keep the data in your Drive?'
+        : 'End session and DELETE the data from your Drive?',
+      {
+        title: save ? 'End Session' : 'End & Delete Session',
+        variant: save ? 'info' : 'danger',
+        confirmLabel: save ? 'End & Keep' : 'End & Delete',
+      }
+    );
+    if (!confirmed) return;
 
     if (!save && config.activeDriveFileId && driveService) {
       void driveService

@@ -12,9 +12,11 @@ import { WidgetData, PollConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { RotateCcw } from 'lucide-react';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { useDialog } from '@/context/useDialog';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const { showConfirm } = useDialog();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as PollConfig & { _announcementId?: string };
   const { question = 'Vote Now!', _announcementId } = config;
@@ -65,8 +67,12 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
-  const handleReset = () => {
-    if (!confirm('Are you sure you want to reset the poll?')) return;
+  const handleReset = async () => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to reset the poll?',
+      { title: 'Reset Poll', variant: 'warning', confirmLabel: 'Reset' }
+    );
+    if (!confirmed) return;
     updateWidget(widget.id, {
       config: {
         ...config,

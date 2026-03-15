@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import {
   WidgetData,
@@ -89,6 +90,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { selectedBuildings } = useAuth();
+  const { showConfirm } = useDialog();
   const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as ScheduleConfig;
 
@@ -223,8 +225,16 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     setTempItem(null);
   };
 
-  const handleDelete = (index: number) => {
-    if (confirm('Are you sure you want to delete this event?')) {
+  const handleDelete = async (index: number) => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this event?',
+      {
+        title: 'Delete Event',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (confirmed) {
       const newItems = items.filter((_, i) => i !== index);
       handleUpdateActiveItems(newItems);
     }
@@ -332,12 +342,20 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const handleDeleteSchedule = (id: string) => {
+  const handleDeleteSchedule = async (id: string) => {
     if (schedules.length <= 1) {
       addToast('You must have at least one schedule.', 'error');
       return;
     }
-    if (confirm('Are you sure you want to delete this schedule?')) {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this schedule?',
+      {
+        title: 'Delete Schedule',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (confirmed) {
       const isLegacy =
         id === 'default' && (config.schedules?.length ?? 0) === 0;
 

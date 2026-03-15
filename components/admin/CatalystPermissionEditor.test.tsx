@@ -213,7 +213,7 @@ describe('CatalystPermissionEditor', () => {
     expect(screen.queryByText('Signal for Silence')).not.toBeInTheDocument();
   });
 
-  it('persists deleted default categories as tombstones', () => {
+  it('persists deleted default categories as tombstones', async () => {
     // Initial config with routines removed to allow deleting 'Get Attention'
     const config: CatalystGlobalConfig = {
       removedRoutineIds: ['signal-silence', 'call-response'],
@@ -230,7 +230,7 @@ describe('CatalystPermissionEditor', () => {
     const deleteBtns = screen.getAllByLabelText('Delete Category');
     fireEvent.click(deleteBtns[0]);
 
-    expect(mockOnChange).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockOnChange).toHaveBeenCalledTimes(1));
     expect(mockOnShowMessage).toHaveBeenCalledWith(
       'success',
       'Category deleted'
@@ -241,7 +241,7 @@ describe('CatalystPermissionEditor', () => {
     expect(newConfig.removedCategoryIds).toContain('Get Attention');
   });
 
-  it('persists deleted default routines as tombstones', () => {
+  it('persists deleted default routines as tombstones', async () => {
     render(
       <CatalystPermissionEditor
         config={defaultConfig}
@@ -254,7 +254,7 @@ describe('CatalystPermissionEditor', () => {
     const deleteBtns = screen.getAllByLabelText('Delete Routine');
     fireEvent.click(deleteBtns[0]);
 
-    expect(mockOnChange).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockOnChange).toHaveBeenCalledTimes(1));
     expect(mockOnShowMessage).toHaveBeenCalledWith(
       'success',
       'Routine deleted'

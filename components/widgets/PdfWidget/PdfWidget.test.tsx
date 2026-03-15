@@ -17,6 +17,15 @@ vi.mock('@/hooks/useStorage');
 vi.mock('firebase/firestore');
 vi.mock('@/config/firebase', () => ({ db: {} }));
 
+const mockShowConfirm = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: mockShowConfirm,
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   closestCenter: vi.fn(),
@@ -124,6 +133,7 @@ function setupMocks({
 describe('PdfWidget', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockShowConfirm.mockResolvedValue(true);
   });
 
   it('renders library view with empty state when no PDFs exist', () => {
@@ -315,7 +325,6 @@ describe('PdfWidget', () => {
     setupMocks({ pdfDocs: [pdf] });
     (firestore.deleteDoc as unknown as Mock).mockResolvedValue(undefined);
     mockDeleteFile.mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<PdfWidget widget={baseWidget} />);
 
@@ -333,7 +342,7 @@ describe('PdfWidget', () => {
 
   it('cancels deletion when confirm is dismissed', async () => {
     setupMocks({ pdfDocs: [makePdf()] });
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    mockShowConfirm.mockResolvedValueOnce(false);
 
     render(<PdfWidget widget={baseWidget} />);
     fireEvent.click(screen.getByTitle('Delete PDF'));

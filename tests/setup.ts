@@ -50,6 +50,15 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string): any => {
   }
   return null;
 });
+// Globally mock useDialog so components using it don't need DialogProvider in tests
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn().mockResolvedValue(undefined),
+    showConfirm: vi.fn().mockResolvedValue(true),
+    showPrompt: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
 // Globally mock Firebase config to avoid initializing the real SDK in tests
 vi.mock('@/config/firebase', () => {
   const app = {};

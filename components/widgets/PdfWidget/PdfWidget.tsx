@@ -32,9 +32,11 @@ import { WidgetData, PdfItem, PdfConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { SortableRow } from './components/SortableRow';
+import { useDialog } from '@/context/useDialog';
 
 export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast } = useDashboard();
+  const { showConfirm } = useDialog();
   const { user } = useAuth();
   const { uploadAndRegisterPdf, deleteFile, uploading } = useStorage();
   const config = widget.config as PdfConfig;
@@ -127,7 +129,12 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleDelete = async (id: string, storagePath: string) => {
     if (!user) return;
-    if (!confirm('Remove this PDF from your library?')) return;
+    const confirmed = await showConfirm('Remove this PDF from your library?', {
+      title: 'Remove PDF',
+      variant: 'danger',
+      confirmLabel: 'Remove',
+    });
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'pdfs', id));
       // Best-effort storage delete (may fail if URL has expired)
