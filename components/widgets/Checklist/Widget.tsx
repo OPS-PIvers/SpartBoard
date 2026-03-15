@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { ListPlus, Users, RefreshCw, Trash2 } from 'lucide-react';
@@ -73,7 +73,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     mode,
   });
 
-  useEffect(() => {
+  // Update ref synchronously during useLayoutEffect to avoid stale state issues in callbacks
+  useLayoutEffect(() => {
     latestState.current = {
       items,
       completedNames,
