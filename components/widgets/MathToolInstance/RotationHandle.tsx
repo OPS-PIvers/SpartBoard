@@ -34,6 +34,14 @@ function getAngleFromCenter(
   return ((radians * 180) / Math.PI + 360) % 360;
 }
 
+/** Normalize an angle delta to the [-180, 180] range to prevent jumps at
+ *  the 0°/360° boundary during drag. */
+function wrapDelta(delta: number): number {
+  if (delta > 180) return delta - 360;
+  if (delta < -180) return delta + 360;
+  return delta;
+}
+
 const DRAG_THRESHOLD_PX = 4;
 
 export const RotationHandle: React.FC<RotationHandleProps> = ({
@@ -49,8 +57,9 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
   const [isActive, setIsActive] = useState(false);
 
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.stopPropagation();
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      // Do NOT stopPropagation — let DraggableWindow receive the event so the
+      // widget is focused / brought to front as expected.
       e.preventDefault();
       if (!containerRef.current) return;
 
@@ -67,7 +76,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
   );
 
   const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!isDragging.current || !containerRef.current) return;
 
       const dx = e.clientX - startPos.current.x;
@@ -76,7 +85,8 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
       hasDragged.current = true;
       const rect = containerRef.current.getBoundingClientRect();
       const currentAngle = getAngleFromCenter(e.clientX, e.clientY, rect);
-      const delta = currentAngle - startAngle.current;
+      // Wrap delta to [-180, 180] to avoid jumps when crossing 0°/360°
+      const delta = wrapDelta(currentAngle - startAngle.current);
       const newRotation = (((startRotation.current + delta) % 360) + 360) % 360;
       onRotate(Math.round(newRotation));
     },
@@ -84,11 +94,16 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
   );
 
   const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!isDragging.current) return;
       isDragging.current = false;
       setIsActive(false);
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+
+      // Guard before releasing — can throw if capture was already lost (pointercancel)
+      const target = e.currentTarget as HTMLElement;
+      if (target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId);
+      }
 
       // If no meaningful drag occurred, snap to nearest 45°
       if (!hasDragged.current) {
@@ -128,8 +143,9 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         </span>
       </div>
 
-      {/* Circular grip */}
-      <div
+      {/* Circular grip — <button> for keyboard focus and accessibility */}
+      <button
+        type="button"
         className="pointer-events-auto rounded-full bg-white border-2 border-indigo-500 shadow-md flex items-center justify-center select-none"
         style={{
           cursor: isActive ? 'grabbing' : 'grab',
@@ -141,6 +157,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        aria-label="Rotate math tool"
         title="Drag to rotate · Click to snap 45° · Double-click to reset"
       >
         {/* Arrow indicator */}
@@ -169,7 +186,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
             fill="none"
           />
         </svg>
-      </div>
+      </button>
     </div>
   );
 };
