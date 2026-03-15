@@ -6,6 +6,7 @@ import {
   RandomConfig,
   WidgetConfig,
   TimeToolConfig,
+  ChecklistConfig,
   RandomGroup,
   SharedGroup,
   ScoreboardTeam,
@@ -333,6 +334,56 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   startTime: Date.now(),
                 } as WidgetConfig,
               });
+            }
+          }
+        }
+
+        // Nexus: Auto-Checkoff Logic
+        if (mode === 'single' && typeof syncResult === 'string' && activeDashboard) {
+          const checklistWidget = activeDashboard.widgets.find(
+            (w) => w.type === 'checklist'
+          );
+
+          if (checklistWidget) {
+            const checklistConfig = checklistWidget.config as ChecklistConfig;
+
+            if (checklistConfig.mode === 'roster') {
+              let studentId = syncResult;
+              if (checklistConfig.rosterMode === 'class' && activeRoster) {
+                const student = activeRoster.students.find(
+                  (s) => `${s.firstName} ${s.lastName}`.trim() === syncResult
+                );
+                if (student) {
+                  studentId = student.id;
+                }
+              }
+
+              const completedNames = checklistConfig.completedNames || [];
+              if (!completedNames.includes(studentId)) {
+                updateWidget(checklistWidget.id, {
+                  config: {
+                    ...checklistConfig,
+                    completedNames: [...completedNames, studentId],
+                  } as unknown as WidgetConfig,
+                });
+                addToast(t('widgets.random.checkedOff', { name: syncResult }), 'success');
+              }
+            } else if (checklistConfig.mode === 'manual') {
+              const items = checklistConfig.items || [];
+              const targetItem = items.find((i) => i.text === syncResult);
+
+              if (targetItem && !targetItem.completed) {
+                const newItems = items.map((i) =>
+                  i.id === targetItem.id ? { ...i, completed: true } : i
+                );
+                updateWidget(checklistWidget.id, {
+                  config: {
+                    ...checklistConfig,
+                    items: newItems,
+                  } as unknown as WidgetConfig,
+                });
+                addToast(t('widgets.random.checkedOff', { name: syncResult }), 'success');
+              }
             }
           }
         }

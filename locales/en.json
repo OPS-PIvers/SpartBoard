@@ -186,7 +186,8 @@
     "random": {
       "sendToScoreboard": "Send to Scoreboard",
       "scoreboardUpdated": "Updated scoreboard with {{count}} teams!",
-      "scoreboardCreated": "Created scoreboard with {{count}} teams!"
+      "scoreboardCreated": "Created scoreboard with {{count}} teams!",
+      "checkedOff": "Checked off {{name}}!"
     },
     "clock": {
       "format24": "24H Format",

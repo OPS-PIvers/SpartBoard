@@ -46,6 +46,8 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 **Implementation:** `TimeToolWidget.tsx` (via `useTimeTool.ts`) updates the `externalTrigger` config of the active `RandomWidget` when the timer reaches 0 if `timerEndTriggerRandom` is set.
 **Configuration:** Enabled via the "Auto-Pick Random Student" toggle in Time Tool Settings.
 
+## 2024-05-21 - [Auto-Checkoff] **Source:** Randomizer Widget **Destination:** Checklist Widget **Value:** Automatically checks off a student's name on the checklist when they are selected by the randomizer.
+
 ## 2024-05-18 - [Auto-Rotation Loop] **Source:** Timer (Time Tool) **Destination:** NextUp Widget **Value:** Automates center rotations by advancing the student queue when the timer ends.
 
 ## Planned Connections
