@@ -823,7 +823,12 @@ export interface MathToolConfig {
   /** Place value columns */
   placeValueColumns?: string[];
   /** Place value blocks */
-  placeValueBlocks?: { id: string; type: '1' | '10' | '100' | '1000'; x: number; y: number }[];
+  placeValueBlocks?: {
+    id: string;
+    type: '1' | '10' | '100' | '1000';
+    x: number;
+    y: number;
+  }[];
   /** Fraction area shape */
   fractionAreaShape?: 'circle' | 'rectangle' | 'vertical-bar';
   /** Fraction area denominator */

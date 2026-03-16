@@ -106,12 +106,12 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
   config,
   onUpdate,
 }) => {
-  const columns = (config.placeValueColumns ?? [
+  const columns = config.placeValueColumns ?? [
     'Thousands',
     'Hundreds',
     'Tens',
     'Ones',
-  ]) as string[];
+  ];
   const blocks = React.useMemo(
     () =>
       (config.placeValueBlocks ?? []) as {
