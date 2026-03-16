@@ -65,14 +65,29 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
                     borderColor: '#bfdbfe',
                   }}
                 >
-                  <span className="text-2xl font-bold p-4 text-center break-words w-full">
+                  <span
+                    className="font-bold text-center break-words w-full"
+                    style={{
+                      fontSize: 'min(24px, 6cqmin)',
+                      padding: 'min(16px, 4cqmin)',
+                    }}
+                  >
                     {card.frontContent}
                   </span>
 
                   {/* THE MAGIC: X-Ray Answer Overlay */}
                   {isXRayMode && !card.isRevealed && (
-                    <div className="absolute bottom-2 left-2 right-2 p-2 bg-yellow-100/90 rounded border border-yellow-300 text-sm text-yellow-800 text-center shadow-sm z-10">
-                      <span className="text-xs uppercase tracking-wider block opacity-75 mb-1">
+                    <div
+                      className="absolute bottom-2 left-2 right-2 bg-yellow-100/90 rounded border border-yellow-300 text-yellow-800 text-center shadow-sm z-10"
+                      style={{
+                        padding: 'min(8px, 2cqmin)',
+                        fontSize: 'min(14px, 3.5cqmin)',
+                      }}
+                    >
+                      <span
+                        className="uppercase tracking-wider block opacity-75 mb-1"
+                        style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      >
                         Answer
                       </span>
                       <span className="break-words font-medium">
@@ -84,7 +99,13 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
 
                 {/* BACK OF CARD (The actual reveal) */}
                 <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center bg-green-100 rounded-xl border-2 border-green-200 shadow-sm">
-                  <span className="text-xl p-4 text-center break-words w-full text-green-900 font-medium">
+                  <span
+                    className="text-center break-words w-full text-green-900 font-medium"
+                    style={{
+                      fontSize: 'min(20px, 5cqmin)',
+                      padding: 'min(16px, 4cqmin)',
+                    }}
+                  >
                     {card.backContent}
                   </span>
                 </div>

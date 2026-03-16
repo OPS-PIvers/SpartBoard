@@ -336,6 +336,6 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         },
       ],
       revealMode: 'flip',
-    } as unknown as RevealGridConfig,
+    } as RevealGridConfig,
   },
 };
