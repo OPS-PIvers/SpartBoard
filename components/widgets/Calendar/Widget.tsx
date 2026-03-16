@@ -242,8 +242,9 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const nowSeconds =
     now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
-  // Fixed height so exactly 4 rows are visible (matching Schedule widget pattern)
-  const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
+  // Card height: small enough that 4 always fit without clipping (short widgets),
+  // but capped so taller widgets naturally show more than 4 events.
+  const rowHeight = `min(calc((100% - 3 * ${GAP_STYLE}) / 4), min(120px, 22cqmin))`;
 
   return (
     <WidgetLayout
