@@ -33,24 +33,22 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     y: number;
   } | null>(null);
 
-  // Node dimensions to center lines
-  const NODE_WIDTH = 120;
-  const NODE_HEIGHT = 80;
+  // Node dimensions (percentages)
+  const NODE_WIDTH_PCT = 15;
+  const NODE_HEIGHT_PCT = 15;
 
   const handleAddNode = () => {
     if (isStudentView) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    const centerX = rect ? rect.width / 2 : 400;
-    const centerY = rect ? rect.height / 2 : 300;
 
-    // Add some random offset so they don't stack perfectly perfectly
-    const offset = Math.random() * 40 - 20;
+    // Add some random offset so they don't stack perfectly perfectly (in percentages)
+    const offsetX = Math.random() * 5 - 2.5;
+    const offsetY = Math.random() * 5 - 2.5;
 
     const newNode: ConceptNode = {
       id: crypto.randomUUID(),
       text: '',
-      x: centerX - NODE_WIDTH / 2 + offset,
-      y: centerY - NODE_HEIGHT / 2 + offset,
+      x: 50 - NODE_WIDTH_PCT / 2 + offsetX,
+      y: 50 - NODE_HEIGHT_PCT / 2 + offsetY,
       bgColor: '#fdf0d5',
     };
 
@@ -79,6 +77,15 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     });
   };
 
+  const handleDeleteEdge = (e: React.MouseEvent, id: string) => {
+    if (isStudentView) return;
+    e.stopPropagation();
+    const remainingEdges = edges.filter((edge) => edge.id !== id);
+    updateWidget(widget.id, {
+      config: { ...config, edges: remainingEdges },
+    });
+  };
+
   // --- DRAG NODE HANDLERS ---
   const handleNodePointerDown = (
     e: React.PointerEvent<HTMLDivElement>,
@@ -100,10 +107,21 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleNodePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!activeNodeId || isStudentView || !activeNodePos) return;
+    if (
+      !activeNodeId ||
+      isStudentView ||
+      !activeNodePos ||
+      !containerRef.current
+    )
+      return;
     e.stopPropagation();
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const movementXPct = (e.movementX / rect.width) * 100;
+    const movementYPct = (e.movementY / rect.height) * 100;
+
     setActiveNodePos((prev) =>
-      prev ? { x: prev.x + e.movementX, y: prev.y + e.movementY } : null
+      prev ? { x: prev.x + movementXPct, y: prev.y + movementYPct } : null
     );
   };
 
@@ -156,11 +174,22 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     const target = e.target as HTMLElement;
     target.releasePointerCapture(e.pointerId);
 
-    // Hide the drawing elements and handles temporarily to let elementFromPoint find the node beneath
+    // Hide the drawing elements temporarily to let elementFromPoint find the node beneath
+    const svgElement = containerRef.current?.querySelector('svg');
+    if (svgElement) svgElement.style.pointerEvents = 'none';
+
+    // Also hide the active handle
+    const activeHandle = e.target as HTMLElement;
+    const oldDisplay = activeHandle.style.display;
+    activeHandle.style.display = 'none';
+
     const droppedOn = document.elementFromPoint(e.clientX, e.clientY);
     const targetNodeElement = droppedOn?.closest(
       '[data-node-id]'
     ) as HTMLElement | null;
+
+    if (svgElement) svgElement.style.pointerEvents = '';
+    activeHandle.style.display = oldDisplay;
 
     if (targetNodeElement) {
       const targetNodeId = targetNodeElement.getAttribute('data-node-id');
@@ -202,12 +231,16 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     return displayNodes.find((n) => n.id === drawingFromId);
   }, [drawingFromId, displayNodes]);
 
+  // Default to sans if unspecified
+  const currentFontFamily = config.fontFamily ?? 'sans';
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full overflow-hidden bg-slate-50 rounded-xl select-none"
       style={{
-        fontFamily: config.fontFamily === 'sans' ? 'sans-serif' : 'inherit',
+        fontFamily:
+          currentFontFamily === 'sans' ? 'sans-serif' : currentFontFamily,
       }}
     >
       {!isStudentView && (
@@ -222,7 +255,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
         <defs>
           <marker
-            id="arrowhead"
+            id={`arrowhead-${widget.id}`}
             markerWidth="10"
             markerHeight="7"
             refX="9"
@@ -238,31 +271,34 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           const target = displayNodes.find((n) => n.id === edge.targetNodeId);
           if (!source || !target) return null;
 
-          const x1 = source.x + NODE_WIDTH / 2;
-          const y1 = source.y + NODE_HEIGHT / 2;
-          const x2 = target.x + NODE_WIDTH / 2;
-          const y2 = target.y + NODE_HEIGHT / 2;
+          const x1 = source.x + NODE_WIDTH_PCT / 2;
+          const y1 = source.y + NODE_HEIGHT_PCT / 2;
+          const x2 = target.x + NODE_WIDTH_PCT / 2;
+          const y2 = target.y + NODE_HEIGHT_PCT / 2;
 
           return (
             <path
               key={edge.id}
-              d={`M ${x1} ${y1} L ${x2} ${y2}`}
+              d={`M ${x1}% ${y1}% L ${x2}% ${y2}%`}
               stroke="#94a3b8"
-              strokeWidth="3"
+              strokeWidth="0.5cqw"
               strokeDasharray={edge.lineStyle === 'dashed' ? '5,5' : 'none'}
-              markerEnd="url(#arrowhead)"
-              className="pointer-events-auto cursor-pointer"
-            />
+              markerEnd={`url(#arrowhead-${widget.id})`}
+              className="pointer-events-auto cursor-pointer hover:stroke-rose-400 transition-colors"
+              onClick={(e) => handleDeleteEdge(e, edge.id)}
+            >
+              {!isStudentView && <title>Click to delete edge</title>}
+            </path>
           );
         })}
 
         {sourceDrawNode && drawingLineEnd && (
           <path
-            d={`M ${sourceDrawNode.x + NODE_WIDTH / 2} ${sourceDrawNode.y + NODE_HEIGHT / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
+            d={`M ${sourceDrawNode.x + NODE_WIDTH_PCT / 2}% ${sourceDrawNode.y + NODE_HEIGHT_PCT / 2}% L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
             stroke="#94a3b8"
-            strokeWidth="3"
+            strokeWidth="0.5cqw"
             strokeDasharray="5,5"
-            markerEnd="url(#arrowhead)"
+            markerEnd={`url(#arrowhead-${widget.id})`}
             className="opacity-50 pointer-events-none"
           />
         )}
@@ -276,18 +312,18 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           onPointerMove={handleNodePointerMove}
           onPointerUp={handleNodePointerUp}
           onPointerCancel={handleNodePointerUp}
-          className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-lg cursor-grab active:cursor-grabbing p-2 group"
+          className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqw] cursor-grab active:cursor-grabbing p-[1cqw] group"
           style={{
-            left: node.x,
-            top: node.y,
-            width: NODE_WIDTH,
-            height: NODE_HEIGHT,
+            left: `${node.x}%`,
+            top: `${node.y}%`,
+            width: `${NODE_WIDTH_PCT}%`,
+            height: `${NODE_HEIGHT_PCT}%`,
             backgroundColor: node.bgColor,
-            fontFamily: config.fontFamily ?? 'inherit',
+            fontFamily: 'inherit',
           }}
         >
           <textarea
-            className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-1 focus:ring-slate-400 rounded p-1 text-sm font-medium text-slate-800"
+            className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[0.2cqw] focus:ring-slate-400 rounded-[0.5cqw] p-[0.5cqw] text-[1.5cqmin] font-medium text-slate-800 leading-tight"
             value={node.text}
             onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
             placeholder="Idea..."
