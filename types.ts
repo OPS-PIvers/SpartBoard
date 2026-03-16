@@ -1230,8 +1230,6 @@ export interface GraphicOrganizerConfig {
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
 }
-
-
 export interface CarRiderProConfig {
   iframeUrl?: string;
   cardColor?: string;
