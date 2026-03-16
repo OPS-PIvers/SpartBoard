@@ -79,9 +79,14 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
 
     // Cap the number of steps to ensure we don't generate too many ticks
     const maxSteps = MAX_TICKS - 1; // ticks = steps + 1
-    const numSteps = Math.min(rawNumSteps, maxSteps);
-    // When capped, increase the effective step so we still span the range
-    const effectiveStep = range / numSteps;
+
+    let effectiveStep = safeStep;
+    let numSteps = rawNumSteps;
+    if (rawNumSteps > maxSteps) {
+      const stride = Math.ceil(rawNumSteps / maxSteps);
+      effectiveStep = safeStep * stride;
+      numSteps = Math.floor(range / effectiveStep);
+    }
 
     for (let i = 0; i <= numSteps; i++) {
       ticks.push(min + i * effectiveStep);
