@@ -167,7 +167,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
               gap: `min(${Math.round(8 * sm)}px, ${(1.8 * sm).toFixed(1)}cqmin)`,
@@ -206,20 +206,41 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     fontColor={fontColor}
                   />
                 ))}
+          </div>
 
-            {/* Action Buttons - Centered to avoid conflict with corner resize handle */}
-            <div
+          {/* Action buttons — fixed footer outside scroll area, always visible */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 'min(8px, 1.8cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
+            }}
+          >
+            <button
+              onClick={resetToday}
+              title="Reset Checks"
+              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 'min(8px, 1.8cqmin)',
-                marginTop: `min(${Math.round(4 * scaleMultiplier)}px, ${(1 * scaleMultiplier).toFixed(1)}cqmin)`,
+                width: 'min(36px, 10cqmin)',
+                height: 'min(36px, 10cqmin)',
+                minWidth: '24px',
+                minHeight: '24px',
               }}
             >
+              <RefreshCw
+                style={{
+                  width: 'max(14px, min(18px, 5cqmin))',
+                  height: 'max(14px, min(18px, 5cqmin))',
+                }}
+                strokeWidth={2.5}
+              />
+            </button>
+            {mode === 'manual' && (
               <button
-                onClick={resetToday}
-                title="Reset Checks"
-                className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
+                onClick={removeCompleted}
+                title="Remove Completed"
+                className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
                   width: 'min(36px, 10cqmin)',
                   height: 'min(36px, 10cqmin)',
@@ -227,7 +248,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   minHeight: '24px',
                 }}
               >
-                <RefreshCw
+                <Trash2
                   style={{
                     width: 'max(14px, min(18px, 5cqmin))',
                     height: 'max(14px, min(18px, 5cqmin))',
@@ -235,28 +256,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   strokeWidth={2.5}
                 />
               </button>
-              {mode === 'manual' && (
-                <button
-                  onClick={removeCompleted}
-                  title="Remove Completed"
-                  className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
-                  style={{
-                    width: 'min(36px, 10cqmin)',
-                    height: 'min(36px, 10cqmin)',
-                    minWidth: '24px',
-                    minHeight: '24px',
-                  }}
-                >
-                  <Trash2
-                    style={{
-                      width: 'max(14px, min(18px, 5cqmin))',
-                      height: 'max(14px, min(18px, 5cqmin))',
-                    }}
-                    strokeWidth={2.5}
-                  />
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       }
