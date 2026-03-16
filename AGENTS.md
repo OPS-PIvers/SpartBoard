@@ -107,7 +107,10 @@ Use these standardized components to maintain consistency:
 
 ### Unit Tests (Vitest)
 
-- **Co-location**: Place test files next to the source file (e.g., `Widget.test.tsx` next to `Widget.tsx`).
+- **File placement** — Two patterns coexist; follow the convention that fits the test's scope:
+  - **Co-located** (preferred for component/widget tests): place `Widget.test.tsx` next to `Widget.tsx` inside `components/`.
+  - **Centralized** (`tests/` directory): use for integration tests, context tests, cross-cutting utilities, and anything that doesn't belong to a single component (e.g., `tests/DashboardContext_sharing.test.tsx`, `tests/utils/`).
+  - Utility tests live next to their source in `utils/` (e.g., `utils/migration.test.ts`).
 - **Best Practices**:
   - Use `@testing-library/react` and `@testing-library/user-event`.
   - Avoid `container.querySelector`. Use accessible queries (`getByRole`, `getByText`, `getByLabelText`).
@@ -118,6 +121,49 @@ Use these standardized components to maintain consistency:
 - **Location**: `tests/e2e/`.
 - **Interaction**: Use `user-event` patterns. For drag-and-drop (dnd-kit), you may need `.click({ force: true })` or specific drag steps.
 - **Selectors**: Use stable selectors like `data-testid` or accessible roles.
+- **Auth bypass**: Set `VITE_AUTH_BYPASS=true` so E2E tests skip the login screen entirely.
+- **Disable animations**: Inject `*, *::before, *::after { transition: none !important; animation: none !important; }` via `page.addStyleTag` in `beforeEach` to keep tests stable.
+
+### Verified UI Selectors (Playwright)
+
+These are the canonical, stable selectors for key interactive elements. **Do not guess or invent selectors** — use these.
+
+| Element                                     | Selector                                                     | Notes                                                                                                                           |
+| ------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Open the widget dock (collapsed → expanded) | `page.getByTitle('Open Tools')`                              | The collapsed dock shows a single blue `LayoutGrid` icon button with `title="Open Tools"`. Click it to expand the full toolbar. |
+| Dock container (once expanded)              | `page.locator('[data-testid="dock"]')`                       | The outer dock wrapper always present in the DOM.                                                                               |
+| Sidebar / menu button                       | `page.getByTitle('Open Menu')`                               | Top-left hamburger/menu button.                                                                                                 |
+| Add a specific widget                       | `page.getByRole('button', { name: /WidgetLabel/i }).first()` | After the dock is open. Use `.click({ force: true })` in case of animation overlap.                                             |
+| A mounted widget on the board               | `page.locator('.widget').first()`                            | Widgets receive a `.widget` class from `DraggableWindow`.                                                                       |
+
+**Example — opening the dock and adding a Clock widget:**
+
+```ts
+// 1. Open the collapsed dock
+await page.getByTitle('Open Tools').click();
+// With animations disabled, wait for the dock container to be visible before proceeding.
+await expect(page.locator('[data-testid="dock"]')).toBeVisible();
+
+// 2. Click the Clock tool button
+await page
+  .getByRole('button', { name: /Clock/i })
+  .first()
+  .click({ force: true });
+
+// 3. Assert widget appeared
+await expect(page.locator('.widget').first()).toBeVisible({ timeout: 10_000 });
+```
+
+### Frontend Verification Decision Tree
+
+When a Playwright selector fails, follow this order before asking a human:
+
+1. **Check `title` attribute** — many icon-only buttons use `title` (not `aria-label`). Try `page.getByTitle('...')`.
+2. **Check `data-testid`** — grep the source for `data-testid` on the element.
+3. **Check `data-role`** — some layout elements use `data-role` (e.g., `data-role="dock"`).
+4. **Check the locale file** — UI strings come from `locales/en.json`. If a label looks like a translation key, look it up there to find the rendered string.
+5. **Read the component source** — `components/layout/Dock.tsx`, `components/layout/Sidebar.tsx`, `components/layout/DashboardView.tsx` are the primary layout files. Read them before inventing a selector.
+6. **Skip visual E2E and proceed with code review** only if the element is genuinely inaccessible (e.g., requires a real camera/microphone). Document the skip reason in the PR.
 
 ---
 
@@ -130,7 +176,7 @@ Use these standardized components to maintain consistency:
 3.  **Floating Promises**: Always handle promises. Use `void` if you intentionally want to ignore the result (e.g., `void myFunction()`), or `await` it.
 4.  **Accessibility**:
     - Hidden inputs (like file uploads) must have `aria-label`.
-    - Icon-only buttons must have `aria-label`.
+    - Icon-only buttons must have either `aria-label` **or** `title` — both are acceptable. Many layout buttons (e.g., dock open/close, sidebar toggle) use `title`; component-level icon buttons (e.g., `IconButton`) use `aria-label`. When writing Playwright selectors, check for `title` first (it is more common in layout-level elements); see the Verified UI Selectors table above.
 5.  **React Hooks**:
     - `useEffect` must return `undefined` or a cleanup function. Do not return `null` or `false`.
     - Dependency arrays must be exhaustive (enforced by linter).
