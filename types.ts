@@ -1178,7 +1178,7 @@ export interface NumberLineConfig {
   min: number;
   max: number;
   step: number; // e.g., 1, 0.5, 10
-  displayMode: 'integers' | 'fractions' | 'decimals';
+  displayMode: NumberLineMode;
   markers: NumberLineMarker[];
   jumps: NumberLineJump[];
   showArrows: boolean;

@@ -10,6 +10,9 @@ import { SettingsLabel } from '../../common/SettingsLabel';
 import { Settings, Plus, X, ArrowRightCircle, Target } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
 
+const MAX_NUMBER_LINE_ABS_VALUE = 1000;
+const MAX_NUMBER_LINE_TICKS = 5000;
+
 export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -78,10 +81,23 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             </label>
             <input
               type="number"
-              value={min}
-              onChange={(e) =>
-                updateConfig({ min: parseFloat(e.target.value) || 0 })
-              }
+              defaultValue={min}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                if (!Number.isNaN(parsed)) {
+                  const clamped = Math.max(
+                    -MAX_NUMBER_LINE_ABS_VALUE,
+                    Math.min(MAX_NUMBER_LINE_ABS_VALUE, parsed)
+                  );
+                  const nextMin = Math.min(clamped, max);
+                  updateConfig({ min: nextMin });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
@@ -91,10 +107,23 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             </label>
             <input
               type="number"
-              value={max}
-              onChange={(e) =>
-                updateConfig({ max: parseFloat(e.target.value) || 0 })
-              }
+              defaultValue={max}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                if (!Number.isNaN(parsed)) {
+                  const clamped = Math.max(
+                    -MAX_NUMBER_LINE_ABS_VALUE,
+                    Math.min(MAX_NUMBER_LINE_ABS_VALUE, parsed)
+                  );
+                  const nextMax = Math.max(clamped, min);
+                  updateConfig({ max: nextMax });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
@@ -106,12 +135,23 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               type="number"
               min="0.01"
               step="any"
-              value={step}
-              onChange={(e) =>
-                updateConfig({
-                  step: Math.max(0.01, parseFloat(e.target.value) || 1),
-                })
-              }
+              defaultValue={step}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                if (!Number.isNaN(parsed)) {
+                  const safeBaseStep = Math.max(0.01, parsed);
+                  const range = Math.abs(max - min);
+                  const minStepForTickLimit =
+                    range > 0 ? range / MAX_NUMBER_LINE_TICKS : safeBaseStep;
+                  const safeStep = Math.max(safeBaseStep, minStepForTickLimit);
+                  updateConfig({ step: safeStep });
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
@@ -182,7 +222,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
           <button
             onClick={handleAddMarker}
-            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors"
+            aria-label="Add marker"
+            title="Add marker"
+            className="bg-blue-600 text-white p-1.5 rounded-md hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -218,7 +260,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               <div className="flex-1 text-slate-500">{marker.label}</div>
               <button
                 onClick={() => removeMarker(marker.id)}
-                className="text-slate-400 hover:text-red-500 p-1"
+                aria-label="Remove marker"
+                title="Remove marker"
+                className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -269,7 +313,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
           <button
             onClick={handleAddJump}
-            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors"
+            aria-label="Add jump"
+            title="Add jump"
+            className="bg-emerald-600 text-white p-1.5 rounded-md hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -297,7 +343,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
               <button
                 onClick={() => removeJump(jump.id)}
-                className="text-slate-400 hover:text-red-500 p-1"
+                aria-label="Remove jump"
+                title="Remove jump"
+                className="text-slate-400 hover:text-red-500 p-1 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
                 <X className="w-4 h-4" />
               </button>

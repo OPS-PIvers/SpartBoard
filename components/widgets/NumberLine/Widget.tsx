@@ -5,11 +5,21 @@ import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
 
 function fractionLabel(num: number, denom: number): string {
-  const whole = Math.floor(num / denom);
-  const rem = num % denom;
-  if (rem === 0) return `${whole === 0 ? '0' : whole}`;
-  if (whole === 0) return `${rem}/${denom}`;
-  return `${whole} ${rem}/${denom}`;
+  const sign = num < 0 ? -1 : 1;
+  const absNum = Math.abs(num);
+  const whole = Math.floor(absNum / denom);
+  const rem = absNum % denom;
+
+  if (rem === 0) {
+    const value = whole === 0 ? '0' : `${whole}`;
+    return sign < 0 && value !== '0' ? `-${value}` : value;
+  }
+  if (whole === 0) {
+    const frac = `${rem}/${denom}`;
+    return sign < 0 ? `-${frac}` : frac;
+  }
+  const mixed = `${whole} ${rem}/${denom}`;
+  return sign < 0 ? `-${mixed}` : mixed;
 }
 
 export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
@@ -52,26 +62,44 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   const range = safeMax - min;
   const pxPerUnit = (svgWidth - padL - padR) / range;
 
+  // Maximum number of ticks to avoid performance issues
+  const MAX_TICKS = 5000;
   // Ensure step is positive to avoid infinite loops
   const safeStep = Math.max(0.01, step);
   const tickValues = useMemo(() => {
-    const ticks = [];
-    // To handle floating point inaccuracies in JS when doing `i += step`
-    // We calculate the number of steps
-    const numSteps = Math.floor(range / safeStep);
-    for (let i = 0; i <= numSteps; i++) {
-      ticks.push(min + i * safeStep);
+    const ticks: number[] = [];
+    // we calculate the number of steps, then derive each tick from `min`
+    const rawNumSteps = Math.floor(range / safeStep);
+
+    // If the range is smaller than the step, just show endpoints
+    if (rawNumSteps <= 0) {
+      ticks.push(min, safeMax);
+      return ticks;
     }
-    // ensure max is included if it perfectly aligns (or close enough)
+
+    // Cap the number of steps to ensure we don't generate too many ticks
+    const maxSteps = MAX_TICKS - 1; // ticks = steps + 1
+    const numSteps = Math.min(rawNumSteps, maxSteps);
+    // When capped, increase the effective step so we still span the range
+    const effectiveStep = range / numSteps;
+
+    for (let i = 0; i <= numSteps; i++) {
+      ticks.push(min + i * effectiveStep);
+    }
+
+    const epsilon = 0.0001;
+    // Ensure the minimum endpoint is always included as a tick
+    if (ticks.length === 0 || Math.abs(ticks[0] - min) > epsilon) {
+      ticks.unshift(min);
+    }
+
+    // Ensure the maximum endpoint is always included as a tick
     const lastTick = ticks[ticks.length - 1];
-    if (
-      Math.abs(lastTick - safeMax) > 0.0001 &&
-      Math.abs(lastTick + safeStep - safeMax) < 0.0001
-    ) {
+    if (Math.abs(lastTick - safeMax) > epsilon) {
       ticks.push(safeMax);
     }
     return ticks;
-  }, [min, safeMax, safeStep, range]);
+  }, [min, safeMax, safeStep, range, MAX_TICKS]);
 
   const addMarker = (value: number) => {
     const newMarker: NumberLineMarker = {
@@ -179,10 +207,10 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       x={x}
                       y={axisY + 24}
                       textAnchor="middle"
-                      fontSize={12}
                       fill="#1e293b"
                       fontFamily="monospace"
                       fontWeight="bold"
+                      style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                     >
                       {labelText}
                     </text>
@@ -234,9 +262,9 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                         x={x}
                         y={axisY - 52}
                         textAnchor="middle"
-                        fontSize={14}
                         fill={marker.color}
                         fontWeight="bold"
+                        style={{ fontSize: 'min(14px, 5cqmin)' }}
                       >
                         {marker.label}
                       </text>
@@ -282,12 +310,12 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                         x={midX}
                         y={controlY + jumpHeight * 0.5 - 5}
                         textAnchor="middle"
-                        fontSize={14}
                         fill="currentColor"
                         fontWeight="bold"
                         stroke="white"
                         strokeWidth="4"
                         paintOrder="stroke"
+                        style={{ fontSize: 'min(14px, 5cqmin)' }}
                       >
                         {jump.label}
                       </text>
