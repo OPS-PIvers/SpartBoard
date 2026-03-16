@@ -1223,7 +1223,6 @@ export interface MusicConfig {
 export interface OrganizerNode {
   id: string;
   text: string;
-  bgColor?: string;
 }
 
 export interface GraphicOrganizerConfig {
@@ -1231,6 +1230,7 @@ export interface GraphicOrganizerConfig {
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
 }
+
 
 export interface CarRiderProConfig {
   iframeUrl?: string;

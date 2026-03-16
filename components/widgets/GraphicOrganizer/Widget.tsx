@@ -24,24 +24,25 @@ const EditableNode: React.FC<{
     }
   }, [initialText]);
 
+  const triggerUpdate = () => {
+    if (contentEditableRef.current) {
+      onUpdate(id, contentEditableRef.current.innerText);
+    }
+  };
+
   const handleInput = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    timeoutRef.current = setTimeout(() => {
-      if (contentEditableRef.current) {
-        onUpdate(id, contentEditableRef.current.innerText);
-      }
-    }, 500);
+    timeoutRef.current = setTimeout(triggerUpdate, 500);
   };
 
   const handleBlur = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
-    if (contentEditableRef.current) {
-      onUpdate(id, contentEditableRef.current.innerText);
-    }
+    triggerUpdate();
   };
 
   return (
