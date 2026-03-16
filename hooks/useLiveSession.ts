@@ -160,11 +160,24 @@ export const useLiveSession = (
       })) as LiveStudent[];
 
       // Only update state if the data has actually changed to prevent unnecessary re-renders
+      // ⚡ BOLT OPTIMIZATION: Replaced expensive JSON.stringify deep-equality check with a fast,
+      // direct property comparison loop to prevent blocking the main thread during frequent live session updates.
       setStudents((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(studentList)) {
-          return prev;
+        if (prev.length !== studentList.length) return studentList;
+        for (let i = 0; i < prev.length; i++) {
+          const a = prev[i];
+          const b = studentList[i];
+          if (
+            a.id !== b.id ||
+            a.pin !== b.pin ||
+            a.status !== b.status ||
+            a.joinedAt !== b.joinedAt ||
+            a.lastActive !== b.lastActive
+          ) {
+            return studentList;
+          }
         }
-        return studentList;
+        return prev;
       });
     });
 
