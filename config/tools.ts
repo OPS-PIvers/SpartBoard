@@ -185,4 +185,10 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Reveal',
     color: 'bg-blue-500',
   },
+  {
+    type: 'syntax-framer',
+    icon: Type,
+    label: 'Syntax Framer',
+    color: 'bg-indigo-500',
+  },
 ];

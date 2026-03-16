@@ -43,7 +43,8 @@ export type WidgetType =
   | 'specialist-schedule'
   | 'graphic-organizer'
   | 'reveal-grid'
-  | 'numberLine';
+  | 'numberLine'
+  | 'syntax-framer';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1323,7 +1324,22 @@ export type WidgetConfig =
   | SpecialistScheduleConfig
   | GraphicOrganizerConfig
   | RevealGridConfig
-  | NumberLineConfig;
+  | NumberLineConfig
+  | SyntaxFramerConfig;
+
+export interface SyntaxToken {
+  id: string;
+  value: string; // the word, punctuation, or math operator
+  color?: string;
+  isMasked: boolean; // Renders as a blank underscore if true
+}
+
+export interface SyntaxFramerConfig {
+  mode: 'text' | 'math'; // Math mode adds an equation-style font
+  tokens: SyntaxToken[];
+  fontSize: number;
+  alignment: 'left' | 'center';
+}
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1416,7 +1432,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                         ? RevealGridConfig
                                                                                         : T extends 'numberLine'
                                                                                           ? NumberLineConfig
-                                                                                          : never;
+                                                                                          : T extends 'syntax-framer'
+                                                                                            ? SyntaxFramerConfig
+                                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

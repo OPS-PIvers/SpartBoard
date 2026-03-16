@@ -141,6 +141,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./NumberLine/Widget'),
     'NumberLineWidget'
   ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer/Widget'),
+    'SyntaxFramerWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -233,6 +237,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./NumberLine/Settings'),
     'NumberLineSettings'
   ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer/Settings'),
+    'SyntaxFramerSettings'
+  ),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -269,6 +277,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   clock: {
     baseWidth: 280,
     baseHeight: 140,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'syntax-framer': {
+    baseWidth: 500,
+    baseHeight: 150,
     canSpread: true,
     skipScaling: true,
     padding: 0,
