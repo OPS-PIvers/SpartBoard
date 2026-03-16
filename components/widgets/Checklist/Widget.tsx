@@ -132,17 +132,36 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // All items always visible — sizes scale with cqh/N so cards fill height equally
+  // All items always visible — JS pixel math based on widget dims (reliable, no CQ unit issues)
   const itemCount = mode === 'manual' ? items.length : students.length;
   const sm = scaleMultiplier;
 
-  const textSize = `clamp(6px, ${((40 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh, min(${Math.round(16 * sm)}px, ${(5.5 * sm).toFixed(1)}cqw))`;
-  const iconSize = `clamp(8px, ${((50 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh, min(${Math.round(22 * sm)}px, ${(7 * sm).toFixed(1)}cqw))`;
-  const cardPadV = `min(${Math.round(8 * sm)}px, ${((9 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh)`;
-  const cardPadH = `min(${Math.round(14 * sm)}px, ${(3.5 * sm).toFixed(1)}cqw)`;
-  const cardPadding = `${cardPadV} ${cardPadH}`;
-  const listGap = `min(${Math.round(8 * sm)}px, ${((6 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh)`;
-  const cardGap = `min(${Math.round(10 * sm)}px, ${(3 * sm).toFixed(1)}cqw)`;
+  const TITLE_BAR_H = 40;
+  const FOOTER_H = 44;
+  const LIST_PAD_V = 20;
+  const widgetH = Math.max(widget.h, 120);
+  const widgetW = Math.max(widget.w, 100);
+  const availH = widgetH - TITLE_BAR_H - FOOTER_H - LIST_PAD_V;
+  const gapPx = Math.max(
+    2,
+    Math.min(6 * sm, (4 * sm) / Math.max(itemCount / 4, 1))
+  );
+  const perCardH = Math.max(
+    16,
+    (availH - Math.max(0, itemCount - 1) * gapPx) / Math.max(itemCount, 1)
+  );
+
+  const fontSizePx = Math.max(8, Math.min(16 * sm, perCardH * 0.38));
+  const iconSizePx = Math.max(10, Math.min(22 * sm, perCardH * 0.55));
+  const cardPadVPx = Math.max(2, Math.min(8 * sm, perCardH * 0.12));
+  const cardPadHPx = Math.max(8, Math.min(14 * sm, widgetW * 0.05));
+  const cardGapPx = Math.max(6, Math.min(10 * sm, widgetW * 0.03));
+
+  const textSize = `${fontSizePx.toFixed(1)}px`;
+  const iconSize = `${iconSizePx.toFixed(1)}px`;
+  const cardPadding = `${cardPadVPx.toFixed(1)}px ${cardPadHPx.toFixed(1)}px`;
+  const listGap = `${gapPx.toFixed(1)}px`;
+  const cardGap = `${cardGapPx.toFixed(1)}px`;
 
   if (!hasContent) {
     return (
