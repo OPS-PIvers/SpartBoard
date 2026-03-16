@@ -132,12 +132,17 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // Scaled sizing values derived from scaleMultiplier only — no density inflation
+  // All items always visible — sizes scale with cqh/N so cards fill height equally
+  const itemCount = mode === 'manual' ? items.length : students.length;
   const sm = scaleMultiplier;
-  const textSize = `min(${Math.round(16 * sm)}px, ${(5.5 * sm).toFixed(1)}cqmin)`;
-  const iconSize = `min(${Math.round(22 * sm)}px, ${(7 * sm).toFixed(1)}cqmin)`;
-  const cardPadding = `min(${Math.round(10 * sm)}px, ${(2.5 * sm).toFixed(1)}cqmin) min(${Math.round(14 * sm)}px, ${(3.5 * sm).toFixed(1)}cqmin)`;
-  const cardGap = `min(${Math.round(8 * sm)}px, ${(2 * sm).toFixed(1)}cqmin)`;
+
+  const textSize = `clamp(6px, ${((40 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh, min(${Math.round(16 * sm)}px, ${(5.5 * sm).toFixed(1)}cqw))`;
+  const iconSize = `clamp(8px, ${((50 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh, min(${Math.round(22 * sm)}px, ${(7 * sm).toFixed(1)}cqw))`;
+  const cardPadV = `min(${Math.round(8 * sm)}px, ${((9 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh)`;
+  const cardPadH = `min(${Math.round(14 * sm)}px, ${(3.5 * sm).toFixed(1)}cqw)`;
+  const cardPadding = `${cardPadV} ${cardPadH}`;
+  const listGap = `min(${Math.round(8 * sm)}px, ${((6 * sm) / Math.max(itemCount, 1)).toFixed(1)}cqh)`;
+  const cardGap = `min(${Math.round(10 * sm)}px, ${(3 * sm).toFixed(1)}cqw)`;
 
   if (!hasContent) {
     return (
@@ -167,44 +172,54 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
-              gap: `min(${Math.round(8 * sm)}px, ${(1.8 * sm).toFixed(1)}cqmin)`,
+              gap: listGap,
             }}
           >
             {mode === 'manual'
               ? items.map((item) => (
-                  <ChecklistCard
+                  <div
                     key={item.id}
-                    id={item.id}
-                    label={item.text}
-                    isCompleted={item.completed}
-                    onToggle={toggleItem}
-                    textSize={textSize}
-                    iconSize={iconSize}
-                    cardPadding={cardPadding}
-                    cardGap={cardGap}
-                    cardColor={cardColor}
-                    cardOpacity={cardOpacity}
-                    fontColor={fontColor}
-                  />
+                    role="listitem"
+                    style={{ flex: '1 1 0', minHeight: 0 }}
+                  >
+                    <ChecklistCard
+                      id={item.id}
+                      label={item.text}
+                      isCompleted={item.completed}
+                      onToggle={toggleItem}
+                      textSize={textSize}
+                      iconSize={iconSize}
+                      cardPadding={cardPadding}
+                      cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
+                      fontColor={fontColor}
+                    />
+                  </div>
                 ))
               : students.map((student) => (
-                  <ChecklistCard
+                  <div
                     key={student.id}
-                    id={student.id}
-                    label={student.label}
-                    isCompleted={completedNames.includes(student.id)}
-                    onToggle={toggleItem}
-                    textSize={textSize}
-                    iconSize={iconSize}
-                    cardPadding={cardPadding}
-                    cardGap={cardGap}
-                    cardColor={cardColor}
-                    cardOpacity={cardOpacity}
-                    fontColor={fontColor}
-                  />
+                    role="listitem"
+                    style={{ flex: '1 1 0', minHeight: 0 }}
+                  >
+                    <ChecklistCard
+                      id={student.id}
+                      label={student.label}
+                      isCompleted={completedNames.includes(student.id)}
+                      onToggle={toggleItem}
+                      textSize={textSize}
+                      iconSize={iconSize}
+                      cardPadding={cardPadding}
+                      cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
+                      fontColor={fontColor}
+                    />
+                  </div>
                 ))}
           </div>
 
