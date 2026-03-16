@@ -3,6 +3,7 @@ import {
   WidgetType,
   SpecialistScheduleConfig,
   GraphicOrganizerConfig,
+  RevealGridConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 
@@ -308,5 +309,33 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       templateType: 'frayer',
       nodes: {},
     } as GraphicOrganizerConfig,
+  },
+  'reveal-grid': {
+    w: 600,
+    h: 400,
+    config: {
+      columns: 3,
+      cards: [
+        {
+          id: '1',
+          frontContent: 'Question 1',
+          backContent: 'Answer 1',
+          isRevealed: false,
+        },
+        {
+          id: '2',
+          frontContent: 'Question 2',
+          backContent: 'Answer 2',
+          isRevealed: false,
+        },
+        {
+          id: '3',
+          frontContent: 'Question 3',
+          backContent: 'Answer 3',
+          isRevealed: false,
+        },
+      ],
+      revealMode: 'flip',
+    } as unknown as RevealGridConfig,
   },
 };

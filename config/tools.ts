@@ -35,6 +35,7 @@ import {
   Music,
   CarFront,
   Smartphone,
+  Layers,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -172,4 +173,10 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-gradient-to-br from-indigo-500 to-purple-600',
   },
   { type: 'remote', icon: Smartphone, label: 'Remote', color: 'bg-slate-800' },
+  {
+    type: 'reveal-grid',
+    icon: Layers,
+    label: 'Reveal',
+    color: 'bg-blue-500',
+  },
 ];

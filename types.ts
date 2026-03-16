@@ -41,7 +41,8 @@ export type WidgetType =
   | 'car-rider-pro'
   | 'music'
   | 'specialist-schedule'
-  | 'graphic-organizer';
+  | 'graphic-organizer'
+  | 'reveal-grid';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1236,6 +1237,21 @@ export interface CarRiderProConfig {
   cardOpacity?: number;
 }
 
+export interface RevealCard {
+  id: string;
+  frontContent: string;
+  backContent: string;
+  isRevealed: boolean; // Synced to Firebase: Triggers the 3D flip on all screens
+  bgColor?: string;
+}
+
+export interface RevealGridConfig {
+  columns: 2 | 3 | 4 | 5;
+  cards: RevealCard[];
+  revealMode: 'flip' | 'fade';
+  fontFamily?: GlobalFontFamily;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | ClockConfig
@@ -1280,7 +1296,8 @@ export type WidgetConfig =
   | CarRiderProConfig
   | MusicConfig
   | SpecialistScheduleConfig
-  | GraphicOrganizerConfig;
+  | GraphicOrganizerConfig
+  | RevealGridConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1369,7 +1386,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                     ? SpecialistScheduleConfig
                                                                                     : T extends 'graphic-organizer'
                                                                                       ? GraphicOrganizerConfig
-                                                                                      : never;
+                                                                                      : T extends 'reveal-grid'
+                                                                                        ? RevealGridConfig
+                                                                                        : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

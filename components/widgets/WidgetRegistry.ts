@@ -136,6 +136,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./GraphicOrganizer/Widget'),
     'GraphicOrganizerWidget'
   ),
+  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Widget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -223,6 +224,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./GraphicOrganizer/Settings'),
     'GraphicOrganizerSettings'
   ),
+  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Settings'),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
@@ -533,6 +535,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   'graphic-organizer': {
+    baseWidth: 600,
+    baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'reveal-grid': {
     baseWidth: 600,
     baseHeight: 400,
     canSpread: true,
