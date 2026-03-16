@@ -10,8 +10,10 @@ import {
 } from 'lucide-react';
 import { useStorage } from '@/hooks/useStorage';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import { Card } from '@/components/common/Card';
 import { GlobalSticker, GradeLevel } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
+import { useDialog } from '@/context/useDialog';
 
 interface StickerLibraryModalProps {
   stickers: (string | GlobalSticker)[];
@@ -44,6 +46,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   const uploading = storageUploading || processing;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const { showConfirm } = useDialog();
 
   // Normalize stickers to GlobalSticker objects
   const normalizedStickers = React.useMemo(() => {
@@ -190,9 +193,17 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
     onStickersChange(nextStickers);
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (hasUnsavedChanges) {
-      if (!window.confirm(t('admin.stickers.confirmDiscardChanges'))) {
+      const confirmed = await showConfirm(
+        t('admin.stickers.confirmDiscardChanges'),
+        {
+          title: 'Discard Changes',
+          variant: 'warning',
+          confirmLabel: 'Discard',
+        }
+      );
+      if (!confirmed) {
         return;
       }
       // Delete Storage objects for stickers uploaded this session that were
@@ -311,9 +322,11 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {normalizedStickers.map((sticker) => (
-                <div
+                <Card
                   key={sticker.url}
-                  className="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 group"
+                  padding="sm"
+                  hoverable
+                  className="flex flex-col gap-3 group"
                 >
                   <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
                     <img
@@ -353,7 +366,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                       })}
                     </div>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           )}

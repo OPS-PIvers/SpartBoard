@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { ListPlus, Users, RefreshCw, Trash2 } from 'lucide-react';
@@ -73,7 +73,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     mode,
   });
 
-  useEffect(() => {
+  // Update ref synchronously during useLayoutEffect to avoid stale state issues in callbacks
+  useLayoutEffect(() => {
     latestState.current = {
       items,
       completedNames,
@@ -110,21 +111,24 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     [updateWidget]
   );
 
-  const resetToday = () => {
+  // ⚡ Bolt: Memoize button handlers to prevent them from being recreated on every render.
+  const resetToday = useCallback(() => {
+    const { mode, items, config, widgetId } = latestState.current;
     if (mode === 'manual') {
       const reset = items.map((i) => ({ ...i, completed: false }));
-      updateWidget(widget.id, { config: { ...config, items: reset } });
+      updateWidget(widgetId, { config: { ...config, items: reset } });
     } else {
-      updateWidget(widget.id, { config: { ...config, completedNames: [] } });
+      updateWidget(widgetId, { config: { ...config, completedNames: [] } });
     }
-  };
+  }, [updateWidget]);
 
-  const removeCompleted = () => {
+  const removeCompleted = useCallback(() => {
+    const { mode, items, config, widgetId } = latestState.current;
     if (mode === 'manual') {
       const remaining = items.filter((i) => !i.completed);
-      updateWidget(widget.id, { config: { ...config, items: remaining } });
+      updateWidget(widgetId, { config: { ...config, items: remaining } });
     }
-  };
+  }, [updateWidget]);
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 

@@ -26,6 +26,9 @@ export const WIDGET_PALETTE = [
   STANDARD_COLORS.pink,
 ];
 
+export const TRANSPARENT_BG_URL =
+  'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAACVJREFUGF5jYACC/wwMIAYDAwMIAIn///8DAxgDCAKEMDAwgAgABswNCv79YRAAAAAASUVORK5CYII=")';
+
 // For RandomWidget which uses lighter colors for contrast with text
 export const PASTEL_PALETTE = [
   '#f87171', // red-400

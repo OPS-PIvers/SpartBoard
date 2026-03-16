@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderPlus, X } from 'lucide-react';
 import { useSortable, SortableContext, arrayMove } from '@dnd-kit/sortable';
@@ -99,20 +99,23 @@ export const FolderItem = React.memo(
       }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (active.id !== over?.id) {
-        const oldIndex = folder.items.indexOf(
-          active.id as WidgetType | InternalToolType
-        );
-        const newIndex = folder.items.indexOf(
-          over?.id as WidgetType | InternalToolType
-        );
-        if (oldIndex !== -1 && newIndex !== -1) {
-          onReorder(folder.id, arrayMove(folder.items, oldIndex, newIndex));
+    const handleDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (active.id !== over?.id) {
+          const oldIndex = folder.items.indexOf(
+            active.id as WidgetType | InternalToolType
+          );
+          const newIndex = folder.items.indexOf(
+            over?.id as WidgetType | InternalToolType
+          );
+          if (oldIndex !== -1 && newIndex !== -1) {
+            onReorder(folder.id, arrayMove(folder.items, oldIndex, newIndex));
+          }
         }
-      }
-    };
+      },
+      [folder.id, folder.items, onReorder]
+    );
 
     const style = {
       transform: CSS.Translate.toString(transform),

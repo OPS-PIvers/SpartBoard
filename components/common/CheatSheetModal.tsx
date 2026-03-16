@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Keyboard, Hand } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation, Trans } from 'react-i18next';
 
 interface CheatSheetModalProps {
@@ -172,8 +171,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: Z_INDEX.modal }}
+      className="fixed inset-0 z-modal flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

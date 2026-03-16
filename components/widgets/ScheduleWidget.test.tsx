@@ -33,6 +33,7 @@ vi.mock('../../hooks/useScaledFont', () => ({
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
+  CalendarDays: () => <div>CalendarDays Icon</div>,
   Circle: () => <div data-testid="circle-icon" />,
   CheckCircle2: () => <div data-testid="check-icon" />,
   Type: () => <div>Type Icon</div>,

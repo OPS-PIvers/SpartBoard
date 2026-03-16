@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { LayoutGrid, Plus, X, FolderPlus } from 'lucide-react';
 import {
@@ -143,24 +143,29 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     );
 
     // Merge any new TOOLS not yet tracked in libraryOrder (auto-discovery)
-    const allToolTypes = TOOLS.map((t) => t.type);
-    const effectiveOrder = [
-      ...libraryOrder,
-      ...allToolTypes.filter((type) => !libraryOrder.includes(type)),
-    ];
+    const effectiveOrder = useMemo(() => {
+      const allToolTypes = TOOLS.map((t) => t.type);
+      return [
+        ...libraryOrder,
+        ...allToolTypes.filter((type) => !libraryOrder.includes(type)),
+      ];
+    }, [libraryOrder]);
 
-    const handleDragEnd = (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (over && active.id !== over.id) {
-        const oldIndex = effectiveOrder.indexOf(
-          active.id as WidgetType | InternalToolType
-        );
-        const newIndex = effectiveOrder.indexOf(
-          over.id as WidgetType | InternalToolType
-        );
-        onReorderLibrary(arrayMove(effectiveOrder, oldIndex, newIndex));
-      }
-    };
+    const handleDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+          const oldIndex = effectiveOrder.indexOf(
+            active.id as WidgetType | InternalToolType
+          );
+          const newIndex = effectiveOrder.indexOf(
+            over.id as WidgetType | InternalToolType
+          );
+          onReorderLibrary(arrayMove(effectiveOrder, oldIndex, newIndex));
+        }
+      },
+      [effectiveOrder, onReorderLibrary]
+    );
 
     // Filter tools: must be accessible AND NOT already in the dock,
     // and in normal mode must match the user's selected buildings

@@ -21,3 +21,5 @@
 ## 2026-03-11 - [ESLint Type Resolution Failure] **Bottleneck:** `typescript-eslint`'s `projectService: true` failed to resolve types for cloud function dependencies (like `google-auth-library`), causing `@typescript-eslint/no-unsafe-*` errors and breaking the validation pipeline. **Fix:** Replaced `projectService: true` with an explicit `project: ['./tsconfig.json', './functions/tsconfig.json']` array in `eslint.config.js` to ensure the linter correctly parses and resolves types for both the frontend root and the `functions/` subdirectory.
 
 ## 2026-03-12 - [Strict Versioning and Cleanup] **Bottleneck:** Loose pnpm version constraint in CI led to broken builds, and .gitignore concatenated entries. **Fix:** Centralized pnpm version enforcement via the root `package.json` (engines/packageManager) used by CI, and separated `.gitignore` entries for clarity.
+
+## 2026-03-22 - [Incomplete Validation] **Bottleneck:** The validate script did not type-check the cloud functions directory, allowing potential backend typescript errors to be merged despite passing CI. **Fix:** Updated the `validate` script in `package.json` to use `type-check:all` instead of `type-check`.

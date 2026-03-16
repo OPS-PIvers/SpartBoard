@@ -83,6 +83,7 @@ export default {
         'tool-menu': Z_INDEX.toolMenu.toString(),
         tooltip: Z_INDEX.tooltip.toString(),
         toast: Z_INDEX.toast.toString(),
+        dialog: Z_INDEX.dialog.toString(),
         critical: Z_INDEX.critical.toString(),
         cursor: Z_INDEX.cursor.toString(),
         'sticker-control': Z_INDEX.stickerControl.toString(),
@@ -145,10 +146,14 @@ export default {
           '0%, 100%': { transform: 'rotate(-1deg)' },
           '50%': { transform: 'rotate(1deg)' },
         },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
         jiggle: 'jiggle 0.5s ease-in-out infinite',
+        shimmer: 'shimmer 1.5s infinite',
       },
     },
   },

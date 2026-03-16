@@ -40,6 +40,7 @@ import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
 import { WIDGET_PALETTE } from '../../config/colors';
 import { Z_INDEX } from '../../config/zIndex';
+import { useDialog } from '@/context/useDialog';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -131,6 +132,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     setSelectedWidgetId,
     zoom,
   } = useDashboard();
+  const { showConfirm: showConfirmDialog } = useDialog();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -377,9 +379,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (e.key === 'Delete' && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      if (confirm(t('widgetWindow.clearEntireBoard'))) {
-        deleteAllWidgets();
-      }
+      void showConfirmDialog(t('widgetWindow.clearEntireBoard'), {
+        title: 'Clear Board',
+        variant: 'danger',
+        confirmLabel: 'Clear All',
+      }).then((confirmed) => {
+        if (confirmed) deleteAllWidgets();
+      });
       return;
     }
 

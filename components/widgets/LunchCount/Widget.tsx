@@ -211,25 +211,28 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     [widget.id, config, assignments, updateWidget]
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
 
-    if (over) {
-      const student = active.id as string;
-      const zone = over.id as string;
+      if (over) {
+        const student = active.id as string;
+        const zone = over.id as string;
 
-      if (zone === 'hot' || zone === 'bento' || zone === 'home') {
-        updateAssignment(student, zone);
-      } else if (zone === 'unassigned') {
-        updateAssignment(student, null);
+        if (zone === 'hot' || zone === 'bento' || zone === 'home') {
+          updateAssignment(student, zone);
+        } else if (zone === 'unassigned') {
+          updateAssignment(student, null);
+        }
       }
-    }
-  };
+    },
+    [updateAssignment]
+  );
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
     const { submissionUrl, schumannSheetId, intermediateSheetId } =

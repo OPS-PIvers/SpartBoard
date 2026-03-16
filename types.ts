@@ -40,7 +40,10 @@ export type WidgetType =
   | 'onboarding'
   | 'car-rider-pro'
   | 'music'
-  | 'specialist-schedule';
+  | 'specialist-schedule'
+  | 'graphic-organizer'
+  | 'reveal-grid'
+  | 'numberLine';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1157,6 +1160,30 @@ export interface SpecialistScheduleCycleDay {
   items: SpecialistScheduleItem[];
 }
 
+export interface NumberLineMarker {
+  id: string;
+  value: number;
+  label?: string;
+  color: string;
+}
+
+export interface NumberLineJump {
+  id: string;
+  startValue: number;
+  endValue: number;
+  label?: string; // e.g., "+5"
+}
+
+export interface NumberLineConfig {
+  min: number;
+  max: number;
+  step: number; // e.g., 1, 0.5, 10
+  displayMode: NumberLineMode;
+  markers: NumberLineMarker[];
+  jumps: NumberLineJump[];
+  showArrows: boolean;
+}
+
 export interface SpecialistScheduleBuildingConfig {
   cycleLength: 6 | 10;
   startDate: string; // YYYY-MM-DD
@@ -1219,10 +1246,35 @@ export interface MusicConfig {
   textColor?: string;
 }
 
+export interface OrganizerNode {
+  id: string;
+  text: string;
+}
+
+export interface GraphicOrganizerConfig {
+  templateType: 'frayer' | 't-chart' | 'venn' | 'kwl' | 'cause-effect';
+  nodes: Record<string, OrganizerNode>;
+  fontFamily?: GlobalFontFamily;
+}
 export interface CarRiderProConfig {
   iframeUrl?: string;
   cardColor?: string;
   cardOpacity?: number;
+}
+
+export interface RevealCard {
+  id: string;
+  frontContent: string;
+  backContent: string;
+  isRevealed: boolean; // Synced to Firebase: Triggers the 3D flip on all screens
+  bgColor?: string;
+}
+
+export interface RevealGridConfig {
+  columns: 2 | 3 | 4 | 5;
+  cards: RevealCard[];
+  revealMode: 'flip' | 'fade';
+  fontFamily?: GlobalFontFamily;
 }
 
 // Union of all widget configs
@@ -1268,7 +1320,10 @@ export type WidgetConfig =
   | OnboardingConfig
   | CarRiderProConfig
   | MusicConfig
-  | SpecialistScheduleConfig;
+  | SpecialistScheduleConfig
+  | GraphicOrganizerConfig
+  | RevealGridConfig
+  | NumberLineConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1355,7 +1410,13 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                   ? MusicConfig
                                                                                   : T extends 'specialist-schedule'
                                                                                     ? SpecialistScheduleConfig
-                                                                                    : never;
+                                                                                    : T extends 'graphic-organizer'
+                                                                                      ? GraphicOrganizerConfig
+                                                                                      : T extends 'reveal-grid'
+                                                                                        ? RevealGridConfig
+                                                                                        : T extends 'numberLine'
+                                                                                          ? NumberLineConfig
+                                                                                          : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

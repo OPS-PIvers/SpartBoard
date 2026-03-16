@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { useAuth } from '../../../context/useAuth';
-import { useFeaturePermissions } from '../../../hooks/useFeaturePermissions';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import {
   WidgetData,
   ScheduleConfig,
@@ -10,7 +11,8 @@ import {
   WidgetType,
   FeaturePermission,
   ScheduleGlobalConfig,
-} from '../../../types';
+  CalendarConfig,
+} from '@/types';
 import {
   Type,
   Clock,
@@ -26,9 +28,11 @@ import {
   Settings2,
   ChevronRight,
   LayoutGrid,
+  CalendarDays,
 } from 'lucide-react';
 import { Toggle } from '../../common/Toggle';
 import { Button } from '../../common/Button';
+import { Card } from '@/components/common/Card';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -85,8 +89,9 @@ const sortByTime = (items: ScheduleItem[]): ScheduleItem[] =>
 export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { selectedBuildings } = useAuth();
+  const { showConfirm } = useDialog();
   const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as ScheduleConfig;
 
@@ -148,6 +153,52 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  const handleImportFromCalendar = () => {
+    const calendarWidget = activeDashboard?.widgets.find(
+      (w) => w.type === 'calendar'
+    );
+    if (!calendarWidget) {
+      addToast('No Calendar widget found on dashboard.', 'error');
+      return;
+    }
+
+    const calConfig = calendarWidget.config as CalendarConfig;
+    const events = calConfig.events ?? [];
+    const today = new Date().toISOString().split('T')[0];
+
+    // Filter events for today that have a title
+    const todaysEvents = events.filter(
+      (e) => e.date === today && e.title?.trim()
+    );
+
+    if (todaysEvents.length === 0) {
+      addToast('No events found for today in the Calendar.', 'info');
+      return;
+    }
+
+    // Map to ScheduleItem
+    const newItems: ScheduleItem[] = todaysEvents.map((e) => {
+      // Create valid item
+      const startTime = e.time ?? '';
+      return {
+        id: crypto.randomUUID(),
+        task: e.title,
+        startTime,
+        time: startTime, // legacy support
+        endTime: '',
+        mode: 'clock',
+        linkedWidgets: [],
+      };
+    });
+
+    // Append and sort
+    const combined = [...items, ...newItems];
+    const sorted = sortByTime(combined);
+
+    handleUpdateActiveItems(sorted);
+    addToast(`Imported ${newItems.length} event(s) from Calendar.`, 'success');
+  };
+
   const handleSave = () => {
     if (!tempItem) return;
 
@@ -175,8 +226,16 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     setTempItem(null);
   };
 
-  const handleDelete = (index: number) => {
-    if (confirm('Are you sure you want to delete this event?')) {
+  const handleDelete = async (index: number) => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this event?',
+      {
+        title: 'Delete Event',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (confirmed) {
       const newItems = items.filter((_, i) => i !== index);
       handleUpdateActiveItems(newItems);
     }
@@ -284,12 +343,20 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const handleDeleteSchedule = (id: string) => {
+  const handleDeleteSchedule = async (id: string) => {
     if (schedules.length <= 1) {
       addToast('You must have at least one schedule.', 'error');
       return;
     }
-    if (confirm('Are you sure you want to delete this schedule?')) {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this schedule?',
+      {
+        title: 'Delete Schedule',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (confirmed) {
       const isLegacy =
         id === 'default' && (config.schedules?.length ?? 0) === 0;
 
@@ -495,9 +562,11 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 {schedules.map((s) => (
-                  <div
+                  <Card
                     key={s.id}
-                    className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
+                    padding="sm"
+                    rounded="xl"
+                    className="hover:border-blue-200 transition-colors group"
                   >
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <input
@@ -565,7 +634,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </>
@@ -640,6 +709,13 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
             <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
               <Clock className="w-3 h-3" /> {activeSchedule?.name}
             </label>
+            <button
+              onClick={handleImportFromCalendar}
+              className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium"
+              title="Import today's events from Calendar widget"
+            >
+              <CalendarDays className="w-3 h-3" /> Import
+            </button>
             <button
               onClick={handleStartAdd}
               className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"

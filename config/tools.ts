@@ -35,6 +35,7 @@ import {
   Music,
   CarFront,
   Smartphone,
+  Layers,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -78,6 +79,12 @@ export const TOOLS: ToolMetadata[] = [
     icon: CalendarDays,
     label: 'Specialist',
     color: 'bg-teal-700',
+  },
+  {
+    type: 'graphic-organizer',
+    icon: LayoutGrid,
+    label: 'Organizer',
+    color: 'bg-indigo-500',
   },
   { type: 'calendar', icon: Calendar, label: 'Events', color: 'bg-rose-500' },
   {
@@ -156,6 +163,12 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Next Up',
     color: 'bg-brand-blue-primary',
   },
+  {
+    type: 'numberLine',
+    icon: ListOrdered,
+    label: 'Number Line',
+    color: 'bg-blue-600',
+  },
   { type: 'music', icon: Music, label: 'Music', color: 'bg-emerald-500' },
   { type: 'record', icon: RecordIcon, label: 'Record', color: 'bg-red-500' },
 
@@ -166,4 +179,10 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-gradient-to-br from-indigo-500 to-purple-600',
   },
   { type: 'remote', icon: Smartphone, label: 'Remote', color: 'bg-slate-800' },
+  {
+    type: 'reveal-grid',
+    icon: Layers,
+    label: 'Reveal',
+    color: 'bg-blue-500',
+  },
 ];

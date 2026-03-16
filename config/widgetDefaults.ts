@@ -1,4 +1,10 @@
-import { WidgetData, WidgetType, SpecialistScheduleConfig } from '@/types';
+import {
+  WidgetData,
+  WidgetType,
+  SpecialistScheduleConfig,
+  GraphicOrganizerConfig,
+  RevealGridConfig,
+} from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
@@ -295,5 +301,54 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       cardOpacity: 1,
       specialistClass: '',
     } as SpecialistScheduleConfig,
+  },
+  'graphic-organizer': {
+    w: 8,
+    h: 6,
+    config: {
+      templateType: 'frayer',
+      nodes: {},
+    } as GraphicOrganizerConfig,
+  },
+  'reveal-grid': {
+    w: 600,
+    h: 400,
+    config: {
+      columns: 3,
+      cards: [
+        {
+          id: '1',
+          frontContent: 'Question 1',
+          backContent: 'Answer 1',
+          isRevealed: false,
+        },
+        {
+          id: '2',
+          frontContent: 'Question 2',
+          backContent: 'Answer 2',
+          isRevealed: false,
+        },
+        {
+          id: '3',
+          frontContent: 'Question 3',
+          backContent: 'Answer 3',
+          isRevealed: false,
+        },
+      ],
+      revealMode: 'flip',
+    } as RevealGridConfig,
+  },
+  numberLine: {
+    w: 700,
+    h: 200,
+    config: {
+      min: -10,
+      max: 10,
+      step: 1,
+      displayMode: 'integers',
+      markers: [],
+      jumps: [],
+      showArrows: true,
+    },
   },
 };
