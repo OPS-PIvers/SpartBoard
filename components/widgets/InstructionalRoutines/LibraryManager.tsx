@@ -38,6 +38,7 @@ import {
 } from '../../../utils/imageProcessing';
 import { PromptDialog } from './PromptDialog';
 import { Toast } from '../../common/Toast';
+import { Card } from '@/components/common/Card';
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -216,7 +217,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         </button>
       </div>
 
-      <div className="space-y-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+      <Card padding="md" className="space-y-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xxxs font-black uppercase text-slate-400 ml-1">
@@ -604,7 +605,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
             <PlusCircle size={14} /> Add Template Step
           </button>
         </div>
-      </div>
+      </Card>
 
       {/* Processing Message */}
       {processingMessage && (

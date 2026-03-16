@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Toggle } from '../../common/Toggle';
 import { Button } from '../../common/Button';
+import { Card } from '@/components/common/Card';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -561,9 +562,11 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 {schedules.map((s) => (
-                  <div
+                  <Card
                     key={s.id}
-                    className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
+                    padding="sm"
+                    rounded="xl"
+                    className="hover:border-blue-200 transition-colors group"
                   >
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <input
@@ -631,7 +634,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                         <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </>

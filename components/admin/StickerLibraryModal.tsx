@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useStorage } from '@/hooks/useStorage';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import { Card } from '@/components/common/Card';
 import { GlobalSticker, GradeLevel } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { useDialog } from '@/context/useDialog';
@@ -321,9 +322,11 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {normalizedStickers.map((sticker) => (
-                <div
+                <Card
                   key={sticker.url}
-                  className="bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 group"
+                  padding="sm"
+                  hoverable
+                  className="flex flex-col gap-3 group"
                 >
                   <div className="relative aspect-square bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden">
                     <img
@@ -363,7 +366,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                       })}
                     </div>
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           )}
