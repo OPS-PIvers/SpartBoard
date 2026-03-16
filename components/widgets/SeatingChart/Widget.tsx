@@ -295,18 +295,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     setSelectedIds(new Set([newItem.id]));
   };
 
-  const clearAllFurniture = () => {
-    void showConfirm(
+  const clearAllFurniture = async () => {
+    const confirmed = await showConfirm(
       'Are you sure you want to remove all furniture and assignments?',
       { title: 'Clear Furniture', variant: 'danger', confirmLabel: 'Clear All' }
-    ).then((confirmed) => {
-      if (confirmed) {
-        updateWidget(widget.id, {
-          config: { ...config, furniture: [], assignments: {} },
-        });
-        setSelectedIds(new Set());
-      }
-    });
+    );
+    if (confirmed) {
+      updateWidget(widget.id, {
+        config: { ...config, furniture: [], assignments: {} },
+      });
+      setSelectedIds(new Set());
+    }
   };
 
   const handleRotate = useCallback(

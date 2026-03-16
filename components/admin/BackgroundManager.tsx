@@ -350,17 +350,19 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
-  const updatePreset = (id: string, updates: Partial<BackgroundPreset>) => {
-    return updateDoc(doc(db, 'admin_backgrounds', id), updates)
-      .then(() => {
-        setPresets((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-        );
-      })
-      .catch((error) => {
-        console.error('Error updating preset:', error);
-        showMessage('error', 'Failed to update background');
-      });
+  const updatePreset = async (
+    id: string,
+    updates: Partial<BackgroundPreset>
+  ) => {
+    try {
+      await updateDoc(doc(db, 'admin_backgrounds', id), updates);
+      setPresets((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+      );
+    } catch (error) {
+      console.error('Error updating preset:', error);
+      showMessage('error', 'Failed to update background');
+    }
   };
 
   const deletePreset = async (preset: BackgroundPreset) => {

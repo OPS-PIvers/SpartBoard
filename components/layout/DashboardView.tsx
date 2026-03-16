@@ -503,13 +503,18 @@ export const DashboardView: React.FC = () => {
         e.preventDefault();
 
         if (e.shiftKey || e.altKey) {
-          void showConfirm(t('sidebar.confirmClearBoard'), {
-            title: 'Clear Board',
-            variant: 'danger',
-            confirmLabel: 'Clear All',
-          }).then((confirmed) => {
+          const handleClearAll = async () => {
+            const confirmed = await showConfirm(
+              t('sidebar.confirmClearBoard'),
+              {
+                title: 'Clear Board',
+                variant: 'danger',
+                confirmLabel: 'Clear All',
+              }
+            );
             if (confirmed) deleteAllWidgets();
-          });
+          };
+          void handleClearAll();
         } else if (activeDashboard && activeDashboard.widgets.length > 0) {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
