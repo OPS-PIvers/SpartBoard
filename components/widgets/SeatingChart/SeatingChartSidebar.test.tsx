@@ -66,9 +66,8 @@ describe('SeatingChartSidebar', () => {
       expect(input).toHaveValue(6);
     });
 
-    it('updates localTemplateColumns and config on valid column input', async () => {
+    it('updates localTemplateColumns and config on valid column input', () => {
       render(<SeatingChartSidebar {...defaultProps} template="rows" />);
-      const user = userEvent.setup();
       const input = screen.getByRole('spinbutton');
 
       // user.clear doesn't always trigger change properly on number inputs in JSDOM,
@@ -121,7 +120,9 @@ describe('SeatingChartSidebar', () => {
           studentCount={0}
         />
       );
-      expect(screen.getByRole('button', { name: /apply layout/i })).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /apply layout/i })
+      ).toBeDisabled();
     });
 
     it('enables Apply Layout button if studentCount is 0 for horseshoe template', () => {
@@ -132,7 +133,9 @@ describe('SeatingChartSidebar', () => {
           studentCount={0}
         />
       );
-      expect(screen.getByRole('button', { name: /apply layout/i })).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /apply layout/i })
+      ).not.toBeDisabled();
     });
 
     it('calls addFurniture when a manual add button is clicked', async () => {
@@ -193,7 +196,9 @@ describe('SeatingChartSidebar', () => {
     it('calls addAllRandomly when Add All Random button is clicked', async () => {
       render(<SeatingChartSidebar {...defaultProps} mode="assign" />);
       const user = userEvent.setup();
-      const addRandomButton = screen.getByRole('button', { name: /add all random/i });
+      const addRandomButton = screen.getByRole('button', {
+        name: /add all random/i,
+      });
       await user.click(addRandomButton);
       expect(defaultProps.addAllRandomly).toHaveBeenCalled();
     });
