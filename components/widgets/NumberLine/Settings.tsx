@@ -53,7 +53,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
       id: crypto.randomUUID(),
       value: newMarkerValue,
       label: newMarkerLabel,
-      color: WIDGET_PALETTE[0], // Default color
+      color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
     };
     updateConfig({ markers: [...markers, marker] });
   };
@@ -79,7 +79,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={min}
-              onChange={(e) => updateConfig({ min: Number(e.target.value) })}
+              onChange={(e) =>
+                updateConfig({ min: parseFloat(e.target.value) || 0 })
+              }
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
@@ -90,7 +92,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={max}
-              onChange={(e) => updateConfig({ max: Number(e.target.value) })}
+              onChange={(e) =>
+                updateConfig({ max: parseFloat(e.target.value) || 0 })
+              }
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
           </div>
@@ -104,7 +108,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
               step="any"
               value={step}
               onChange={(e) =>
-                updateConfig({ step: Math.max(0.01, Number(e.target.value)) })
+                updateConfig({
+                  step: Math.max(0.01, parseFloat(e.target.value) || 1),
+                })
               }
               className="w-full px-3 py-2 border border-slate-200 rounded-lg"
             />
@@ -156,7 +162,9 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newMarkerValue}
-              onChange={(e) => setNewMarkerValue(Number(e.target.value))}
+              onChange={(e) =>
+                setNewMarkerValue(parseFloat(e.target.value) || 0)
+              }
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
@@ -232,7 +240,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newJumpStart}
-              onChange={(e) => setNewJumpStart(Number(e.target.value))}
+              onChange={(e) => setNewJumpStart(parseFloat(e.target.value) || 0)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>
@@ -243,7 +251,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="number"
               value={newJumpEnd}
-              onChange={(e) => setNewJumpEnd(Number(e.target.value))}
+              onChange={(e) => setNewJumpEnd(parseFloat(e.target.value) || 0)}
               className="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm"
             />
           </div>

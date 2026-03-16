@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, NumberLineConfig, NumberLineMarker } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
+import { WIDGET_PALETTE } from '@/config/colors';
 
 function fractionLabel(num: number, denom: number): string {
   const whole = Math.floor(num / denom);
@@ -76,7 +77,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     const newMarker: NumberLineMarker = {
       id: crypto.randomUUID(),
       value,
-      color: '#ef4444', // Red default
+      color: WIDGET_PALETTE[markers.length % WIDGET_PALETTE.length],
     };
     updateWidget(widget.id, {
       config: { ...config, markers: [...markers, newMarker] },
@@ -284,7 +285,9 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                         fontSize={14}
                         fill="currentColor"
                         fontWeight="bold"
-                        className="bg-white"
+                        stroke="white"
+                        strokeWidth="4"
+                        paintOrder="stroke"
                       >
                         {jump.label}
                       </text>
