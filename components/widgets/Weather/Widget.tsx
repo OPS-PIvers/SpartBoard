@@ -268,13 +268,13 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div
               className="flex items-center justify-center w-full"
               style={{
-                gap: hideClothing ? '4cqw' : 'min(24px, 6cqmin)',
+                gap: hideClothing ? 'min(8px, 3cqw)' : 'min(24px, 6cqmin)',
               }}
             >
               <div
                 style={{
                   fontSize: hideClothing
-                    ? 'min(60cqh, 30cqw)'
+                    ? 'min(60cqh, 20cqw)'
                     : 'min(80px, 25cqmin)',
                 }}
               >
@@ -284,7 +284,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 className="font-black tabular-nums leading-none"
                 style={{
                   fontSize: hideClothing
-                    ? 'min(75cqh, 40cqw)'
+                    ? 'min(75cqh, 28cqw)'
                     : 'clamp(32px, 35cqmin, 400px)',
                   color: fontColor,
                 }}
@@ -301,7 +301,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
                 style={{
                   fontSize: hideClothing
-                    ? 'min(10cqh, 40cqw)'
+                    ? 'min(14px, 6cqw)'
                     : 'min(14px, 5cqmin)',
                   marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
                   color: fontColor,
