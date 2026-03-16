@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WidgetData, EmbedConfig } from '@/types';
+import { WidgetData, EmbedConfig, MiniAppConfig } from '@/types';
 import {
   Globe,
   ExternalLink,
@@ -13,6 +13,8 @@ import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
 import { generateMiniAppCode } from '@/utils/ai';
+
+const NEW_WIDGET_SPACING = 20;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, addToast } = useDashboard();
@@ -97,7 +99,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       // Create new Mini App widget next to this embed
       addWidget('miniApp', {
-        x: widget.x + widget.w + 20,
+        x: widget.x + widget.w + NEW_WIDGET_SPACING,
         y: widget.y,
         config: {
           activeApp: {
@@ -108,7 +110,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             updatedAt: Date.now(),
           },
           activeAppUnsaved: true,
-        } as Partial<import('@/types').MiniAppConfig>,
+        } as Partial<MiniAppConfig>,
       });
 
       addToast('Mini App generated successfully!', 'success');
