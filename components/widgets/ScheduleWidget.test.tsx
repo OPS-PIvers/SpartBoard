@@ -415,6 +415,37 @@ describe('ScheduleWidget', () => {
     });
   });
 
+  describe('viewMode', () => {
+    it('uses calc() row height in locked mode', () => {
+      const widget = createWidget({ viewMode: 'locked' });
+      const { container } = render(<ScheduleWidget widget={widget} />);
+      const rows = container.querySelectorAll('[style*="calc"]');
+      // All 3 items should use the fixed calc() height
+      expect(rows.length).toBe(3);
+    });
+
+    it('does not use calc() row height in flex mode', () => {
+      const widget = createWidget({ viewMode: 'flex' });
+      const { container } = render(<ScheduleWidget widget={widget} />);
+      const rows = container.querySelectorAll('[style*="calc"]');
+      // Flex rows use auto height — no calc()
+      expect(rows.length).toBe(0);
+    });
+
+    it('does not call scrollTo in flex mode even when autoScroll is enabled', () => {
+      const date = new Date();
+      date.setHours(9, 15, 0, 0);
+      vi.setSystemTime(date);
+
+      const scrollToSpy = vi.spyOn(HTMLElement.prototype, 'scrollTo');
+      const widget = createWidget({ autoScroll: true, viewMode: 'flex' });
+      render(<ScheduleWidget widget={widget} />);
+
+      expect(scrollToSpy).not.toHaveBeenCalled();
+      scrollToSpy.mockRestore();
+    });
+  });
+
   it('renders the schedule matching the current day', () => {
     // Force date to Monday
     const monday = new Date(2023, 0, 2); // Jan 2, 2023 is Monday

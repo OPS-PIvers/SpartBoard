@@ -812,8 +812,66 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   );
 
   function renderGlobalSettings() {
+    const viewMode = config.viewMode ?? 'locked';
+
+    const handleViewModeChange = (mode: 'locked' | 'flex') => {
+      updateWidget(widget.id, {
+        config: { ...config, viewMode: mode } as ScheduleConfig,
+      });
+    };
+
     return (
       <>
+        {/* Layout Mode */}
+        <div>
+          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+            <LayoutGrid className="w-3 h-3" /> Layout Mode
+          </label>
+          <div
+            className="flex gap-2"
+            role="group"
+            aria-label="Schedule layout mode"
+          >
+            <button
+              type="button"
+              onClick={() => handleViewModeChange('locked')}
+              className={`flex-1 p-2 border rounded-lg text-sm flex flex-col items-center gap-1 transition-colors ${
+                viewMode === 'locked'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+              aria-pressed={viewMode === 'locked'}
+            >
+              <span className="font-bold text-xs">Locked</span>
+              <span className="text-xxs text-slate-500 text-center leading-tight">
+                4 at a time, optional auto-scroll
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange('flex')}
+              className={`flex-1 p-2 border rounded-lg text-sm flex flex-col items-center gap-1 transition-colors ${
+                viewMode === 'flex'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+              aria-pressed={viewMode === 'flex'}
+            >
+              <span className="font-bold text-xs">Flex</span>
+              <span className="text-xxs text-slate-500 text-center leading-tight">
+                All events, resize to fit
+              </span>
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            {viewMode === 'flex'
+              ? 'All events shown at once — make the widget tall to see everything without scrolling.'
+              : 'Shows 4 events at a time. Use Auto-Scroll to track the active event automatically.'}
+          </p>
+        </div>
+
+        <hr className="border-slate-100" />
+
         {/* Typography */}
         <div>
           <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
@@ -943,32 +1001,36 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               Automatically check off items when their time passes.
             </p>
 
-            <hr className="border-slate-200" />
+            {viewMode !== 'flex' && (
+              <>
+                <hr className="border-slate-200" />
 
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-slate-700">
-                  Auto-Scroll View
-                </span>
-              </div>
-              <Toggle
-                checked={config.autoScroll ?? false}
-                onChange={(checked) =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      autoScroll: checked,
-                    } as ScheduleConfig,
-                  })
-                }
-              />
-            </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium text-slate-700">
+                      Auto-Scroll View
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={config.autoScroll ?? false}
+                    onChange={(checked) =>
+                      updateWidget(widget.id, {
+                        config: {
+                          ...config,
+                          autoScroll: checked,
+                        } as ScheduleConfig,
+                      })
+                    }
+                  />
+                </div>
 
-            <p className="text-xs text-slate-500">
-              Shows 4 items at a time — 1 completed, 1 active, 2 upcoming — and
-              smoothly scrolls forward as the day progresses. Resets
-              automatically at the start of each day.
-            </p>
+                <p className="text-xs text-slate-500">
+                  Shows 4 items at a time — 1 completed, 1 active, 2 upcoming —
+                  and smoothly scrolls forward as the day progresses. Resets
+                  automatically at the start of each day.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
