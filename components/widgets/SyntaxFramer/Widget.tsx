@@ -10,6 +10,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout/WidgetLayout';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { Settings } from 'lucide-react';
 
 interface SortableTokenProps {
   token: SyntaxToken;
@@ -149,9 +151,13 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
     return (
       <WidgetLayout
         content={
-          <div className="text-slate-400 italic text-center w-full">
-            Open settings to add tokens
-          </div>
+          <ScaledEmptyState
+            icon={Settings}
+            title="No Tokens"
+            subtitle="Open settings to add tokens"
+            titleClassName="text-slate-400"
+            subtitleClassName="text-slate-400 italic"
+          />
         }
       />
     );

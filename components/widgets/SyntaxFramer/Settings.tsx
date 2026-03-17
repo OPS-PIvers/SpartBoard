@@ -32,13 +32,9 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
     });
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    setInputText(text);
-
-    // Tokenize
+  const retokenize = (text: string, mode: 'text' | 'math'): SyntaxToken[] => {
     let newTokens: SyntaxToken[] = [];
-    if (config.mode === 'text') {
+    if (mode === 'text') {
       // Split by spaces but keep punctuation attached or as separate tokens depending on needs.
       // Simple split by whitespace for now
       const words = text.split(/\s+/).filter(Boolean);
@@ -61,7 +57,7 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
     }
 
     // Try to preserve existing colors/masks if the token value matches
-    const mappedTokens = newTokens.map((newToken) => {
+    return newTokens.map((newToken) => {
       const existingToken = config.tokens.find(
         (t) => t.value === newToken.value
       );
@@ -74,47 +70,16 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
       }
       return newToken;
     });
+  };
 
-    handleUpdate({ tokens: mappedTokens });
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setInputText(text);
+    handleUpdate({ tokens: retokenize(text, config.mode) });
   };
 
   const handleModeChange = (mode: 'text' | 'math') => {
-    // Re-tokenize when mode changes
-    let newTokens: SyntaxToken[] = [];
-    if (mode === 'text') {
-      const words = inputText.split(/\s+/).filter(Boolean);
-      newTokens = words.map((w) => ({
-        id: crypto.randomUUID(),
-        value: w,
-        isMasked: false,
-      }));
-    } else {
-      const parts = inputText
-        .split(/([+\-*/=()^]|\s+)/)
-        .filter((p) => p.trim() !== '');
-      newTokens = parts.map((p) => ({
-        id: crypto.randomUUID(),
-        value: p,
-        isMasked: false,
-      }));
-    }
-
-    // Attempt preservation
-    const mappedTokens = newTokens.map((newToken) => {
-      const existingToken = config.tokens.find(
-        (t) => t.value === newToken.value
-      );
-      if (existingToken) {
-        return {
-          ...newToken,
-          color: existingToken.color,
-          isMasked: existingToken.isMasked,
-        };
-      }
-      return newToken;
-    });
-
-    handleUpdate({ mode, tokens: mappedTokens });
+    handleUpdate({ mode, tokens: retokenize(inputText, mode) });
   };
 
   return (
@@ -175,14 +140,14 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-2">
               <span>Font Size</span>
-              <span>{config.fontSize}</span>
+              <span>{config.fontSize ?? 2}</span>
             </div>
             <input
               type="range"
               min="1"
               max="10"
               step="0.5"
-              value={config.fontSize || 5}
+              value={config.fontSize ?? 2}
               onChange={(e) =>
                 handleUpdate({ fontSize: parseFloat(e.target.value) })
               }
