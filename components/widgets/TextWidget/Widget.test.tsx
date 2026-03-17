@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TextWidget, TextSettings } from './index';
+import { TextWidget, TextSettings, TextAppearanceSettings } from './index';
 import { WidgetData, TextConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -263,7 +263,7 @@ describe('TextSettings', () => {
   });
 
   it('changes background color', () => {
-    render(<TextSettings widget={mockWidget} />);
+    render(<TextAppearanceSettings widget={mockWidget} />);
     // Find the button for the second color (#dcfce7 - Green)
     const colorButton = screen.getByLabelText('Select green background');
     fireEvent.click(colorButton);
@@ -274,7 +274,7 @@ describe('TextSettings', () => {
   });
 
   it('changes font size', () => {
-    render(<TextSettings widget={mockWidget} />);
+    render(<TextAppearanceSettings widget={mockWidget} />);
     const slider = screen.getByRole('slider');
     fireEvent.change(slider, { target: { value: '24' } });
 

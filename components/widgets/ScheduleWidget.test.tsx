@@ -7,7 +7,11 @@ import {
   cleanup,
   act,
 } from '@testing-library/react';
-import { ScheduleWidget, ScheduleSettings } from './Schedule';
+import {
+  ScheduleWidget,
+  ScheduleSettings,
+  ScheduleAppearanceSettings,
+} from './Schedule';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { useFeaturePermissions } from '../../hooks/useFeaturePermissions';
@@ -542,8 +546,13 @@ describe('ScheduleSettings', () => {
   it('renders settings controls', () => {
     render(<ScheduleSettings widget={createWidget()} />);
 
-    expect(screen.getByText(/typography/i)).toBeInTheDocument();
     expect(screen.getByText(/auto-checkoff/i)).toBeInTheDocument();
+  });
+
+  it('renders typography in appearance settings', () => {
+    render(<ScheduleAppearanceSettings widget={createWidget()} />);
+
+    expect(screen.getByText(/typography/i)).toBeInTheDocument();
   });
 
   it('renders the Auto-Scroll View toggle', () => {
