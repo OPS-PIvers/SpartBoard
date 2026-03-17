@@ -140,14 +140,14 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
           <div>
             <div className="flex justify-between text-xs text-slate-500 mb-2">
               <span>Font Size</span>
-              <span>{config.fontSize ?? 2}</span>
+              <span>{config.fontSize ?? 8}</span>
             </div>
             <input
               type="range"
-              min="1"
-              max="10"
+              min="2"
+              max="24"
               step="0.5"
-              value={config.fontSize ?? 2}
+              value={config.fontSize ?? 8}
               onChange={(e) =>
                 handleUpdate({ fontSize: parseFloat(e.target.value) })
               }

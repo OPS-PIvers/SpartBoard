@@ -1,6 +1,14 @@
 import React from 'react';
 import { SyntaxFramerConfig, SyntaxToken, WidgetComponentProps } from '@/types';
-import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
@@ -9,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetLayout } from '@/components/widgets/WidgetLayout/WidgetLayout';
+import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Settings } from 'lucide-react';
 
@@ -53,7 +61,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     transition,
     zIndex: isDragging ? 10 : 1,
     opacity: isDragging ? 0.8 : 1,
-    fontSize: `${fontSize}cqmin`,
+    fontSize: `min(100px, ${fontSize}cqmin)`,
   };
 
   const isMath = mode === 'math';
@@ -123,9 +131,18 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
   const {
     tokens = [],
     mode = 'text',
-    fontSize = 2,
+    fontSize = 8,
     alignment = 'center',
   } = config;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -191,11 +208,12 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
           style={{ gap: '2cqmin' }}
         >
           <DndContext
+            sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={tokens}
+              items={tokens.map((t) => t.id)}
               strategy={horizontalListSortingStrategy}
             >
               {tokens.map((token) => (

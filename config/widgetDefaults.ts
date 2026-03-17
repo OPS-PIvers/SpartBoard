@@ -357,7 +357,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       mode: 'text',
       tokens: [],
-      fontSize: 2,
+      fontSize: 8,
       alignment: 'center',
     },
   },
