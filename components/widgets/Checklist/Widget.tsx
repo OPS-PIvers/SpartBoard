@@ -136,15 +136,15 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   // so cqw = 1% of that card's width. Cards grow to natural content height (text
   // wrapping never clips), and the list scrolls if items exceed the widget height.
   const sm = scaleMultiplier;
-  const fontCqw = (5 * sm).toFixed(1);
-  const iconCqw = (8 * sm).toFixed(1);
-  const padVCqw = (2 * sm).toFixed(1);
-  const padHCqw = (2.5 * sm).toFixed(1);
-  const gapCqw = (2.5 * sm).toFixed(1);
-  const textSize = `clamp(10px, ${fontCqw}cqw, ${Math.round(24 * sm)}px)`;
-  const iconSize = `clamp(12px, ${iconCqw}cqw, ${Math.round(28 * sm)}px)`;
-  const cardPadding = `clamp(3px, ${padVCqw}cqw, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqw}cqw, ${Math.round(14 * sm)}px)`;
-  const cardGap = `clamp(5px, ${gapCqw}cqw, 12px)`;
+  const fontCqmin = (5 * sm).toFixed(1);
+  const iconCqmin = (8 * sm).toFixed(1);
+  const padVCqmin = (2 * sm).toFixed(1);
+  const padHCqmin = (2.5 * sm).toFixed(1);
+  const gapCqmin = (2.5 * sm).toFixed(1);
+  const textSize = `clamp(10px, ${fontCqmin}cqmin, ${Math.round(24 * sm)}px)`;
+  const iconSize = `clamp(12px, ${iconCqmin}cqmin, ${Math.round(28 * sm)}px)`;
+  const cardPadding = `clamp(3px, ${padVCqmin}cqmin, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqmin}cqmin, ${Math.round(14 * sm)}px)`;
+  const cardGap = `clamp(5px, ${gapCqmin}cqmin, 12px)`;
   const listGap = 'min(6px, 2cqmin)';
 
   if (!hasContent) {
@@ -175,7 +175,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 min-h-0 overflow-y-auto flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
               gap: listGap,
@@ -187,7 +187,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     key={item.id}
                     role="listitem"
                     style={{
-                      containerType: 'inline-size',
+                      flex: 1,
+                      minHeight: 0,
+                      containerType: 'size',
                     }}
                   >
                     <ChecklistCard
@@ -210,7 +212,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     key={student.id}
                     role="listitem"
                     style={{
-                      containerType: 'inline-size',
+                      flex: 1,
+                      minHeight: 0,
+                      containerType: 'size',
                     }}
                   >
                     <ChecklistCard
