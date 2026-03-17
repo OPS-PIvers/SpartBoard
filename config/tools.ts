@@ -36,8 +36,8 @@ import {
   CarFront,
   Smartphone,
   Layers,
+  Network,
 } from 'lucide-react';
-import { Network } from 'lucide-react';
 
 import { ToolMetadata } from '../types';
 

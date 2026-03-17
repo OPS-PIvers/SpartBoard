@@ -8,11 +8,27 @@ import {
 } from '@/types';
 import { Trash2 } from 'lucide-react';
 
+const getFontClass = (fontKey: string, globalFontFamily?: string): string => {
+  const effectiveKey =
+    fontKey === 'global' && globalFontFamily ? globalFontFamily : fontKey;
+  switch (effectiveKey) {
+    case 'comic':
+      return 'font-comic';
+    case 'handwritten':
+      return 'font-handwritten';
+    case 'rounded':
+      return 'font-rounded';
+    case 'sans':
+    default:
+      return 'font-sans';
+  }
+};
+
 export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget, bringToFront, activeDashboard } = useDashboard();
   const config = widget.config as ConceptWebConfig;
   const nodes = useMemo(() => config.nodes ?? [], [config.nodes]);
   const edges = useMemo(() => config.edges ?? [], [config.edges]);
@@ -40,7 +56,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleAddNode = () => {
     if (isStudentView) return;
 
-    // Add some random offset so they don't stack perfectly perfectly (in percentages)
+    // Add some random offset so they don't stack perfectly (in percentages)
     const offsetX = Math.random() * 5 - 2.5;
     const offsetY = Math.random() * 5 - 2.5;
 
@@ -100,6 +116,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     ) {
       return;
     }
+    bringToFront(widget.id);
     e.stopPropagation();
     target.setPointerCapture(e.pointerId);
     setActiveNodeId(node.id);
@@ -144,7 +161,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   // --- DRAW EDGE HANDLERS ---
   const handleHandlePointerDown = (
-    e: React.PointerEvent<HTMLDivElement>,
+    e: React.PointerEvent<HTMLElement>,
     nodeId: string
   ) => {
     if (isStudentView) return;
@@ -155,20 +172,26 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
-      setDrawingLineEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      setDrawingLineEnd({
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      });
     }
   };
 
-  const handleHandlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleHandlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
     if (!drawingFromId || isStudentView) return;
     e.stopPropagation();
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
-      setDrawingLineEnd({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      setDrawingLineEnd({
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+      });
     }
   };
 
-  const handleHandlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleHandlePointerUp = (e: React.PointerEvent<HTMLElement>) => {
     if (!drawingFromId || isStudentView) return;
     e.stopPropagation();
     const target = e.target as HTMLElement;
@@ -231,17 +254,16 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     return displayNodes.find((n) => n.id === drawingFromId);
   }, [drawingFromId, displayNodes]);
 
-  // Default to sans if unspecified
-  const currentFontFamily = config.fontFamily ?? 'sans';
+  const globalStyle = activeDashboard?.globalStyle;
+  const fontClassName = useMemo(
+    () => getFontClass(config.fontFamily ?? 'global', globalStyle?.fontFamily),
+    [config.fontFamily, globalStyle?.fontFamily]
+  );
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-slate-50 rounded-xl select-none"
-      style={{
-        fontFamily:
-          currentFontFamily === 'sans' ? 'sans-serif' : currentFontFamily,
-      }}
+      className={`relative w-full h-full overflow-hidden bg-slate-50 rounded-xl select-none ${fontClassName}`}
     >
       {!isStudentView && (
         <button
@@ -252,7 +274,11 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
         </button>
       )}
 
-      <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
+      <svg
+        className="absolute inset-0 z-0 pointer-events-none w-full h-full"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+      >
         <defs>
           <marker
             id={`arrowhead-${widget.id}`}
@@ -279,7 +305,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           return (
             <path
               key={edge.id}
-              d={`M ${x1}% ${y1}% L ${x2}% ${y2}%`}
+              d={`M ${x1} ${y1} L ${x2} ${y2}`}
               stroke="#94a3b8"
               strokeWidth="0.5cqw"
               strokeDasharray={edge.lineStyle === 'dashed' ? '5,5' : 'none'}
@@ -294,7 +320,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
         {sourceDrawNode && drawingLineEnd && (
           <path
-            d={`M ${sourceDrawNode.x + NODE_WIDTH_PCT / 2}% ${sourceDrawNode.y + NODE_HEIGHT_PCT / 2}% L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
+            d={`M ${sourceDrawNode.x + NODE_WIDTH_PCT / 2} ${sourceDrawNode.y + NODE_HEIGHT_PCT / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
             stroke="#94a3b8"
             strokeWidth="0.5cqw"
             strokeDasharray="5,5"
@@ -312,7 +338,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           onPointerMove={handleNodePointerMove}
           onPointerUp={handleNodePointerUp}
           onPointerCancel={handleNodePointerUp}
-          className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqw] cursor-grab active:cursor-grabbing p-[1cqw] group"
+          className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
           style={{
             left: `${node.x}%`,
             top: `${node.y}%`,
@@ -323,7 +349,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           }}
         >
           <textarea
-            className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[0.2cqw] focus:ring-slate-400 rounded-[0.5cqw] p-[0.5cqw] text-[1.5cqmin] font-medium text-slate-800 leading-tight"
+            className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[0.2cqmin] focus:ring-slate-400 rounded-[0.5cqmin] p-[0.5cqmin] text-[1.5cqmin] font-medium text-slate-800 leading-tight"
             value={node.text}
             onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
             placeholder="Idea..."
@@ -333,23 +359,49 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           {!isStudentView && (
             <>
               <button
-                className="absolute -top-2 -right-2 p-1 bg-white border border-slate-200 text-rose-500 rounded-full opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                type="button"
+                className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                style={{
+                  top: 'max(-4px, -1cqmin)',
+                  right: 'max(-4px, -1cqmin)',
+                  padding: 'min(4px, 1cqmin)',
+                  borderRadius: '9999px',
+                }}
                 onClick={() => handleDeleteNode(node.id)}
                 title="Delete Node"
+                aria-label="Delete node"
               >
-                <Trash2 size={12} />
+                <Trash2
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
               </button>
 
-              <div
-                className="handle absolute -bottom-2 p-1 bg-white border border-slate-300 rounded-full cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
+              <button
+                type="button"
+                className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
+                style={{
+                  bottom: 'max(-4px, -1cqmin)',
+                  padding: 'min(4px, 1cqmin)',
+                  borderRadius: '9999px',
+                }}
                 onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
                 onPointerMove={handleHandlePointerMove}
                 onPointerUp={handleHandlePointerUp}
                 onPointerCancel={handleHandlePointerUp}
                 title="Drag to connect"
+                aria-label="Drag to connect"
               >
-                <div className="w-2 h-2 rounded-full bg-current pointer-events-none" />
-              </div>
+                <div
+                  className="rounded-full bg-current pointer-events-none"
+                  style={{
+                    width: 'min(8px, 2cqmin)',
+                    height: 'min(8px, 2cqmin)',
+                  }}
+                />
+              </button>
             </>
           )}
         </div>
