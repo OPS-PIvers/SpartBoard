@@ -34,4 +34,12 @@ describe('OptionInput', () => {
 
     expect(handleSave).toHaveBeenCalledWith(1, 'Updated Option');
   });
+
+  it('renders with correct placeholder when label is empty', () => {
+    render(<OptionInput label="" index={2} onSave={vi.fn()} />);
+    expect(screen.getByRole('textbox')).toHaveAttribute(
+      'placeholder',
+      'Option 3'
+    );
+  });
 });
