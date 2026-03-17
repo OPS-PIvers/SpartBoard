@@ -275,7 +275,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{
                   fontSize: hideClothing
                     ? 'max(min(60cqh, 20cqw), 28cqmin)'
-                    : 'clamp(24px, 22cqmin, 120px)',
+                    : '22cqmin',
                 }}
               >
                 {getIcon('1em')}
@@ -285,7 +285,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{
                   fontSize: hideClothing
                     ? 'max(min(75cqh, 28cqw), 35cqmin)'
-                    : 'clamp(32px, 35cqmin, 400px)',
+                    : '35cqmin',
                   color: fontColor,
                 }}
               >
@@ -300,9 +300,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
                 style={{
-                  fontSize: hideClothing
-                    ? 'min(14px, 6cqw)'
-                    : 'min(14px, 5cqmin)',
+                  fontSize: hideClothing ? '6cqw' : '5cqmin',
                   marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
                   color: fontColor,
                   opacity: 0.8,

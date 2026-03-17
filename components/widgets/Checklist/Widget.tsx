@@ -132,19 +132,19 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // CSS container query sizing — each card wrapper gets container-type: size,
-  // so cqh = 1% of that card's actual height. This scales continuously during
-  // resize (no pointer-release lag) and handles any item count correctly.
+  // CSS container query sizing — each card wrapper gets container-type: inline-size,
+  // so cqw = 1% of that card's width. Cards grow to natural content height (text
+  // wrapping never clips), and the list scrolls if items exceed the widget height.
   const sm = scaleMultiplier;
-  const fontCqh = (25 * sm).toFixed(1);
-  const iconCqh = (42 * sm).toFixed(1);
-  const padVCqh = (6 * sm).toFixed(1);
+  const fontCqw = (5 * sm).toFixed(1);
+  const iconCqw = (8 * sm).toFixed(1);
+  const padVCqw = (2 * sm).toFixed(1);
   const padHCqw = (2.5 * sm).toFixed(1);
-  const gapCqh = (3 * sm).toFixed(1);
-  const textSize = `clamp(10px, ${fontCqh}cqh, ${Math.round(28 * sm)}px)`;
-  const iconSize = `clamp(12px, ${iconCqh}cqh, ${Math.round(26 * sm)}px)`;
-  const cardPadding = `clamp(3px, ${padVCqh}cqh, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqw}cqw, ${Math.round(14 * sm)}px)`;
-  const cardGap = `clamp(5px, ${gapCqh}cqh, 12px)`;
+  const gapCqw = (2.5 * sm).toFixed(1);
+  const textSize = `clamp(10px, ${fontCqw}cqw, ${Math.round(24 * sm)}px)`;
+  const iconSize = `clamp(12px, ${iconCqw}cqw, ${Math.round(28 * sm)}px)`;
+  const cardPadding = `clamp(3px, ${padVCqw}cqw, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqw}cqw, ${Math.round(14 * sm)}px)`;
+  const cardGap = `clamp(5px, ${gapCqw}cqw, 12px)`;
   const listGap = 'min(6px, 2cqmin)';
 
   if (!hasContent) {
@@ -175,7 +175,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-y-auto flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
               gap: listGap,
@@ -187,11 +187,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     key={item.id}
                     role="listitem"
                     style={{
-                      flex: '1 1 0',
-                      minHeight: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      containerType: 'size',
+                      containerType: 'inline-size',
                     }}
                   >
                     <ChecklistCard
@@ -214,11 +210,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     key={student.id}
                     role="listitem"
                     style={{
-                      flex: '1 1 0',
-                      minHeight: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      containerType: 'size',
+                      containerType: 'inline-size',
                     }}
                   >
                     <ChecklistCard
