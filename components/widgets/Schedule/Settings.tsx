@@ -140,8 +140,8 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
             : 'border-slate-200'
         }`}
       >
-        {/* Main row */}
-        <div className="flex items-center gap-1.5 p-2">
+        {/* Row 1: grip + task name + delete */}
+        <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
           <div
             {...attributes}
             {...listeners}
@@ -156,8 +156,19 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
               item.id && onUpdate(item.id, { task: e.target.value })
             }
             placeholder="Task name"
-            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
+            className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
           />
+          <button
+            type="button"
+            onClick={() => item.id && onDelete(item.id)}
+            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+            aria-label="Delete event"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {/* Row 2: times + toggles (indented to align with task input) */}
+        <div className="flex items-center gap-1.5 px-2 pb-2 pl-9">
           <input
             type="time"
             value={item.startTime ?? item.time ?? ''}
@@ -168,7 +179,7 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
                 time: e.target.value,
               })
             }
-            className="w-[5.5rem] px-1 py-1.5 text-xs border border-slate-200 rounded outline-none shrink-0"
+            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
           />
           <input
             type="time"
@@ -176,7 +187,7 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
             onChange={(e) =>
               item.id && onUpdate(item.id, { endTime: e.target.value })
             }
-            className="w-[5.5rem] px-1 py-1.5 text-xs border border-slate-200 rounded outline-none shrink-0"
+            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
           />
           <button
             type="button"
@@ -203,7 +214,7 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
           <button
             type="button"
             onClick={() => item.id && onToggleExpand(item.id)}
-            className={`p-1.5 rounded transition-colors shrink-0 ${
+            className={`p-1.5 mr-1 rounded transition-colors shrink-0 ${
               hasLinked || isExpanded
                 ? 'text-blue-500 bg-blue-50'
                 : 'text-slate-300 hover:text-slate-500 hover:bg-slate-100'
@@ -212,14 +223,6 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
             aria-pressed={isExpanded}
           >
             <Link className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => item.id && onDelete(item.id)}
-            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
-            aria-label="Delete event"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -557,7 +560,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6">
       <div>
         {/* Tab header */}
-        <div className="flex gap-2 mb-4 border-b border-slate-200">
+        <div className="flex justify-center gap-2 mb-4 border-b border-slate-200">
           <button
             onClick={() => setActiveTab('my')}
             className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
@@ -604,17 +607,13 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     key={s.id}
                     padding="sm"
                     rounded="xl"
-                    className="overflow-hidden"
+                    className="overflow-hidden cursor-pointer select-none"
+                    onClick={() =>
+                      setExpandedScheduleId(isExpanded ? null : s.id)
+                    }
                   >
                     {/* Accordion header */}
-                    <button
-                      type="button"
-                      className="w-full text-left flex items-center gap-2"
-                      onClick={() =>
-                        setExpandedScheduleId(isExpanded ? null : s.id)
-                      }
-                      aria-expanded={isExpanded}
-                    >
+                    <div className="w-full flex items-center gap-2">
                       <ChevronDown
                         className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
                           isExpanded ? '' : '-rotate-90'
@@ -627,7 +626,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                           handleUpdateSchedule(s.id, { name: e.target.value })
                         }
                         onClick={(e) => e.stopPropagation()}
-                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-none cursor-text text-sm"
+                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-none cursor-text text-sm select-text"
                         placeholder="Schedule Name"
                       />
                       <button
@@ -641,7 +640,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    </button>
+                    </div>
 
                     {/* Days pills */}
                     <div className="flex items-center gap-2 mt-2">
@@ -683,10 +682,28 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
                     {/* Expanded items editor */}
                     {isExpanded && (
-                      <div className="mt-3 -mx-3 -mb-3 border-t border-slate-100">
+                      <div
+                        className="mt-3 -mx-3 -mb-3 border-t border-slate-100 cursor-default select-text"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {/* Toolbar */}
                         <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => handleSortByTime(s.id)}
+                            className="text-xxs flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium"
+                            title="Sort by start time"
+                          >
+                            <ArrowUpDown className="w-3 h-3" /> Sort
+                          </button>
                           <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(s.id)}
+                              className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              <Plus className="w-3 h-3" /> Add Event
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleImportFromCalendar(s.id)}
@@ -695,22 +712,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                             >
                               <CalendarDays className="w-3 h-3" /> Import
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSortByTime(s.id)}
-                              className="text-xxs flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium"
-                              title="Sort by start time"
-                            >
-                              <ArrowUpDown className="w-3 h-3" /> Sort
-                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleAddItem(s.id)}
-                            className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            <Plus className="w-3 h-3" /> Add Event
-                          </button>
                         </div>
 
                         {/* Items list */}
