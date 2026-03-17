@@ -132,19 +132,19 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // CSS container query sizing — each card wrapper gets container-type: inline-size,
-  // so cqw = 1% of that card's width. Cards grow to natural content height (text
-  // wrapping never clips), and the list scrolls if items exceed the widget height.
+  // Cards have container-type: size and fill equal fractions of the widget height.
+  // Height is always the smaller dimension, so we scale relative to cqh (card height).
+  // Horizontal spacing uses cqw so it stays proportional to card width.
   const sm = scaleMultiplier;
-  const fontCqmin = (5 * sm).toFixed(1);
-  const iconCqmin = (8 * sm).toFixed(1);
-  const padVCqmin = (2 * sm).toFixed(1);
-  const padHCqmin = (2.5 * sm).toFixed(1);
-  const gapCqmin = (2.5 * sm).toFixed(1);
-  const textSize = `clamp(10px, ${fontCqmin}cqmin, ${Math.round(24 * sm)}px)`;
-  const iconSize = `clamp(12px, ${iconCqmin}cqmin, ${Math.round(28 * sm)}px)`;
-  const cardPadding = `clamp(3px, ${padVCqmin}cqmin, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqmin}cqmin, ${Math.round(14 * sm)}px)`;
-  const cardGap = `clamp(5px, ${gapCqmin}cqmin, 12px)`;
+  const fontCqh = (22 * sm).toFixed(1);
+  const iconCqh = (40 * sm).toFixed(1);
+  const padVCqh = (8 * sm).toFixed(1);
+  const padHCqw = (3 * sm).toFixed(1);
+  const gapCqw = (4 * sm).toFixed(1);
+  const textSize = `clamp(12px, ${fontCqh}cqh, ${Math.round(40 * sm)}px)`;
+  const iconSize = `clamp(14px, ${iconCqh}cqh, ${Math.round(56 * sm)}px)`;
+  const cardPadding = `clamp(6px, ${padVCqh}cqh, ${Math.round(20 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
+  const cardGap = `clamp(6px, ${gapCqw}cqw, 16px)`;
   const listGap = 'min(6px, 2cqmin)';
 
   if (!hasContent) {
