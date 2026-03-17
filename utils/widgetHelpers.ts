@@ -55,6 +55,7 @@ export const getTitle = (
     const cfg = widget.config as QuizConfig;
     return cfg.selectedQuizTitle ? `Quiz: ${cfg.selectedQuizTitle}` : 'Quiz';
   }
+  if (widget.type === 'starter-pack') return 'Starter Pack';
   return widget.type.charAt(0).toUpperCase() + widget.type.slice(1);
 };
 
@@ -65,4 +66,17 @@ export const getTitle = (
 export const getDefaultWidgetConfig = (type: WidgetType): WidgetConfig => {
   const config = WIDGET_DEFAULTS[type].config ?? {};
   return structuredClone(config);
+};
+
+export const createBoardSnapshot = (
+  widgets: WidgetData[]
+): Omit<WidgetData, 'id'>[] => {
+  return widgets.map((w) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...rest } = w;
+    return {
+      ...rest,
+      config: structuredClone(rest.config),
+    };
+  });
 };

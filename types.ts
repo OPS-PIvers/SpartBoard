@@ -46,7 +46,8 @@ export type WidgetType =
   | 'reveal-grid'
   | 'numberLine'
   | 'syntax-framer'
-  | 'hotspot-image';
+  | 'hotspot-image'
+  | 'starter-pack';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1149,6 +1150,22 @@ export interface NextUpGlobalConfig {
   >;
 }
 
+export interface StarterPack {
+  id: string;
+  name: string;
+  description?: string;
+  icon: string; // Lucide icon key
+  color: string; // Tailwind color class
+  gradeLevels: string[]; // e.g., ["K", "1", "2"]
+  isLocked: boolean; // Teachers cannot edit/delete
+  widgets: Omit<WidgetData, 'id'>[]; // The snapshot of widget states
+}
+
+export type BuildingStarterPack = StarterPack;
+export type UserStarterPack = StarterPack;
+
+export type StarterPackConfig = Record<string, never>;
+
 export interface OnboardingConfig {
   completedTasks: string[];
 }
@@ -1395,7 +1412,8 @@ export type WidgetConfig =
   | NumberLineConfig
   | ConceptWebConfig
   | SyntaxFramerConfig
-  | HotspotImageConfig;
+  | HotspotImageConfig
+  | StarterPackConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1494,7 +1512,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                               ? SyntaxFramerConfig
                                                                                               : T extends 'hotspot-image'
                                                                                                 ? HotspotImageConfig
-                                                                                                : never;
+                                                                                                : T extends 'starter-pack'
+                                                                                                  ? StarterPackConfig
+                                                                                                  : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

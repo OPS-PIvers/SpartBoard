@@ -205,4 +205,10 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Concept Web',
     color: 'bg-violet-500',
   },
+  {
+    type: 'starter-pack',
+    icon: Wand2,
+    label: 'Starter Packs',
+    color: 'bg-indigo-600',
+  },
 ];
