@@ -36,7 +36,9 @@ import {
   CarFront,
   Smartphone,
   Layers,
+  Network,
 } from 'lucide-react';
+
 import { ToolMetadata } from '../types';
 
 import { RecordIcon } from '../components/layout/dock/RecordIcon';
@@ -79,6 +81,12 @@ export const TOOLS: ToolMetadata[] = [
     icon: CalendarDays,
     label: 'Specialist',
     color: 'bg-teal-700',
+  },
+  {
+    type: 'concept-web',
+    icon: Network,
+    label: 'Concept Web',
+    color: 'bg-purple-600',
   },
   {
     type: 'graphic-organizer',

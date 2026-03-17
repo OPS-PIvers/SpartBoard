@@ -88,6 +88,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   'car-rider-pro': ALL_GRADE_LEVELS,
   'specialist-schedule': ['k-2', '3-5', '6-8'],
   'graphic-organizer': ['k-2', '3-5', '6-8'],
+  'concept-web': ['k-2', '3-5', '6-8', '9-12'],
   'reveal-grid': ALL_GRADE_LEVELS,
   numberLine: ALL_GRADE_LEVELS,
 };

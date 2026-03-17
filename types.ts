@@ -42,6 +42,7 @@ export type WidgetType =
   | 'music'
   | 'specialist-schedule'
   | 'graphic-organizer'
+  | 'concept-web'
   | 'reveal-grid'
   | 'numberLine';
 
@@ -1263,6 +1264,28 @@ export interface GraphicOrganizerConfig {
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
 }
+
+export interface ConceptNode {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  bgColor?: string;
+}
+
+export interface ConceptEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label?: string; // e.g., "causes", "eats"
+  lineStyle: 'solid' | 'dashed';
+}
+
+export interface ConceptWebConfig {
+  nodes: ConceptNode[];
+  edges: ConceptEdge[];
+  fontFamily?: GlobalFontFamily;
+}
 export interface CarRiderProConfig {
   iframeUrl?: string;
   cardColor?: string;
@@ -1329,6 +1352,7 @@ export type WidgetConfig =
   | MusicConfig
   | SpecialistScheduleConfig
   | GraphicOrganizerConfig
+  | ConceptWebConfig
   | RevealGridConfig
   | NumberLineConfig;
 
@@ -1419,11 +1443,13 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                     ? SpecialistScheduleConfig
                                                                                     : T extends 'graphic-organizer'
                                                                                       ? GraphicOrganizerConfig
-                                                                                      : T extends 'reveal-grid'
-                                                                                        ? RevealGridConfig
-                                                                                        : T extends 'numberLine'
-                                                                                          ? NumberLineConfig
-                                                                                          : never;
+                                                                                      : T extends 'concept-web'
+                                                                                        ? ConceptWebConfig
+                                                                                        : T extends 'reveal-grid'
+                                                                                          ? RevealGridConfig
+                                                                                          : T extends 'numberLine'
+                                                                                            ? NumberLineConfig
+                                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

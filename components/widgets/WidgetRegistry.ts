@@ -132,6 +132,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleWidget'
   ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Widget'),
+    'ConceptWebWidget'
+  ),
   'graphic-organizer': lazyNamed(
     () => import('./GraphicOrganizer/Widget'),
     'GraphicOrganizerWidget'
@@ -223,6 +227,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleSettings'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Settings'),
+    'ConceptWebSettings'
   ),
   'graphic-organizer': lazyNamed(
     () => import('./GraphicOrganizer/Settings'),
@@ -538,6 +546,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'specialist-schedule': {
     baseWidth: 300,
     baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'concept-web': {
+    baseWidth: 800,
+    baseHeight: 600,
     canSpread: true,
     skipScaling: true,
     padding: 0,
