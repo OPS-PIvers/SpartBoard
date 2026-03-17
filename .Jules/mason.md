@@ -23,3 +23,5 @@
 ## 2026-03-12 - [Strict Versioning and Cleanup] **Bottleneck:** Loose pnpm version constraint in CI led to broken builds, and .gitignore concatenated entries. **Fix:** Centralized pnpm version enforcement via the root `package.json` (engines/packageManager) used by CI, and separated `.gitignore` entries for clarity.
 
 ## 2026-03-22 - [Incomplete Validation] **Bottleneck:** The validate script did not type-check the cloud functions directory, allowing potential backend typescript errors to be merged despite passing CI. **Fix:** Updated the `validate` script in `package.json` to use `type-check:all` instead of `type-check`.
+
+## 2026-03-24 - [Optimized Docker Build] **Bottleneck:** Local backend dependencies bleeding into Docker context and non-deterministic dependency installations. **Fix:** Added functions/node_modules to .dockerignore and explicitly copied functions/package.json & lockfile, running targeted frozen-lockfile installs.
