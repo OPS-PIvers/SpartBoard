@@ -7,22 +7,7 @@ import {
   ConceptEdge,
 } from '@/types';
 import { Trash2 } from 'lucide-react';
-
-const getFontClass = (fontKey: string, globalFontFamily?: string): string => {
-  const effectiveKey =
-    fontKey === 'global' && globalFontFamily ? globalFontFamily : fontKey;
-  switch (effectiveKey) {
-    case 'comic':
-      return 'font-comic';
-    case 'handwritten':
-      return 'font-handwritten';
-    case 'rounded':
-      return 'font-rounded';
-    case 'sans':
-    default:
-      return 'font-sans';
-  }
-};
+import { getFontClass } from '@/utils/styles';
 
 export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
@@ -256,7 +241,11 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   const globalStyle = activeDashboard?.globalStyle;
   const fontClassName = useMemo(
-    () => getFontClass(config.fontFamily ?? 'global', globalStyle?.fontFamily),
+    () =>
+      getFontClass(
+        config.fontFamily ?? 'global',
+        globalStyle?.fontFamily ?? 'sans'
+      ),
     [config.fontFamily, globalStyle?.fontFamily]
   );
 
@@ -267,7 +256,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     >
       {!isStudentView && (
         <button
-          className="absolute top-2 left-2 z-20 px-3 py-1 bg-white border border-slate-300 rounded shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
+          className="absolute z-20 bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
+          style={{
+            top: 'min(8px, 2cqmin)',
+            left: 'min(8px, 2cqmin)',
+            padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(14px, 4cqmin)',
+          }}
           onClick={handleAddNode}
         >
           + Add Node
@@ -307,7 +302,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               key={edge.id}
               d={`M ${x1} ${y1} L ${x2} ${y2}`}
               stroke="#94a3b8"
-              strokeWidth="0.5cqw"
+              strokeWidth="0.5"
               strokeDasharray={edge.lineStyle === 'dashed' ? '5,5' : 'none'}
               markerEnd={`url(#arrowhead-${widget.id})`}
               className="pointer-events-auto cursor-pointer hover:stroke-rose-400 transition-colors"
@@ -322,7 +317,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           <path
             d={`M ${sourceDrawNode.x + NODE_WIDTH_PCT / 2} ${sourceDrawNode.y + NODE_HEIGHT_PCT / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
             stroke="#94a3b8"
-            strokeWidth="0.5cqw"
+            strokeWidth="0.5"
             strokeDasharray="5,5"
             markerEnd={`url(#arrowhead-${widget.id})`}
             className="opacity-50 pointer-events-none"

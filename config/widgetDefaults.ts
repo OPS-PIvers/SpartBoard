@@ -339,8 +339,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } as RevealGridConfig,
   },
   numberLine: {
-    w: 7,
-    h: 3,
+    w: 700,
+    h: 200,
     config: {
       min: 0,
       max: 10,
@@ -352,16 +352,16 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   'concept-web': {
-    w: 8,
-    h: 6,
+    w: 800,
+    h: 600,
     config: {
       nodes: [],
       edges: [],
     },
   },
   'syntax-framer': {
-    w: 5,
-    h: 2,
+    w: 500,
+    h: 150,
     config: {
       mode: 'text',
       tokens: [],
@@ -370,8 +370,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   'hotspot-image': {
-    w: 6,
-    h: 5,
+    w: 500,
+    h: 400,
     config: {
       baseImageUrl: '',
       hotspots: [],

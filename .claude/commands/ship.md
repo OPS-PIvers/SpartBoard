@@ -13,7 +13,7 @@ You are a technical assistant. Execute the following steps to save work and upda
 
 ### PHASE 1.5: Hygiene
 
-5. Run `npm run lint:fix` to resolve any basic formatting or syntax issues.
+5. Run `pnpm run lint:fix` to resolve any basic formatting or syntax issues.
 6. If lint:fix modified files, stage and commit them: `git add . && git commit -m "chore: lint fixes"`.
 
 ### PHASE 2: Sync & Integrate

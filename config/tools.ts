@@ -37,6 +37,7 @@ import {
   Smartphone,
   Layers,
   MapPin,
+  Share2,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -197,5 +198,11 @@ export const TOOLS: ToolMetadata[] = [
     icon: MapPin,
     label: 'Hotspot Image',
     color: 'bg-emerald-500',
+  },
+  {
+    type: 'concept-web',
+    icon: Share2,
+    label: 'Concept Web',
+    color: 'bg-violet-500',
   },
 ];

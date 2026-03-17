@@ -626,13 +626,6 @@ export interface ScheduleConfig {
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
   cardOpacity?: number;
-  /**
-   * Controls how events are laid out in the widget.
-   * 'locked': Fixed-height rows, 4 visible at a time with optional auto-scroll support (default).
-   * 'flex': Natural-height rows; all events are visible when the widget is tall enough,
-   *         otherwise the list remains scrollable within the widget.
-   */
-  viewMode?: 'locked' | 'flex';
 }
 
 export interface CalendarConfig {

@@ -1,2 +1,5 @@
 export { SyntaxFramerWidget } from './Widget';
-export { SyntaxFramerSettings } from './Settings';
+export {
+  SyntaxFramerSettings,
+  SyntaxFramerAppearanceSettings,
+} from './Settings';

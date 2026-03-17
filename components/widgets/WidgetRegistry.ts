@@ -149,6 +149,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./HotspotImage'),
     'HotspotImageWidget'
   ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Widget'),
+    'ConceptWebWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -309,6 +313,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'reveal-grid': lazyNamed(
     () => import('./RevealGrid'),
     'RevealGridAppearanceSettings'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerAppearanceSettings'
   ),
 };
 

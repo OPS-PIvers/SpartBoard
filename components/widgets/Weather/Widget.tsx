@@ -257,25 +257,23 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         <div
           className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
           style={{
-            gap: hideClothing ? '2cqh' : 'min(12px, 2.5cqmin)',
-            padding: hideClothing ? '4cqh 2cqw' : 'min(8px, 2cqmin)',
+            gap: hideClothing ? '2cqmin' : 'min(12px, 2.5cqmin)',
+            padding: hideClothing ? 'min(16px, 3cqmin)' : 'min(8px, 2cqmin)',
           }}
         >
           <div
             className="flex flex-col items-center justify-center w-full"
-            style={{ gap: hideClothing ? '1cqh' : 'min(4px, 1cqmin)' }}
+            style={{ gap: hideClothing ? '1cqmin' : 'min(4px, 1cqmin)' }}
           >
             <div
               className="flex items-center justify-center w-full"
               style={{
-                gap: hideClothing ? 'min(8px, 3cqw)' : 'min(24px, 6cqmin)',
+                gap: hideClothing ? 'min(8px, 3cqmin)' : 'min(24px, 6cqmin)',
               }}
             >
               <div
                 style={{
-                  fontSize: hideClothing
-                    ? 'max(min(60cqh, 20cqw), 28cqmin)'
-                    : '22cqmin',
+                  fontSize: hideClothing ? '28cqmin' : '22cqmin',
                 }}
               >
                 {getIcon('1em')}
@@ -283,9 +281,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="font-black tabular-nums leading-none"
                 style={{
-                  fontSize: hideClothing
-                    ? 'max(min(75cqh, 28cqw), 35cqmin)'
-                    : '35cqmin',
+                  fontSize: '35cqmin',
                   color: fontColor,
                 }}
               >
@@ -300,8 +296,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
                 style={{
-                  fontSize: hideClothing ? '6cqw' : '5cqmin',
-                  marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
+                  fontSize: hideClothing ? '6cqmin' : '5cqmin',
+                  marginTop: hideClothing ? '1cqmin' : 'min(2px, 0.5cqmin)',
                   color: fontColor,
                   opacity: 0.8,
                 }}

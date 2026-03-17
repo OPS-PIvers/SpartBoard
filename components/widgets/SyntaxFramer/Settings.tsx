@@ -134,55 +134,6 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
         </div>
       </div>
 
-      <div>
-        <SettingsLabel icon={ALargeSmall}>Appearance</SettingsLabel>
-        <div className="space-y-4 mb-4">
-          <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-2">
-              <span>Font Size</span>
-              <span>{config.fontSize ?? 8}</span>
-            </div>
-            <input
-              type="range"
-              min="2"
-              max="24"
-              step="0.5"
-              value={config.fontSize ?? 8}
-              onChange={(e) =>
-                handleUpdate({ fontSize: parseFloat(e.target.value) })
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <span className="text-xs text-slate-500 mb-2 block">Alignment</span>
-            <div className="flex gap-2">
-              <button
-                className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
-                  config.alignment === 'left'
-                    ? 'bg-slate-100 border-slate-300 text-slate-900'
-                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-                onClick={() => handleUpdate({ alignment: 'left' })}
-              >
-                <AlignLeft className="w-4 h-4" />
-              </button>
-              <button
-                className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
-                  config.alignment === 'center'
-                    ? 'bg-slate-100 border-slate-300 text-slate-900'
-                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-                onClick={() => handleUpdate({ alignment: 'center' })}
-              >
-                <AlignCenter className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-lg flex gap-2">
         <div className="flex-1">
           <strong>Tip:</strong> Shift+Click a token on the board to change its
@@ -194,3 +145,65 @@ export const SyntaxFramerSettings: React.FC<SyntaxFramerSettingsProps> = ({
 };
 
 export default SyntaxFramerSettings;
+
+export const SyntaxFramerAppearanceSettings: React.FC<
+  SyntaxFramerSettingsProps
+> = ({ widget }) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as SyntaxFramerConfig;
+
+  const handleUpdate = (updates: Partial<SyntaxFramerConfig>) => {
+    updateWidget(widget.id, {
+      config: { ...config, ...updates },
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <SettingsLabel icon={ALargeSmall}>Font Size</SettingsLabel>
+        <div className="flex justify-between text-xs text-slate-500 mb-2">
+          <span>Size</span>
+          <span>{config.fontSize ?? 8}</span>
+        </div>
+        <input
+          type="range"
+          min="2"
+          max="24"
+          step="0.5"
+          value={config.fontSize ?? 8}
+          onChange={(e) =>
+            handleUpdate({ fontSize: parseFloat(e.target.value) })
+          }
+          className="w-full"
+        />
+      </div>
+
+      <div>
+        <SettingsLabel icon={AlignLeft}>Alignment</SettingsLabel>
+        <div className="flex gap-2">
+          <button
+            className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
+              config.alignment === 'left'
+                ? 'bg-slate-100 border-slate-300 text-slate-900'
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+            }`}
+            onClick={() => handleUpdate({ alignment: 'left' })}
+          >
+            <AlignLeft className="w-4 h-4" />
+          </button>
+          <button
+            className={`flex-1 flex items-center justify-center py-2 px-3 rounded-lg border transition-colors ${
+              config.alignment === 'center'
+                ? 'bg-slate-100 border-slate-300 text-slate-900'
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+            }`}
+            onClick={() => handleUpdate({ alignment: 'center' })}
+          >
+            <AlignCenter className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

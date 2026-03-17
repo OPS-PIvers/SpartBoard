@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { MathToolConfig, PlaceValueBlock } from '@/types';
 
 interface PlaceValueToolProps {
@@ -120,15 +120,11 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingBlockId, setDraggingBlockId] = useState<string | null>(null);
 
-  // Local state for dragging to make it smooth, synced back to config on drop
+  // Local state for dragging to make it smooth, seeded at drag start
   const [localBlocks, setLocalBlocks] = useState(blocks);
 
-  useEffect(() => {
-    if (!draggingBlockId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLocalBlocks(config.placeValueBlocks ?? []);
-    }
-  }, [config.placeValueBlocks, draggingBlockId]);
+  // Use localBlocks only during a drag; otherwise derive from config directly
+  const displayBlocks = draggingBlockId ? localBlocks : blocks;
 
   const handlePointerDown = (
     e: React.PointerEvent<SVGGElement>,
@@ -136,6 +132,7 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
   ) => {
     e.stopPropagation();
     (e.target as Element).setPointerCapture(e.pointerId);
+    setLocalBlocks(blocks); // Seed from current config at drag start
     setDraggingBlockId(id);
   };
 
@@ -307,7 +304,7 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
           })}
 
           {/* Blocks */}
-          {localBlocks.map((b) => (
+          {displayBlocks.map((b) => (
             <g
               key={b.id}
               transform={`translate(${b.x}, ${b.y})`}

@@ -434,8 +434,11 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   // ── Item helpers ───────────────────────────────────────────────────────────
 
-  const getScheduleItems = (scheduleId: string): ScheduleItem[] =>
-    schedules.find((s) => s.id === scheduleId)?.items ?? [];
+  const getScheduleItems = useCallback(
+    (scheduleId: string): ScheduleItem[] =>
+      schedules.find((s) => s.id === scheduleId)?.items ?? [],
+    [schedules]
+  );
 
   const saveScheduleItems = useCallback(
     (scheduleId: string, newItems: ScheduleItem[]) => {
@@ -506,8 +509,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       const newIndex = items.findIndex((i) => i.id === over.id);
       saveScheduleItems(scheduleId, arrayMove(items, oldIndex, newIndex));
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [schedules, saveScheduleItems]
+    [getScheduleItems, saveScheduleItems]
   );
 
   const handleImportFromCalendar = (scheduleId: string) => {
