@@ -132,12 +132,20 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
 
-  // Scaled sizing values derived from scaleMultiplier
+  // CSS container query sizing — each card wrapper gets container-type: size,
+  // so cqh = 1% of that card's actual height. This scales continuously during
+  // resize (no pointer-release lag) and handles any item count correctly.
   const sm = scaleMultiplier;
-  const textSize = `min(${Math.round(18 * sm)}px, ${(5 * sm).toFixed(1)}cqmin)`;
-  const iconSize = `min(${Math.round(28 * sm)}px, ${(7 * sm).toFixed(1)}cqmin)`;
-  const cardPadding = `min(${Math.round(10 * sm)}px, ${(2.2 * sm).toFixed(1)}cqmin) min(${Math.round(14 * sm)}px, ${(3 * sm).toFixed(1)}cqmin)`;
-  const cardGap = `min(${Math.round(10 * sm)}px, ${(2.2 * sm).toFixed(1)}cqmin)`;
+  const fontCqh = (25 * sm).toFixed(1);
+  const iconCqh = (42 * sm).toFixed(1);
+  const padVCqh = (6 * sm).toFixed(1);
+  const padHCqw = (2.5 * sm).toFixed(1);
+  const gapCqh = (3 * sm).toFixed(1);
+  const textSize = `clamp(10px, ${fontCqh}cqh, ${Math.round(28 * sm)}px)`;
+  const iconSize = `clamp(12px, ${iconCqh}cqh, ${Math.round(26 * sm)}px)`;
+  const cardPadding = `clamp(3px, ${padVCqh}cqh, ${Math.round(10 * sm)}px) clamp(6px, ${padHCqw}cqw, ${Math.round(14 * sm)}px)`;
+  const cardGap = `clamp(5px, ${gapCqh}cqh, 12px)`;
+  const listGap = 'min(6px, 2cqmin)';
 
   if (!hasContent) {
     return (
@@ -167,59 +175,102 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
-              gap: `min(${Math.round(8 * sm)}px, ${(1.8 * sm).toFixed(1)}cqmin)`,
+              gap: listGap,
             }}
           >
             {mode === 'manual'
               ? items.map((item) => (
-                  <ChecklistCard
+                  <div
                     key={item.id}
-                    id={item.id}
-                    label={item.text}
-                    isCompleted={item.completed}
-                    onToggle={toggleItem}
-                    textSize={textSize}
-                    iconSize={iconSize}
-                    cardPadding={cardPadding}
-                    cardGap={cardGap}
-                    cardColor={cardColor}
-                    cardOpacity={cardOpacity}
-                    fontColor={fontColor}
-                  />
+                    role="listitem"
+                    style={{
+                      flex: '1 1 0',
+                      minHeight: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      containerType: 'size',
+                    }}
+                  >
+                    <ChecklistCard
+                      id={item.id}
+                      label={item.text}
+                      isCompleted={item.completed}
+                      onToggle={toggleItem}
+                      textSize={textSize}
+                      iconSize={iconSize}
+                      cardPadding={cardPadding}
+                      cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
+                      fontColor={fontColor}
+                    />
+                  </div>
                 ))
               : students.map((student) => (
-                  <ChecklistCard
+                  <div
                     key={student.id}
-                    id={student.id}
-                    label={student.label}
-                    isCompleted={completedNames.includes(student.id)}
-                    onToggle={toggleItem}
-                    textSize={textSize}
-                    iconSize={iconSize}
-                    cardPadding={cardPadding}
-                    cardGap={cardGap}
-                    cardColor={cardColor}
-                    cardOpacity={cardOpacity}
-                    fontColor={fontColor}
-                  />
+                    role="listitem"
+                    style={{
+                      flex: '1 1 0',
+                      minHeight: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      containerType: 'size',
+                    }}
+                  >
+                    <ChecklistCard
+                      id={student.id}
+                      label={student.label}
+                      isCompleted={completedNames.includes(student.id)}
+                      onToggle={toggleItem}
+                      textSize={textSize}
+                      iconSize={iconSize}
+                      cardPadding={cardPadding}
+                      cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
+                      fontColor={fontColor}
+                    />
+                  </div>
                 ))}
+          </div>
 
-            {/* Action Buttons - Moved inside scrollable area for consistent spacing */}
-            <div
+          {/* Action buttons — fixed footer outside scroll area, always visible */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 'min(8px, 1.8cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
+            }}
+          >
+            <button
+              onClick={resetToday}
+              title="Reset Checks"
+              className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 'min(8px, 1.8cqmin)',
-                marginTop: `min(${Math.round(4 * sm)}px, ${(1 * sm).toFixed(1)}cqmin)`, // Add small extra gap before buttons
+                width: 'min(36px, 10cqmin)',
+                height: 'min(36px, 10cqmin)',
+                minWidth: '24px',
+                minHeight: '24px',
               }}
             >
+              <RefreshCw
+                style={{
+                  width: 'max(14px, min(18px, 5cqmin))',
+                  height: 'max(14px, min(18px, 5cqmin))',
+                }}
+                strokeWidth={2.5}
+              />
+            </button>
+            {mode === 'manual' && (
               <button
-                onClick={resetToday}
-                title="Reset Checks"
-                className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
+                onClick={removeCompleted}
+                title="Remove Completed"
+                className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
                   width: 'min(36px, 10cqmin)',
                   height: 'min(36px, 10cqmin)',
@@ -227,7 +278,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   minHeight: '24px',
                 }}
               >
-                <RefreshCw
+                <Trash2
                   style={{
                     width: 'max(14px, min(18px, 5cqmin))',
                     height: 'max(14px, min(18px, 5cqmin))',
@@ -235,28 +286,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   strokeWidth={2.5}
                 />
               </button>
-              {mode === 'manual' && (
-                <button
-                  onClick={removeCompleted}
-                  title="Remove Completed"
-                  className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
-                  style={{
-                    width: 'min(36px, 10cqmin)',
-                    height: 'min(36px, 10cqmin)',
-                    minWidth: '24px',
-                    minHeight: '24px',
-                  }}
-                >
-                  <Trash2
-                    style={{
-                      width: 'max(14px, min(18px, 5cqmin))',
-                      height: 'max(14px, min(18px, 5cqmin))',
-                    }}
-                    strokeWidth={2.5}
-                  />
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       }
