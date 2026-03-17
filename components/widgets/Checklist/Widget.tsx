@@ -143,7 +143,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const gapCqw = (4 * sm).toFixed(1);
   const textSize = `clamp(12px, ${fontCqh}cqh, ${Math.round(40 * sm)}px)`;
   const iconSize = `clamp(14px, ${iconCqh}cqh, ${Math.round(56 * sm)}px)`;
-  const cardPadding = `clamp(6px, ${padVCqh}cqh, ${Math.round(20 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
+  const cardPadding = `clamp(10px, ${padVCqh}cqh, ${Math.round(20 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
   const cardGap = `clamp(6px, ${gapCqw}cqw, 16px)`;
   const listGap = 'min(6px, 2cqmin)';
 
