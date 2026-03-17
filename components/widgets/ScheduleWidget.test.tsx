@@ -587,8 +587,12 @@ describe('ScheduleSettings', () => {
     });
     render(<ScheduleSettings widget={widget} />);
 
-    // Expand the default schedule accordion.
-    fireEvent.click(screen.getByRole('button', { name: /default schedule/i }));
+    // Expand the default schedule accordion (the card is a div, not a button;
+    // click the cursor-pointer wrapper since the inner input stops propagation).
+    const scheduleNameInput = screen.getByDisplayValue(/default schedule/i);
+    const accordionCard = scheduleNameInput.closest('.cursor-pointer');
+    if (!accordionCard) throw new Error('Accordion card not found');
+    fireEvent.click(accordionCard);
 
     // Click "Add Event" to append a new blank item.
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
