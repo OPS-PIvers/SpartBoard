@@ -35,6 +35,7 @@ import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
+import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -682,6 +683,13 @@ export const FeaturePermissionsManager: React.FC = () => {
         <MiniAppLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
 
+      {activeModalTool?.type === 'starter-pack' && (
+        <StarterPackConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -689,6 +697,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'calendar',
           'specialist-schedule',
           'miniApp',
+          'starter-pack',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
