@@ -31,6 +31,7 @@ import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import * as LucideIcons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface StarterPackConfigurationModalProps {
   isOpen: boolean;
@@ -345,12 +346,8 @@ export const StarterPackConfigurationModal: React.FC<
   };
 
   const PreviewIcon =
-    (
-      LucideIcons as unknown as Record<
-        string,
-        React.ComponentType<{ className?: string }>
-      >
-    )[formData.icon] ?? LucideIcons.Wand2;
+    (LucideIcons as unknown as Record<string, LucideIcon>)[formData.icon] ??
+    LucideIcons.Wand2;
 
   if (!isOpen) return null;
 
@@ -444,12 +441,9 @@ export const StarterPackConfigurationModal: React.FC<
                 <div className="grid gap-3">
                   {packs.map((pack) => {
                     const PackIcon =
-                      (
-                        LucideIcons as unknown as Record<
-                          string,
-                          React.ComponentType<{ className?: string }>
-                        >
-                      )[pack.icon] ?? LucideIcons.Wand2;
+                      (LucideIcons as unknown as Record<string, LucideIcon>)[
+                        pack.icon
+                      ] ?? LucideIcons.Wand2;
                     return (
                       <div
                         key={pack.id}
