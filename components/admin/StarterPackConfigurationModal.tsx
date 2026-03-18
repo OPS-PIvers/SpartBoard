@@ -131,10 +131,16 @@ const LAYOUT_NAMES: Record<string, string> = {
 
 interface SnapZonePickerProps {
   selectedKey: string | null;
-  onSelect: (key: string, bounds: { x: number; y: number; w: number; h: number }) => void;
+  onSelect: (
+    key: string,
+    bounds: { x: number; y: number; w: number; h: number }
+  ) => void;
 }
 
-const SnapZonePicker: React.FC<SnapZonePickerProps> = ({ selectedKey, onSelect }) => {
+const SnapZonePicker: React.FC<SnapZonePickerProps> = ({
+  selectedKey,
+  onSelect,
+}) => {
   return (
     <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 p-3 bg-slate-50 rounded-xl border border-slate-200">
       {SNAP_LAYOUTS.map((layout) => (
@@ -173,7 +179,10 @@ const SnapZonePicker: React.FC<SnapZonePickerProps> = ({ selectedKey, onSelect }
               })}
             </div>
           </div>
-          <p className="text-center text-slate-400 mt-0.5 truncate" style={{ fontSize: '9px' }}>
+          <p
+            className="text-center text-slate-400 mt-0.5 truncate"
+            style={{ fontSize: '9px' }}
+          >
             {LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}
           </p>
         </div>
@@ -213,8 +222,12 @@ export const StarterPackConfigurationModal: React.FC<
   // Snap layout picker state
   const [newWidgetSnapKey, setNewWidgetSnapKey] = useState<string | null>(null);
   const [newWidgetSnapOpen, setNewWidgetSnapOpen] = useState(false);
-  const [snappingWidgetIndex, setSnappingWidgetIndex] = useState<number | null>(null);
-  const [widgetSnapKeys, setWidgetSnapKeys] = useState<Record<number, string>>({});
+  const [snappingWidgetIndex, setSnappingWidgetIndex] = useState<number | null>(
+    null
+  );
+  const [widgetSnapKeys, setWidgetSnapKeys] = useState<Record<number, string>>(
+    {}
+  );
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -839,7 +852,8 @@ export const StarterPackConfigurationModal: React.FC<
                                     ['w', 'W'],
                                     ['h', 'H'],
                                   ] as [
-                                    keyof typeof widget & ('x' | 'y' | 'w' | 'h'),
+                                    keyof typeof widget &
+                                      ('x' | 'y' | 'w' | 'h'),
                                     string,
                                   ][]
                                 ).map(([field, label]) => (
@@ -853,13 +867,18 @@ export const StarterPackConfigurationModal: React.FC<
                                     <input
                                       type="number"
                                       value={widget[field]}
-                                      onChange={(e) =>
+                                      onChange={(e) => {
                                         handleUpdateWidget(
                                           index,
                                           field,
                                           Number(e.target.value)
-                                        )
-                                      }
+                                        );
+                                        setWidgetSnapKeys((prev) => {
+                                          if (!prev[index]) return prev;
+                                          const { [index]: _, ...rest } = prev;
+                                          return rest;
+                                        });
+                                      }}
                                       className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-xs text-center focus:border-indigo-400 focus:outline-none"
                                     />
                                   </label>
@@ -896,10 +915,12 @@ export const StarterPackConfigurationModal: React.FC<
                               <SnapZonePicker
                                 selectedKey={widgetSnapKeys[index] ?? null}
                                 onSelect={(key, bounds) => {
-                                  handleUpdateWidget(index, 'x', bounds.x);
-                                  handleUpdateWidget(index, 'y', bounds.y);
-                                  handleUpdateWidget(index, 'w', bounds.w);
-                                  handleUpdateWidget(index, 'h', bounds.h);
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    widgets: prev.widgets.map((w, i) =>
+                                      i === index ? { ...w, ...bounds } : w
+                                    ),
+                                  }));
                                   setWidgetSnapKeys((prev) => ({
                                     ...prev,
                                     [index]: key,
