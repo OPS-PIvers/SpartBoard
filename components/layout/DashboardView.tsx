@@ -440,24 +440,25 @@ export const DashboardView: React.FC = () => {
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
   }, [activeDashboard, dashboards]);
 
-  // Derive animation class during render instead of via useEffect.
-  // When currentIndex changes, React immediately re-renders; on the second pass
-  // prevIndex === currentIndex so no further state updates occur.
-  let animationClass = 'animate-fade-in';
-  if (prevIndex !== currentIndex) {
-    setPrevIndex(currentIndex);
-    if (currentIndex !== -1 && prevIndex !== -1) {
-      animationClass =
-        currentIndex > prevIndex
-          ? 'animate-slide-left-in'
-          : 'animate-slide-right-in';
+  // Compute animation class from prevIndex (which lags one render behind currentIndex).
+  // prevIndex is updated in the effect below, after commit, so on the render where
+  // currentIndex changes, prevIndex still holds the old value — giving us the direction.
+  const animationClass = useMemo(() => {
+    if (prevIndex === -1 || currentIndex === -1 || prevIndex === currentIndex) {
+      return 'animate-fade-in';
     }
-  }
+    return currentIndex > prevIndex
+      ? 'animate-slide-left-in'
+      : 'animate-slide-right-in';
+  }, [currentIndex, prevIndex]);
 
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
     setPanOffset({ x: 0, y: 0 });
+    if (currentIndex !== -1) {
+      setPrevIndex(currentIndex);
+    }
   }, [activeDashboard?.id, currentIndex, setZoom]);
 
   React.useEffect(() => {
