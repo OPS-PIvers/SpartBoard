@@ -62,6 +62,7 @@ export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
         <button
           onClick={() => {
             const isActive = !config.syncSoundWidget;
+
             updateWidget(widget.id, {
               config: {
                 ...config,
@@ -69,19 +70,39 @@ export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
               },
             });
 
-            if (activeDashboard) {
-              const soundWidgets = activeDashboard.widgets.filter(
-                (w) => w.type === 'sound'
-              );
-              soundWidgets.forEach((w) => {
-                updateWidget(w.id, {
-                  config: {
-                    ...w.config,
-                    syncExpectations: isActive,
-                  } as import('@/types').SoundConfig,
-                });
-              });
+            if (!activeDashboard) {
+              return;
             }
+
+            // If activating sync, ensure no other Expectations widget is also syncing.
+            if (isActive) {
+              activeDashboard.widgets
+                .filter(
+                  (w) =>
+                    w.type === 'expectations' &&
+                    w.id !== widget.id &&
+                    (w.config as import('@/types').ExpectationsConfig).syncSoundWidget
+                )
+                .forEach((w) => {
+                  updateWidget(w.id, {
+                    config: { ...w.config, syncSoundWidget: false } as import('@/types').ExpectationsConfig,
+                  });
+                });
+            }
+
+            // Update all sound widgets. With the logic above, `isActive` is the correct
+            // state for `syncExpectations` on all sound widgets.
+            const soundWidgets = activeDashboard.widgets.filter(
+              (w) => w.type === 'sound'
+            );
+            soundWidgets.forEach((w) => {
+              updateWidget(w.id, {
+                config: {
+                  ...w.config,
+                  syncExpectations: isActive,
+                } as import('@/types').SoundConfig,
+              });
+            });
           }}
           className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all ${
             config.syncSoundWidget
