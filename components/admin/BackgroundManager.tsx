@@ -168,8 +168,11 @@ export const BackgroundManager: React.FC = () => {
     const presetId = crypto.randomUUID();
 
     try {
+      // 1. Download blob from Google Drive
       const blob = await driveService.downloadFile(file.id);
+      // 2. Convert to File object
       const imageFile = new File([blob], file.name, { type: file.mimeType });
+      // 3. Upload to Firebase Storage (reuse admin path)
       downloadURL = await uploadAdminBackground(presetId, imageFile);
 
       const newPreset: BackgroundPreset = {
@@ -188,6 +191,7 @@ export const BackgroundManager: React.FC = () => {
     } catch (error) {
       console.error('Drive import failed:', error);
       showMessage('error', 'Failed to import from Drive');
+      // Cleanup orphaned file if DB write failed
       if (downloadURL) {
         try {
           const fileRef = ref(storage, downloadURL);
@@ -249,6 +253,7 @@ export const BackgroundManager: React.FC = () => {
     try {
       setLoading(true);
       for (const item of DEFAULT_PRESETS) {
+        // Query by URL to avoid duplicates (IDs are random so we check against Firestore)
         const q = query(
           collection(db, 'admin_backgrounds'),
           where('url', '==', item.url)
@@ -291,6 +296,7 @@ export const BackgroundManager: React.FC = () => {
     let downloadURL = '';
     const presetId = crypto.randomUUID();
     try {
+      // Use shared admin path with the pre-generated ID for security rules
       downloadURL = await uploadAdminBackground(presetId, file);
 
       const lastDotIndex = file.name.lastIndexOf('.');
@@ -400,6 +406,7 @@ export const BackgroundManager: React.FC = () => {
       return;
     }
 
+    // Then, best-effort delete file from Storage if it's not a stock image (Unsplash)
     if (preset.url.includes('firebasestorage.googleapis.com')) {
       try {
         const fileRef = ref(storage, preset.url);
@@ -710,7 +717,7 @@ export const BackgroundManager: React.FC = () => {
                   // Categories are created by assigning them to presets - just note it here
                   showMessage(
                     'success',
-                    `Category "${newCategoryName.trim()}" ready. Assign it to a background below.`
+                    `Category name "${newCategoryName.trim()}" noted. Assign it to a background below to create it.`
                   );
                   setNewCategoryName('');
                 }
@@ -722,7 +729,7 @@ export const BackgroundManager: React.FC = () => {
                 if (newCategoryName.trim()) {
                   showMessage(
                     'success',
-                    `Category "${newCategoryName.trim()}" ready. Assign it to a background below.`
+                    `Category name "${newCategoryName.trim()}" noted. Assign it to a background below to create it.`
                   );
                   setNewCategoryName('');
                 }

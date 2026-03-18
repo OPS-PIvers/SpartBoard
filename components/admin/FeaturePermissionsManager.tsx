@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
@@ -283,6 +283,31 @@ export const FeaturePermissionsManager: React.FC = () => {
     }
   };
 
+  const filteredTools = useMemo(() => {
+    const sorted = [...TOOLS].sort((a, b) => a.label.localeCompare(b.label));
+    return sorted.filter((tool) => {
+      const permission = getPermission(tool.type);
+      if (filterEnabled === 'on' && !permission.enabled) return false;
+      if (filterEnabled === 'off' && permission.enabled) return false;
+      if (
+        filterAvailability !== 'all' &&
+        permission.accessLevel !== filterAvailability
+      )
+        return false;
+      if (filterBuilding !== 'all') {
+        const building = BUILDINGS.find((b) => b.id === filterBuilding);
+        if (building) {
+          const currentLevels =
+            permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
+          if (!building.gradeLevels.some((gl) => currentLevels.includes(gl)))
+            return false;
+        }
+      }
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissions, filterEnabled, filterAvailability, filterBuilding]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -417,266 +442,68 @@ export const FeaturePermissionsManager: React.FC = () => {
       </div>
 
       {/* Widget Permission Cards */}
-      {(() => {
-        const sortedTools = [...TOOLS].sort((a, b) =>
-          a.label.localeCompare(b.label)
-        );
-        const filteredTools = sortedTools.filter((tool) => {
-          const permission = getPermission(tool.type);
-          if (filterEnabled === 'on' && !permission.enabled) return false;
-          if (filterEnabled === 'off' && permission.enabled) return false;
-          if (
-            filterAvailability !== 'all' &&
-            permission.accessLevel !== filterAvailability
-          )
-            return false;
-          if (filterBuilding !== 'all') {
-            const building = BUILDINGS.find((b) => b.id === filterBuilding);
-            if (building) {
-              const currentLevels =
-                permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
-              if (
-                !building.gradeLevels.some((gl) => currentLevels.includes(gl))
-              )
-                return false;
-            }
+      <>
+        {filteredTools.length === 0 && (
+          <div className="py-12 text-center text-slate-400">
+            <Filter className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="font-medium">No widgets match the current filters.</p>
+          </div>
+        )}
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+              : 'space-y-3'
           }
-          return true;
-        });
+        >
+          {filteredTools.map((tool) => {
+            const permission = getPermission(tool.type);
+            const isSaving = saving.has(tool.type);
 
-        return (
-          <>
-            {filteredTools.length === 0 && (
-              <div className="py-12 text-center text-slate-400">
-                <Filter className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="font-medium">
-                  No widgets match the current filters.
-                </p>
-              </div>
-            )}
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-                  : 'space-y-3'
-              }
-            >
-              {filteredTools.map((tool) => {
-                const permission = getPermission(tool.type);
-                const isSaving = saving.has(tool.type);
+            const currentLevels =
+              permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
+            const isAllSelected = ALL_GRADE_LEVELS.every((l) =>
+              currentLevels.includes(l)
+            );
 
-                const currentLevels =
-                  permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
-                const isAllSelected = ALL_GRADE_LEVELS.every((l) =>
-                  currentLevels.includes(l)
-                );
-
-                if (viewMode === 'list') {
-                  return (
-                    <div
-                      key={tool.type}
-                      className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
-                    >
-                      {/* Top Bar */}
-                      <div className="flex items-center gap-4 p-3">
-                        {/* Identity Section: Icon + Name Input */}
-                        <div className="flex items-center gap-3 w-64 shrink-0">
-                          <div
-                            className={`${tool.color} p-2 rounded-lg text-white shrink-0`}
-                          >
-                            <tool.icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <input
-                              type="text"
-                              value={permission.displayName ?? ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                updatePermission(tool.type, {
-                                  displayName: val || undefined,
-                                });
-                              }}
-                              className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
-                              placeholder={tool.label}
-                            />
-                            <p className="text-xs text-slate-500">
-                              {tool.type}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="w-px h-8 bg-slate-100 mx-2" />
-
-                        {/* Enabled Toggle */}
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-xxs font-bold text-slate-400 uppercase">
-                            Enabled
-                          </span>
-                          <Toggle
-                            checked={permission.enabled}
-                            onChange={(checked) =>
-                              updatePermission(tool.type, {
-                                enabled: checked,
-                              })
-                            }
-                            size="sm"
-                          />
-                        </div>
-
-                        {/* Access Level Controls */}
-                        <div className="flex items-center gap-1 ml-4">
-                          {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                            (level) => (
-                              <button
-                                key={level}
-                                onClick={() =>
-                                  updatePermission(tool.type, {
-                                    accessLevel: level,
-                                  })
-                                }
-                                className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
-                                  permission.accessLevel === level
-                                    ? getAccessLevelColor(level)
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                                }`}
-                              >
-                                {getAccessLevelIcon(level)}
-                                <span className="capitalize">{level}</span>
-                              </button>
-                            )
-                          )}
-                        </div>
-
-                        {/* Grade Level Controls */}
-                        <div className="flex items-center gap-1 ml-4 flex-1 flex-wrap justify-end">
-                          {ALL_GRADE_LEVELS.map((level) => {
-                            const isSelected = currentLevels.includes(level);
-                            return (
-                              <button
-                                key={level}
-                                onClick={() =>
-                                  toggleGradeLevel(tool.type, level)
-                                }
-                                className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                                  isSelected
-                                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                              >
-                                {level.toUpperCase()}
-                              </button>
-                            );
-                          })}
-                          <button
-                            onClick={() => toggleAllGradeLevels(tool.type)}
-                            className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                              isAllSelected
-                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            ALL
-                          </button>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
-                          <button
-                            onClick={() => setActiveModalTool(tool)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              activeModalTool?.type === tool.type
-                                ? 'bg-brand-blue-primary text-white'
-                                : 'text-slate-400 hover:bg-slate-100'
-                            }`}
-                            title="Edit widget configuration"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => savePermission(tool.type)}
-                            disabled={isSaving}
-                            className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                              unsavedChanges.has(tool.type)
-                                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                : 'text-slate-400 hover:bg-brand-blue-primary hover:text-white'
-                            }`}
-                            title={
-                              unsavedChanges.has(tool.type)
-                                ? 'Save Changes'
-                                : 'Save Permissions'
-                            }
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                        </div>
+            if (viewMode === 'list') {
+              return (
+                <div
+                  key={tool.type}
+                  className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+                >
+                  {/* Top Bar */}
+                  <div className="flex items-center gap-4 p-3">
+                    {/* Identity Section: Icon + Name Input */}
+                    <div className="flex items-center gap-3 w-64 shrink-0">
+                      <div
+                        className={`${tool.color} p-2 rounded-lg text-white shrink-0`}
+                      >
+                        <tool.icon className="w-5 h-5" />
                       </div>
-
-                      {/* Expanded Content Wrapper */}
-                      {permission.accessLevel === 'beta' && (
-                        <div className="border-t border-slate-100 bg-slate-50">
-                          {/* Beta Users Panel */}
-                          <BetaUsersPanel
-                            tool={tool}
-                            permission={permission}
-                            updatePermission={updatePermission}
-                            showMessage={showMessage}
-                            variant="expanded"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={tool.type}
-                    className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors"
-                  >
-                    {/* Widget Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div
-                          className={`${tool.color} p-2 rounded-lg text-white`}
-                        >
-                          <tool.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <input
-                            type="text"
-                            value={permission.displayName ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              updatePermission(tool.type, {
-                                displayName: val || undefined,
-                              });
-                            }}
-                            className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
-                            placeholder={tool.label}
-                          />
-                          <p className="text-xs text-slate-500">{tool.type}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setActiveModalTool(tool)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            activeModalTool?.type === tool.type
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'text-slate-400 hover:bg-slate-100'
-                          }`}
-                          title="Edit widget configuration"
-                        >
-                          <Settings className="w-4 h-4" />
-                        </button>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={permission.displayName ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updatePermission(tool.type, {
+                              displayName: val || undefined,
+                            });
+                          }}
+                          className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                          placeholder={tool.label}
+                        />
+                        <p className="text-xs text-slate-500">{tool.type}</p>
                       </div>
                     </div>
+
+                    <div className="w-px h-8 bg-slate-100 mx-2" />
 
                     {/* Enabled Toggle */}
-                    <div className="flex items-center justify-between mb-3 p-3 bg-slate-50 rounded-lg">
-                      <span className="text-sm font-medium text-slate-700">
-                        Feature Enabled
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xxs font-bold text-slate-400 uppercase">
+                        Enabled
                       </span>
                       <Toggle
                         checked={permission.enabled}
@@ -685,110 +512,270 @@ export const FeaturePermissionsManager: React.FC = () => {
                             enabled: checked,
                           })
                         }
-                        size="md"
+                        size="sm"
                       />
                     </div>
 
-                    {/* Access Level */}
-                    <div className="mb-3">
-                      <label className="text-sm font-medium text-slate-700 mb-2 block">
-                        Access Level
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                          (level) => (
-                            <button
-                              key={level}
-                              onClick={() =>
-                                updatePermission(tool.type, {
-                                  accessLevel: level,
-                                })
-                              }
-                              className={`px-3 py-2 rounded-lg border-2 text-sm font-medium flex items-center justify-center gap-1 transition-all ${
-                                permission.accessLevel === level
-                                  ? getAccessLevelColor(level)
-                                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                              }`}
-                            >
-                              {getAccessLevelIcon(level)}
-                              <span className="capitalize">{level}</span>
-                            </button>
-                          )
-                        )}
-                      </div>
+                    {/* Access Level Controls */}
+                    <div className="flex items-center gap-1 ml-4">
+                      {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                        (level) => (
+                          <button
+                            key={level}
+                            onClick={() =>
+                              updatePermission(tool.type, {
+                                accessLevel: level,
+                              })
+                            }
+                            className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
+                              permission.accessLevel === level
+                                ? getAccessLevelColor(level)
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {getAccessLevelIcon(level)}
+                            <span className="capitalize">{level}</span>
+                          </button>
+                        )
+                      )}
                     </div>
 
-                    {/* Grade Levels */}
-                    <div className="mb-3">
-                      <label className="text-sm font-medium text-slate-700 mb-2 block">
-                        Grade Levels
-                      </label>
-                      <div className="grid grid-cols-5 gap-1">
-                        {ALL_GRADE_LEVELS.map((level) => {
-                          const isSelected = currentLevels.includes(level);
-
-                          return (
-                            <button
-                              key={level}
-                              onClick={() => toggleGradeLevel(tool.type, level)}
-                              className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
-                                isSelected
-                                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              {level.toUpperCase()}
-                            </button>
-                          );
-                        })}
-                        <button
-                          onClick={() => toggleAllGradeLevels(tool.type)}
-                          className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
-                            isAllSelected
-                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                        >
-                          ALL
-                        </button>
-                      </div>
+                    {/* Grade Level Controls */}
+                    <div className="flex items-center gap-1 ml-4 flex-1 flex-wrap justify-end">
+                      {ALL_GRADE_LEVELS.map((level) => {
+                        const isSelected = currentLevels.includes(level);
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => toggleGradeLevel(tool.type, level)}
+                            className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                              isSelected
+                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            {level.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => toggleAllGradeLevels(tool.type)}
+                        className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                          isAllSelected
+                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        ALL
+                      </button>
                     </div>
 
-                    {/* Beta Users (only show if access level is beta) */}
-                    {permission.accessLevel === 'beta' && (
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
+                      <button
+                        onClick={() => setActiveModalTool(tool)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          activeModalTool?.type === tool.type
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'text-slate-400 hover:bg-slate-100'
+                        }`}
+                        title="Edit widget configuration"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => savePermission(tool.type)}
+                        disabled={isSaving}
+                        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          unsavedChanges.has(tool.type)
+                            ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                            : 'text-slate-400 hover:bg-brand-blue-primary hover:text-white'
+                        }`}
+                        title={
+                          unsavedChanges.has(tool.type)
+                            ? 'Save Changes'
+                            : 'Save Permissions'
+                        }
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Content Wrapper */}
+                  {permission.accessLevel === 'beta' && (
+                    <div className="border-t border-slate-100 bg-slate-50">
+                      {/* Beta Users Panel */}
                       <BetaUsersPanel
                         tool={tool}
                         permission={permission}
                         updatePermission={updatePermission}
                         showMessage={showMessage}
-                        variant="card"
+                        variant="expanded"
                       />
-                    )}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
-                    {/* Save Button */}
+            return (
+              <div
+                key={tool.type}
+                className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors"
+              >
+                {/* Widget Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`${tool.color} p-2 rounded-lg text-white`}>
+                      <tool.icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={permission.displayName ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          updatePermission(tool.type, {
+                            displayName: val || undefined,
+                          });
+                        }}
+                        className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                        placeholder={tool.label}
+                      />
+                      <p className="text-xs text-slate-500">{tool.type}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => savePermission(tool.type)}
-                      disabled={isSaving}
-                      className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        unsavedChanges.has(tool.type)
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                          : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+                      onClick={() => setActiveModalTool(tool)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        activeModalTool?.type === tool.type
+                          ? 'bg-brand-blue-primary text-white'
+                          : 'text-slate-400 hover:bg-slate-100'
                       }`}
+                      title="Edit widget configuration"
                     >
-                      <Save className="w-4 h-4" />
-                      {isSaving
-                        ? 'Saving...'
-                        : unsavedChanges.has(tool.type)
-                          ? 'Save Changes'
-                          : 'Save Permissions'}
+                      <Settings className="w-4 h-4" />
                     </button>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        );
-      })()}
+                </div>
+
+                {/* Enabled Toggle */}
+                <div className="flex items-center justify-between mb-3 p-3 bg-slate-50 rounded-lg">
+                  <span className="text-sm font-medium text-slate-700">
+                    Feature Enabled
+                  </span>
+                  <Toggle
+                    checked={permission.enabled}
+                    onChange={(checked) =>
+                      updatePermission(tool.type, {
+                        enabled: checked,
+                      })
+                    }
+                    size="md"
+                  />
+                </div>
+
+                {/* Access Level */}
+                <div className="mb-3">
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">
+                    Access Level
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                      (level) => (
+                        <button
+                          key={level}
+                          onClick={() =>
+                            updatePermission(tool.type, {
+                              accessLevel: level,
+                            })
+                          }
+                          className={`px-3 py-2 rounded-lg border-2 text-sm font-medium flex items-center justify-center gap-1 transition-all ${
+                            permission.accessLevel === level
+                              ? getAccessLevelColor(level)
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {getAccessLevelIcon(level)}
+                          <span className="capitalize">{level}</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* Grade Levels */}
+                <div className="mb-3">
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">
+                    Grade Levels
+                  </label>
+                  <div className="grid grid-cols-5 gap-1">
+                    {ALL_GRADE_LEVELS.map((level) => {
+                      const isSelected = currentLevels.includes(level);
+
+                      return (
+                        <button
+                          key={level}
+                          onClick={() => toggleGradeLevel(tool.type, level)}
+                          className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
+                            isSelected
+                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {level.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => toggleAllGradeLevels(tool.type)}
+                      className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
+                        isAllSelected
+                          ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      ALL
+                    </button>
+                  </div>
+                </div>
+
+                {/* Beta Users (only show if access level is beta) */}
+                {permission.accessLevel === 'beta' && (
+                  <BetaUsersPanel
+                    tool={tool}
+                    permission={permission}
+                    updatePermission={updatePermission}
+                    showMessage={showMessage}
+                    variant="card"
+                  />
+                )}
+
+                {/* Save Button */}
+                <button
+                  onClick={() => savePermission(tool.type)}
+                  disabled={isSaving}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    unsavedChanges.has(tool.type)
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+                  }`}
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving
+                    ? 'Saving...'
+                    : unsavedChanges.has(tool.type)
+                      ? 'Save Changes'
+                      : 'Save Permissions'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </>
 
       {/* Widget Configuration Modals */}
       {activeModalTool?.type === 'instructionalRoutines' && (
