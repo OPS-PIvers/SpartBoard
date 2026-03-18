@@ -41,14 +41,23 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       ? globalConfig.buildingDefaults?.[buildingId]
       : undefined;
 
+  const isValidHex = (hex: string) => /^[0-9a-fA-F]{6}$/.test(hex);
+
   // Use config values if explicitly set, fallback to building defaults, then hardcoded defaults
   const url = config.url ?? defaults?.defaultUrl ?? 'https://google.com';
-  const qrColorRaw: string = config.qrColor ?? defaults?.qrColor ?? '#000000';
-  const qrBgColorRaw: string =
-    config.qrBgColor ?? defaults?.qrBgColor ?? '#ffffff';
 
-  const qrColor: string = qrColorRaw.replace('#', '');
-  const qrBgColor: string = qrBgColorRaw.replace('#', '');
+  const rawColor = (config.qrColor ?? defaults?.qrColor ?? '#000000').replace(
+    /^#/,
+    ''
+  );
+  const rawBgColor = (
+    config.qrBgColor ??
+    defaults?.qrBgColor ??
+    '#ffffff'
+  ).replace(/^#/, '');
+
+  const qrColor: string = isValidHex(rawColor) ? rawColor : '000000';
+  const qrBgColor: string = isValidHex(rawBgColor) ? rawBgColor : 'ffffff';
 
   // Nexus Connection: Link Repeater (Text -> QR)
   useEffect(() => {
@@ -60,12 +69,17 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
         if (plainText && plainText !== config.url) {
           updateWidget(widget.id, {
-            config: { url: plainText, syncWithTextWidget: true } as QRConfig,
+            config: {
+              ...config,
+              url: plainText,
+              syncWithTextWidget: true,
+            } as QRConfig,
           });
         }
       }
     }
   }, [
+    config,
     config.syncWithTextWidget,
     activeDashboard?.widgets,
     config.url,

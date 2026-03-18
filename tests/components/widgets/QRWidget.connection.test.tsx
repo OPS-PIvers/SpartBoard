@@ -30,8 +30,7 @@ describe('QRWidget Link Repeater Connection', () => {
       subscribeToPermission: vi.fn(
         (_type: string, callback: (p: unknown) => void) => {
           callback(null);
-          // eslint-disable-next-line @typescript-eslint/no-empty-function
-          return () => {};
+          return vi.fn();
         }
       ),
     });
@@ -84,7 +83,11 @@ describe('QRWidget Link Repeater Connection', () => {
 
     // Expect updateWidget to be called with the text content
     expect(mockUpdateWidget).toHaveBeenCalledWith('qr-1', {
-      config: { url: 'https://example.com/synced', syncWithTextWidget: true },
+      config: {
+        ...qrWidget.config,
+        url: 'https://example.com/synced',
+        syncWithTextWidget: true,
+      },
     });
   });
 
