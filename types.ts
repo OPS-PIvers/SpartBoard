@@ -1314,8 +1314,10 @@ export interface RevealGridConfig {
 export interface ConceptNode {
   id: string;
   text: string;
-  x: number;
-  y: number;
+  x: number; // X position as a percentage of container
+  y: number; // Y position as a percentage of container
+  width?: number; // Width as a percentage of container
+  height?: number; // Height as a percentage of container
   bgColor?: string;
 }
 
@@ -1331,6 +1333,8 @@ export interface ConceptWebConfig {
   nodes: ConceptNode[];
   edges: ConceptEdge[];
   fontFamily?: GlobalFontFamily;
+  defaultNodeWidth?: number; // Width as a percentage of container
+  defaultNodeHeight?: number; // Height as a percentage of container
 }
 
 export interface SyntaxToken {
