@@ -8,17 +8,51 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EmbedWidget, EmbedSettings } from './index';
-import { WidgetData, EmbedConfig } from '../../../types';
+import { WidgetData, EmbedConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import * as aiModule from '@/utils/ai';
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: { uid: 'test-uid' },
+    selectedBuildings: ['schumann-elementary'],
+  })),
+}));
+
+vi.mock('@/hooks/useFeaturePermissions', () => ({
+  useFeaturePermissions: vi.fn(() => ({
+    subscribeToPermission: vi.fn(
+      (
+        _type: string,
+        callback: (perm: { config: EmbedGlobalConfig } | null) => void
+      ) => {
+        callback({
+          config: {
+            buildingDefaults: {
+              'schumann-elementary': {
+                buildingId: 'schumann-elementary',
+                hideUrlField: false,
+                whitelistUrls: ['example.org'],
+              },
+            },
+          },
+        });
+        return () => {
+          // Mock unsubscribe
+        };
+      }
+    ),
+    loading: false,
+  })),
+}));
 
 // Mock dependencies
 const mockUpdateWidget = vi.fn();
 const mockAddWidget = vi.fn();
 const mockAddToast = vi.fn();
 
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget: mockUpdateWidget,
     addWidget: mockAddWidget,

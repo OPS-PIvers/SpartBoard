@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { WidgetData, EmbedConfig } from '../../../types';
+import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, EmbedConfig } from '@/types';
 import {
   Globe,
   ExternalLink,
@@ -11,10 +11,11 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react';
-import { SettingsLabel } from '../../common/SettingsLabel';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../../config/firebase';
-import { ensureProtocol } from '../../../utils/urlHelpers';
+import { functions } from '@/config/firebase';
+import { ensureProtocol } from '@/utils/urlHelpers';
+import { useEmbedConfig } from './hooks/useEmbedConfig';
 
 interface CompatibilityResult {
   isEmbeddable: boolean;
@@ -39,6 +40,7 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     'idle' | 'success' | 'blocked' | 'error'
   >('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const { config: globalConfig, isLoading } = useEmbedConfig();
 
   const isActuallyEmbeddable = React.useMemo(() => {
     if (isEmbeddable) return true;
@@ -48,12 +50,13 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const allowListedDomains = new Set([
         'www.carriderpro.com',
         'carriderpro.com',
+        ...(globalConfig?.whitelistUrls ?? []).map((d) => d.toLowerCase()),
       ]);
       return allowListedDomains.has(hostname);
     } catch (_e) {
       return isEmbeddable;
     }
-  }, [isEmbeddable, url]);
+  }, [isEmbeddable, url, globalConfig?.whitelistUrls]);
 
   const handleVerify = async () => {
     if (!url) return;
@@ -67,6 +70,7 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const allowListedDomains = new Set([
         'www.carriderpro.com',
         'carriderpro.com',
+        ...(globalConfig?.whitelistUrls ?? []).map((d) => d.toLowerCase()),
       ]);
 
       if (allowListedDomains.has(hostname)) {
@@ -122,33 +126,48 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center p-4">
+        <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  const hideUrlField = globalConfig?.hideUrlField ?? false;
+
+  // Force 'code' mode if URL field is hidden
+  const displayMode = hideUrlField ? 'code' : mode;
+
   return (
     <div className="space-y-4">
       {/* Mode Toggle */}
-      <div className="flex bg-slate-100 p-1 rounded-xl">
-        <button
-          onClick={() =>
-            updateWidget(widget.id, {
-              config: { ...config, mode: 'url' },
-            })
-          }
-          className={`flex-1 py-1.5 text-xxs  rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'url' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
-        >
-          <Link2 className="w-3 h-3" /> WEBSITE URL
-        </button>
-        <button
-          onClick={() =>
-            updateWidget(widget.id, {
-              config: { ...config, mode: 'code' },
-            })
-          }
-          className={`flex-1 py-1.5 text-xxs  rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'code' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
-        >
-          <Code className="w-3 h-3" /> CUSTOM CODE
-        </button>
-      </div>
+      {!hideUrlField && (
+        <div className="flex bg-slate-100 p-1 rounded-xl">
+          <button
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, mode: 'url' },
+              })
+            }
+            className={`flex-1 py-1.5 text-xxs  rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'url' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
+          >
+            <Link2 className="w-3 h-3" /> WEBSITE URL
+          </button>
+          <button
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, mode: 'code' },
+              })
+            }
+            className={`flex-1 py-1.5 text-xxs  rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'code' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}
+          >
+            <Code className="w-3 h-3" /> CUSTOM CODE
+          </button>
+        </div>
+      )}
 
-      {mode === 'url' ? (
+      {displayMode === 'url' ? (
         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <div>
             <SettingsLabel>Target URL</SettingsLabel>
