@@ -174,6 +174,8 @@ const SnapZonePicker: React.FC<SnapZonePickerProps> = ({
                       height: `${zone.h * 100}%`,
                     }}
                     title={`${LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}: ${zone.id}`}
+                    aria-label={`${LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}: zone ${zone.id}`}
+                    aria-pressed={isSelected}
                   />
                 );
               })}
@@ -249,14 +251,12 @@ export const StarterPackConfigurationModal: React.FC<
     setView('list');
     setEditingId(null);
     setFormData(INITIAL_FORM);
-    setSnappingWidgetIndex(null);
-    setWidgetSnapKeys({});
-    setNewWidgetSnapKey(null);
-    setNewWidgetSnapOpen(false);
+    resetSnapState();
   }, [
     formData.name,
     formData.description,
     formData.widgets.length,
+    resetSnapState,
     showConfirm,
   ]);
 
@@ -346,6 +346,13 @@ export const StarterPackConfigurationModal: React.FC<
     }));
   };
 
+  const resetSnapState = useCallback(() => {
+    setSnappingWidgetIndex(null);
+    setWidgetSnapKeys({});
+    setNewWidgetSnapKey(null);
+    setNewWidgetSnapOpen(false);
+  }, []);
+
   const handleRemoveWidget = (index: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -387,16 +394,14 @@ export const StarterPackConfigurationModal: React.FC<
       isLocked: pack.isLocked,
       widgets: pack.widgets as PackWidgetEntry[],
     });
-    setSnappingWidgetIndex(null);
-    setWidgetSnapKeys({});
-    setNewWidgetSnapKey(null);
-    setNewWidgetSnapOpen(false);
+    resetSnapState();
     setView('editor');
   };
 
   const handleNewPack = () => {
     setEditingId(null);
     setFormData(INITIAL_FORM);
+    resetSnapState();
     setView('editor');
   };
 
@@ -435,6 +440,7 @@ export const StarterPackConfigurationModal: React.FC<
       setView('list');
       setEditingId(null);
       setFormData(INITIAL_FORM);
+      resetSnapState();
     } catch (err) {
       console.error('Error saving pack:', err);
       showMessage('error', 'Failed to save starter pack.');
@@ -868,11 +874,10 @@ export const StarterPackConfigurationModal: React.FC<
                                       type="number"
                                       value={widget[field]}
                                       onChange={(e) => {
-                                        handleUpdateWidget(
-                                          index,
-                                          field,
-                                          Number(e.target.value)
-                                        );
+                                        const next =
+                                          e.currentTarget.valueAsNumber;
+                                        if (!Number.isFinite(next)) return;
+                                        handleUpdateWidget(index, field, next);
                                         setWidgetSnapKeys((prev) => {
                                           if (!prev[index]) return prev;
                                           const { [index]: _, ...rest } = prev;
@@ -897,6 +902,8 @@ export const StarterPackConfigurationModal: React.FC<
                                   : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
                               }`}
                               title="Snap to layout position"
+                              aria-label="Snap to layout position"
+                              aria-expanded={isSnapOpen}
                             >
                               <LayoutTemplate className="w-4 h-4" />
                             </button>
@@ -993,7 +1000,9 @@ export const StarterPackConfigurationModal: React.FC<
                           type="number"
                           value={val}
                           onChange={(e) => {
-                            setter(Number(e.target.value));
+                            const next = e.currentTarget.valueAsNumber;
+                            if (!Number.isFinite(next)) return;
+                            setter(next);
                             setNewWidgetSnapKey(null);
                           }}
                           className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
