@@ -1360,10 +1360,20 @@ export interface ImageHotspot {
   isViewed: boolean; // Syncs state so teachers know which ones they've covered
 }
 
+export interface HotspotSavedItem {
+  id: string;
+  name: string;
+  baseImageUrl: string;
+  hotspots: ImageHotspot[];
+  popoverTheme?: 'light' | 'dark' | 'glass';
+  createdAt: number;
+}
+
 export interface HotspotImageConfig {
   baseImageUrl: string;
   hotspots: ImageHotspot[];
   popoverTheme?: 'light' | 'dark' | 'glass';
+  savedLibrary?: HotspotSavedItem[];
 }
 
 // Union of all widget configs

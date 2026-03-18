@@ -1,6 +1,11 @@
 import React, { useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, HotspotImageConfig, ImageHotspot } from '@/types';
+import {
+  WidgetData,
+  HotspotImageConfig,
+  ImageHotspot,
+  HotspotSavedItem,
+} from '@/types';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -30,7 +35,7 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user } = useAuth();
+  const { user, savedWidgetConfigs, saveWidgetConfig } = useAuth();
   const config = widget.config as HotspotImageConfig;
   const { uploadHotspotImage, uploading } = useStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +127,52 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  const savedLibrary: HotspotSavedItem[] =
+    (savedWidgetConfigs['hotspot-image'] as Partial<HotspotImageConfig>)
+      ?.savedLibrary ?? [];
+
+  const handleSaveToLibrary = () => {
+    if (!config.baseImageUrl) return;
+
+    const name = window.prompt('Enter a name for this saved hotspot:');
+    if (!name) return;
+
+    const newItem: HotspotSavedItem = {
+      id: crypto.randomUUID(),
+      name,
+      baseImageUrl: config.baseImageUrl,
+      hotspots: config.hotspots || [],
+      popoverTheme: config.popoverTheme,
+      createdAt: Date.now(),
+    };
+
+    saveWidgetConfig('hotspot-image', {
+      savedLibrary: [...savedLibrary, newItem],
+    });
+    addToast('Saved to library', 'success');
+  };
+
+  const handleLoadFromLibrary = (item: HotspotSavedItem) => {
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        baseImageUrl: item.baseImageUrl,
+        hotspots: item.hotspots,
+        popoverTheme: item.popoverTheme,
+      },
+    });
+    addToast('Loaded from library', 'success');
+  };
+
+  const handleDeleteFromLibrary = (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this saved hotspot?'))
+      return;
+    saveWidgetConfig('hotspot-image', {
+      savedLibrary: savedLibrary.filter((item) => item.id !== id),
+    });
+    addToast('Deleted from library', 'info');
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -179,6 +230,50 @@ export const HotspotImageSettings: React.FC<{ widget: WidgetData }> = ({
             className="hidden"
             onChange={handleFileChange}
           />
+        </div>
+      </div>
+
+      <div>
+        <SettingsLabel>Saved Library</SettingsLabel>
+        <div className="space-y-2">
+          {savedLibrary.length > 0 ? (
+            <div className="max-h-40 overflow-y-auto pr-2 custom-scrollbar space-y-2 mb-2">
+              {savedLibrary.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-md"
+                >
+                  <button
+                    onClick={() => handleLoadFromLibrary(item)}
+                    className="flex-1 text-left text-sm font-medium text-slate-700 hover:text-blue-600 truncate mr-2"
+                  >
+                    {item.name}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFromLibrary(item.id)}
+                    className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                    aria-label="Delete saved hotspot"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 italic">
+              No saved hotspots yet.
+            </p>
+          )}
+
+          {config.baseImageUrl && (
+            <Button
+              onClick={handleSaveToLibrary}
+              variant="secondary"
+              className="w-full text-xs py-1"
+            >
+              Save Current to Library
+            </Button>
+          )}
         </div>
       </div>
 

@@ -76,6 +76,25 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                 const IconComponent = ICON_MAP[spot.icon] || Info;
                 const isActive = activePinId === spot.id;
 
+                let popoverPositionClass = '';
+                let popoverMarginStyle: React.CSSProperties = {};
+
+                if (spot.xPct < 25) {
+                  popoverPositionClass += ' left-0';
+                } else if (spot.xPct > 75) {
+                  popoverPositionClass += ' right-0';
+                } else {
+                  popoverPositionClass += ' left-1/2 -translate-x-1/2';
+                }
+
+                if (spot.yPct > 75) {
+                  popoverPositionClass += ' bottom-full';
+                  popoverMarginStyle = { marginBottom: 'min(12px, 3cqmin)' };
+                } else {
+                  popoverPositionClass += ' top-full';
+                  popoverMarginStyle = { marginTop: 'min(12px, 3cqmin)' };
+                }
+
                 return (
                   <div
                     key={spot.id}
@@ -112,10 +131,10 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                       <div
                         style={{
                           width: 'min(256px, 64cqmin)',
-                          marginTop: 'min(12px, 3cqmin)',
+                          ...popoverMarginStyle,
                           padding: 'min(16px, 4cqmin)',
                         }}
-                        className={`absolute left-1/2 -translate-x-1/2 rounded-xl shadow-xl text-left cursor-default
+                        className={`absolute ${popoverPositionClass} rounded-xl shadow-xl text-center cursor-default
                           ${
                             config.popoverTheme === 'dark'
                               ? 'bg-slate-800 text-white border border-slate-700'
@@ -127,11 +146,11 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div
-                          className="flex justify-between items-start"
+                          className="flex justify-center items-start relative"
                           style={{ marginBottom: 'min(8px, 2cqmin)' }}
                         >
                           <h4
-                            className="font-bold leading-tight pr-4"
+                            className="font-bold leading-tight"
                             style={{ fontSize: 'min(18px, 4.5cqmin)' }}
                           >
                             {spot.title}
@@ -139,7 +158,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                           <button
                             aria-label="Close popover"
                             onClick={handleClosePopover}
-                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors absolute right-0 top-0"
                             style={{
                               padding: 'min(4px, 1cqmin)',
                               marginRight: 'min(-8px, -2cqmin)',
