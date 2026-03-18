@@ -126,7 +126,8 @@ export const BackgroundManager: React.FC = () => {
   const [filterBuilding, setFilterBuilding] = useState<string>('all');
 
   // Category management
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryManagerName, setCategoryManagerName] = useState('');
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [editingCategoryPresetId, setEditingCategoryPresetId] = useState<
     string | null
@@ -710,28 +711,28 @@ export const BackgroundManager: React.FC = () => {
             <input
               type="text"
               placeholder="New category name..."
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
+              value={categoryManagerName}
+              onChange={(e) => setCategoryManagerName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && newCategoryName.trim()) {
+                if (e.key === 'Enter' && categoryManagerName.trim()) {
                   // Categories are created by assigning them to presets - just note it here
                   showMessage(
                     'success',
-                    `Category name "${newCategoryName.trim()}" noted. Assign it to a background below to create it.`
+                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
                   );
-                  setNewCategoryName('');
+                  setCategoryManagerName('');
                 }
               }}
               className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
             <button
               onClick={() => {
-                if (newCategoryName.trim()) {
+                if (categoryManagerName.trim()) {
                   showMessage(
                     'success',
-                    `Category name "${newCategoryName.trim()}" noted. Assign it to a background below to create it.`
+                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
                   );
-                  setNewCategoryName('');
+                  setCategoryManagerName('');
                 }
               }}
               className="px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-blue-dark transition-colors"
@@ -955,12 +956,12 @@ export const BackgroundManager: React.FC = () => {
                 editingId={editingId}
                 editName={editName}
                 editingCategoryPresetId={editingCategoryPresetId}
-                newCategoryName={newCategoryName}
+                editingCategoryValue={editingCategoryValue}
                 allCategories={allCategories}
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 setEditingCategoryPresetId={setEditingCategoryPresetId}
-                setNewCategoryName={setNewCategoryName}
+                setEditingCategoryValue={setEditingCategoryValue}
                 updatePreset={updatePreset}
                 deletePreset={deletePreset}
                 addBetaUser={addBetaUser}
@@ -981,12 +982,12 @@ export const BackgroundManager: React.FC = () => {
                 editingId={editingId}
                 editName={editName}
                 editingCategoryPresetId={editingCategoryPresetId}
-                newCategoryName={newCategoryName}
+                editingCategoryValue={editingCategoryValue}
                 allCategories={allCategories}
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 setEditingCategoryPresetId={setEditingCategoryPresetId}
-                setNewCategoryName={setNewCategoryName}
+                setEditingCategoryValue={setEditingCategoryValue}
                 updatePreset={updatePreset}
                 deletePreset={deletePreset}
                 addBetaUser={addBetaUser}
@@ -1010,12 +1011,12 @@ interface PresetCardProps {
   editingId: string | null;
   editName: string;
   editingCategoryPresetId: string | null;
-  newCategoryName: string;
+  editingCategoryValue: string;
   allCategories: string[];
   setEditingId: (id: string | null) => void;
   setEditName: (name: string) => void;
   setEditingCategoryPresetId: (id: string | null) => void;
-  setNewCategoryName: (name: string) => void;
+  setEditingCategoryValue: (name: string) => void;
   updatePreset: (
     id: string,
     updates: Partial<BackgroundPreset>
@@ -1035,12 +1036,12 @@ const ListPresetRow: React.FC<PresetCardProps> = ({
   editingId,
   editName,
   editingCategoryPresetId,
-  newCategoryName,
+  editingCategoryValue,
   allCategories,
   setEditingId,
   setEditName,
   setEditingCategoryPresetId,
-  setNewCategoryName,
+  setEditingCategoryValue,
   updatePreset,
   deletePreset,
   addBetaUser,
@@ -1167,8 +1168,8 @@ const ListPresetRow: React.FC<PresetCardProps> = ({
             <div className="flex items-center gap-1 flex-1">
               <input
                 type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
+                value={editingCategoryValue}
+                onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-${preset.id}`}
                 placeholder="Category..."
                 className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
@@ -1182,10 +1183,10 @@ const ListPresetRow: React.FC<PresetCardProps> = ({
               <button
                 onClick={() => {
                   void updatePreset(preset.id, {
-                    category: newCategoryName.trim() || undefined,
+                    category: editingCategoryValue.trim() || undefined,
                   });
                   setEditingCategoryPresetId(null);
-                  setNewCategoryName('');
+                  setEditingCategoryValue('');
                 }}
                 className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
               >
@@ -1194,7 +1195,7 @@ const ListPresetRow: React.FC<PresetCardProps> = ({
               <button
                 onClick={() => {
                   setEditingCategoryPresetId(null);
-                  setNewCategoryName('');
+                  setEditingCategoryValue('');
                 }}
                 className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
               >
@@ -1205,7 +1206,7 @@ const ListPresetRow: React.FC<PresetCardProps> = ({
             <button
               onClick={() => {
                 setEditingCategoryPresetId(preset.id);
-                setNewCategoryName(preset.category ?? '');
+                setEditingCategoryValue(preset.category ?? '');
               }}
               className="text-xs text-slate-500 hover:text-brand-blue-primary truncate"
             >
@@ -1312,12 +1313,12 @@ const GridPresetCard: React.FC<PresetCardProps> = ({
   editingId,
   editName,
   editingCategoryPresetId,
-  newCategoryName,
+  editingCategoryValue,
   allCategories,
   setEditingId,
   setEditName,
   setEditingCategoryPresetId,
-  setNewCategoryName,
+  setEditingCategoryValue,
   updatePreset,
   deletePreset,
   addBetaUser,
@@ -1458,8 +1459,8 @@ const GridPresetCard: React.FC<PresetCardProps> = ({
             <div className="flex items-center gap-1">
               <input
                 type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
+                value={editingCategoryValue}
+                onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-grid-${preset.id}`}
                 placeholder="Category..."
                 className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
@@ -1473,10 +1474,10 @@ const GridPresetCard: React.FC<PresetCardProps> = ({
               <button
                 onClick={() => {
                   void updatePreset(preset.id, {
-                    category: newCategoryName.trim() || undefined,
+                    category: editingCategoryValue.trim() || undefined,
                   });
                   setEditingCategoryPresetId(null);
-                  setNewCategoryName('');
+                  setEditingCategoryValue('');
                 }}
                 className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
               >
@@ -1485,7 +1486,7 @@ const GridPresetCard: React.FC<PresetCardProps> = ({
               <button
                 onClick={() => {
                   setEditingCategoryPresetId(null);
-                  setNewCategoryName('');
+                  setEditingCategoryValue('');
                 }}
                 className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
               >
@@ -1496,7 +1497,7 @@ const GridPresetCard: React.FC<PresetCardProps> = ({
             <button
               onClick={() => {
                 setEditingCategoryPresetId(preset.id);
-                setNewCategoryName(preset.category ?? '');
+                setEditingCategoryValue(preset.category ?? '');
               }}
               className="flex items-center gap-1.5 w-full px-2 py-1 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors text-left"
             >

@@ -286,26 +286,30 @@ export const FeaturePermissionsManager: React.FC = () => {
   const filteredTools = useMemo(() => {
     const sorted = [...TOOLS].sort((a, b) => a.label.localeCompare(b.label));
     return sorted.filter((tool) => {
-      const permission = getPermission(tool.type);
-      if (filterEnabled === 'on' && !permission.enabled) return false;
-      if (filterEnabled === 'off' && permission.enabled) return false;
+      const perm = permissions.get(tool.type) ?? {
+        widgetType: tool.type,
+        accessLevel: 'public' as AccessLevel,
+        betaUsers: [] as string[],
+        enabled: true,
+      };
+      if (filterEnabled === 'on' && !perm.enabled) return false;
+      if (filterEnabled === 'off' && perm.enabled) return false;
       if (
         filterAvailability !== 'all' &&
-        permission.accessLevel !== filterAvailability
+        perm.accessLevel !== filterAvailability
       )
         return false;
       if (filterBuilding !== 'all') {
         const building = BUILDINGS.find((b) => b.id === filterBuilding);
         if (building) {
           const currentLevels =
-            permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
+            perm.gradeLevels ?? getWidgetGradeLevels(tool.type);
           if (!building.gradeLevels.some((gl) => currentLevels.includes(gl)))
             return false;
         }
       }
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissions, filterEnabled, filterAvailability, filterBuilding]);
 
   if (loading) {
@@ -585,16 +589,16 @@ export const FeaturePermissionsManager: React.FC = () => {
                       </button>
                       <button
                         onClick={() => savePermission(tool.type)}
-                        disabled={isSaving}
+                        disabled={isSaving || !unsavedChanges.has(tool.type)}
                         className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           unsavedChanges.has(tool.type)
                             ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                            : 'text-slate-400 hover:bg-brand-blue-primary hover:text-white'
+                            : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
                         }`}
                         title={
                           unsavedChanges.has(tool.type)
                             ? 'Save Changes'
-                            : 'Save Permissions'
+                            : 'No changes to save'
                         }
                       >
                         <Save className="w-4 h-4" />
@@ -757,7 +761,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                 {/* Save Button */}
                 <button
                   onClick={() => savePermission(tool.type)}
-                  disabled={isSaving}
+                  disabled={isSaving || !unsavedChanges.has(tool.type)}
                   className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                     unsavedChanges.has(tool.type)
                       ? 'bg-orange-600 hover:bg-orange-700 text-white'

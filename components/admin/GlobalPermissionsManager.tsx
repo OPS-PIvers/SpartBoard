@@ -236,17 +236,22 @@ export const GlobalPermissionsManager: React.FC = () => {
       a.label.localeCompare(b.label)
     );
     return sorted.filter((feature) => {
-      const permission = getPermission(feature.id);
-      if (filterEnabled === 'on' && !permission.enabled) return false;
-      if (filterEnabled === 'off' && permission.enabled) return false;
+      const perm = permissions.get(feature.id) ?? {
+        featureId: feature.id,
+        accessLevel: 'public' as AccessLevel,
+        betaUsers: [] as string[],
+        enabled: true,
+        config: feature.id === 'gemini-functions' ? { dailyLimit: 20 } : {},
+      };
+      if (filterEnabled === 'on' && !perm.enabled) return false;
+      if (filterEnabled === 'off' && perm.enabled) return false;
       if (
         filterAvailability !== 'all' &&
-        permission.accessLevel !== filterAvailability
+        perm.accessLevel !== filterAvailability
       )
         return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissions, filterEnabled, filterAvailability]);
 
   if (loading) {
@@ -465,16 +470,16 @@ export const GlobalPermissionsManager: React.FC = () => {
                     <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
                       <button
                         onClick={() => savePermission(feature.id)}
-                        disabled={isSaving}
+                        disabled={isSaving || !unsavedChanges.has(feature.id)}
                         className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           unsavedChanges.has(feature.id)
                             ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                            : 'text-slate-400 hover:bg-brand-blue-primary hover:text-white'
+                            : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
                         }`}
                         title={
                           unsavedChanges.has(feature.id)
                             ? 'Save Changes'
-                            : 'Save Settings'
+                            : 'No changes to save'
                         }
                       >
                         <Save className="w-4 h-4" />
@@ -697,7 +702,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                 {/* Save Button */}
                 <button
                   onClick={() => savePermission(feature.id)}
-                  disabled={isSaving}
+                  disabled={isSaving || !unsavedChanges.has(feature.id)}
                   className={`w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-md disabled:opacity-50 ${
                     unsavedChanges.has(feature.id)
                       ? 'bg-orange-600 hover:bg-orange-700 text-white'
