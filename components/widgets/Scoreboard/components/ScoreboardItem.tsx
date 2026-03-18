@@ -151,7 +151,8 @@ export const ScoreboardItem = React.memo(
       prevProps.team.id === nextProps.team.id &&
       prevProps.team.name === nextProps.team.name &&
       prevProps.team.score === nextProps.team.score &&
-      prevProps.team.color === nextProps.team.color
+      prevProps.team.color === nextProps.team.color &&
+      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId
     );
   }
 );
