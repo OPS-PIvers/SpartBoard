@@ -5,6 +5,7 @@ import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
+// @ts-expect-error Types are not properly resolving in the CI env.
 import { GoogleAuth } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 
@@ -708,10 +709,12 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
 
     // Generate OAuth 2.0 Access Token
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     const accessTokenResponse = (await auth.getAccessToken()) as
       | string
       | { token: string | null }

@@ -24,14 +24,19 @@ describe('QRWidget Link Repeater Connection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useFeaturePermissions as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      subscribeToPermission: vi.fn((_type, callback) => {
-        callback(null);
-        return () => {};
-      }),
+    (
+      useFeaturePermissions as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      subscribeToPermission: vi.fn(
+        (_type: string, callback: (p: unknown) => void) => {
+          callback(null);
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          return () => {};
+        }
+      ),
     });
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      userProfile: { selectedBuildings: ['building-1'] },
+      selectedBuildings: ['building-1'],
     });
   });
 

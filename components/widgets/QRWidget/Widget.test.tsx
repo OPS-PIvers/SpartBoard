@@ -51,14 +51,17 @@ describe('QRWidget', () => {
       updateWidget: mockUpdateWidget,
     });
     (useFeaturePermissions as Mock).mockReturnValue({
-      subscribeToPermission: vi.fn((_type, callback) => {
-        // Mock default permission empty
-        callback(null);
-        return () => {};
-      }),
+      subscribeToPermission: vi.fn(
+        (_type: string, callback: (p: unknown) => void) => {
+          // Mock default permission empty
+          callback(null);
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          return () => {};
+        }
+      ),
     });
     (useAuth as Mock).mockReturnValue({
-      userProfile: { selectedBuildings: ['building-1'] },
+      selectedBuildings: ['building-1'],
     });
   });
 

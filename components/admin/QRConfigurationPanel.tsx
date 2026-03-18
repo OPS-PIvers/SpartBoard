@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { QRGlobalConfig, BuildingQRDefaults } from '@/types';
 import { QrCode, Link, Palette } from 'lucide-react';
-import { STANDARD_COLORS } from '@/config/colors';
 
 interface QRConfigurationPanelProps {
   config: QRGlobalConfig;
@@ -169,7 +168,9 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                 />
                 {currentBuildingConfig.qrBgColor && (
                   <button
-                    onClick={() => handleUpdateBuilding({ qrBgColor: undefined })}
+                    onClick={() =>
+                      handleUpdateBuilding({ qrBgColor: undefined })
+                    }
                     className="text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
                   >
                     Clear

@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboard } from '../../../context/useDashboard';
-import { WidgetData, QRConfig, TextConfig, QRGlobalConfig, FeaturePermission } from '../../../types';
+import {
+  WidgetData,
+  QRConfig,
+  TextConfig,
+  QRGlobalConfig,
+  FeaturePermission,
+} from '../../../types';
 import { Link } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -18,7 +24,7 @@ const stripHtml = (html: string) => {
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard, updateWidget } = useDashboard();
   const { subscribeToPermission } = useFeaturePermissions();
-  const { userProfile } = useAuth();
+  const { selectedBuildings } = useAuth();
   const config = widget.config as QRConfig;
   const [permission, setPermission] = useState<FeaturePermission | null>(null);
 
@@ -26,8 +32,10 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return subscribeToPermission('qr', (p) => setPermission(p));
   }, [subscribeToPermission]);
 
-  const globalConfig = permission?.config as unknown as QRGlobalConfig | undefined;
-  const buildingId = userProfile?.selectedBuildings?.[0];
+  const globalConfig = permission?.config as unknown as
+    | QRGlobalConfig
+    | undefined;
+  const buildingId = selectedBuildings?.[0];
   const defaults =
     globalConfig && buildingId
       ? globalConfig.buildingDefaults?.[buildingId]
@@ -35,11 +43,12 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Use config values if explicitly set, fallback to building defaults, then hardcoded defaults
   const url = config.url ?? defaults?.defaultUrl ?? 'https://google.com';
-  const qrColorRaw = config.qrColor ?? defaults?.qrColor ?? '#000000';
-  const qrBgColorRaw = config.qrBgColor ?? defaults?.qrBgColor ?? '#ffffff';
+  const qrColorRaw: string = config.qrColor ?? defaults?.qrColor ?? '#000000';
+  const qrBgColorRaw: string =
+    config.qrBgColor ?? defaults?.qrBgColor ?? '#ffffff';
 
-  const qrColor = qrColorRaw.replace('#', '');
-  const qrBgColor = qrBgColorRaw.replace('#', '');
+  const qrColor: string = qrColorRaw.replace('#', '');
+  const qrBgColor: string = qrBgColorRaw.replace('#', '');
 
   // Nexus Connection: Link Repeater (Text -> QR)
   useEffect(() => {
