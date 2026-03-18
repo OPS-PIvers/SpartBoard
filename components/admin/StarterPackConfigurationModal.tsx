@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   Package,
   LayoutGrid,
+  LayoutTemplate,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   collection,
@@ -32,6 +35,8 @@ import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import * as LucideIcons from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { SNAP_LAYOUTS } from '@/config/snapLayouts';
+import { calculateSnapBounds } from '@/utils/layoutMath';
 
 interface StarterPackConfigurationModalProps {
   isOpen: boolean;
@@ -108,6 +113,75 @@ const INITIAL_FORM: PackFormData = {
   widgets: [],
 };
 
+const LAYOUT_NAMES: Record<string, string> = {
+  splitScreen: 'Split Screen',
+  fourGrid: '2×2 Grid',
+  nineGrid: '3×3 Grid',
+  topPriority3: 'Top + 3 Bottom',
+  bottomPriority3: '3 Top + Bottom',
+  middlePriority3: 'Sandwich',
+  sidebarLeft: 'Sidebar Left',
+  sidebarRight: 'Sidebar Right',
+  threeColumns: '3 Columns',
+  topBottom: 'Top / Bottom',
+  threeRows: '3 Rows',
+  priorityLeft: 'Priority Left',
+  priorityRight: 'Priority Right',
+};
+
+interface SnapZonePickerProps {
+  selectedKey: string | null;
+  onSelect: (key: string, bounds: { x: number; y: number; w: number; h: number }) => void;
+}
+
+const SnapZonePicker: React.FC<SnapZonePickerProps> = ({ selectedKey, onSelect }) => {
+  return (
+    <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 p-3 bg-slate-50 rounded-xl border border-slate-200">
+      {SNAP_LAYOUTS.map((layout) => (
+        <div key={layout.id} className="group">
+          <div
+            className="relative w-full bg-white rounded border border-slate-200 group-hover:border-indigo-300 overflow-hidden transition-colors"
+            style={{ paddingBottom: '56.25%' }}
+            title={LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}
+          >
+            <div className="absolute inset-0">
+              {layout.zones.map((zone) => {
+                const key = `${layout.id}:${zone.id}`;
+                const isSelected = selectedKey === key;
+                return (
+                  <button
+                    key={zone.id}
+                    type="button"
+                    onClick={() => {
+                      const bounds = calculateSnapBounds(zone);
+                      onSelect(key, bounds);
+                    }}
+                    className={`absolute transition-colors rounded-[1px] border border-white/60 ${
+                      isSelected
+                        ? 'bg-indigo-500'
+                        : 'bg-slate-300 hover:bg-indigo-400'
+                    }`}
+                    style={{
+                      left: `${zone.x * 100}%`,
+                      top: `${zone.y * 100}%`,
+                      width: `${zone.w * 100}%`,
+                      height: `${zone.h * 100}%`,
+                    }}
+                    title={`${LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}: ${zone.id}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-center text-slate-400 mt-0.5 truncate" style={{ fontSize: '9px' }}>
+            {LAYOUT_NAMES[layout.nameKey] ?? layout.nameKey}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const StarterPackConfigurationModal: React.FC<
   StarterPackConfigurationModalProps
 > = ({ isOpen, onClose }) => {
@@ -136,6 +210,12 @@ export const StarterPackConfigurationModal: React.FC<
   const [newWidgetW, setNewWidgetW] = useState(300);
   const [newWidgetH, setNewWidgetH] = useState(200);
 
+  // Snap layout picker state
+  const [newWidgetSnapKey, setNewWidgetSnapKey] = useState<string | null>(null);
+  const [newWidgetSnapOpen, setNewWidgetSnapOpen] = useState(false);
+  const [snappingWidgetIndex, setSnappingWidgetIndex] = useState<number | null>(null);
+  const [widgetSnapKeys, setWidgetSnapKeys] = useState<Record<number, string>>({});
+
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
@@ -156,6 +236,10 @@ export const StarterPackConfigurationModal: React.FC<
     setView('list');
     setEditingId(null);
     setFormData(INITIAL_FORM);
+    setSnappingWidgetIndex(null);
+    setWidgetSnapKeys({});
+    setNewWidgetSnapKey(null);
+    setNewWidgetSnapOpen(false);
   }, [
     formData.name,
     formData.description,
@@ -211,6 +295,7 @@ export const StarterPackConfigurationModal: React.FC<
       setNewWidgetW(defaults.w ?? 300);
       setNewWidgetH(defaults.h ?? 200);
     }
+    setNewWidgetSnapKey(null);
   }, []);
 
   const handleCaptureBoard = () => {
@@ -253,6 +338,16 @@ export const StarterPackConfigurationModal: React.FC<
       ...prev,
       widgets: prev.widgets.filter((_, i) => i !== index),
     }));
+    setSnappingWidgetIndex(null);
+    setWidgetSnapKeys((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const n = Number(k);
+        if (n < index) next[n] = v;
+        else if (n > index) next[n - 1] = v;
+      });
+      return next;
+    });
   };
 
   const handleUpdateWidget = (
@@ -279,6 +374,10 @@ export const StarterPackConfigurationModal: React.FC<
       isLocked: pack.isLocked,
       widgets: pack.widgets as PackWidgetEntry[],
     });
+    setSnappingWidgetIndex(null);
+    setWidgetSnapKeys({});
+    setNewWidgetSnapKey(null);
+    setNewWidgetSnapOpen(false);
     setView('editor');
   };
 
@@ -716,61 +815,99 @@ export const StarterPackConfigurationModal: React.FC<
                         (t) => t.type === widget.type
                       );
                       const WidgetIcon = toolMeta?.icon ?? Package;
+                      const isSnapOpen = snappingWidgetIndex === index;
                       return (
                         <div
                           key={index}
-                          className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200"
+                          className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden"
                         >
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 ${toolMeta?.color ?? 'bg-slate-400'}`}
-                          >
-                            <WidgetIcon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-700 truncate">
-                              {toolMeta?.label ?? widget.type}
-                            </p>
-                            <div className="flex gap-3 mt-1 flex-wrap">
-                              {(
-                                [
-                                  ['x', 'X'],
-                                  ['y', 'Y'],
-                                  ['w', 'W'],
-                                  ['h', 'H'],
-                                ] as [
-                                  keyof typeof widget & ('x' | 'y' | 'w' | 'h'),
-                                  string,
-                                ][]
-                              ).map(([field, label]) => (
-                                <label
-                                  key={field}
-                                  className="flex items-center gap-1 text-xs text-slate-500"
-                                >
-                                  <span className="font-bold text-slate-400 uppercase">
-                                    {label}
-                                  </span>
-                                  <input
-                                    type="number"
-                                    value={widget[field]}
-                                    onChange={(e) =>
-                                      handleUpdateWidget(
-                                        index,
-                                        field,
-                                        Number(e.target.value)
-                                      )
-                                    }
-                                    className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-xs text-center focus:border-indigo-400 focus:outline-none"
-                                  />
-                                </label>
-                              ))}
+                          <div className="flex items-center gap-3 p-3">
+                            <div
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 ${toolMeta?.color ?? 'bg-slate-400'}`}
+                            >
+                              <WidgetIcon className="w-4 h-4" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-700 truncate">
+                                {toolMeta?.label ?? widget.type}
+                              </p>
+                              <div className="flex gap-3 mt-1 flex-wrap">
+                                {(
+                                  [
+                                    ['x', 'X'],
+                                    ['y', 'Y'],
+                                    ['w', 'W'],
+                                    ['h', 'H'],
+                                  ] as [
+                                    keyof typeof widget & ('x' | 'y' | 'w' | 'h'),
+                                    string,
+                                  ][]
+                                ).map(([field, label]) => (
+                                  <label
+                                    key={field}
+                                    className="flex items-center gap-1 text-xs text-slate-500"
+                                  >
+                                    <span className="font-bold text-slate-400 uppercase">
+                                      {label}
+                                    </span>
+                                    <input
+                                      type="number"
+                                      value={widget[field]}
+                                      onChange={(e) =>
+                                        handleUpdateWidget(
+                                          index,
+                                          field,
+                                          Number(e.target.value)
+                                        )
+                                      }
+                                      className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-xs text-center focus:border-indigo-400 focus:outline-none"
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() =>
+                                setSnappingWidgetIndex(
+                                  isSnapOpen ? null : index
+                                )
+                              }
+                              className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                                isSnapOpen
+                                  ? 'bg-indigo-100 text-indigo-600'
+                                  : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+                              }`}
+                              title="Snap to layout position"
+                            >
+                              <LayoutTemplate className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveWidget(index)}
+                              className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => handleRemoveWidget(index)}
-                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isSnapOpen && (
+                            <div className="px-3 pb-3 border-t border-slate-200">
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1.5">
+                                Snap to Layout Position
+                              </p>
+                              <SnapZonePicker
+                                selectedKey={widgetSnapKeys[index] ?? null}
+                                onSelect={(key, bounds) => {
+                                  handleUpdateWidget(index, 'x', bounds.x);
+                                  handleUpdateWidget(index, 'y', bounds.y);
+                                  handleUpdateWidget(index, 'w', bounds.w);
+                                  handleUpdateWidget(index, 'h', bounds.h);
+                                  setWidgetSnapKeys((prev) => ({
+                                    ...prev,
+                                    [index]: key,
+                                  }));
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -834,7 +971,10 @@ export const StarterPackConfigurationModal: React.FC<
                         <input
                           type="number"
                           value={val}
-                          onChange={(e) => setter(Number(e.target.value))}
+                          onChange={(e) => {
+                            setter(Number(e.target.value));
+                            setNewWidgetSnapKey(null);
+                          }}
                           className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
                         />
                       </div>
@@ -849,6 +989,40 @@ export const StarterPackConfigurationModal: React.FC<
                         Add Widget
                       </button>
                     </div>
+                  </div>
+
+                  {/* Snap to Layout Position picker */}
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setNewWidgetSnapOpen((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-wider mb-1.5 transition-colors"
+                    >
+                      <LayoutTemplate className="w-3.5 h-3.5" />
+                      Snap to Layout Position
+                      {newWidgetSnapOpen ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                      {newWidgetSnapKey && (
+                        <span className="ml-1 normal-case font-normal text-indigo-500 tracking-normal">
+                          — position selected
+                        </span>
+                      )}
+                    </button>
+                    {newWidgetSnapOpen && (
+                      <SnapZonePicker
+                        selectedKey={newWidgetSnapKey}
+                        onSelect={(key, bounds) => {
+                          setNewWidgetX(bounds.x);
+                          setNewWidgetY(bounds.y);
+                          setNewWidgetW(bounds.w);
+                          setNewWidgetH(bounds.h);
+                          setNewWidgetSnapKey(key);
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </section>
