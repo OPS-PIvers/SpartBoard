@@ -8,22 +8,70 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EmbedWidget, EmbedSettings } from './index';
-import { WidgetData, EmbedConfig } from '../../../types';
+import { WidgetData, EmbedConfig, EmbedGlobalConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import * as aiModule from '@/utils/ai';
+import { useEmbedConfig } from './hooks/useEmbedConfig';
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: { uid: 'test-uid' },
+    selectedBuildings: ['schumann-elementary'],
+  })),
+}));
+
+const mockSubscribe = vi.fn(
+  (
+    _type: string,
+    callback: (perm: { config: EmbedGlobalConfig } | null) => void
+  ) => {
+    callback({
+      config: {
+        buildingDefaults: {
+          'schumann-elementary': {
+            buildingId: 'schumann-elementary',
+            hideUrlField: false,
+            whitelistUrls: ['example.org'],
+          },
+        },
+      },
+    });
+    return () => undefined;
+  }
+);
+
+vi.mock('@/hooks/useFeaturePermissions', () => ({
+  useFeaturePermissions: () => ({
+    subscribeToPermission: mockSubscribe,
+    loading: false,
+  }),
+}));
+
+vi.mock('./hooks/useEmbedConfig', () => ({
+  useEmbedConfig: vi.fn(() => ({
+    config: {
+      buildingId: 'schumann-elementary',
+      hideUrlField: false,
+      whitelistUrls: [],
+    },
+    isLoading: false,
+  })),
+}));
 
 // Mock dependencies
 const mockUpdateWidget = vi.fn();
 const mockAddWidget = vi.fn();
 const mockAddToast = vi.fn();
 
-vi.mock('../../../context/useDashboard', () => ({
-  useDashboard: () => ({
-    updateWidget: mockUpdateWidget,
-    addWidget: mockAddWidget,
-    addToast: mockAddToast,
-  }),
+const mockDashboardContext = {
+  updateWidget: mockUpdateWidget,
+  addWidget: mockAddWidget,
+  addToast: mockAddToast,
+};
+
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => mockDashboardContext,
 }));
 
 vi.mock('@/utils/ai', () => ({
@@ -136,7 +184,18 @@ describe('EmbedWidget', () => {
 
   describe('EmbedSettings', () => {
     it('updates refreshInterval when selection changes', () => {
+      // Mock useEmbedConfig specifically for this test
+      vi.mocked(useEmbedConfig).mockReturnValue({
+        config: {
+          buildingId: 'schumann-elementary',
+          hideUrlField: false,
+          whitelistUrls: [],
+        },
+        isLoading: false,
+      });
+
       render(<EmbedSettings widget={baseWidget} />);
+
       const select = screen.getByLabelText(/Auto-Refresh/i);
 
       fireEvent.change(select, { target: { value: '5' } });

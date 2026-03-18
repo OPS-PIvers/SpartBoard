@@ -469,6 +469,17 @@ export interface ScheduleGlobalConfig {
   buildingDefaults: Record<string, BuildingScheduleDefaults>;
 }
 
+// --- Embed Global Config ---
+export interface BuildingEmbedDefaults {
+  buildingId: string;
+  hideUrlField?: boolean;
+  whitelistUrls?: string[];
+}
+
+export interface EmbedGlobalConfig {
+  buildingDefaults: Record<string, BuildingEmbedDefaults>;
+}
+
 // --- Clock Global Config ---
 export interface BuildingClockDefaults {
   buildingId: string;
