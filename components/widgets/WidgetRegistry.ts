@@ -187,7 +187,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   materials: lazyNamed(() => import('./MaterialsWidget'), 'MaterialsSettings'),
   miniApp: MiniAppSettings,
   'time-tool': lazyNamed(
-    () => import('./TimeTool/TimeToolWidget'),
+    () => import('./TimeTool/Settings'),
     'TimeToolSettings'
   ),
   'seating-chart': lazyNamed(
@@ -276,7 +276,7 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     'ClockAppearanceSettings'
   ),
   'time-tool': lazyNamed(
-    () => import('./TimeTool/TimeToolWidget'),
+    () => import('./TimeTool/Settings'),
     'TimeToolAppearanceSettings'
   ),
   text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings'),
