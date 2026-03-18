@@ -1,6 +1,6 @@
 import { Dashboard, WidgetData, TimeToolConfig, TextConfig } from '../types';
 import { sanitizeHtml } from './security';
-import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 
 // Minimum dimension threshold: widgets smaller than this were likely
 // created with a bug where pixel dimensions were recorded as single digits
@@ -60,18 +60,23 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   // Correct widgets saved with impossibly small dimensions (caused by a bug
   // where the default w/h were single-digit numbers instead of pixel values).
-  if (
-    widget.w < MIN_WIDGET_DIMENSION_PX ||
-    widget.h < MIN_WIDGET_DIMENSION_PX
-  ) {
+  if (widget.w < MIN_WIDGET_DIMENSION_PX || widget.h < MIN_WIDGET_DIMENSION_PX) {
     const defaults = WIDGET_DEFAULTS[widget.type as keyof typeof WIDGET_DEFAULTS];
-    if (defaults) {
-      return {
-        ...widget,
-        w: widget.w < MIN_WIDGET_DIMENSION_PX ? (defaults.w ?? 300) : widget.w,
-        h: widget.h < MIN_WIDGET_DIMENSION_PX ? (defaults.h ?? 300) : widget.h,
-      };
-    }
+    return {
+      ...widget,
+      w:
+        widget.w < MIN_WIDGET_DIMENSION_PX
+          ? defaults?.w && defaults.w >= MIN_WIDGET_DIMENSION_PX
+            ? defaults.w
+            : 300
+          : widget.w,
+      h:
+        widget.h < MIN_WIDGET_DIMENSION_PX
+          ? defaults?.h && defaults.h >= MIN_WIDGET_DIMENSION_PX
+            ? defaults.h
+            : 300
+          : widget.h,
+    };
   }
 
   return widget;
