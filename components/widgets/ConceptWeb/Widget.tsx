@@ -27,6 +27,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     y: number;
   } | null>(null);
 
+  // --- LOCAL RESIZE STATE ---
+  const [resizingNodeId, setResizingNodeId] = useState<string | null>(null);
+  const [resizingNodeDim, setResizingNodeDim] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
+
   // --- LOCAL DRAW LINE STATE (Edges) ---
   const [drawingFromId, setDrawingFromId] = useState<string | null>(null);
   const [drawingLineEnd, setDrawingLineEnd] = useState<{
@@ -34,9 +41,9 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     y: number;
   } | null>(null);
 
-  // Node dimensions (percentages)
-  const NODE_WIDTH_PCT = 15;
-  const NODE_HEIGHT_PCT = 15;
+  // Default dimensions
+  const DEFAULT_WIDTH = config.defaultNodeWidth ?? 15;
+  const DEFAULT_HEIGHT = config.defaultNodeHeight ?? 15;
 
   const handleAddNode = () => {
     if (isStudentView) return;
@@ -48,8 +55,10 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     const newNode: ConceptNode = {
       id: crypto.randomUUID(),
       text: '',
-      x: 50 - NODE_WIDTH_PCT / 2 + offsetX,
-      y: 50 - NODE_HEIGHT_PCT / 2 + offsetY,
+      x: 50 - DEFAULT_WIDTH / 2 + offsetX,
+      y: 50 - DEFAULT_HEIGHT / 2 + offsetY,
+      width: DEFAULT_WIDTH,
+      height: DEFAULT_HEIGHT,
       bgColor: '#fdf0d5',
     };
 
@@ -97,7 +106,8 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     if (
       target.tagName.toLowerCase() === 'textarea' ||
       target.closest('button') ||
-      target.closest('.handle')
+      target.closest('.handle') ||
+      target.closest('.resize-handle')
     ) {
       return;
     }
@@ -142,6 +152,57 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
     setActiveNodeId(null);
     setActiveNodePos(null);
+  };
+
+  // --- RESIZE HANDLERS ---
+  const handleResizePointerDown = (
+    e: React.PointerEvent<HTMLElement>,
+    node: ConceptNode
+  ) => {
+    if (isStudentView) return;
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+    setResizingNodeId(node.id);
+    setResizingNodeDim({
+      w: node.width ?? DEFAULT_WIDTH,
+      h: node.height ?? DEFAULT_HEIGHT,
+    });
+  };
+
+  const handleResizePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!resizingNodeId || isStudentView || !containerRef.current) return;
+    e.stopPropagation();
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const movementXPct = (e.movementX / rect.width) * 100;
+    const movementYPct = (e.movementY / rect.height) * 100;
+
+    setResizingNodeDim((prev) =>
+      prev
+        ? {
+            w: Math.max(5, prev.w + movementXPct),
+            h: Math.max(5, prev.h + movementYPct),
+          }
+        : null
+    );
+  };
+
+  const handleResizePointerUp = (e: React.PointerEvent<HTMLElement>) => {
+    if (!resizingNodeId || isStudentView || !resizingNodeDim) return;
+    e.stopPropagation();
+    const target = e.target as HTMLElement;
+    target.releasePointerCapture(e.pointerId);
+
+    const updated = nodes.map((n) =>
+      n.id === resizingNodeId
+        ? { ...n, width: resizingNodeDim.w, height: resizingNodeDim.h }
+        : n
+    );
+    updateWidget(widget.id, { config: { ...config, nodes: updated } });
+
+    setResizingNodeId(null);
+    setResizingNodeDim(null);
   };
 
   // --- DRAW EDGE HANDLERS ---
@@ -227,12 +288,16 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   const displayNodes = useMemo(() => {
     return nodes.map((n) => {
+      let node = n;
       if (n.id === activeNodeId && activeNodePos) {
-        return { ...n, x: activeNodePos.x, y: activeNodePos.y };
+        node = { ...node, x: activeNodePos.x, y: activeNodePos.y };
       }
-      return n;
+      if (n.id === resizingNodeId && resizingNodeDim) {
+        node = { ...node, width: resizingNodeDim.w, height: resizingNodeDim.h };
+      }
+      return node;
     });
-  }, [nodes, activeNodeId, activeNodePos]);
+  }, [nodes, activeNodeId, activeNodePos, resizingNodeId, resizingNodeDim]);
 
   const sourceDrawNode = useMemo(() => {
     if (!drawingFromId) return null;
@@ -292,10 +357,15 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
           const target = displayNodes.find((n) => n.id === edge.targetNodeId);
           if (!source || !target) return null;
 
-          const x1 = source.x + NODE_WIDTH_PCT / 2;
-          const y1 = source.y + NODE_HEIGHT_PCT / 2;
-          const x2 = target.x + NODE_WIDTH_PCT / 2;
-          const y2 = target.y + NODE_HEIGHT_PCT / 2;
+          const sourceW = source.width ?? DEFAULT_WIDTH;
+          const sourceH = source.height ?? DEFAULT_HEIGHT;
+          const targetW = target.width ?? DEFAULT_WIDTH;
+          const targetH = target.height ?? DEFAULT_HEIGHT;
+
+          const x1 = source.x + sourceW / 2;
+          const y1 = source.y + sourceH / 2;
+          const x2 = target.x + targetW / 2;
+          const y2 = target.y + targetH / 2;
 
           return (
             <path
@@ -315,7 +385,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
         {sourceDrawNode && drawingLineEnd && (
           <path
-            d={`M ${sourceDrawNode.x + NODE_WIDTH_PCT / 2} ${sourceDrawNode.y + NODE_HEIGHT_PCT / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
+            d={`M ${sourceDrawNode.x + (sourceDrawNode.width ?? DEFAULT_WIDTH) / 2} ${sourceDrawNode.y + (sourceDrawNode.height ?? DEFAULT_HEIGHT) / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
             stroke="#94a3b8"
             strokeWidth="0.5"
             strokeDasharray="5,5"
@@ -325,82 +395,118 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
         )}
       </svg>
 
-      {displayNodes.map((node) => (
-        <div
-          key={node.id}
-          data-node-id={node.id}
-          onPointerDown={(e) => handleNodePointerDown(e, node)}
-          onPointerMove={handleNodePointerMove}
-          onPointerUp={handleNodePointerUp}
-          onPointerCancel={handleNodePointerUp}
-          className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
-          style={{
-            left: `${node.x}%`,
-            top: `${node.y}%`,
-            width: `${NODE_WIDTH_PCT}%`,
-            height: `${NODE_HEIGHT_PCT}%`,
-            backgroundColor: node.bgColor,
-            fontFamily: 'inherit',
-          }}
-        >
-          <textarea
-            className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[0.2cqmin] focus:ring-slate-400 rounded-[0.5cqmin] p-[0.5cqmin] text-[1.5cqmin] font-medium text-slate-800 leading-tight"
-            value={node.text}
-            onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
-            placeholder="Idea..."
-            readOnly={isStudentView}
-          />
+      {displayNodes.map((node) => {
+        const w = node.width ?? DEFAULT_WIDTH;
+        const h = node.height ?? DEFAULT_HEIGHT;
 
-          {!isStudentView && (
-            <>
-              <button
-                type="button"
-                className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
-                style={{
-                  top: 'max(-4px, -1cqmin)',
-                  right: 'max(-4px, -1cqmin)',
-                  padding: 'min(4px, 1cqmin)',
-                  borderRadius: '9999px',
-                }}
-                onClick={() => handleDeleteNode(node.id)}
-                title="Delete Node"
-                aria-label="Delete node"
-              >
-                <Trash2
+        return (
+          <div
+            key={node.id}
+            data-node-id={node.id}
+            onPointerDown={(e) => handleNodePointerDown(e, node)}
+            onPointerMove={handleNodePointerMove}
+            onPointerUp={handleNodePointerUp}
+            onPointerCancel={handleNodePointerUp}
+            className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
+            style={{
+              left: `${node.x}%`,
+              top: `${node.y}%`,
+              width: `${w}%`,
+              height: `${h}%`,
+              backgroundColor: node.bgColor,
+              fontFamily: 'inherit',
+              containerType: 'size',
+            }}
+          >
+            <textarea
+              className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[0.2cqmin] focus:ring-slate-400 rounded-[0.5cqmin] p-[0.5cqmin] text-[15cqmin] font-medium text-slate-800 leading-tight"
+              value={node.text}
+              onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
+              placeholder="Idea..."
+              readOnly={isStudentView}
+            />
+
+            {!isStudentView && (
+              <>
+                <button
+                  type="button"
+                  className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
                   style={{
-                    width: 'min(16px, 4cqmin)',
-                    height: 'min(16px, 4cqmin)',
+                    top: 'max(-4px, -1cqmin)',
+                    right: 'max(-4px, -1cqmin)',
+                    padding: 'min(4px, 1cqmin)',
+                    borderRadius: '9999px',
                   }}
-                />
-              </button>
+                  onClick={() => handleDeleteNode(node.id)}
+                  title="Delete Node"
+                  aria-label="Delete node"
+                >
+                  <Trash2
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
+                </button>
 
-              <button
-                type="button"
-                className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
-                style={{
-                  bottom: 'max(-4px, -1cqmin)',
-                  padding: 'min(4px, 1cqmin)',
-                  borderRadius: '9999px',
-                }}
-                onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
-                onPointerMove={handleHandlePointerMove}
-                onPointerUp={handleHandlePointerUp}
-                onPointerCancel={handleHandlePointerUp}
-                title="Drag to connect"
-                aria-label="Drag to connect"
-              >
+                <button
+                  type="button"
+                  className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
+                  style={{
+                    bottom: 'max(-4px, -1cqmin)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    padding: 'min(4px, 1cqmin)',
+                    borderRadius: '9999px',
+                  }}
+                  onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
+                  onPointerMove={handleHandlePointerMove}
+                  onPointerUp={handleHandlePointerUp}
+                  onPointerCancel={handleHandlePointerUp}
+                  title="Drag to connect"
+                  aria-label="Drag to connect"
+                >
+                  <div
+                    className="rounded-full bg-current pointer-events-none"
+                    style={{
+                      width: 'min(8px, 2cqmin)',
+                      height: 'min(8px, 2cqmin)',
+                    }}
+                  />
+                </button>
+
                 <div
-                  className="rounded-full bg-current pointer-events-none"
+                  className="resize-handle absolute bottom-0 right-0 cursor-nwse-resize text-slate-300 hover:text-indigo-500 transition-colors"
                   style={{
-                    width: 'min(8px, 2cqmin)',
-                    height: 'min(8px, 2cqmin)',
+                    padding: 'min(4px, 1cqmin)',
                   }}
-                />
-              </button>
-            </>
-          )}
-        </div>
-      ))}
+                  onPointerDown={(e) => handleResizePointerDown(e, node)}
+                  onPointerMove={handleResizePointerMove}
+                  onPointerUp={handleResizePointerUp}
+                  onPointerCancel={handleResizePointerUp}
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  >
+                    <line x1="22" y1="12" x2="12" y2="22" />
+                    <line x1="22" y1="18" x2="18" y2="22" />
+                  </svg>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
