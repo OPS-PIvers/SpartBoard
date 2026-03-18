@@ -242,6 +242,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const nowSeconds =
     now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 
+  // Card height: small enough that 4 always fit without clipping (short widgets),
+  // but capped so taller widgets naturally show more than 4 events.
+  const rowHeight = `min(calc((100% - min(30px, 6cqmin)) / 4), min(120px, 22cqmin))`;
+
   return (
     <WidgetLayout
       padding="p-0"
@@ -272,8 +276,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
               return (
                 <div
                   key={`${event.date}-${event.title}-${idx}`}
-                  className="w-full flex flex-col rounded-xl transition-all relative shrink-0 overflow-hidden"
+                  className="w-full flex flex-col rounded-xl transition-all relative overflow-hidden"
                   style={{
+                    flex: `0 0 ${rowHeight}`,
+                    height: rowHeight,
                     backgroundColor: bgColor,
                     padding: 'min(12px, 2.5cqmin) min(16px, 3.5cqmin)',
                     border: `1px solid ${isToday ? 'rgba(99, 102, 241, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,

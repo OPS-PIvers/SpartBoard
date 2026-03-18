@@ -42,8 +42,11 @@ export type WidgetType =
   | 'music'
   | 'specialist-schedule'
   | 'graphic-organizer'
+  | 'concept-web'
   | 'reveal-grid'
-  | 'numberLine';
+  | 'numberLine'
+  | 'syntax-framer'
+  | 'hotspot-image';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -336,6 +339,7 @@ export interface ExpectationsConfig {
   instructionalRoutine?: string; // Legacy/K-8
   activeRoutines?: string[]; // New: 9-12 Multi-select
   layout?: 'secondary' | 'elementary';
+  syncSoundWidget?: boolean;
 }
 
 export interface ExpectationsOptionOverride {
@@ -790,6 +794,13 @@ export interface MathToolsConfig {
 /** Number line display mode */
 export type NumberLineMode = 'integers' | 'decimals' | 'fractions';
 
+export interface PlaceValueBlock {
+  id: string;
+  type: '1' | '10' | '100' | '1000';
+  x: number;
+  y: number;
+}
+
 /** Config for an individual mathTool widget instance */
 export interface MathToolConfig {
   /** Which math tool this instance displays */
@@ -820,6 +831,8 @@ export interface MathToolConfig {
   stickerMode?: boolean;
   /** For manipulative piece stickers – identifies the specific piece (e.g. 'unit', 'rod', '1-2', 'hexagon') */
   stickerPiece?: string;
+  placeValueBlocks?: PlaceValueBlock[];
+  placeValueColumns?: string[];
 }
 
 export interface PdfConfig {
@@ -1275,6 +1288,62 @@ export interface RevealGridConfig {
   cards: RevealCard[];
   revealMode: 'flip' | 'fade';
   fontFamily?: GlobalFontFamily;
+  defaultCardColor?: string;
+  defaultCardBackColor?: string;
+  activeDriveFileId?: string | null;
+  setName?: string;
+}
+
+export interface ConceptNode {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  bgColor?: string;
+}
+
+export interface ConceptEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label?: string; // e.g., "causes", "eats"
+  lineStyle: 'solid' | 'dashed';
+}
+
+export interface ConceptWebConfig {
+  nodes: ConceptNode[];
+  edges: ConceptEdge[];
+  fontFamily?: GlobalFontFamily;
+}
+
+export interface SyntaxToken {
+  id: string;
+  value: string; // the word, punctuation, or math operator
+  color?: string;
+  isMasked: boolean; // Renders as a blank underscore if true
+}
+
+export interface SyntaxFramerConfig {
+  mode: 'text' | 'math'; // Math mode adds an equation-style font
+  tokens: SyntaxToken[];
+  fontSize: number;
+  alignment: 'left' | 'center';
+}
+
+export interface ImageHotspot {
+  id: string;
+  xPct: number; // Use percentages so pins stay anchored if the widget scales
+  yPct: number;
+  title: string;
+  detailText: string;
+  icon: 'search' | 'info' | 'question' | 'star';
+  isViewed: boolean; // Syncs state so teachers know which ones they've covered
+}
+
+export interface HotspotImageConfig {
+  baseImageUrl: string;
+  hotspots: ImageHotspot[];
+  popoverTheme?: 'light' | 'dark' | 'glass';
 }
 
 // Union of all widget configs
@@ -1323,7 +1392,10 @@ export type WidgetConfig =
   | SpecialistScheduleConfig
   | GraphicOrganizerConfig
   | RevealGridConfig
-  | NumberLineConfig;
+  | NumberLineConfig
+  | ConceptWebConfig
+  | SyntaxFramerConfig
+  | HotspotImageConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1412,11 +1484,17 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                     ? SpecialistScheduleConfig
                                                                                     : T extends 'graphic-organizer'
                                                                                       ? GraphicOrganizerConfig
-                                                                                      : T extends 'reveal-grid'
-                                                                                        ? RevealGridConfig
-                                                                                        : T extends 'numberLine'
-                                                                                          ? NumberLineConfig
-                                                                                          : never;
+                                                                                      : T extends 'concept-web'
+                                                                                        ? ConceptWebConfig
+                                                                                        : T extends 'reveal-grid'
+                                                                                          ? RevealGridConfig
+                                                                                          : T extends 'numberLine'
+                                                                                            ? NumberLineConfig
+                                                                                            : T extends 'syntax-framer'
+                                                                                              ? SyntaxFramerConfig
+                                                                                              : T extends 'hotspot-image'
+                                                                                                ? HotspotImageConfig
+                                                                                                : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

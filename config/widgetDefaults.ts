@@ -303,8 +303,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } as SpecialistScheduleConfig,
   },
   'graphic-organizer': {
-    w: 8,
-    h: 6,
+    w: 800,
+    h: 600,
     config: {
       templateType: 'frayer',
       nodes: {},
@@ -342,13 +342,40 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     w: 700,
     h: 200,
     config: {
-      min: -10,
+      min: 0,
       max: 10,
       step: 1,
       displayMode: 'integers',
       markers: [],
       jumps: [],
       showArrows: true,
+    },
+  },
+  'concept-web': {
+    w: 800,
+    h: 600,
+    config: {
+      nodes: [],
+      edges: [],
+    },
+  },
+  'syntax-framer': {
+    w: 500,
+    h: 150,
+    config: {
+      mode: 'text',
+      tokens: [],
+      fontSize: 8,
+      alignment: 'center',
+    },
+  },
+  'hotspot-image': {
+    w: 500,
+    h: 400,
+    config: {
+      baseImageUrl: '',
+      hotspots: [],
+      popoverTheme: 'light',
     },
   },
 };

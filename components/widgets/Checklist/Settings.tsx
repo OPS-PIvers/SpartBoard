@@ -23,11 +23,6 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     rosterMode = 'class',
     firstNames = '',
     lastNames = '',
-    scaleMultiplier = 1,
-    fontFamily = 'global',
-    cardColor = '#ffffff',
-    cardOpacity = 1,
-    fontColor = '#334155',
   } = config;
 
   const [localText, setLocalText] = React.useState(
@@ -195,7 +190,25 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       )}
+    </div>
+  );
+};
 
+export const ChecklistAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as ChecklistConfig;
+  const {
+    scaleMultiplier = 1,
+    fontFamily = 'global',
+    cardColor = '#ffffff',
+    cardOpacity = 1,
+    fontColor = '#334155',
+  } = config;
+
+  return (
+    <div className="space-y-6">
       <div>
         <SettingsLabel icon={Type}>Text Scale</SettingsLabel>
         <div className="flex items-center gap-4 px-2">
@@ -215,13 +228,11 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
             }
             className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
           />
-          <span className="w-10 text-center font-mono  text-slate-700 text-xs">
+          <span className="w-10 text-center font-mono text-slate-700 text-xs">
             {scaleMultiplier}x
           </span>
         </div>
       </div>
-
-      <hr className="border-slate-100" />
 
       {/* Typography */}
       <div>

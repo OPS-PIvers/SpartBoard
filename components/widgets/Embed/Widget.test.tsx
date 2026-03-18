@@ -1,19 +1,40 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { EmbedWidget, EmbedSettings } from './index';
 import { WidgetData, EmbedConfig } from '../../../types';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
+import * as aiModule from '@/utils/ai';
 
 // Mock dependencies
 const mockUpdateWidget = vi.fn();
+const mockAddWidget = vi.fn();
+const mockAddToast = vi.fn();
+
 vi.mock('../../../context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget: mockUpdateWidget,
+    addWidget: mockAddWidget,
+    addToast: mockAddToast,
   }),
 }));
 
+vi.mock('@/utils/ai', () => ({
+  generateMiniAppCode: vi.fn(),
+}));
+
 describe('EmbedWidget', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   const baseWidget: WidgetData = {
     id: '1',
     type: 'embed',
@@ -125,6 +146,98 @@ describe('EmbedWidget', () => {
           refreshInterval: 5,
         }),
       });
+    });
+  });
+
+  describe('Mini App Generation', () => {
+    const validWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        mode: 'url',
+        url: 'https://example.com',
+        isEmbeddable: true,
+      },
+    };
+
+    it('renders the generate mini app button', () => {
+      render(<EmbedWidget widget={validWidget} />);
+      const btn = screen.getByRole('button', {
+        name: /generate interactive mini app/i,
+      });
+      expect(btn).toBeInTheDocument();
+      expect(btn).not.toBeDisabled();
+    });
+
+    it('calls addWidget on successful generation', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null });
+      const mockResult = {
+        title: 'Generated App',
+        html: '<div>App</div>',
+      };
+      vi.mocked(aiModule.generateMiniAppCode).mockResolvedValueOnce(mockResult);
+
+      render(<EmbedWidget widget={validWidget} />);
+      const btn = screen.getByRole('button', {
+        name: /generate interactive mini app/i,
+      });
+
+      await user.click(btn);
+
+      // Verify loading toast
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Analyzing content and generating Mini App...',
+        'info'
+      );
+
+      // Verify ai call
+      expect(aiModule.generateMiniAppCode).toHaveBeenCalledWith(
+        'Create an interactive educational mini app based on this content/resource: https://example.com'
+      );
+
+      // Wait for async operations to complete
+      await waitFor(() => {
+        expect(mockAddWidget).toHaveBeenCalledWith(
+          'miniApp',
+          expect.objectContaining({
+            x: 24, // 0 (x) + 4 (w) + 20 (NEW_WIDGET_SPACING)
+            y: 0,
+            config: expect.objectContaining({
+              activeAppUnsaved: true,
+              activeApp: expect.objectContaining({
+                title: 'Generated App',
+                html: '<div>App</div>',
+              }),
+            }),
+          })
+        );
+      });
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Mini App generated successfully!',
+        'success'
+      );
+    });
+
+    it('shows error toast on failed generation', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null });
+      vi.mocked(aiModule.generateMiniAppCode).mockRejectedValueOnce(
+        new Error('AI failed')
+      );
+
+      render(<EmbedWidget widget={validWidget} />);
+      const btn = screen.getByRole('button', {
+        name: /generate interactive mini app/i,
+      });
+
+      await user.click(btn);
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith('AI failed', 'error');
+      });
+
+      expect(mockAddWidget).not.toHaveBeenCalled();
     });
   });
 });

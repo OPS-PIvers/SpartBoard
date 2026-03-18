@@ -35,7 +35,18 @@ export const GraphicOrganizerSettings: React.FC<{ widget: WidgetData }> = ({
           <option value="cause-effect">Cause & Effect</option>
         </select>
       </div>
+    </div>
+  );
+};
 
+export const GraphicOrganizerAppearanceSettings: React.FC<{
+  widget: WidgetData;
+}> = ({ widget }) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as GraphicOrganizerConfig;
+
+  return (
+    <div className="p-4 space-y-4 text-slate-800">
       <div className="space-y-2">
         <label className="block text-sm font-medium">Font Family</label>
         <select

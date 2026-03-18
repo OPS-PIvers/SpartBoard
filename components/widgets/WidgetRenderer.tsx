@@ -21,6 +21,7 @@ import { useAuth } from '@/context/useAuth';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
+  WIDGET_APPEARANCE_COMPONENTS,
   WIDGET_SCALING_CONFIG,
   DEFAULT_SCALING_CONFIG,
 } from './WidgetRegistry';
@@ -151,6 +152,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   }, [dashboardBackground, isLive, updateSessionBackground]);
 
   const SettingsComponent = WIDGET_SETTINGS_COMPONENTS[widget.type];
+  const AppearanceComponent = WIDGET_APPEARANCE_COMPONENTS[widget.type];
 
   const getWidgetSettings = () => {
     if (SettingsComponent) {
@@ -165,6 +167,17 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         Standard settings available.
       </div>
     );
+  };
+
+  const getWidgetAppearanceSettings = () => {
+    if (AppearanceComponent) {
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <AppearanceComponent widget={widget} />
+        </Suspense>
+      );
+    }
+    return null;
   };
 
   const isDrawingOverlay =
@@ -304,6 +317,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       widget={widget}
       title={getTitle(widget, permission)}
       settings={getWidgetSettings()}
+      appearanceSettings={getWidgetAppearanceSettings()}
       style={customStyle}
       isSpotlighted={isSpotlighted}
       skipCloseConfirmation={

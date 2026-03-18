@@ -1,2 +1,2 @@
 export { MusicWidget } from './Widget';
-export { MusicSettings } from './Settings';
+export { MusicSettings, MusicAppearanceSettings } from './Settings';

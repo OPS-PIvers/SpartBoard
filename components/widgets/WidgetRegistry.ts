@@ -141,6 +141,18 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./NumberLine/Widget'),
     'NumberLineWidget'
   ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerWidget'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageWidget'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Widget'),
+    'ConceptWebWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -232,6 +244,79 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   numberLine: lazyNamed(
     () => import('./NumberLine/Settings'),
     'NumberLineSettings'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerSettings'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageSettings'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Settings'),
+    'ConceptWebSettings'
+  ),
+};
+
+export const WIDGET_APPEARANCE_COMPONENTS: Partial<
+  Record<WidgetType, SettingsComponent>
+> = {
+  // Populated per-widget in components/widgets/*/Settings.tsx
+  clock: lazyNamed(
+    () => import('./ClockWidget/Settings'),
+    'ClockAppearanceSettings'
+  ),
+  'time-tool': lazyNamed(
+    () => import('./TimeTool/TimeToolWidget'),
+    'TimeToolAppearanceSettings'
+  ),
+  text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings'),
+  checklist: lazyNamed(
+    () => import('./Checklist'),
+    'ChecklistAppearanceSettings'
+  ),
+  sound: lazyNamed(() => import('./SoundWidget'), 'SoundAppearanceSettings'),
+  weather: lazyNamed(
+    () => import('./Weather/Settings'),
+    'WeatherAppearanceSettings'
+  ),
+  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
+  calendar: lazyNamed(
+    () => import('./Calendar/Settings'),
+    'CalendarAppearanceSettings'
+  ),
+  instructionalRoutines: lazyNamed(
+    () => import('./InstructionalRoutines/Settings'),
+    'InstructionalRoutinesAppearanceSettings'
+  ),
+  music: lazyNamed(
+    () => import('./MusicWidget/index'),
+    'MusicAppearanceSettings'
+  ),
+  breathing: lazyNamed(
+    () => import('./Breathing/BreathingSettings'),
+    'BreathingAppearanceSettings'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Settings'),
+    'ConceptWebAppearanceSettings'
+  ),
+  'graphic-organizer': lazyNamed(
+    () => import('./GraphicOrganizer/Settings'),
+    'GraphicOrganizerAppearanceSettings'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageAppearanceSettings'
+  ),
+  'reveal-grid': lazyNamed(
+    () => import('./RevealGrid'),
+    'RevealGridAppearanceSettings'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerAppearanceSettings'
   ),
 };
 
@@ -559,6 +644,27 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   numberLine: {
     baseWidth: 700,
     baseHeight: 200,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'concept-web': {
+    baseWidth: 800,
+    baseHeight: 600,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'syntax-framer': {
+    baseWidth: 500,
+    baseHeight: 150,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'hotspot-image': {
+    baseWidth: 500,
+    baseHeight: 400,
     canSpread: true,
     skipScaling: true,
     padding: 0,

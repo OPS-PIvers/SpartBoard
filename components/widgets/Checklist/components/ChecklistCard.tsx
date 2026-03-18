@@ -45,47 +45,50 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
     const borderColor = hexToRgba('#e2e8f0', cardOpacity); // slate-200
 
     return (
-      <div role="listitem" className="flex-1 min-h-0 flex flex-col">
-        <div
-          role="checkbox"
-          aria-checked={isCompleted}
-          tabIndex={0}
-          onClick={() => onToggle(id)}
-          onKeyDown={handleKeyDown}
-          className="w-full h-full flex items-start cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98]"
+      <div
+        role="checkbox"
+        aria-checked={isCompleted}
+        tabIndex={0}
+        onClick={() => onToggle(id)}
+        onKeyDown={handleKeyDown}
+        className="w-full h-full flex items-center cursor-pointer select-none rounded-2xl border shadow-sm transition-all active:scale-[0.98] overflow-hidden"
+        style={{
+          gap: cardGap,
+          padding: cardPadding,
+          backgroundColor: bgColor,
+          borderColor: isCompleted
+            ? hexToRgba('#e2e8f0', cardOpacity * 0.5)
+            : borderColor,
+        }}
+      >
+        <div className="shrink-0 transition-transform active:scale-90">
+          {isCompleted ? (
+            <CheckCircle2
+              className="text-green-500"
+              style={{ width: iconSize, height: iconSize }}
+            />
+          ) : (
+            <Circle
+              className="text-indigo-300"
+              style={{ width: iconSize, height: iconSize }}
+            />
+          )}
+        </div>
+        <span
+          className={`font-bold leading-snug min-w-0 flex-1 text-left transition-all`}
           style={{
-            gap: cardGap,
-            padding: cardPadding,
-            backgroundColor: bgColor,
-            borderColor: isCompleted
-              ? hexToRgba('#e2e8f0', cardOpacity * 0.5)
-              : borderColor,
+            fontSize: textSize,
+            color: isCompleted ? '#94a3b8' : fontColor,
+            textDecoration: isCompleted ? 'line-through' : 'none',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'break-word',
           }}
         >
-          <div className="shrink-0 transition-transform active:scale-90">
-            {isCompleted ? (
-              <CheckCircle2
-                className="text-green-500"
-                style={{ width: iconSize, height: iconSize }}
-              />
-            ) : (
-              <Circle
-                className="text-indigo-300"
-                style={{ width: iconSize, height: iconSize }}
-              />
-            )}
-          </div>
-          <span
-            className={`font-bold leading-snug break-words min-w-0 flex-1 text-left transition-all`}
-            style={{
-              fontSize: textSize,
-              color: isCompleted ? '#94a3b8' : fontColor, // slate-400 for completed
-              textDecoration: isCompleted ? 'line-through' : 'none',
-            }}
-          >
-            {label}
-          </span>
-        </div>
+          {label}
+        </span>
       </div>
     );
   }

@@ -712,35 +712,34 @@ export const FeaturePermissionsManager: React.FC = () => {
                   });
 
                   if (!isAuthBypass) {
-                    const docRef = doc(db, 'feature_permissions', toolType);
-                    getDoc(docRef)
-                      .then((snap) => {
-                        let data: FeaturePermission;
-                        if (snap.exists()) {
-                          data = snap.data() as FeaturePermission;
-                          if (
-                            data.gradeLevels &&
-                            data.gradeLevels.includes('universal' as GradeLevel)
-                          ) {
-                            data.gradeLevels = ALL_GRADE_LEVELS;
-                          }
-                        } else {
-                          data = {
-                            widgetType: toolType,
-                            accessLevel: 'public',
-                            betaUsers: [],
-                            enabled: true,
-                          };
+                    try {
+                      const docRef = doc(db, 'feature_permissions', toolType);
+                      const snap = await getDoc(docRef);
+                      let data: FeaturePermission;
+                      if (snap.exists()) {
+                        data = snap.data() as FeaturePermission;
+                        if (
+                          data.gradeLevels &&
+                          data.gradeLevels.includes('universal' as GradeLevel)
+                        ) {
+                          data.gradeLevels = ALL_GRADE_LEVELS;
                         }
-                        setPermissions((prev) =>
-                          new Map(prev).set(toolType, data)
-                        );
-                        setActiveModalTool(null);
-                      })
-                      .catch((err) => {
-                        console.error('Failed to revert permission', err);
-                        setActiveModalTool(null);
-                      });
+                      } else {
+                        data = {
+                          widgetType: toolType,
+                          accessLevel: 'public',
+                          betaUsers: [],
+                          enabled: true,
+                        };
+                      }
+                      setPermissions((prev) =>
+                        new Map(prev).set(toolType, data)
+                      );
+                    } catch (err) {
+                      console.error('Failed to revert permission', err);
+                    } finally {
+                      setActiveModalTool(null);
+                    }
                   } else {
                     setActiveModalTool(null);
                   }

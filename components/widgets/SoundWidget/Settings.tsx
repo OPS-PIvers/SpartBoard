@@ -10,7 +10,6 @@ export const SoundSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as SoundConfig;
   const {
     sensitivity = 1,
-    visual = 'thermometer',
     autoTrafficLight,
     trafficLightThreshold = 4,
     syncExpectations = false,
@@ -23,13 +22,6 @@ export const SoundSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const hasExpectations = activeDashboard?.widgets.some(
     (w) => w.type === 'expectations'
   );
-
-  const modes = [
-    { id: 'thermometer', icon: Thermometer, label: 'Meter' },
-    { id: 'speedometer', icon: Gauge, label: 'Gauge' },
-    { id: 'line', icon: Activity, label: 'Graph' },
-    { id: 'balls', icon: Citrus, label: 'Popcorn' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -89,32 +81,6 @@ export const SoundSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           className="w-full accent-indigo-600"
           disabled={syncExpectations}
         />
-      </div>
-
-      <div>
-        <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">
-          Visual Mode
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {modes.map((m) => (
-            <button
-              key={m.id}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, visual: m.id as SoundConfig['visual'] },
-                })
-              }
-              className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                visual === m.id
-                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                  : 'border-slate-100 text-slate-400 hover:border-slate-200'
-              }`}
-            >
-              <m.icon className="w-4 h-4" />
-              <span className="text-xxs  uppercase">{m.label}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Nexus Connection: Traffic Light */}
@@ -181,6 +147,49 @@ export const SoundSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+export const SoundAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as SoundConfig;
+  const { visual = 'thermometer' } = config;
+
+  const modes = [
+    { id: 'thermometer', icon: Thermometer, label: 'Meter' },
+    { id: 'speedometer', icon: Gauge, label: 'Gauge' },
+    { id: 'line', icon: Activity, label: 'Graph' },
+    { id: 'balls', icon: Citrus, label: 'Popcorn' },
+  ];
+
+  return (
+    <div>
+      <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block">
+        Visual Mode
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {modes.map((m) => (
+          <button
+            key={m.id}
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, visual: m.id as SoundConfig['visual'] },
+              })
+            }
+            className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+              visual === m.id
+                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                : 'border-slate-100 text-slate-400 hover:border-slate-200'
+            }`}
+          >
+            <m.icon className="w-4 h-4" />
+            <span className="text-xxs uppercase">{m.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

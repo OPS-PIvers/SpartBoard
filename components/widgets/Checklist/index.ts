@@ -1,2 +1,2 @@
 export { ChecklistWidget } from './Widget';
-export { ChecklistSettings } from './Settings';
+export { ChecklistSettings, ChecklistAppearanceSettings } from './Settings';

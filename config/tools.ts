@@ -36,6 +36,8 @@ import {
   CarFront,
   Smartphone,
   Layers,
+  MapPin,
+  Share2,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -184,5 +186,23 @@ export const TOOLS: ToolMetadata[] = [
     icon: Layers,
     label: 'Reveal',
     color: 'bg-blue-500',
+  },
+  {
+    type: 'syntax-framer',
+    icon: Type,
+    label: 'Syntax Framer',
+    color: 'bg-indigo-500',
+  },
+  {
+    type: 'hotspot-image',
+    icon: MapPin,
+    label: 'Hotspot Image',
+    color: 'bg-emerald-500',
+  },
+  {
+    type: 'concept-web',
+    icon: Share2,
+    label: 'Concept Web',
+    color: 'bg-violet-500',
   },
 ];

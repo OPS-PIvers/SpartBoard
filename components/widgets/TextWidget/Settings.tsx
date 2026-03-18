@@ -34,7 +34,18 @@ export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
 
+export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as TextConfig;
+
+  return (
+    <div className="space-y-6">
       <div>
         <SettingsLabel>Background Color</SettingsLabel>
         <div className="flex gap-2">
@@ -72,13 +83,11 @@ export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }
             className="flex-1 accent-blue-600"
           />
-          <span className="w-8 text-center font-mono  text-slate-700 text-xs">
+          <span className="w-8 text-center font-mono text-slate-700 text-xs">
             {config.fontSize}
           </span>
         </div>
       </div>
-
-      <hr className="border-slate-100" />
 
       <TypographySettings
         config={config}

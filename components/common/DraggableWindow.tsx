@@ -70,6 +70,7 @@ interface DraggableWindowProps {
   widget: WidgetData;
   children: React.ReactNode;
   settings: React.ReactNode;
+  appearanceSettings?: React.ReactNode;
   title: string;
   style?: React.CSSProperties; // Added style prop
   isSpotlighted?: boolean; // Added isSpotlighted prop
@@ -112,6 +113,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   widget,
   children,
   settings,
+  appearanceSettings,
   title,
   style,
   isSpotlighted = false,
@@ -1540,9 +1542,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* SETTINGS PANEL PORTAL */}
       {widget.flipped && typeof document !== 'undefined' && (
         <SettingsPanel
+          key={widget.id}
           widget={widget}
           widgetRef={windowRef}
           settings={settings}
+          appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
           onClose={() => updateWidget(widget.id, { flipped: false })}
           updateWidget={updateWidget}

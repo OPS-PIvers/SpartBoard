@@ -11,25 +11,6 @@ export const ClockSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as ClockConfig;
 
-  const fonts = [
-    { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
-    { id: 'font-mono', label: t('widgets.clock.fonts.digital'), icon: '01' },
-    { id: 'font-sans', label: t('widgets.clock.fonts.modern'), icon: 'Aa' },
-    {
-      id: 'font-handwritten',
-      label: t('widgets.clock.fonts.school'),
-      icon: '✏️',
-    },
-  ];
-
-  const colors = WIDGET_PALETTE;
-
-  const styles = [
-    { id: 'modern', label: t('widgets.clock.styles.default') },
-    { id: 'lcd', label: t('widgets.clock.styles.lcd') },
-    { id: 'minimal', label: t('widgets.clock.styles.minimal') },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Time Format */}
@@ -55,7 +36,38 @@ export const ClockSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           {t('widgets.clock.showSeconds')}
         </button>
       </div>
+    </div>
+  );
+};
 
+export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { t } = useTranslation();
+  const { updateWidget } = useDashboard();
+  const config = widget.config as ClockConfig;
+
+  const fonts = [
+    { id: 'global', label: t('widgets.clock.fonts.inherit'), icon: 'G' },
+    { id: 'font-mono', label: t('widgets.clock.fonts.digital'), icon: '01' },
+    { id: 'font-sans', label: t('widgets.clock.fonts.modern'), icon: 'Aa' },
+    {
+      id: 'font-handwritten',
+      label: t('widgets.clock.fonts.school'),
+      icon: '✏️',
+    },
+  ];
+
+  const colors = WIDGET_PALETTE;
+
+  const styles = [
+    { id: 'modern', label: t('widgets.clock.styles.default') },
+    { id: 'lcd', label: t('widgets.clock.styles.lcd') },
+    { id: 'minimal', label: t('widgets.clock.styles.minimal') },
+  ];
+
+  return (
+    <div className="space-y-6">
       {/* Font Family */}
       <div>
         <SettingsLabel icon={Type}>

@@ -21,21 +21,10 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
 
-  const { bgColor = '#ffffff', textColor = STANDARD_COLORS.slate } = config;
-
   const activeStation = stations.find((s) => s.id === config.stationId);
   const isSpotify = activeStation?.url
     ? buildSpotifyEmbedUrl(activeStation.url) !== null
     : false;
-
-  const bgColors = [
-    { hex: '#ffffff', label: 'White' },
-    { hex: '#f8fafc', label: 'Slate' },
-    { hex: '#1e293b', label: 'Dark' },
-    { hex: 'transparent', label: 'Transparent' },
-  ];
-
-  const textColors = [...WIDGET_PALETTE, '#ffffff'];
 
   return (
     <div className="space-y-5">
@@ -102,57 +91,6 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         )}
       </div>
 
-      {/* Colors */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <SettingsLabel icon={Palette}>Background</SettingsLabel>
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {bgColors.map((c) => (
-              <button
-                key={c.hex}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, bgColor: c.hex },
-                  })
-                }
-                className={`w-6 h-6 rounded-full border-2 transition-all ${
-                  bgColor === c.hex
-                    ? 'border-indigo-500 scale-110 shadow-md'
-                    : 'border-slate-200'
-                }`}
-                style={{
-                  backgroundColor: c.hex !== 'transparent' ? c.hex : undefined,
-                  backgroundImage:
-                    c.hex === 'transparent' ? TRANSPARENT_BG_URL : undefined,
-                }}
-                title={c.label}
-              />
-            ))}
-          </div>
-        </div>
-        <div>
-          <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {textColors.map((c) => (
-              <button
-                key={c}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, textColor: c },
-                  })
-                }
-                className={`w-6 h-6 rounded-full border-2 transition-all ${
-                  textColor === c
-                    ? 'border-indigo-500 scale-110 shadow-md'
-                    : 'border-slate-200'
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Nexus sync toggle */}
       <div className="pt-4 border-t border-slate-100">
         <div className="flex items-center justify-between">
@@ -175,6 +113,75 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? 'Auto-sync is only available for YouTube stations due to Spotify browser restrictions.'
             : 'Music will automatically play and pause with your active Time Tool.'}
         </p>
+      </div>
+    </div>
+  );
+};
+
+export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as MusicConfig;
+  const { bgColor = '#ffffff', textColor = STANDARD_COLORS.slate } = config;
+
+  const bgColors = [
+    { hex: '#ffffff', label: 'White' },
+    { hex: '#f8fafc', label: 'Slate' },
+    { hex: '#1e293b', label: 'Dark' },
+    { hex: 'transparent', label: 'Transparent' },
+  ];
+
+  const textColors = [...WIDGET_PALETTE, '#ffffff'];
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <SettingsLabel icon={Palette}>Background</SettingsLabel>
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {bgColors.map((c) => (
+            <button
+              key={c.hex}
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: { ...config, bgColor: c.hex },
+                })
+              }
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                bgColor === c.hex
+                  ? 'border-indigo-500 scale-110 shadow-md'
+                  : 'border-slate-200'
+              }`}
+              style={{
+                backgroundColor: c.hex !== 'transparent' ? c.hex : undefined,
+                backgroundImage:
+                  c.hex === 'transparent' ? TRANSPARENT_BG_URL : undefined,
+              }}
+              title={c.label}
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <SettingsLabel icon={Palette}>Text Color</SettingsLabel>
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {textColors.map((c) => (
+            <button
+              key={c}
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: { ...config, textColor: c },
+                })
+              }
+              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                textColor === c
+                  ? 'border-indigo-500 scale-110 shadow-md'
+                  : 'border-slate-200'
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

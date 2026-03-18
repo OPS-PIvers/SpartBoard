@@ -17,14 +17,6 @@ export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
     { id: '5-5', label: 'Coherent Breath' },
   ] as const;
 
-  const visuals = [
-    { id: 'circle', label: 'Sphere' },
-    { id: 'lotus', label: 'Lotus' },
-    { id: 'wave', label: 'Ripple' },
-  ] as const;
-
-  const colors = WIDGET_PALETTE;
-
   return (
     <div className="space-y-6 p-1">
       {/* Pattern Selection */}
@@ -55,7 +47,26 @@ export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
         </div>
       </div>
+    </div>
+  );
+};
 
+export const BreathingAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as BreathingConfig;
+
+  const visuals = [
+    { id: 'circle', label: 'Sphere' },
+    { id: 'lotus', label: 'Lotus' },
+    { id: 'wave', label: 'Ripple' },
+  ] as const;
+
+  const colors = WIDGET_PALETTE;
+
+  return (
+    <div className="space-y-6 p-1">
       {/* Visual Selection */}
       <div>
         <SettingsLabel icon={Eye}>Visual Style</SettingsLabel>

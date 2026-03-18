@@ -557,17 +557,24 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       )}
-
-      <hr className="border-slate-100" />
-
-      <TypographySettings
-        config={config}
-        updateConfig={(updates) =>
-          updateWidget(widget.id, {
-            config: { ...config, ...updates },
-          })
-        }
-      />
     </div>
+  );
+};
+
+export const WeatherAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as WeatherConfig;
+
+  return (
+    <TypographySettings
+      config={config}
+      updateConfig={(updates) =>
+        updateWidget(widget.id, {
+          config: { ...config, ...updates },
+        })
+      }
+    />
   );
 };

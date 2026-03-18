@@ -24,6 +24,7 @@ import {
   TOOLBAR_H,
   MIN_CANVAS_DIM,
   EMPTY_ARRAY,
+  DEFAULT_TEMPLATE_COLUMNS,
 } from './constants';
 import { useDialog } from '@/context/useDialog';
 
@@ -56,7 +57,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     gridSize = 20,
     rosterMode = 'class',
     template = 'freeform',
-    templateColumns = legacyTemplateRows ?? 6,
+    templateColumns = legacyTemplateRows ?? DEFAULT_TEMPLATE_COLUMNS,
   } = config;
 
   const [mode, setMode] = useState<'setup' | 'assign' | 'interact'>('interact');
@@ -295,18 +296,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     setSelectedIds(new Set([newItem.id]));
   };
 
-  const clearAllFurniture = () => {
-    void showConfirm(
+  const clearAllFurniture = async () => {
+    const confirmed = await showConfirm(
       'Are you sure you want to remove all furniture and assignments?',
       { title: 'Clear Furniture', variant: 'danger', confirmLabel: 'Clear All' }
-    ).then((confirmed) => {
-      if (confirmed) {
-        updateWidget(widget.id, {
-          config: { ...config, furniture: [], assignments: {} },
-        });
-        setSelectedIds(new Set());
-      }
-    });
+    );
+    if (confirmed) {
+      updateWidget(widget.id, {
+        config: { ...config, furniture: [], assignments: {} },
+      });
+      setSelectedIds(new Set());
+    }
   };
 
   const handleRotate = useCallback(

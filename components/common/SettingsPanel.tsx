@@ -10,6 +10,7 @@ interface SettingsPanelProps {
   widget: WidgetData;
   widgetRef: React.RefObject<HTMLDivElement | null>;
   settings: React.ReactNode;
+  appearanceSettings?: React.ReactNode;
   shouldRenderSettings: boolean;
   onClose: () => void;
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
@@ -24,6 +25,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   widget,
   widgetRef,
   settings,
+  appearanceSettings,
   shouldRenderSettings,
   onClose,
   updateWidget,
@@ -32,6 +34,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'settings' | 'style'>('settings');
   const viewport = useWindowSize();
 
   const transparency = widget.transparency ?? globalStyle.windowTransparency;
@@ -164,9 +167,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <span className="text-sm font-bold text-slate-800 truncate">
               {widget.customTitle ?? title}
             </span>
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest shrink-0">
-              Settings
-            </span>
           </div>
           <IconButton
             onClick={onClose}
@@ -180,16 +180,56 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           />
         </div>
 
+        {/* Tab bar */}
+        <div className="flex bg-slate-100 p-1 mx-5 mt-3 mb-1 rounded-xl shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('settings')}
+            className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-all ${
+              activeTab === 'settings'
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('style')}
+            className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-all ${
+              activeTab === 'style'
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Style
+          </button>
+        </div>
+
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          {/* Widget-specific settings */}
-          {shouldRenderSettings && settings && (
-            <div className="px-5 py-4">{settings}</div>
+          {/* Settings tab */}
+          {activeTab === 'settings' && (
+            <div className="px-5 py-4">
+              {shouldRenderSettings && settings ? (
+                settings
+              ) : (
+                <div className="text-slate-500 italic text-sm">
+                  Standard settings available.
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Universal: Transparency */}
-          <div className="px-5 pb-4">
-            <div className="pt-4 border-t border-slate-100">
+          {/* Style tab */}
+          {activeTab === 'style' && (
+            <div className="px-5 py-4 flex flex-col gap-4">
+              {/* Widget-specific appearance settings */}
+              {shouldRenderSettings && appearanceSettings && (
+                <div>{appearanceSettings}</div>
+              )}
+
+              {/* Universal: Transparency */}
               <div className="flex flex-col gap-2 bg-slate-50/80 px-4 py-3 rounded-xl border border-slate-100">
                 <div className="flex items-center justify-between">
                   <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
@@ -230,7 +270,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>,

@@ -139,6 +139,21 @@ export const ScoreboardItem = React.memo(
         </div>
       </div>
     );
+  },
+  (prevProps, nextProps) => {
+    // ⚡ BOLT OPTIMIZATION: Custom props equality check to prevent unnecessary re-renders.
+    // The `team` prop is an object that may be recreated by the parent component,
+    // even if its content hasn't changed. By doing a shallow comparison of its
+    // specific primitive properties instead of relying on default object equality,
+    // we prevent all `ScoreboardItem`s from re-rendering when only a single team's score updates.
+    return (
+      prevProps.onUpdateScore === nextProps.onUpdateScore &&
+      prevProps.team.id === nextProps.team.id &&
+      prevProps.team.name === nextProps.team.name &&
+      prevProps.team.score === nextProps.team.score &&
+      prevProps.team.color === nextProps.team.color &&
+      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId
+    );
   }
 );
 

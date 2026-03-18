@@ -1836,14 +1836,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             ...defaults,
             ...overrides,
             // Layer order: widget defaults → admin building defaults → saved global config → explicit overrides
-            config: {
-              ...(defaults.config ?? {}),
-              ...adminConfig,
-              ...(PERSISTED_WIDGET_TYPES.includes(type)
+            config: Object.assign(
+              {},
+              defaults.config ?? {},
+              adminConfig,
+              PERSISTED_WIDGET_TYPES.includes(type)
                 ? (savedWidgetConfigs?.[type] ?? {})
-                : {}),
-              ...(overrides?.config ?? {}),
-            } as WidgetConfig,
+                : {},
+              overrides?.config ?? {}
+            ) as WidgetConfig,
           };
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
@@ -1916,14 +1917,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               : null;
 
             // Base config from defaults, admin settings, and global persistence
-            const baseConfig = {
-              ...(defaults.config ?? {}),
-              ...adminConfig,
-              ...(PERSISTED_WIDGET_TYPES.includes(item.type)
+            const baseConfig = Object.assign(
+              {},
+              defaults.config ?? {},
+              adminConfig,
+              PERSISTED_WIDGET_TYPES.includes(item.type)
                 ? (savedWidgetConfigs?.[item.type] ?? {})
-                : {}),
-              ...sanitizedInputConfig,
-            } as WidgetConfig;
+                : {},
+              sanitizedInputConfig
+            ) as WidgetConfig;
 
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
