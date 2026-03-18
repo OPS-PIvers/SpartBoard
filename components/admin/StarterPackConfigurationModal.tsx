@@ -236,6 +236,13 @@ export const StarterPackConfigurationModal: React.FC<
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const resetSnapState = useCallback(() => {
+    setSnappingWidgetIndex(null);
+    setWidgetSnapKeys({});
+    setNewWidgetSnapKey(null);
+    setNewWidgetSnapOpen(false);
+  }, []);
+
   const handleBack = useCallback(async () => {
     if (formData.name || formData.description || formData.widgets.length > 0) {
       const confirmed = await showConfirm(
@@ -345,13 +352,6 @@ export const StarterPackConfigurationModal: React.FC<
       widgets: [...prev.widgets, newEntry],
     }));
   };
-
-  const resetSnapState = useCallback(() => {
-    setSnappingWidgetIndex(null);
-    setWidgetSnapKeys({});
-    setNewWidgetSnapKey(null);
-    setNewWidgetSnapOpen(false);
-  }, []);
 
   const handleRemoveWidget = (index: number) => {
     setFormData((prev) => ({
