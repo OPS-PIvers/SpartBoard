@@ -118,7 +118,9 @@ export const useStorage = () => {
           `hotspot-${Date.now()}-${file.name}`,
           'Assets/HotspotImages'
         );
-        await driveService.makePublic(driveFile.id, userDomain);
+        // Pass undefined to force type:'anyone' sharing so the image URL is
+        // publicly renderable in all contexts (matches uploadBackgroundToDrive).
+        await driveService.makePublic(driveFile.id, undefined);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
