@@ -234,15 +234,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
   const piiDriveFileIdRef = useRef<Map<string, string>>(new Map());
 
-  // Sync activeId to ref
-  useEffect(() => {
-    activeIdRef.current = activeId;
-  }, [activeId]);
-
-  // Sync dashboards to ref
-  useEffect(() => {
-    dashboardsRef.current = dashboards;
-  }, [dashboards]);
+  // Sync refs during render (safe — refs are mutable containers, not state)
+  activeIdRef.current = activeId;
+  dashboardsRef.current = dashboards;
 
   // --- DRIVE WRAPPERS & CALLBACKS ---
 

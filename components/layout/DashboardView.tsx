@@ -184,8 +184,6 @@ export const DashboardView: React.FC = () => {
   );
 
   const [prevIndex, setPrevIndex] = React.useState<number>(-1);
-  const [animationClass, setAnimationClass] =
-    React.useState<string>('animate-fade-in');
   const [isMinimized, setIsMinimized] = React.useState(false);
 
   const dashboardRef = React.useRef<HTMLDivElement>(null);
@@ -441,6 +439,20 @@ export const DashboardView: React.FC = () => {
     if (!activeDashboard) return -1;
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
   }, [activeDashboard, dashboards]);
+
+  // Derive animation class during render instead of via useEffect.
+  // When currentIndex changes, React immediately re-renders; on the second pass
+  // prevIndex === currentIndex so no further state updates occur.
+  let animationClass = 'animate-fade-in';
+  if (prevIndex !== currentIndex) {
+    setPrevIndex(currentIndex);
+    if (currentIndex !== -1 && prevIndex !== -1) {
+      animationClass =
+        currentIndex > prevIndex
+          ? 'animate-slide-left-in'
+          : 'animate-slide-right-in';
+    }
+  }
 
   React.useEffect(() => {
     setIsMinimized(false);
@@ -731,28 +743,19 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (currentIndex !== -1 && prevIndex !== -1 && currentIndex !== prevIndex) {
-      if (currentIndex > prevIndex) {
-        setAnimationClass('animate-slide-left-in');
-      } else {
-        setAnimationClass('animate-slide-right-in');
-      }
-    } else {
-      setAnimationClass('animate-fade-in');
-    }
-    setPrevIndex(currentIndex);
-  }, [currentIndex, prevIndex]);
-
   const youTubeVideoId = useMemo(
     () =>
       activeDashboard ? extractYouTubeId(activeDashboard.background) : null,
     [activeDashboard]
   );
 
-  React.useEffect(() => {
+  // Reset mute state during render when the video changes — no effect needed.
+  const [prevYouTubeVideoId, setPrevYouTubeVideoId] =
+    React.useState(youTubeVideoId);
+  if (youTubeVideoId !== prevYouTubeVideoId) {
+    setPrevYouTubeVideoId(youTubeVideoId);
     setIsBgMuted(true);
-  }, [youTubeVideoId]);
+  }
 
   const backgroundStyles = useMemo(() => {
     if (!activeDashboard) return {};
