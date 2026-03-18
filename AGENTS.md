@@ -177,6 +177,23 @@ When a Playwright selector fails, follow this order before asking a human:
 4.  **Accessibility**:
     - Hidden inputs (like file uploads) must have `aria-label`.
     - Icon-only buttons must have either `aria-label` **or** `title` — both are acceptable. Many layout buttons (e.g., dock open/close, sidebar toggle) use `title`; component-level icon buttons (e.g., `IconButton`) use `aria-label`. When writing Playwright selectors, check for `title` first (it is more common in layout-level elements); see the Verified UI Selectors table above.
-5.  **React Hooks**:
+5.  **React Hooks — useEffect is an escape hatch, not a default tool**:
     - `useEffect` must return `undefined` or a cleanup function. Do not return `null` or `false`.
     - Dependency arrays must be exhaustive (enforced by linter).
+    - **Only use `useEffect` to synchronize with an external system** (Firestore listeners, Firebase Auth,
+      Web Audio API, DOM event listeners, timers, `localStorage`, Google Drive, etc.).
+    - **Do NOT use `useEffect` for:**
+      - Computing derived/transformed data → calculate it inline during render instead.
+      - Syncing state into refs → assign `ref.current = value` directly in the render body; refs are
+        mutable containers and do not need an effect.
+      - Resetting state when a prop changes → use the `key` prop to remount the component, or use the
+        "adjusting state while rendering" pattern (store previous value, compare during render, call
+        setter immediately if different).
+      - Triggering state changes based on other state changes → compute the result during the event
+        handler that caused the change instead.
+    - **Patterns to use instead:**
+      - Derived value: `const fullName = firstName + ' ' + lastName;` (no state, no effect)
+      - Expensive derivation: `const result = useMemo(() => compute(a, b), [a, b]);`
+      - Reset all state on prop change: `<Inner key={id} />` (React resets state on key change)
+      - Adjust partial state on prop change: compare `prevProp !== prop` during render, call setter
+        immediately — React re-renders and stops on the next pass when they match.

@@ -184,8 +184,6 @@ export const DashboardView: React.FC = () => {
   );
 
   const [prevIndex, setPrevIndex] = React.useState<number>(-1);
-  const [animationClass, setAnimationClass] =
-    React.useState<string>('animate-fade-in');
   const [isMinimized, setIsMinimized] = React.useState(false);
 
   const dashboardRef = React.useRef<HTMLDivElement>(null);
@@ -442,10 +440,25 @@ export const DashboardView: React.FC = () => {
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
   }, [activeDashboard, dashboards]);
 
+  // Compute animation class from prevIndex (which lags one render behind currentIndex).
+  // prevIndex is updated in the effect below, after commit, so on the render where
+  // currentIndex changes, prevIndex still holds the old value — giving us the direction.
+  const animationClass = useMemo(() => {
+    if (prevIndex === -1 || currentIndex === -1 || prevIndex === currentIndex) {
+      return 'animate-fade-in';
+    }
+    return currentIndex > prevIndex
+      ? 'animate-slide-left-in'
+      : 'animate-slide-right-in';
+  }, [currentIndex, prevIndex]);
+
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
     setPanOffset({ x: 0, y: 0 });
+    if (currentIndex !== -1) {
+      setPrevIndex(currentIndex);
+    }
   }, [activeDashboard?.id, currentIndex, setZoom]);
 
   React.useEffect(() => {
@@ -731,28 +744,19 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (currentIndex !== -1 && prevIndex !== -1 && currentIndex !== prevIndex) {
-      if (currentIndex > prevIndex) {
-        setAnimationClass('animate-slide-left-in');
-      } else {
-        setAnimationClass('animate-slide-right-in');
-      }
-    } else {
-      setAnimationClass('animate-fade-in');
-    }
-    setPrevIndex(currentIndex);
-  }, [currentIndex, prevIndex]);
-
   const youTubeVideoId = useMemo(
     () =>
       activeDashboard ? extractYouTubeId(activeDashboard.background) : null,
     [activeDashboard]
   );
 
-  React.useEffect(() => {
+  // Reset mute state during render when the video changes — no effect needed.
+  const [prevYouTubeVideoId, setPrevYouTubeVideoId] =
+    React.useState(youTubeVideoId);
+  if (youTubeVideoId !== prevYouTubeVideoId) {
+    setPrevYouTubeVideoId(youTubeVideoId);
     setIsBgMuted(true);
-  }, [youTubeVideoId]);
+  }
 
   const backgroundStyles = useMemo(() => {
     if (!activeDashboard) return {};

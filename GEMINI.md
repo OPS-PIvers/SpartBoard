@@ -106,6 +106,30 @@ The agent has access to the Firebase CLI via `pnpm firebase`. This allows for de
   - _Correct:_ `import { useAuth } from '@/context/useAuth'`
   - _Incorrect:_ `import { useAuth } from '../../context/useAuth'` or `import ... from 'src/context/...'`
 
+### React useEffect Guidelines
+
+`useEffect` is an escape hatch for syncing with **external systems** only. Do not use it as a general-purpose reactive tool.
+
+**✅ Legitimate uses** (external systems): Firestore/Firebase listeners, DOM event listeners, timers/intervals, Web Audio API, browser APIs (`localStorage`, `navigator`, `IntersectionObserver`), Google Drive, third-party SDKs.
+
+**❌ Avoid useEffect for:**
+
+- **Derived state**: Compute inline during render. `const total = items.reduce(...)` — no state, no effect.
+- **Expensive derivations**: Use `useMemo` instead.
+- **Ref synchronization**: Assign `myRef.current = value` directly in the render body.
+- **Resetting state on prop changes**: Pass a `key` prop to reset the entire subtree, or use the "adjusting state while rendering" pattern.
+- **Chained state updates**: Consolidate into the triggering event handler.
+
+**"Adjusting state while rendering" pattern** (replaces a reactive effect that resets derived state):
+
+```tsx
+const [prevItems, setPrevItems] = useState(items);
+if (items !== prevItems) {
+  setPrevItems(items);
+  setSelection(null); // React re-renders immediately; stops when prevItems === items
+}
+```
+
 ## Widget Development Guide
 
 To add a new widget:

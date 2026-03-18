@@ -788,6 +788,11 @@ See [LINTING_SETUP.md](LINTING_SETUP.md) for complete linting documentation.
 - Widget dimensions use px values, not percentages
 - The `flipped` state is managed by DraggableWindow, not individual widgets
 - Audio contexts must be resumed on user interaction (see Timer/Stopwatch unlock patterns)
+- **useEffect is an escape hatch, not a default**: Only use `useEffect` to synchronize with an external system (Firestore, Firebase Auth, DOM events, timers, Web Audio API, localStorage, etc.). Do NOT use it to compute derived state, sync refs, reset state on prop changes, or chain state updates — these all cause extra render passes and subtle bugs. Instead:
+  - Compute derived values inline during render (or with `useMemo` if expensive).
+  - Assign refs directly in the render body: `myRef.current = value` — no effect needed.
+  - Reset state on prop change using a `key` prop or the "adjusting state while rendering" pattern (store the previous prop value in state, compare during render, call the setter immediately if they differ).
+  - Move event-triggered logic into the event handler, not an effect.
 - **Content scaling:**
   - ALWAYS use `cqmin` (not `cqw` or `cqh` separately) for text and icon sizing
   - Never use hardcoded Tailwind text size classes (`text-sm`, `text-xs`, etc.) or fixed icon sizes (`size={24}`, `w-12 h-12`) in widget front-face content
