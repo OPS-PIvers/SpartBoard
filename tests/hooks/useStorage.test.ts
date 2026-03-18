@@ -120,7 +120,7 @@ describe('useStorage', () => {
         'drive-file-id',
         'school.edu'
       );
-      expect(url).toBe('https://drive.google.com/content-link');
+      expect(url).toBe('https://lh3.googleusercontent.com/d/drive-file-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 
@@ -142,7 +142,7 @@ describe('useStorage', () => {
         url = await result.current.uploadBackgroundImage('admin123', mockFile);
       });
 
-      expect(url).toBe('https://drive.google.com/content-link');
+      expect(url).toBe('https://lh3.googleusercontent.com/d/drive-file-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 
@@ -189,7 +189,7 @@ describe('useStorage', () => {
         'hotspot-drive-id',
         'school.edu'
       );
-      expect(url).toBe('https://drive.google.com/content-link-hotspot');
+      expect(url).toBe('https://lh3.googleusercontent.com/d/hotspot-drive-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 

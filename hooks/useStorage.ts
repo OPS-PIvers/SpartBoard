@@ -44,7 +44,7 @@ export const useStorage = () => {
           'Assets/Backgrounds'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -67,7 +67,7 @@ export const useStorage = () => {
           'Assets/Stickers'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -93,7 +93,7 @@ export const useStorage = () => {
           'Assets/DisplayImages'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -119,7 +119,7 @@ export const useStorage = () => {
           'Assets/HotspotImages'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -145,7 +145,7 @@ export const useStorage = () => {
           'Assets/Screenshots'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
