@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .widget {
+    width: 600px;
+    height: 150px;
+    border: 1px solid black;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: stretch;
+    align-items: stretch;
+    gap: 1cqmin;
+    padding: 2cqmin;
+    resize: both;
+    overflow: hidden;
+    container-type: size;
+  }
+  .token {
+    flex: 1 1 auto;
+    border: 1px solid blue;
+    border-radius: 1.5cqmin;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    container-type: size;
+    min-width: 0;
+    min-height: 0;
+    /* ensure text is visible when small */
+    padding: 1cqmin 2cqmin;
+  }
+  .token-text {
+    /*
+      We want the font size to fill the token vertically (say 80cqh).
+      But it shouldn't overflow horizontally.
+      Assume an average character width of 0.6em.
+      So max font size based on width is: container width / (num_chars * 0.6)
+      We add a little buffer, e.g. * 0.9.
+      We use CSS min() function.
+    */
+    font-size: min(80cqh, calc(90cqw / (max(var(--char-count), 1) * 0.6)));
+    line-height: 1;
+    white-space: pre;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="token" style="--char-count: 5"><div class="token-text">Hello</div></div>
+    <div class="token" style="--char-count: 5"><div class="token-text">World</div></div>
+    <div class="token" style="--char-count: 4"><div class="token-text">This</div></div>
+    <div class="token" style="--char-count: 2"><div class="token-text">Is</div></div>
+    <div class="token" style="--char-count: 1"><div class="token-text">A</div></div>
+    <div class="token" style="--char-count: 4"><div class="token-text">Test</div></div>
+    <div class="token" style="--char-count: 14"><div class="token-text">LongerWordHere</div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .widget {
+    width: 600px;
+    height: 150px;
+    border: 1px solid black;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: stretch;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    resize: both;
+    overflow: hidden;
+  }
+  .token {
+    flex: 1 1 auto;
+    border: 1px solid blue;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px; /* small padding */
+    container-type: size;
+    min-width: 0;
+    min-height: 0;
+  }
+  .token-text {
+    /* Magic font sizing!
+       Based on the character count (which we can set as a CSS variable inline),
+       we scale the font. We take the min of container height and a fraction of container width.
+       Usually a font is about 0.6x as wide as it is tall.
+       So if width / (charCount * 0.6) is the height, we can use that.
+    */
+    font-size: min(80cqh, calc(90cqw / (var(--char-count) * 0.6)));
+    line-height: 1;
+    white-space: pre;
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="token" style="--char-count: 5"><div class="token-text">Hello</div></div>
+    <div class="token" style="--char-count: 5"><div class="token-text">World</div></div>
+    <div class="token" style="--char-count: 4"><div class="token-text">This</div></div>
+    <div class="token" style="--char-count: 2"><div class="token-text">Is</div></div>
+    <div class="token" style="--char-count: 1"><div class="token-text">A</div></div>
+    <div class="token" style="--char-count: 4"><div class="token-text">Test</div></div>
+    <div class="token" style="--char-count: 14"><div class="token-text">LongerWordHere</div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .widget {
+    width: 600px;
+    height: 100px;
+    border: 1px solid black;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: stretch;
+    align-items: stretch;
+    gap: 1%; /* gaps dynamically based on width */
+    padding: 1%;
+    resize: both;
+    overflow: hidden;
+    /* Treat the whole widget as a container for dynamic font-sizing */
+    container-type: size;
+  }
+  .token {
+    /* Flex grow and shrink, flex-basis based on text length? */
+    flex: 1 1 auto;
+    border: 1px solid blue;
+    border-radius: 2cqmin;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* padding: 1cqh 2cqw;  */
+  }
+  .token-text {
+    /* Instead of setting absolute fontSize, we want it to fill the token object container.
+       If we use flex: 1 1 auto on tokens, they share width and height equally on rows.
+    */
+    /* font-size relative to the widget's container? Or the token's container?
+       Let's try token's container. */
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">Hello</div></div>
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">World</div></div>
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">This</div></div>
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">Is</div></div>
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">A</div></div>
+    <div class="token" style="container-type: size"><div class="token-text" style="font-size: min(80cqh, 25cqw);">Test</div></div>
+  </div>
+</body>
+</html>

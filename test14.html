@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .widget {
+    width: 600px;
+    height: 150px;
+    border: 1px solid black;
+    /* Simulate the widget wrapper */
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <!-- Container -->
+    <div class="w-full h-full flex flex-wrap content-stretch items-stretch justify-center" style="gap: 2cqmin;">
+
+      <!-- Token -->
+      <!-- Add padding inside button, e.g. padding: 1cqmin 2cqmin; so that text doesn't touch edges -->
+      <!-- The magic multiplier for cqw: The larger it is, the wider the text relative to the box width. -->
+      <!-- Typical char width is ~0.6em. So to fit N chars in width W, em = W / (N * 0.6) = (W / N) * 1.66. -->
+      <!-- Let's say we want to leave some margin, so we use (W / N) * 1.4 -->
+      <!-- But we also subtract a little padding from width so let's say (140cqw / N) -->
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 5))); line-height: 1; white-space: pre; padding: 0 5cqw;">Hello</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 5))); line-height: 1; white-space: pre; padding: 0 5cqw;">World</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 4))); line-height: 1; white-space: pre; padding: 0 5cqw;">This</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 2))); line-height: 1; white-space: pre; padding: 0 5cqw;">Is</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 1))); line-height: 1; white-space: pre; padding: 0 5cqw;">A</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 8px;">
+        <span style="font-size: min(60cqh, calc(140cqw / max(1, 4))); line-height: 1; white-space: pre; padding: 0 5cqw;">Test</span>
+      </button>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .widget {
+    width: 600px;
+    height: 300px;
+    border: 1px solid black;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: stretch;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    resize: both;
+    overflow: hidden;
+  }
+  .token {
+    container-type: size;
+    flex: 1 1 max-content;
+    border: 1px solid blue;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px; /* small padding relative to text */
+  }
+  .token-text {
+    /* To scale text inside the container-type size, we use cqmin or cqh + max-width */
+    font-size: min(80cqh, 25cqw);
+    line-height: 1;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="token"><div class="token-text">Hello</div></div>
+    <div class="token"><div class="token-text">World</div></div>
+    <div class="token"><div class="token-text">This</div></div>
+    <div class="token"><div class="token-text">Is</div></div>
+    <div class="token"><div class="token-text">A</div></div>
+    <div class="token"><div class="token-text">Test</div></div>
+  </div>
+</body>
+</html>

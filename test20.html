@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .widget {
+    width: 600px;
+    height: 150px;
+    border: 1px solid black;
+    container-type: size;
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <!-- flex-wrap content-stretch items-stretch -->
+    <div class="w-full h-full flex flex-wrap content-stretch items-stretch justify-center" style="gap: 2cqmin; padding: 2cqmin;">
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 5;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">Hello</span>
+      </button>
+
+      <!-- Testing what happens when words wrap -->
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 5;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">World</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 4;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">This</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 2;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">Is</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 1;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">A</span>
+      </button>
+
+      <button class="flex items-center justify-center relative cursor-grab shadow-sm transition-colors select-none bg-white text-slate-800 border-slate-200 border"
+              style="flex: 1 1 auto; container-type: size; min-width: 0; min-height: 0; border-radius: 1.5cqmin; --char-count: 25;">
+        <span style="font-size: min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5)); line-height: 1; white-space: pre; padding: 0 5cqw; overflow: hidden; text-overflow: clip;">SuperDuperLongWordHereTesting</span>
+      </button>
+    </div>
+  </div>
+</body>
+</html>

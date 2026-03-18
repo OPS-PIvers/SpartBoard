@@ -60,7 +60,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     transition,
     zIndex: isDragging ? 10 : 1,
     opacity: isDragging ? 0.8 : 1,
-    flex: '1 1 auto',
+    flex: 'var(--char-count) 1 auto',
     containerType: 'size',
     minWidth: 0,
     minHeight: 0,
@@ -69,6 +69,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
 
   const isMath = mode === 'math';
   const colorClass = token.color ?? 'bg-white text-slate-800 border-slate-200';
+  const FONT_SCALING_FACTOR = 1.5;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -116,8 +117,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     >
       <span
         style={{
-          fontSize:
-            'min(70cqh, calc(100cqw / max(1, var(--char-count)) * 1.5))',
+          fontSize: `min(70cqh, calc(100cqw / max(1, var(--char-count)) * ${FONT_SCALING_FACTOR}))`,
           lineHeight: 1,
           padding: '0 5cqw',
           overflow: 'hidden',

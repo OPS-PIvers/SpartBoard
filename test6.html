@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .widget {
+    width: 600px;
+    height: 300px;
+    border: 1px solid black;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: stretch;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    resize: both;
+    overflow: hidden;
+  }
+  .token {
+    /* allow it to grow horizontally as well if we want, or just be based on content */
+    flex: 1 1 auto;
+    border: 1px solid blue;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2cqmin; /* small padding relative to container size */
+    container-type: size;
+  }
+  .token-text {
+    /* Scale based on container's height but don't exceed container's width */
+    font-size: min(80cqh, 40cqw); /* Need to ensure it scales down if word is long */
+    line-height: 1;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="token"><div class="token-text">Hello</div></div>
+    <div class="token"><div class="token-text">World</div></div>
+    <div class="token"><div class="token-text">This</div></div>
+    <div class="token"><div class="token-text">Is</div></div>
+    <div class="token"><div class="token-text">A</div></div>
+    <div class="token"><div class="token-text">Test</div></div>
+    <div class="token"><div class="token-text">LongerWordHere</div></div>
+  </div>
+</body>
+</html>
