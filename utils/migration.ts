@@ -1,4 +1,11 @@
-import { Dashboard, WidgetData, TimeToolConfig, TextConfig } from '../types';
+import {
+  Dashboard,
+  WidgetData,
+  TimeToolConfig,
+  TextConfig,
+  PollConfig,
+  PollOption,
+} from '../types';
 import { sanitizeHtml } from './security';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 
@@ -86,6 +93,25 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
       ...w,
       type: 'expectations',
     };
+  }
+
+  // Ensure poll options have stable IDs (legacy data may lack them)
+  if (type === 'poll') {
+    const pollConfig = w.config as PollConfig;
+    const options = pollConfig.options ?? [];
+    const needsMigration = options.some((opt: PollOption) => !opt.id);
+    if (needsMigration) {
+      return {
+        ...w,
+        config: {
+          ...pollConfig,
+          options: options.map((opt: PollOption) => ({
+            ...opt,
+            id: opt.id || crypto.randomUUID(),
+          })),
+        },
+      };
+    }
   }
 
   return w;

@@ -44,7 +44,11 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const isValidHex = (hex: string) => /^[0-9a-fA-F]{6}$/.test(hex);
 
   // Use config values if explicitly set, fallback to building defaults, then hardcoded defaults
-  const url = config.url || defaults?.defaultUrl || 'https://google.com'; // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+  // Treat empty string as absent so nullish coalescing works correctly
+  const url =
+    (config.url !== '' ? config.url : undefined) ??
+    defaults?.defaultUrl ??
+    'https://google.com';
 
   const rawColor = (config.qrColor ?? defaults?.qrColor ?? '#000000').replace(
     /^#/,

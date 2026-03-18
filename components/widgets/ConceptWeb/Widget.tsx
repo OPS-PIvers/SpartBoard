@@ -113,7 +113,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     }
     bringToFront(widget.id);
     e.stopPropagation();
-    target.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     setActiveNodeId(node.id);
     setActiveNodePos({ x: node.x, y: node.y });
   };
@@ -140,8 +140,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleNodePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!activeNodeId || isStudentView || !activeNodePos) return;
     e.stopPropagation();
-    const target = e.target as HTMLElement;
-    target.releasePointerCapture(e.pointerId);
+    e.currentTarget.releasePointerCapture(e.pointerId);
 
     const updated = nodes.map((n) =>
       n.id === activeNodeId
@@ -161,8 +160,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   ) => {
     if (isStudentView) return;
     e.stopPropagation();
-    const target = e.target as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     setResizingNodeId(node.id);
     setResizingNodeDim({
       w: node.width ?? DEFAULT_WIDTH,
@@ -191,8 +189,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleResizePointerUp = (e: React.PointerEvent<HTMLElement>) => {
     if (!resizingNodeId || isStudentView || !resizingNodeDim) return;
     e.stopPropagation();
-    const target = e.target as HTMLElement;
-    target.releasePointerCapture(e.pointerId);
+    e.currentTarget.releasePointerCapture(e.pointerId);
 
     const updated = nodes.map((n) =>
       n.id === resizingNodeId
@@ -212,8 +209,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   ) => {
     if (isStudentView) return;
     e.stopPropagation();
-    const target = e.target as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
     setDrawingFromId(nodeId);
 
     const rect = containerRef.current?.getBoundingClientRect();
@@ -240,8 +236,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleHandlePointerUp = (e: React.PointerEvent<HTMLElement>) => {
     if (!drawingFromId || isStudentView) return;
     e.stopPropagation();
-    const target = e.target as HTMLElement;
-    target.releasePointerCapture(e.pointerId);
+    e.currentTarget.releasePointerCapture(e.pointerId);
 
     // Hide the drawing elements temporarily to let elementFromPoint find the node beneath
     const svgElement = containerRef.current?.querySelector('svg');

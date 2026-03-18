@@ -10,10 +10,15 @@ export const useEmbedConfig = () => {
   const [config, setConfig] = useState<BuildingEmbedDefaults | null>(null);
 
   useEffect(() => {
-    // We default to the first selected building, or a fallback if none
-    const buildingId = selectedBuildings?.[0] ?? 'schumann-elementary';
+    const buildingId = selectedBuildings?.[0];
 
     const unsubscribe = subscribeToPermission('embed', (perm) => {
+      // When no building is selected, use neutral defaults (no restrictions)
+      if (!buildingId) {
+        setConfig({ buildingId: '', hideUrlField: false, whitelistUrls: [] });
+        return;
+      }
+
       if (perm?.config) {
         const globalConfig = perm.config as unknown as EmbedGlobalConfig;
         const currentDefaults = globalConfig.buildingDefaults ?? {};

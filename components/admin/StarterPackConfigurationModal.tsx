@@ -165,10 +165,15 @@ export const StarterPackConfigurationModal: React.FC<
 
   useEffect(() => {
     const onEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') void handleBack();
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        void handleBack();
+      }
     };
-    window.addEventListener('keydown', onEscape);
-    return () => window.removeEventListener('keydown', onEscape);
+    // Use capture phase so Escape is intercepted before other global handlers
+    window.addEventListener('keydown', onEscape, { capture: true });
+    return () =>
+      window.removeEventListener('keydown', onEscape, { capture: true });
   }, [handleBack]);
 
   useEffect(() => {
