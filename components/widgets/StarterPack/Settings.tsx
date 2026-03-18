@@ -5,14 +5,12 @@ import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { db, isAuthBypass } from '@/config/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { Save } from 'lucide-react';
+import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 
-const envAppId = String(import.meta.env.VITE_FIREBASE_APP_ID);
-const envProjectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID);
-const appId = envAppId
-  ? String(envAppId)
-  : envProjectId
-    ? String(envProjectId)
-    : 'spart-board';
+const appId =
+  String(import.meta.env.VITE_FIREBASE_APP_ID ?? '') ||
+  String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '') ||
+  'spart-board';
 
 export const StarterPackSettings = () => {
   const { user } = useAuth();
@@ -44,7 +42,7 @@ export const StarterPackSettings = () => {
         description: 'Captured workspace',
         icon: 'Wand2',
         color: 'indigo',
-        gradeLevels: ['k-2', '3-5', '6-8', '9-12'],
+        gradeLevels: [...ALL_GRADE_LEVELS],
         isLocked: false,
         widgets: snapshot,
       });

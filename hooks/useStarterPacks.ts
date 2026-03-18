@@ -3,13 +3,10 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { StarterPack, WidgetType, AddWidgetOverrides } from '@/types';
 
-const envAppId = String(import.meta.env.VITE_FIREBASE_APP_ID);
-const envProjectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID);
-const appId = envAppId
-  ? String(envAppId)
-  : envProjectId
-    ? String(envProjectId)
-    : 'spart-board';
+const appId =
+  String(import.meta.env.VITE_FIREBASE_APP_ID ?? '') ||
+  String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '') ||
+  'spart-board';
 
 export function useStarterPacks(userId?: string | null) {
   const [publicPacks, setPublicPacks] = useState<StarterPack[]>([]);
@@ -28,6 +25,15 @@ export function useStarterPacks(userId?: string | null) {
 
     setTimeout(() => setLoading(true), 0);
 
+    let isPublicLoaded = false;
+    let isUserLoaded = !userId;
+
+    const checkLoading = () => {
+      if (isPublicLoaded && isUserLoaded) {
+        setLoading(false);
+      }
+    };
+
     const publicRef = collection(
       db,
       'artifacts',
@@ -45,9 +51,13 @@ export function useStarterPacks(userId?: string | null) {
           packs.push({ ...data, id: doc.id } as StarterPack);
         });
         setPublicPacks(packs);
+        isPublicLoaded = true;
+        checkLoading();
       },
       (err) => {
         console.error('Failed to subscribe to public starter packs:', err);
+        isPublicLoaded = true;
+        checkLoading();
       }
     );
 
@@ -70,16 +80,18 @@ export function useStarterPacks(userId?: string | null) {
             packs.push({ ...data, id: doc.id } as StarterPack);
           });
           setUserPacks(packs);
+          isUserLoaded = true;
+          checkLoading();
         },
         (err) => {
           console.error('Failed to subscribe to user starter packs:', err);
+          isUserLoaded = true;
+          checkLoading();
         }
       );
     } else {
       setTimeout(() => setUserPacks([]), 0);
     }
-
-    setTimeout(() => setLoading(false), 0);
 
     return () => {
       unsubPublic();

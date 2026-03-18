@@ -58,21 +58,37 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {allPacks.map((pack) => {
-            const iconName = pack.icon as keyof typeof LucideIcons;
             const IconComponent =
-              (LucideIcons[iconName] as React.ComponentType<{
-                className?: string;
-              }>) ?? LucideIcons.Wand2;
+              (
+                LucideIcons as unknown as Record<
+                  string,
+                  React.ComponentType<{ className?: string }>
+                >
+              )[pack.icon] ?? LucideIcons.Wand2;
 
             return (
               <button
                 key={pack.id}
                 onClick={() => handleExecute(pack)}
-                className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all hover:-translate-y-1 hover:shadow-md
-                  bg-white border-slate-200 hover:border-${pack.color}-500 group`}
+                className="flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all hover:-translate-y-1 hover:shadow-md bg-white border-slate-200 group"
+                style={
+                  {
+                    '--hover-border-color': `var(--color-${pack.color}-500, currentColor)`,
+                  } as React.CSSProperties
+                }
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = `var(--color-${pack.color}-500, #3b82f6)`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '';
+                }}
               >
                 <div
-                  className={`p-3 rounded-xl bg-${pack.color}-100 text-${pack.color}-600 group-hover:scale-110 transition-transform`}
+                  className="p-3 rounded-xl group-hover:scale-110 transition-transform"
+                  style={{
+                    backgroundColor: `var(--color-${pack.color}-100, #dbeafe)`,
+                    color: `var(--color-${pack.color}-600, #2563eb)`,
+                  }}
                 >
                   <IconComponent className="w-8 h-8" />
                 </div>

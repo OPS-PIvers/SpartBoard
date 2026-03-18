@@ -14,13 +14,10 @@ import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { Edit2, Trash2, Wand2 } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
 
-const envAppId = String(import.meta.env.VITE_FIREBASE_APP_ID);
-const envProjectId = String(import.meta.env.VITE_FIREBASE_PROJECT_ID);
-const appId = envAppId
-  ? String(envAppId)
-  : envProjectId
-    ? String(envProjectId)
-    : 'spart-board';
+const appId =
+  String(import.meta.env.VITE_FIREBASE_APP_ID ?? '') ||
+  String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '') ||
+  'spart-board';
 
 export const AdminStarterPackConfig = () => {
   const [packs, setPacks] = useState<StarterPack[]>([]);
@@ -28,7 +25,7 @@ export const AdminStarterPackConfig = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const { showConfirm } = useDialog();
 
-  const [formData, setFormData] = useState<Partial<StarterPack>>({
+  const INITIAL_FORM_DATA: Partial<StarterPack> = {
     name: '',
     description: '',
     icon: 'Wand2',
@@ -36,7 +33,10 @@ export const AdminStarterPackConfig = () => {
     gradeLevels: [...ALL_GRADE_LEVELS],
     isLocked: true,
     widgets: [],
-  });
+  };
+
+  const [formData, setFormData] =
+    useState<Partial<StarterPack>>(INITIAL_FORM_DATA);
 
   useEffect(() => {
     if (isAuthBypass) {
@@ -217,15 +217,7 @@ export const AdminStarterPackConfig = () => {
             <button
               onClick={() => {
                 setEditingId(null);
-                setFormData({
-                  name: '',
-                  description: '',
-                  icon: 'Wand2',
-                  color: 'indigo',
-                  gradeLevels: [...ALL_GRADE_LEVELS],
-                  isLocked: true,
-                  widgets: [],
-                });
+                setFormData(INITIAL_FORM_DATA);
               }}
               className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium"
             >
