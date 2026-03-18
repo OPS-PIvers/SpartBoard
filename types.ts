@@ -1812,6 +1812,10 @@ export interface BackgroundPreset {
   accessLevel: AccessLevel; // Who can see it
   betaUsers: string[]; // Specific users if beta
   createdAt: number;
+  /** Admin-defined category label (e.g. "Nature", "Holidays") */
+  category?: string;
+  /** Building IDs this background is assigned to; empty/undefined = all buildings */
+  buildingIds?: string[];
 }
 
 // --- GLOBAL STYLING TYPES ---
