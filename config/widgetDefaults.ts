@@ -303,8 +303,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } as SpecialistScheduleConfig,
   },
   'graphic-organizer': {
-    w: 8,
-    h: 6,
+    w: 800,
+    h: 600,
     config: {
       templateType: 'frayer',
       nodes: {},

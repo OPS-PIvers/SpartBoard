@@ -12,15 +12,43 @@ interface LegacyConfig {
   duration?: number;
 }
 
+const fixDimensions = (widget: WidgetData): WidgetData => {
+  if (
+    widget.w >= MIN_WIDGET_DIMENSION_PX &&
+    widget.h >= MIN_WIDGET_DIMENSION_PX
+  ) {
+    return widget;
+  }
+  const defaults = WIDGET_DEFAULTS[widget.type];
+  return {
+    ...widget,
+    w:
+      widget.w < MIN_WIDGET_DIMENSION_PX
+        ? (defaults?.w ?? 0) >= MIN_WIDGET_DIMENSION_PX
+          ? defaults!.w!
+          : 300
+        : widget.w,
+    h:
+      widget.h < MIN_WIDGET_DIMENSION_PX
+        ? (defaults?.h ?? 0) >= MIN_WIDGET_DIMENSION_PX
+          ? defaults!.h!
+          : 300
+        : widget.h,
+  };
+};
+
 export const migrateWidget = (widget: WidgetData): WidgetData => {
-  const type = widget.type as string;
+  // Correct impossibly small dimensions before any other migration so all
+  // code paths benefit from the fix (early returns included).
+  const w = fixDimensions(widget);
+  const type = w.type as string;
 
   // Sanitize stored text widget content to prevent XSS
   if (type === 'text') {
-    const config = widget.config as TextConfig;
+    const config = w.config as TextConfig;
     if (config.content) {
       return {
-        ...widget,
+        ...w,
         config: {
           ...config,
           content: sanitizeHtml(config.content),
@@ -31,10 +59,10 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   if (type === 'timer' || type === 'stopwatch') {
     const isTimer = type === 'timer';
-    const oldConfig = widget.config as LegacyConfig;
+    const oldConfig = w.config as LegacyConfig;
 
     return {
-      ...widget,
+      ...w,
       type: 'time-tool',
       config: {
         mode: isTimer ? 'timer' : 'stopwatch',
@@ -53,36 +81,12 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   if (type === 'workSymbols') {
     return {
-      ...widget,
+      ...w,
       type: 'expectations',
     };
   }
 
-  // Correct widgets saved with impossibly small dimensions (caused by a bug
-  // where the default w/h were single-digit numbers instead of pixel values).
-  if (
-    widget.w < MIN_WIDGET_DIMENSION_PX ||
-    widget.h < MIN_WIDGET_DIMENSION_PX
-  ) {
-    const defaults = WIDGET_DEFAULTS[widget.type];
-    return {
-      ...widget,
-      w:
-        widget.w < MIN_WIDGET_DIMENSION_PX
-          ? defaults?.w && defaults.w >= MIN_WIDGET_DIMENSION_PX
-            ? defaults.w
-            : 300
-          : widget.w,
-      h:
-        widget.h < MIN_WIDGET_DIMENSION_PX
-          ? defaults?.h && defaults.h >= MIN_WIDGET_DIMENSION_PX
-            ? defaults.h
-            : 300
-          : widget.h,
-    };
-  }
-
-  return widget;
+  return w;
 };
 
 export const migrateLocalStorageToFirestore = async (
