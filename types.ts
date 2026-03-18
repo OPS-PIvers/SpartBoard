@@ -339,6 +339,7 @@ export interface ExpectationsConfig {
   instructionalRoutine?: string; // Legacy/K-8
   activeRoutines?: string[]; // New: 9-12 Multi-select
   layout?: 'secondary' | 'elementary';
+  syncSoundWidget?: boolean;
 }
 
 export interface ExpectationsOptionOverride {
