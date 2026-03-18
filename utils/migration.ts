@@ -60,8 +60,11 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   // Correct widgets saved with impossibly small dimensions (caused by a bug
   // where the default w/h were single-digit numbers instead of pixel values).
-  if (widget.w < MIN_WIDGET_DIMENSION_PX || widget.h < MIN_WIDGET_DIMENSION_PX) {
-    const defaults = WIDGET_DEFAULTS[widget.type as keyof typeof WIDGET_DEFAULTS];
+  if (
+    widget.w < MIN_WIDGET_DIMENSION_PX ||
+    widget.h < MIN_WIDGET_DIMENSION_PX
+  ) {
+    const defaults = WIDGET_DEFAULTS[widget.type];
     return {
       ...widget,
       w:
