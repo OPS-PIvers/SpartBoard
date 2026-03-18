@@ -238,7 +238,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               <AnnouncementsManager />
             </div>
           )}
-
         </div>
       </div>
     </div>

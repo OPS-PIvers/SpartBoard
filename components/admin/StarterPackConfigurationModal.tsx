@@ -140,29 +140,27 @@ export const StarterPackConfigurationModal: React.FC<
     setTimeout(() => setMessage(null), 3000);
   };
 
-  const handleBack = useCallback(
-    async () => {
-      if (
-        formData.name ||
-        formData.description ||
-        formData.widgets.length > 0
-      ) {
-        const confirmed = await showConfirm(
-          'Discard unsaved changes to this pack?',
-          {
-            title: 'Discard Changes',
-            variant: 'warning',
-            confirmLabel: 'Discard',
-          }
-        );
-        if (!confirmed) return;
-      }
-      setView('list');
-      setEditingId(null);
-      setFormData(INITIAL_FORM);
-    },
-    [formData.name, formData.description, formData.widgets.length, showConfirm]
-  );
+  const handleBack = useCallback(async () => {
+    if (formData.name || formData.description || formData.widgets.length > 0) {
+      const confirmed = await showConfirm(
+        'Discard unsaved changes to this pack?',
+        {
+          title: 'Discard Changes',
+          variant: 'warning',
+          confirmLabel: 'Discard',
+        }
+      );
+      if (!confirmed) return;
+    }
+    setView('list');
+    setEditingId(null);
+    setFormData(INITIAL_FORM);
+  }, [
+    formData.name,
+    formData.description,
+    formData.widgets.length,
+    showConfirm,
+  ]);
 
   useEffect(() => {
     const onEscape = (e: KeyboardEvent) => {
