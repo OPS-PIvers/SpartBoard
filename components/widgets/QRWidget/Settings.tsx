@@ -18,7 +18,7 @@ export const QRSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </label>
         <input
           type="text"
-          value={config.url}
+          value={config.url ?? ''}
           onChange={(e) =>
             updateWidget(widget.id, {
               config: { ...config, url: e.target.value } as QRConfig,
