@@ -153,6 +153,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./ConceptWeb/Widget'),
     'ConceptWebWidget'
   ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Widget'),
+    'StarterPackWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -257,6 +261,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./ConceptWeb/Settings'),
     'ConceptWebSettings'
   ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Settings'),
+    'StarterPackSettings'
+  ),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -317,6 +325,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'syntax-framer': lazyNamed(
     () => import('./SyntaxFramer'),
     'SyntaxFramerAppearanceSettings'
+  ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Settings'),
+    'StarterPackAppearanceSettings'
   ),
 };
 
@@ -665,6 +677,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'hotspot-image': {
     baseWidth: 500,
     baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'starter-pack': {
+    baseWidth: 600,
+    baseHeight: 500,
     canSpread: true,
     skipScaling: true,
     padding: 0,

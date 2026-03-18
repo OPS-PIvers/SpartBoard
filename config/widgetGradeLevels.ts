@@ -93,6 +93,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   numberLine: ALL_GRADE_LEVELS,
   'syntax-framer': ALL_GRADE_LEVELS,
   'hotspot-image': ALL_GRADE_LEVELS,
+  'starter-pack': ALL_GRADE_LEVELS,
 };
 
 /**

@@ -378,4 +378,9 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       popoverTheme: 'light',
     },
   },
+  'starter-pack': {
+    w: 600,
+    h: 500,
+    config: {},
+  },
 };

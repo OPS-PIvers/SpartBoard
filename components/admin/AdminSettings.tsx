@@ -14,6 +14,8 @@ import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
 import { AnnouncementsManager } from './Announcements';
 import { MusicManager } from './MusicManager';
+import { AdminStarterPackConfig } from './StarterPackConfigModal';
+import { Wand2 } from 'lucide-react';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -48,7 +50,12 @@ const TabButton: React.FC<{
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    'features' | 'global' | 'backgrounds' | 'announcements' | 'music'
+    | 'features'
+    | 'global'
+    | 'backgrounds'
+    | 'announcements'
+    | 'music'
+    | 'starter-packs'
   >('features');
 
   // Close modal on Escape key press
@@ -133,6 +140,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               onClick={() => setActiveTab('music')}
               icon={<Music className="w-4 h-4" />}
               label="Music Library"
+            />
+            <TabButton
+              id="tab-starter-packs"
+              controls="panel-starter-packs"
+              isActive={activeTab === 'starter-packs'}
+              onClick={() => setActiveTab('starter-packs')}
+              icon={<Wand2 className="w-4 h-4" />}
+              label="Starter Packs"
             />
           </div>
         </div>
@@ -235,6 +250,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 </p>
               </div>
               <AnnouncementsManager />
+            </div>
+          )}
+
+          {activeTab === 'starter-packs' && (
+            <div
+              id="panel-starter-packs"
+              role="tabpanel"
+              aria-labelledby="tab-starter-packs"
+              className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-800 mb-2">
+                  Building Starter Packs
+                </h3>
+                <p className="text-slate-600">
+                  Manage standard widget setups that teachers can launch
+                  instantly.
+                </p>
+              </div>
+              <AdminStarterPackConfig />
             </div>
           )}
         </div>
