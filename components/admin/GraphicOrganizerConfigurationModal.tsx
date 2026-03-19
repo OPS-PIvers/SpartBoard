@@ -72,7 +72,9 @@ const FONT_OPTIONS: { value: GlobalFontFamily; label: string }[] = [
 export const GraphicOrganizerConfigurationModal: React.FC<
   GraphicOrganizerConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
-  const [selectedBuilding, setSelectedBuilding] = useState(BUILDINGS[0].id);
+  const [selectedBuilding, setSelectedBuilding] = useState(
+    BUILDINGS.length > 0 ? BUILDINGS[0].id : ''
+  );
   const [globalConfig, setGlobalConfig] =
     useState<GraphicOrganizerGlobalConfig>({ buildings: {} });
   const [isLoading, setIsLoading] = useState(true);
