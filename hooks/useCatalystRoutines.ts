@@ -66,11 +66,12 @@ export function useCatalystRoutines() {
       }
 
       routine.widgets.forEach((widget) => {
-        addWidget(widget.type, {
-          ...widget,
+        const { z: _z, ...widgetWithoutZ } = widget;
+        addWidget(widgetWithoutZ.type, {
+          ...widgetWithoutZ,
           id: crypto.randomUUID(),
           config: structuredClone(widget.config),
-        } as unknown as AddWidgetOverrides);
+        });
       });
     },
     []

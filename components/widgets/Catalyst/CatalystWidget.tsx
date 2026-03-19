@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, WidgetType } from '@/types';
+import { WidgetData } from '@/types';
 import { useCatalystRoutines } from '@/hooks/useCatalystRoutines';
 import { isSafeIconUrl } from './catalystHelpers';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -13,9 +13,7 @@ import {
 import confetti from 'canvas-confetti';
 import { CatalystSettings } from './CatalystSettings';
 
-export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
-  widget: _widget,
-}) => {
+export const CatalystWidget: React.FC<{ widget: WidgetData }> = () => {
   const { addWidget, deleteAllWidgets } = useDashboard();
   const { routines, loading, executeRoutine } = useCatalystRoutines();
 
@@ -28,12 +26,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
       void ctx.resume();
     }
 
-    executeRoutine(
-      routine,
-      true,
-      addWidget as (type: WidgetType, overrides?: unknown) => void,
-      deleteAllWidgets
-    );
+    executeRoutine(routine, true, addWidget, deleteAllWidgets);
 
     playCleanUp();
     void confetti({
@@ -64,7 +57,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
           <ScaledEmptyState
             icon={Zap}
             title="No Routines"
-            subtitle="Admins can add routines in Feature Permissions."
+            subtitle="Admins can add routines via the Catalyst settings (gear icon)."
           />
         }
       />
@@ -98,7 +91,10 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                 </>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
-                  <div className="flex flex-col items-center gap-1 text-slate-500">
+                  <div
+                    className="flex flex-col items-center text-slate-500"
+                    style={{ gap: 'min(4px, 1cqmin)' }}
+                  >
                     <ImageOff
                       style={{
                         width: 'min(24px, 8cqmin)',
@@ -116,7 +112,10 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
               )}
 
               {/* Title footer */}
-              <div className="relative mt-auto z-10 px-2 py-1.5 bg-black/50">
+              <div
+                className="relative mt-auto z-10 bg-black/50"
+                style={{ padding: 'min(6px, 1.8cqmin) min(10px, 2.5cqmin)' }}
+              >
                 <span
                   className="font-black uppercase tracking-widest text-white drop-shadow block text-center leading-tight"
                   style={{ fontSize: 'min(11px, 3.5cqmin)' }}

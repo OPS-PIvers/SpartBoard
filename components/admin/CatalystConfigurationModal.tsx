@@ -17,13 +17,16 @@ import {
   collection,
   onSnapshot,
   query,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { CatalystRoutine, WidgetData } from '@/types';
+
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
@@ -76,6 +79,7 @@ export const CatalystConfigurationModal: React.FC<
   const { uploadCatalystImage, uploading } = useStorage();
   const { showConfirm } = useDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagePreviewUrlRef = useRef<string | null>(null);
 
   const [routines, setRoutines] = useState<CatalystRoutine[]>([]);
   const [loadingRoutines, setLoadingRoutines] = useState(true);
@@ -119,20 +123,43 @@ export const CatalystConfigurationModal: React.FC<
     return () => unsub();
   }, [isOpen]);
 
-  // Reset to list view when modal closes
+  // Revoke any lingering object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrlRef.current) {
+        URL.revokeObjectURL(imagePreviewUrlRef.current);
+        imagePreviewUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  // Reset to list view when modal closes and revoke any pending preview URL
   useEffect(() => {
     if (!isOpen) {
       setView('list');
       setEditor(EMPTY_EDITOR);
+      if (imagePreviewUrlRef.current) {
+        URL.revokeObjectURL(imagePreviewUrlRef.current);
+        imagePreviewUrlRef.current = null;
+      }
     }
   }, [isOpen]);
 
+  const revokePreview = () => {
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = null;
+    }
+  };
+
   const openCreate = () => {
+    revokePreview();
     setEditor(EMPTY_EDITOR);
     setView('editor');
   };
 
   const openEdit = (routine: CatalystRoutine) => {
+    revokePreview();
     setEditor({
       id: routine.id,
       title: routine.title,
@@ -146,15 +173,26 @@ export const CatalystConfigurationModal: React.FC<
 
   const handleCaptureBoard = () => {
     const widgets = activeDashboard?.widgets ?? [];
+    // Filter out all catalyst-related widget types to prevent self-referential layouts
     const snapshot = createBoardSnapshot(
-      widgets.filter((w) => w.type !== 'catalyst')
+      widgets.filter((w) => !w.type.startsWith('catalyst'))
     );
     setEditor((e) => ({ ...e, widgets: snapshot }));
     showMessage('success', `Captured ${snapshot.length} widget(s)`);
   };
 
   const handleImageChange = (file: File) => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showMessage('error', 'Please select a PNG, JPEG, or WebP image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      showMessage('error', 'Image must be under 2 MB.');
+      return;
+    }
+    revokePreview();
     const preview = URL.createObjectURL(file);
+    imagePreviewUrlRef.current = preview;
     setEditor((e) => ({ ...e, imageFile: file, imagePreview: preview }));
   };
 
@@ -167,33 +205,46 @@ export const CatalystConfigurationModal: React.FC<
     setSaving(true);
     try {
       let finalImageUrl = editor.imageUrl;
-
-      // Upload new image if one was selected
-      if (editor.imageFile) {
-        const routineId = editor.id ?? crypto.randomUUID();
-        finalImageUrl = await uploadCatalystImage(routineId, editor.imageFile);
-      }
-
-      const data: Omit<CatalystRoutine, 'id'> = {
-        title: editor.title.trim(),
-        imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
-        widgets: editor.widgets,
-        createdAt: editor.id
-          ? (routines.find((r) => r.id === editor.id)?.createdAt ?? Date.now())
-          : Date.now(),
-      };
-
       const ref = collection(db, ...COLLECTION_PATH);
+
       if (editor.id) {
-        await updateDoc(doc(db, ...COLLECTION_PATH, editor.id), {
-          ...data,
-        });
+        // Updating existing routine — use existing ID for image path consistency
+        if (editor.imageFile) {
+          finalImageUrl = await uploadCatalystImage(
+            editor.id,
+            editor.imageFile
+          );
+        }
+        const data: Omit<CatalystRoutine, 'id'> = {
+          title: editor.title.trim(),
+          imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
+          widgets: editor.widgets,
+          createdAt:
+            routines.find((r) => r.id === editor.id)?.createdAt ?? Date.now(),
+        };
+        await updateDoc(doc(db, ...COLLECTION_PATH, editor.id), { ...data });
         showMessage('success', 'Routine updated');
       } else {
-        await addDoc(ref, data);
+        // Creating new routine — pre-generate a doc ref so the storage path and
+        // Firestore document ID are the same, preventing orphaned images.
+        const newDocRef = doc(ref);
+        if (editor.imageFile) {
+          finalImageUrl = await uploadCatalystImage(
+            newDocRef.id,
+            editor.imageFile
+          );
+        }
+        const data: Omit<CatalystRoutine, 'id'> = {
+          title: editor.title.trim(),
+          imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
+          widgets: editor.widgets,
+          createdAt: Date.now(),
+        };
+        await setDoc(newDocRef, data);
         showMessage('success', 'Routine created');
       }
 
+      revokePreview();
       setView('list');
       setEditor(EMPTY_EDITOR);
     } catch (err) {
@@ -484,8 +535,14 @@ export const CatalystConfigurationModal: React.FC<
         {/* Footer */}
         {view === 'editor' && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+            {isAuthBypass && (
+              <p className="mr-auto text-xs font-medium text-amber-600">
+                Saving is disabled in demo mode.
+              </p>
+            )}
             <button
               onClick={() => {
+                revokePreview();
                 setView('list');
                 setEditor(EMPTY_EDITOR);
               }}
@@ -495,7 +552,7 @@ export const CatalystConfigurationModal: React.FC<
             </button>
             <button
               onClick={() => void handleSave()}
-              disabled={saving || uploading}
+              disabled={saving || uploading || isAuthBypass}
               className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
             >
               {saving ? (
