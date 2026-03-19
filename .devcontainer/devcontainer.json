@@ -8,8 +8,7 @@
 
   // AUTO-INSTALLATION
   // Using corepack (pre-installed in the image) to handle pnpm
-  "postCreateCommand": "corepack enable && corepack prepare pnpm@latest --activate && pnpm install && npx playwright install --with-deps && npm install -g @google/gemini-cli firebase-tools @google/jules && gemini extensions install https://github.com/gemini-cli-extensions/stitch --consent && gemini extensions install https://github.com/ChromeDevTools/chrome-devtools-mcp --consent && gemini extensions install https://github.com/gemini-cli-extensions/code-review --consent && gemini extensions install https://github.com/upstash/context7 --consent && gemini extensions install https://github.com/gemini-cli-extensions/firebase --consent && gemini extensions install https://github.com/gemini-cli-extensions/jules --consent && gemini extensions install https://github.com/gemini-cli-extensions/security --consent",
-
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   // AUTO-START
   // Automatically clears the terminal and starts Gemini
   "postAttachCommand": "clear && echo 'Welcome to SPART Board AI! Starting Gemini...' && gemini",
