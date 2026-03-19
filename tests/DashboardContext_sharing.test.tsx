@@ -15,6 +15,11 @@ vi.mock('../context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
     isAdmin: false,
+    featurePermissions: [],
+    selectedBuildings: [],
+    savedWidgetConfigs: {},
+    saveWidgetConfig: vi.fn(),
+    refreshGoogleToken: vi.fn().mockResolvedValue('mock-token'),
   }),
 }));
 

@@ -20,6 +20,7 @@ import {
   AddWidgetOverrides,
   NextUpConfig,
   GridPosition,
+  FeaturePermission,
 } from '../types';
 import { useAuth } from './useAuth';
 import { useFirestore } from '../hooks/useFirestore';
@@ -125,6 +126,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
     return localStorage.getItem('classroom_dock_initialized') === 'true';
   });
+  // Keep a ref in sync so timeout callbacks can read the latest value without
+  // capturing a stale closure.
+  const isDockInitializedRef = useRef(isDockInitialized);
+  isDockInitializedRef.current = isDockInitialized;
 
   const [visibleTools, setVisibleTools] = useState<
     (WidgetType | InternalToolType)[]
@@ -217,14 +222,86 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem('spartboard_gradeFilter', filter);
   }, []);
 
+  /**
+   * Returns the list of dock tools that should be used as defaults for the
+   * current user's primary building, filtered so that only tools the user can
+   * actually access (enabled, correct access level / beta list) are included.
+   *
+   * - When `selectedBuildings` is empty ("show all content"), returns all
+   *   accessible tools from the TOOLS config.
+   * - When a building is selected, returns the tools marked as default for
+   *   that building in admin configuration.
+   * - Falls back to `['time-tool']` when a building is selected but no
+   *   building-specific defaults are found.
+   */
+  const getDefaultDockTools = useCallback((): (WidgetType | InternalToolType)[] => {
+    /**
+     * Checks whether a given FeaturePermission record is accessible to the
+     * current user (enabled, correct access level, in beta list if required).
+     */
+    const isPermAccessible = (perm: FeaturePermission): boolean => {
+      const isEnabled = perm.enabled !== false;
+      const isAccessibleByRole =
+        perm.accessLevel !== 'admin' || isAdmin === true;
+      const isBetaAccessible =
+        perm.accessLevel !== 'beta' ||
+        perm.betaUsers.includes(user?.email ?? '');
+      return isEnabled && isAccessibleByRole && isBetaAccessible;
+    };
+
+    // Build a Map for O(1) permission look-ups when iterating over TOOLS.
+    const permByType = new Map<string, FeaturePermission>(
+      (featurePermissions ?? []).map((p) => [p.widgetType, p])
+    );
+
+    // When no building is configured treat as "show all content" (project
+    // convention: empty selectedBuildings = no building-based filtering).
+    if (selectedBuildings.length === 0) {
+      return TOOLS.filter((tool) => {
+        const perm = permByType.get(tool.type);
+        // No permission record → public by default
+        if (!perm) return true;
+        return isPermAccessible(perm);
+      }).map((tool) => tool.type);
+    }
+
+    const tools: (WidgetType | InternalToolType)[] = [];
+    const buildingId = selectedBuildings[0];
+
+    (featurePermissions ?? []).forEach((perm) => {
+      const dockDefaults = perm.config?.dockDefaults as
+        | Record<string, boolean>
+        | undefined;
+
+      const isDefaultForBuilding =
+        dockDefaults !== undefined && dockDefaults[buildingId] === true;
+      if (!isDefaultForBuilding) return;
+
+      // Only include tools that the current user can actually access,
+      // mirroring the same checks performed by canAccessWidget / the dock.
+      if (isPermAccessible(perm)) {
+        tools.push(perm.widgetType);
+      }
+    });
+
+    if (tools.length === 0) {
+      tools.push('time-tool');
+    }
+
+    return tools;
+  }, [featurePermissions, selectedBuildings, isAdmin, user]);
+
   useEffect(() => {
     if (isDockInitialized) return;
 
-    // Safety timeout: if we are stuck waiting for some reason after 5 seconds, fallback
+    // Safety timeout: if we are stuck waiting for some reason after 5 seconds, fallback.
+    // Uses isDockInitializedRef so the callback always reads the latest value even
+    // if the effect closure has gone stale.  The timer also captures getDefaultDockTools
+    // so the fallback uses the same access-filtering logic as the normal init path.
     const initTimer = setTimeout(() => {
-      if (!isDockInitialized) {
-        console.warn('Dock init timeout - falling back to default');
-        const fallbackTools: WidgetType[] = ['time-tool']; // fallback minimal set
+      if (!isDockInitializedRef.current) {
+        console.warn('Dock init timeout - using defaults');
+        const fallbackTools = getDefaultDockTools();
         const fallbackDock = migrateToDockItems(fallbackTools);
         setDockItems(fallbackDock);
         setVisibleTools(fallbackTools);
@@ -241,30 +318,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }, 5000);
 
-    if (featurePermissions.length === 0) {
-      return; // Still loading permissions
+    // When a building is selected we need to wait for permissions to load
+    // before we can apply building-specific defaults.  When no building is
+    // selected (empty array = "show all content") we can initialize immediately
+    // using all accessible tools without waiting.
+    if (selectedBuildings.length > 0 && (featurePermissions ?? []).length === 0) {
+      // Still loading permissions for a specific building – keep the safety
+      // timer running but allow the effect to be cleaned up if the component
+      // unmounts first.
+      return () => clearTimeout(initTimer);
     }
 
-    // Determine building ID (if none, we might not have a perfect default, so fallback)
-    const defaultTools: (WidgetType | InternalToolType)[] = [];
-
-    if (selectedBuildings.length > 0) {
-      const buildingId = selectedBuildings[0]; // Primary building
-      featurePermissions.forEach((perm) => {
-        const dockDefaults = perm.config?.dockDefaults as
-          | Record<string, boolean>
-          | undefined;
-        if (dockDefaults && dockDefaults[buildingId] === true) {
-          defaultTools.push(perm.widgetType);
-        }
-      });
-    }
-
-    // Fallback if no specific building defaults were found
-    if (defaultTools.length === 0) {
-      defaultTools.push('time-tool'); // default essential tools
-    }
-
+    const defaultTools = getDefaultDockTools();
     const defaultDock = migrateToDockItems(defaultTools);
     setDockItems(defaultDock);
     setVisibleTools(defaultTools);
@@ -277,7 +342,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     clearTimeout(initTimer);
-  }, [isDockInitialized, featurePermissions, selectedBuildings]);
+    return () => clearTimeout(initTimer);
+  }, [isDockInitialized, featurePermissions, selectedBuildings, getDefaultDockTools]);
 
   // --- ROSTER LOGIC ---
   const {
@@ -1727,23 +1793,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const resetDockToDefaults = useCallback(() => {
-    const defaultTools: (WidgetType | InternalToolType)[] = [];
-
-    if (selectedBuildings.length > 0) {
-      const buildingId = selectedBuildings[0];
-      featurePermissions.forEach((perm) => {
-        const dockDefaults = perm.config?.dockDefaults as
-          | Record<string, boolean>
-          | undefined;
-        if (dockDefaults && dockDefaults[buildingId] === true) {
-          defaultTools.push(perm.widgetType);
-        }
-      });
-    }
-
-    if (defaultTools.length === 0) {
-      defaultTools.push('time-tool');
-    }
+    // Re-use the shared helper so the access-filtering logic (enabled,
+    // accessLevel, betaUsers) is always consistent with the init path.
+    const defaultTools = getDefaultDockTools();
 
     const defaultDock = migrateToDockItems(defaultTools);
     setDockItems(defaultDock);
@@ -1755,7 +1807,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     addToast('Dock reset to building defaults', 'success');
-  }, [selectedBuildings, featurePermissions, addToast]);
+  }, [getDefaultDockTools, addToast]);
 
   const loadDashboard = useCallback(
     (id: string) => {

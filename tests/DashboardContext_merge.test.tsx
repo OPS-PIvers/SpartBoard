@@ -33,7 +33,7 @@ vi.mock('../context/useAuth', () => ({
       email: 'test@example.com',
     },
     isAdmin: false,
-    featurePermissions: {},
+    featurePermissions: [],
     selectedBuildings: [],
     savedWidgetConfigs: {},
     saveWidgetConfig: vi.fn(),
