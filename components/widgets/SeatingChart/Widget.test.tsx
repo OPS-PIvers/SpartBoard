@@ -174,6 +174,92 @@ describe('SeatingChartWidget', () => {
     expect(furnitureItem.className).not.toContain('ring-2');
     expect(screen.queryByTitle('Rotate Left')).toBeNull();
   });
+
+  it('should rotate an item by given delta', async () => {
+    const widget = createWidget();
+    const { container } = render(<SeatingChartWidget widget={widget} />);
+
+    // Switch to Setup mode
+    fireEvent.click(screen.getByText('Setup'));
+
+    // Find items
+    const desk1 = container.querySelector('div[style*="left: 100px"]');
+    if (!desk1) throw new Error('Desks not found');
+
+    // 1. Select item normally
+    fireEvent.pointerDown(desk1, { bubbles: true, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerUp(window);
+    fireEvent.click(desk1);
+
+    // 2. Give component time to update state and find rotate button
+    const rotateLeftBtn = await screen.findByTitle('Rotate Left');
+
+    // Clear mock before actual action to ignore selection state updates
+    mockUpdateWidget.mockClear();
+
+    // 3. Click rotate left (-45)
+    fireEvent.click(rotateLeftBtn);
+
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const updates = (mockUpdateWidget as Mock).mock.lastCall[1].config.furniture;
+
+    // The rotated item should be 315 (-45 = 315)
+    expect(updates[0].rotation).toBe(315);
+  });
+
+  it('should delete a selected item', async () => {
+    const widget = createWidget();
+    const { container } = render(<SeatingChartWidget widget={widget} />);
+
+    fireEvent.click(screen.getByText('Setup'));
+
+    const desk1 = container.querySelector('div[style*="left: 100px"]');
+    if (!desk1) throw new Error('Desk not found');
+
+    // Select the item
+    fireEvent.pointerDown(desk1, { clientX: 100, clientY: 100, button: 0, bubbles: true });
+    fireEvent.pointerUp(window);
+    fireEvent.click(desk1);
+
+    const deleteBtn = await screen.findByTitle('Delete');
+
+    // Clear mock before actual action to ignore selection state updates
+    mockUpdateWidget.mockClear();
+
+    fireEvent.click(deleteBtn);
+
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const updates = (mockUpdateWidget as Mock).mock.lastCall[1].config.furniture;
+
+    // Furniture array should be empty
+    expect(updates.length).toBe(0);
+  });
+
+  it('should apply templates to generate new layouts', () => {
+    // Need custom roster for students
+    const widget = createWidget();
+    widget.config = {
+      ...widget.config,
+      rosterMode: 'custom',
+      names: 'Student 1\nStudent 2\nStudent 3\nStudent 4',
+      template: 'rows',
+      templateColumns: 2,
+    } as SeatingChartConfig;
+
+    render(<SeatingChartWidget widget={widget} />);
+
+    fireEvent.click(screen.getByText('Setup'));
+
+    // Apply template
+    const applyBtn = screen.getByRole('button', { name: 'Apply Layout' });
+    fireEvent.click(applyBtn);
+
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const updates = (mockUpdateWidget as Mock).mock.lastCall[1].config.furniture;
+
+    // 4 students should generate 4 desks
+    expect(updates.length).toBe(4);
+  });
 });
 
 // ---------------------------------------------------------------------------
