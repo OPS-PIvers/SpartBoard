@@ -2,11 +2,16 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GraphicOrganizerWidget } from './Widget';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { WidgetData, GraphicOrganizerConfig } from '@/types';
 
 // Mock the Dashboard context
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(),
 }));
 
 // Mock the WidgetLayout
@@ -24,6 +29,11 @@ describe('GraphicOrganizerWidget', () => {
       updateWidget: mockUpdateWidget,
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     } as unknown as ReturnType<typeof useDashboard>);
+    vi.mocked(useAuth).mockReturnValue({
+      user: { buildingId: 'test-building' } as unknown,
+      selectedBuildings: ['test-building'],
+      featurePermissions: [],
+    } as unknown as ReturnType<typeof useAuth>);
     vi.useFakeTimers();
   });
 

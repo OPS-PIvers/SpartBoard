@@ -1,7 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { WidgetData, GraphicOrganizerConfig } from '@/types';
+import {
+  WidgetData,
+  GraphicOrganizerConfig,
+  GraphicOrganizerTemplate,
+} from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { getFontClass } from '@/utils/styles';
 
 const EditableNode: React.FC<{
@@ -76,13 +81,35 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const { selectedBuildings, featurePermissions } = useAuth();
   const config = widget.config as GraphicOrganizerConfig;
-  const globalStyle = activeDashboard?.globalStyle ?? { fontFamily: 'sans' };
-  const fontClass = getFontClass(
-    config.fontFamily ?? 'global',
-    globalStyle.fontFamily
+
+  const buildingId = selectedBuildings[0] ?? 'global';
+  const featureObj = featurePermissions?.find(
+    (p) => p.widgetType === 'graphic-organizer'
   );
-  const nodes = config.nodes || {};
+
+  const featureConfig = featureObj?.config ?? {};
+  const buildingsConfig = (featureConfig.buildings ?? {}) as Record<
+    string,
+    { templates?: GraphicOrganizerTemplate[] }
+  >;
+  const buildingConfig = buildingsConfig[buildingId] ?? { templates: [] };
+  const customTemplates: GraphicOrganizerTemplate[] =
+    buildingConfig.templates ?? [];
+
+  const selectedTemplate = customTemplates.find(
+    (t) => t.id === config.templateType
+  );
+  const layout = selectedTemplate
+    ? selectedTemplate.layout
+    : config.templateType;
+
+  const globalStyle = activeDashboard?.globalStyle ?? { fontFamily: 'sans' };
+  const templateFontFamily = selectedTemplate?.fontFamily;
+  const currentFontFamily = config.fontFamily ?? templateFontFamily ?? 'global';
+  const fontClass = getFontClass(currentFontFamily, globalStyle.fontFamily);
+  const nodes = config.nodes ?? {};
 
   const handleUpdate = (id: string, text: string) => {
     updateWidget(widget.id, {
@@ -100,59 +127,59 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
     <div className="grid grid-cols-2 grid-rows-2 h-full gap-2 p-2 relative bg-slate-100">
       <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
-          Definition
+          {selectedTemplate?.defaultNodes?.topLeft ?? 'Definition'}
         </div>
         <EditableNode
           id="top-left"
-          initialText={nodes['top-left']?.text || ''}
+          initialText={nodes['top-left']?.text ?? ''}
           onUpdate={handleUpdate}
           className="mt-4 h-full"
-          placeholder="Type definition..."
+          placeholder={`Type ${selectedTemplate?.defaultNodes?.topLeft ?? 'definition'}...`}
         />
       </div>
       <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
-          Characteristics
+          {selectedTemplate?.defaultNodes?.topRight ?? 'Characteristics'}
         </div>
         <EditableNode
           id="top-right"
-          initialText={nodes['top-right']?.text || ''}
+          initialText={nodes['top-right']?.text ?? ''}
           onUpdate={handleUpdate}
           className="mt-4 h-full"
-          placeholder="Type characteristics..."
+          placeholder={`Type ${selectedTemplate?.defaultNodes?.topRight ?? 'characteristics'}...`}
         />
       </div>
       <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
-          Examples
+          {selectedTemplate?.defaultNodes?.bottomLeft ?? 'Examples'}
         </div>
         <EditableNode
           id="bottom-left"
-          initialText={nodes['bottom-left']?.text || ''}
+          initialText={nodes['bottom-left']?.text ?? ''}
           onUpdate={handleUpdate}
           className="mt-4 h-full"
-          placeholder="Type examples..."
+          placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomLeft ?? 'examples'}...`}
         />
       </div>
       <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
-          Non-Examples
+          {selectedTemplate?.defaultNodes?.bottomRight ?? 'Non-Examples'}
         </div>
         <EditableNode
           id="bottom-right"
-          initialText={nodes['bottom-right']?.text || ''}
+          initialText={nodes['bottom-right']?.text ?? ''}
           onUpdate={handleUpdate}
           className="mt-4 h-full"
-          placeholder="Type non-examples..."
+          placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomRight ?? 'non-examples'}...`}
         />
       </div>
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-100 border-4 border-indigo-300 rounded-full w-32 h-32 flex items-center justify-center p-4 shadow-lg text-center z-10">
         <EditableNode
           id="center"
-          initialText={nodes['center']?.text || ''}
+          initialText={nodes['center']?.text ?? ''}
           onUpdate={handleUpdate}
           className="w-full text-center font-bold text-indigo-900"
-          placeholder="Topic"
+          placeholder={selectedTemplate?.defaultNodes?.center ?? 'Topic'}
         />
       </div>
     </div>
@@ -163,33 +190,37 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
       <div className="border-r-4 border-slate-400 p-4">
         <EditableNode
           id="left-header"
-          initialText={nodes['left-header']?.text || ''}
+          initialText={nodes['left-header']?.text ?? ''}
           onUpdate={handleUpdate}
           className="font-bold text-center border-b-4 border-slate-400 pb-2 mb-4 text-xl"
-          placeholder="Pros"
+          placeholder={selectedTemplate?.defaultNodes?.leftHeader ?? 'Pros'}
         />
         <EditableNode
           id="left"
-          initialText={nodes['left']?.text || ''}
+          initialText={nodes['left']?.text ?? ''}
           onUpdate={handleUpdate}
           className="h-full"
-          placeholder="- Item 1\n- Item 2"
+          placeholder={
+            selectedTemplate?.defaultNodes?.leftContent ?? '- Item 1\n- Item 2'
+          }
         />
       </div>
       <div className="p-4">
         <EditableNode
           id="right-header"
-          initialText={nodes['right-header']?.text || ''}
+          initialText={nodes['right-header']?.text ?? ''}
           onUpdate={handleUpdate}
           className="font-bold text-center border-b-4 border-slate-400 pb-2 mb-4 text-xl"
-          placeholder="Cons"
+          placeholder={selectedTemplate?.defaultNodes?.rightHeader ?? 'Cons'}
         />
         <EditableNode
           id="right"
-          initialText={nodes['right']?.text || ''}
+          initialText={nodes['right']?.text ?? ''}
           onUpdate={handleUpdate}
           className="h-full"
-          placeholder="- Item 1\n- Item 2"
+          placeholder={
+            selectedTemplate?.defaultNodes?.rightContent ?? '- Item 1\n- Item 2'
+          }
         />
       </div>
     </div>
@@ -204,14 +235,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="w-[35%] p-4 flex flex-col justify-center">
           <EditableNode
             id="left-header"
-            initialText={nodes['left-header']?.text || ''}
+            initialText={nodes['left-header']?.text ?? ''}
             onUpdate={handleUpdate}
             className="font-bold text-blue-800 mb-2"
-            placeholder="Topic A"
+            placeholder={
+              selectedTemplate?.defaultNodes?.leftCircle ?? 'Topic A'
+            }
           />
           <EditableNode
             id="left"
-            initialText={nodes['left']?.text || ''}
+            initialText={nodes['left']?.text ?? ''}
             onUpdate={handleUpdate}
             className="text-sm"
             placeholder="Unique to A"
@@ -220,14 +253,14 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="w-[30%] p-4 flex flex-col justify-center border-x-2 border-dashed border-slate-300">
           <EditableNode
             id="center-header"
-            initialText={nodes['center-header']?.text || ''}
+            initialText={nodes['center-header']?.text ?? ''}
             onUpdate={handleUpdate}
             className="font-bold text-indigo-800 mb-2"
-            placeholder="Both"
+            placeholder={selectedTemplate?.defaultNodes?.intersection ?? 'Both'}
           />
           <EditableNode
             id="center"
-            initialText={nodes['center']?.text || ''}
+            initialText={nodes['center']?.text ?? ''}
             onUpdate={handleUpdate}
             className="text-sm"
             placeholder="Shared"
@@ -236,14 +269,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="w-[35%] p-4 flex flex-col justify-center">
           <EditableNode
             id="right-header"
-            initialText={nodes['right-header']?.text || ''}
+            initialText={nodes['right-header']?.text ?? ''}
             onUpdate={handleUpdate}
             className="font-bold text-green-800 mb-2"
-            placeholder="Topic B"
+            placeholder={
+              selectedTemplate?.defaultNodes?.rightCircle ?? 'Topic B'
+            }
           />
           <EditableNode
             id="right"
-            initialText={nodes['right']?.text || ''}
+            initialText={nodes['right']?.text ?? ''}
             onUpdate={handleUpdate}
             className="text-sm"
             placeholder="Unique to B"
@@ -259,12 +294,12 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="bg-blue-100 p-3 text-center border-b-2 border-slate-300">
           <div className="text-3xl font-black text-blue-800">K</div>
           <div className="text-sm font-bold text-blue-600 uppercase">
-            What I Know
+            {selectedTemplate?.defaultNodes?.k ?? 'What I Know'}
           </div>
         </div>
         <EditableNode
           id="know"
-          initialText={nodes['know']?.text || ''}
+          initialText={nodes['know']?.text ?? ''}
           onUpdate={handleUpdate}
           className="p-4 flex-grow h-full"
           placeholder="Type here..."
@@ -274,12 +309,12 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="bg-amber-100 p-3 text-center border-b-2 border-slate-300">
           <div className="text-3xl font-black text-amber-800">W</div>
           <div className="text-sm font-bold text-amber-600 uppercase">
-            What I Wonder
+            {selectedTemplate?.defaultNodes?.w ?? 'What I Wonder'}
           </div>
         </div>
         <EditableNode
           id="wonder"
-          initialText={nodes['wonder']?.text || ''}
+          initialText={nodes['wonder']?.text ?? ''}
           onUpdate={handleUpdate}
           className="p-4 flex-grow h-full"
           placeholder="Type here..."
@@ -289,12 +324,12 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="bg-green-100 p-3 text-center border-b-2 border-slate-300">
           <div className="text-3xl font-black text-green-800">L</div>
           <div className="text-sm font-bold text-green-600 uppercase">
-            What I Learned
+            {selectedTemplate?.defaultNodes?.l ?? 'What I Learned'}
           </div>
         </div>
         <EditableNode
           id="learn"
-          initialText={nodes['learn']?.text || ''}
+          initialText={nodes['learn']?.text ?? ''}
           onUpdate={handleUpdate}
           className="p-4 flex-grow h-full"
           placeholder="Type here..."
@@ -311,10 +346,12 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         </div>
         <EditableNode
           id="cause"
-          initialText={nodes['cause']?.text || ''}
+          initialText={nodes['cause']?.text ?? ''}
           onUpdate={handleUpdate}
           className="p-4 flex-grow"
-          placeholder="Why it happened..."
+          placeholder={
+            selectedTemplate?.defaultNodes?.cause1 ?? 'Why it happened...'
+          }
         />
       </div>
 
@@ -340,17 +377,19 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         </div>
         <EditableNode
           id="effect"
-          initialText={nodes['effect']?.text || ''}
+          initialText={nodes['effect']?.text ?? ''}
           onUpdate={handleUpdate}
           className="p-4 flex-grow"
-          placeholder="What happened..."
+          placeholder={
+            selectedTemplate?.defaultNodes?.effect ?? 'What happened...'
+          }
         />
       </div>
     </div>
   );
 
   const renderContent = () => {
-    switch (config.templateType) {
+    switch (layout) {
       case 'frayer':
         return renderFrayer();
       case 't-chart':

@@ -1281,8 +1281,31 @@ export interface OrganizerNode {
   text: string;
 }
 
+export type GraphicOrganizerLayoutType =
+  | 'frayer'
+  | 't-chart'
+  | 'venn'
+  | 'kwl'
+  | 'cause-effect';
+
+export interface GraphicOrganizerTemplate {
+  id: string;
+  name: string;
+  layout: GraphicOrganizerLayoutType;
+  defaultNodes: Record<string, string>; // Map of node keys to default text
+  fontFamily?: GlobalFontFamily;
+}
+
+export interface GraphicOrganizerBuildingConfig {
+  templates: GraphicOrganizerTemplate[];
+}
+
+export interface GraphicOrganizerGlobalConfig {
+  buildings: Record<string, GraphicOrganizerBuildingConfig>;
+}
+
 export interface GraphicOrganizerConfig {
-  templateType: 'frayer' | 't-chart' | 'venn' | 'kwl' | 'cause-effect';
+  templateType: string; // string allows for custom template IDs
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
 }
