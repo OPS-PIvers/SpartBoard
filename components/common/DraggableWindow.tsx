@@ -64,7 +64,7 @@ const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE
 
 // const MIN_GESTURE_SWIPE_DISTANCE = 100;
 const DRAG_CLICK_THRESHOLD_PX = 25;
-const INVISIBLE_EDGE_PAD = 10; // px of invisible grab zone extending outside widget bounds
+const INVISIBLE_EDGE_PAD = 20; // px of invisible grab zone extending outside widget bounds
 
 interface DraggableWindowProps {
   widget: WidgetData;

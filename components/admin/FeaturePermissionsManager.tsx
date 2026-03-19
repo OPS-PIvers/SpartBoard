@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
@@ -16,6 +16,7 @@ import {
   getWidgetGradeLevels,
   ALL_GRADE_LEVELS,
 } from '@/config/widgetGradeLevels';
+import { BUILDINGS } from '@/config/buildings';
 import {
   Shield,
   Users,
@@ -24,6 +25,7 @@ import {
   Settings,
   LayoutGrid,
   List,
+  Filter,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Toast } from '@/components/common/Toast';
@@ -36,6 +38,8 @@ import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigura
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
+import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
+import { CatalystConfigurationModal } from '@/components/admin/CatalystConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -61,6 +65,15 @@ export const FeaturePermissionsManager: React.FC = () => {
   );
   const [isSavingStickers, setIsSavingStickers] = useState(false);
   const { uploadWeatherImage } = useStorage();
+
+  // Filter state
+  const [filterEnabled, setFilterEnabled] = useState<'all' | 'on' | 'off'>(
+    'all'
+  );
+  const [filterAvailability, setFilterAvailability] = useState<
+    'all' | AccessLevel
+  >('all');
+  const [filterBuilding, setFilterBuilding] = useState<string>('all');
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -272,6 +285,35 @@ export const FeaturePermissionsManager: React.FC = () => {
     }
   };
 
+  const filteredTools = useMemo(() => {
+    const sorted = [...TOOLS].sort((a, b) => a.label.localeCompare(b.label));
+    return sorted.filter((tool) => {
+      const perm = permissions.get(tool.type) ?? {
+        widgetType: tool.type,
+        accessLevel: 'public' as AccessLevel,
+        betaUsers: [] as string[],
+        enabled: true,
+      };
+      if (filterEnabled === 'on' && !perm.enabled) return false;
+      if (filterEnabled === 'off' && perm.enabled) return false;
+      if (
+        filterAvailability !== 'all' &&
+        perm.accessLevel !== filterAvailability
+      )
+        return false;
+      if (filterBuilding !== 'all') {
+        const building = BUILDINGS.find((b) => b.id === filterBuilding);
+        if (building) {
+          const currentLevels =
+            perm.gradeLevels ?? getWidgetGradeLevels(tool.type);
+          if (!building.gradeLevels.some((gl) => currentLevels.includes(gl)))
+            return false;
+        }
+      }
+      return true;
+    });
+  }, [permissions, filterEnabled, filterAvailability, filterBuilding]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -291,68 +333,306 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
-      {/* Header with View Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-700">
-          Feature Permissions
-        </h2>
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <Filter className="w-4 h-4" />
+          <span className="text-xs font-bold uppercase tracking-wide">
+            Filter
+          </span>
+        </div>
+
+        {/* Enabled filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 font-medium">Enabled:</span>
+          {(['all', 'on', 'off'] as const).map((val) => (
+            <button
+              key={val}
+              onClick={() => setFilterEnabled(val)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterEnabled === val
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200" />
+
+        {/* Availability filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 font-medium">
+            Availability:
+          </span>
+          {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
+            <button
+              key={val}
+              onClick={() => setFilterAvailability(val)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterAvailability === val
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {val === 'all'
+                ? 'All'
+                : val.charAt(0).toUpperCase() + val.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200" />
+
+        {/* Building filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 font-medium">Building:</span>
+          <button
+            onClick={() => setFilterBuilding('all')}
+            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+              filterBuilding === 'all'
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            All
+          </button>
+          {BUILDINGS.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setFilterBuilding(b.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterBuilding === b.id
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+              title={b.name}
+            >
+              {b.gradeLabel}
+            </button>
+          ))}
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 rounded-md transition-all ${
               viewMode === 'grid'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
+                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
                 : 'text-slate-400 hover:text-slate-600'
             }`}
             title="Grid View"
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
           >
-            <LayoutGrid size={20} />
+            <LayoutGrid size={16} />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 rounded-md transition-all ${
               viewMode === 'list'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
+                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
                 : 'text-slate-400 hover:text-slate-600'
             }`}
             title="List View"
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
           >
-            <List size={20} />
+            <List size={16} />
           </button>
         </div>
       </div>
 
       {/* Widget Permission Cards */}
-      <div
-        className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-            : 'space-y-3'
-        }
-      >
-        {TOOLS.map((tool) => {
-          const permission = getPermission(tool.type);
-          const isSaving = saving.has(tool.type);
+      <>
+        {filteredTools.length === 0 && (
+          <div className="py-12 text-center text-slate-400">
+            <Filter className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="font-medium">No widgets match the current filters.</p>
+          </div>
+        )}
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+              : 'space-y-3'
+          }
+        >
+          {filteredTools.map((tool) => {
+            const permission = getPermission(tool.type);
+            const isSaving = saving.has(tool.type);
 
-          const currentLevels =
-            permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
-          const isAllSelected = ALL_GRADE_LEVELS.every((l) =>
-            currentLevels.includes(l)
-          );
+            const currentLevels =
+              permission.gradeLevels ?? getWidgetGradeLevels(tool.type);
+            const isAllSelected = ALL_GRADE_LEVELS.every((l) =>
+              currentLevels.includes(l)
+            );
 
-          if (viewMode === 'list') {
+            if (viewMode === 'list') {
+              return (
+                <div
+                  key={tool.type}
+                  className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+                >
+                  {/* Top Bar */}
+                  <div className="flex items-center gap-4 p-3">
+                    {/* Identity Section: Icon + Name Input */}
+                    <div className="flex items-center gap-3 w-64 shrink-0">
+                      <div
+                        className={`${tool.color} p-2 rounded-lg text-white shrink-0`}
+                      >
+                        <tool.icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={permission.displayName ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updatePermission(tool.type, {
+                              displayName: val || undefined,
+                            });
+                          }}
+                          className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                          placeholder={tool.label}
+                        />
+                        <p className="text-xs text-slate-500">{tool.type}</p>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-8 bg-slate-100 mx-2" />
+
+                    {/* Enabled Toggle */}
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-xxs font-bold text-slate-400 uppercase">
+                        Enabled
+                      </span>
+                      <Toggle
+                        checked={permission.enabled}
+                        onChange={(checked) =>
+                          updatePermission(tool.type, {
+                            enabled: checked,
+                          })
+                        }
+                        size="sm"
+                      />
+                    </div>
+
+                    {/* Access Level Controls */}
+                    <div className="flex items-center gap-1 ml-4">
+                      {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                        (level) => (
+                          <button
+                            key={level}
+                            onClick={() =>
+                              updatePermission(tool.type, {
+                                accessLevel: level,
+                              })
+                            }
+                            className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
+                              permission.accessLevel === level
+                                ? getAccessLevelColor(level)
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {getAccessLevelIcon(level)}
+                            <span className="capitalize">{level}</span>
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    {/* Grade Level Controls */}
+                    <div className="flex items-center gap-1 ml-4 flex-1 flex-wrap justify-end">
+                      {ALL_GRADE_LEVELS.map((level) => {
+                        const isSelected = currentLevels.includes(level);
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => toggleGradeLevel(tool.type, level)}
+                            className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                              isSelected
+                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            {level.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => toggleAllGradeLevels(tool.type)}
+                        className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                          isAllSelected
+                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        ALL
+                      </button>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
+                      <button
+                        onClick={() => setActiveModalTool(tool)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          activeModalTool?.type === tool.type
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'text-slate-400 hover:bg-slate-100'
+                        }`}
+                        title="Edit widget configuration"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => savePermission(tool.type)}
+                        disabled={isSaving || !unsavedChanges.has(tool.type)}
+                        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          unsavedChanges.has(tool.type)
+                            ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                            : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
+                        }`}
+                        title={
+                          unsavedChanges.has(tool.type)
+                            ? 'Save Changes'
+                            : 'No changes to save'
+                        }
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Content Wrapper */}
+                  {permission.accessLevel === 'beta' && (
+                    <div className="border-t border-slate-100 bg-slate-50">
+                      {/* Beta Users Panel */}
+                      <BetaUsersPanel
+                        tool={tool}
+                        permission={permission}
+                        updatePermission={updatePermission}
+                        showMessage={showMessage}
+                        variant="expanded"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div
                 key={tool.type}
-                className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+                className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors"
               >
-                {/* Top Bar */}
-                <div className="flex items-center gap-4 p-3">
-                  {/* Identity Section: Icon + Name Input */}
-                  <div className="flex items-center gap-3 w-64 shrink-0">
-                    <div
-                      className={`${tool.color} p-2 rounded-lg text-white shrink-0`}
-                    >
+                {/* Widget Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`${tool.color} p-2 rounded-lg text-white`}>
                       <tool.icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -372,78 +652,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="w-px h-8 bg-slate-100 mx-2" />
-
-                  {/* Enabled Toggle */}
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-xxs font-bold text-slate-400 uppercase">
-                      Enabled
-                    </span>
-                    <Toggle
-                      checked={permission.enabled}
-                      onChange={(checked) =>
-                        updatePermission(tool.type, {
-                          enabled: checked,
-                        })
-                      }
-                      size="sm"
-                    />
-                  </div>
-
-                  {/* Access Level Controls */}
-                  <div className="flex items-center gap-1 ml-4">
-                    {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                      (level) => (
-                        <button
-                          key={level}
-                          onClick={() =>
-                            updatePermission(tool.type, { accessLevel: level })
-                          }
-                          className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
-                            permission.accessLevel === level
-                              ? getAccessLevelColor(level)
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          {getAccessLevelIcon(level)}
-                          <span className="capitalize">{level}</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  {/* Grade Level Controls */}
-                  <div className="flex items-center gap-1 ml-4 flex-1 flex-wrap justify-end">
-                    {ALL_GRADE_LEVELS.map((level) => {
-                      const isSelected = currentLevels.includes(level);
-                      return (
-                        <button
-                          key={level}
-                          onClick={() => toggleGradeLevel(tool.type, level)}
-                          className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                            isSelected
-                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                        >
-                          {level.toUpperCase()}
-                        </button>
-                      );
-                    })}
-                    <button
-                      onClick={() => toggleAllGradeLevels(tool.type)}
-                      className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                        isAllSelected
-                          ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      ALL
-                    </button>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-100">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => setActiveModalTool(tool)}
                       className={`p-2 rounded-lg transition-colors ${
@@ -455,196 +664,123 @@ export const FeaturePermissionsManager: React.FC = () => {
                     >
                       <Settings className="w-4 h-4" />
                     </button>
+                  </div>
+                </div>
+
+                {/* Enabled Toggle */}
+                <div className="flex items-center justify-between mb-3 p-3 bg-slate-50 rounded-lg">
+                  <span className="text-sm font-medium text-slate-700">
+                    Feature Enabled
+                  </span>
+                  <Toggle
+                    checked={permission.enabled}
+                    onChange={(checked) =>
+                      updatePermission(tool.type, {
+                        enabled: checked,
+                      })
+                    }
+                    size="md"
+                  />
+                </div>
+
+                {/* Access Level */}
+                <div className="mb-3">
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">
+                    Access Level
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                      (level) => (
+                        <button
+                          key={level}
+                          onClick={() =>
+                            updatePermission(tool.type, {
+                              accessLevel: level,
+                            })
+                          }
+                          className={`px-3 py-2 rounded-lg border-2 text-sm font-medium flex items-center justify-center gap-1 transition-all ${
+                            permission.accessLevel === level
+                              ? getAccessLevelColor(level)
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {getAccessLevelIcon(level)}
+                          <span className="capitalize">{level}</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* Grade Levels */}
+                <div className="mb-3">
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">
+                    Grade Levels
+                  </label>
+                  <div className="grid grid-cols-5 gap-1">
+                    {ALL_GRADE_LEVELS.map((level) => {
+                      const isSelected = currentLevels.includes(level);
+
+                      return (
+                        <button
+                          key={level}
+                          onClick={() => toggleGradeLevel(tool.type, level)}
+                          className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
+                            isSelected
+                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          {level.toUpperCase()}
+                        </button>
+                      );
+                    })}
                     <button
-                      onClick={() => savePermission(tool.type)}
-                      disabled={isSaving}
-                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        unsavedChanges.has(tool.type)
-                          ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                          : 'text-slate-400 hover:bg-brand-blue-primary hover:text-white'
+                      onClick={() => toggleAllGradeLevels(tool.type)}
+                      className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
+                        isAllSelected
+                          ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
-                      title={
-                        unsavedChanges.has(tool.type)
-                          ? 'Save Changes'
-                          : 'Save Permissions'
-                      }
                     >
-                      <Save className="w-4 h-4" />
+                      ALL
                     </button>
                   </div>
                 </div>
 
-                {/* Expanded Content Wrapper */}
+                {/* Beta Users (only show if access level is beta) */}
                 {permission.accessLevel === 'beta' && (
-                  <div className="border-t border-slate-100 bg-slate-50">
-                    {/* Beta Users Panel */}
-                    <BetaUsersPanel
-                      tool={tool}
-                      permission={permission}
-                      updatePermission={updatePermission}
-                      showMessage={showMessage}
-                      variant="expanded"
-                    />
-                  </div>
+                  <BetaUsersPanel
+                    tool={tool}
+                    permission={permission}
+                    updatePermission={updatePermission}
+                    showMessage={showMessage}
+                    variant="card"
+                  />
                 )}
+
+                {/* Save Button */}
+                <button
+                  onClick={() => savePermission(tool.type)}
+                  disabled={isSaving || !unsavedChanges.has(tool.type)}
+                  className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    unsavedChanges.has(tool.type)
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+                  }`}
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving
+                    ? 'Saving...'
+                    : unsavedChanges.has(tool.type)
+                      ? 'Save Changes'
+                      : 'Save Permissions'}
+                </button>
               </div>
             );
-          }
-
-          return (
-            <div
-              key={tool.type}
-              className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors"
-            >
-              {/* Widget Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className={`${tool.color} p-2 rounded-lg text-white`}>
-                    <tool.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      value={permission.displayName ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        updatePermission(tool.type, {
-                          displayName: val || undefined,
-                        });
-                      }}
-                      className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
-                      placeholder={tool.label}
-                    />
-                    <p className="text-xs text-slate-500">{tool.type}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveModalTool(tool)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      activeModalTool?.type === tool.type
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'text-slate-400 hover:bg-slate-100'
-                    }`}
-                    title="Edit widget configuration"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Enabled Toggle */}
-              <div className="flex items-center justify-between mb-3 p-3 bg-slate-50 rounded-lg">
-                <span className="text-sm font-medium text-slate-700">
-                  Feature Enabled
-                </span>
-                <Toggle
-                  checked={permission.enabled}
-                  onChange={(checked) =>
-                    updatePermission(tool.type, {
-                      enabled: checked,
-                    })
-                  }
-                  size="md"
-                />
-              </div>
-
-              {/* Access Level */}
-              <div className="mb-3">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">
-                  Access Level
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                    (level) => (
-                      <button
-                        key={level}
-                        onClick={() =>
-                          updatePermission(tool.type, { accessLevel: level })
-                        }
-                        className={`px-3 py-2 rounded-lg border-2 text-sm font-medium flex items-center justify-center gap-1 transition-all ${
-                          permission.accessLevel === level
-                            ? getAccessLevelColor(level)
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        {getAccessLevelIcon(level)}
-                        <span className="capitalize">{level}</span>
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {/* Grade Levels */}
-              <div className="mb-3">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">
-                  Grade Levels
-                </label>
-                <div className="grid grid-cols-5 gap-1">
-                  {ALL_GRADE_LEVELS.map((level) => {
-                    const isSelected = currentLevels.includes(level);
-
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => toggleGradeLevel(tool.type, level)}
-                        className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
-                          isSelected
-                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        {level.toUpperCase()}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => toggleAllGradeLevels(tool.type)}
-                    className={`py-1.5 rounded-md text-xxs font-bold border transition-all ${
-                      isAllSelected
-                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    ALL
-                  </button>
-                </div>
-              </div>
-
-              {/* Beta Users (only show if access level is beta) */}
-              {permission.accessLevel === 'beta' && (
-                <BetaUsersPanel
-                  tool={tool}
-                  permission={permission}
-                  updatePermission={updatePermission}
-                  showMessage={showMessage}
-                  variant="card"
-                />
-              )}
-
-              {/* Save Button */}
-              <button
-                onClick={() => savePermission(tool.type)}
-                disabled={isSaving}
-                className={`w-full px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  unsavedChanges.has(tool.type)
-                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                    : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
-                }`}
-              >
-                <Save className="w-4 h-4" />
-                {isSaving
-                  ? 'Saving...'
-                  : unsavedChanges.has(tool.type)
-                    ? 'Save Changes'
-                    : 'Save Permissions'}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      </>
 
       {/* Widget Configuration Modals */}
       {activeModalTool?.type === 'instructionalRoutines' && (
@@ -690,6 +826,17 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'music' && (
+        <MusicLibraryModal onClose={() => setActiveModalTool(null)} />
+      )}
+
+      {activeModalTool?.type === 'catalyst' && (
+        <CatalystConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -698,6 +845,8 @@ export const FeaturePermissionsManager: React.FC = () => {
           'specialist-schedule',
           'miniApp',
           'starter-pack',
+          'music',
+          'catalyst',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}

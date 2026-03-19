@@ -186,10 +186,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   catalyst: {
     w: 450,
     h: 600,
-    config: {
-      activeCategory: null,
-      activeStrategyId: null,
-    },
+    config: {},
   },
   'catalyst-instruction': {
     w: 280,

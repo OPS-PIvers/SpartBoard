@@ -75,6 +75,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /catalyst/images/{routineId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     
     // Default deny for everything else
     match /{allPaths=**} {

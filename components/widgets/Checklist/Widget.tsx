@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
-import { ListPlus, Users, RefreshCw, Trash2 } from 'lucide-react';
+import { ListPlus, Users } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
@@ -248,19 +248,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               title="Reset Checks"
               className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
-                width: 'min(36px, 10cqmin)',
-                height: 'min(36px, 10cqmin)',
-                minWidth: '24px',
-                minHeight: '24px',
+                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'min(10px, 2.8cqmin)',
               }}
             >
-              <RefreshCw
-                style={{
-                  width: 'max(14px, min(18px, 5cqmin))',
-                  height: 'max(14px, min(18px, 5cqmin))',
-                }}
-                strokeWidth={2.5}
-              />
+              reset checked
             </button>
             {mode === 'manual' && (
               <button
@@ -268,19 +260,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 title="Remove Completed"
                 className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
-                  width: 'min(36px, 10cqmin)',
-                  height: 'min(36px, 10cqmin)',
-                  minWidth: '24px',
-                  minHeight: '24px',
+                  padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'min(10px, 2.8cqmin)',
                 }}
               >
-                <Trash2
-                  style={{
-                    width: 'max(14px, min(18px, 5cqmin))',
-                    height: 'max(14px, min(18px, 5cqmin))',
-                  }}
-                  strokeWidth={2.5}
-                />
+                delete checked
               </button>
             )}
           </div>

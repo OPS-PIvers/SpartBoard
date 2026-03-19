@@ -3,25 +3,17 @@
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
 
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    },
-    "ghcr.io/devcontainers/features/pnpm:1": {
-      "version": "latest"
-    }
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
 
-  // AUTO-INSTALLATION
-  // Installs necessary CLI tools, project dependencies, and Gemini extensions/skills
-  "postCreateCommand": "corepack enable && pnpm install && npx playwright install --with-deps && npm install -g @google/gemini-cli firebase-tools @google/jules && gemini extensions install https://github.com/gemini-cli-extensions/stitch --consent && gemini extensions install https://github.com/ChromeDevTools/chrome-devtools-mcp --consent && gemini extensions install https://github.com/gemini-cli-extensions/code-review --consent && gemini extensions install https://github.com/upstash/context7 --consent && gemini extensions install https://github.com/gemini-cli-extensions/firebase --consent && gemini extensions install https://github.com/gemini-cli-extensions/jules --consent && gemini extensions install https://github.com/gemini-cli-extensions/security --consent",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/usr/local/bin:/home/vscode/.local/bin"
+  },
 
-  // AUTO-START
-  // Automatically clears the terminal and starts Gemini
-  "postAttachCommand": "clear && echo 'Welcome to SPART Board AI! Starting Gemini...' && gemini",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
 
-  // PORT FORWARDING
-  // Automatically forwards the Vite dev server port and labels it
+  "postAttachCommand": "clear && echo 'Welcome to SPART Board AI! Type \"gemini\" to start.'",
+
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
@@ -33,7 +25,6 @@
   "customizations": {
     "vscode": {
       "settings": {
-        // SIMPLIFIED INTERFACE
         "workbench.activityBar.location": "hidden",
         "workbench.statusBar.visible": true,
         "editor.minimap.enabled": false,
@@ -42,8 +33,6 @@
         "terminal.integrated.defaultLocation": "editor",
         "files.autoSave": "afterDelay",
         "workbench.startupEditor": "none",
-
-        // Hides files that non-coders don't need to worry about
         "files.exclude": {
           "**/.git": true,
           "**/.ds_store": true,
@@ -76,7 +65,6 @@
           "typescriptreact": "javascript"
         }
       },
-      // Installs useful extensions silently
       "extensions": [
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",

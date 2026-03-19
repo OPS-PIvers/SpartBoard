@@ -1,348 +1,282 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
-import {
-  WidgetData,
-  CatalystConfig,
-  WidgetType,
-  WidgetConfig,
-  CatalystRoutine,
-} from '@/types';
-import { Zap, BookOpen, ChevronLeft } from 'lucide-react';
-import {
-  renderCatalystIcon,
-  isSafeIconUrl,
-  mergeCatalystCategories,
-  mergeCatalystRoutines,
-} from './catalystHelpers';
-
+import { WidgetData } from '@/types';
+import { useCatalystSets } from '@/hooks/useCatalystSets';
+import { isSafeIconUrl } from './catalystHelpers';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { Zap, ImageOff, ChevronLeft } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { CatalystSettings } from './CatalystSettings'; // Import the new settings component
+import {
+  playCleanUp,
+  getAudioCtx,
+} from '@/components/widgets/StarterPack/audioUtils';
+import confetti from 'canvas-confetti';
+import { CatalystSettings } from './CatalystSettings';
 
-export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
-  const { updateWidget, addWidget } = useDashboard();
-  const { featurePermissions } = useAuth();
-  const config = widget.config as CatalystConfig;
-  const { activeCategory, activeStrategyId } = config;
-  const permission = featurePermissions.find(
-    (p) => p.widgetType === 'catalyst'
-  );
-  const globalConfig = (permission?.config ?? {}) as Partial<CatalystConfig>;
+export const CatalystWidget: React.FC<{ widget: WidgetData }> = () => {
+  const { addWidget, deleteAllWidgets } = useDashboard();
+  const { sets, loading, executeRoutine } = useCatalystSets();
+  const [activeSetId, setActiveSetId] = useState<string | null>(null);
 
-  const navigateTo = (catId: string | null, stratId: string | null) => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        activeCategory: catId,
-        activeStrategyId: stratId,
-      },
-    });
-  };
+  const activeSet = sets.find((s) => s.id === activeSetId);
 
-  // Use shared helpers to merge categories and routines
-  const categories = mergeCatalystCategories(globalConfig);
-  const allRoutines = mergeCatalystRoutines(globalConfig);
+  const handleExecute = (routineId: string) => {
+    if (!activeSet) return;
+    const routine = activeSet.routines.find((r) => r.id === routineId);
+    if (!routine) return;
 
-  const activeRoutine = activeStrategyId
-    ? allRoutines.find((r) => r.id === activeStrategyId)
-    : null;
-
-  const filteredRoutines = activeCategory
-    ? allRoutines.filter((r) => r.category === activeCategory)
-    : [];
-
-  const handleGoMode = (routine: CatalystRoutine) => {
-    // 1. Spawn Visual Anchor
-    addWidget('catalyst-visual' as WidgetType, {
-      x: 100,
-      y: 100,
-      w: 600,
-      h: 400,
-      config: {
-        routineId: routine.id,
-        title: routine.title,
-        icon: routine.icon,
-        category: routine.category,
-        stepIndex: 0,
-      },
-    });
-
-    // 2. Spawn Associated Tools
-    if (routine.associatedWidgets) {
-      routine.associatedWidgets.forEach((tool, index) => {
-        addWidget(tool.type, {
-          x: widget.x + (index + 1) * 40,
-          y: widget.y + (index + 1) * 40,
-          config: tool.config as WidgetConfig,
-        });
-      });
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') {
+      void ctx.resume();
     }
-  };
 
-  const handleGuideMode = (routine: CatalystRoutine) => {
-    addWidget('catalyst-instruction' as WidgetType, {
-      x: widget.x + widget.w + 20,
-      y: widget.y,
-      config: {
-        routineId: routine.id,
-        title: routine.title,
-        instructions: routine.instructions,
-        stepIndex: 0,
-      },
+    executeRoutine(routine, true, addWidget, deleteAllWidgets);
+
+    playCleanUp();
+    void confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
     });
   };
 
-  const renderCategories = () => (
-    <div
-      className="grid grid-cols-2 h-full w-full"
-      style={{ gap: 'min(16px, 3cqmin)', padding: 'min(16px, 3cqmin)' }}
-    >
-      {categories.map((cat) => {
-        return (
-          <button
-            key={cat.id}
-            onClick={() => navigateTo(cat.id, null)}
-            className={`${cat.imageUrl ? '' : cat.color} rounded-3xl flex flex-col items-center justify-center text-white shadow-lg hover:scale-105 transition-transform overflow-hidden relative`}
-            style={{
-              gap: 'min(12px, 2.5cqmin)',
-              padding: 'min(16px, 3cqmin)',
-            }}
-          >
-            {cat.imageUrl && isSafeIconUrl(cat.imageUrl) ? (
-              <>
-                <img
-                  src={cat.imageUrl}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-black/35" />
-                <span
-                  className="relative z-10 font-black uppercase tracking-widest drop-shadow"
-                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                >
-                  {cat.label}
-                </span>
-              </>
-            ) : (
-              <>
-                {renderCatalystIcon(cat.icon, 'min(32px, 10cqmin)')}
-                <span
-                  className="font-black uppercase tracking-widest"
-                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                >
-                  {cat.label}
-                </span>
-              </>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const renderRoutineList = () => (
-    <div
-      className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar"
-      style={{ gap: 'min(12px, 2.5cqmin)', padding: 'min(16px, 3cqmin)' }}
-    >
-      <div
-        className="flex items-center"
-        style={{
-          gap: 'min(8px, 1.5cqmin)',
-          marginBottom: 'min(8px, 1.5cqmin)',
-        }}
-      >
-        <button
-          onClick={() => navigateTo(null, null)}
-          className="hover:bg-slate-100 rounded-full transition-colors"
-          style={{ padding: 'min(8px, 1.5cqmin)' }}
-        >
-          <ChevronLeft
-            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
-          />
-        </button>
-        <h2
-          className="font-black uppercase tracking-widest text-slate-700"
-          style={{ fontSize: 'min(14px, 4cqmin)' }}
-        >
-          {categories.find((c) => c.id === activeCategory)?.label ??
-            activeCategory}
-        </h2>
-      </div>
-      {filteredRoutines.map((routine) => {
-        return (
-          <button
-            key={routine.id}
-            onClick={() => navigateTo(activeCategory, routine.id)}
-            className="bg-white border border-slate-200 rounded-2xl flex items-center hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left shadow-sm"
-            style={{ padding: 'min(16px, 3cqmin)', gap: 'min(16px, 3cqmin)' }}
-          >
-            <div
-              className="rounded-xl bg-indigo-100 text-indigo-600 shrink-0 flex items-center justify-center"
-              style={{ padding: 'min(12px, 2.5cqmin)' }}
-            >
-              {renderCatalystIcon(routine.icon, 'min(24px, 6cqmin)')}
-            </div>
-            <div>
-              <div
-                className="font-black uppercase text-slate-700"
-                style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-              >
-                {routine.title}
-              </div>
-              <div
-                className="font-bold text-slate-400 uppercase tracking-widest"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-              >
-                {routine.shortDesc}
-              </div>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const renderRoutineDetail = () => {
-    if (!activeRoutine) return null;
-
+  if (loading) {
     return (
-      <div
-        className="flex flex-col h-full w-full"
-        style={{ padding: 'min(16px, 3cqmin)' }}
-      >
-        <div
-          className="flex items-center shrink-0"
-          style={{
-            gap: 'min(8px, 1.5cqmin)',
-            marginBottom: 'min(24px, 4cqmin)',
-          }}
-        >
-          <button
-            onClick={() => navigateTo(activeCategory, null)}
-            className="hover:bg-slate-100 rounded-full transition-colors"
-            style={{ padding: 'min(8px, 1.5cqmin)' }}
-          >
-            <ChevronLeft
-              style={{
-                width: 'min(20px, 5cqmin)',
-                height: 'min(20px, 5cqmin)',
-              }}
-            />
-          </button>
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(12px, 2.5cqmin)' }}
-          >
-            <div
-              className="rounded-xl bg-indigo-100 text-indigo-600 shrink-0 flex items-center justify-center"
-              style={{ padding: 'min(8px, 1.5cqmin)' }}
-            >
-              {renderCatalystIcon(activeRoutine.icon, 'min(20px, 5cqmin)')}
-            </div>
-            <h2
-              className="font-black uppercase tracking-widest text-indigo-900"
-              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-            >
-              {activeRoutine.title}
-            </h2>
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div className="flex items-center justify-center h-full text-slate-400">
+            <span style={{ fontSize: 'min(14px, 5cqmin)' }}>Loading…</span>
           </div>
-        </div>
-
-        <div
-          className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-y-auto custom-scrollbar"
-          style={{ padding: 'min(24px, 4cqmin)' }}
-        >
-          <h3
-            className="font-black uppercase text-slate-400 tracking-[0.2em]"
-            style={{
-              fontSize: 'min(10px, 2.5cqmin)',
-              marginBottom: 'min(16px, 3cqmin)',
-            }}
-          >
-            Teacher Guide
-          </h3>
-          <div
-            className="flex flex-col"
-            style={{
-              gap: 'min(16px, 3cqmin)',
-            }}
-          >
-            {activeRoutine.instructions.split('\n').map((line, i) => (
-              <p
-                key={i}
-                className="font-medium text-slate-600 leading-relaxed"
-                style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-              >
-                {line}
-              </p>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className="grid grid-cols-2 shrink-0"
-          style={{ gap: 'min(16px, 3cqmin)', marginTop: 'min(24px, 4cqmin)' }}
-        >
-          <button
-            onClick={() => handleGuideMode(activeRoutine)}
-            className="bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black uppercase flex items-center justify-center hover:bg-slate-50 transition-all shadow-sm"
-            style={{
-              fontSize: 'min(12px, 3cqmin)',
-              padding: 'min(16px, 3cqmin)',
-              gap: 'min(8px, 1.5cqmin)',
-            }}
-          >
-            <BookOpen
-              style={{
-                width: 'min(18px, 4.5cqmin)',
-                height: 'min(18px, 4.5cqmin)',
-              }}
-            />
-            Guide
-          </button>
-          <button
-            onClick={() => handleGoMode(activeRoutine)}
-            className="bg-indigo-600 text-white rounded-2xl font-black uppercase flex items-center justify-center hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-            style={{
-              fontSize: 'min(12px, 3cqmin)',
-              padding: 'min(16px, 3cqmin)',
-              gap: 'min(8px, 1.5cqmin)',
-            }}
-          >
-            <Zap
-              style={{
-                width: 'min(18px, 4.5cqmin)',
-                height: 'min(18px, 4.5cqmin)',
-              }}
-            />
-            Go Mode
-          </button>
-        </div>
-      </div>
+        }
+      />
     );
-  };
+  }
 
-  const getContent = () => {
-    if (activeStrategyId) return renderRoutineDetail();
-    if (activeCategory) return renderRoutineList();
-    return renderCategories();
-  };
+  if (sets.length === 0) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <ScaledEmptyState
+            icon={Zap}
+            title="No Sets"
+            subtitle="Admins can add sets via the Catalyst settings (gear icon)."
+          />
+        }
+      />
+    );
+  }
 
+  // Active Set View (Routines)
+  if (activeSet) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div className="flex flex-col h-full w-full">
+            {/* Header */}
+            <div
+              className="flex items-center bg-slate-100 border-b border-slate-200 shrink-0"
+              style={{ padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)' }}
+            >
+              <button
+                onClick={() => setActiveSetId(null)}
+                className="rounded-full hover:bg-slate-200 transition-colors text-slate-600 mr-2"
+                style={{ padding: 'min(4px, 1cqmin)' }}
+              >
+                <ChevronLeft
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
+              </button>
+              <span
+                className="font-bold text-slate-800 truncate"
+                style={{ fontSize: 'min(14px, 4cqmin)' }}
+              >
+                {activeSet.title}
+              </span>
+            </div>
+
+            {/* Routines Grid */}
+            <div
+              className="grid grid-cols-2 flex-1 overflow-y-auto custom-scrollbar"
+              style={{
+                gap: 'min(12px, 2.5cqmin)',
+                padding: 'min(12px, 2.5cqmin)',
+                alignContent: 'start',
+              }}
+            >
+              {activeSet.routines.map((routine) => (
+                <button
+                  key={routine.id}
+                  onClick={() => handleExecute(routine.id)}
+                  className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200"
+                  style={{ minHeight: 'min(100px, 25cqmin)' }}
+                >
+                  {routine.imageUrl && isSafeIconUrl(routine.imageUrl) ? (
+                    <>
+                      <img
+                        src={routine.imageUrl}
+                        alt={routine.title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
+                      <div
+                        className="flex flex-col items-center text-slate-500"
+                        style={{ gap: 'min(4px, 1cqmin)' }}
+                      >
+                        <ImageOff
+                          style={{
+                            width: 'min(24px, 8cqmin)',
+                            height: 'min(24px, 8cqmin)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Title footer */}
+                  <div
+                    className="relative mt-auto z-10 bg-black/50 flex flex-col"
+                    style={{
+                      padding: 'min(6px, 1.8cqmin) min(10px, 2.5cqmin)',
+                    }}
+                  >
+                    <span
+                      className="font-black uppercase tracking-widest text-white drop-shadow block text-center leading-tight truncate"
+                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                    >
+                      {routine.title}
+                    </span>
+                    {routine.description && (
+                      <span
+                        className="text-white/80 block text-center truncate mt-0.5"
+                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                      >
+                        {routine.description}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+              {activeSet.routines.length === 0 && (
+                <div className="col-span-2 flex flex-col items-center justify-center text-slate-400 h-full min-h-[50cqmin]">
+                  <span style={{ fontSize: 'min(12px, 3.5cqmin)' }}>
+                    No routines in this set.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
+  // Sets View
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="w-full h-full bg-slate-50 overflow-y-auto custom-scrollbar">
-          {getContent()}
-        </div>
+        <>
+          <style>{`
+            .catalyst-sets-grid {
+              display: grid;
+              gap: min(12px, 2.5cqmin);
+              padding: min(12px, 2.5cqmin);
+              height: 100%;
+              width: 100%;
+            }
+            @container widget (aspect-ratio >= 1.5) {
+              .catalyst-sets-grid { grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr; }
+            }
+            @container widget (aspect-ratio <= 0.7) {
+              .catalyst-sets-grid { grid-template-columns: 1fr; grid-template-rows: repeat(4, 1fr); }
+            }
+            @container widget (aspect-ratio > 0.7) and (aspect-ratio < 1.5) {
+              .catalyst-sets-grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+            }
+          `}</style>
+          <div className="catalyst-sets-grid">
+            {sets.map((set) => (
+              <button
+                key={set.id}
+                onClick={() => setActiveSetId(set.id)}
+                disabled={!set.title && set.routines.length === 0}
+                className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+              >
+                {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
+                  <>
+                    <img
+                      src={set.imageUrl}
+                      alt={set.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  </>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-300 border-2 border-dashed border-slate-400">
+                    <div
+                      className="flex flex-col items-center text-slate-500"
+                      style={{ gap: 'min(4px, 1cqmin)' }}
+                    >
+                      <ImageOff
+                        style={{
+                          width: 'min(24px, 8cqmin)',
+                          height: 'min(24px, 8cqmin)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Title footer */}
+                <div
+                  className="relative mt-auto z-10 flex flex-col"
+                  style={{
+                    padding: 'min(8px, 2.5cqmin) min(10px, 3cqmin)',
+                    background:
+                      'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.4))',
+                  }}
+                >
+                  <span
+                    className="font-black uppercase tracking-widest text-white drop-shadow truncate block leading-tight"
+                    style={{ fontSize: 'min(14px, 5cqmin)' }}
+                  >
+                    {set.title || 'Empty Set'}
+                  </span>
+                  {set.description && (
+                    <span
+                      className="text-white/80 truncate block mt-0.5"
+                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                    >
+                      {set.description}
+                    </span>
+                  )}
+                  <span
+                    className="text-indigo-200 font-bold mt-1"
+                    style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  >
+                    {set.routines.length} ROUTINE
+                    {set.routines.length !== 1 ? 'S' : ''}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
       }
     />
   );
 };
 
-// Re-export CatalystSettings so WidgetRegistry can load it via lazyNamed(() => import('./CatalystWidget'), 'CatalystSettings')
+// Re-export CatalystSettings so WidgetRegistry can load it via lazyNamed
 export { CatalystSettings };

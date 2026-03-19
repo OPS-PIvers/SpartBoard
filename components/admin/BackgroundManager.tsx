@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import {
   collection,
   doc,
@@ -9,6 +15,7 @@ import {
   query,
   orderBy,
   where,
+  deleteField,
 } from 'firebase/firestore';
 import { db, storage } from '../../config/firebase';
 import { ref, deleteObject } from 'firebase/storage';
@@ -18,6 +25,7 @@ import { useAuth } from '../../context/useAuth';
 import { useGoogleDrive } from '../../hooks/useGoogleDrive';
 import { DriveFile } from '../../utils/googleDriveService';
 import { extractYouTubeId } from '../../utils/url';
+import { BUILDINGS } from '@/config/buildings';
 import {
   Upload,
   Trash2,
@@ -32,6 +40,13 @@ import {
   Check,
   Database,
   Video,
+  LayoutGrid,
+  List,
+  Filter,
+  Tag,
+  Building2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
@@ -103,6 +118,28 @@ export const BackgroundManager: React.FC = () => {
   const [youtubeLabel, setYoutubeLabel] = useState('');
   const [addingYoutube, setAddingYoutube] = useState(false);
 
+  // View state
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos'>(
+    'all'
+  );
+
+  // Filter state
+  const [filterActive, setFilterActive] = useState<'all' | 'on' | 'off'>('all');
+  const [filterAvailability, setFilterAvailability] = useState<
+    'all' | AccessLevel
+  >('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterBuilding, setFilterBuilding] = useState<string>('all');
+
+  // Category management
+  const [categoryManagerName, setCategoryManagerName] = useState('');
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [editingCategoryPresetId, setEditingCategoryPresetId] = useState<
+    string | null
+  >(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadAdminBackground } = useStorage();
   const { user } = useAuth();
@@ -141,11 +178,9 @@ export const BackgroundManager: React.FC = () => {
     try {
       // 1. Download blob from Google Drive
       const blob = await driveService.downloadFile(file.id);
-
       // 2. Convert to File object
       const imageFile = new File([blob], file.name, { type: file.mimeType });
-
-      // 3. Upload to Firebase Storage (Reuse admin path)
+      // 3. Upload to Firebase Storage (reuse admin path)
       downloadURL = await uploadAdminBackground(presetId, imageFile);
 
       const newPreset: BackgroundPreset = {
@@ -226,9 +261,7 @@ export const BackgroundManager: React.FC = () => {
     try {
       setLoading(true);
       for (const item of DEFAULT_PRESETS) {
-        // More robust check: use a query or check by ID if IDs were deterministic.
-        // For now, since they are random, we'll stick to URL check but against Firestore
-        // to avoid race conditions with local state.
+        // Query by URL to avoid duplicates (IDs are random so we check against Firestore)
         const q = query(
           collection(db, 'admin_backgrounds'),
           where('url', '==', item.url)
@@ -295,7 +328,6 @@ export const BackgroundManager: React.FC = () => {
     } catch (error) {
       console.error('Upload failed:', error);
       showMessage('error', 'Upload failed');
-      // Cleanup orphaned file if DB write failed
       if (downloadURL) {
         try {
           const fileRef = ref(storage, downloadURL);
@@ -365,6 +397,24 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
+  const clearPresetCategory = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'admin_backgrounds', id), {
+        category: deleteField(),
+      });
+      setPresets((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          const { category: _removed, ...rest } = p;
+          return rest as BackgroundPreset;
+        })
+      );
+    } catch (error) {
+      console.error('Error clearing preset category:', error);
+      showMessage('error', 'Failed to update background');
+    }
+  };
+
   const deletePreset = async (preset: BackgroundPreset) => {
     const confirmed = await showConfirm(
       'Are you sure you want to delete this background?',
@@ -372,7 +422,6 @@ export const BackgroundManager: React.FC = () => {
     );
     if (!confirmed) return;
 
-    // First, delete the Firestore document (source of truth)
     try {
       await deleteDoc(doc(db, 'admin_backgrounds', preset.id));
       setPresets((prev) => prev.filter((p) => p.id !== preset.id));
@@ -420,6 +469,16 @@ export const BackgroundManager: React.FC = () => {
     await updatePreset(presetId, { betaUsers: newBetaUsers });
   };
 
+  const toggleBuildingId = async (presetId: string, buildingId: string) => {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    const current = preset.buildingIds ?? [];
+    const updated = current.includes(buildingId)
+      ? current.filter((id) => id !== buildingId)
+      : [...current, buildingId];
+    await updatePreset(presetId, { buildingIds: updated });
+  };
+
   const getAccessLevelIcon = (level: AccessLevel) => {
     switch (level) {
       case 'admin':
@@ -442,6 +501,56 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
+  // Derive all unique categories from presets
+  const allCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(presets.flatMap((p) => (p.category ? [p.category] : [])))
+      ).sort(),
+    [presets]
+  );
+
+  // Filtered & typed presets
+  const filteredPresets = useMemo(
+    () =>
+      presets.filter((preset) => {
+        const isVideo = Boolean(extractYouTubeId(preset.url));
+        if (mediaType === 'images' && isVideo) return false;
+        if (mediaType === 'videos' && !isVideo) return false;
+        if (filterActive === 'on' && !preset.active) return false;
+        if (filterActive === 'off' && preset.active) return false;
+        if (
+          filterAvailability !== 'all' &&
+          preset.accessLevel !== filterAvailability
+        )
+          return false;
+        if (filterCategory !== 'all') {
+          if (filterCategory === '__uncategorized__' && preset.category)
+            return false;
+          if (
+            filterCategory !== '__uncategorized__' &&
+            preset.category !== filterCategory
+          )
+            return false;
+        }
+        if (filterBuilding !== 'all') {
+          const buildingIds = preset.buildingIds ?? [];
+          // empty means all buildings, so passes filter
+          if (buildingIds.length > 0 && !buildingIds.includes(filterBuilding))
+            return false;
+        }
+        return true;
+      }),
+    [
+      presets,
+      mediaType,
+      filterActive,
+      filterAvailability,
+      filterCategory,
+      filterBuilding,
+    ]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -451,7 +560,7 @@ export const BackgroundManager: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full space-y-4">
       {/* Message Toast */}
       {message && (
         <Toast
@@ -462,11 +571,11 @@ export const BackgroundManager: React.FC = () => {
       )}
 
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-bold text-slate-700">
           Managed Backgrounds
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="dark"
             onClick={() => void loadDriveImages()}
@@ -508,7 +617,7 @@ export const BackgroundManager: React.FC = () => {
       </div>
 
       {/* YouTube Video Preset Form */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
         <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
           <Video className="w-4 h-4 text-red-600" />
           Add Ambient YouTube Video
@@ -537,6 +646,267 @@ export const BackgroundManager: React.FC = () => {
           >
             Add Video
           </Button>
+        </div>
+      </div>
+
+      {/* View Controls Row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Media Type Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+          {(
+            [
+              { value: 'all', label: 'All' },
+              { value: 'images', label: 'Images', icon: ImageIcon },
+              { value: 'videos', label: 'Videos', icon: Video },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setMediaType(tab.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                mediaType === tab.value
+                  ? 'bg-white text-brand-blue-primary shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {tab.value === 'images' && <ImageIcon size={14} />}
+              {tab.value === 'videos' && <Video size={14} />}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-6 bg-slate-200" />
+
+        {/* Grid/List Toggle */}
+        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'grid'
+                ? 'bg-white text-brand-blue-primary shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+            title="Grid View"
+          >
+            <LayoutGrid size={16} />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'list'
+                ? 'bg-white text-brand-blue-primary shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+            title="List View"
+          >
+            <List size={16} />
+          </button>
+        </div>
+
+        <div className="w-px h-6 bg-slate-200" />
+
+        {/* Category Manager Toggle */}
+        <button
+          onClick={() => setShowCategoryManager((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light text-xs font-semibold transition-all"
+        >
+          <Tag size={14} />
+          Manage Categories
+          {showCategoryManager ? (
+            <ChevronUp size={12} />
+          ) : (
+            <ChevronDown size={12} />
+          )}
+        </button>
+      </div>
+
+      {/* Category Manager */}
+      {showCategoryManager && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+            <Tag className="w-4 h-4 text-brand-blue-primary" />
+            Categories
+          </h4>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {allCategories.length === 0 && (
+              <p className="text-xs text-slate-400">
+                No categories yet. Add one below.
+              </p>
+            )}
+            {allCategories.map((cat) => (
+              <div
+                key={cat}
+                className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm"
+              >
+                <Tag className="w-3 h-3 text-brand-blue-primary" />
+                {cat}
+                <span className="text-slate-400 ml-1">
+                  ({presets.filter((p) => p.category === cat).length})
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 max-w-xs">
+            <input
+              type="text"
+              placeholder="New category name..."
+              value={categoryManagerName}
+              onChange={(e) => setCategoryManagerName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && categoryManagerName.trim()) {
+                  // Categories are created by assigning them to presets - just note it here
+                  showMessage(
+                    'success',
+                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
+                  );
+                  setCategoryManagerName('');
+                }
+              }}
+              className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            />
+            <button
+              onClick={() => {
+                if (categoryManagerName.trim()) {
+                  showMessage(
+                    'success',
+                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
+                  );
+                  setCategoryManagerName('');
+                }
+              }}
+              className="px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-blue-dark transition-colors"
+            >
+              Note
+            </button>
+          </div>
+          <p className="text-xxs text-slate-400 mt-2">
+            Categories are created by assigning a name to any background in the
+            list below.
+          </p>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <div className="flex items-center gap-1.5 text-slate-500">
+          <Filter className="w-4 h-4" />
+          <span className="text-xs font-bold uppercase tracking-wide">
+            Filter
+          </span>
+        </div>
+
+        {/* Active filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 font-medium">Active:</span>
+          {(['all', 'on', 'off'] as const).map((val) => (
+            <button
+              key={val}
+              onClick={() => setFilterActive(val)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterActive === val
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200" />
+
+        {/* Availability filter */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-500 font-medium">
+            Availability:
+          </span>
+          {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
+            <button
+              key={val}
+              onClick={() => setFilterAvailability(val)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterAvailability === val
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {val === 'all'
+                ? 'All'
+                : val.charAt(0).toUpperCase() + val.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200" />
+
+        {/* Category filter */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-xs text-slate-500 font-medium">Category:</span>
+          <button
+            onClick={() => setFilterCategory('all')}
+            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+              filterCategory === 'all'
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setFilterCategory('__uncategorized__')}
+            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+              filterCategory === '__uncategorized__'
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            Uncategorized
+          </button>
+          {allCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterCategory === cat
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200" />
+
+        {/* Building filter */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-xs text-slate-500 font-medium">Building:</span>
+          <button
+            onClick={() => setFilterBuilding('all')}
+            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+              filterBuilding === 'all'
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            All
+          </button>
+          {BUILDINGS.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => setFilterBuilding(b.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterBuilding === b.id
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+              title={b.name}
+            >
+              {b.gradeLabel}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -599,207 +969,676 @@ export const BackgroundManager: React.FC = () => {
         </div>
       )}
 
-      {/* Grid */}
+      {/* Background List / Grid */}
       <div className="flex-1">
-        {presets.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 items-start">
-            {presets.map((preset) => (
-              <div
+        {filteredPresets.length === 0 ? (
+          <div className="min-h-[200px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+            {presets.length === 0 ? (
+              <>
+                <ImageIcon className="w-12 h-12 mb-3 opacity-50" />
+                <p className="font-bold">No managed backgrounds found.</p>
+                <p className="text-sm">Upload images to get started.</p>
+              </>
+            ) : (
+              <>
+                <Filter className="w-10 h-10 mb-2 opacity-30" />
+                <p className="font-bold">No backgrounds match the filters.</p>
+              </>
+            )}
+          </div>
+        ) : viewMode === 'list' ? (
+          /* List View */
+          <div className="space-y-2">
+            {filteredPresets.map((preset) => (
+              <ListPresetRow
                 key={preset.id}
-                className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-brand-blue-light transition-all flex flex-col h-auto"
-              >
-                {/* Image Preview */}
-                <div className="relative h-[120px] bg-slate-100 group shrink-0">
-                  <img
-                    src={preset.thumbnailUrl ?? preset.url}
-                    alt={preset.label}
-                    className="w-full h-full object-cover"
-                  />
-                  {extractYouTubeId(preset.url) && (
-                    <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-red-600 text-white rounded px-1.5 py-0.5">
-                      <Video className="w-3 h-3" />
-                      <span className="text-xxxs font-black uppercase tracking-wide">
-                        Video
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute top-1.5 right-1.5 z-10">
-                    <button
-                      onClick={() => void deletePreset(preset)}
-                      className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md transition-all scale-90 hover:scale-100"
-                      title="Delete background"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xxs font-black uppercase text-white">
-                      Active
-                    </span>
-                    <Toggle
-                      checked={preset.active}
-                      onChange={(checked) =>
-                        void updatePreset(preset.id, {
-                          active: checked,
-                        })
-                      }
-                      size="xs"
-                      activeColor="bg-green-500"
-                      showLabels={false}
-                      variant="transparent"
-                    />
-                  </div>
-                </div>
-
-                {/* Controls */}
-                <div className="p-2.5 flex-1 flex flex-col min-h-0">
-                  {/* Label Editing */}
-                  <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-                    {editingId === preset.id ? (
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => {
-                            if (editName.trim()) {
-                              void updatePreset(preset.id, {
-                                label: editName.trim(),
-                              });
-                            }
-                            setEditingId(null);
-                          }}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <h4
-                          className="font-bold text-slate-800 truncate text-xs"
-                          title={preset.label}
-                        >
-                          {preset.label}
-                        </h4>
-                        <button
-                          onClick={() => {
-                            setEditingId(preset.id);
-                            setEditName(preset.label);
-                          }}
-                          className="p-1 text-slate-400 hover:text-brand-blue-primary rounded transition-colors"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Access Level */}
-                  <div className="mb-2 shrink-0">
-                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                      Access Level
-                    </label>
-                    <div className="flex gap-1">
-                      {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                        (level) => (
-                          <button
-                            key={level}
-                            onClick={() =>
-                              void updatePreset(preset.id, {
-                                accessLevel: level,
-                              })
-                            }
-                            className={`flex-1 py-1 rounded-[4px] text-xxxs font-black uppercase flex items-center justify-center gap-1 transition-all ${
-                              preset.accessLevel === level
-                                ? getAccessLevelColor(level)
-                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100'
-                            }`}
-                            title={`Set to ${level}`}
-                          >
-                            {getAccessLevelIcon(level)}
-                            <span className="hidden xl:inline">{level}</span>
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Beta Users (only show if access level is beta) */}
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    {preset.accessLevel === 'beta' && (
-                      <div className="flex flex-col h-full">
-                        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block shrink-0">
-                          Beta Users
-                        </label>
-                        <div className="flex-1 overflow-y-auto space-y-0.5 mb-1.5">
-                          {preset.betaUsers.map((email) => (
-                            <div
-                              key={email}
-                              className="flex items-center justify-between p-0.5 px-1.5 bg-blue-50/50 rounded text-xxs border border-blue-100/50"
-                            >
-                              <span className="text-slate-700 truncate mr-2">
-                                {email}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  void removeBetaUser(preset.id, email)
-                                }
-                                className="text-red-600 hover:bg-red-100 p-0.5 rounded transition-colors shrink-0"
-                              >
-                                <X className="w-2 h-2" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-
-                        <form
-                          className="flex gap-1 shrink-0"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            const form = e.currentTarget;
-                            const input = form.elements.namedItem(
-                              'betaEmail'
-                            ) as HTMLInputElement;
-                            void addBetaUser(preset.id, input.value);
-                            input.value = '';
-                          }}
-                        >
-                          <input
-                            name="betaEmail"
-                            type="email"
-                            placeholder="Add email..."
-                            className="flex-1 px-2 py-1 border border-slate-200 rounded text-xxs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
-                          />
-                          <button
-                            type="submit"
-                            className="p-1 px-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                          >
-                            <Plus className="w-2.5 h-2.5" />
-                          </button>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                preset={preset}
+                editingId={editingId}
+                editName={editName}
+                editingCategoryPresetId={editingCategoryPresetId}
+                editingCategoryValue={editingCategoryValue}
+                allCategories={allCategories}
+                setEditingId={setEditingId}
+                setEditName={setEditName}
+                setEditingCategoryPresetId={setEditingCategoryPresetId}
+                setEditingCategoryValue={setEditingCategoryValue}
+                updatePreset={updatePreset}
+                clearPresetCategory={clearPresetCategory}
+                deletePreset={deletePreset}
+                addBetaUser={addBetaUser}
+                removeBetaUser={removeBetaUser}
+                toggleBuildingId={toggleBuildingId}
+                getAccessLevelIcon={getAccessLevelIcon}
+                getAccessLevelColor={getAccessLevelColor}
+              />
             ))}
           </div>
         ) : (
-          <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-            <ImageIcon className="w-12 h-12 mb-3 opacity-50" />
-            <p className="font-bold">No managed backgrounds found.</p>
-            <p className="text-sm">Upload images to get started.</p>
+          /* Grid View */
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 items-start">
+            {filteredPresets.map((preset) => (
+              <GridPresetCard
+                key={preset.id}
+                preset={preset}
+                editingId={editingId}
+                editName={editName}
+                editingCategoryPresetId={editingCategoryPresetId}
+                editingCategoryValue={editingCategoryValue}
+                allCategories={allCategories}
+                setEditingId={setEditingId}
+                setEditName={setEditName}
+                setEditingCategoryPresetId={setEditingCategoryPresetId}
+                setEditingCategoryValue={setEditingCategoryValue}
+                updatePreset={updatePreset}
+                clearPresetCategory={clearPresetCategory}
+                deletePreset={deletePreset}
+                addBetaUser={addBetaUser}
+                removeBetaUser={removeBetaUser}
+                toggleBuildingId={toggleBuildingId}
+                getAccessLevelIcon={getAccessLevelIcon}
+                getAccessLevelColor={getAccessLevelColor}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Shared prop types ---
+
+interface PresetCardProps {
+  preset: BackgroundPreset;
+  editingId: string | null;
+  editName: string;
+  editingCategoryPresetId: string | null;
+  editingCategoryValue: string;
+  allCategories: string[];
+  setEditingId: (id: string | null) => void;
+  setEditName: (name: string) => void;
+  setEditingCategoryPresetId: (id: string | null) => void;
+  setEditingCategoryValue: (name: string) => void;
+  updatePreset: (
+    id: string,
+    updates: Partial<BackgroundPreset>
+  ) => Promise<void>;
+  clearPresetCategory: (id: string) => Promise<void>;
+  deletePreset: (preset: BackgroundPreset) => Promise<void>;
+  addBetaUser: (presetId: string, email: string) => Promise<void>;
+  removeBetaUser: (presetId: string, email: string) => Promise<void>;
+  toggleBuildingId: (presetId: string, buildingId: string) => Promise<void>;
+  getAccessLevelIcon: (level: AccessLevel) => React.ReactNode;
+  getAccessLevelColor: (level: AccessLevel) => string;
+}
+
+// --- List Row Component ---
+
+const ListPresetRow: React.FC<PresetCardProps> = ({
+  preset,
+  editingId,
+  editName,
+  editingCategoryPresetId,
+  editingCategoryValue,
+  allCategories,
+  setEditingId,
+  setEditName,
+  setEditingCategoryPresetId,
+  setEditingCategoryValue,
+  updatePreset,
+  clearPresetCategory,
+  deletePreset,
+  addBetaUser,
+  removeBetaUser,
+  toggleBuildingId,
+  getAccessLevelIcon,
+  getAccessLevelColor,
+}) => {
+  const isVideo = Boolean(extractYouTubeId(preset.url));
+
+  return (
+    <div className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        {/* Thumbnail */}
+        <div className="relative w-20 h-14 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+          <img
+            src={preset.thumbnailUrl ?? preset.url}
+            alt={preset.label}
+            className="w-full h-full object-cover"
+          />
+          {isVideo && (
+            <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 bg-red-600 text-white rounded px-1 py-0.5">
+              <Video className="w-2.5 h-2.5" />
+            </div>
+          )}
+        </div>
+
+        {/* Label */}
+        <div className="w-44 shrink-0">
+          {editingId === preset.id ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+                autoFocus
+              />
+              <button
+                onClick={() => {
+                  if (editName.trim()) {
+                    void updatePreset(preset.id, { label: editName.trim() });
+                  }
+                  setEditingId(null);
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 rounded"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                className="p-1 text-red-500 hover:bg-red-50 rounded"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span
+                className="text-sm font-bold text-slate-800 truncate"
+                title={preset.label}
+              >
+                {preset.label}
+              </span>
+              <button
+                onClick={() => {
+                  setEditingId(preset.id);
+                  setEditName(preset.label);
+                }}
+                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-8 bg-slate-100" />
+
+        {/* Active Toggle */}
+        <div className="flex flex-col items-center gap-0.5 shrink-0">
+          <span className="text-xxs font-bold text-slate-400 uppercase">
+            Active
+          </span>
+          <Toggle
+            checked={preset.active}
+            onChange={(checked) =>
+              void updatePreset(preset.id, { active: checked })
+            }
+            size="sm"
+            activeColor="bg-green-500"
+          />
+        </div>
+
+        <div className="w-px h-8 bg-slate-100" />
+
+        {/* Access Level */}
+        <div className="flex items-center gap-1 shrink-0">
+          {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
+            <button
+              key={level}
+              onClick={() =>
+                void updatePreset(preset.id, { accessLevel: level })
+              }
+              className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
+                preset.accessLevel === level
+                  ? getAccessLevelColor(level)
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+              title={`Set to ${level}`}
+            >
+              {getAccessLevelIcon(level)}
+              <span className="capitalize">{level}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-8 bg-slate-100" />
+
+        {/* Category */}
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          {editingCategoryPresetId === preset.id ? (
+            <div className="flex items-center gap-1 flex-1">
+              <input
+                type="text"
+                value={editingCategoryValue}
+                onChange={(e) => setEditingCategoryValue(e.target.value)}
+                list={`cats-${preset.id}`}
+                placeholder="Category..."
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
+                autoFocus
+              />
+              <datalist id={`cats-${preset.id}`}>
+                {allCategories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+              <button
+                onClick={() => {
+                  const trimmed = editingCategoryValue.trim();
+                  if (trimmed) {
+                    void updatePreset(preset.id, { category: trimmed });
+                  } else {
+                    void clearPresetCategory(preset.id);
+                  }
+                  setEditingCategoryPresetId(null);
+                  setEditingCategoryValue('');
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setEditingCategoryPresetId(null);
+                  setEditingCategoryValue('');
+                }}
+                className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setEditingCategoryPresetId(preset.id);
+                setEditingCategoryValue(preset.category ?? '');
+              }}
+              className="text-xs text-slate-500 hover:text-brand-blue-primary truncate"
+            >
+              {preset.category ?? (
+                <span className="italic text-slate-300">No category</span>
+              )}
+            </button>
+          )}
+        </div>
+
+        <div className="w-px h-8 bg-slate-100" />
+
+        {/* Building Assignment */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+          {BUILDINGS.map((b) => {
+            const assigned = (preset.buildingIds ?? []).includes(b.id);
+            return (
+              <button
+                key={b.id}
+                onClick={() => void toggleBuildingId(preset.id, b.id)}
+                className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                  assigned
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                }`}
+                title={`${assigned ? 'Remove from' : 'Assign to'} ${b.name}`}
+              >
+                {b.gradeLabel}
+              </button>
+            );
+          })}
+          {(preset.buildingIds ?? []).length === 0 && (
+            <span className="text-xxs text-slate-400 italic">All</span>
+          )}
+        </div>
+
+        {/* Delete */}
+        <button
+          onClick={() => void deletePreset(preset)}
+          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 ml-1"
+          title="Delete background"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Beta Users expanded row */}
+      {preset.accessLevel === 'beta' && (
+        <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-2 block">
+            Beta Users
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {preset.betaUsers.map((email) => (
+              <div
+                key={email}
+                className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-blue-100 rounded-full text-xs text-slate-700"
+              >
+                {email}
+                <button
+                  onClick={() => void removeBetaUser(preset.id, email)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <form
+            className="flex gap-2 max-w-sm"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = e.currentTarget.elements.namedItem(
+                'betaEmail'
+              ) as HTMLInputElement;
+              void addBetaUser(preset.id, input.value);
+              input.value = '';
+            }}
+          >
+            <input
+              name="betaEmail"
+              type="email"
+              placeholder="Add email..."
+              className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Grid Card Component ---
+
+const GridPresetCard: React.FC<PresetCardProps> = ({
+  preset,
+  editingId,
+  editName,
+  editingCategoryPresetId,
+  editingCategoryValue,
+  allCategories,
+  setEditingId,
+  setEditName,
+  setEditingCategoryPresetId,
+  setEditingCategoryValue,
+  updatePreset,
+  clearPresetCategory,
+  deletePreset,
+  addBetaUser,
+  removeBetaUser,
+  toggleBuildingId,
+  getAccessLevelIcon,
+  getAccessLevelColor,
+}) => {
+  const isVideo = Boolean(extractYouTubeId(preset.url));
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-brand-blue-light transition-all flex flex-col h-auto">
+      {/* Image Preview */}
+      <div className="relative h-[120px] bg-slate-100 group shrink-0">
+        <img
+          src={preset.thumbnailUrl ?? preset.url}
+          alt={preset.label}
+          className="w-full h-full object-cover"
+        />
+        {isVideo && (
+          <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-red-600 text-white rounded px-1.5 py-0.5">
+            <Video className="w-3 h-3" />
+            <span className="text-xxxs font-black uppercase tracking-wide">
+              Video
+            </span>
+          </div>
+        )}
+        <div className="absolute top-1.5 right-1.5 z-10">
+          <button
+            onClick={() => void deletePreset(preset)}
+            className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md transition-all scale-90 hover:scale-100"
+            title="Delete background"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xxs font-black uppercase text-white">
+            Active
+          </span>
+          <Toggle
+            checked={preset.active}
+            onChange={(checked) =>
+              void updatePreset(preset.id, { active: checked })
+            }
+            size="xs"
+            activeColor="bg-green-500"
+            showLabels={false}
+            variant="transparent"
+          />
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="p-2.5 flex-1 flex flex-col min-h-0 gap-2">
+        {/* Label Editing */}
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          {editingId === preset.id ? (
+            <div className="flex items-center gap-1.5 flex-1">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                autoFocus
+              />
+              <button
+                onClick={() => {
+                  if (editName.trim()) {
+                    void updatePreset(preset.id, { label: editName.trim() });
+                  }
+                  setEditingId(null);
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 rounded"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setEditingId(null)}
+                className="p-1 text-red-500 hover:bg-red-50 rounded"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <h4
+                className="font-bold text-slate-800 truncate text-xs"
+                title={preset.label}
+              >
+                {preset.label}
+              </h4>
+              <button
+                onClick={() => {
+                  setEditingId(preset.id);
+                  setEditName(preset.label);
+                }}
+                className="p-1 text-slate-400 hover:text-brand-blue-primary rounded transition-colors shrink-0"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Access Level */}
+        <div className="shrink-0">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+            Access Level
+          </label>
+          <div className="flex gap-1">
+            {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
+              <button
+                key={level}
+                onClick={() =>
+                  void updatePreset(preset.id, { accessLevel: level })
+                }
+                className={`flex-1 py-1 rounded-[4px] text-xxxs font-black uppercase flex items-center justify-center gap-1 transition-all ${
+                  preset.accessLevel === level
+                    ? getAccessLevelColor(level)
+                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100'
+                }`}
+                title={`Set to ${level}`}
+              >
+                {getAccessLevelIcon(level)}
+                <span className="hidden xl:inline">{level}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Category */}
+        <div className="shrink-0">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+            Category
+          </label>
+          {editingCategoryPresetId === preset.id ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={editingCategoryValue}
+                onChange={(e) => setEditingCategoryValue(e.target.value)}
+                list={`cats-grid-${preset.id}`}
+                placeholder="Category..."
+                className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary min-w-0"
+                autoFocus
+              />
+              <datalist id={`cats-grid-${preset.id}`}>
+                {allCategories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
+              </datalist>
+              <button
+                onClick={() => {
+                  const trimmed = editingCategoryValue.trim();
+                  if (trimmed) {
+                    void updatePreset(preset.id, { category: trimmed });
+                  } else {
+                    void clearPresetCategory(preset.id);
+                  }
+                  setEditingCategoryPresetId(null);
+                  setEditingCategoryValue('');
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 rounded shrink-0"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => {
+                  setEditingCategoryPresetId(null);
+                  setEditingCategoryValue('');
+                }}
+                className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setEditingCategoryPresetId(preset.id);
+                setEditingCategoryValue(preset.category ?? '');
+              }}
+              className="flex items-center gap-1.5 w-full px-2 py-1 bg-slate-50 border border-slate-100 rounded text-xs text-slate-500 hover:border-brand-blue-light hover:text-brand-blue-primary transition-colors text-left"
+            >
+              <Tag className="w-3 h-3" />
+              <span className="truncate">
+                {preset.category ?? (
+                  <span className="italic text-slate-300">No category</span>
+                )}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Building Assignment */}
+        <div className="shrink-0">
+          <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
+            Buildings
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {BUILDINGS.map((b) => {
+              const assigned = (preset.buildingIds ?? []).includes(b.id);
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => void toggleBuildingId(preset.id, b.id)}
+                  className={`px-1.5 py-0.5 rounded text-xxs font-bold border transition-all ${
+                    assigned
+                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                      : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                  }`}
+                  title={`${assigned ? 'Remove from' : 'Assign to'} ${b.name}`}
+                >
+                  {b.gradeLabel}
+                </button>
+              );
+            })}
+            {(preset.buildingIds ?? []).length === 0 && (
+              <span className="text-xxs text-slate-400 italic">
+                All buildings
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Beta Users (only show if access level is beta) */}
+        {preset.accessLevel === 'beta' && (
+          <div className="flex-1 min-h-0 flex flex-col">
+            <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block shrink-0">
+              Beta Users
+            </label>
+            <div className="flex-1 overflow-y-auto space-y-0.5 mb-1.5">
+              {preset.betaUsers.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center justify-between p-0.5 px-1.5 bg-blue-50/50 rounded text-xxs border border-blue-100/50"
+                >
+                  <span className="text-slate-700 truncate mr-2">{email}</span>
+                  <button
+                    onClick={() => void removeBetaUser(preset.id, email)}
+                    className="text-red-600 hover:bg-red-100 p-0.5 rounded transition-colors shrink-0"
+                  >
+                    <X className="w-2 h-2" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <form
+              className="flex gap-1 shrink-0"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.namedItem(
+                  'betaEmail'
+                ) as HTMLInputElement;
+                void addBetaUser(preset.id, input.value);
+                input.value = '';
+              }}
+            >
+              <input
+                name="betaEmail"
+                type="email"
+                placeholder="Add email..."
+                className="flex-1 px-2 py-1 border border-slate-200 rounded text-xxs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
+              />
+              <button
+                type="submit"
+                className="p-1 px-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-2.5 h-2.5" />
+              </button>
+            </form>
           </div>
         )}
       </div>

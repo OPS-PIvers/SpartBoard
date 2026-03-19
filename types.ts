@@ -886,42 +886,26 @@ export interface MaterialsConfig {
   titleColor?: string;
 }
 
-export interface CatalystCategory {
-  id: string;
-  label: string;
-  icon: string;
-  color: string;
-  isCustom?: boolean;
-  imageUrl?: string;
-}
-
 export interface CatalystRoutine {
   id: string;
   title: string;
-  category: string;
-  icon: string;
-  shortDesc: string;
-  instructions: string;
-  associatedWidgets?: {
-    id: string;
-    type: WidgetType;
-    config?: WidgetConfig;
-  }[];
+  icon?: string;
+  imageUrl?: string;
+  description?: string;
+  widgets: Omit<WidgetData, 'id'>[];
+  createdAt: number;
 }
 
-export interface CatalystConfig {
-  activeCategory: string | null;
-  activeStrategyId: string | null;
-  customCategories?: CatalystCategory[];
-  customRoutines?: CatalystRoutine[];
-  removedCategoryIds?: string[];
-  removedRoutineIds?: string[];
+export interface CatalystSet {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  description?: string;
+  routines: CatalystRoutine[];
+  createdAt: number;
 }
 
-export type CatalystGlobalConfig = Omit<
-  CatalystConfig,
-  'activeCategory' | 'activeStrategyId'
->;
+export type CatalystConfig = Record<string, never>;
 
 export interface CatalystInstructionConfig {
   routineId: string;
@@ -1812,6 +1796,10 @@ export interface BackgroundPreset {
   accessLevel: AccessLevel; // Who can see it
   betaUsers: string[]; // Specific users if beta
   createdAt: number;
+  /** Admin-defined category label (e.g. "Nature", "Holidays") */
+  category?: string;
+  /** Building IDs this background is assigned to; empty/undefined = all buildings */
+  buildingIds?: string[];
 }
 
 // --- GLOBAL STYLING TYPES ---
