@@ -91,3 +91,9 @@
 **Weed:** Monolithic Widget Structure (MathToolsWidget.tsx mixed widget, settings, and constants).
 **Root Cause:** Early development pattern of grouping all logic per widget into a single file, leading to poor separation of concerns and maintainability issues as widgets grow.
 **Plan:** Decompose the monolithic file into a modular directory structure (Widget.tsx, Settings.tsx, constants.ts, index.ts). Update WidgetRegistry.ts to load the separate files, preventing unnecessary bundling and improving readability.
+
+## 2025-06-09 - Extracted TimeToolSettings
+
+**Weed:** Monolithic files holding multiple components and settings (`TimeToolWidget.tsx` scattered in the root widgets folder).
+**Root Cause:** Component grew organically as features were added (visuals, sounds, widget settings) without separating concerns.
+**Plan:** Extracted `TimeToolSettings` and `TimeToolAppearanceSettings` to `components/widgets/TimeTool/Settings.tsx` to reduce file size and improve readability/maintainability.
