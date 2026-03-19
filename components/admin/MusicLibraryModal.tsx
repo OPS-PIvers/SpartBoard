@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Music, X } from 'lucide-react';
 import { MusicManager } from './MusicManager';
 
@@ -9,8 +9,20 @@ interface MusicLibraryModalProps {
 export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
   onClose,
 }) => {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
@@ -28,6 +40,8 @@ export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Close music library"
             onClick={onClose}
             className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
           >
@@ -43,6 +57,7 @@ export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
           >
