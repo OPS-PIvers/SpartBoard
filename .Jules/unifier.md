@@ -151,3 +151,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Discovered multiple hardcoded instances of the pattern `bg-white rounded-2xl border border-slate-200 shadow-sm` acting as card containers across random widget settings, instructional routines, schedule settings, and sticker modals.
 **Fix:** Created `components/common/Card.tsx` and refactored several target files to use this new component to unify standard padding, border radius, and hover states.
+
+## 2026-03-15 - Standardized Card Containers (Round 2)
+
+**Drift:** Discovered multiple hardcoded instances of the pattern `bg-white rounded-[xl|2xl|3xl] border border-slate-200 shadow-sm` acting as card containers across random widget settings, app rows, sortable items, and configuration panels.
+**Fix:** Refactored multiple target files to use the `Card` component (`components/common/Card.tsx`) to unify standard padding, border radius, and shadow hover states.

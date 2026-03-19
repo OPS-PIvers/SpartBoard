@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { RandomGlobalConfig, BuildingRandomDefaults } from '@/types';
 import { Toggle } from '../common/Toggle';
+import { Card } from '@/components/common/Card';
 
 interface RandomConfigurationPanelProps {
   config: RandomGlobalConfig;
@@ -111,7 +112,11 @@ export const RandomConfigurationPanel: React.FC<
         </div>
 
         {/* Sound Enabled */}
-        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+        <Card
+          rounded="lg"
+          padding="sm"
+          className="flex items-center justify-between p-2"
+        >
           <div>
             <span className="text-xxs font-bold text-slate-700 block">
               Sound Effects
@@ -128,7 +133,7 @@ export const RandomConfigurationPanel: React.FC<
             size="xs"
             showLabels={false}
           />
-        </div>
+        </Card>
       </div>
     </div>
   );

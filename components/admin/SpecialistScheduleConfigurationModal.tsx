@@ -20,6 +20,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
 import { Button } from '../common/Button';
+import { Card } from '@/components/common/Card';
 
 interface SpecialistScheduleConfigurationModalProps {
   isOpen: boolean;
@@ -554,7 +555,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                   {/* Right: Calendar Marking or Block Selection */}
                   <div className="space-y-4">
                     {currentBuildingConfig.cycleLength === 10 ? (
-                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-full max-h-[500px]">
+                      <Card
+                        rounded="2xl"
+                        padding="none"
+                        className="overflow-hidden flex flex-col h-full max-h-[500px]"
+                      >
                         <div className="bg-slate-50 p-4 border-b border-slate-200">
                           <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs flex items-center gap-2">
                             <CalendarDays className="w-4 h-4 text-teal-500" />{' '}
@@ -624,9 +629,13 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             )
                           )}
                         </div>
-                      </div>
+                      </Card>
                     ) : (
-                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                      <Card
+                        rounded="2xl"
+                        padding="none"
+                        className="overflow-hidden"
+                      >
                         <div className="bg-slate-50 p-3 flex items-center justify-between border-b border-slate-200">
                           <button
                             onClick={() =>
@@ -703,7 +712,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             })}
                           </div>
                         </div>
-                      </div>
+                      </Card>
                     )}
 
                     {currentBuildingConfig.cycleLength !== 10 && (
