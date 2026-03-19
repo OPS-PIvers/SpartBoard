@@ -569,14 +569,15 @@ export const fetchWeatherProxy = functionsV1
       const parsedUrl = new URL(data.url);
       if (
         parsedUrl.protocol !== 'https:' ||
-        parsedUrl.hostname !== 'api.openweathermap.org'
+        (parsedUrl.hostname !== 'api.openweathermap.org' &&
+          parsedUrl.hostname !== 'owc.enterprise.earthnetworks.com')
       ) {
         throw new Error('Invalid host or protocol');
       }
     } catch {
       throw new functionsV1.https.HttpsError(
         'invalid-argument',
-        'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+        'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
       );
     }
 

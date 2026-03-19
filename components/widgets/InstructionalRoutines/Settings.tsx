@@ -17,7 +17,7 @@ export const InstructionalRoutinesSettings: React.FC<{
   const { updateWidget } = useDashboard();
   const { isAdmin } = useAuth();
   const config = widget.config as InstructionalRoutinesConfig;
-  const { customSteps = [], scaleMultiplier = 1 } = config;
+  const { customSteps = [] } = config;
 
   const moveStep = (idx: number, dir: 'up' | 'down') => {
     const next = [...customSteps];
@@ -203,26 +203,36 @@ export const InstructionalRoutinesSettings: React.FC<{
           <Plus className="w-4 h-4" /> Add Next Step
         </button>
       </div>
+    </div>
+  );
+};
 
-      <div className="bg-slate-50 p-4 rounded-2xl">
-        <SettingsLabel>Text Zoom</SettingsLabel>
-        <input
-          type="range"
-          min="0.5"
-          max="2.0"
-          step="0.1"
-          value={scaleMultiplier}
-          onChange={(e) =>
-            updateWidget(widget.id, {
-              config: {
-                ...config,
-                scaleMultiplier: parseFloat(e.target.value),
-              },
-            })
-          }
-          className="w-full accent-brand-blue-primary"
-        />
-      </div>
+export const InstructionalRoutinesAppearanceSettings: React.FC<{
+  widget: WidgetData;
+}> = ({ widget }) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as InstructionalRoutinesConfig;
+  const { scaleMultiplier = 1 } = config;
+
+  return (
+    <div className="bg-slate-50 p-4 rounded-2xl">
+      <SettingsLabel>Text Zoom</SettingsLabel>
+      <input
+        type="range"
+        min="0.5"
+        max="2.0"
+        step="0.1"
+        value={scaleMultiplier}
+        onChange={(e) =>
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              scaleMultiplier: parseFloat(e.target.value),
+            },
+          })
+        }
+        className="w-full accent-brand-blue-primary"
+      />
     </div>
   );
 };

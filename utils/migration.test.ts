@@ -67,6 +67,75 @@ describe('migration', () => {
       expect((newWidget.config as TextConfig).content).toBe('Safe');
     });
 
+    it('fixes both dimensions when both are corrupted', () => {
+      const widget = {
+        id: '123',
+        type: 'clock',
+        config: {},
+        x: 0,
+        y: 0,
+        w: 3,
+        h: 2,
+        z: 1,
+      } as unknown as WidgetData;
+
+      const result = migrateWidget(widget);
+      expect(result.w).toBeGreaterThanOrEqual(30);
+      expect(result.h).toBeGreaterThanOrEqual(30);
+    });
+
+    it('fixes only the corrupted dimension, preserving the valid one', () => {
+      const widget = {
+        id: '123',
+        type: 'clock',
+        config: {},
+        x: 0,
+        y: 0,
+        w: 5,
+        h: 200,
+        z: 1,
+      } as unknown as WidgetData;
+
+      const result = migrateWidget(widget);
+      expect(result.w).toBeGreaterThanOrEqual(30);
+      expect(result.h).toBe(200);
+    });
+
+    it('fixes dimensions on a legacy timer migration', () => {
+      const widget = {
+        id: '123',
+        type: 'timer',
+        config: { duration: 300 },
+        x: 0,
+        y: 0,
+        w: 3,
+        h: 2,
+        z: 1,
+      } as unknown as WidgetData;
+
+      const result = migrateWidget(widget);
+      expect(result.type).toBe('time-tool');
+      expect(result.w).toBeGreaterThanOrEqual(30);
+      expect(result.h).toBeGreaterThanOrEqual(30);
+    });
+
+    it('uses WIDGET_DEFAULTS size when available and valid', () => {
+      const widget = {
+        id: '123',
+        type: 'graphic-organizer',
+        config: {},
+        x: 0,
+        y: 0,
+        w: 8,
+        h: 6,
+        z: 1,
+      } as unknown as WidgetData;
+
+      const result = migrateWidget(widget);
+      expect(result.w).toBe(800);
+      expect(result.h).toBe(600);
+    });
+
     it('returns other widgets unchanged', () => {
       const widget = {
         id: '123',

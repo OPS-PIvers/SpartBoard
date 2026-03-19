@@ -1,4 +1,10 @@
-import { WidgetData, WidgetType, SpecialistScheduleConfig } from '@/types';
+import {
+  WidgetData,
+  WidgetType,
+  SpecialistScheduleConfig,
+  GraphicOrganizerConfig,
+  RevealGridConfig,
+} from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
@@ -54,7 +60,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: { sensitivity: 1, visual: 'thermometer' },
   },
   drawing: { w: 400, h: 350, config: { mode: 'window', paths: [] } },
-  qr: { w: 200, h: 250, config: { url: 'https://google.com' } },
+  qr: { w: 200, h: 250, config: {} },
   embed: { w: 480, h: 350, config: { url: '' } },
   poll: {
     w: 300,
@@ -62,8 +68,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       question: 'Vote now!',
       options: [
-        { label: 'Option A', votes: 0 },
-        { label: 'Option B', votes: 0 },
+        { id: 'opt-1', label: 'Option A', votes: 0 },
+        { id: 'opt-2', label: 'Option B', votes: 0 },
       ],
     },
   },
@@ -300,5 +306,86 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       cardOpacity: 1,
       specialistClass: '',
     } as SpecialistScheduleConfig,
+  },
+  'graphic-organizer': {
+    w: 800,
+    h: 600,
+    config: {
+      templateType: 'frayer',
+      nodes: {},
+    } as GraphicOrganizerConfig,
+  },
+  'reveal-grid': {
+    w: 600,
+    h: 400,
+    config: {
+      columns: 3,
+      cards: [
+        {
+          id: '1',
+          frontContent: 'Question 1',
+          backContent: 'Answer 1',
+          isRevealed: false,
+        },
+        {
+          id: '2',
+          frontContent: 'Question 2',
+          backContent: 'Answer 2',
+          isRevealed: false,
+        },
+        {
+          id: '3',
+          frontContent: 'Question 3',
+          backContent: 'Answer 3',
+          isRevealed: false,
+        },
+      ],
+      revealMode: 'flip',
+    } as RevealGridConfig,
+  },
+  numberLine: {
+    w: 700,
+    h: 200,
+    config: {
+      min: 0,
+      max: 10,
+      step: 1,
+      displayMode: 'integers',
+      markers: [],
+      jumps: [],
+      showArrows: true,
+    },
+  },
+  'concept-web': {
+    w: 800,
+    h: 600,
+    config: {
+      nodes: [],
+      edges: [],
+    },
+  },
+  'syntax-framer': {
+    w: 500,
+    h: 150,
+    config: {
+      mode: 'text',
+      tokens: [],
+      fontSize: 8,
+      alignment: 'center',
+    },
+  },
+  'hotspot-image': {
+    w: 500,
+    h: 400,
+    config: {
+      baseImageUrl: '',
+      hotspots: [],
+      popoverTheme: 'light',
+    },
+  },
+  'starter-pack': {
+    w: 600,
+    h: 500,
+    config: {},
   },
 };

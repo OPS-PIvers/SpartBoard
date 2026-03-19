@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
-import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { isExternalBackground } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
@@ -13,6 +13,7 @@ import { Dock } from './Dock';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
+import { BoardZoomControl } from './BoardZoomControl';
 import {
   AlertCircle,
   CheckCircle2,
@@ -31,6 +32,10 @@ import {
 import { extractYouTubeId } from '@/utils/url';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
+
+// Gesture constants
+const SWIPE_MIN_DISTANCE_PX = 60; // minimum travel to count as a deliberate swipe
+const SIDEBAR_EDGE_SWIPE_WIDTH_PX = 40; // left-edge zone that triggers sidebar open
 
 const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
@@ -107,6 +112,7 @@ const ToastContainer: React.FC = () => {
 export const DashboardView: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
   const {
     activeDashboard,
     dashboards,
@@ -122,6 +128,7 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
+    zoom,
     setZoom,
   } = useDashboard();
   const { uploadAndRegisterPdf } = useStorage();
@@ -177,8 +184,6 @@ export const DashboardView: React.FC = () => {
   );
 
   const [prevIndex, setPrevIndex] = React.useState<number>(-1);
-  const [animationClass, setAnimationClass] =
-    React.useState<string>('animate-fade-in');
   const [isMinimized, setIsMinimized] = React.useState(false);
 
   const dashboardRef = React.useRef<HTMLDivElement>(null);
@@ -190,7 +195,7 @@ export const DashboardView: React.FC = () => {
   //  - On touchstart: walk the DOM once (getComputedStyle is expensive) to
   //    determine whether the touch originated inside a scrollable element.
   //    Cache the result so touchmove is O(1).
-  //  - On touchmove: multi-touch (pinch / 2-finger gestures) always calls
+  //  - On touchmove: multi-touch (2-finger gestures) always calls
   //    preventDefault() so our custom zoom/swipe handlers win regardless of
   //    where the fingers landed.  Single-touch only prevents the bounce if
   //    the gesture did NOT start inside a scrollable widget.
@@ -224,7 +229,7 @@ export const DashboardView: React.FC = () => {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
-      // Multi-touch gestures (pinch-zoom, 2-finger swipe) must always be
+      // Multi-touch gestures (2-finger swipe, etc.) must always be
       // intercepted so our custom handlers aren't bypassed by the browser.
       if (e.touches.length > 1) {
         e.preventDefault();
@@ -245,48 +250,145 @@ export const DashboardView: React.FC = () => {
     };
   }, []);
 
+  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+  // Track the peak touch count across a gesture.  At gesture end (`last`),
+  // `touches` has already decremented to 0 as fingers lift, so we cannot
+  // rely on it there to distinguish 1-finger from 2-finger gestures.
+  const gestureFingerCount = React.useRef(0);
+
   useGesture(
     {
-      onPinch: ({ event, offset: [zoomVal], first }) => {
-        if (first && event.cancelable) event.preventDefault();
-        setZoom(zoomVal);
-      },
       onDrag: ({
-        swipe: [swipeX, swipeY],
-        direction: [dirX, dirY],
+        first,
+        last,
+        swipe: [swipeX],
+        direction: [dirX],
+        delta: [dx, dy],
+        movement: [mx, my],
         touches,
-        initial: [x],
+        initial: [initialX],
+        event,
       }) => {
-        if (touches === 2) {
-          if (swipeY > 0 && dirY > 0) {
-            minimizeAllWidgets();
-          } else if (swipeY < 0 && dirY < 0) {
-            restoreAllWidgets();
-          } else if (swipeX !== 0) {
-            if (swipeX > 0 && dirX > 0 && dashboards.length > 1) {
-              const nextIdx =
-                (currentIndex - 1 + dashboards.length) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
-            } else if (swipeX < 0 && dirX < 0 && dashboards.length > 1) {
-              const nextIdx = (currentIndex + 1) % dashboards.length;
-              loadDashboard(dashboards[nextIdx].id);
+        // Update peak finger count — touches has already dropped to 0 by the
+        // time `last` fires, so we capture the high-water mark here instead.
+        if (first) gestureFingerCount.current = touches;
+        else if (touches > gestureFingerCount.current) {
+          gestureFingerCount.current = touches;
+        }
+
+        const widgetEl = (event.target as HTMLElement).closest<HTMLElement>(
+          '.widget'
+        );
+
+        if (!last) {
+          // 1-finger drag on empty background while zoomed → pan.
+          // Disabled when the gesture starts on a widget to avoid interfering
+          // with widget interactions.
+          if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
+            setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+          }
+          return;
+        }
+
+        // === Gesture ended — evaluate action ===
+        const peakFingers = gestureFingerCount.current;
+        gestureFingerCount.current = 0;
+
+        if (peakFingers >= 2) {
+          // Use cumulative movement (total displacement from gesture start)
+          // for direction detection.  Velocity-based `swipe` values are only
+          // non-zero on the last frame, when `touches` is already 0 — making
+          // them unreliable for multi-touch swipes.
+          const isVertical =
+            Math.abs(my) > Math.abs(mx) &&
+            Math.abs(my) >= SWIPE_MIN_DISTANCE_PX;
+
+          const isHorizontal =
+            Math.abs(mx) > Math.abs(my) &&
+            Math.abs(mx) >= SWIPE_MIN_DISTANCE_PX;
+
+          if (isHorizontal) {
+            // 2-Finger Swipe LEFT/RIGHT → switch boards (wrap-around)
+            if (dashboards.length > 1 && !touchStartInScrollable.current) {
+              if (mx < 0) {
+                const nextIdx = (currentIndex + 1) % dashboards.length;
+                loadDashboard(dashboards[nextIdx].id);
+                addToast(dashboards[nextIdx].name, 'info');
+              } else {
+                const nextIdx =
+                  (currentIndex - 1 + dashboards.length) % dashboards.length;
+                loadDashboard(dashboards[nextIdx].id);
+                addToast(dashboards[nextIdx].name, 'info');
+              }
+            }
+          } else if (isVertical) {
+            if (my > 0) {
+              // 2-Finger Swipe DOWN:
+              //   - On maximized widget → restore to normal size
+              //   - On normal widget → minimize it
+              //   - On background → minimize all widgets
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) {
+                  const w = activeDashboard?.widgets.find((w) => w.id === id);
+                  if (w?.maximized) {
+                    updateWidget(id, { maximized: false });
+                  } else {
+                    updateWidget(id, { minimized: true, flipped: false });
+                  }
+                }
+              } else {
+                minimizeAllWidgets();
+              }
+            } else {
+              // 2-Finger Swipe UP → maximize (or spotlight if already maximized)
+              if (widgetEl) {
+                const id = widgetEl.dataset.widgetId;
+                if (id) {
+                  const w = activeDashboard?.widgets.find((w) => w.id === id);
+                  if (w) {
+                    if (!w.maximized) {
+                      updateWidget(id, { maximized: true });
+                    } else {
+                      updateDashboardSettings({ spotlightWidgetId: id });
+                    }
+                  }
+                }
+              } else {
+                restoreAllWidgets();
+              }
             }
           }
-        } else if (touches === 1) {
-          if (swipeX > 0 && dirX > 0 && x < 40) {
-            const customEvent = new CustomEvent('open-sidebar');
-            window.dispatchEvent(customEvent);
+        } else if (peakFingers === 1) {
+          // Single touch (not a mouse drag): left-edge swipe → open sidebar.
+          // Gated to peakFingers === 1 so a desktop mouse drag near the left
+          // edge (peakFingers = 0) never accidentally opens the sidebar.
+          // Also disabled while zoomed to avoid conflict with 1-finger pan.
+          if (widgetEl) return;
+          if (
+            zoom <= 1 &&
+            swipeX > 0 &&
+            dirX > 0 &&
+            initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX
+          ) {
+            window.dispatchEvent(new CustomEvent('open-sidebar'));
           }
         }
       },
-      onPinchStart: ({ event }) => {
-        if (event.cancelable) event.preventDefault();
+      onWheel: ({ event }) => {
+        // Only intercept Ctrl/Meta + scroll — leave normal scrolling alone.
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        if (event.deltaY === 0) return;
+        const WHEEL_ZOOM_STEP = 0.1;
+        const next =
+          event.deltaY < 0 ? zoom + WHEEL_ZOOM_STEP : zoom - WHEEL_ZOOM_STEP;
+        setZoom(Math.min(5, Math.max(1, next)));
       },
     },
     {
       target: dashboardRef,
       eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.1, max: 5 }, modifierKey: null },
       drag: { swipe: { velocity: 0.5, distance: 50 } },
     }
   );
@@ -338,10 +440,32 @@ export const DashboardView: React.FC = () => {
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
   }, [activeDashboard, dashboards]);
 
+  // Compute animation class from prevIndex (which lags one render behind currentIndex).
+  // prevIndex is updated in the effect below, after commit, so on the render where
+  // currentIndex changes, prevIndex still holds the old value — giving us the direction.
+  const animationClass = useMemo(() => {
+    if (prevIndex === -1 || currentIndex === -1 || prevIndex === currentIndex) {
+      return 'animate-fade-in';
+    }
+    return currentIndex > prevIndex
+      ? 'animate-slide-left-in'
+      : 'animate-slide-right-in';
+  }, [currentIndex, prevIndex]);
+
   React.useEffect(() => {
     setIsMinimized(false);
     setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+    if (currentIndex !== -1) {
+      setPrevIndex(currentIndex);
+    }
   }, [activeDashboard?.id, currentIndex, setZoom]);
+
+  React.useEffect(() => {
+    if (zoom === 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [zoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
@@ -392,9 +516,18 @@ export const DashboardView: React.FC = () => {
         e.preventDefault();
 
         if (e.shiftKey || e.altKey) {
-          if (confirm(t('sidebar.confirmClearBoard'))) {
-            deleteAllWidgets();
-          }
+          const handleClearAll = async () => {
+            const confirmed = await showConfirm(
+              t('sidebar.confirmClearBoard'),
+              {
+                title: 'Clear Board',
+                variant: 'danger',
+                confirmLabel: 'Clear All',
+              }
+            );
+            if (confirmed) deleteAllWidgets();
+          };
+          void handleClearAll();
         } else if (activeDashboard && activeDashboard.widgets.length > 0) {
           const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
           const topWidget = sorted[0];
@@ -448,6 +581,7 @@ export const DashboardView: React.FC = () => {
     activeDashboard,
     minimizeAllWidgets,
     deleteAllWidgets,
+    showConfirm,
     t,
   ]);
 
@@ -610,28 +744,19 @@ export const DashboardView: React.FC = () => {
     }
   };
 
-  React.useEffect(() => {
-    if (currentIndex !== -1 && prevIndex !== -1 && currentIndex !== prevIndex) {
-      if (currentIndex > prevIndex) {
-        setAnimationClass('animate-slide-left-in');
-      } else {
-        setAnimationClass('animate-slide-right-in');
-      }
-    } else {
-      setAnimationClass('animate-fade-in');
-    }
-    setPrevIndex(currentIndex);
-  }, [currentIndex, prevIndex]);
-
   const youTubeVideoId = useMemo(
     () =>
       activeDashboard ? extractYouTubeId(activeDashboard.background) : null,
     [activeDashboard]
   );
 
-  React.useEffect(() => {
+  // Reset mute state during render when the video changes — no effect needed.
+  const [prevYouTubeVideoId, setPrevYouTubeVideoId] =
+    React.useState(youTubeVideoId);
+  if (youTubeVideoId !== prevYouTubeVideoId) {
+    setPrevYouTubeVideoId(youTubeVideoId);
     setIsBgMuted(true);
-  }, [youTubeVideoId]);
+  }
 
   const backgroundStyles = useMemo(() => {
     if (!activeDashboard) return {};
@@ -640,17 +765,22 @@ export const DashboardView: React.FC = () => {
     // YouTube backgrounds are rendered via an iframe — skip CSS background
     if (youTubeVideoId) return {};
 
+    const styles: React.CSSProperties = {
+      transform: `scale(${zoom})`,
+      transformOrigin: 'center center',
+    };
+
     // Check if it's a URL or Base64 image
     if (isExternalBackground(bg)) {
-      return {
+      Object.assign(styles, {
         backgroundImage: `url("${bg}")`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-      };
+      });
     }
-    return {};
-  }, [activeDashboard, youTubeVideoId]);
+    return styles;
+  }, [activeDashboard, youTubeVideoId, zoom]);
 
   const backgroundClasses = useMemo(() => {
     if (!activeDashboard) return '';
@@ -680,8 +810,7 @@ export const DashboardView: React.FC = () => {
     <div
       ref={dashboardRef}
       id="dashboard-root"
-      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${backgroundClasses} ${fontClass}`}
-      style={backgroundStyles}
+      className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
       onClick={(e) => {
         e.stopPropagation();
         setSelectedWidgetId(null);
@@ -698,102 +827,110 @@ export const DashboardView: React.FC = () => {
         }
       }}
     >
-      {/* Ambient YouTube Video Layer */}
-      {youTubeVideoId && (
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
-          <iframe
-            ref={ytIframeRef}
-            src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
-            className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
-            allow="autoplay; encrypted-media"
-            title="Ambient background video"
-          />
-        </div>
-      )}
-
-      {/* Background Overlay for Depth (especially for images and videos) */}
-      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-
-      {/* Empty Board Hint */}
-      {activeDashboard.widgets.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
-          <div className="flex flex-col items-center gap-3 text-center opacity-25">
-            <LayoutGrid className="w-12 h-12 text-white" />
-            <p className="text-white font-black uppercase tracking-widest text-base">
-              {t('widgets.dashboard.emptyBoardHint')}
-            </p>
-            <p className="text-white/80 text-sm">
-              {t('widgets.dashboard.switchBoardsHint')}
-            </p>
+      {/* ZOOMABLE SURFACE: Contains background and widgets */}
+      <div
+        className={`absolute inset-0 transition-transform duration-300 ease-out ${backgroundClasses}`}
+        style={{
+          ...backgroundStyles,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        {/* Ambient YouTube Video Layer */}
+        {youTubeVideoId && (
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-black">
+            <iframe
+              ref={ytIframeRef}
+              src={`https://www.youtube.com/embed/${youTubeVideoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${youTubeVideoId}&disablekb=1&modestbranding=1&enablejsapi=1`}
+              className="absolute top-1/2 left-1/2 w-[100vw] h-[56.25vw] min-h-screen min-w-[177.78vh] -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80"
+              allow="autoplay; encrypted-media"
+              title="Ambient background video"
+            />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Spotlight Dimming Overlay — rendered as a portal at document.body so it
-          sits in the root stacking context. The spotlighted widget is also 
-          rendered via a portal in DraggableWindow, ensuring it sits above 
-          this backdrop regardless of parent stacking contexts (like animations). */}
+        {/* Background Overlay for Depth */}
+        <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+
+        {/* Empty Board Hint */}
+        {activeDashboard.widgets.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-10">
+            <div className="flex flex-col items-center gap-3 text-center opacity-25">
+              <LayoutGrid className="w-12 h-12 text-white" />
+              <p className="text-white font-black uppercase tracking-widest text-base">
+                {t('widgets.dashboard.emptyBoardHint')}
+              </p>
+              <p className="text-white/80 text-sm">
+                {t('widgets.dashboard.switchBoardsHint')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Widget Surface */}
+        <div
+          key={activeDashboard.id}
+          className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
+          style={{
+            // Note: transform and opacity transitions here create CSS stacking contexts.
+            // Spotlighted widgets escape this by portaling to document.body.
+            transform: isMinimized ? 'translateY(80vh)' : undefined,
+            transformOrigin: isMinimized ? 'bottom center' : 'center center',
+            opacity: isMinimized ? 0 : 1,
+            pointerEvents: isMinimized ? 'none' : 'auto',
+          }}
+        >
+          {activeDashboard.widgets.map((widget) => {
+            const isLive =
+              session?.isActive && session?.activeWidgetId === widget.id;
+            return (
+              <WidgetRenderer
+                key={widget.id}
+                widget={widget}
+                isStudentView={false}
+                sessionCode={session?.code}
+                isGlobalFrozen={session?.frozen ?? false}
+                isLive={isLive ?? false}
+                students={isLive ? students : EMPTY_STUDENTS}
+                updateSessionConfig={updateSessionConfig}
+                updateSessionBackground={updateSessionBackground}
+                startSession={startSession}
+                endSession={endSession}
+                removeStudent={removeStudent}
+                toggleFreezeStudent={toggleFreezeStudent}
+                toggleGlobalFreeze={toggleGlobalFreeze}
+                updateWidget={updateWidget}
+                removeWidget={removeWidget}
+                duplicateWidget={duplicateWidget}
+                bringToFront={bringToFront}
+                addToast={addToast}
+                globalStyle={globalStyle}
+                dashboardBackground={activeDashboard.background}
+                dashboardSettings={activeDashboard.settings}
+                updateDashboardSettings={updateDashboardSettings}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FIXED UI: Outside the zoom container */}
+      <Sidebar />
+      <Dock />
+      <ToastContainer />
+      <AnnouncementOverlay />
+      <BoardZoomControl />
+
+      {/* Spotlight Dimming Overlay */}
       {activeDashboard.settings?.spotlightWidgetId &&
         createPortal(
           <div
-            className="fixed inset-0 bg-slate-900/80 transition-all duration-500 ease-in-out"
-            style={{ zIndex: Z_INDEX.backdrop }}
+            className="fixed inset-0 z-backdrop bg-slate-900/80 transition-all duration-500 ease-in-out"
             onClick={() => updateDashboardSettings({ spotlightWidgetId: null })}
             aria-hidden="true"
           />,
           document.body
         )}
-
-      {/* Dynamic Widget Surface */}
-      <div
-        key={activeDashboard.id}
-        className={`relative w-full h-full ${animationClass} transition-all duration-500 ease-in-out`}
-        style={{
-          // Note: transform and opacity transitions here create CSS stacking contexts.
-          // Spotlighted widgets escape this by portaling to document.body.
-          transform: isMinimized ? 'translateY(80vh)' : undefined,
-          transformOrigin: isMinimized ? 'bottom center' : 'center center',
-          opacity: isMinimized ? 0 : 1,
-          pointerEvents: isMinimized ? 'none' : 'auto',
-        }}
-      >
-        {activeDashboard.widgets.map((widget) => {
-          const isLive =
-            session?.isActive && session?.activeWidgetId === widget.id;
-          return (
-            <WidgetRenderer
-              key={widget.id}
-              widget={widget}
-              isStudentView={false}
-              sessionCode={session?.code}
-              isGlobalFrozen={session?.frozen ?? false}
-              isLive={isLive ?? false}
-              students={isLive ? students : EMPTY_STUDENTS}
-              updateSessionConfig={updateSessionConfig}
-              updateSessionBackground={updateSessionBackground}
-              startSession={startSession}
-              endSession={endSession}
-              removeStudent={removeStudent}
-              toggleFreezeStudent={toggleFreezeStudent}
-              toggleGlobalFreeze={toggleGlobalFreeze}
-              updateWidget={updateWidget}
-              removeWidget={removeWidget}
-              duplicateWidget={duplicateWidget}
-              bringToFront={bringToFront}
-              addToast={addToast}
-              globalStyle={globalStyle}
-              dashboardBackground={activeDashboard.background}
-              dashboardSettings={activeDashboard.settings}
-              updateDashboardSettings={updateDashboardSettings}
-            />
-          );
-        })}
-      </div>
-
-      <Sidebar />
-      <Dock />
-      <ToastContainer />
-      <AnnouncementOverlay />
 
       {/* Background YouTube Mute Toggle */}
       {youTubeVideoId && (
@@ -807,7 +944,7 @@ export const DashboardView: React.FC = () => {
               ? 'Enable background video sound'
               : 'Mute background video'
           }
-          className="fixed bottom-6 left-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+          className="fixed bottom-6 left-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
           aria-label="Toggle background video sound"
         >
           <div className="relative flex items-center justify-center w-full h-full">
@@ -836,7 +973,7 @@ export const DashboardView: React.FC = () => {
       <button
         onClick={() => setIsCheatSheetOpen(true)}
         title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
-        className="fixed bottom-6 right-4 z-50 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
+        className="fixed bottom-6 right-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-all backdrop-blur-sm"
         aria-label={t('widgets.cheatSheet.title')}
       >
         <HelpCircle className="w-4 h-4" />

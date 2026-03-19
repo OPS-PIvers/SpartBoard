@@ -61,13 +61,14 @@ vi.mock('@/components/common/ScalableWidget', () => ({
 // We use 'text' as a valid WidgetType to pass type checking
 vi.mock('@/components/widgets/WidgetRegistry', () => ({
   WIDGET_SETTINGS_COMPONENTS: {},
+  WIDGET_APPEARANCE_COMPONENTS: {},
   WIDGET_SCALING_CONFIG: {
     text: { baseWidth: 200, baseHeight: 200, canSpread: true },
   },
   DEFAULT_SCALING_CONFIG: { baseWidth: 200, baseHeight: 200 },
 }));
 
-vi.mock('@/components/widgets/WidgetLayoutWrapper', () => ({
+vi.mock('@/components/widgets/WidgetLayout', () => ({
   WidgetLayoutWrapper: () => (
     <div data-testid="widget-content">Widget Content</div>
   ),

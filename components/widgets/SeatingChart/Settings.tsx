@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, SeatingChartConfig } from '@/types';
+import { useDialog } from '@/context/useDialog';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Trash2, Eraser } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -9,19 +10,29 @@ export const SeatingChartSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
+  const { showConfirm } = useDialog();
   const config = widget.config as SeatingChartConfig;
   const { rosterMode = 'class', names = '' } = config;
 
-  const handleClearAssignments = () => {
-    if (confirm('Clear all student assignments?')) {
+  const handleClearAssignments = async () => {
+    const confirmed = await showConfirm('Clear all student assignments?', {
+      title: 'Clear Assignments',
+      variant: 'warning',
+      confirmLabel: 'Clear',
+    });
+    if (confirmed) {
       updateWidget(widget.id, {
         config: { ...config, assignments: {} },
       });
     }
   };
 
-  const handleClearFurniture = () => {
-    if (confirm('Clear all furniture? This will also clear assignments.')) {
+  const handleClearFurniture = async () => {
+    const confirmed = await showConfirm(
+      'Clear all furniture? This will also clear assignments.',
+      { title: 'Clear Furniture', variant: 'danger', confirmLabel: 'Clear All' }
+    );
+    if (confirmed) {
       updateWidget(widget.id, {
         config: { ...config, furniture: [], assignments: {} },
       });

@@ -42,15 +42,13 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
 
     const scaleX = availableW / baseWidth;
     const scaleY = availableH / baseHeight;
-    const scale = Math.min(scaleX, scaleY);
+    const baseScale = Math.min(scaleX, scaleY);
 
     if (canSpread) {
-      // Cap the CSS transform at 1.0 to prevent upscaling blur.
-      // When scale >= 1, render at full available resolution with no transform.
-      // When scale < 1, render at larger virtual size and downscale (still crisp).
-      const renderScale = Math.min(scale, 1);
+      // Keep renderScale as just the fit-to-container factor (capped at 1)
+      const renderScale = Math.min(baseScale, 1);
       return {
-        scale,
+        scale: baseScale,
         renderScale,
         internalW: availableW / renderScale,
         internalH: availableH / renderScale,
@@ -58,8 +56,8 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
     }
 
     return {
-      scale,
-      renderScale: scale,
+      scale: baseScale,
+      renderScale: baseScale,
       internalW: baseWidth,
       internalH: baseHeight,
     };
@@ -97,7 +95,7 @@ const ScalableWidgetComponent: React.FC<ScalableWidgetProps> = ({
           flexDirection: 'column',
           flexShrink: 0,
           willChange: 'transform',
-          overflow: 'auto',
+          overflow: 'visible',
         }}
       >
         {renderContent()}

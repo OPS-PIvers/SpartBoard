@@ -13,7 +13,6 @@ import {
   GlobalStyle,
   DEFAULT_GLOBAL_STYLE,
 } from '../../../types';
-import { Z_INDEX } from '../../../config/zIndex';
 import { StylePreview } from './StylePreview';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
@@ -382,10 +381,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
       {/* Attached Style Preview for Desktop */}
       {isVisible &&
         createPortal(
-          <div
-            className="hidden lg:flex flex-col justify-center p-12 animate-in fade-in slide-in-from-left-8 duration-500 pointer-events-none fixed left-72 top-0 bottom-0"
-            style={{ zIndex: Z_INDEX.modal }}
-          >
+          <div className="hidden lg:flex flex-col justify-center p-12 animate-in fade-in slide-in-from-left-8 duration-500 pointer-events-none fixed left-72 top-0 bottom-0 z-modal">
             <div className="w-[450px] pointer-events-auto">
               <div className="flex flex-col gap-3 mb-6 drop-shadow-2xl">
                 <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] drop-shadow-lg">

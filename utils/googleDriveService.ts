@@ -485,6 +485,25 @@ export class GoogleDriveService {
     }
   }
 
+  async getShareableLink(fileId: string): Promise<string> {
+    // First ensure the file is shared (reader/anyone)
+    await this.makePublic(fileId);
+
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}?fields=webViewLink`,
+      { headers: this.headers }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[GoogleDriveService] Get Link Failed:', errorText);
+      throw new Error(`Failed to get shareable link for ${fileId}`);
+    }
+
+    const data = (await response.json()) as { webViewLink: string };
+    return data.webViewLink;
+  }
+
   /**
    * Delete a file from Google Drive.
    */

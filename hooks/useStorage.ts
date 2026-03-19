@@ -44,7 +44,7 @@ export const useStorage = () => {
           'Assets/Backgrounds'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -67,7 +67,7 @@ export const useStorage = () => {
           'Assets/Stickers'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -93,7 +93,7 @@ export const useStorage = () => {
           'Assets/DisplayImages'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -102,6 +102,34 @@ export const useStorage = () => {
     const timestamp = Date.now();
     return uploadFile(
       `users/${userId}/display_images/${timestamp}-${file.name}`,
+      file
+    );
+  };
+
+  const uploadHotspotImage = async (
+    userId: string,
+    file: File
+  ): Promise<string> => {
+    if (driveService) {
+      setUploading(true);
+      try {
+        const driveFile = await driveService.uploadFile(
+          file,
+          `hotspot-${Date.now()}-${file.name}`,
+          'Assets/HotspotImages'
+        );
+        // Pass undefined to force type:'anyone' sharing so the image URL is
+        // publicly renderable in all contexts (matches uploadBackgroundToDrive).
+        await driveService.makePublic(driveFile.id, undefined);
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    const timestamp = Date.now();
+    return uploadFile(
+      `users/${userId}/hotspot_images/${timestamp}-${file.name}`,
       file
     );
   };
@@ -119,7 +147,7 @@ export const useStorage = () => {
           'Assets/Screenshots'
         );
         await driveService.makePublic(driveFile.id, userDomain);
-        return driveFile.webContentLink ?? driveFile.webViewLink ?? '';
+        return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
         setUploading(false);
       }
@@ -254,6 +282,7 @@ export const useStorage = () => {
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,
+    uploadHotspotImage,
     uploadScreenshot,
     deleteFile,
     uploadAdminBackground,

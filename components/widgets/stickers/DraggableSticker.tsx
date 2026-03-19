@@ -9,6 +9,7 @@ import {
 import { WidgetData, StickerConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useDialog } from '@/context/useDialog';
 import { FloatingPanel } from '../../common/FloatingPanel';
 
 interface DraggableStickerProps {
@@ -27,6 +28,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     moveWidgetLayer,
     deleteAllWidgets,
   } = useDashboard();
+  const { showConfirm } = useDialog();
   const [isSelected, setIsSelected] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -144,9 +146,13 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      if (confirm('Are you sure you want to clear the entire board?')) {
-        deleteAllWidgets();
-      }
+      void showConfirm('Are you sure you want to clear the entire board?', {
+        title: 'Clear Board',
+        variant: 'danger',
+        confirmLabel: 'Clear All',
+      }).then((confirmed) => {
+        if (confirmed) deleteAllWidgets();
+      });
       return;
     }
   };

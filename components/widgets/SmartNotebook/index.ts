@@ -1,0 +1,1 @@
+export { SmartNotebookWidget } from './Widget';

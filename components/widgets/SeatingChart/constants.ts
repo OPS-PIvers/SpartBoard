@@ -79,3 +79,5 @@ export const TEMPLATES: {
 ];
 
 export const EMPTY_ARRAY: { id: string; label: string }[] = [];
+
+export const DEFAULT_TEMPLATE_COLUMNS = 6;

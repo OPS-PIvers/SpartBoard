@@ -35,6 +35,7 @@ import {
 } from '@/types';
 import { BUILDINGS } from '@/config/buildings';
 import { Toast } from '@/components/common/Toast';
+import { useDialog } from '@/context/useDialog';
 
 interface MiniAppLibraryModalProps {
   onClose: () => void;
@@ -47,6 +48,7 @@ const COLLECTION = 'global_mini_apps';
 export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   onClose,
 }) => {
+  const { showConfirm } = useDialog();
   const [apps, setApps] = useState<GlobalMiniAppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');
@@ -222,7 +224,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   };
 
   const handleDelete = async (app: GlobalMiniAppItem) => {
-    if (!confirm(`Delete "${app.title}" from the global library?`)) return;
+    const confirmed = await showConfirm(
+      `Delete "${app.title}" from the global library?`,
+      { title: 'Delete App', variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (!confirmed) return;
     try {
       await deleteDoc(doc(db, COLLECTION, app.id));
       showMessage('success', 'App removed');
@@ -509,7 +515,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
             </div>
 
             <div className="px-2">
-              <h5 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-2">
+              <h5 className="font-black text-slate-400 uppercase tracking-widest text-xxs mb-2">
                 Developer Note
               </h5>
               <p className="text-xxs text-slate-400 leading-relaxed italic">

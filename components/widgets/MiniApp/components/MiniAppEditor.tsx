@@ -8,9 +8,11 @@ import {
   FileSpreadsheet,
   Globe,
   Info,
+  FileText,
 } from 'lucide-react';
 import { WidgetLayout } from '../../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
+import { TextConfig } from '@/types';
 import { MiniAppConfig, WidgetData } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
@@ -51,13 +53,57 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
   onCancel,
 }) => {
   const { canAccessFeature } = useAuth();
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { driveService } = useGoogleDrive();
   const config = widget.config as MiniAppConfig;
   const { globalConfig } = useMiniAppGlobalConfig();
   const lastSharedIdRef = useRef<string | null>(null);
   const [isCreatingSheet, setIsCreatingSheet] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  const importFromNotes = () => {
+    const textWidgetsWithContent =
+      activeDashboard?.widgets.filter(
+        (w) => w.type === 'text' && (w.config as TextConfig).content
+      ) ?? [];
+
+    if (textWidgetsWithContent.length === 0) {
+      addToast('No Notes widget with content found on dashboard.', 'error');
+      return;
+    }
+
+    // If multiple notes widgets have content, use the one with the most text as a heuristic.
+    textWidgetsWithContent.sort(
+      (a, b) =>
+        ((b.config as TextConfig).content?.length || 0) -
+        ((a.config as TextConfig).content?.length || 0)
+    );
+
+    const textConfig = textWidgetsWithContent[0].config as TextConfig;
+
+    let plainText = '';
+    if (typeof DOMParser === 'undefined') {
+      // Non-browser environment: strip HTML tags with a simple regex
+      const rawContent = textConfig.content ?? '';
+      plainText = rawContent
+        .replace(/<\/?[^>]+(>|$)/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    } else {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(textConfig.content ?? '', 'text/html');
+      plainText = doc.body?.textContent?.trim() ?? '';
+    }
+
+    const trimmed = plainText.trim();
+    if (!trimmed) {
+      addToast('Notes widget has no readable text to import.', 'error');
+      return;
+    }
+
+    setPrompt(trimmed);
+    addToast('Prompt imported from Notes!', 'success');
+  };
 
   const shareSheetWithBot = useCallback(
     async (sheetId: string) => {
@@ -196,6 +242,17 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
                   Describe the mini-app you want to build.
                 </p>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={importFromNotes}
+                    className="text-xxs font-black uppercase text-indigo-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+                    title="Import prompt from a Notes widget on your dashboard"
+                  >
+                    <FileText className="w-3 h-3" /> Import from Notes
+                  </button>
+                </div>
+
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
@@ -296,7 +353,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                     <X className="w-3 h-3" />
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
+                <p className="text-xxs text-slate-600 leading-relaxed">
                   To save data to your sheet, your app must send a message to
                   the parent window. Include this code in your mini-app&apos;s
                   JavaScript:
@@ -334,7 +391,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                           Results Linked
                         </span>
                       </div>
-                      <p className="text-[10px] text-emerald-600/70 font-medium truncate">
+                      <p className="text-xxs text-emerald-600/70 font-medium truncate">
                         Google Sheet is connected
                       </p>
                     </div>

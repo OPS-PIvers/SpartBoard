@@ -164,6 +164,26 @@ export const useTimeTool = (widget: WidgetData) => {
               });
             }
           }
+
+          // Auto-advance next student in NextUp
+          if (
+            config.timerEndTriggerNextUp &&
+            activeDashboard &&
+            config.duration > 0
+          ) {
+            const nextUpWidget = activeDashboard.widgets.find(
+              (w) => w.type === 'nextUp'
+            );
+            if (nextUpWidget) {
+              updateWidget(nextUpWidget.id, {
+                config: {
+                  ...nextUpWidget.config,
+                  externalTrigger: Date.now(),
+                } as WidgetConfig,
+              });
+            }
+          }
+
           return;
         }
       } else {
@@ -185,6 +205,7 @@ export const useTimeTool = (widget: WidgetData) => {
     config.timerEndVoiceLevel,
     config.timerEndTrafficColor,
     config.timerEndTriggerRandom,
+    config.timerEndTriggerNextUp,
     config.duration,
     activeDashboard,
     updateWidget,

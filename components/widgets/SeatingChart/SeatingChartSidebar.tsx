@@ -6,7 +6,11 @@ import {
   WidgetData,
 } from '@/types';
 import { RefreshCw, Trash2, UserPlus } from 'lucide-react';
-import { TEMPLATES, FURNITURE_TYPES } from './constants';
+import {
+  TEMPLATES,
+  FURNITURE_TYPES,
+  DEFAULT_TEMPLATE_COLUMNS,
+} from './constants';
 
 interface SeatingChartSidebarProps {
   mode: 'setup' | 'assign' | 'interact';
@@ -107,7 +111,9 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                       ).templateRows;
                       setLocalTemplateColumns(
                         String(
-                          config.templateColumns ?? legacyTemplateRows ?? 6
+                          config.templateColumns ??
+                            legacyTemplateRows ??
+                            DEFAULT_TEMPLATE_COLUMNS
                         )
                       );
                     }

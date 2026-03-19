@@ -140,3 +140,14 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 1. Added `snapPreview: 9998` and `systemBanner: 9999` to `config/zIndex.ts` and exposed them as utility classes in `tailwind.config.js`.
 2. Refactored `DraggableWindow.tsx` to use `z-snap-preview` for the visual overlay and `z-modal` for the snap layout menu.
 3. Refactored `DriveDisconnectBanner.tsx` to use `z-system-banner`.
+
+## 2026-03-13 - Typography Standardization **Drift:** Identified multiple hardcoded font sizes (`text-[10px]`) across various components. **Fix:** Replaced 23 instances of `text-[10px]` with the centralized `text-xxs` micro-typography token.
+
+## 2026-03-13 - Z-Index Standardization **Drift:** Discovered multiple hardcoded z-index values (`z-50`) across components, creating inconsistent stacking contexts. **Fix:** Replaced `z-50` with corresponding tokens from `config/zIndex.ts` like `z-widget-internal-overlay`, `z-overlay`, `z-header`, `z-dropdown`, `z-controls`, `z-dock`, and `z-toast`.
+
+## 2026-03-14 - Standardized Z-Index Inline Styles **Drift:** Inline `zIndex` styles were mixed with tailwind utility classes. **Fix:** Replaced inline `style={{ zIndex: ... }}` with custom Tailwind utility classes from `tailwind.config.js` (`z-modal`, `z-critical`, `z-backdrop`).
+
+## 2026-03-15 - Standardized Card Containers
+
+**Drift:** Discovered multiple hardcoded instances of the pattern `bg-white rounded-2xl border border-slate-200 shadow-sm` acting as card containers across random widget settings, instructional routines, schedule settings, and sticker modals.
+**Fix:** Created `components/common/Card.tsx` and refactored several target files to use this new component to unify standard padding, border radius, and hover states.

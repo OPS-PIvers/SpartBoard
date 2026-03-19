@@ -24,7 +24,9 @@ import {
   TOOLBAR_H,
   MIN_CANVAS_DIM,
   EMPTY_ARRAY,
+  DEFAULT_TEMPLATE_COLUMNS,
 } from './constants';
+import { useDialog } from '@/context/useDialog';
 
 // Drag state tracks current positions for all items being dragged simultaneously
 type DragPositions = Map<string, { x: number; y: number }>;
@@ -42,6 +44,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
+  const { showConfirm } = useDialog();
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
   // preserve their saved column count after the rename to templateColumns.
@@ -54,7 +57,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     gridSize = 20,
     rosterMode = 'class',
     template = 'freeform',
-    templateColumns = legacyTemplateRows ?? 6,
+    templateColumns = legacyTemplateRows ?? DEFAULT_TEMPLATE_COLUMNS,
   } = config;
 
   const [mode, setMode] = useState<'setup' | 'assign' | 'interact'>('interact');
@@ -293,12 +296,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     setSelectedIds(new Set([newItem.id]));
   };
 
-  const clearAllFurniture = () => {
-    if (
-      window.confirm(
-        'Are you sure you want to remove all furniture and assignments?'
-      )
-    ) {
+  const clearAllFurniture = async () => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to remove all furniture and assignments?',
+      { title: 'Clear Furniture', variant: 'danger', confirmLabel: 'Clear All' }
+    );
+    if (confirmed) {
       updateWidget(widget.id, {
         config: { ...config, furniture: [], assignments: {} },
       });

@@ -1,19 +1,63 @@
-import { Dashboard, WidgetData, TimeToolConfig, TextConfig } from '../types';
+import {
+  Dashboard,
+  WidgetData,
+  TimeToolConfig,
+  TextConfig,
+  PollConfig,
+  PollOption,
+} from '../types';
 import { sanitizeHtml } from './security';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+
+// Minimum dimension threshold: widgets smaller than this were likely
+// created with a bug where pixel dimensions were recorded as single digits
+// (e.g. w:5 instead of w:500). 30px is safely below any intentional small
+// widget size while catching the broken defaults.
+const MIN_WIDGET_DIMENSION_PX = 30;
 
 interface LegacyConfig {
   duration?: number;
 }
 
+const fixDimensions = (widget: WidgetData): WidgetData => {
+  if (
+    widget.w >= MIN_WIDGET_DIMENSION_PX &&
+    widget.h >= MIN_WIDGET_DIMENSION_PX
+  ) {
+    return widget;
+  }
+  const defaults = WIDGET_DEFAULTS[widget.type];
+  const defaultW = defaults?.w ?? 0;
+  const defaultH = defaults?.h ?? 0;
+  return {
+    ...widget,
+    w:
+      widget.w < MIN_WIDGET_DIMENSION_PX
+        ? defaultW >= MIN_WIDGET_DIMENSION_PX
+          ? defaultW
+          : 300
+        : widget.w,
+    h:
+      widget.h < MIN_WIDGET_DIMENSION_PX
+        ? defaultH >= MIN_WIDGET_DIMENSION_PX
+          ? defaultH
+          : 300
+        : widget.h,
+  };
+};
+
 export const migrateWidget = (widget: WidgetData): WidgetData => {
-  const type = widget.type as string;
+  // Correct impossibly small dimensions before any other migration so all
+  // code paths benefit from the fix (early returns included).
+  const w = fixDimensions(widget);
+  const type = w.type as string;
 
   // Sanitize stored text widget content to prevent XSS
   if (type === 'text') {
-    const config = widget.config as TextConfig;
+    const config = w.config as TextConfig;
     if (config.content) {
       return {
-        ...widget,
+        ...w,
         config: {
           ...config,
           content: sanitizeHtml(config.content),
@@ -24,10 +68,10 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   if (type === 'timer' || type === 'stopwatch') {
     const isTimer = type === 'timer';
-    const oldConfig = widget.config as LegacyConfig;
+    const oldConfig = w.config as LegacyConfig;
 
     return {
-      ...widget,
+      ...w,
       type: 'time-tool',
       config: {
         mode: isTimer ? 'timer' : 'stopwatch',
@@ -46,12 +90,31 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
 
   if (type === 'workSymbols') {
     return {
-      ...widget,
+      ...w,
       type: 'expectations',
     };
   }
 
-  return widget;
+  // Ensure poll options have stable IDs (legacy data may lack them)
+  if (type === 'poll') {
+    const pollConfig = w.config as PollConfig;
+    const options = pollConfig.options ?? [];
+    const needsMigration = options.some((opt: PollOption) => !opt.id);
+    if (needsMigration) {
+      return {
+        ...w,
+        config: {
+          ...pollConfig,
+          options: options.map((opt: PollOption) => ({
+            ...opt,
+            id: opt.id || crypto.randomUUID(),
+          })),
+        },
+      };
+    }
+  }
+
+  return w;
 };
 
 export const migrateLocalStorageToFirestore = async (

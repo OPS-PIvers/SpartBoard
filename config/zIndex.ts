@@ -48,6 +48,7 @@ export const Z_INDEX = {
   toolMenu: 12000, // DraggableWindow specific tool menu
   tooltip: 13000, // Tooltips
   toast: 14000, // Toast notifications
+  dialog: 15000, // Custom alert/confirm/prompt dialogs (above toasts)
 
   // Critical layers
   critical: 20000, // Overlays that must block everything (e.g. Dock expanded, Critical Errors)

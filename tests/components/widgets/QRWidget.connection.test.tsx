@@ -3,10 +3,20 @@ import { QRWidget } from '../../../components/widgets/QRWidget';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData, QRConfig, TextConfig } from '../../../types';
 import { useDashboard } from '../../../context/useDashboard';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
+import { useAuth } from '@/context/useAuth';
 
 // Mock useDashboard
 vi.mock('../../../context/useDashboard', () => ({
   useDashboard: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFeaturePermissions', () => ({
+  useFeaturePermissions: vi.fn(),
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(),
 }));
 
 describe('QRWidget Link Repeater Connection', () => {
@@ -14,6 +24,19 @@ describe('QRWidget Link Repeater Connection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (
+      useFeaturePermissions as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      subscribeToPermission: vi.fn(
+        (_type: string, callback: (p: unknown) => void) => {
+          callback(null);
+          return vi.fn();
+        }
+      ),
+    });
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      selectedBuildings: ['building-1'],
+    });
   });
 
   it('updates QR url when Text Widget content changes and sync is enabled', () => {
@@ -60,7 +83,11 @@ describe('QRWidget Link Repeater Connection', () => {
 
     // Expect updateWidget to be called with the text content
     expect(mockUpdateWidget).toHaveBeenCalledWith('qr-1', {
-      config: { url: 'https://example.com/synced', syncWithTextWidget: true },
+      config: {
+        ...qrWidget.config,
+        url: 'https://example.com/synced',
+        syncWithTextWidget: true,
+      },
     });
   });
 

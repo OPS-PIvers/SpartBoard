@@ -301,12 +301,11 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
     // Show live countdown only when mode is 'timer', endTime is set, and item isn't done.
     const showCountdown = item.mode === 'timer' && !!item.endTime && !item.done;
 
-    // Fixed height calculation to ensure exactly 4 rows fit in the viewport
-    // (100% height - 3 gaps) / 4.
-    const rowHeight = `calc((100% - 3 * ${GAP_STYLE}) / 4)`;
+    // Rows size to their content so all events are visible when the widget is
+    // tall enough. Auto-scroll keeps the active item in view.
     const rowStyle = {
-      flex: `0 0 ${rowHeight}`,
-      height: rowHeight,
+      flex: '0 0 auto',
+      minHeight: 'min(72px, 18cqmin)',
       backgroundColor: bgColor,
     };
 
@@ -551,26 +550,20 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   /**
    * Scroll the list so that the previously-completed item is at the top,
-   * making the active item the second visible row.
-   * Each row is exactly (100% height - 3 gaps) / 4 in size.
+   * making the active item the second visible row. Uses each row's actual
+   * offsetTop so it works correctly with variable-height flex rows.
    */
   useLayoutEffect(() => {
     if (!autoScroll || activeIndex < 0 || !scrollContainerRef.current) return;
     const el = scrollContainerRef.current;
 
-    // Improved calculation: Measure actual element height and gap for precision.
-    const firstRow = el.firstElementChild as HTMLElement;
-    if (!firstRow) return;
-
-    const rowHeight = firstRow.offsetHeight;
-    const gapPx = parseFloat(getComputedStyle(el).gap) || 0;
-
     // Show the completed item above the active one (activeIndex - 1).
-    const index = Math.max(0, activeIndex - 1);
-    const targetTop = index * (rowHeight + gapPx);
+    const targetIndex = Math.max(0, activeIndex - 1);
+    const targetRow = el.children[targetIndex] as HTMLElement;
+    if (!targetRow) return;
 
     // Optional chaining guards against jsdom (tests) and edge-case browsers.
-    el.scrollTo?.({ top: targetTop, behavior: 'smooth' });
+    el.scrollTo?.({ top: targetRow.offsetTop, behavior: 'smooth' });
   }, [activeIndex, autoScroll, items.length]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.

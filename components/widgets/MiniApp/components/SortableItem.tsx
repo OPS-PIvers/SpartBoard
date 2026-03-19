@@ -110,7 +110,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
             {isLive && sessionCode && (
               <div className="flex items-center gap-1">
                 <span
-                  className="bg-indigo-100 text-indigo-700 font-mono font-black px-1.5 py-0.5 rounded text-[10px] tracking-wider border border-indigo-200 animate-in fade-in"
+                  className="bg-indigo-100 text-indigo-700 font-mono font-black px-1.5 py-0.5 rounded text-xxs tracking-wider border border-indigo-200 animate-in fade-in"
                   title="Live Session Code"
                 >
                   {sessionCode}

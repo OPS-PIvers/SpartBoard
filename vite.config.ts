@@ -2,11 +2,14 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const commonServerConfig = {
+  port: 3000,
+  host: '0.0.0.0',
+};
+
 export default defineConfig({
-  server: {
-    port: 3000,
-    host: '0.0.0.0',
-  },
+  server: commonServerConfig,
+  preview: commonServerConfig,
   plugins: [react()],
   resolve: {
     alias: {

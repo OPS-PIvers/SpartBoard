@@ -120,7 +120,7 @@ describe('useStorage', () => {
         'drive-file-id',
         'school.edu'
       );
-      expect(url).toBe('https://drive.google.com/content-link');
+      expect(url).toBe('https://lh3.googleusercontent.com/d/drive-file-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 
@@ -142,7 +142,7 @@ describe('useStorage', () => {
         url = await result.current.uploadBackgroundImage('admin123', mockFile);
       });
 
-      expect(url).toBe('https://drive.google.com/content-link');
+      expect(url).toBe('https://lh3.googleusercontent.com/d/drive-file-id');
       expect(mockUploadBytes).not.toHaveBeenCalled();
     });
 
@@ -154,6 +154,53 @@ describe('useStorage', () => {
       let url;
       await act(async () => {
         url = await result.current.uploadBackgroundImage('user123', mockFile);
+      });
+
+      expect(mockUploadBytes).toHaveBeenCalled();
+      expect(url).toBe('https://firebase.storage/url');
+      expect(mockDriveService.uploadFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('uploadHotspotImage', () => {
+    it('should upload to Google Drive when Drive is connected', async () => {
+      mockUseGoogleDrive.mockReturnValue({
+        driveService: mockDriveService,
+        userDomain: 'school.edu',
+      });
+      mockDriveService.uploadFile.mockResolvedValue({
+        id: 'hotspot-drive-id',
+        webContentLink: 'https://drive.google.com/content-link-hotspot',
+      });
+
+      const { result } = renderHook(() => useStorage());
+
+      let url;
+      await act(async () => {
+        url = await result.current.uploadHotspotImage('user123', mockFile);
+      });
+
+      expect(mockDriveService.uploadFile).toHaveBeenCalledWith(
+        mockFile,
+        expect.stringMatching(/hotspot-.*-test.png/),
+        'Assets/HotspotImages'
+      );
+      expect(mockDriveService.makePublic).toHaveBeenCalledWith(
+        'hotspot-drive-id',
+        undefined
+      );
+      expect(url).toBe('https://lh3.googleusercontent.com/d/hotspot-drive-id');
+      expect(mockUploadBytes).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to Firebase Storage when Drive is not connected', async () => {
+      mockUseGoogleDrive.mockReturnValue({ driveService: null });
+
+      const { result } = renderHook(() => useStorage());
+
+      let url;
+      await act(async () => {
+        url = await result.current.uploadHotspotImage('user123', mockFile);
       });
 
       expect(mockUploadBytes).toHaveBeenCalled();

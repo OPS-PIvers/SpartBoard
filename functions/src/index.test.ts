@@ -169,7 +169,7 @@ describe('fetchWeatherProxy', () => {
     await expect(
       handler({ url: 'https://example.com/weather' }, { auth: { uid: '123' } })
     ).rejects.toThrow(
-      'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+      'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
     );
   });
 
@@ -184,7 +184,7 @@ describe('fetchWeatherProxy', () => {
         { auth: { uid: '123' } }
       )
     ).rejects.toThrow(
-      'Invalid proxy URL. Only https://api.openweathermap.org is allowed.'
+      'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
     );
   });
 
@@ -205,6 +205,27 @@ describe('fetchWeatherProxy', () => {
       'https://api.openweathermap.org/data/2.5/weather?q=London'
     );
     expect(result).toEqual({ temp: 72 });
+  });
+
+  it('should return data successfully for valid earthnetworks url', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: { o: { t: 72, ic: 0 } } });
+
+    const handler = fetchWeatherProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<{ o: { t: number; ic: number } }>;
+    const result = await handler(
+      {
+        url: 'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST',
+      },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST'
+    );
+    expect(result).toEqual({ o: { t: 72, ic: 0 } });
   });
 
   it('should throw internal error if axios throws', async () => {

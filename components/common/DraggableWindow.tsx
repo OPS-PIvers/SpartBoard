@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useGesture } from '@use-gesture/react';
 import {
   X,
   Settings,
@@ -16,7 +15,6 @@ import {
   Camera,
   Maximize,
   Minimize2,
-  ChevronRight,
   Copy,
   Eraser,
   Undo2,
@@ -42,6 +40,7 @@ import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
 import { WIDGET_PALETTE } from '../../config/colors';
 import { Z_INDEX } from '../../config/zIndex';
+import { useDialog } from '@/context/useDialog';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
@@ -71,6 +70,7 @@ interface DraggableWindowProps {
   widget: WidgetData;
   children: React.ReactNode;
   settings: React.ReactNode;
+  appearanceSettings?: React.ReactNode;
   title: string;
   style?: React.CSSProperties; // Added style prop
   isSpotlighted?: boolean; // Added isSpotlighted prop
@@ -113,10 +113,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   widget,
   children,
   settings,
+  appearanceSettings,
   title,
   style,
   isSpotlighted = false,
-  updateDashboardSettings: propUpdateDashboardSettings,
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
@@ -133,17 +133,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     selectedWidgetId,
     setSelectedWidgetId,
     zoom,
-    updateDashboardSettings: contextUpdateDashboardSettings,
   } = useDashboard();
-
-  const updateDashboardSettings =
-    propUpdateDashboardSettings ?? contextUpdateDashboardSettings;
+  const { showConfirm: showConfirmDialog } = useDialog();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const showTools = selectedWidgetId === widget.id;
-  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
   const [shouldRenderSettings, setShouldRenderSettings] = useState(
@@ -303,7 +299,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const canScreenshot = !SCREENSHOT_BLACKLIST.includes(widget.type);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
+    // DO NOT stop propagation here, otherwise DashboardView misses 2-finger swipes
     bringToFront(widget.id);
     // Explicitly focus the widget so it can receive keyboard events
     (e.currentTarget as HTMLElement).focus();
@@ -385,9 +381,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (e.key === 'Delete' && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      if (confirm(t('widgetWindow.clearEntireBoard'))) {
-        deleteAllWidgets();
-      }
+      void showConfirmDialog(t('widgetWindow.clearEntireBoard'), {
+        title: 'Clear Board',
+        variant: 'danger',
+        confirmLabel: 'Clear All',
+      }).then((confirmed) => {
+        if (confirmed) deleteAllWidgets();
+      });
       return;
     }
 
@@ -434,10 +434,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // Don't drag if annotating
     if (isAnnotating) return;
 
+    // Don't start a drag on a non-primary touch/pen pointer — if isPrimary is
+    // false another touch is already active, meaning this is a multi-touch gesture.
+    if ((e.pointerType === 'touch' || e.pointerType === 'pen') && !e.isPrimary)
+      return;
+
     clearLongPressTimer();
-    if (doubleTapTimer.current) {
-      clearTimeout(doubleTapTimer.current);
-      doubleTapTimer.current = null;
+    if (twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
     }
 
     // Close settings panel on drag start to prevent position desync
@@ -477,6 +482,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
 
       dragAnimationFrame = requestAnimationFrame(() => {
+        // If a second touch arrived mid-drag, freeze the widget and clear snap
+        // preview — wait for pointerup to commit/clean up normally.
+        if (activeTouchCount.current > 1) {
+          setSnapPreviewZone(null);
+          snapPreviewZoneRef.current = null;
+          return;
+        }
+
         dragDistanceRef.current = Math.sqrt(
           Math.pow(moveEvent.clientX - initialMouseX, 2) +
             Math.pow(moveEvent.clientY - initialMouseY, 2)
@@ -603,9 +616,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     e.preventDefault();
 
     clearLongPressTimer();
-    if (doubleTapTimer.current) {
-      clearTimeout(doubleTapTimer.current);
-      doubleTapTimer.current = null;
+    if (twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
     }
 
     // Close settings panel on resize start to prevent position desync
@@ -851,95 +864,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     handleCloseTools,
   ]);
 
-  useGesture(
-    {
-      onDrag: ({ swipe: [, swipeY], direction: [, dirY], touches, event }) => {
-        const target = event.target as HTMLElement;
-        if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
-
-        // 2-finger swipe down
-        if (touches === 2 && swipeY > 0 && dirY > 0) {
-          if (isMaximized) {
-            handleMaximizeToggle();
-          } else {
-            updateWidget(widget.id, { minimized: true });
-          }
-          handleCloseTools();
-        }
-        // 2-finger swipe up
-        else if (touches === 2 && swipeY < 0 && dirY < 0) {
-          if (!isMaximized) {
-            handleMaximizeToggle();
-          } else {
-            // If already maximized, spotlight this widget (dim others)
-            updateDashboardSettings({ spotlightWidgetId: widget.id });
-          }
-          handleCloseTools();
-        }
-      },
-      onPinch: ({ offset: [scale], first, last, event, memo }) => {
-        const target = event.target as HTMLElement;
-        if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
-        if (isMaximized) return;
-
-        if (first) {
-          if (event.cancelable) event.preventDefault();
-          return {
-            startW: widget.w,
-            startH: widget.h,
-            startX: widget.x,
-            startY: widget.y,
-          };
-        }
-
-        if (event.cancelable) event.preventDefault();
-        const startState = memo as {
-          startW: number;
-          startH: number;
-          startX: number;
-          startY: number;
-        };
-        if (!startState) return memo as unknown;
-
-        const newW = Math.max(150, Math.round(startState.startW * scale));
-        const newH = Math.max(150, Math.round(startState.startH * scale));
-        const newX = startState.startX - (newW - startState.startW) / 2;
-        const newY = startState.startY - (newH - startState.startH) / 2;
-
-        if (windowRef.current && !last) {
-          windowRef.current.style.width = `${newW}px`;
-          windowRef.current.style.height = `${newH}px`;
-          windowRef.current.style.left = `${newX}px`;
-          windowRef.current.style.top = `${newY}px`;
-        }
-
-        if (last) {
-          updateWidget(widget.id, {
-            w: newW,
-            h: newH,
-            x: newX,
-            y: newY,
-          });
-          if (windowRef.current) {
-            windowRef.current.style.width = '';
-            windowRef.current.style.height = '';
-            windowRef.current.style.left = '';
-            windowRef.current.style.top = '';
-          }
-        }
-        return memo as unknown;
-      },
-    },
-    {
-      target: windowRef,
-      eventOptions: { passive: false },
-      pinch: { scaleBounds: { min: 0.5, max: 3 }, modifierKey: null },
-      drag: { swipe: { velocity: 0.5, distance: 50 } },
-    }
-  );
-
-  const doubleTapTimer = useRef<NodeJS.Timeout | null>(null);
+  const twoFingerLongPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressStartPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressMoved = useRef(0);
   const activeTouchCount = useRef(0);
 
   const handleWidgetPointerDown = (e: React.PointerEvent) => {
@@ -949,27 +877,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       const target = e.target as HTMLElement;
       if (target.closest(TOUCH_GESTURE_BLOCKING_SELECTOR)) return;
 
-      // 2-Finger Double-Tap (Annotation Toggle)
+      // 2-Finger Long-Press (~600ms) → Toggle annotation draw mode
       if (activeTouchCount.current === 2) {
-        if (doubleTapTimer.current) {
-          clearTimeout(doubleTapTimer.current);
-          doubleTapTimer.current = null;
-          // Clear long press if any (unlikely with 2 fingers but safe)
-          clearLongPressTimer();
-          setIsAnnotating((prev) => !prev);
-          handleCloseTools();
-        } else {
-          doubleTapTimer.current = setTimeout(() => {
-            doubleTapTimer.current = null;
-          }, 300);
-        }
+        // Cancel any pending 1-finger long press since we now have 2 fingers
+        clearLongPressTimer();
+        // Start a 2-finger long press timer
+        twoFingerLongPressTimer.current = setTimeout(() => {
+          twoFingerLongPressTimer.current = null;
+          if (activeTouchCount.current >= 2) {
+            setIsAnnotating((prev) => !prev);
+            handleCloseTools();
+          }
+        }, 600);
       }
 
       // 1-Finger Long-Press (Screenshot)
       if (activeTouchCount.current === 1) {
+        longPressStartPos.current = { x: e.clientX, y: e.clientY };
+        longPressMoved.current = 0;
         longPressTimer.current = setTimeout(() => {
-          // Verify still only 1 finger and hasn't started dragging
-          if (activeTouchCount.current === 1 && !isDragging) {
+          longPressTimer.current = null;
+          const LONG_PRESS_MOVE_TOLERANCE_PX = 15;
+          if (
+            activeTouchCount.current === 1 &&
+            longPressMoved.current < LONG_PRESS_MOVE_TOLERANCE_PX
+          ) {
             if (canScreenshot && !isCapturing) {
               void takeScreenshot();
               handleCloseTools();
@@ -980,9 +912,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
   };
 
+  const handleWidgetPointerMove = (e: React.PointerEvent) => {
+    if (
+      (e.pointerType === 'touch' || e.pointerType === 'pen') &&
+      longPressTimer.current &&
+      longPressStartPos.current
+    ) {
+      const dx = e.clientX - longPressStartPos.current.x;
+      const dy = e.clientY - longPressStartPos.current.y;
+      longPressMoved.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  };
+
   const handleWidgetPointerUp = () => {
     activeTouchCount.current = Math.max(0, activeTouchCount.current - 1);
     clearLongPressTimer();
+    // Cancel 2-finger long press if either finger lifts before threshold
+    if (activeTouchCount.current < 2 && twoFingerLongPressTimer.current) {
+      clearTimeout(twoFingerLongPressTimer.current);
+      twoFingerLongPressTimer.current = null;
+    }
   };
 
   // Fallback to widget state if not dragging/resizing or if position-aware
@@ -1001,7 +950,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       onClick={handleWidgetClick}
       onKeyDown={handleKeyDown}
       onPointerDownCapture={handleWidgetPointerDown}
+      onPointerMoveCapture={handleWidgetPointerMove}
       onPointerUpCapture={handleWidgetPointerUp}
+      onPointerCancelCapture={handleWidgetPointerUp}
       onContextMenu={(e) => e.preventDefault()}
       transparency={transparency}
       disableBlur={isDragging || isResizing}
@@ -1090,7 +1041,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           {isFlashing && (
             <div
               data-screenshot="flash"
-              className="absolute inset-0 bg-white z-50 animate-out fade-out duration-300 pointer-events-none isFlashing"
+              className="absolute inset-0 bg-white z-widget-internal-overlay animate-out fade-out duration-300 pointer-events-none isFlashing"
             />
           )}
           {children}
@@ -1115,7 +1066,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   });
                 }}
               />
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-widget-internal-overlay flex items-center gap-1 p-1 bg-white/90 backdrop-blur shadow-lg rounded-full border border-slate-200 animate-in slide-in-from-bottom-2 fade-in duration-200">
                 <div className="flex items-center gap-1 px-1">
                   {WIDGET_PALETTE.slice(0, 5).map((c) => (
                     <button
@@ -1365,7 +1316,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     </span>
                     <Pencil className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity" />
                   </div>
-                  <div className="flex items-center -mr-1">
+                  <div className="flex items-center gap-1 -mr-1">
                     <IconButton
                       onClick={() => {
                         updateWidget(widget.id, {
@@ -1388,46 +1339,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : ''
                       }
                     />
-                    <IconButton
-                      onClick={() => {
-                        if (skipCloseConfirmation) {
-                          removeWidget(widget.id);
-                        } else {
-                          setShowConfirm(true);
-                          handleCloseTools();
-                        }
-                      }}
-                      icon={<X className="w-3.5 h-3.5" />}
-                      label={t('widgetWindow.close')}
-                      size="sm"
-                      variant="danger"
-                      className="hover:!bg-red-500/20"
-                    />
-                    <IconButton
-                      onClick={() => setIsToolbarExpanded(!isToolbarExpanded)}
-                      icon={<ChevronRight className="w-3.5 h-3.5" />}
-                      label={
-                        isToolbarExpanded
-                          ? t('widgetWindow.collapseToolbar')
-                          : t('widgetWindow.expandToolbar')
-                      }
-                      size="sm"
-                      variant="glass"
-                      className={isToolbarExpanded ? 'rotate-180' : ''}
-                    />
                   </div>
                 </div>
               )}
-            </div>
 
-            <div
-              className={`flex items-center gap-1 overflow-hidden transition-all duration-300 ease-in-out ${
-                isToolbarExpanded
-                  ? 'max-w-[500px] opacity-100 ml-0'
-                  : 'max-w-0 opacity-0 ml-0'
-              }`}
-            >
-              <div className="h-4 w-px bg-slate-300/50" />
+              <div className="h-4 w-px bg-slate-300/50 mx-1" />
 
               <div className="flex items-center gap-1">
                 {headerActions && (
@@ -1468,7 +1384,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     }}
                     disabled={isCapturing}
                     icon={<Camera className="w-3.5 h-3.5" />}
-                    label={`${t('widgetWindow.takeScreenshot')} (3-finger swipe \u2193)`}
+                    label={t('widgetWindow.takeScreenshotLongPress')}
                     size="sm"
                     variant="glass"
                   />
@@ -1535,7 +1451,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       >
                         <div className="flex items-center gap-2 mb-2 px-1">
                           <LayoutTemplate className="w-3.5 h-3.5 text-indigo-500" />
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          <span className="text-xxs font-black text-slate-500 uppercase tracking-widest">
                             {t('widgetWindow.chooseLayout')}
                           </span>
                         </div>
@@ -1602,6 +1518,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   size="sm"
                   variant="glass"
                 />
+                <IconButton
+                  onClick={() => {
+                    if (skipCloseConfirmation) {
+                      removeWidget(widget.id);
+                    } else {
+                      setShowConfirm(true);
+                      handleCloseTools();
+                    }
+                  }}
+                  icon={<X className="w-3.5 h-3.5" />}
+                  label={t('widgetWindow.close')}
+                  size="sm"
+                  variant="danger"
+                  className="hover:!bg-red-500/20"
+                />
               </div>
             </div>
           </div>,
@@ -1611,9 +1542,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* SETTINGS PANEL PORTAL */}
       {widget.flipped && typeof document !== 'undefined' && (
         <SettingsPanel
+          key={widget.id}
           widget={widget}
           widgetRef={windowRef}
           settings={settings}
+          appearanceSettings={appearanceSettings}
           shouldRenderSettings={shouldRenderSettings}
           onClose={() => updateWidget(widget.id, { flipped: false })}
           updateWidget={updateWidget}

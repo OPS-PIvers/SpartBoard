@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { DashboardProvider } from './context/DashboardContext';
+import { DialogProvider } from './context/DialogContext';
+import { DialogContainer } from './components/common/DialogContainer';
 import { UpdateNotification } from './components/layout/UpdateNotification';
 import { DriveDisconnectBanner } from './components/common/DriveDisconnectBanner';
 import { isConfigured, isAuthBypass } from './config/firebase';
@@ -109,31 +111,40 @@ const App: React.FC = () => {
 
   if (isStudentRoute) {
     return (
-      <StudentProvider>
-        <Suspense fallback={<FullPageLoader />}>
-          <StudentApp />
-        </Suspense>
-      </StudentProvider>
+      <DialogProvider>
+        <StudentProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <StudentApp />
+          </Suspense>
+        </StudentProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
   // Quiz student route — requires real Firebase auth (org Google account)
   if (isQuizRoute) {
     return (
-      <AuthProvider>
-        <Suspense fallback={<FullPageLoader />}>
-          <QuizStudentApp />
-        </Suspense>
-      </AuthProvider>
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <QuizStudentApp />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
   // Next Up student route — anonymous entry allowed
   if (isNextUpRoute) {
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        <NextUpStudentApp />
-      </Suspense>
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <NextUpStudentApp />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
@@ -165,16 +176,22 @@ const App: React.FC = () => {
   // Mobile Remote Control — same auth requirements as the main teacher view
   if (isRemoteRoute) {
     return (
-      <AuthProvider>
-        <AuthenticatedApp isRemote={true} />
-      </AuthProvider>
+      <DialogProvider>
+        <AuthProvider>
+          <AuthenticatedApp isRemote={true} />
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
   return (
-    <AuthProvider>
-      <AuthenticatedApp />
-    </AuthProvider>
+    <DialogProvider>
+      <AuthProvider>
+        <AuthenticatedApp />
+      </AuthProvider>
+      <DialogContainer />
+    </DialogProvider>
   );
 };
 

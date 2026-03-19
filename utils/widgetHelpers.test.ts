@@ -1,14 +1,51 @@
+import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { getTitle, getDefaultWidgetConfig } from './widgetHelpers';
+import {
+  getTitle,
+  getDefaultWidgetConfig,
+  isWidgetLayout,
+} from './widgetHelpers';
 import {
   WidgetData,
   TimeToolConfig,
   WidgetType,
   ChecklistConfig,
   FeaturePermission,
+  WidgetLayout,
+  WidgetOutput,
 } from '../types';
 
 describe('widgetHelpers', () => {
+  describe('isWidgetLayout', () => {
+    it('returns true for a valid WidgetLayout object', () => {
+      const layout: WidgetLayout = { content: 'test content' };
+      expect(isWidgetLayout(layout)).toBe(true);
+    });
+
+    it('returns true for a valid layout object with header', () => {
+      const output: WidgetOutput = {
+        content: 'hello',
+        header: 'header',
+      };
+      expect(isWidgetLayout(output)).toBe(true);
+    });
+
+    it('returns false for React elements', () => {
+      const element = React.createElement('div', null, 'hello');
+      expect(isWidgetLayout(element as unknown as WidgetOutput)).toBe(false);
+    });
+
+    it('returns false for null/undefined/string', () => {
+      expect(isWidgetLayout(null as unknown as WidgetOutput)).toBe(false);
+      expect(isWidgetLayout('string' as unknown as WidgetOutput)).toBe(false);
+    });
+
+    it('returns false for an object without content property', () => {
+      const obj = { someOtherProp: 'test' };
+      expect(isWidgetLayout(obj as unknown as WidgetOutput)).toBe(false);
+    });
+  });
+
   describe('getTitle', () => {
     it('returns custom title if present', () => {
       const widget = {

@@ -101,6 +101,7 @@
     "screenshotSaved": "Captura guardada",
     "screenshotFailed": "Error al guardar la captura",
     "takeScreenshot": "Tomar Captura",
+    "takeScreenshotLongPress": "Tomar captura (mantener presionado)",
     "screenshotGestureProTip": "Consejo: ¡Mantén presionado un widget para tomar una captura de pantalla!",
     "annotate": "Anotar",
     "duplicate": "Duplicar",
@@ -279,6 +280,8 @@
       "title": "Atajos y Gestos",
       "keyboard": "Teclado",
       "touchscreenGestures": "Gestos Táctiles",
+      "boardGestures": "Fondo del Tablero",
+      "widgetGestures": "Ventana de Widget",
       "footer": "Pulsa <kbd>Ctrl/⌘</kbd> + <kbd>/</kbd> en cualquier momento para abrir este panel",
       "shortcuts": {
         "openCheatSheet": "Abrir esta guía",
@@ -296,26 +299,34 @@
         "switchBoards": "Cambiar de tablero",
         "minimizeAll": "Minimizar todo al Dock",
         "restoreAll": "Restaurar todos los widgets",
-        "zoom": "Acercar / alejar tablero",
-        "toggleAnnotation": "Alternar anotación",
+        "toggleAnnotation": "Activar/desactivar anotación (mantener ~0,6 s)",
         "screenshot": "Tomar captura",
-        "minimizeWidget": "Minimizar widget"
+        "minimizeWidget": "Minimizar widget",
+        "minimizeOrRestoreWidget": "Minimizar widget (o restaurar si está maximizado)",
+        "openSidebar": "Abrir barra lateral",
+        "fullscreen": "Alternar pantalla completa",
+        "maximizeWidget": "Maximizar widget (deslizar ↑ de nuevo para primer plano)",
+        "spotlight": "Widget en primer plano",
+        "resize": "Redimensionar widget",
+        "panBoard": "Desplazar tablero"
       },
       "gestureNames": {
-        "oneFingerDoubleTap": "1-finger double tap",
-        "oneFingerLongPress": "1-finger long press",
-        "twoFingerSwipeLR": "Deslizar 4 dedos \u2190/\u2192",
-        "twoFingerSwipeDown": "Deslizar 4 dedos \u2193",
-        "twoFingerSwipeUp": "Deslizar 4 dedos \u2191",
-        "twoFingerPinch": "Pellizcar 2 dedos",
+        "oneFingerDoubleTap": "Doble toque con 1 dedo",
+        "oneFingerLongPress": "Mantener presionado con 1 dedo",
+        "oneFingerDrag": "Arrastrar con 1 dedo sobre el fondo",
+        "oneFingerSwipeEdge": "Deslizar 1 dedo desde el borde izquierdo",
+        "twoFingerSwipeLR": "Deslizar 2 dedos \u2190/\u2192",
+        "twoFingerSwipeDown": "Deslizar 2 dedos \u2193",
+        "twoFingerSwipeUp": "Deslizar 2 dedos \u2191",
+        "twoFingerLongPress": "Mantener 2 dedos (~0,6 s)",
         "dragDownToDock": "Arrastrar al dock \u2193",
-        "widgetTwoFingerSwipeDown": "Deslizar 3 dedos \u2193",
-        "widgetTwoFingerSwipeUp": "Deslizar 3 dedos \u2191"
+        "widgetTwoFingerSwipeDown": "Deslizar 2 dedos \u2193",
+        "widgetTwoFingerSwipeUp": "Deslizar 2 dedos \u2191"
       }
     },
     "dashboard": {
       "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
-      "switchBoardsHint": "Desliza 4 dedos izquierda/derecha para cambiar de tablero"
+      "switchBoardsHint": "Usa el selector de tableros en la barra de herramientas superior"
     }
   }
 }

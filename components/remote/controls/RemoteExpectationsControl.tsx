@@ -109,7 +109,7 @@ export const RemoteExpectationsControl: React.FC<
                   aria-pressed={isActive}
                 >
                   <span className="text-xl font-black">{level}</span>
-                  <span className="text-[10px] uppercase tracking-wide leading-none hidden sm:block">
+                  <span className="text-xxs uppercase tracking-wide leading-none hidden sm:block">
                     {label}
                   </span>
                 </button>

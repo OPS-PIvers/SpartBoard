@@ -36,6 +36,7 @@ import {
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
 import { Button } from '../common/Button';
+import { useDialog } from '@/context/useDialog';
 
 const DEFAULT_PRESETS = [
   {
@@ -87,6 +88,7 @@ const DEFAULT_PRESETS = [
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const BackgroundManager: React.FC = () => {
+  const { showConfirm } = useDialog();
   const [presets, setPresets] = useState<BackgroundPreset[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -215,12 +217,11 @@ export const BackgroundManager: React.FC = () => {
   }, [loadPresets]);
 
   const restoreDefaults = async () => {
-    if (
-      !confirm(
-        'This will add the 6 stock images to your managed list. Continue?'
-      )
-    )
-      return;
+    const confirmed = await showConfirm(
+      'This will add the 6 stock images to your managed list. Continue?',
+      { title: 'Restore Defaults', confirmLabel: 'Restore' }
+    );
+    if (!confirmed) return;
 
     try {
       setLoading(true);
@@ -349,21 +350,27 @@ export const BackgroundManager: React.FC = () => {
     }
   };
 
-  const updatePreset = (id: string, updates: Partial<BackgroundPreset>) => {
-    return updateDoc(doc(db, 'admin_backgrounds', id), updates)
-      .then(() => {
-        setPresets((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-        );
-      })
-      .catch((error) => {
-        console.error('Error updating preset:', error);
-        showMessage('error', 'Failed to update background');
-      });
+  const updatePreset = async (
+    id: string,
+    updates: Partial<BackgroundPreset>
+  ) => {
+    try {
+      await updateDoc(doc(db, 'admin_backgrounds', id), updates);
+      setPresets((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
+      );
+    } catch (error) {
+      console.error('Error updating preset:', error);
+      showMessage('error', 'Failed to update background');
+    }
   };
 
   const deletePreset = async (preset: BackgroundPreset) => {
-    if (!confirm('Are you sure you want to delete this background?')) return;
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this background?',
+      { title: 'Delete Background', variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (!confirmed) return;
 
     // First, delete the Firestore document (source of truth)
     try {

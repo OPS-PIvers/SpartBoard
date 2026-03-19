@@ -378,24 +378,24 @@ export const Dock: React.FC = () => {
     setShowRosterMenu(false);
   };
 
-  const handleToggleRosterMenu = () => {
+  const handleToggleRosterMenu = useCallback(() => {
     if (!showRosterMenu && classesButtonRef.current) {
       setClassesAnchorRect(classesButtonRef.current.getBoundingClientRect());
     }
     setShowRosterMenu(!showRosterMenu);
-  };
+  }, [showRosterMenu]);
 
-  const handleToggleRemoteMenu = () => {
+  const handleToggleRemoteMenu = useCallback(() => {
     if (!showRemoteMenu && remoteButtonRef.current) {
       setRemoteAnchorRect(remoteButtonRef.current.getBoundingClientRect());
     }
     setShowRemoteMenu(!showRemoteMenu);
-  };
+  }, [showRemoteMenu]);
 
-  const handleLongPress = () => {
+  const handleLongPress = useCallback(() => {
     setIsEditMode(true);
     setShowLibrary(true);
-  };
+  }, []);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
@@ -407,81 +407,87 @@ export const Dock: React.FC = () => {
     })
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveItemId(event.active.id as string);
-  };
+  }, []);
 
   /**
    * Custom Collision Detection to handle Grouping vs Reordering
    * If the center of the dragged item is significantly over a folder, we prioritize grouping.
    */
-  const customCollisionDetection: CollisionDetection = (args) => {
-    const items = dockItems;
+  const customCollisionDetection: CollisionDetection = useCallback(
+    (args) => {
+      const items = dockItems;
 
-    // 1. First, check for folder grouping (rect intersection)
-    const folderCollisions = rectIntersection(args).filter((collision) => {
-      const item = items.find(
-        (i) => i.type === 'folder' && i.folder.id === collision.id
-      );
+      // 1. First, check for folder grouping (rect intersection)
+      const folderCollisions = rectIntersection(args).filter((collision) => {
+        const item = items.find(
+          (i) => i.type === 'folder' && i.folder.id === collision.id
+        );
 
-      return !!item;
-    });
-
-    if (folderCollisions.length > 0) {
-      folderCollisions.sort(
-        (a, b) => (b.data?.value ?? 0) - (a.data?.value ?? 0)
-      );
-
-      return [folderCollisions[0]];
-    }
-
-    // 2. Otherwise, fallback to standard sortable collision (closestCenter)
-    return closestCenter(args);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveItemId(null);
-
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const items = dockItems;
-
-    // Check if dropping onto a folder
-    const overItem = items.find(
-      (item) => item.type === 'folder' && item.folder.id === overId
-    );
-
-    if (overItem && overItem.type === 'folder' && activeId !== overId) {
-      // Find the tool type being dragged
-      const activeItem = items.find(
-        (item) => item.type === 'tool' && item.toolType === activeId
-      );
-      if (activeItem && activeItem.type === 'tool') {
-        addItemToFolder(overItem.folder.id, activeItem.toolType);
-        return;
-      }
-    }
-
-    // Standard reordering
-    if (activeId !== overId) {
-      const oldIndex = items.findIndex((item) => {
-        const id = item.type === 'tool' ? item.toolType : item.folder.id;
-        return id === activeId;
-      });
-      const newIndex = items.findIndex((item) => {
-        const id = item.type === 'tool' ? item.toolType : item.folder.id;
-        return id === overId;
+        return !!item;
       });
 
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const next = arrayMove(items, oldIndex, newIndex);
-        reorderDockItems(next);
+      if (folderCollisions.length > 0) {
+        folderCollisions.sort(
+          (a, b) => (b.data?.value ?? 0) - (a.data?.value ?? 0)
+        );
+
+        return [folderCollisions[0]];
       }
-    }
-  };
+
+      // 2. Otherwise, fallback to standard sortable collision (closestCenter)
+      return closestCenter(args);
+    },
+    [dockItems]
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveItemId(null);
+
+      if (!over) return;
+
+      const activeId = active.id as string;
+      const overId = over.id as string;
+      const items = dockItems;
+
+      // Check if dropping onto a folder
+      const overItem = items.find(
+        (item) => item.type === 'folder' && item.folder.id === overId
+      );
+
+      if (overItem && overItem.type === 'folder' && activeId !== overId) {
+        // Find the tool type being dragged
+        const activeItem = items.find(
+          (item) => item.type === 'tool' && item.toolType === activeId
+        );
+        if (activeItem && activeItem.type === 'tool') {
+          addItemToFolder(overItem.folder.id, activeItem.toolType);
+          return;
+        }
+      }
+
+      // Standard reordering
+      if (activeId !== overId) {
+        const oldIndex = items.findIndex((item) => {
+          const id = item.type === 'tool' ? item.toolType : item.folder.id;
+          return id === activeId;
+        });
+        const newIndex = items.findIndex((item) => {
+          const id = item.type === 'tool' ? item.toolType : item.folder.id;
+          return id === overId;
+        });
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const next = arrayMove(items, oldIndex, newIndex);
+          reorderDockItems(next);
+        }
+      }
+    },
+    [dockItems, addItemToFolder, reorderDockItems]
+  );
 
   // Memoize minimized widgets by type to avoid O(N*M) filtering in render loop
   const minimizedWidgetsByType = useMemo(() => {

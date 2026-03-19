@@ -7,7 +7,11 @@ import {
   cleanup,
   act,
 } from '@testing-library/react';
-import { ScheduleWidget, ScheduleSettings } from './Schedule';
+import {
+  ScheduleWidget,
+  ScheduleSettings,
+  ScheduleAppearanceSettings,
+} from './Schedule';
 import { useDashboard } from '../../context/useDashboard';
 import { useAuth } from '../../context/useAuth';
 import { useFeaturePermissions } from '../../hooks/useFeaturePermissions';
@@ -33,6 +37,7 @@ vi.mock('../../hooks/useScaledFont', () => ({
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
+  CalendarDays: () => <div>CalendarDays Icon</div>,
   Circle: () => <div data-testid="circle-icon" />,
   CheckCircle2: () => <div data-testid="check-icon" />,
   Type: () => <div>Type Icon</div>,
@@ -50,6 +55,10 @@ vi.mock('lucide-react', () => ({
   Calendar: () => <div>Calendar Icon</div>,
   LayoutGrid: () => <div>LayoutGrid Icon</div>,
   ChevronRight: () => <div>ChevronRight Icon</div>,
+  ChevronDown: () => <div>ChevronDown Icon</div>,
+  Copy: () => <div>Copy Icon</div>,
+  Link: () => <div>Link Icon</div>,
+  ArrowUpDown: () => <div>ArrowUpDown Icon</div>,
   Ban: () => <div>Ban Icon</div>,
 }));
 
@@ -290,25 +299,22 @@ describe('ScheduleWidget', () => {
   });
 
   describe('autoScroll', () => {
-    it('gives rows calc height to fit 4 items regardless of autoScroll setting', () => {
-      // Test with autoScroll: true
+    it('rows never use calc() height (flex layout always used)', () => {
       const widgetTrue = createWidget({ autoScroll: true });
       const { container: containerTrue } = render(
         <ScheduleWidget widget={widgetTrue} />
       );
-      // Both modes now use the calc((100% - 3 * gap) / 4) formula
       const rowsTrue = containerTrue.querySelectorAll('[style*="calc"]');
-      expect(rowsTrue.length).toBe(3);
+      expect(rowsTrue.length).toBe(0);
 
       cleanup();
 
-      // Test with autoScroll: false
       const widgetFalse = createWidget({ autoScroll: false });
       const { container: containerFalse } = render(
         <ScheduleWidget widget={widgetFalse} />
       );
       const rowsFalse = containerFalse.querySelectorAll('[style*="calc"]');
-      expect(rowsFalse.length).toBe(3);
+      expect(rowsFalse.length).toBe(0);
     });
 
     it('highlights the currently active item with "Now" badge', () => {
@@ -414,6 +420,29 @@ describe('ScheduleWidget', () => {
     });
   });
 
+  describe('viewMode', () => {
+    it('does not use calc() row height (always flex)', () => {
+      const widget = createWidget({});
+      const { container } = render(<ScheduleWidget widget={widget} />);
+      const rows = container.querySelectorAll('[style*="calc"]');
+      // Flex rows use auto height — no calc()
+      expect(rows.length).toBe(0);
+    });
+
+    it('calls scrollTo when autoScroll is enabled and an item is active', () => {
+      const date = new Date();
+      date.setHours(9, 15, 0, 0);
+      vi.setSystemTime(date);
+
+      const scrollToSpy = vi.spyOn(HTMLElement.prototype, 'scrollTo');
+      const widget = createWidget({ autoScroll: true });
+      render(<ScheduleWidget widget={widget} />);
+
+      expect(scrollToSpy).toHaveBeenCalled();
+      scrollToSpy.mockRestore();
+    });
+  });
+
   it('renders the schedule matching the current day', () => {
     // Force date to Monday
     const monday = new Date(2023, 0, 2); // Jan 2, 2023 is Monday
@@ -510,8 +539,13 @@ describe('ScheduleSettings', () => {
   it('renders settings controls', () => {
     render(<ScheduleSettings widget={createWidget()} />);
 
-    expect(screen.getByText(/typography/i)).toBeInTheDocument();
     expect(screen.getByText(/auto-checkoff/i)).toBeInTheDocument();
+  });
+
+  it('renders typography in appearance settings', () => {
+    render(<ScheduleAppearanceSettings widget={createWidget()} />);
+
+    expect(screen.getByText(/typography/i)).toBeInTheDocument();
   });
 
   it('renders the Auto-Scroll View toggle', () => {
@@ -536,7 +570,7 @@ describe('ScheduleSettings', () => {
     );
   });
 
-  it('sorts items chronologically when a new item is saved via the add form', () => {
+  it('adds a new item inline when Add Event is clicked after expanding a schedule', () => {
     // Start with one item at 10:00.
     const widget = createWidget({
       items: [
@@ -551,34 +585,29 @@ describe('ScheduleSettings', () => {
         },
       ],
     });
-    const { container } = render(<ScheduleSettings widget={widget} />);
+    render(<ScheduleSettings widget={widget} />);
 
-    // Select the default schedule first
-    fireEvent.click(screen.getByTitle(/edit items/i));
+    // Expand the default schedule accordion (the card is a div, not a button;
+    // click the cursor-pointer wrapper since the inner input stops propagation).
+    const scheduleNameInput = screen.getByDisplayValue(/default schedule/i);
+    const accordionCard = scheduleNameInput.closest('.cursor-pointer');
+    if (!accordionCard) throw new Error('Accordion card not found');
+    fireEvent.click(accordionCard);
 
-    // Open the add-event form.
+    // Click "Add Event" to append a new blank item.
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
 
-    // Fill in task name.
-    const taskInput = container.querySelector(
-      'input[placeholder="e.g. Math Class"]'
-    ) as HTMLInputElement;
-    fireEvent.change(taskInput, { target: { value: 'Early Class' } });
-
-    // Fill in start time (first <input type="time"> in the form).
-    const [startTimeInput] = container.querySelectorAll('input[type="time"]');
-    fireEvent.change(startTimeInput, { target: { value: '08:00' } });
-
-    // Submit the form.
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
-
-    // The saved items must be sorted: Early Class (08:00) before Later Class (10:00).
-    const savedItems = (
-      mockUpdateWidget.mock.calls[0][1] as {
-        config: { items: { task: string }[] };
-      }
-    ).config.items;
-    expect(savedItems[0].task).toBe('Early Class');
-    expect(savedItems[1].task).toBe('Later Class');
+    // updateWidget should have been called with the existing item + a new blank one.
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'schedule-1',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({ task: 'Later Class' }),
+            expect.objectContaining({ task: '' }),
+          ]),
+        }),
+      })
+    );
   });
 });

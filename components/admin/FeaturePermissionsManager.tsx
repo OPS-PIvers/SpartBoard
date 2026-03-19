@@ -35,9 +35,12 @@ import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
+import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
+import { useDialog } from '@/context/useDialog';
 
 export const FeaturePermissionsManager: React.FC = () => {
+  const { showConfirm } = useDialog();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
@@ -680,6 +683,13 @@ export const FeaturePermissionsManager: React.FC = () => {
         <MiniAppLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
 
+      {activeModalTool?.type === 'starter-pack' && (
+        <StarterPackConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -687,18 +697,23 @@ export const FeaturePermissionsManager: React.FC = () => {
           'calendar',
           'specialist-schedule',
           'miniApp',
+          'starter-pack',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
             permission={getPermission(activeModalTool.type)}
-            onClose={() => {
+            onClose={async () => {
               const toolType = activeModalTool?.type;
               if (toolType && unsavedChanges.has(toolType)) {
-                if (
-                  window.confirm(
-                    'You have unsaved changes. Are you sure you want to discard them?'
-                  )
-                ) {
+                const confirmed = await showConfirm(
+                  'You have unsaved changes. Are you sure you want to discard them?',
+                  {
+                    title: 'Discard Changes',
+                    variant: 'warning',
+                    confirmLabel: 'Discard',
+                  }
+                );
+                if (confirmed) {
                   setUnsavedChanges((prev) => {
                     const next = new Set(prev);
                     next.delete(toolType);
@@ -706,35 +721,34 @@ export const FeaturePermissionsManager: React.FC = () => {
                   });
 
                   if (!isAuthBypass) {
-                    const docRef = doc(db, 'feature_permissions', toolType);
-                    getDoc(docRef)
-                      .then((snap) => {
-                        let data: FeaturePermission;
-                        if (snap.exists()) {
-                          data = snap.data() as FeaturePermission;
-                          if (
-                            data.gradeLevels &&
-                            data.gradeLevels.includes('universal' as GradeLevel)
-                          ) {
-                            data.gradeLevels = ALL_GRADE_LEVELS;
-                          }
-                        } else {
-                          data = {
-                            widgetType: toolType,
-                            accessLevel: 'public',
-                            betaUsers: [],
-                            enabled: true,
-                          };
+                    try {
+                      const docRef = doc(db, 'feature_permissions', toolType);
+                      const snap = await getDoc(docRef);
+                      let data: FeaturePermission;
+                      if (snap.exists()) {
+                        data = snap.data() as FeaturePermission;
+                        if (
+                          data.gradeLevels &&
+                          data.gradeLevels.includes('universal' as GradeLevel)
+                        ) {
+                          data.gradeLevels = ALL_GRADE_LEVELS;
                         }
-                        setPermissions((prev) =>
-                          new Map(prev).set(toolType, data)
-                        );
-                        setActiveModalTool(null);
-                      })
-                      .catch((err) => {
-                        console.error('Failed to revert permission', err);
-                        setActiveModalTool(null);
-                      });
+                      } else {
+                        data = {
+                          widgetType: toolType,
+                          accessLevel: 'public',
+                          betaUsers: [],
+                          enabled: true,
+                        };
+                      }
+                      setPermissions((prev) =>
+                        new Map(prev).set(toolType, data)
+                      );
+                    } catch (err) {
+                      console.error('Failed to revert permission', err);
+                    } finally {
+                      setActiveModalTool(null);
+                    }
                   } else {
                     setActiveModalTool(null);
                   }

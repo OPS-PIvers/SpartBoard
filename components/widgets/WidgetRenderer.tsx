@@ -15,12 +15,13 @@ import { StickerItemWidget } from './stickers/StickerItemWidget';
 import { getTitle } from '@/utils/widgetHelpers';
 import { getJoinUrl } from '@/utils/urlHelpers';
 import { ScalableWidget } from '../common/ScalableWidget';
-import { WidgetLayoutWrapper } from './WidgetLayoutWrapper';
+import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
+  WIDGET_APPEARANCE_COMPONENTS,
   WIDGET_SCALING_CONFIG,
   DEFAULT_SCALING_CONFIG,
 } from './WidgetRegistry';
@@ -117,13 +118,13 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   };
 
   // Sync config changes to session when live
-  // OPTIMIZATION: Only serialize when config reference changes to avoid expensive JSON.stringify on every drag/render
+  // ⚡ BOLT OPTIMIZATION: Only serialize when config reference changes AND session is live to avoid expensive JSON.stringify on every drag/render
   const configJson = useMemo(
-    () => JSON.stringify(widget.config),
-    [widget.config]
+    () => (isLive ? JSON.stringify(widget.config) : null),
+    [widget.config, isLive]
   );
   React.useEffect(() => {
-    if (!isLive) {
+    if (!isLive || !configJson) {
       return undefined;
     }
 
@@ -151,6 +152,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   }, [dashboardBackground, isLive, updateSessionBackground]);
 
   const SettingsComponent = WIDGET_SETTINGS_COMPONENTS[widget.type];
+  const AppearanceComponent = WIDGET_APPEARANCE_COMPONENTS[widget.type];
 
   const getWidgetSettings = () => {
     if (SettingsComponent) {
@@ -165,6 +167,17 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         Standard settings available.
       </div>
     );
+  };
+
+  const getWidgetAppearanceSettings = () => {
+    if (AppearanceComponent) {
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <AppearanceComponent widget={widget} />
+        </Suspense>
+      );
+    }
+    return null;
   };
 
   const isDrawingOverlay =
@@ -276,8 +289,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     <ScalableWidget
       width={effectiveWidth}
       height={effectiveHeight}
-      baseWidth={scalingConfig.baseWidth}
-      baseHeight={scalingConfig.baseHeight}
+      baseWidth={scalingConfig.baseWidth ?? 400}
+      baseHeight={scalingConfig.baseHeight ?? 400}
       canSpread={scalingConfig.canSpread ?? true}
       headerHeight={HEADER_HEIGHT}
       padding={scalingConfig.padding ?? PADDING}
@@ -304,6 +317,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       widget={widget}
       title={getTitle(widget, permission)}
       settings={getWidgetSettings()}
+      appearanceSettings={getWidgetAppearanceSettings()}
       style={customStyle}
       isSpotlighted={isSpotlighted}
       skipCloseConfirmation={

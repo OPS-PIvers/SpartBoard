@@ -52,6 +52,7 @@ import { GlobalAppRow } from './components/GlobalAppRow';
 import { MiniAppEditor } from './components/MiniAppEditor';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
+import { useDialog } from '@/context/useDialog';
 
 // --- MAIN WIDGET COMPONENT ---
 export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
@@ -61,6 +62,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { user } = useAuth();
+  const { showConfirm } = useDialog();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
   const activeAppId = activeApp?.id;
@@ -279,7 +281,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleDelete = async (id: string) => {
     if (!user) return;
-    if (confirm('Delete this app from your library?')) {
+    const confirmed = await showConfirm('Delete this app from your library?', {
+      title: 'Delete App',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) {
       try {
         await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
         addToast('App deleted', 'info');

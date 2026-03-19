@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderPlus, X } from 'lucide-react';
 import { useSortable, SortableContext, arrayMove } from '@dnd-kit/sortable';
@@ -99,20 +99,23 @@ export const FolderItem = React.memo(
       }
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (active.id !== over?.id) {
-        const oldIndex = folder.items.indexOf(
-          active.id as WidgetType | InternalToolType
-        );
-        const newIndex = folder.items.indexOf(
-          over?.id as WidgetType | InternalToolType
-        );
-        if (oldIndex !== -1 && newIndex !== -1) {
-          onReorder(folder.id, arrayMove(folder.items, oldIndex, newIndex));
+    const handleDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (active.id !== over?.id) {
+          const oldIndex = folder.items.indexOf(
+            active.id as WidgetType | InternalToolType
+          );
+          const newIndex = folder.items.indexOf(
+            over?.id as WidgetType | InternalToolType
+          );
+          if (oldIndex !== -1 && newIndex !== -1) {
+            onReorder(folder.id, arrayMove(folder.items, oldIndex, newIndex));
+          }
         }
-      }
-    };
+      },
+      [folder.id, folder.items, onReorder]
+    );
 
     const style = {
       transform: CSS.Translate.toString(transform),
@@ -204,7 +207,7 @@ export const FolderItem = React.memo(
                 e.stopPropagation();
                 onDelete(folder.id);
               }}
-              className="absolute -top-2 -right-2 z-50 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all"
+              className="absolute -top-2 -right-2 z-controls bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-all"
             >
               <X className="w-2.5 h-2.5" />
             </button>

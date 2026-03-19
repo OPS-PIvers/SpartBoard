@@ -41,7 +41,14 @@ export type WidgetType =
   | 'onboarding'
   | 'car-rider-pro'
   | 'music'
-  | 'specialist-schedule';
+  | 'specialist-schedule'
+  | 'graphic-organizer'
+  | 'concept-web'
+  | 'reveal-grid'
+  | 'numberLine'
+  | 'syntax-framer'
+  | 'hotspot-image'
+  | 'starter-pack';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -150,6 +157,7 @@ export interface ChecklistItem {
 }
 
 export interface PollOption {
+  id: string;
   label: string;
   votes: number;
 }
@@ -217,6 +225,8 @@ export interface TextConfig {
   content: string;
   bgColor: string;
   fontSize: number;
+  fontFamily?: string;
+  fontColor?: string;
 }
 
 export interface ChecklistConfig {
@@ -275,8 +285,10 @@ export interface DrawingConfig {
 }
 
 export interface QRConfig {
-  url: string;
+  url?: string;
   syncWithTextWidget?: boolean;
+  qrColor?: string;
+  qrBgColor?: string;
 }
 
 export interface EmbedConfig {
@@ -286,6 +298,16 @@ export interface EmbedConfig {
   refreshInterval?: number;
   isEmbeddable?: boolean;
   blockedReason?: string;
+}
+
+export interface BuildingPollDefaults {
+  buildingId: string;
+  question?: string;
+  options?: PollOption[];
+}
+
+export interface PollGlobalConfig {
+  buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
 export interface PollConfig {
@@ -332,6 +354,7 @@ export interface ExpectationsConfig {
   instructionalRoutine?: string; // Legacy/K-8
   activeRoutines?: string[]; // New: 9-12 Multi-select
   layout?: 'secondary' | 'elementary';
+  syncSoundWidget?: boolean;
 }
 
 export interface ExpectationsOptionOverride {
@@ -382,6 +405,8 @@ export interface WeatherConfig {
   showFeelsLike?: boolean;
   hideClothing?: boolean;
   syncBackground?: boolean;
+  fontFamily?: string;
+  fontColor?: string;
 }
 
 export interface WeatherTemperatureRange {
@@ -443,6 +468,17 @@ export interface BuildingScheduleDefaults {
 
 export interface ScheduleGlobalConfig {
   buildingDefaults: Record<string, BuildingScheduleDefaults>;
+}
+
+// --- Embed Global Config ---
+export interface BuildingEmbedDefaults {
+  buildingId: string;
+  hideUrlField?: boolean;
+  whitelistUrls?: string[];
+}
+
+export interface EmbedGlobalConfig {
+  buildingDefaults: Record<string, BuildingEmbedDefaults>;
 }
 
 // --- Clock Global Config ---
@@ -565,6 +601,18 @@ export interface DrawingGlobalConfig {
   buildingDefaults: Record<string, BuildingDrawingDefaults>;
 }
 
+// --- QR Global Config ---
+export interface BuildingQRDefaults {
+  buildingId: string;
+  defaultUrl?: string;
+  qrColor?: string;
+  qrBgColor?: string;
+}
+
+export interface QRGlobalConfig {
+  buildingDefaults: Record<string, BuildingQRDefaults>;
+}
+
 // --- Materials Global Config ---
 export interface BuildingMaterialsDefaults {
   buildingId: string;
@@ -685,6 +733,7 @@ export interface TimeToolConfig {
   timerEndVoiceLevel?: number | null; // 0-4 voice level to set when timer ends
   timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
   timerEndTriggerRandom?: boolean; // Whether to trigger random picker when timer ends
+  timerEndTriggerNextUp?: boolean; // Whether to advance NextUp queue when timer ends
   themeColor?: string;
   glow?: boolean;
   fontFamily?: string;
@@ -783,6 +832,13 @@ export interface MathToolsConfig {
 /** Number line display mode */
 export type NumberLineMode = 'integers' | 'decimals' | 'fractions';
 
+export interface PlaceValueBlock {
+  id: string;
+  type: '1' | '10' | '100' | '1000';
+  x: number;
+  y: number;
+}
+
 /** Config for an individual mathTool widget instance */
 export interface MathToolConfig {
   /** Which math tool this instance displays */
@@ -813,6 +869,8 @@ export interface MathToolConfig {
   stickerMode?: boolean;
   /** For manipulative piece stickers – identifies the specific piece (e.g. 'unit', 'rod', '1-2', 'hexagon') */
   stickerPiece?: string;
+  placeValueBlocks?: PlaceValueBlock[];
+  placeValueColumns?: string[];
 }
 
 export interface PdfConfig {
@@ -1110,6 +1168,7 @@ export interface NextUpConfig {
   lastUpdated: number;
   displayCount: number;
   autoStartTimer?: boolean; // Nexus connection
+  externalTrigger?: number; // Nexus connection
   styling: {
     fontFamily: string;
     themeColor: string;
@@ -1127,6 +1186,22 @@ export interface NextUpGlobalConfig {
     }
   >;
 }
+
+export interface StarterPack {
+  id: string;
+  name: string;
+  description?: string;
+  icon: string; // Lucide icon key
+  color: string; // Tailwind color class
+  gradeLevels: string[]; // e.g., ["K", "1", "2"]
+  isLocked: boolean; // Teachers cannot edit/delete
+  widgets: Omit<WidgetData, 'id'>[]; // The snapshot of widget states
+}
+
+export type BuildingStarterPack = StarterPack;
+export type UserStarterPack = StarterPack;
+
+export type StarterPackConfig = Record<string, never>;
 
 export interface OnboardingConfig {
   completedTasks: string[];
@@ -1150,6 +1225,30 @@ export interface SpecialistScheduleRecurringItem extends SpecialistScheduleItem 
 export interface SpecialistScheduleCycleDay {
   dayNumber: number; // 1 to cycleLength
   items: SpecialistScheduleItem[];
+}
+
+export interface NumberLineMarker {
+  id: string;
+  value: number;
+  label?: string;
+  color: string;
+}
+
+export interface NumberLineJump {
+  id: string;
+  startValue: number;
+  endValue: number;
+  label?: string; // e.g., "+5"
+}
+
+export interface NumberLineConfig {
+  min: number;
+  max: number;
+  step: number; // e.g., 1, 0.5, 10
+  displayMode: NumberLineMode;
+  markers: NumberLineMarker[];
+  jumps: NumberLineJump[];
+  showArrows: boolean;
 }
 
 export interface SpecialistScheduleBuildingConfig {
@@ -1214,6 +1313,16 @@ export interface MusicConfig {
   textColor?: string;
 }
 
+export interface OrganizerNode {
+  id: string;
+  text: string;
+}
+
+export interface GraphicOrganizerConfig {
+  templateType: 'frayer' | 't-chart' | 'venn' | 'kwl' | 'cause-effect';
+  nodes: Record<string, OrganizerNode>;
+  fontFamily?: GlobalFontFamily;
+}
 export interface CarRiderProConfig {
   iframeUrl?: string;
   cardColor?: string;
@@ -1228,6 +1337,90 @@ export interface BloomsLevel {
 export interface BloomsConfig {
   customStarters?: BloomsLevel[];
   activeLevel?: string | null; // Currently selected level for the drawer/detail view
+}
+
+export interface RevealCard {
+  id: string;
+  frontContent: string;
+  backContent: string;
+  isRevealed: boolean; // Synced to Firebase: Triggers the 3D flip on all screens
+  bgColor?: string;
+}
+
+export interface RevealGridConfig {
+  columns: 2 | 3 | 4 | 5;
+  cards: RevealCard[];
+  revealMode: 'flip' | 'fade';
+  fontFamily?: GlobalFontFamily;
+  defaultCardColor?: string;
+  defaultCardBackColor?: string;
+  activeDriveFileId?: string | null;
+  setName?: string;
+}
+
+export interface ConceptNode {
+  id: string;
+  text: string;
+  x: number; // X position as a percentage of container
+  y: number; // Y position as a percentage of container
+  width?: number; // Width as a percentage of container
+  height?: number; // Height as a percentage of container
+  bgColor?: string;
+}
+
+export interface ConceptEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  label?: string; // e.g., "causes", "eats"
+  lineStyle: 'solid' | 'dashed';
+}
+
+export interface ConceptWebConfig {
+  nodes: ConceptNode[];
+  edges: ConceptEdge[];
+  fontFamily?: GlobalFontFamily;
+  defaultNodeWidth?: number; // Width as a percentage of container
+  defaultNodeHeight?: number; // Height as a percentage of container
+}
+
+export interface SyntaxToken {
+  id: string;
+  value: string; // the word, punctuation, or math operator
+  color?: string;
+  isMasked: boolean; // Renders as a blank underscore if true
+}
+
+export interface SyntaxFramerConfig {
+  mode: 'text' | 'math'; // Math mode adds an equation-style font
+  tokens: SyntaxToken[];
+  alignment: 'left' | 'center';
+}
+
+export interface ImageHotspot {
+  id: string;
+  xPct: number; // Use percentages so pins stay anchored if the widget scales
+  yPct: number;
+  title: string;
+  detailText: string;
+  icon: 'search' | 'info' | 'question' | 'star';
+  isViewed: boolean; // Syncs state so teachers know which ones they've covered
+}
+
+export interface HotspotSavedItem {
+  id: string;
+  name: string;
+  baseImageUrl: string;
+  hotspots: ImageHotspot[];
+  popoverTheme?: 'light' | 'dark' | 'glass';
+  createdAt: number;
+}
+
+export interface HotspotImageConfig {
+  baseImageUrl: string;
+  hotspots: ImageHotspot[];
+  popoverTheme?: 'light' | 'dark' | 'glass';
+  savedLibrary?: HotspotSavedItem[];
 }
 
 // Union of all widget configs
@@ -1274,7 +1467,14 @@ export type WidgetConfig =
   | OnboardingConfig
   | CarRiderProConfig
   | MusicConfig
-  | SpecialistScheduleConfig;
+  | SpecialistScheduleConfig
+  | GraphicOrganizerConfig
+  | RevealGridConfig
+  | NumberLineConfig
+  | ConceptWebConfig
+  | SyntaxFramerConfig
+  | HotspotImageConfig
+  | StarterPackConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1363,7 +1563,21 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                     ? MusicConfig
                                                                                     : T extends 'specialist-schedule'
                                                                                       ? SpecialistScheduleConfig
-                                                                                      : never;
+                                                                                      : T extends 'graphic-organizer'
+                                                                                        ? GraphicOrganizerConfig
+                                                                                        : T extends 'concept-web'
+                                                                                          ? ConceptWebConfig
+                                                                                          : T extends 'reveal-grid'
+                                                                                            ? RevealGridConfig
+                                                                                            : T extends 'numberLine'
+                                                                                              ? NumberLineConfig
+                                                                                              : T extends 'syntax-framer'
+                                                                                                ? SyntaxFramerConfig
+                                                                                                : T extends 'hotspot-image'
+                                                                                                  ? HotspotImageConfig
+                                                                                                  : T extends 'starter-pack'
+                                                                                                    ? StarterPackConfig
+                                                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

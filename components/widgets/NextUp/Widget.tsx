@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { ListOrdered, RefreshCcw } from 'lucide-react';
+import { useDialog } from '@/context/useDialog';
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const ENTRIES_SUBCOLLECTION = 'entries';
@@ -28,6 +29,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
   const { driveService } = useGoogleDrive();
   const { updateWidget, activeDashboard } = useDashboard();
+  const { showConfirm } = useDialog();
   const { user } = useAuth();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
@@ -94,6 +96,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   React.useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
+
+  const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
 
   // Firestore "Buffer" Listener: Watch for incoming student entries
   useEffect(() => {
@@ -191,7 +195,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     [config, driveService, widget.id, updateWidget]
   );
 
-  const handleNextStudent = async () => {
+  const handleNextStudent = useCallback(async () => {
     const updated = [...queue];
     const activeIdx = updated.findIndex((q) => q.status === 'active');
     if (activeIdx !== -1) updated[activeIdx].status = 'done';
@@ -228,11 +232,31 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     }
 
     await syncToDrive(updated);
-  };
+  }, [
+    queue,
+    config.autoStartTimer,
+    activeDashboard,
+    syncToDrive,
+    updateWidget,
+  ]);
+
+  // Nexus: External trigger (e.g., from Time Tool auto-advance)
+  useEffect(() => {
+    if (
+      config.externalTrigger &&
+      config.externalTrigger > lastExternalTriggerRef.current
+    ) {
+      lastExternalTriggerRef.current = config.externalTrigger;
+      void handleNextStudent();
+    }
+  }, [config.externalTrigger, handleNextStudent]);
 
   const handleResetQueue = async () => {
-    if (!window.confirm('Reset the current queue? This will clear all names.'))
-      return;
+    const confirmed = await showConfirm(
+      'Reset the current queue? This will clear all names.',
+      { title: 'Reset Queue', variant: 'warning', confirmLabel: 'Reset' }
+    );
+    if (!confirmed) return;
     const updated: NextUpQueueItem[] = [];
     setQueue(updated);
     await syncToDrive(updated);

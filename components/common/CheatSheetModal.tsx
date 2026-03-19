@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Keyboard, Hand } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
 import { useTranslation, Trans } from 'react-i18next';
 
 interface CheatSheetModalProps {
@@ -95,8 +94,8 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
         description: t('widgets.cheatSheet.gestures.restoreAll'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerPinch'),
-        description: t('widgets.cheatSheet.gestures.zoom'),
+        gesture: t('widgets.cheatSheet.gestureNames.oneFingerDrag'),
+        description: t('widgets.cheatSheet.gestures.panBoard'),
       },
       {
         gesture: t('widgets.cheatSheet.gestureNames.oneFingerSwipeEdge'),
@@ -114,18 +113,14 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
     () => [
       {
         gesture: t('widgets.cheatSheet.gestureNames.widgetTwoFingerSwipeDown'),
-        description: t('widgets.cheatSheet.gestures.minimizeWidget'),
+        description: t('widgets.cheatSheet.gestures.minimizeOrRestoreWidget'),
       },
       {
         gesture: t('widgets.cheatSheet.gestureNames.widgetTwoFingerSwipeUp'),
         description: t('widgets.cheatSheet.gestures.maximizeWidget'),
       },
       {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerPinch'),
-        description: t('widgets.cheatSheet.gestures.resize'),
-      },
-      {
-        gesture: t('widgets.cheatSheet.gestureNames.twoFingerDoubleTap'),
+        gesture: t('widgets.cheatSheet.gestureNames.twoFingerLongPress'),
         description: t('widgets.cheatSheet.gestures.toggleAnnotation'),
       },
       {
@@ -176,8 +171,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: Z_INDEX.modal }}
+      className="fixed inset-0 z-modal flex items-center justify-center p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -251,7 +245,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
             <div className="space-y-6">
               {/* Board Context */}
               <section>
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="h-px bg-slate-800 flex-1" />
                   {t('widgets.cheatSheet.boardGestures')}
                   <span className="h-px bg-slate-800 flex-1" />
@@ -275,7 +269,7 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
 
               {/* Widget Context */}
               <section>
-                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="h-px bg-slate-800 flex-1" />
                   {t('widgets.cheatSheet.widgetGestures')}
                   <span className="h-px bg-slate-800 flex-1" />

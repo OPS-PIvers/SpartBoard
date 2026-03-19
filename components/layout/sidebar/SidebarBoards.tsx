@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Download } from 'lucide-react';
@@ -22,6 +22,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { Dashboard } from '@/types';
 import { SortableDashboardItem } from './SortableDashboardItem';
+import { useDialog } from '@/context/useDialog';
 
 interface SidebarBoardsProps {
   isVisible: boolean;
@@ -34,6 +35,7 @@ interface DashboardData {
 
 export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
   const { t } = useTranslation();
+  const { showPrompt } = useDialog();
   const {
     dashboards,
     activeDashboard,
@@ -68,19 +70,22 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = dashboards.findIndex((d) => d.id === active.id);
-      const newIndex = dashboards.findIndex((d) => d.id === over.id);
+      if (over && active.id !== over.id) {
+        const oldIndex = dashboards.findIndex((d) => d.id === active.id);
+        const newIndex = dashboards.findIndex((d) => d.id === over.id);
 
-      const newOrder = arrayMove(dashboards, oldIndex, newIndex).map(
-        (d) => d.id
-      );
-      reorderDashboards(newOrder);
-    }
-  };
+        const newOrder = arrayMove(dashboards, oldIndex, newIndex).map(
+          (d) => d.id
+        );
+        reorderDashboards(newOrder);
+      }
+    },
+    [dashboards, reorderDashboards]
+  );
 
   const handleShare = async (db?: Dashboard) => {
     if (!canAccessFeature('dashboard-sharing')) {
@@ -112,8 +117,13 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     }
   };
 
-  const handleImport = () => {
-    const data = prompt(t('sidebar.boards.enterBoardData'));
+  const handleImport = async () => {
+    const data = await showPrompt(t('sidebar.boards.enterBoardData'), {
+      title: 'Import Board',
+      placeholder: '{"name":"...","widgets":[...]}',
+      multiline: true,
+      confirmLabel: 'Import',
+    });
     if (data) {
       try {
         const parsed = JSON.parse(data) as DashboardData;

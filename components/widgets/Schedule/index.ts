@@ -1,2 +1,2 @@
 export { ScheduleWidget } from './ScheduleWidget';
-export { ScheduleSettings } from './Settings';
+export { ScheduleSettings, ScheduleAppearanceSettings } from './Settings';

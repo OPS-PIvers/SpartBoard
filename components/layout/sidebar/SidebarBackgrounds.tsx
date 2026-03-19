@@ -53,17 +53,20 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
   useEffect(() => {
     if (designTab !== 'my-uploads' || !isInitialized || hasFetchedDrive) return;
 
-    setLoadingUploads(true);
-    getUserBackgroundsFromDrive()
-      .then((urls) => {
+    const fetchUploads = async () => {
+      setLoadingUploads(true);
+      try {
+        const urls = await getUserBackgroundsFromDrive();
         setUserUploads(urls);
-        setHasFetchedDrive(true);
-      })
-      .catch(() => {
+      } catch {
         addToast('Failed to load past backgrounds from Drive', 'error');
+      } finally {
         setHasFetchedDrive(true);
-      })
-      .finally(() => setLoadingUploads(false));
+        setLoadingUploads(false);
+      }
+    };
+
+    void fetchUploads();
   }, [
     designTab,
     isInitialized,

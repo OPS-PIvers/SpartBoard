@@ -71,7 +71,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
               totalVotes > 0 ? ((opt.votes ?? 0) / totalVotes) * 100 : 0;
             return (
               <div
-                key={i}
+                key={opt.id}
                 className={`rounded-2xl border p-3 ${OPTION_COLORS[i % OPTION_COLORS.length]}`}
               >
                 {/* Label + Vote count */}

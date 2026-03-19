@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useDashboard } from '../../../context/useDashboard';
-import { useAuth } from '../../../context/useAuth';
-import { useFeaturePermissions } from '../../../hooks/useFeaturePermissions';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
+import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import {
   WidgetData,
   ScheduleConfig,
@@ -10,25 +11,43 @@ import {
   WidgetType,
   FeaturePermission,
   ScheduleGlobalConfig,
-} from '../../../types';
+  CalendarConfig,
+} from '@/types';
 import {
   Type,
-  Clock,
   CheckCircle2,
   Plus,
   Trash2,
-  Pencil,
-  X,
-  Save,
   GripVertical,
   Timer,
   Palette,
   Settings2,
-  ChevronRight,
   LayoutGrid,
+  CalendarDays,
+  ChevronDown,
+  Copy,
+  Link,
+  ArrowUpDown,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Toggle } from '../../common/Toggle';
-import { Button } from '../../common/Button';
+import { Card } from '@/components/common/Card';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -82,11 +101,189 @@ const sortByTime = (items: ScheduleItem[]): ScheduleItem[] =>
       parseTimeForSort(b.startTime ?? b.time)
   );
 
+// ── SortableScheduleItem ─────────────────────────────────────────────────────
+
+interface SortableScheduleItemProps {
+  item: ScheduleItem;
+  onUpdate: (itemId: string, updates: Partial<ScheduleItem>) => void;
+  onDelete: (itemId: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: (itemId: string) => void;
+}
+
+const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
+  ({ item, onUpdate, onDelete, isExpanded, onToggleExpand }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id ?? '' });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      zIndex: isDragging ? 50 : undefined,
+    };
+
+    const hasLinked = (item.linkedWidgets ?? []).length > 0;
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`bg-white border rounded-lg shadow-sm overflow-hidden ${
+          isDragging
+            ? 'border-blue-300 shadow-lg opacity-60'
+            : 'border-slate-200'
+        }`}
+      >
+        {/* Row 1: grip + task name + delete */}
+        <div className="flex items-center gap-1.5 px-2 pt-2 pb-1">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 text-slate-300 hover:text-slate-600 transition-colors shrink-0"
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            value={item.task}
+            onChange={(e) =>
+              item.id && onUpdate(item.id, { task: e.target.value })
+            }
+            placeholder="Task name"
+            className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
+          />
+          <button
+            type="button"
+            onClick={() => item.id && onDelete(item.id)}
+            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+            aria-label="Delete event"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {/* Row 2: times + toggles (indented to align with task input) */}
+        <div className="flex items-center gap-1.5 px-2 pb-2 pl-9">
+          <input
+            type="time"
+            value={item.startTime ?? item.time ?? ''}
+            onChange={(e) =>
+              item.id &&
+              onUpdate(item.id, {
+                startTime: e.target.value,
+                time: e.target.value,
+              })
+            }
+            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+          />
+          <input
+            type="time"
+            value={item.endTime ?? ''}
+            onChange={(e) =>
+              item.id && onUpdate(item.id, { endTime: e.target.value })
+            }
+            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              item.id &&
+              onUpdate(item.id, {
+                mode: item.mode === 'timer' ? 'clock' : 'timer',
+              })
+            }
+            className={`p-1.5 rounded transition-colors shrink-0 ${
+              item.mode === 'timer'
+                ? 'text-indigo-500 bg-indigo-50'
+                : 'text-slate-300 hover:text-slate-500 hover:bg-slate-100'
+            }`}
+            title={
+              item.mode === 'timer'
+                ? 'Timer mode — click for clock'
+                : 'Clock mode — click for timer'
+            }
+            aria-pressed={item.mode === 'timer'}
+          >
+            <Timer className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => item.id && onToggleExpand(item.id)}
+            className={`p-1.5 mr-1 rounded transition-colors shrink-0 ${
+              hasLinked || isExpanded
+                ? 'text-blue-500 bg-blue-50'
+                : 'text-slate-300 hover:text-slate-500 hover:bg-slate-100'
+            }`}
+            title="Auto-launch widget"
+            aria-pressed={isExpanded}
+          >
+            <Link className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Auto-launch expanded section */}
+        {isExpanded && (
+          <div className="border-t border-slate-100 px-3 py-2.5 bg-slate-50">
+            <p className="text-xxs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <Link className="w-3 h-3" /> Auto-Launch Widget
+            </p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {AVAILABLE_WIDGETS.map((w) => {
+                const linked = item.linkedWidgets ?? [];
+                const isSelected = linked.includes(w.type);
+                return (
+                  <button
+                    key={w.type}
+                    type="button"
+                    onClick={() => {
+                      if (!item.id) return;
+                      const newLinked = isSelected
+                        ? linked.filter((t) => t !== w.type)
+                        : [...linked, w.type];
+                      onUpdate(item.id, { linkedWidgets: newLinked });
+                    }}
+                    className={`text-xxs px-2 py-1.5 rounded border flex items-center gap-1 transition-colors ${
+                      isSelected
+                        ? 'bg-blue-100 border-blue-300 text-blue-800'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    {isSelected && (
+                      <CheckCircle2 className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+                    )}
+                    {w.label}
+                  </button>
+                );
+              })}
+            </div>
+            {hasLinked && (
+              <p className="text-xxs text-slate-400 mt-2">
+                Selected widgets launch automatically when this event starts.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+SortableScheduleItem.displayName = 'SortableScheduleItem';
+
+// ── ScheduleSettings ─────────────────────────────────────────────────────────
+
 export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, activeDashboard } = useDashboard();
   const { selectedBuildings } = useAuth();
+  const { showConfirm } = useDialog();
   const { subscribeToPermission } = useFeaturePermissions();
   const config = widget.config as ScheduleConfig;
 
@@ -97,7 +294,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     return subscribeToPermission('schedule', setAdminPermission);
   }, [subscribeToPermission]);
 
-  // Extract building schedules
   const buildingSchedules = useMemo((): DailySchedule[] => {
     if (!selectedBuildings?.length) return [];
     const buildingId = selectedBuildings[0];
@@ -108,7 +304,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     return raw?.schedules ?? [];
   }, [selectedBuildings, adminPermission]);
 
-  // Migration logic for settings view
   const schedules = useMemo(() => {
     const list = [...(config.schedules ?? [])];
     if (list.length === 0 && (config.items?.length ?? 0) > 0) {
@@ -123,98 +318,22 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   }, [config.schedules, config.items]);
 
   const [activeTab, setActiveTab] = useState<'my' | 'building'>('my');
-  const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [tempItem, setTempItem] = useState<ScheduleItem | null>(null);
+  const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(
+    null
+  );
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
+    new Set()
+  );
 
-  const activeSchedule = schedules.find((s) => s.id === activeScheduleId);
-  const items = activeSchedule?.items ?? [];
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const handleStartEdit = (index: number) => {
-    setEditingIndex(index);
-    setTempItem({ ...items[index] });
-  };
+  // ── Schedule CRUD ──────────────────────────────────────────────────────────
 
-  const handleStartAdd = () => {
-    setEditingIndex(-1);
-    setTempItem({
-      id: crypto.randomUUID(),
-      time: '',
-      task: '',
-      startTime: '',
-      endTime: '',
-      mode: 'clock',
-      linkedWidgets: [],
-    });
-  };
-
-  const handleSave = () => {
-    if (!tempItem) return;
-
-    // Sync legacy time field with startTime when startTime is non-empty
-    const shouldSyncStartTime =
-      typeof tempItem.startTime === 'string' &&
-      tempItem.startTime.trim() !== '';
-
-    const itemToSave: ScheduleItem = {
-      ...tempItem,
-      // Sync time from startTime, or omit if both are empty
-      time: shouldSyncStartTime ? tempItem.startTime : tempItem.time,
-      // Ensure ID
-      id: tempItem.id ?? crypto.randomUUID(),
-    };
-
-    const newItems = sortByTime(
-      editingIndex === -1
-        ? [...items, itemToSave]
-        : items.map((it, i) => (i === editingIndex ? itemToSave : it))
-    );
-
-    handleUpdateActiveItems(newItems);
-    setEditingIndex(null);
-    setTempItem(null);
-  };
-
-  const handleDelete = (index: number) => {
-    if (confirm('Are you sure you want to delete this event?')) {
-      const newItems = items.filter((_, i) => i !== index);
-      handleUpdateActiveItems(newItems);
-    }
-  };
-
-  const handleUpdateActiveItems = (newItems: ScheduleItem[]) => {
-    const isLegacy =
-      activeScheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
-
-    if (isLegacy) {
-      updateWidget(widget.id, {
-        config: { ...config, items: newItems } as ScheduleConfig,
-      });
-    } else {
-      const newSchedules = schedules
-        .filter((s) => s.id !== 'default')
-        .map((s) =>
-          s.id === activeScheduleId ? { ...s, items: newItems } : s
-        );
-      updateWidget(widget.id, {
-        config: { ...config, schedules: newSchedules } as ScheduleConfig,
-      });
-    }
-  };
-
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === items.length - 1) return;
-
-    const newItems = [...items];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    [newItems[index], newItems[targetIndex]] = [
-      newItems[targetIndex],
-      newItems[index],
-    ];
-
-    handleUpdateActiveItems(newItems);
-  };
   const handleAddSchedule = () => {
     const newSchedule: DailySchedule = {
       id: crypto.randomUUID(),
@@ -223,12 +342,10 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       days: [],
     };
 
-    // Check if we are currently in legacy mode (migrated in-memory)
     const hasLegacyItems = (config.items?.length ?? 0) > 0;
     const hasNoSchedules = (config.schedules?.length ?? 0) === 0;
 
     if (hasLegacyItems && hasNoSchedules) {
-      // Migrate legacy default schedule into a real schedule with UUID first
       const migratedSchedule: DailySchedule = {
         id: crypto.randomUUID(),
         name: 'Default Schedule',
@@ -250,7 +367,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         } as ScheduleConfig,
       });
     }
-    setActiveScheduleId(newSchedule.id);
+    setExpandedScheduleId(newSchedule.id);
   };
 
   const handleUpdateSchedule = (
@@ -258,7 +375,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     updates: Partial<DailySchedule>
   ) => {
     if (id === 'default') {
-      // Convert legacy to first real schedule on update
       const newSchedule: DailySchedule = {
         id: crypto.randomUUID(),
         name: updates.name ?? 'Default Schedule',
@@ -272,10 +388,10 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           schedules: [newSchedule],
         } as ScheduleConfig,
       });
-      if (activeScheduleId === 'default') setActiveScheduleId(newSchedule.id);
+      if (expandedScheduleId === 'default')
+        setExpandedScheduleId(newSchedule.id);
       return;
     }
-
     const newSchedules = schedules.map((s) =>
       s.id === id ? { ...s, ...updates } : s
     );
@@ -284,15 +400,22 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const handleDeleteSchedule = (id: string) => {
+  const handleDeleteSchedule = async (id: string) => {
     if (schedules.length <= 1) {
       addToast('You must have at least one schedule.', 'error');
       return;
     }
-    if (confirm('Are you sure you want to delete this schedule?')) {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this schedule?',
+      {
+        title: 'Delete Schedule',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (confirmed) {
       const isLegacy =
         id === 'default' && (config.schedules?.length ?? 0) === 0;
-
       if (isLegacy) {
         updateWidget(widget.id, {
           config: { ...config, items: [] } as ScheduleConfig,
@@ -305,229 +428,224 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           config: { ...config, schedules: newSchedules } as ScheduleConfig,
         });
       }
-      if (activeScheduleId === id) setActiveScheduleId(null);
+      if (expandedScheduleId === id) setExpandedScheduleId(null);
     }
   };
 
-  // Render Edit Form
-  if (editingIndex !== null && tempItem) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b pb-2">
-          <h3 className="text-sm font-bold text-slate-800">
-            {editingIndex === -1 ? 'Add Event' : 'Edit Event'}
-          </h3>
+  // ── Item helpers ───────────────────────────────────────────────────────────
+
+  const getScheduleItems = useCallback(
+    (scheduleId: string): ScheduleItem[] =>
+      schedules.find((s) => s.id === scheduleId)?.items ?? [],
+    [schedules]
+  );
+
+  const saveScheduleItems = useCallback(
+    (scheduleId: string, newItems: ScheduleItem[]) => {
+      const isLegacy =
+        scheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
+      if (isLegacy) {
+        updateWidget(widget.id, {
+          config: { ...config, items: newItems } as ScheduleConfig,
+        });
+      } else {
+        const newSchedules = schedules
+          .filter((s) => s.id !== 'default')
+          .map((s) => (s.id === scheduleId ? { ...s, items: newItems } : s));
+        updateWidget(widget.id, {
+          config: { ...config, schedules: newSchedules } as ScheduleConfig,
+        });
+      }
+    },
+    [config, schedules, widget.id, updateWidget]
+  );
+
+  const handleAddItem = (scheduleId: string) => {
+    const newItem: ScheduleItem = {
+      id: crypto.randomUUID(),
+      task: '',
+      startTime: '',
+      endTime: '',
+      mode: 'clock',
+      linkedWidgets: [],
+    };
+    saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
+  };
+
+  const handleUpdateItem = (
+    scheduleId: string,
+    itemId: string,
+    updates: Partial<ScheduleItem>
+  ) => {
+    const newItems = getScheduleItems(scheduleId).map((item) =>
+      item.id === itemId ? { ...item, ...updates } : item
+    );
+    saveScheduleItems(scheduleId, newItems);
+  };
+
+  const handleDeleteItem = async (scheduleId: string, itemId: string) => {
+    const confirmed = await showConfirm(
+      'Are you sure you want to delete this event?',
+      { title: 'Delete Event', variant: 'danger', confirmLabel: 'Delete' }
+    );
+    if (confirmed) {
+      saveScheduleItems(
+        scheduleId,
+        getScheduleItems(scheduleId).filter((i) => i.id !== itemId)
+      );
+    }
+  };
+
+  const handleSortByTime = (scheduleId: string) => {
+    saveScheduleItems(scheduleId, sortByTime(getScheduleItems(scheduleId)));
+  };
+
+  const handleDragEnd = useCallback(
+    (scheduleId: string, event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const items = getScheduleItems(scheduleId);
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      saveScheduleItems(scheduleId, arrayMove(items, oldIndex, newIndex));
+    },
+    [getScheduleItems, saveScheduleItems]
+  );
+
+  const handleImportFromCalendar = (scheduleId: string) => {
+    const calendarWidget = activeDashboard?.widgets.find(
+      (w) => w.type === 'calendar'
+    );
+    if (!calendarWidget) {
+      addToast('No Calendar widget found on dashboard.', 'error');
+      return;
+    }
+    const calConfig = calendarWidget.config as CalendarConfig;
+    const today = new Date().toISOString().split('T')[0];
+    const todaysEvents = (calConfig.events ?? []).filter(
+      (e) => e.date === today && e.title?.trim()
+    );
+    if (todaysEvents.length === 0) {
+      addToast('No events found for today in the Calendar.', 'info');
+      return;
+    }
+    const newItems: ScheduleItem[] = todaysEvents.map((e) => ({
+      id: crypto.randomUUID(),
+      task: e.title,
+      startTime: e.time ?? '',
+      time: e.time ?? '',
+      endTime: '',
+      mode: 'clock' as const,
+      linkedWidgets: [],
+    }));
+    saveScheduleItems(
+      scheduleId,
+      sortByTime([...getScheduleItems(scheduleId), ...newItems])
+    );
+    addToast(`Imported ${newItems.length} event(s) from Calendar.`, 'success');
+  };
+
+  // ── Item expansion ─────────────────────────────────────────────────────────
+
+  const toggleItemExpanded = (itemId: string) => {
+    setExpandedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-6">
+      <div>
+        {/* Tab header */}
+        <div className="flex justify-center gap-2 mb-4 border-b border-slate-200">
           <button
-            type="button"
-            onClick={() => setEditingIndex(null)}
-            aria-label="Close event editor"
-            className="text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded-full"
+            onClick={() => setActiveTab('my')}
+            className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'my'
+                ? 'border-brand-blue-primary text-brand-blue-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
-            <X className="w-5 h-5" />
+            My Schedules
+          </button>
+          <button
+            onClick={() => setActiveTab('building')}
+            className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
+              activeTab === 'building'
+                ? 'border-brand-blue-primary text-brand-blue-primary'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Building Schedules
           </button>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase">
-              Task Name
-            </label>
-            <input
-              className="w-full p-2 border rounded-lg text-sm"
-              value={tempItem.task}
-              onChange={(e) =>
-                setTempItem({ ...tempItem, task: e.target.value })
-              }
-              placeholder="e.g. Math Class"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase">
-                Start Time
+        {activeTab === 'my' ? (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <LayoutGrid className="w-3 h-3" /> My Schedules
               </label>
-              <input
-                type="time"
-                className="w-full p-2 border rounded-lg text-sm"
-                value={tempItem.startTime ?? ''}
-                onChange={(e) =>
-                  setTempItem({ ...tempItem, startTime: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase">
-                End Time
-              </label>
-              <input
-                type="time"
-                className="w-full p-2 border rounded-lg text-sm"
-                value={tempItem.endTime ?? ''}
-                onChange={(e) =>
-                  setTempItem({ ...tempItem, endTime: e.target.value })
-                }
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">
-              Display Mode
-            </label>
-            <div className="flex gap-2" role="group" aria-label="Display mode">
               <button
-                type="button"
-                onClick={() => setTempItem({ ...tempItem, mode: 'clock' })}
-                className={`flex-1 p-2 border rounded-lg text-sm flex items-center justify-center gap-2 ${tempItem.mode === 'clock' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white'}`}
-                aria-pressed={tempItem.mode === 'clock'}
+                onClick={handleAddSchedule}
+                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
               >
-                <Clock className="w-4 h-4" /> Clock
-              </button>
-              <button
-                type="button"
-                onClick={() => setTempItem({ ...tempItem, mode: 'timer' })}
-                className={`flex-1 p-2 border rounded-lg text-sm flex items-center justify-center gap-2 ${tempItem.mode === 'timer' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white'}`}
-                aria-pressed={tempItem.mode === 'timer'}
-              >
-                <Timer className="w-4 h-4" /> Timer
+                <Plus className="w-3 h-3" /> Add Schedule
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              {tempItem.mode === 'clock'
-                ? 'Shows start and end times (e.g. 10:00 - 10:30)'
-                : 'Shows countdown when active (e.g. 25:00)'}
-            </p>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">
-              Auto-Launch Widgets
-            </label>
-            <div className="bg-slate-50 p-2 rounded-lg border max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
-              {AVAILABLE_WIDGETS.map((w) => {
-                const currentLinked = tempItem.linkedWidgets ?? [];
-                const isSelected = currentLinked.includes(w.type);
+            <div className="space-y-3">
+              {schedules.map((s) => {
+                const isExpanded = expandedScheduleId === s.id;
+                const validItems = s.items.filter((i) => i.id);
+
                 return (
-                  <button
-                    key={w.type}
-                    type="button"
-                    onClick={() => {
-                      const newLinked = isSelected
-                        ? currentLinked.filter((t) => t !== w.type)
-                        : [...currentLinked, w.type];
-                      setTempItem({ ...tempItem, linkedWidgets: newLinked });
-                    }}
-                    className={`text-xs p-2 rounded border flex items-center gap-2 ${isSelected ? 'bg-blue-100 border-blue-300 text-blue-800' : 'bg-white border-slate-200 text-slate-600'}`}
-                    aria-pressed={isSelected}
-                    aria-label={`${isSelected ? 'Remove' : 'Add'} ${w.label}`}
-                  >
-                    {isSelected && (
-                      <CheckCircle2 className="w-3 h-3 text-blue-500" />
-                    )}
-                    {w.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Selected widgets will launch automatically when this event starts.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-2 pt-4">
-          <Button
-            variant="secondary"
-            onClick={() => setEditingIndex(null)}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSave} className="flex-1">
-            <Save className="w-4 h-4 mr-2" /> Save
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!activeScheduleId) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="flex gap-2 mb-4 border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('my')}
-              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-                activeTab === 'my'
-                  ? 'border-brand-blue-primary text-brand-blue-primary'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              My Schedules
-            </button>
-            <button
-              onClick={() => setActiveTab('building')}
-              className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-                activeTab === 'building'
-                  ? 'border-brand-blue-primary text-brand-blue-primary'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Building Schedules
-            </button>
-          </div>
-
-          {activeTab === 'my' ? (
-            <>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
-                  <LayoutGrid className="w-3 h-3" /> My Schedules
-                </label>
-                <button
-                  onClick={handleAddSchedule}
-                  className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus className="w-3 h-3" /> Add Schedule
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {schedules.map((s) => (
-                  <div
+                  <Card
                     key={s.id}
-                    className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-blue-200 transition-colors group"
+                    padding="sm"
+                    rounded="xl"
+                    className="overflow-hidden cursor-pointer select-none"
+                    onClick={() =>
+                      setExpandedScheduleId(isExpanded ? null : s.id)
+                    }
                   >
-                    <div className="flex items-center justify-between gap-3 mb-2">
+                    {/* Accordion header */}
+                    <div className="w-full flex items-center gap-2">
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                          isExpanded ? '' : '-rotate-90'
+                        }`}
+                      />
                       <input
                         type="text"
                         value={s.name}
                         onChange={(e) =>
                           handleUpdateSchedule(s.id, { name: e.target.value })
                         }
-                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-none cursor-text text-sm select-text"
                         placeholder="Schedule Name"
                       />
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => setActiveScheduleId(s.id)}
-                          className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
-                          title="Edit items"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSchedule(s.id)}
-                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
-                          title="Delete schedule"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteSchedule(s.id);
+                        }}
+                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                        aria-label="Delete schedule"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    {/* Days pills */}
+                    <div className="flex items-center gap-2 mt-2">
                       <div className="flex gap-1">
                         {DAYS.map((d) => {
                           const isSelected = s.days.includes(d.id);
@@ -538,7 +656,8 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                               disabled={isOnly}
                               aria-label={d.fullName}
                               title={d.fullName}
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const newDays = isSelected
                                   ? s.days.filter((id) => id !== d.id)
                                   : [...s.days, d.id];
@@ -557,177 +676,155 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                           );
                         })}
                       </div>
-                      <button
-                        onClick={() => setActiveScheduleId(s.id)}
-                        className="text-xxs font-bold text-blue-500 hover:underline flex items-center gap-0.5"
+                      <span className="text-xxs text-slate-400 ml-auto">
+                        {s.items.length} item
+                        {s.items.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    {/* Expanded items editor */}
+                    {isExpanded && (
+                      <div
+                        className="mt-3 -mx-3 -mb-3 border-t border-slate-100 cursor-default select-text"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {s.items.length} Items{' '}
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="space-y-3">
-              {buildingSchedules.map((s: DailySchedule) => (
-                <div
-                  key={s.id}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-bold text-slate-700">{s.name}</div>
-                    <div className="text-xs text-slate-500">
-                      {s.items.length} Items{' '}
-                      {s.days.length > 0 &&
-                        `• ${s.days.map((d) => DAYS.find((day) => day.id === d)?.label).join(', ')}`}
-                    </div>
-                  </div>
+                        {/* Toolbar */}
+                        <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => handleSortByTime(s.id)}
+                            className="text-xxs flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium"
+                            title="Sort by start time"
+                          >
+                            <ArrowUpDown className="w-3 h-3" /> Sort
+                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(s.id)}
+                              className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              <Plus className="w-3 h-3" /> Add Event
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleImportFromCalendar(s.id)}
+                              className="text-xxs flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-medium"
+                              title="Import today's events from Calendar widget"
+                            >
+                              <CalendarDays className="w-3 h-3" /> Import
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Items list */}
+                        <div className="p-3 space-y-2">
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={(e) => handleDragEnd(s.id, e)}
+                          >
+                            <SortableContext
+                              items={validItems.map((i) => i.id as string)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {validItems.map((item) => (
+                                <SortableScheduleItem
+                                  key={item.id}
+                                  item={item}
+                                  onUpdate={(itemId, updates) =>
+                                    handleUpdateItem(s.id, itemId, updates)
+                                  }
+                                  onDelete={(itemId) =>
+                                    handleDeleteItem(s.id, itemId)
+                                  }
+                                  isExpanded={expandedItemIds.has(
+                                    item.id ?? ''
+                                  )}
+                                  onToggleExpand={toggleItemExpanded}
+                                />
+                              ))}
+                            </SortableContext>
+                          </DndContext>
+                          {s.items.length === 0 && (
+                            <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-xl bg-slate-50">
+                              <p className="text-xs">No events scheduled.</p>
+                              <button
+                                onClick={() => handleAddItem(s.id)}
+                                className="text-blue-500 text-xxs mt-1 hover:underline"
+                              >
+                                Add your first event
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+
+              {schedules.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                  No schedules yet.{' '}
                   <button
-                    onClick={() => {
-                      const newSchedule: DailySchedule = {
-                        ...s,
-                        id: crypto.randomUUID(),
-                        items: s.items.map((item) => ({
-                          ...item,
-                          id: crypto.randomUUID(),
-                        })),
-                      };
-                      updateWidget(widget.id, {
-                        config: {
-                          ...config,
-                          schedules: [...(config.schedules ?? []), newSchedule],
-                        } as ScheduleConfig,
-                      });
-                      addToast(`Added "${s.name}" to My Schedules`, 'success');
-                      setActiveTab('my');
-                    }}
-                    className="p-1.5 text-brand-blue-primary hover:bg-blue-100 rounded"
-                    title="Add to My Schedules"
+                    onClick={handleAddSchedule}
+                    className="text-blue-500 hover:underline"
                   >
-                    <Plus className="w-5 h-5" />
+                    Add one
                   </button>
-                </div>
-              ))}
-              {buildingSchedules.length === 0 && (
-                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xxs italic">
-                  No default schedules configured for your building.
                 </div>
               )}
             </div>
-          )}
-        </div>
-
-        <hr className="border-slate-100" />
-        {renderGlobalSettings()}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Schedule Items */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => setActiveScheduleId(null)}
-            className="text-xxs text-slate-400 uppercase tracking-widest hover:text-blue-500 flex items-center gap-1"
-          >
-            <LayoutGrid className="w-3 h-3" /> Schedules
-          </button>
-          <div className="flex items-center gap-3">
-            <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
-              <Clock className="w-3 h-3" /> {activeSchedule?.name}
-            </label>
-            <button
-              onClick={handleStartAdd}
-              className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-            >
-              <Plus className="w-3 h-3" /> Add Event
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {items.map((item, i) => (
-            <div
-              key={
-                item.id ??
-                `${item.task}-${item.startTime ?? item.time}-${item.endTime ?? ''}-${item.mode}`
-              }
-              className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm group"
-            >
-              <div className="flex flex-col items-center gap-0.5 text-slate-300">
-                <button
-                  type="button"
-                  onClick={() => handleMove(i, 'up')}
-                  disabled={i === 0}
-                  className="hover:text-slate-600 disabled:opacity-30"
-                  aria-label="Move event up"
-                >
-                  <GripVertical className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMove(i, 'down')}
-                  disabled={i === items.length - 1}
-                  className="hover:text-slate-600 disabled:opacity-30"
-                  aria-label="Move event down"
-                >
-                  <GripVertical className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700 truncate">
-                    {item.task}
-                  </span>
-                  {item.mode === 'timer' && (
-                    <span className="text-xxs bg-slate-100 px-1 rounded text-slate-500">
-                      Timer
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-slate-400 font-mono">
-                  {item.startTime ?? item.time}{' '}
-                  {item.endTime ? `- ${item.endTime}` : ''}
-                </div>
-              </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={() => handleStartEdit(i)}
-                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
-                  aria-label="Edit event"
-                  title="Edit event"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(i)}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
-                  aria-label="Delete event"
-                  title="Delete event"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-          {items.length === 0 && (
-            <div className="text-center py-8 text-slate-400 border-2 border-dashed rounded-xl bg-slate-50">
-              <p className="text-sm">No events scheduled.</p>
-              <button
-                onClick={handleStartAdd}
-                className="text-blue-500 text-xs mt-2 hover:underline"
+          </>
+        ) : (
+          <div className="space-y-3">
+            {buildingSchedules.map((s: DailySchedule) => (
+              <div
+                key={s.id}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between"
               >
-                Add your first event
-              </button>
-            </div>
-          )}
-        </div>
+                <div>
+                  <div className="font-bold text-slate-700">{s.name}</div>
+                  <div className="text-xs text-slate-500">
+                    {s.items.length} Items{' '}
+                    {s.days.length > 0 &&
+                      `• ${s.days.map((d) => DAYS.find((day) => day.id === d)?.label).join(', ')}`}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const newSchedule: DailySchedule = {
+                      ...s,
+                      id: crypto.randomUUID(),
+                      items: s.items.map((item) => ({
+                        ...item,
+                        id: crypto.randomUUID(),
+                      })),
+                    };
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        schedules: [...(config.schedules ?? []), newSchedule],
+                      } as ScheduleConfig,
+                    });
+                    addToast(`Added "${s.name}" to My Schedules`, 'success');
+                    setActiveTab('my');
+                  }}
+                  className="p-1.5 text-brand-blue-primary hover:bg-blue-100 rounded"
+                  title="Copy to My Schedules"
+                >
+                  <Copy className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+            {buildingSchedules.length === 0 && (
+              <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xxs italic">
+                No default schedules configured for your building.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <hr className="border-slate-100" />
@@ -738,108 +835,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   function renderGlobalSettings() {
     return (
       <>
-        {/* Typography */}
-        <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Type className="w-3 h-3" /> Typography
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {FONTS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, fontFamily: f.id } as ScheduleConfig,
-                  })
-                }
-                className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                  config.fontFamily === f.id ||
-                  (!config.fontFamily && f.id === 'global')
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-100 hover:border-slate-200'
-                }`}
-              >
-                <span className={`text-sm ${f.id} text-slate-900`}>
-                  {f.icon}
-                </span>
-                <span className="text-xxxs uppercase text-slate-600">
-                  {f.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Card Style */}
-        <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Palette className="w-3 h-3" /> Card Style
-          </label>
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
-            {/* Card Color */}
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">
-                  Card Color
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-mono">
-                    {config.cardColor ?? '#ffffff'}
-                  </span>
-                  <input
-                    type="color"
-                    value={config.cardColor ?? '#ffffff'}
-                    onChange={(e) =>
-                      updateWidget(widget.id, {
-                        config: {
-                          ...config,
-                          cardColor: e.target.value,
-                        } as ScheduleConfig,
-                      })
-                    }
-                    className="w-8 h-8 rounded cursor-pointer border border-slate-200 p-0.5"
-                    aria-label="Card color"
-                    title="Choose card background color"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Card Opacity */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-slate-700">
-                  Card Opacity
-                </span>
-                <span className="text-xs text-slate-500 tabular-nums">
-                  {Math.round((config.cardOpacity ?? 1) * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={config.cardOpacity ?? 1}
-                onChange={(e) =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      cardOpacity: parseFloat(e.target.value),
-                    } as ScheduleConfig,
-                  })
-                }
-                aria-label="Card opacity"
-                className="w-full accent-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">
-                Set to 0% for fully transparent cards — schedule items appear as
-                floating text on the board background.
-              </p>
-            </div>
-          </div>
-        </div>
-
+        {/* Auto-Checkoff & Scroll */}
         <div>
           <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
             <CheckCircle2 className="w-3 h-3" /> Auto-Checkoff &amp; Scroll
@@ -862,7 +858,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 }
               />
             </div>
-
             <p className="text-xs text-slate-500">
               Automatically check off items when their time passes.
             </p>
@@ -870,11 +865,9 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
             <hr className="border-slate-200" />
 
             <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-slate-700">
-                  Auto-Scroll View
-                </span>
-              </div>
+              <span className="text-sm font-medium text-slate-700">
+                Auto-Scroll View
+              </span>
               <Toggle
                 checked={config.autoScroll ?? false}
                 onChange={(checked) =>
@@ -887,11 +880,9 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 }
               />
             </div>
-
             <p className="text-xs text-slate-500">
-              Shows 4 items at a time — 1 completed, 1 active, 2 upcoming — and
-              smoothly scrolls forward as the day progresses. Resets
-              automatically at the start of each day.
+              Smoothly scrolls the schedule to keep the active event in view as
+              the day progresses. Resets automatically at the start of each day.
             </p>
           </div>
         </div>
@@ -928,4 +919,110 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       </>
     );
   }
+};
+
+// ── ScheduleAppearanceSettings ────────────────────────────────────────────────
+
+export const ScheduleAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as ScheduleConfig;
+  const {
+    fontFamily = 'global',
+    cardColor = '#ffffff',
+    cardOpacity = 1,
+  } = config;
+
+  return (
+    <div className="space-y-6">
+      {/* Typography */}
+      <div>
+        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <Type className="w-3 h-3" /> Typography
+        </label>
+        <div className="grid grid-cols-4 gap-2">
+          {FONTS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: { ...config, fontFamily: f.id } as ScheduleConfig,
+                })
+              }
+              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                fontFamily === f.id
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-100 hover:border-slate-200'
+              }`}
+            >
+              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
+              <span className="text-xxxs uppercase text-slate-600 font-bold">
+                {f.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Card Style */}
+      <div>
+        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <Palette className="w-3 h-3" /> Card Style
+        </label>
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                Card Color
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                {cardColor}
+              </span>
+            </div>
+            <input
+              type="color"
+              value={cardColor}
+              onChange={(e) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    cardColor: e.target.value,
+                  } as ScheduleConfig,
+                })
+              }
+              className="w-full h-8 rounded cursor-pointer border border-slate-200"
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                Opacity
+              </span>
+              <span className="text-xs text-slate-500 tabular-nums font-bold">
+                {Math.round(cardOpacity * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={cardOpacity}
+              onChange={(e) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    cardOpacity: parseFloat(e.target.value),
+                  } as ScheduleConfig,
+                })
+              }
+              className="w-full accent-blue-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };

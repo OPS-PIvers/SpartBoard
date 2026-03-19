@@ -49,25 +49,22 @@ const MiniAppSettings = lazyNamed(
 );
 
 export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
-  clock: lazyNamed(() => import('./ClockWidget'), 'ClockWidget'),
+  clock: lazyNamed(() => import('./ClockWidget/Widget'), 'ClockWidget'),
   'time-tool': lazyNamed(
     () => import('./TimeTool/TimeToolWidget'),
     'TimeToolWidget'
   ),
-  traffic: lazyNamed(
-    () => import('./TrafficLightWidget'),
-    'TrafficLightWidget'
-  ),
+  traffic: lazy(() => import('./TrafficLightWidget')),
   text: lazyNamed(() => import('./TextWidget'), 'TextWidget'),
-  checklist: lazyNamed(() => import('./ChecklistWidget'), 'ChecklistWidget'),
+  checklist: lazyNamed(() => import('./Checklist'), 'ChecklistWidget'),
   random: lazyNamed(() => import('./random/RandomWidget'), 'RandomWidget'),
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceWidget'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundWidget'),
-  webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamWidget'),
-  embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedWidget'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingWidget'),
+  webcam: lazyNamed(() => import('./Webcam'), 'WebcamWidget'),
+  embed: lazyNamed(() => import('./Embed'), 'EmbedWidget'),
+  drawing: lazyNamed(() => import('./DrawingWidget/Widget'), 'DrawingWidget'),
   qr: lazyNamed(() => import('./QRWidget'), 'QRWidget'),
-  scoreboard: lazyNamed(() => import('./ScoreboardWidget'), 'ScoreboardWidget'),
+  scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardWidget'),
   expectations: lazyNamed(
     () => import('./ExpectationsWidget'),
     'ExpectationsWidget'
@@ -75,7 +72,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   poll: lazyNamed(() => import('./PollWidget'), 'PollWidget'),
   weather: lazyNamed(() => import('./Weather/Widget'), 'WeatherWidget'),
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleWidget'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarWidget'),
+  calendar: lazyNamed(() => import('./Calendar/Widget'), 'CalendarWidget'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountWidget'),
   classes: lazy(() => import('./Classes/ClassesWidget')), // Default export
   instructionalRoutines: lazyNamed(
@@ -92,64 +89,95 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./SeatingChart/Widget'),
     'SeatingChartWidget'
   ),
-  catalyst: lazyNamed(() => import('./CatalystWidget'), 'CatalystWidget'),
+  catalyst: lazyNamed(
+    () => import('@/components/widgets/Catalyst'),
+    'CatalystWidget'
+  ),
   'catalyst-instruction': lazyNamed(
-    () => import('./CatalystInstructionWidget'),
+    () => import('@/components/widgets/Catalyst'),
     'CatalystInstructionWidget'
   ),
   'catalyst-visual': lazyNamed(
-    () => import('./CatalystVisualWidget'),
+    () => import('@/components/widgets/Catalyst'),
     'CatalystVisualWidget'
   ),
   blooms: lazyNamed(() => import('./BloomsWidget'), 'BloomsWidget'),
   smartNotebook: lazyNamed(
-    () => import('./SmartNotebookWidget'),
+    () => import('./SmartNotebook'),
     'SmartNotebookWidget'
   ),
-  recessGear: lazyNamed(() => import('./RecessGearWidget'), 'RecessGearWidget'),
+  recessGear: lazyNamed(
+    () => import('./RecessGear/Widget'),
+    'RecessGearWidget'
+  ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
-  'talking-tool': lazyNamed(
-    () => import('./TalkingToolWidget'),
-    'TalkingToolWidget'
-  ),
+  'talking-tool': lazyNamed(() => import('./TalkingTool'), 'TalkingToolWidget'),
   breathing: lazyNamed(
     () => import('./Breathing/BreathingWidget'),
     'BreathingWidget'
   ),
-  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsWidget'),
-  mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolWidget'),
+  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsWidget'),
+  mathTool: lazyNamed(
+    () => import('./MathToolInstance/index'),
+    'MathToolInstanceWidget'
+  ),
   nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
-  onboarding: lazyNamed(() => import('./OnboardingWidget'), 'OnboardingWidget'),
-  music: lazyNamed(() => import('./MusicWidget'), 'MusicWidget'),
+  onboarding: lazyNamed(() => import('./Onboarding'), 'OnboardingWidget'),
+  music: lazyNamed(() => import('./MusicWidget/index'), 'MusicWidget'),
   'car-rider-pro': lazyNamed(
-    () => import('./CarRiderProWidget'),
+    () => import('./CarRiderPro/Widget'),
     'CarRiderProWidget'
   ),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleWidget'
   ),
+  'graphic-organizer': lazyNamed(
+    () => import('./GraphicOrganizer/Widget'),
+    'GraphicOrganizerWidget'
+  ),
+  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Widget'),
+  numberLine: lazyNamed(
+    () => import('./NumberLine/Widget'),
+    'NumberLineWidget'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerWidget'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageWidget'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Widget'),
+    'ConceptWebWidget'
+  ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Widget'),
+    'StarterPackWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  clock: lazyNamed(() => import('./ClockWidget'), 'ClockSettings'),
+  clock: lazyNamed(() => import('./ClockWidget/Settings'), 'ClockSettings'),
   text: lazyNamed(() => import('./TextWidget'), 'TextSettings'),
-  checklist: lazyNamed(() => import('./ChecklistWidget'), 'ChecklistSettings'),
+  checklist: lazyNamed(() => import('./Checklist'), 'ChecklistSettings'),
   random: lazyNamed(() => import('./random/RandomSettings'), 'RandomSettings'),
   dice: lazyNamed(() => import('./DiceWidget'), 'DiceSettings'),
   sound: lazyNamed(() => import('./SoundWidget'), 'SoundSettings'),
-  embed: lazyNamed(() => import('./EmbedWidget'), 'EmbedSettings'),
-  drawing: lazyNamed(() => import('./DrawingWidget'), 'DrawingSettings'),
-  qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
-  scoreboard: lazyNamed(
-    () => import('./ScoreboardSettings'),
-    'ScoreboardSettings'
+  embed: lazyNamed(() => import('./Embed'), 'EmbedSettings'),
+  drawing: lazyNamed(
+    () => import('./DrawingWidget/Settings'),
+    'DrawingSettings'
   ),
-  webcam: lazyNamed(() => import('./WebcamWidget'), 'WebcamSettings'),
-  calendar: lazyNamed(() => import('./CalendarWidget'), 'CalendarSettings'),
+  qr: lazyNamed(() => import('./QRWidget'), 'QRSettings'),
+  scoreboard: lazyNamed(() => import('./Scoreboard'), 'ScoreboardSettings'),
+  webcam: lazyNamed(() => import('./Webcam'), 'WebcamSettings'),
+  calendar: lazyNamed(() => import('./Calendar/Settings'), 'CalendarSettings'),
   weather: lazyNamed(() => import('./Weather/Settings'), 'WeatherSettings'),
   lunchCount: lazyNamed(() => import('./LunchCount'), 'LunchCountSettings'),
   poll: lazyNamed(() => import('./PollWidget'), 'PollSettings'),
@@ -167,13 +195,16 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./SeatingChart/Settings'),
     'SeatingChartSettings'
   ),
-  catalyst: lazyNamed(() => import('./CatalystWidget'), 'CatalystSettings'),
+  catalyst: lazyNamed(
+    () => import('@/components/widgets/Catalyst'),
+    'CatalystSettings'
+  ),
   'catalyst-instruction': lazyNamed(
-    () => import('./CatalystInstructionWidget'),
+    () => import('@/components/widgets/Catalyst'),
     'CatalystInstructionSettings'
   ),
   'catalyst-visual': lazyNamed(
-    () => import('./CatalystVisualWidget'),
+    () => import('@/components/widgets/Catalyst'),
     'CatalystVisualSettings'
   ),
   blooms: lazyNamed(() => import('./BloomsWidget'), 'BloomsSettings'),
@@ -186,7 +217,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   schedule: lazyNamed(() => import('./Schedule'), 'ScheduleSettings'),
   classes: DefaultSettings,
   recessGear: lazyNamed(
-    () => import('./RecessGearWidget'),
+    () => import('./RecessGear/Settings'),
     'RecessGearSettings'
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfSettings'),
@@ -195,18 +226,111 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./Breathing/BreathingSettings'),
     'BreathingSettings'
   ),
-  mathTools: lazyNamed(() => import('./MathToolsWidget'), 'MathToolsSettings'),
-  mathTool: lazyNamed(() => import('./MathToolWidget'), 'MathToolSettings'),
+  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsSettings'),
+  mathTool: lazyNamed(
+    () => import('./MathToolInstance/index'),
+    'MathToolInstanceSettings'
+  ),
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
-  music: lazyNamed(() => import('./MusicWidget'), 'MusicSettings'),
+  music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
   'car-rider-pro': lazyNamed(
-    () => import('./CarRiderProWidget'),
+    () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
   ),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
     'SpecialistScheduleSettings'
+  ),
+  'graphic-organizer': lazyNamed(
+    () => import('./GraphicOrganizer/Settings'),
+    'GraphicOrganizerSettings'
+  ),
+  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Settings'),
+  numberLine: lazyNamed(
+    () => import('./NumberLine/Settings'),
+    'NumberLineSettings'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerSettings'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageSettings'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Settings'),
+    'ConceptWebSettings'
+  ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Settings'),
+    'StarterPackSettings'
+  ),
+};
+
+export const WIDGET_APPEARANCE_COMPONENTS: Partial<
+  Record<WidgetType, SettingsComponent>
+> = {
+  // Populated per-widget in components/widgets/*/Settings.tsx
+  clock: lazyNamed(
+    () => import('./ClockWidget/Settings'),
+    'ClockAppearanceSettings'
+  ),
+  'time-tool': lazyNamed(
+    () => import('./TimeTool/TimeToolWidget'),
+    'TimeToolAppearanceSettings'
+  ),
+  text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings'),
+  checklist: lazyNamed(
+    () => import('./Checklist'),
+    'ChecklistAppearanceSettings'
+  ),
+  sound: lazyNamed(() => import('./SoundWidget'), 'SoundAppearanceSettings'),
+  weather: lazyNamed(
+    () => import('./Weather/Settings'),
+    'WeatherAppearanceSettings'
+  ),
+  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
+  calendar: lazyNamed(
+    () => import('./Calendar/Settings'),
+    'CalendarAppearanceSettings'
+  ),
+  instructionalRoutines: lazyNamed(
+    () => import('./InstructionalRoutines/Settings'),
+    'InstructionalRoutinesAppearanceSettings'
+  ),
+  music: lazyNamed(
+    () => import('./MusicWidget/index'),
+    'MusicAppearanceSettings'
+  ),
+  breathing: lazyNamed(
+    () => import('./Breathing/BreathingSettings'),
+    'BreathingAppearanceSettings'
+  ),
+  'concept-web': lazyNamed(
+    () => import('./ConceptWeb/Settings'),
+    'ConceptWebAppearanceSettings'
+  ),
+  'graphic-organizer': lazyNamed(
+    () => import('./GraphicOrganizer/Settings'),
+    'GraphicOrganizerAppearanceSettings'
+  ),
+  'hotspot-image': lazyNamed(
+    () => import('./HotspotImage'),
+    'HotspotImageAppearanceSettings'
+  ),
+  'reveal-grid': lazyNamed(
+    () => import('./RevealGrid'),
+    'RevealGridAppearanceSettings'
+  ),
+  'syntax-framer': lazyNamed(
+    () => import('./SyntaxFramer'),
+    'SyntaxFramerAppearanceSettings'
+  ),
+  'starter-pack': lazyNamed(
+    () => import('./StarterPack/Settings'),
+    'StarterPackAppearanceSettings'
   ),
 };
 
@@ -520,6 +644,55 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'specialist-schedule': {
     baseWidth: 300,
     baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'graphic-organizer': {
+    baseWidth: 600,
+    baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'reveal-grid': {
+    baseWidth: 600,
+    baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  numberLine: {
+    baseWidth: 700,
+    baseHeight: 200,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'concept-web': {
+    baseWidth: 800,
+    baseHeight: 600,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'syntax-framer': {
+    baseWidth: 500,
+    baseHeight: 150,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'hotspot-image': {
+    baseWidth: 500,
+    baseHeight: 400,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'starter-pack': {
+    baseWidth: 600,
+    baseHeight: 500,
     canSpread: true,
     skipScaling: true,
     padding: 0,
