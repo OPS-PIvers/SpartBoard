@@ -36,6 +36,7 @@ import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigura
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
+import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -690,6 +691,10 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'music' && (
+        <MusicLibraryModal onClose={() => setActiveModalTool(null)} />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -698,6 +703,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'specialist-schedule',
           'miniApp',
           'starter-pack',
+          'music',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
