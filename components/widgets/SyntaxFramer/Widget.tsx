@@ -62,7 +62,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     opacity: isDragging ? 0.8 : 1,
     flex: 'var(--char-count) 1 auto',
     containerType: 'size',
-    minWidth: 0,
+    minWidth: 'calc(var(--char-count) * 4cqmin)',
     minHeight: 0,
     '--char-count': token.value.length || 3,
   };
@@ -78,6 +78,12 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     } else {
       onMaskToggle(token.id);
     }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Provide a touch-friendly way to cycle colors
+    onColorCycle(token.id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -109,6 +115,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
         ${isMath ? 'font-serif italic' : 'font-sans font-medium'}
       `}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
       {...attributes}
       {...listeners}
@@ -119,7 +126,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
         style={{
           fontSize: `min(70cqh, calc(100cqw / max(1, var(--char-count)) * ${FONT_SCALING_FACTOR}))`,
           lineHeight: 1,
-          padding: '0 5cqw',
+          padding: '0 8cqw',
           overflow: 'hidden',
           textOverflow: 'clip',
         }}
@@ -210,7 +217,7 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
       content={
         <div
           className={`w-full h-full flex flex-wrap content-stretch items-stretch ${justifyClass}`}
-          style={{ gap: '2cqmin', padding: '2cqmin' }}
+          style={{ gap: '4cqmin', padding: '2cqmin' }}
         >
           <DndContext
             sensors={sensors}
