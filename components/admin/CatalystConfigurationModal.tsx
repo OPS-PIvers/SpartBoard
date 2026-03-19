@@ -111,6 +111,9 @@ export const CatalystConfigurationModal: React.FC<
       query(ref),
       (snap) => {
         const items: CatalystRoutine[] = [];
+        console.log(
+          `[CatalystModal] Received ${snap.size} routines from Firestore`
+        );
         snap.forEach((d) =>
           items.push({ ...d.data(), id: d.id } as CatalystRoutine)
         );
@@ -206,6 +209,9 @@ export const CatalystConfigurationModal: React.FC<
     try {
       let finalImageUrl = editor.imageUrl;
       const ref = collection(db, ...COLLECTION_PATH);
+      console.log(
+        `[CatalystModal] Saving routine to path: artifacts/${appId}/public/data/catalystRoutines`
+      );
 
       if (editor.id) {
         // Updating existing routine — use existing ID for image path consistency
