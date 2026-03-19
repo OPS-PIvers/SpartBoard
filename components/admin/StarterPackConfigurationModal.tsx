@@ -13,7 +13,6 @@ import {
   LayoutGrid,
   LayoutTemplate,
   ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import {
   collection,
@@ -69,20 +68,72 @@ const ICON_OPTIONS = [
   'CheckSquare',
   'Layers',
   'Lightbulb',
+  'Apple',
+  'Backpack',
+  'Bell',
+  'Brain',
+  'Brush',
+  'Bus',
+  'Clipboard',
+  'Coffee',
+  'Compass',
+  'Dna',
+  'Eraser',
+  'GraduationCap',
+  'Languages',
+  'Library',
+  'Magnet',
+  'Map',
+  'Microscope',
+  'Monitor',
+  'Mountain',
+  'Notebook',
+  'Paintbrush',
+  'Paperclip',
+  'Presentation',
+  'Puzzle',
+  'Rocket',
+  'Ruler',
+  'School',
+  'Search',
+  'Settings',
+  'Shapes',
+  'Smile',
+  'Target',
+  'TestTube',
+  'Thermometer',
+  'Trees',
 ];
 
-const COLOR_OPTIONS = [
-  { value: 'indigo', label: 'Indigo' },
-  { value: 'blue', label: 'Blue' },
-  { value: 'violet', label: 'Violet' },
-  { value: 'emerald', label: 'Emerald' },
-  { value: 'teal', label: 'Teal' },
-  { value: 'amber', label: 'Amber' },
-  { value: 'rose', label: 'Rose' },
-  { value: 'orange', label: 'Orange' },
-  { value: 'sky', label: 'Sky' },
-  { value: 'pink', label: 'Pink' },
-];
+const COLOR_MAP: Record<string, string> = {
+  slate: '#64748b',
+  gray: '#6b7280',
+  zinc: '#71717a',
+  neutral: '#737373',
+  stone: '#78716c',
+  red: '#ef4444',
+  orange: '#f97316',
+  amber: '#f59e0b',
+  yellow: '#eab308',
+  lime: '#84cc16',
+  green: '#22c55e',
+  emerald: '#10b981',
+  teal: '#14b8a6',
+  cyan: '#06b6d4',
+  sky: '#0ea5e9',
+  blue: '#3b82f6',
+  indigo: '#6366f1',
+  violet: '#8b5cf6',
+  purple: '#a855f7',
+  fuchsia: '#d946ef',
+  pink: '#ec4899',
+  rose: '#f43f5e',
+};
+
+const COLOR_OPTIONS = Object.entries(COLOR_MAP).map(([value]) => ({
+  value,
+  label: value.charAt(0).toUpperCase() + value.slice(1),
+}));
 
 // Widgets that shouldn't be added to starter packs individually
 const EXCLUDED_WIDGET_TYPES: WidgetType[] = ['starter-pack'];
@@ -212,6 +263,12 @@ export const StarterPackConfigurationModal: React.FC<
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<PackFormData>(INITIAL_FORM);
 
+  // UI state for collapses/pickers
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showManualPositioning, setShowManualPositioning] = useState(false);
+  const [showWidgetManualPositioning, setShowWidgetManualPositioning] =
+    useState<Record<number, boolean>>({});
+
   // Widget builder state
   const [newWidgetType, setNewWidgetType] = useState<WidgetType>(
     ADDABLE_TOOLS[0]?.type as WidgetType
@@ -223,7 +280,6 @@ export const StarterPackConfigurationModal: React.FC<
 
   // Snap layout picker state
   const [newWidgetSnapKey, setNewWidgetSnapKey] = useState<string | null>(null);
-  const [newWidgetSnapOpen, setNewWidgetSnapOpen] = useState(false);
   const [snappingWidgetIndex, setSnappingWidgetIndex] = useState<number | null>(
     null
   );
@@ -240,7 +296,6 @@ export const StarterPackConfigurationModal: React.FC<
     setSnappingWidgetIndex(null);
     setWidgetSnapKeys({});
     setNewWidgetSnapKey(null);
-    setNewWidgetSnapOpen(false);
   }, []);
 
   const handleBack = useCallback(async () => {
@@ -575,8 +630,8 @@ export const StarterPackConfigurationModal: React.FC<
                         <div
                           className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                           style={{
-                            backgroundColor: `var(--color-${pack.color}-100, #e0e7ff)`,
-                            color: `var(--color-${pack.color}-600, #4f46e5)`,
+                            backgroundColor: COLOR_MAP[pack.color] + '20',
+                            color: COLOR_MAP[pack.color],
                           }}
                         >
                           <PackIcon className="w-6 h-6" />
@@ -679,66 +734,99 @@ export const StarterPackConfigurationModal: React.FC<
                   </div>
                 </div>
 
-                {/* Icon */}
-                <div>
-                  <label className="text-sm font-semibold text-slate-600 block mb-2">
-                    Icon
-                  </label>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: `var(--color-${formData.color}-100, #e0e7ff)`,
-                        color: `var(--color-${formData.color}-600, #4f46e5)`,
-                      }}
-                    >
-                      <PreviewIcon className="w-5 h-5" />
-                    </div>
-                    <select
-                      value={formData.icon}
-                      onChange={(e) =>
-                        setFormData((p) => ({ ...p, icon: e.target.value }))
-                      }
-                      className="px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
-                    >
-                      {ICON_OPTIONS.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Color */}
-                <div>
-                  <label className="text-sm font-semibold text-slate-600 block mb-2">
-                    Color
-                  </label>
-                  <div className="flex gap-2 flex-wrap">
-                    {COLOR_OPTIONS.map(({ value, label }) => (
+                {/* Icon & Color */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Icon Selection */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-600 block mb-2">
+                      Icon
+                    </label>
+                    <div className="relative">
                       <button
-                        key={value}
-                        onClick={() =>
-                          setFormData((p) => ({ ...p, color: value }))
-                        }
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-full border-2 transition-all ${
-                          formData.color === value
-                            ? 'border-slate-800 shadow-sm'
-                            : 'border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        style={
-                          formData.color === value
-                            ? {
-                                backgroundColor: `var(--color-${value}-100, #e0e7ff)`,
-                                color: `var(--color-${value}-700, #3730a3)`,
-                              }
-                            : {}
-                        }
+                        type="button"
+                        onClick={() => setShowIconPicker(!showIconPicker)}
+                        className="flex items-center gap-3 px-3 py-2 border-2 border-slate-200 rounded-xl hover:border-indigo-500 transition-colors bg-white w-full sm:w-auto"
                       >
-                        {label}
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                          style={{
+                            backgroundColor: COLOR_MAP[formData.color] + '20', // 12.5% opacity
+                            color: COLOR_MAP[formData.color],
+                          }}
+                        >
+                          <PreviewIcon className="w-6 h-6" />
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">
+                          {formData.icon}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 ml-auto" />
                       </button>
-                    ))}
+
+                      {showIconPicker && (
+                        <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 w-full sm:w-[320px]">
+                          <div className="grid grid-cols-6 gap-2 max-h-[240px] overflow-y-auto p-1 custom-scrollbar">
+                            {ICON_OPTIONS.map((name) => {
+                              const IconComp = (
+                                LucideIcons as unknown as Record<
+                                  string,
+                                  LucideIcon
+                                >
+                              )[name];
+                              if (!IconComp) return null;
+                              return (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData((p) => ({ ...p, icon: name }));
+                                    setShowIconPicker(false);
+                                  }}
+                                  className={`p-2 rounded-lg flex items-center justify-center transition-colors ${
+                                    formData.icon === name
+                                      ? 'bg-indigo-100 text-indigo-600'
+                                      : 'text-slate-500 hover:bg-slate-100'
+                                  }`}
+                                  title={name}
+                                >
+                                  <IconComp className="w-5 h-5" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Color Selection */}
+                  <div>
+                    <label className="text-sm font-semibold text-slate-600 block mb-2">
+                      Brand Color
+                    </label>
+                    <div className="grid grid-cols-11 gap-1.5 p-1 bg-slate-50 rounded-xl border border-slate-200">
+                      {COLOR_OPTIONS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            setFormData((p) => ({ ...p, color: value }))
+                          }
+                          className={`w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center ${
+                            formData.color === value
+                              ? 'border-slate-800 scale-110 shadow-sm'
+                              : 'border-transparent hover:scale-110'
+                          }`}
+                          style={{
+                            backgroundColor: COLOR_MAP[value],
+                          }}
+                          title={label}
+                        >
+                          {formData.color === value && (
+                            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -850,46 +938,69 @@ export const StarterPackConfigurationModal: React.FC<
                               <p className="text-sm font-semibold text-slate-700 truncate">
                                 {toolMeta?.label ?? widget.type}
                               </p>
-                              <div className="flex gap-3 mt-1 flex-wrap">
-                                {(
-                                  [
-                                    ['x', 'X'],
-                                    ['y', 'Y'],
-                                    ['w', 'W'],
-                                    ['h', 'H'],
-                                  ] as [
-                                    keyof typeof widget &
-                                      ('x' | 'y' | 'w' | 'h'),
-                                    string,
-                                  ][]
-                                ).map(([field, label]) => (
-                                  <label
-                                    key={field}
-                                    className="flex items-center gap-1 text-xs text-slate-500"
-                                  >
-                                    <span className="font-bold text-slate-400 uppercase">
-                                      {label}
-                                    </span>
-                                    <input
-                                      type="number"
-                                      value={widget[field]}
-                                      onChange={(e) => {
-                                        const next =
-                                          e.currentTarget.valueAsNumber;
-                                        if (!Number.isFinite(next)) return;
-                                        handleUpdateWidget(index, field, next);
-                                        setWidgetSnapKeys((prev) => {
-                                          if (!prev[index]) return prev;
-                                          const { [index]: _, ...rest } = prev;
-                                          return rest;
-                                        });
-                                      }}
-                                      className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-xs text-center focus:border-indigo-400 focus:outline-none"
-                                    />
-                                  </label>
-                                ))}
-                              </div>
+                              {showWidgetManualPositioning[index] && (
+                                <div className="flex gap-3 mt-1 flex-wrap animate-in fade-in slide-in-from-top-1 duration-200">
+                                  {(
+                                    [
+                                      ['x', 'X'],
+                                      ['y', 'Y'],
+                                      ['w', 'W'],
+                                      ['h', 'H'],
+                                    ] as [
+                                      keyof typeof widget &
+                                        ('x' | 'y' | 'w' | 'h'),
+                                      string,
+                                    ][]
+                                  ).map(([field, label]) => (
+                                    <label
+                                      key={field}
+                                      className="flex items-center gap-1 text-xs text-slate-500"
+                                    >
+                                      <span className="font-bold text-slate-400 uppercase">
+                                        {label}
+                                      </span>
+                                      <input
+                                        type="number"
+                                        value={widget[field]}
+                                        onChange={(e) => {
+                                          const next =
+                                            e.currentTarget.valueAsNumber;
+                                          if (!Number.isFinite(next)) return;
+                                          handleUpdateWidget(
+                                            index,
+                                            field,
+                                            next
+                                          );
+                                          setWidgetSnapKeys((prev) => {
+                                            if (!prev[index]) return prev;
+                                            const { [index]: _, ...rest } =
+                                              prev;
+                                            return rest;
+                                          });
+                                        }}
+                                        className="w-16 px-1.5 py-0.5 border border-slate-200 rounded-md text-xs text-center focus:border-indigo-400 focus:outline-none"
+                                      />
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
                             </div>
+                            <button
+                              onClick={() =>
+                                setShowWidgetManualPositioning((prev) => ({
+                                  ...prev,
+                                  [index]: !prev[index],
+                                }))
+                              }
+                              className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                                showWidgetManualPositioning[index]
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                              }`}
+                              title="Toggle manual coordinates"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() =>
                                 setSnappingWidgetIndex(
@@ -953,95 +1064,104 @@ export const StarterPackConfigurationModal: React.FC<
 
                 {/* Add individual widget */}
                 <div className="border-t border-slate-100 pt-4">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                    Add Widget Manually
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="text-xs font-semibold text-slate-600 block mb-1">
-                        Widget Type
-                      </label>
-                      <select
-                        value={newWidgetType}
-                        onChange={(e) =>
-                          handleWidgetTypeChange(e.target.value as WidgetType)
-                        }
-                        className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
-                      >
-                        {ADDABLE_TOOLS.map((t) => (
-                          <option key={t.type} value={t.type}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {(
-                      [
-                        ['X', newWidgetX, setNewWidgetX],
-                        ['Y', newWidgetY, setNewWidgetY],
-                        ['W', newWidgetW, setNewWidgetW],
-                        ['H', newWidgetH, setNewWidgetH],
-                      ] as [
-                        string,
-                        number,
-                        React.Dispatch<React.SetStateAction<number>>,
-                      ][]
-                    ).map(([label, val, setter]) => (
-                      <div key={label}>
-                        <label className="text-xs font-semibold text-slate-600 block mb-1">
-                          {label === 'X' || label === 'Y'
-                            ? `${label} Position`
-                            : label === 'W'
-                              ? 'Width'
-                              : 'Height'}
-                        </label>
-                        <input
-                          type="number"
-                          value={val}
-                          onChange={(e) => {
-                            const next = e.currentTarget.valueAsNumber;
-                            if (!Number.isFinite(next)) return;
-                            setter(next);
-                            setNewWidgetSnapKey(null);
-                          }}
-                          className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
-                        />
-                      </div>
-                    ))}
-
-                    <div className="col-span-2 sm:col-span-1">
-                      <button
-                        onClick={handleAddWidget}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add Widget
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Snap to Layout Position picker */}
-                  <div className="mt-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Add New Widget
+                    </p>
                     <button
                       type="button"
-                      onClick={() => setNewWidgetSnapOpen((v) => !v)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-wider mb-1.5 transition-colors"
+                      onClick={() =>
+                        setShowManualPositioning(!showManualPositioning)
+                      }
+                      className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-colors ${
+                        showManualPositioning
+                          ? 'bg-slate-200 text-slate-600'
+                          : 'bg-slate-100 text-slate-400 hover:text-slate-600'
+                      }`}
                     >
-                      <LayoutTemplate className="w-3.5 h-3.5" />
-                      Snap to Layout Position
-                      {newWidgetSnapOpen ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )}
-                      {newWidgetSnapKey && (
-                        <span className="ml-1 normal-case font-normal text-indigo-500 tracking-normal">
-                          — position selected
-                        </span>
-                      )}
+                      {showManualPositioning ? 'Hide Manual' : 'Show Manual'}
                     </button>
-                    {newWidgetSnapOpen && (
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-600 block mb-1">
+                          Widget Type
+                        </label>
+                        <select
+                          value={newWidgetType}
+                          onChange={(e) =>
+                            handleWidgetTypeChange(e.target.value as WidgetType)
+                          }
+                          className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
+                        >
+                          {ADDABLE_TOOLS.map((t) => (
+                            <option key={t.type} value={t.type}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={handleAddWidget}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors h-[42px]"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add to Pack
+                      </button>
+                    </div>
+
+                    {showManualPositioning && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                        {(
+                          [
+                            ['X', newWidgetX, setNewWidgetX],
+                            ['Y', newWidgetY, setNewWidgetY],
+                            ['W', newWidgetW, setNewWidgetW],
+                            ['H', newWidgetH, setNewWidgetH],
+                          ] as [
+                            string,
+                            number,
+                            React.Dispatch<React.SetStateAction<number>>,
+                          ][]
+                        ).map(([label, val, setter]) => (
+                          <div key={label}>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              {label === 'X' || label === 'Y'
+                                ? `${label} Position`
+                                : label === 'W'
+                                  ? 'Width'
+                                  : 'Height'}
+                            </label>
+                            <input
+                              type="number"
+                              value={val}
+                              onChange={(e) => {
+                                const next = e.currentTarget.valueAsNumber;
+                                if (!Number.isFinite(next)) return;
+                                setter(next);
+                                setNewWidgetSnapKey(null);
+                              }}
+                              className="w-full px-3 py-1.5 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors text-sm"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Snap to Layout Position picker - Always open for new widgets as it is priority */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-widest mb-3">
+                        <LayoutTemplate className="w-3.5 h-3.5" />
+                        Snap to Layout Position
+                        {newWidgetSnapKey && (
+                          <span className="ml-1 normal-case font-normal text-indigo-500 tracking-normal">
+                            — position selected
+                          </span>
+                        )}
+                      </div>
                       <SnapZonePicker
                         selectedKey={newWidgetSnapKey}
                         onSelect={(key, bounds) => {
@@ -1052,7 +1172,7 @@ export const StarterPackConfigurationModal: React.FC<
                           setNewWidgetSnapKey(key);
                         }}
                       />
-                    )}
+                    </div>
                   </div>
                 </div>
               </section>
