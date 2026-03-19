@@ -30,37 +30,47 @@ const PlayButton: React.FC<PlayButtonProps> = ({
   isPlaying,
   onClick,
   size = '30%',
-}) => (
-  <div
-    className={`rounded-full shadow-xl backdrop-blur-sm bg-white/90 flex items-center justify-center transform transition-transform active:scale-90 cursor-pointer`}
-    style={{ width: size, height: size }}
-    onClick={onClick}
-  >
-    {!isPlayerReady ? (
-      <div
-        className="rounded-full animate-spin"
-        style={{
-          width: '60%',
-          height: '60%',
-          borderWidth: 'min(3px, 0.8cqmin)',
-          borderColor: '#e2e8f0',
-          borderTopColor: '#6366f1',
-          borderStyle: 'solid',
-        }}
-      />
-    ) : isPlaying ? (
-      <Pause
-        className="text-slate-900 fill-current"
-        style={{ width: '50%', height: '50%' }}
-      />
-    ) : (
-      <Play
-        className="text-slate-900 fill-current"
-        style={{ width: '50%', height: '50%', marginLeft: '10%' }}
-      />
-    )}
-  </div>
-);
+}) => {
+  const handleClick = (e: React.MouseEvent) => {
+    // Stop bubbling so a parent overlay with the same onClick doesn't fire twice.
+    e.stopPropagation();
+    onClick();
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label={isPlaying ? 'Pause' : 'Play'}
+      className="rounded-full shadow-xl backdrop-blur-sm bg-white/90 flex items-center justify-center transform transition-transform active:scale-90"
+      style={{ width: size, height: size }}
+      onClick={handleClick}
+    >
+      {!isPlayerReady ? (
+        <div
+          className="rounded-full animate-spin"
+          style={{
+            width: '60%',
+            height: '60%',
+            borderWidth: 'min(3px, 0.8cqmin)',
+            borderColor: '#e2e8f0',
+            borderTopColor: '#6366f1',
+            borderStyle: 'solid',
+          }}
+        />
+      ) : isPlaying ? (
+        <Pause
+          className="text-slate-900 fill-current"
+          style={{ width: '50%', height: '50%' }}
+        />
+      ) : (
+        <Play
+          className="text-slate-900 fill-current"
+          style={{ width: '50%', height: '50%', marginLeft: '10%' }}
+        />
+      )}
+    </button>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // MusicWidget — front face
@@ -324,8 +334,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div
               className="relative shrink-0 group"
               style={{
-                width: 'min(56px, 90cqh)',
-                height: 'min(56px, 90cqh)',
+                width: 'min(56px, 90cqmin)',
+                height: 'min(56px, 90cqmin)',
               }}
             >
               {activeStation.thumbnail ? (

@@ -295,7 +295,9 @@ export const MusicManager: React.FC = () => {
       return;
     }
     if (!isValidImageUrl(editForm.thumbnail ?? '')) {
-      setValidationError('Thumbnail must be a valid https image URL.');
+      setValidationError(
+        'Thumbnail must be a valid https image URL or an uploaded image.'
+      );
       return;
     }
     setValidationError(null);
@@ -552,16 +554,20 @@ export const MusicManager: React.FC = () => {
                           {station.genre}
                         </span>
                       )}
-                      {station.buildingIds &&
-                        station.buildingIds.length > 0 && (
+                      {(() => {
+                        const bids = station.buildingIds;
+                        if (!bids || bids.length === 0) return null;
+                        const label =
+                          bids.length === 1
+                            ? (BUILDINGS.find((b) => b.id === bids[0])?.name ??
+                              '1 building')
+                            : `${bids.length} buildings`;
+                        return (
                           <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full shrink-0">
-                            {station.buildingIds.length === 1
-                              ? (BUILDINGS.find(
-                                  (b) => b.id === station.buildingIds![0]
-                                )?.name ?? '1 building')
-                              : `${station.buildingIds.length} buildings`}
+                            {label}
                           </span>
-                        )}
+                        );
+                      })()}
                     </div>
                     <p className="text-xs text-slate-500 truncate">
                       {station.channel}

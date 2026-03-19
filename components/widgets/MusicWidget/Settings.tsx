@@ -49,7 +49,7 @@ const LAYOUT_OPTIONS: {
           y="17"
           width="36"
           height="7"
-          rx="0 0 3 3"
+          rx="3"
           fill="black"
           fillOpacity="0.55"
         />
