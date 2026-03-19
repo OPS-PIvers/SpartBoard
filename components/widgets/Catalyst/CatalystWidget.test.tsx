@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { useCatalystRoutines } from '@/hooks/useCatalystRoutines';
+import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { WidgetData } from '@/types';
 import { CatalystWidget } from './CatalystWidget';
 
@@ -14,8 +15,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-vi.mock('@/hooks/useCatalystRoutines', () => ({
-  useCatalystRoutines: vi.fn(),
+vi.mock('@/hooks/useCatalystSets', () => ({
+  useCatalystSets: vi.fn(),
 }));
 
 vi.mock('@/components/widgets/StarterPack/audioUtils', () => ({
@@ -50,10 +51,8 @@ describe('CatalystWidget', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       featurePermissions: [],
     });
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [],
+    (useCatalystSets as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      sets: [],
       loading: false,
       executeRoutine: mockExecuteRoutine,
     });
@@ -67,10 +66,8 @@ describe('CatalystWidget', () => {
   });
 
   it('shows loading state when loading', () => {
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [],
+    (useCatalystSets as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      sets: [],
       loading: true,
       executeRoutine: mockExecuteRoutine,
     });
@@ -78,70 +75,44 @@ describe('CatalystWidget', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument();
   });
 
-  it('shows empty state when no routines', () => {
+  it('shows empty state when no sets', () => {
     render(<CatalystWidget widget={createWidget()} />);
-    expect(screen.getByText('No Routines')).toBeInTheDocument();
+    expect(screen.getByText('No Sets')).toBeInTheDocument();
   });
 
-  it('renders routine buttons when routines are available', () => {
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [
+  it('renders set buttons when sets are available', () => {
+    (useCatalystSets as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      sets: [
         {
-          id: 'r1',
-          title: 'Morning Meeting',
+          id: 'set-1',
+          title: 'Morning Routines',
           imageUrl: undefined,
-          widgets: [],
+          routines: [
+            { id: 'r1', title: 'Routine 1', widgets: [], createdAt: 1 },
+          ],
           createdAt: 1,
         },
-        {
-          id: 'r2',
-          title: 'Brain Break',
-          imageUrl: 'https://example.com/img.jpg',
-          widgets: [],
-          createdAt: 2,
-        },
       ],
       loading: false,
       executeRoutine: mockExecuteRoutine,
     });
 
     render(<CatalystWidget widget={createWidget()} />);
-
-    // CSS uppercase is applied via Tailwind; DOM text is the raw title
-    expect(screen.getByText('Morning Meeting')).toBeInTheDocument();
-    expect(screen.getByText('Brain Break')).toBeInTheDocument();
+    expect(screen.getByText('Morning Routines')).toBeInTheDocument();
+    expect(screen.getByText('1 ROUTINE')).toBeInTheDocument();
   });
 
-  it('renders image when routine has a safe imageUrl', () => {
-    const imageUrl = 'https://example.com/img.jpg';
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [
-        { id: 'r1', title: 'My Routine', imageUrl, widgets: [], createdAt: 1 },
-      ],
-      loading: false,
-      executeRoutine: mockExecuteRoutine,
-    });
-
-    render(<CatalystWidget widget={createWidget()} />);
-
-    const img = screen.getByAltText('My Routine');
-    expect(img).toHaveAttribute('src', imageUrl);
-  });
-
-  it('shows image placeholder when no imageUrl', () => {
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [
+  it('navigates to routines list when a set is clicked', async () => {
+    const user = userEvent.setup();
+    (useCatalystSets as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      sets: [
         {
-          id: 'r1',
-          title: 'No Image',
+          id: 'set-1',
+          title: 'Morning Routines',
           imageUrl: undefined,
-          widgets: [],
+          routines: [
+            { id: 'r1', title: 'Routine 1', widgets: [], createdAt: 1 },
+          ],
           createdAt: 1,
         },
       ],
@@ -150,28 +121,12 @@ describe('CatalystWidget', () => {
     });
 
     render(<CatalystWidget widget={createWidget()} />);
-    expect(screen.getByText('IMAGE PLACEHOLDER')).toBeInTheDocument();
-  });
 
-  it('does not render an img for unsafe imageUrl', () => {
-    (
-      useCatalystRoutines as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue({
-      routines: [
-        {
-          id: 'r1',
-          title: 'Bad URL',
-          imageUrl: 'http://insecure.example.com/img.jpg',
-          widgets: [],
-          createdAt: 1,
-        },
-      ],
-      loading: false,
-      executeRoutine: mockExecuteRoutine,
-    });
+    const setButton = screen.getByText('Morning Routines').closest('button');
+    if (!setButton) throw new Error('Set button not found');
+    await user.click(setButton);
 
-    render(<CatalystWidget widget={createWidget()} />);
-    expect(screen.queryByAltText('Bad URL')).not.toBeInTheDocument();
-    expect(screen.getByText('IMAGE PLACEHOLDER')).toBeInTheDocument();
+    // Should now see the routine
+    expect(screen.getByText('Routine 1')).toBeInTheDocument();
   });
 });

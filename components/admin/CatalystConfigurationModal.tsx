@@ -9,30 +9,28 @@ import {
   ChevronLeft,
   Zap,
   Upload,
-  ImageOff,
   Camera,
-  Package,
+  Layers,
 } from 'lucide-react';
 import {
   collection,
   onSnapshot,
   query,
   setDoc,
-  updateDoc,
-  deleteDoc,
   doc,
+  getDocs,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { CatalystRoutine, WidgetData } from '@/types';
-
-const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
-const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+import { CatalystRoutine, CatalystSet, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
+
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 interface CatalystConfigurationModalProps {
   isOpen: boolean;
@@ -49,23 +47,35 @@ const COLLECTION_PATH = [
   appId,
   'public',
   'data',
-  'catalystRoutines',
+  'catalystSets',
 ] as const;
 
-type ViewMode = 'list' | 'editor';
+type ViewMode = 'sets-list' | 'set-editor' | 'routine-editor';
 
-interface EditorState {
-  id: string | null; // null = new
+interface SetEditorState {
+  id: string;
   title: string;
+  description: string;
+  imageUrl: string;
+  routines: CatalystRoutine[];
+  imageFile: File | null;
+  imagePreview: string | null;
+}
+
+interface RoutineEditorState {
+  id: string | null;
+  title: string;
+  description: string;
   imageUrl: string;
   widgets: Omit<WidgetData, 'id'>[];
   imageFile: File | null;
   imagePreview: string | null;
 }
 
-const EMPTY_EDITOR: EditorState = {
+const EMPTY_ROUTINE_EDITOR: RoutineEditorState = {
   id: null,
   title: '',
+  description: '',
   imageUrl: '',
   widgets: [],
   imageFile: null,
@@ -81,11 +91,15 @@ export const CatalystConfigurationModal: React.FC<
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewUrlRef = useRef<string | null>(null);
 
-  const [routines, setRoutines] = useState<CatalystRoutine[]>([]);
-  const [loadingRoutines, setLoadingRoutines] = useState(true);
+  const [sets, setSets] = useState<CatalystSet[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState<ViewMode>('list');
-  const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
+  const [view, setView] = useState<ViewMode>('sets-list');
+
+  const [setEditor, setSetEditor] = useState<SetEditorState | null>(null);
+  const [routineEditor, setRoutineEditor] =
+    useState<RoutineEditorState>(EMPTY_ROUTINE_EDITOR);
+
   const [message, setMessage] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -96,53 +110,73 @@ export const CatalystConfigurationModal: React.FC<
     setTimeout(() => setMessage(null), 3000);
   }, []);
 
-  // Subscribe to Firestore routines
+  // Fetch / Migrate sets
   useEffect(() => {
     if (!isOpen) return;
     if (isAuthBypass) {
-      setRoutines([]);
-      setLoadingRoutines(false);
+      setSets([
+        { id: 'set-1', title: 'Set 1', routines: [], createdAt: Date.now() },
+        { id: 'set-2', title: 'Set 2', routines: [], createdAt: Date.now() },
+        { id: 'set-3', title: 'Set 3', routines: [], createdAt: Date.now() },
+        { id: 'set-4', title: 'Set 4', routines: [], createdAt: Date.now() },
+      ]);
+      setLoading(false);
       return;
     }
 
-    setLoadingRoutines(true);
+    setLoading(true);
     const ref = collection(db, ...COLLECTION_PATH);
     const unsub = onSnapshot(
       query(ref),
-      (snap) => {
-        const items: CatalystRoutine[] = [];
-        snap.forEach((d) =>
-          items.push({ ...d.data(), id: d.id } as CatalystRoutine)
-        );
-        items.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
-        setRoutines(items);
-        setLoadingRoutines(false);
+      async (snap) => {
+        if (!snap.empty) {
+          const items: CatalystSet[] = [];
+          snap.forEach((d) =>
+            items.push({ ...d.data(), id: d.id } as CatalystSet)
+          );
+          items.sort((a, b) => a.id.localeCompare(b.id));
+          setSets(items);
+          setLoading(false);
+        } else {
+          // Attempt migration
+          try {
+            const oldRef = collection(
+              db,
+              'artifacts',
+              appId,
+              'public',
+              'data',
+              'catalystRoutines'
+            );
+            const oldSnap = await getDocs(oldRef);
+            const oldRoutines: CatalystRoutine[] = [];
+            oldSnap.forEach((d) =>
+              oldRoutines.push({ ...d.data(), id: d.id } as CatalystRoutine)
+            );
+            oldRoutines.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
+            const initialSets: CatalystSet[] = [
+              {
+                id: 'set-1',
+                title: oldRoutines.length > 0 ? 'Legacy Routines' : '',
+                routines: oldRoutines,
+                createdAt: Date.now(),
+              },
+              { id: 'set-2', title: '', routines: [], createdAt: Date.now() },
+              { id: 'set-3', title: '', routines: [], createdAt: Date.now() },
+              { id: 'set-4', title: '', routines: [], createdAt: Date.now() },
+            ];
+            setSets(initialSets);
+          } catch (err) {
+            console.error('Migration fetch failed', err);
+          } finally {
+            setLoading(false);
+          }
+        }
       },
-      () => setLoadingRoutines(false)
+      () => setLoading(false)
     );
     return () => unsub();
-  }, [isOpen]);
-
-  // Revoke any lingering object URL on unmount
-  useEffect(() => {
-    return () => {
-      if (imagePreviewUrlRef.current) {
-        URL.revokeObjectURL(imagePreviewUrlRef.current);
-        imagePreviewUrlRef.current = null;
-      }
-    };
-  }, []);
-
-  // Reset to list view when modal closes and revoke any pending preview URL
-  useEffect(() => {
-    if (!isOpen) {
-      setView('list');
-      setEditor(EMPTY_EDITOR);
-      if (imagePreviewUrlRef.current) {
-        URL.revokeObjectURL(imagePreviewUrlRef.current);
-        imagePreviewUrlRef.current = null;
-      }
-    }
   }, [isOpen]);
 
   const revokePreview = () => {
@@ -152,36 +186,16 @@ export const CatalystConfigurationModal: React.FC<
     }
   };
 
-  const openCreate = () => {
-    revokePreview();
-    setEditor(EMPTY_EDITOR);
-    setView('editor');
-  };
+  useEffect(() => {
+    if (!isOpen) {
+      setView('sets-list');
+      setSetEditor(null);
+      setRoutineEditor(EMPTY_ROUTINE_EDITOR);
+      revokePreview();
+    }
+  }, [isOpen]);
 
-  const openEdit = (routine: CatalystRoutine) => {
-    revokePreview();
-    setEditor({
-      id: routine.id,
-      title: routine.title,
-      imageUrl: routine.imageUrl ?? '',
-      widgets: routine.widgets,
-      imageFile: null,
-      imagePreview: null,
-    });
-    setView('editor');
-  };
-
-  const handleCaptureBoard = () => {
-    const widgets = activeDashboard?.widgets ?? [];
-    // Filter out all catalyst-related widget types to prevent self-referential layouts
-    const snapshot = createBoardSnapshot(
-      widgets.filter((w) => !w.type.startsWith('catalyst'))
-    );
-    setEditor((e) => ({ ...e, widgets: snapshot }));
-    showMessage('success', `Captured ${snapshot.length} widget(s)`);
-  };
-
-  const handleImageChange = (file: File) => {
+  const handleImageChange = (file: File, isRoutine: boolean) => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       showMessage('error', 'Please select a PNG, JPEG, or WebP image.');
       return;
@@ -193,89 +207,159 @@ export const CatalystConfigurationModal: React.FC<
     revokePreview();
     const preview = URL.createObjectURL(file);
     imagePreviewUrlRef.current = preview;
-    setEditor((e) => ({ ...e, imageFile: file, imagePreview: preview }));
+
+    if (isRoutine) {
+      setRoutineEditor((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreview: preview,
+      }));
+    } else {
+      setSetEditor((prev) =>
+        prev ? { ...prev, imageFile: file, imagePreview: preview } : null
+      );
+    }
   };
 
-  const handleSave = async () => {
-    if (!editor.title.trim()) {
-      showMessage('error', 'Please enter a routine title.');
-      return;
-    }
-
+  const handleSaveSet = async () => {
+    if (!setEditor) return;
     setSaving(true);
     try {
-      let finalImageUrl = editor.imageUrl;
-      const ref = collection(db, ...COLLECTION_PATH);
-
-      if (editor.id) {
-        // Updating existing routine — use existing ID for image path consistency
-        if (editor.imageFile) {
-          finalImageUrl = await uploadCatalystImage(
-            editor.id,
-            editor.imageFile
-          );
-        }
-        const data: Omit<CatalystRoutine, 'id'> = {
-          title: editor.title.trim(),
-          imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
-          widgets: editor.widgets,
-          createdAt:
-            routines.find((r) => r.id === editor.id)?.createdAt ?? Date.now(),
-        };
-        await updateDoc(doc(db, ...COLLECTION_PATH, editor.id), { ...data });
-        showMessage('success', 'Routine updated');
-      } else {
-        // Creating new routine — pre-generate a doc ref so the storage path and
-        // Firestore document ID are the same, preventing orphaned images.
-        const newDocRef = doc(ref);
-        if (editor.imageFile) {
-          finalImageUrl = await uploadCatalystImage(
-            newDocRef.id,
-            editor.imageFile
-          );
-        }
-        const data: Omit<CatalystRoutine, 'id'> = {
-          title: editor.title.trim(),
-          imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
-          widgets: editor.widgets,
-          createdAt: Date.now(),
-        };
-        await setDoc(newDocRef, data);
-        showMessage('success', 'Routine created');
+      let finalImageUrl = setEditor.imageUrl;
+      if (setEditor.imageFile) {
+        finalImageUrl = await uploadCatalystImage(
+          setEditor.id,
+          setEditor.imageFile
+        );
       }
-
+      const dataToSave: Omit<CatalystSet, 'id'> = {
+        title: setEditor.title.trim(),
+        description: setEditor.description.trim(),
+        imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
+        routines: setEditor.routines,
+        createdAt:
+          sets.find((s) => s.id === setEditor.id)?.createdAt ?? Date.now(),
+      };
+      await setDoc(doc(db, ...COLLECTION_PATH, setEditor.id), dataToSave, {
+        merge: true,
+      });
+      showMessage('success', 'Set saved');
       revokePreview();
-      setView('list');
-      setEditor(EMPTY_EDITOR);
+      setView('sets-list');
+      setSetEditor(null);
     } catch (err) {
-      console.error('Failed to save routine:', err);
-      showMessage('error', 'Failed to save routine.');
+      console.error(err);
+      showMessage('error', 'Failed to save set.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (routine: CatalystRoutine) => {
+  const handleSaveRoutine = () => {
+    if (!routineEditor.title.trim()) {
+      showMessage('error', 'Please enter a routine title.');
+      return;
+    }
+    setSaving(true);
+    // Since routines are nested in a set, we don't immediately upload images to Storage here.
+    // Instead we upload to storage, and then update the Set in Firestore.
+    const runSave = async () => {
+      try {
+        let finalImageUrl = routineEditor.imageUrl;
+        const routineId = routineEditor.id ?? crypto.randomUUID();
+
+        if (routineEditor.imageFile) {
+          finalImageUrl = await uploadCatalystImage(
+            routineId,
+            routineEditor.imageFile
+          );
+        }
+
+        const newRoutine: CatalystRoutine = {
+          id: routineId,
+          title: routineEditor.title.trim(),
+          description: routineEditor.description.trim(),
+          imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
+          widgets: routineEditor.widgets,
+          createdAt: routineEditor.id
+            ? (setEditor?.routines.find((r) => r.id === routineEditor.id)
+                ?.createdAt ?? Date.now())
+            : Date.now(),
+        };
+
+        // Update the set editor state
+        setSetEditor((prev) => {
+          if (!prev) return null;
+          const exists = prev.routines.some((r) => r.id === newRoutine.id);
+          const newRoutines = exists
+            ? prev.routines.map((r) =>
+                r.id === newRoutine.id ? newRoutine : r
+              )
+            : [...prev.routines, newRoutine];
+          return { ...prev, routines: newRoutines };
+        });
+
+        showMessage('success', 'Routine applied to Set (Save Set to finalize)');
+        revokePreview();
+        setView('set-editor');
+      } catch (err) {
+        console.error(err);
+        showMessage('error', 'Failed to apply routine.');
+      } finally {
+        setSaving(false);
+      }
+    };
+    void runSave();
+  };
+
+  const handleDeleteRoutine = async (routineId: string) => {
     const confirmed = await showConfirm(
-      `Delete "${routine.title}"? This cannot be undone.`,
+      `Delete this routine? It will be permanently removed when you save the set.`,
       { confirmLabel: 'Delete', cancelLabel: 'Cancel', variant: 'danger' }
     );
     if (!confirmed) return;
-    try {
-      await deleteDoc(doc(db, ...COLLECTION_PATH, routine.id));
-      showMessage('success', 'Routine deleted');
-    } catch {
-      showMessage('error', 'Failed to delete routine.');
+    setSetEditor((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        routines: prev.routines.filter((r) => r.id !== routineId),
+      };
+    });
+  };
+
+  const openSetEditor = (set: CatalystSet) => {
+    revokePreview();
+    setSetEditor({
+      id: set.id,
+      title: set.title,
+      description: set.description ?? '',
+      imageUrl: set.imageUrl ?? '',
+      routines: set.routines,
+      imageFile: null,
+      imagePreview: null,
+    });
+    setView('set-editor');
+  };
+
+  const openRoutineEditor = (routine?: CatalystRoutine) => {
+    revokePreview();
+    if (routine) {
+      setRoutineEditor({
+        id: routine.id,
+        title: routine.title,
+        description: routine.description ?? '',
+        imageUrl: routine.imageUrl ?? '',
+        widgets: routine.widgets,
+        imageFile: null,
+        imagePreview: null,
+      });
+    } else {
+      setRoutineEditor(EMPTY_ROUTINE_EDITOR);
     }
+    setView('routine-editor');
   };
 
   if (!isOpen) return null;
-
-  const previewSrc =
-    editor.imagePreview ??
-    (editor.imageUrl && isSafeIconUrl(editor.imageUrl)
-      ? editor.imageUrl
-      : null);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -287,15 +371,26 @@ export const CatalystConfigurationModal: React.FC<
         />
       )}
 
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
-            {view === 'editor' && (
+            {view === 'set-editor' && (
               <button
                 onClick={() => {
-                  setView('list');
-                  setEditor(EMPTY_EDITOR);
+                  setView('sets-list');
+                  revokePreview();
+                }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            {view === 'routine-editor' && (
+              <button
+                onClick={() => {
+                  setView('set-editor');
+                  revokePreview();
                 }}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
               >
@@ -305,11 +400,10 @@ export const CatalystConfigurationModal: React.FC<
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-bold text-slate-800">
-                {view === 'list'
-                  ? 'Catalyst Routines'
-                  : editor.id
-                    ? 'Edit Routine'
-                    : 'New Routine'}
+                {view === 'sets-list' && 'Catalyst Sets'}
+                {view === 'set-editor' && 'Edit Set'}
+                {view === 'routine-editor' &&
+                  (routineEditor.id ? 'Edit Routine' : 'New Routine')}
               </h2>
             </div>
           </div>
@@ -323,171 +417,287 @@ export const CatalystConfigurationModal: React.FC<
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {view === 'list' ? (
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  {routines.length} routine{routines.length !== 1 ? 's' : ''}
-                </p>
-                <button
-                  onClick={openCreate}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Routine
-                </button>
-              </div>
-
-              {loadingRoutines ? (
-                <div className="flex items-center justify-center py-12 text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  Loading…
-                </div>
-              ) : routines.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-center gap-3 border-2 border-dashed border-slate-200 rounded-2xl">
-                  <Package className="w-10 h-10 opacity-40" />
-                  <div>
-                    <p className="font-bold text-slate-500">No routines yet</p>
-                    <p className="text-sm mt-1">
-                      Click &ldquo;New Routine&rdquo; to create your first one.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {routines.map((routine) => (
-                    <div
-                      key={routine.id}
-                      className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm group"
-                      style={{ minHeight: 140 }}
-                    >
-                      {/* Image / placeholder */}
-                      {routine.imageUrl && isSafeIconUrl(routine.imageUrl) ? (
-                        <img
-                          src={routine.imageUrl}
-                          alt={routine.title}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
-                          <ImageOff className="w-8 h-8 text-slate-300" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                      {/* Title footer */}
-                      <div className="absolute bottom-0 left-0 right-0 px-3 py-2">
-                        <p className="text-white font-black uppercase tracking-widest text-xs truncate drop-shadow">
-                          {routine.title}
-                        </p>
-                        <p className="text-white/70 text-xs">
-                          {routine.widgets.length} widget
-                          {routine.widgets.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-
-                      {/* Action overlay on hover */}
-                      <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                        <button
-                          onClick={() => openEdit(routine)}
-                          className="p-2 bg-white rounded-lg shadow text-slate-700 hover:bg-slate-50 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => void handleDelete(routine)}
-                          className="p-2 bg-white rounded-lg shadow text-red-600 hover:bg-red-50 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              Loading…
             </div>
-          ) : (
-            /* Editor view */
-            <div className="p-6 space-y-6">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Routine Title
-                </label>
-                <input
-                  type="text"
-                  value={editor.title}
-                  onChange={(e) =>
-                    setEditor((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  placeholder="e.g. Morning Meeting"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-                />
-              </div>
-
-              {/* Image upload */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                  Button Image
-                </label>
-                <div
-                  className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
-                  style={{ minHeight: 180 }}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const file = e.dataTransfer.files[0];
-                    if (file?.type.startsWith('image/'))
-                      handleImageChange(file);
-                  }}
-                >
-                  {previewSrc ? (
-                    <>
+          ) : view === 'sets-list' ? (
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-500 mb-4">
+                Catalyst allows up to 4 sets of routines. Select a set to edit
+                its title, image, and manage the routines inside it.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {sets.map((set) => (
+                  <button
+                    key={set.id}
+                    onClick={() => openSetEditor(set)}
+                    className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm group hover:ring-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-left"
+                    style={{ minHeight: 140 }}
+                  >
+                    {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
                       <img
-                        src={previewSrc}
-                        alt="Preview"
+                        src={set.imageUrl}
+                        alt={set.title}
                         className="absolute inset-0 w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">
-                          Click to change
-                        </span>
+                    ) : (
+                      <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
+                        <Layers className="w-8 h-8 text-slate-300" />
                       </div>
-                    </>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <Upload className="w-8 h-8" />
-                      <span className="text-sm font-medium">
-                        Click or drag to upload image
-                      </span>
-                      <span className="text-xs">PNG, JPG, WEBP</span>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
+                      <p className="text-white font-black uppercase tracking-widest text-sm truncate drop-shadow">
+                        {set.title || `Unnamed Set`}
+                      </p>
+                      <p className="text-white/80 text-xs mt-0.5">
+                        {set.routines.length} routine
+                        {set.routines.length !== 1 ? 's' : ''}
+                      </p>
                     </div>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageChange(file);
-                    }}
-                  />
+
+                    <div className="absolute top-2 right-2 p-1.5 bg-white/20 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Edit2 className="w-4 h-4 text-white" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : view === 'set-editor' && setEditor ? (
+            <div className="p-6 space-y-8">
+              {/* Set Metadata */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2">
+                  Set Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                        Set Title
+                      </label>
+                      <input
+                        type="text"
+                        value={setEditor.title}
+                        onChange={(e) =>
+                          setSetEditor((p) =>
+                            p ? { ...p, title: e.target.value } : null
+                          )
+                        }
+                        placeholder="e.g. Morning Blocks"
+                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                        Description (Optional)
+                      </label>
+                      <textarea
+                        value={setEditor.description}
+                        onChange={(e) =>
+                          setSetEditor((p) =>
+                            p ? { ...p, description: e.target.value } : null
+                          )
+                        }
+                        placeholder="Brief description..."
+                        className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                      Set Image
+                    </label>
+                    <div
+                      className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
+                      style={{ minHeight: 140 }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {setEditor.imagePreview ||
+                      (setEditor.imageUrl &&
+                        isSafeIconUrl(setEditor.imageUrl)) ? (
+                        <>
+                          <img
+                            src={setEditor.imagePreview ?? setEditor.imageUrl}
+                            alt="Preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              Click to change
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                          <Upload className="w-8 h-8" />
+                          <span className="text-xs font-medium">
+                            Upload image
+                          </span>
+                        </div>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageChange(file, false);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                {uploading && (
-                  <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Uploading image…
-                  </p>
-                )}
               </div>
 
-              {/* Widget capture */}
+              {/* Routines in this Set */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
+                    Routines
+                  </h3>
+                  <button
+                    onClick={() => openRoutineEditor()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Routine
+                  </button>
+                </div>
+
+                {setEditor.routines.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+                    <p className="font-medium">No routines in this set yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {setEditor.routines.map((routine) => (
+                      <div
+                        key={routine.id}
+                        className="relative bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2 group"
+                      >
+                        <div className="font-bold text-slate-700 text-sm truncate">
+                          {routine.title}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {routine.widgets.length} widget(s)
+                        </div>
+
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-sm rounded-md border border-slate-200 p-0.5">
+                          <button
+                            onClick={() => openRoutineEditor(routine)}
+                            className="p-1 hover:bg-slate-200 rounded text-slate-600"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteRoutine(routine.id)}
+                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : view === 'routine-editor' ? (
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                      Routine Title
+                    </label>
+                    <input
+                      type="text"
+                      value={routineEditor.title}
+                      onChange={(e) =>
+                        setRoutineEditor((p) => ({
+                          ...p,
+                          title: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Brain Break"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                      Description (Optional)
+                    </label>
+                    <textarea
+                      value={routineEditor.description}
+                      onChange={(e) =>
+                        setRoutineEditor((p) => ({
+                          ...p,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Brief description..."
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    Button Image
+                  </label>
+                  <div
+                    className="relative border-2 border-dashed border-slate-300 rounded-xl overflow-hidden cursor-pointer hover:border-indigo-400 transition-colors group"
+                    style={{ minHeight: 140 }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {routineEditor.imagePreview ||
+                    (routineEditor.imageUrl &&
+                      isSafeIconUrl(routineEditor.imageUrl)) ? (
+                      <>
+                        <img
+                          src={
+                            routineEditor.imagePreview ?? routineEditor.imageUrl
+                          }
+                          alt="Preview"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">
+                            Click to change
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Upload className="w-8 h-8" />
+                        <span className="text-xs font-medium">
+                          Upload image
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageChange(file, true);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Widget Layout
@@ -496,17 +706,28 @@ export const CatalystConfigurationModal: React.FC<
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-slate-700">
-                        {editor.widgets.length > 0
-                          ? `${editor.widgets.length} widget${editor.widgets.length !== 1 ? 's' : ''} captured`
+                        {routineEditor.widgets.length > 0
+                          ? `${routineEditor.widgets.length} widget(s) captured`
                           : 'No widgets captured yet'}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5">
                         Set up your board, then click &ldquo;Capture&rdquo; to
-                        save that layout as this routine.
+                        save that layout.
                       </p>
                     </div>
                     <button
-                      onClick={handleCaptureBoard}
+                      onClick={() => {
+                        const snapshot = createBoardSnapshot(
+                          (activeDashboard?.widgets ?? []).filter(
+                            (w) => !w.type.startsWith('catalyst')
+                          )
+                        );
+                        setRoutineEditor((p) => ({ ...p, widgets: snapshot }));
+                        showMessage(
+                          'success',
+                          `Captured ${snapshot.length} widget(s)`
+                        );
+                      }}
                       className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
                     >
                       <Camera className="w-4 h-4" />
@@ -514,9 +735,9 @@ export const CatalystConfigurationModal: React.FC<
                     </button>
                   </div>
 
-                  {editor.widgets.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-200">
-                      {editor.widgets.map((w, i) => (
+                  {routineEditor.widgets.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                      {routineEditor.widgets.map((w, i) => (
                         <span
                           key={i}
                           className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 shadow-sm"
@@ -529,11 +750,11 @@ export const CatalystConfigurationModal: React.FC<
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Footer */}
-        {view === 'editor' && (
+        {view === 'set-editor' && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             {isAuthBypass && (
               <p className="mr-auto text-xs font-medium text-amber-600">
@@ -542,16 +763,16 @@ export const CatalystConfigurationModal: React.FC<
             )}
             <button
               onClick={() => {
+                setView('sets-list');
                 revokePreview();
-                setView('list');
-                setEditor(EMPTY_EDITOR);
+                setSetEditor(null);
               }}
               className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={() => void handleSave()}
+              onClick={() => void handleSaveSet()}
               disabled={saving || uploading || isAuthBypass}
               className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
             >
@@ -560,7 +781,34 @@ export const CatalystConfigurationModal: React.FC<
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              {editor.id ? 'Update Routine' : 'Save Routine'}
+              Save Set
+            </button>
+          </div>
+        )}
+
+        {view === 'routine-editor' && (
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+            <button
+              onClick={() => {
+                setView('set-editor');
+                revokePreview();
+                setRoutineEditor(EMPTY_ROUTINE_EDITOR);
+              }}
+              className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveRoutine}
+              disabled={saving || uploading}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors disabled:opacity-60"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              Apply to Set
             </button>
           </div>
         )}

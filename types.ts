@@ -889,8 +889,19 @@ export interface MaterialsConfig {
 export interface CatalystRoutine {
   id: string;
   title: string;
+  icon?: string;
   imageUrl?: string;
+  description?: string;
   widgets: Omit<WidgetData, 'id'>[];
+  createdAt: number;
+}
+
+export interface CatalystSet {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  description?: string;
+  routines: CatalystRoutine[];
   createdAt: number;
 }
 
