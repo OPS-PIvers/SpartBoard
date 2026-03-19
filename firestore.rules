@@ -65,8 +65,13 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
-    // Catalyst Routines
+    // Catalyst Routines (legacy)
     match /artifacts/{appId}/public/data/catalystRoutines/{routineId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    // Catalyst Sets
+    match /artifacts/{appId}/public/data/catalystSets/{setId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
