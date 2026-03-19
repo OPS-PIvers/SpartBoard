@@ -424,6 +424,8 @@ export const FeaturePermissionsManager: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-600'
             }`}
             title="Grid View"
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
           >
             <LayoutGrid size={16} />
           </button>
@@ -435,6 +437,8 @@ export const FeaturePermissionsManager: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-600'
             }`}
             title="List View"
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
           >
             <List size={16} />
           </button>
