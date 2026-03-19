@@ -51,6 +51,13 @@ export function useCatalystSets() {
         } else {
           // Empty, so fallback to fetching the old routines to keep them visible for users
           // until an admin opens the config and permanently migrates them.
+          let initialSets: CatalystSet[] = [
+            { id: 'set-1', title: 'Set 1', routines: [], createdAt: Date.now() },
+            { id: 'set-2', title: 'Set 2', routines: [], createdAt: Date.now() },
+            { id: 'set-3', title: 'Set 3', routines: [], createdAt: Date.now() },
+            { id: 'set-4', title: 'Set 4', routines: [], createdAt: Date.now() },
+          ];
+
           try {
             const oldRef = collection(
               db,
@@ -71,63 +78,13 @@ export function useCatalystSets() {
             oldRoutines.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 
             if (oldRoutines.length > 0) {
-              setSets([
-                {
-                  id: 'set-1',
-                  title: 'Legacy Routines',
-                  routines: oldRoutines,
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-2',
-                  title: 'Set 2',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-3',
-                  title: 'Set 3',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-4',
-                  title: 'Set 4',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-              ]);
-            } else {
-              setSets([
-                {
-                  id: 'set-1',
-                  title: 'Set 1',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-2',
-                  title: 'Set 2',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-3',
-                  title: 'Set 3',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-                {
-                  id: 'set-4',
-                  title: 'Set 4',
-                  routines: [],
-                  createdAt: Date.now(),
-                },
-              ]);
+              initialSets[0].title = 'Legacy Routines';
+              initialSets[0].routines = oldRoutines;
             }
           } catch (err) {
             console.error('Failed to fetch legacy catalyst routines:', err);
           } finally {
+            setSets(initialSets);
             setLoading(false);
           }
         }

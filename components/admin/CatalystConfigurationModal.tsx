@@ -134,11 +134,20 @@ export const CatalystConfigurationModal: React.FC<
           snap.forEach((d) =>
             items.push({ ...d.data(), id: d.id } as CatalystSet)
           );
+          // Ensure we always have exactly 4 sets by padding or truncating if necessary, 
+          // though we assume the admin only ever sees 4.
           items.sort((a, b) => a.id.localeCompare(b.id));
           setSets(items);
           setLoading(false);
         } else {
           // Attempt migration
+          let initialSets: CatalystSet[] = [
+            { id: 'set-1', title: 'Set 1', routines: [], createdAt: Date.now() },
+            { id: 'set-2', title: 'Set 2', routines: [], createdAt: Date.now() },
+            { id: 'set-3', title: 'Set 3', routines: [], createdAt: Date.now() },
+            { id: 'set-4', title: 'Set 4', routines: [], createdAt: Date.now() },
+          ];
+
           try {
             const oldRef = collection(
               db,
@@ -155,21 +164,14 @@ export const CatalystConfigurationModal: React.FC<
             );
             oldRoutines.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 
-            const initialSets: CatalystSet[] = [
-              {
-                id: 'set-1',
-                title: oldRoutines.length > 0 ? 'Legacy Routines' : '',
-                routines: oldRoutines,
-                createdAt: Date.now(),
-              },
-              { id: 'set-2', title: '', routines: [], createdAt: Date.now() },
-              { id: 'set-3', title: '', routines: [], createdAt: Date.now() },
-              { id: 'set-4', title: '', routines: [], createdAt: Date.now() },
-            ];
-            setSets(initialSets);
+            if (oldRoutines.length > 0) {
+              initialSets[0].title = 'Legacy Routines';
+              initialSets[0].routines = oldRoutines;
+            }
           } catch (err) {
             console.error('Migration fetch failed', err);
           } finally {
+            setSets(initialSets);
             setLoading(false);
           }
         }
