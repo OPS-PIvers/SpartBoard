@@ -2,7 +2,6 @@ import React from 'react';
 import { Music, Palette } from 'lucide-react';
 import { WidgetData, MusicConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -11,7 +10,6 @@ import {
   TRANSPARENT_BG_URL,
 } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
-import { MusicManager } from '@/components/admin/MusicManager';
 import { buildSpotifyEmbedUrl } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -20,7 +18,6 @@ import { buildSpotifyEmbedUrl } from './utils';
 
 export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
-  const { isAdmin } = useAuth();
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
 
@@ -44,10 +41,8 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ) : stations.length === 0 ? (
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
             <p className="text-xs text-slate-500">
-              No stations available.{' '}
-              {isAdmin
-                ? 'Add stations in the Music Library section below.'
-                : 'An admin needs to add stations.'}
+              No stations available. An admin needs to add them in Admin
+              Settings.
             </p>
           </div>
         ) : (
@@ -119,16 +114,6 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : 'Music will automatically play and pause with your active Time Tool.'}
         </p>
       </div>
-
-      {/* Admin: Music Library management */}
-      {isAdmin && (
-        <div className="pt-4 border-t border-slate-100">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-            Music Library (Admin)
-          </p>
-          <MusicManager />
-        </div>
-      )}
     </div>
   );
 };
