@@ -1,24 +1,28 @@
 #!/bin/bash
+set -e # Exit immediately if a command fails
 
-# 1. Enable Corepack and prepare pnpm
-echo "Setting up pnpm..."
+echo "🚀 Starting SPART Board Environment Setup..."
+
+# 1. Setup PNPM for the project
+echo "📦 Enabling corepack and pnpm..."
 corepack enable
 corepack prepare pnpm@latest --activate
 
-# 2. Install project dependencies
-echo "Installing project dependencies..."
+# 2. Install Project Dependencies
+echo "📥 Installing project dependencies..."
 pnpm install
 
-# 3. Install Playwright browsers (for testing)
-echo "Installing Playwright..."
+# 3. Install Playwright Browsers
+echo "🎭 Installing Playwright browsers..."
 npx playwright install --with-deps
 
-# 4. Install Global CLI Tools
-echo "Installing global tools (Gemini, Firebase, Jules)..."
-pnpm add -g @google/gemini-cli firebase-tools @google/jules
+# 4. Install Global CLI Tools via NPM
+# (NPM is used here to ensure they land in /usr/local/bin for all users)
+echo "🛠️  Installing global tools (Gemini, Firebase, Jules)..."
+sudo npm install -g @google/gemini-cli firebase-tools @google/jules
 
 # 5. Install Gemini Extensions
-# We use a loop so if one fails, the others still install.
+echo "🧩 Installing Gemini extensions..."
 EXTENSIONS=(
   "https://github.com/gemini-cli-extensions/stitch"
   "https://github.com/ChromeDevTools/chrome-devtools-mcp"
@@ -29,10 +33,9 @@ EXTENSIONS=(
   "https://github.com/gemini-cli-extensions/security"
 )
 
-echo "Installing Gemini extensions..."
 for ext in "${EXTENSIONS[@]}"; do
   echo "Installing $ext..."
   gemini extensions install "$ext" --consent || echo "⚠️  Failed to install $ext, skipping..."
 done
 
-echo "✅ Setup complete!"
+echo "✅ Environment setup complete!"
