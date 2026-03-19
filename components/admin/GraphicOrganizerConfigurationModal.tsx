@@ -51,7 +51,7 @@ const LAYOUT_OPTIONS: {
   {
     value: 'cause-effect',
     label: 'Cause & Effect',
-    nodes: ['cause1', 'cause2', 'cause3', 'effect'],
+    nodes: ['cause', 'effect'],
   },
 ];
 
@@ -99,20 +99,27 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   }, [permission.config]);
 
   const handleSave = () => {
+    if (editingTemplateId) {
+      setToastMessage(
+        'Please save or cancel your active template draft before applying.'
+      );
+      return;
+    }
+
     setIsSaving(true);
     try {
       onSave({
         config: globalConfig as unknown as Record<string, unknown>,
       });
-      setToastMessage('Configuration saved successfully');
+      setToastMessage('Configuration applied locally');
 
       // Close modal after a short delay so user sees success toast
       setTimeout(() => {
         onClose();
       }, 1000);
     } catch (error) {
-      console.error('Error saving config:', error);
-      setToastMessage('Error saving configuration');
+      console.error('Error applying config:', error);
+      setToastMessage('Error applying configuration');
     } finally {
       setIsSaving(false);
     }
@@ -144,7 +151,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   }, [getBuildingConfig, selectedBuilding]);
 
   const startNewTemplate = () => {
-    const newId = `template-${Date.now()}`;
+    const newId = `template-${crypto.randomUUID()}`;
     const newTemplate: GraphicOrganizerTemplate = {
       id: newId,
       name: 'New Custom Template',
@@ -239,7 +246,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 font-sans backdrop-blur-sm">
+    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-black/50 p-4 font-sans backdrop-blur-sm">
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
@@ -501,7 +508,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
           <div className="text-sm font-bold text-slate-400">
-            {isSaving ? 'SAVING...' : 'ALL CHANGES SAVED LOCAL'}
+            {isSaving ? 'APPLYING...' : 'PENDING PARENT SAVE'}
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={onClose} disabled={isSaving}>
@@ -509,7 +516,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || isLoading}
+              disabled={isSaving || isLoading || !!editingTemplateId}
               className="gap-2"
             >
               {isSaving ? (
@@ -517,7 +524,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              Save Configuration
+              Apply Configuration
             </Button>
           </div>
         </div>

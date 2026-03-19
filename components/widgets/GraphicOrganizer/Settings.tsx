@@ -3,11 +3,10 @@ import {
   WidgetData,
   GraphicOrganizerConfig,
   GraphicOrganizerTemplate,
+  GlobalFontFamily,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-
-import { GlobalFontFamily } from '@/types';
 
 export const GraphicOrganizerSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -34,7 +33,7 @@ export const GraphicOrganizerSettings: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, {
       config: {
         ...config,
-        templateType: e.target.value,
+        templateType: e.target.value as GraphicOrganizerConfig['templateType'],
       },
     });
   };

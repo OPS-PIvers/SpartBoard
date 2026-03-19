@@ -178,4 +178,65 @@ describe('GraphicOrganizerWidget', () => {
     const centerNode = Array.from(editableNodes)[4] as HTMLElement;
     expect(centerNode.innerText).toBe('Photosynthesis');
   });
+
+  it('renders building-specific custom templates via feature permissions', () => {
+    // Override the mock for this specific test
+    vi.mocked(useAuth).mockReturnValue({
+      user: { buildingId: 'test-building' } as unknown,
+      selectedBuildings: ['test-building'],
+      featurePermissions: [
+        {
+          widgetType: 'graphic-organizer',
+          accessLevel: 'public',
+          betaUsers: [],
+          enabled: true,
+          config: {
+            buildings: {
+              'test-building': {
+                templates: [
+                  {
+                    id: 'template-custom-123',
+                    name: 'Custom KWL',
+                    layout: 'kwl',
+                    fontFamily: 'comic',
+                    defaultNodes: {
+                      k: 'What I ALREADY Know',
+                      w: 'What I STILL Wonder',
+                      l: 'What I FINALLY Learned',
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
+
+    const widgetData = createWidgetData('template-custom-123');
+    render(<GraphicOrganizerWidget widget={widgetData} />);
+
+    // Should render the custom KWL chart labels
+    expect(screen.getByText('What I ALREADY Know')).toBeInTheDocument();
+    expect(screen.getByText('What I STILL Wonder')).toBeInTheDocument();
+    expect(screen.getByText('What I FINALLY Learned')).toBeInTheDocument();
+
+    // Should apply the custom font family class (getFontClass maps 'comic' -> 'font-comic')
+    const layoutContainer = screen.getByTestId('widget-layout');
+    const innerContainer = layoutContainer.firstElementChild;
+    expect(innerContainer).toHaveClass('font-comic');
+  });
+
+  it('falls back to frayer layout if custom template ID is missing/deleted', () => {
+    // The default setup has an empty featurePermissions array, so the template won't be found
+    const widgetData = createWidgetData('template-does-not-exist');
+    render(<GraphicOrganizerWidget widget={widgetData} />);
+
+    // It should fallback to rendering the default Frayer layout
+    expect(screen.getByText('Definition')).toBeInTheDocument();
+    expect(screen.getByText('Characteristics')).toBeInTheDocument();
+
+    const editableNodes = document.querySelectorAll('[contenteditable="true"]');
+    expect(editableNodes).toHaveLength(5); // Frayer has 5 nodes
+  });
 });

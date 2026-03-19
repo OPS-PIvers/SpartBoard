@@ -1304,8 +1304,10 @@ export interface GraphicOrganizerGlobalConfig {
   buildings: Record<string, GraphicOrganizerBuildingConfig>;
 }
 
+export type GraphicOrganizerTemplateId = `template-${string}`;
+
 export interface GraphicOrganizerConfig {
-  templateType: string; // string allows for custom template IDs
+  templateType: GraphicOrganizerLayoutType | GraphicOrganizerTemplateId;
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
 }
