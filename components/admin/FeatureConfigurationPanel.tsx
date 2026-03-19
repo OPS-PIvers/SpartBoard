@@ -84,6 +84,8 @@ interface FeatureConfigurationPanelProps {
   uploadWeatherImage: (rangeId: string, file: File) => Promise<string>;
 }
 
+import { DockDefaultsPanel } from './DockDefaultsPanel';
+
 export const FeatureConfigurationPanel: React.FC<
   FeatureConfigurationPanelProps
 > = ({
@@ -246,6 +248,14 @@ export const FeatureConfigurationPanel: React.FC<
 
   return (
     <div className="space-y-4">
+      {/* Dock Defaults (Global) */}
+      <DockDefaultsPanel
+        config={permission.config ?? {}}
+        onChange={(newConfig) =>
+          updatePermission(tool.type, { config: newConfig })
+        }
+      />
+
       {tool.type === 'lunchCount' && (
         <div className="space-y-3">
           {(() => {
