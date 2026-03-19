@@ -9,7 +9,6 @@ import {
   WeatherTemperatureRange,
   RecessGearGlobalConfig,
   RecessGearTemperatureRange,
-  CatalystGlobalConfig,
   ExpectationsGlobalConfig,
   TalkingToolGlobalConfig,
   ToolMetadata,
@@ -23,7 +22,6 @@ import {
   Upload,
   AppWindow,
 } from 'lucide-react';
-import { CatalystPermissionEditor } from './CatalystPermissionEditor';
 import { ExpectationsConfigurationPanel } from './ExpectationsConfigurationPanel';
 import { ScheduleConfigurationPanel } from './ScheduleConfigurationPanel';
 import { ClockConfigurationPanel } from './ClockConfigurationPanel';
@@ -45,11 +43,6 @@ import { PollConfigurationPanel } from './PollConfigurationPanel';
 import { QRConfigurationPanel } from './QRConfigurationPanel';
 import { EmbedConfigurationPanel } from './EmbedConfigurationPanel';
 import { Toggle } from '../common/Toggle';
-
-// Helper type guard
-const isCatalystConfig = (config: unknown): config is CatalystGlobalConfig => {
-  return typeof config === 'object' && config !== null;
-};
 
 // Shared prop shape for all "building-defaults" config panels
 type BuildingConfigPanel = React.ComponentType<{
@@ -1197,22 +1190,6 @@ export const FeatureConfigurationPanel: React.FC<
         </div>
       )}
 
-      {tool.type === 'catalyst' && (
-        <div className="space-y-4">
-          <CatalystPermissionEditor
-            config={
-              isCatalystConfig(permission.config) ? permission.config : {}
-            }
-            onChange={(newConfig) =>
-              updatePermission(tool.type, {
-                config: newConfig as unknown as Record<string, unknown>,
-              })
-            }
-            onShowMessage={showMessage}
-          />
-        </div>
-      )}
-
       {(() => {
         const BuildingPanel = BUILDING_CONFIG_PANELS[tool.type];
         if (!BuildingPanel) return null;
@@ -1236,7 +1213,6 @@ export const FeatureConfigurationPanel: React.FC<
         'lunchCount',
         'weather',
         'instructionalRoutines',
-        'catalyst',
         'webcam',
         'stickers',
         'calendar',

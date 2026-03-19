@@ -39,6 +39,7 @@ import { SpecialistScheduleConfigurationModal } from '@/components/admin/Special
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
 import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
+import { CatalystConfigurationModal } from '@/components/admin/CatalystConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -830,6 +831,13 @@ export const FeaturePermissionsManager: React.FC = () => {
         <MusicLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
 
+      {activeModalTool?.type === 'catalyst' && (
+        <CatalystConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -839,6 +847,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'miniApp',
           'starter-pack',
           'music',
+          'catalyst',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
