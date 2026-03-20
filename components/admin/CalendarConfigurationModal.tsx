@@ -23,6 +23,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
+import { Modal } from '../common/Modal';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 
 interface CalendarConfigurationModalProps {
@@ -206,44 +207,85 @@ export const CalendarConfigurationModal: React.FC<
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-rose-50 rounded-xl text-rose-600">
-              <CalendarIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight">
-                Calendar Administration
-              </h2>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-                Managed Proxy & Building Defaults
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!isConnected && (
-              <button
-                onClick={() => void refreshGoogleToken()}
-                className="text-xxs font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest px-3 py-1 bg-rose-50 rounded-lg transition-colors border border-rose-100 mr-2"
-              >
-                Reconnect Google
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+  const header = (
+    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-rose-50 rounded-xl text-rose-600">
+          <CalendarIcon className="w-6 h-6" />
         </div>
+        <div>
+          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+            Calendar Administration
+          </h2>
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+            Managed Proxy & Building Defaults
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {!isConnected && (
+          <button
+            onClick={() => void refreshGoogleToken()}
+            className="text-xxs font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest px-3 py-1 bg-rose-50 rounded-lg transition-colors border border-rose-100 mr-2"
+          >
+            Reconnect Google
+          </button>
+        )}
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  );
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+  const footer = (
+    <div className="flex items-center justify-between w-full">
+      <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
+        {config.blockedDates.length} Blocked Dates •{' '}
+        {currentBuildingConfig.events.length} Default Events
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={onClose}
+          className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" /> Save Configuration
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        maxWidth="max-w-4xl"
+        customHeader={header}
+        footer={footer}
+        className="!p-0"
+        contentClassName=""
+        footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+      >
+        <div className="p-6 space-y-8">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-rose-500 animate-spin" />
@@ -604,38 +646,7 @@ export const CalendarConfigurationModal: React.FC<
             </>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
-            {config.blockedDates.length} Blocked Dates •{' '}
-            {currentBuildingConfig.events.length} Default Events
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" /> Save Configuration
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+      </Modal>
 
       {message && (
         <Toast
@@ -644,6 +655,6 @@ export const CalendarConfigurationModal: React.FC<
           onClose={() => setMessage(null)}
         />
       )}
-    </div>
+    </>
   );
 };

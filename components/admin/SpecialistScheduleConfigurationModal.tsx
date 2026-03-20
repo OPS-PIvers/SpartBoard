@@ -19,6 +19,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
+import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Card } from '@/components/common/Card';
 
@@ -290,34 +291,74 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-teal-50 rounded-xl text-teal-600">
-              <CalendarDays className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-800 tracking-tight">
-                Specialist Schedule Administration
-              </h2>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-                Managed Rotation & Calendar Defaults
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+  const header = (
+    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-teal-50 rounded-xl text-teal-600">
+          <CalendarDays className="w-6 h-6" />
         </div>
+        <div>
+          <h2 className="text-lg font-black text-slate-800 tracking-tight">
+            Specialist Schedule Administration
+          </h2>
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+            Managed Rotation & Calendar Defaults
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={onClose}
+        className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+      >
+        <X className="w-6 h-6" />
+      </button>
+    </div>
+  );
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+  const footer = (
+    <div className="flex items-center justify-between w-full">
+      <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
+        Building: {BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={onClose}
+          className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="px-8 py-2.5 bg-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-teal-500/20 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" /> Save Configuration
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        maxWidth="max-w-5xl"
+        customHeader={header}
+        footer={footer}
+        className="!p-0"
+        contentClassName=""
+        footerClassName="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between w-full shrink-0"
+      >
+        <div className="p-6 space-y-8">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
@@ -745,37 +786,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
             </>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <p className="text-xxs text-slate-400 font-bold uppercase tracking-widest">
-            Building: {BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="px-8 py-2.5 bg-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-teal-500/20 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" /> Save Configuration
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+      </Modal>
 
       {message && (
         <Toast
@@ -784,6 +795,6 @@ export const SpecialistScheduleConfigurationModal: React.FC<
           onClose={() => setMessage(null)}
         />
       )}
-    </div>
+    </>
   );
 };
