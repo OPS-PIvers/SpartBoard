@@ -326,6 +326,7 @@ export const GlobalPermissionsManager: React.FC = () => {
         {/* View Mode Toggle */}
         <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
           <button
+            type="button"
             onClick={() => setViewMode('grid')}
             className={`p-1.5 rounded-md transition-all ${
               viewMode === 'grid'
@@ -339,6 +340,7 @@ export const GlobalPermissionsManager: React.FC = () => {
             <LayoutGrid size={16} />
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('list')}
             className={`p-1.5 rounded-md transition-all ${
               viewMode === 'list'

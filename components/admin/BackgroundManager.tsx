@@ -510,6 +510,16 @@ export const BackgroundManager: React.FC = () => {
     [presets]
   );
 
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    presets.forEach((p) => {
+      if (p.category) {
+        counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [presets]);
+
   // Filtered & typed presets
   const filteredPresets = useMemo(
     () =>
@@ -649,7 +659,7 @@ export const BackgroundManager: React.FC = () => {
                   <Tag className="w-3 h-3 text-brand-blue-primary" />
                   {cat}
                   <span className="text-slate-400 ml-1">
-                    ({presets.filter((p) => p.category === cat).length})
+                    ({categoryCounts.get(cat) ?? 0})
                   </span>
                 </div>
               ))}
@@ -824,7 +834,11 @@ export const BackgroundManager: React.FC = () => {
           <div className="w-px h-5 bg-slate-200" />
 
           {/* Media Type Toggle */}
-          <div className="flex bg-white p-0.5 rounded-lg border border-slate-200">
+          <div
+            className="flex bg-white p-0.5 rounded-lg border border-slate-200"
+            role="group"
+            aria-label="Media type toggle"
+          >
             {(
               [
                 { value: 'all', label: 'All' },
@@ -834,7 +848,9 @@ export const BackgroundManager: React.FC = () => {
             ).map((tab) => (
               <button
                 key={tab.value}
+                type="button"
                 onClick={() => setMediaType(tab.value)}
+                aria-pressed={mediaType === tab.value}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                   mediaType === tab.value
                     ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
@@ -851,6 +867,7 @@ export const BackgroundManager: React.FC = () => {
           {/* View Mode Toggle */}
           <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
             <button
+              type="button"
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-md transition-all ${
                 viewMode === 'grid'
@@ -864,6 +881,7 @@ export const BackgroundManager: React.FC = () => {
               <LayoutGrid size={16} />
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-md transition-all ${
                 viewMode === 'list'
