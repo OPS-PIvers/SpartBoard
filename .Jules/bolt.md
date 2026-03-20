@@ -18,7 +18,7 @@
 
 ## 2026-03-08 - [Memoize dnd-kit Items] **Learning:** [Sortable list items inside `SortableContext` (like `dnd-kit`) are re-rendered frequently during drag operations if not memoized, causing layout jank.] **Action:** [Always wrap child elements of `SortableContext.map` with `React.memo()` and set `.displayName` to optimize drag-and-drop lists.]
 
-## 2024-05-19 - Use structuredClone over JSON.parse(JSON.stringify)
+## 2026-03-20 - Use structuredClone over JSON.parse(JSON.stringify)
 
 **Learning:** Found usage of JSON.parse(JSON.stringify()) to deep clone configurations in the DashboardContext and ai_security files. This legacy approach is slower, uses more memory, triggers heavier GC cycles, and does not support many standard data types natively compared to modern browser APIs.
 **Action:** Replaced instances of JSON.parse(JSON.stringify()) with the native structuredClone() API, which provides a significantly more efficient and robust method for object deep cloning without extra serialization overhead.
