@@ -124,8 +124,11 @@
         -- `defaultUrl`: Initial URL for generated QR codes.
         -- `qrColor`: Default foreground color.
         -- `qrBgColor`: Default background color.
-[ ] Quiz
-    - No admin config.
+[X] Quiz
+    - Default User-Level Settings
+        -- None.
+    - Admin-Only Settings
+        -- `dockDefaults`: Visibility in the building dock.
 [X] Random
     - Default User-Level Settings
         -- `visualStyle`: Default picker style ('flash', 'slots', 'wheel').

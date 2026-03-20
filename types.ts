@@ -1132,6 +1132,10 @@ export interface QuizResponse {
 }
 
 /** Widget configuration for the quiz widget (teacher side) */
+export interface QuizGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
   selectedQuizId: string | null;
