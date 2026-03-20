@@ -101,10 +101,34 @@ describe('ClockWidget', () => {
 
   it('applies theme color', () => {
     const widget = createWidget({ themeColor: 'rgb(255, 0, 0)' });
-    const { container } = renderWidget(widget);
+    renderWidget(widget);
 
-    // The color is applied to the inner div with inline style
-    const timeContainer = container.querySelector('.flex.items-baseline');
+    const timeContainer = screen.getByTestId('clock-time-container');
     expect(timeContainer).toHaveStyle({ color: 'rgb(255, 0, 0)' });
+  });
+
+  it('renders with lcd style', () => {
+    const widget = createWidget({ clockStyle: 'lcd' });
+    renderWidget(widget);
+
+    const lcdBackground = screen.getByTestId('clock-lcd-background');
+    expect(lcdBackground).toBeInTheDocument();
+    expect(screen.getAllByText('88').length).toBeGreaterThan(0);
+  });
+
+  it('renders with minimal style', () => {
+    const widget = createWidget({ clockStyle: 'minimal' });
+    renderWidget(widget);
+
+    const timeContainer = screen.getByTestId('clock-time-container');
+    expect(timeContainer.className).not.toContain('animate-pulse');
+  });
+
+  it('renders with specific font family', () => {
+    const widget = createWidget({ fontFamily: 'font-mono' });
+    renderWidget(widget);
+
+    const timeContainer = screen.getByTestId('clock-time-container');
+    expect(timeContainer.className).toContain('font-mono');
   });
 });
