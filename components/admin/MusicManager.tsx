@@ -235,7 +235,20 @@ export const MusicManager: React.FC = () => {
         if (docSnap.exists()) {
           const data = docSnap.data() as { stations?: MusicStation[] };
           const loaded: MusicStation[] = data.stations ?? [];
-          setStations(loaded.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+          // Backwards compatibility for missing thumbnails on YouTube URLs
+          const migrated = loaded.map((station) => {
+            if (!station.thumbnail && station.url) {
+              const videoId = extractYouTubeId(station.url);
+              if (videoId) {
+                return {
+                  ...station,
+                  thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+                };
+              }
+            }
+            return station;
+          });
+          setStations(migrated.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
         } else {
           setStations([]);
         }

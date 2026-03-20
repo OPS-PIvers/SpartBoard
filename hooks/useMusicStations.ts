@@ -3,6 +3,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { MusicStation } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { extractYouTubeId } from '@/components/widgets/MusicWidget/utils';
 
 export const useMusicStations = () => {
   const [rawStations, setRawStations] = useState<MusicStation[]>([]);
@@ -17,7 +18,21 @@ export const useMusicStations = () => {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data() as { stations?: MusicStation[] };
-          setRawStations(data.stations ?? []);
+          const loaded = data.stations ?? [];
+          // Backwards compatibility for missing thumbnails on YouTube URLs
+          const migrated = loaded.map((station) => {
+            if (!station.thumbnail && station.url) {
+              const videoId = extractYouTubeId(station.url);
+              if (videoId) {
+                return {
+                  ...station,
+                  thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+                };
+              }
+            }
+            return station;
+          });
+          setRawStations(migrated);
         } else {
           setRawStations([]);
         }

@@ -80,6 +80,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /admin_music_thumbnails/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     
     // Default deny for everything else
     match /{allPaths=**} {
