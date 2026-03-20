@@ -234,7 +234,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
    * - Falls back to `['time-tool']` when a building is selected but no
    *   building-specific defaults are found.
    */
-  const getDefaultDockTools = useCallback((): (WidgetType | InternalToolType)[] => {
+  const getDefaultDockTools = useCallback((): (
+    | WidgetType
+    | InternalToolType
+  )[] => {
     /**
      * Checks whether a given FeaturePermission record is accessible to the
      * current user (enabled, correct access level, in beta list if required).
@@ -322,7 +325,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // before we can apply building-specific defaults.  When no building is
     // selected (empty array = "show all content") we can initialize immediately
     // using all accessible tools without waiting.
-    if (selectedBuildings.length > 0 && (featurePermissions ?? []).length === 0) {
+    if (
+      selectedBuildings.length > 0 &&
+      (featurePermissions ?? []).length === 0
+    ) {
       // Still loading permissions for a specific building – keep the safety
       // timer running but allow the effect to be cleaned up if the component
       // unmounts first.
@@ -343,7 +349,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     clearTimeout(initTimer);
     return () => clearTimeout(initTimer);
-  }, [isDockInitialized, featurePermissions, selectedBuildings, getDefaultDockTools]);
+  }, [
+    isDockInitialized,
+    featurePermissions,
+    selectedBuildings,
+    getDefaultDockTools,
+  ]);
 
   // --- ROSTER LOGIC ---
   const {
