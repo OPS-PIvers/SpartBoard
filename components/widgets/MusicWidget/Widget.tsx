@@ -281,7 +281,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   isPlayerReady={isPlayerReady}
                   isPlaying={isPlaying}
                   onClick={togglePlay}
-                  size="min(56px, 20cqmin)"
+                  size="min(56px, 40cqh)"
                 />
               </div>
 
@@ -289,21 +289,20 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent"
                 style={{
-                  padding:
-                    'min(20px, 5cqmin) min(12px, 3cqmin) min(10px, 2.5cqmin)',
+                  padding: 'min(20px, 15cqh) min(12px, 4cqw) min(10px, 8cqh)',
                 }}
               >
                 <p
                   className="font-black truncate leading-tight text-white"
-                  style={{ fontSize: 'min(16px, 6cqmin)' }}
+                  style={{ fontSize: 'min(16px, 12cqh)' }}
                 >
                   {activeStation.title}
                 </p>
                 <p
                   className="truncate text-white/70 font-medium"
                   style={{
-                    fontSize: 'min(12px, 4cqmin)',
-                    marginTop: 'min(2px, 0.5cqmin)',
+                    fontSize: 'min(12px, 9cqh)',
+                    marginTop: 'min(2px, 1cqh)',
                   }}
                 >
                   {activeStation.channel}
@@ -314,8 +313,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div
               className={`w-full h-full flex flex-row items-center px-2 relative ${!isTransparent ? 'shadow-inner' : ''}`}
               style={{
-                gap: 'min(10px, 3cqmin)',
-                padding: 'min(8px, 2.5cqmin)',
+                gap: 'min(10px, 7cqh)',
+                padding: 'min(8px, 6cqh)',
               }}
             >
               {/* Top accent bar */}
@@ -328,8 +327,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="relative shrink-0 group"
                 style={{
-                  width: 'min(56px, 16cqmin)',
-                  height: 'min(56px, 16cqmin)',
+                  width: 'min(56px, 70cqh)',
+                  height: 'min(56px, 70cqh)',
                 }}
               >
                 {activeStation.thumbnail ? (
@@ -374,7 +373,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <p
                     className={`font-black whitespace-nowrap ${isPlaying ? 'animate-marquee' : 'truncate'}`}
                     style={{
-                      fontSize: 'min(15px, 8cqmin)',
+                      fontSize: 'min(15px, 14cqh)',
                       lineHeight: 1.2,
                       color: textColor,
                     }}
@@ -391,8 +390,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <p
                   className="truncate font-bold"
                   style={{
-                    fontSize: 'min(11px, 5.5cqmin)',
-                    marginTop: 'min(2px, 1cqmin)',
+                    fontSize: 'min(11px, 10cqh)',
+                    marginTop: 'min(2px, 1.5cqh)',
                     opacity: 0.65,
                     color: textColor,
                   }}
@@ -404,22 +403,22 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <div
                     className="flex items-center"
                     style={{
-                      gap: 'min(4px, 1.5cqmin)',
-                      marginTop: 'min(3px, 1.2cqmin)',
+                      gap: 'min(4px, 3cqh)',
+                      marginTop: 'min(3px, 2.5cqh)',
                     }}
                   >
                     <div
                       className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
                       style={{
-                        width: 'min(5px, 2cqmin)',
-                        height: 'min(5px, 2cqmin)',
+                        width: 'min(5px, 4cqh)',
+                        height: 'min(5px, 4cqh)',
                       }}
                     />
                     <span
                       className="font-black uppercase tracking-widest opacity-40"
                       style={{
                         color: textColor,
-                        fontSize: 'min(9px, 4.5cqmin)',
+                        fontSize: 'min(9px, 8cqh)',
                       }}
                     >
                       {isPlaying ? 'Now Playing' : 'Paused'}
@@ -433,8 +432,8 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <Link
                   className="shrink-0"
                   style={{
-                    width: 'min(14px, 5cqmin)',
-                    height: 'min(14px, 5cqmin)',
+                    width: 'min(14px, 11cqh)',
+                    height: 'min(14px, 11cqh)',
                     color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
                     opacity: 0.8,
                   }}
@@ -447,7 +446,7 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="w-full h-full flex flex-col [@container(orientation:landscape)]:flex-row items-center justify-center text-center [@container(orientation:landscape)]:text-left"
               style={{
                 padding: 'min(12px, 3cqh, 4cqw)',
-                gap: 'min(16px, 4cqh, 5cqw)',
+                gap: 'min(16px, 8cqh, 5cqw)',
               }}
             >
               {/* Background Branding Accent */}
@@ -515,19 +514,26 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {/* Station info */}
               <div className="flex-1 flex flex-col items-center [@container(orientation:landscape)]:items-start min-w-0">
                 <div
-                  className="flex items-center justify-center [@container(orientation:landscape)]:justify-start w-full"
+                  className="flex items-center justify-center [@container(orientation:landscape)]:justify-start w-full overflow-hidden"
                   style={{ gap: 'min(8px, 2.5cqmin)' }}
                 >
-                  <h3
-                    className="font-black truncate max-w-[90%]"
-                    style={{
-                      fontSize: 'min(32px, 35cqh, 12cqw)',
-                      lineHeight: 1.1,
-                      color: textColor,
-                    }}
-                  >
-                    {activeStation.title}
-                  </h3>
+                  <div className="overflow-hidden min-w-0 flex-1">
+                    <h3
+                      className={`font-black ${isPlaying ? 'animate-marquee whitespace-nowrap' : 'truncate'}`}
+                      style={{
+                        fontSize: 'min(32px, 35cqh, 12cqw)',
+                        lineHeight: 1.1,
+                        color: textColor,
+                      }}
+                    >
+                      {activeStation.title}
+                      {isPlaying && (
+                        <span aria-hidden className="ml-8">
+                          {activeStation.title}
+                        </span>
+                      )}
+                    </h3>
+                  </div>
                   {config.syncWithTimeTool && (
                     <Link
                       className="shrink-0"
