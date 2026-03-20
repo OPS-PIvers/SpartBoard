@@ -43,6 +43,7 @@ import { AddWidgetOverrides } from '../../types';
 import { getJoinUrl } from '../../utils/urlHelpers';
 import ClassRosterMenu from './ClassRosterMenu';
 import RemoteControlMenu from './RemoteControlMenu';
+import { CatalystSetPickerPopover } from '@/components/widgets/Catalyst/CatalystSetPickerPopover';
 import { GlassCard } from '../common/GlassCard';
 import { DEFAULT_GLOBAL_STYLE } from '../../types';
 import { Z_INDEX } from '../../config/zIndex';
@@ -339,6 +340,11 @@ export const Dock: React.FC = () => {
 
   const classesButtonRef = useRef<HTMLButtonElement>(null);
   const remoteButtonRef = useRef<HTMLButtonElement>(null);
+  const catalystButtonRef = useRef<HTMLButtonElement>(null);
+  const [showCatalystPicker, setShowCatalystPicker] = useState(false);
+  const [catalystAnchorRect, setCatalystAnchorRect] = useState<DOMRect | null>(
+    null
+  );
   const liveButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [classesAnchorRect, setClassesAnchorRect] = useState<DOMRect | null>(
@@ -391,6 +397,13 @@ export const Dock: React.FC = () => {
     }
     setShowRemoteMenu(!showRemoteMenu);
   }, [showRemoteMenu]);
+
+  const handleToggleCatalystPicker = useCallback(() => {
+    if (!showCatalystPicker && catalystButtonRef.current) {
+      setCatalystAnchorRect(catalystButtonRef.current.getBoundingClientRect());
+    }
+    setShowCatalystPicker((prev) => !prev);
+  }, [showCatalystPicker]);
 
   const handleLongPress = useCallback(() => {
     setIsEditMode(true);
@@ -539,6 +552,19 @@ export const Dock: React.FC = () => {
         <RemoteControlMenu
           onClose={() => setShowRemoteMenu(false)}
           anchorRect={remoteAnchorRect}
+        />
+      )}
+
+      {showCatalystPicker && catalystAnchorRect && (
+        <CatalystSetPickerPopover
+          anchorRect={catalystAnchorRect}
+          globalStyle={globalStyle}
+          buttonRef={catalystButtonRef}
+          onSelectSet={(setId) => {
+            addWidget('catalyst', { config: { initialSetId: setId } });
+            setShowCatalystPicker(false);
+          }}
+          onClose={() => setShowCatalystPicker(false)}
         />
       )}
 
@@ -781,6 +807,42 @@ export const Dock: React.FC = () => {
                                   : undefined
                               }
                               buttonRef={classesButtonRef}
+                            />
+                          );
+                        }
+
+                        // Handle "catalyst" with a set-picker popover
+                        if (item.toolType === 'catalyst') {
+                          const minimizedCatalyst =
+                            minimizedWidgetsByType['catalyst'] ?? [];
+                          return (
+                            <ToolDockItem
+                              key={tool.type}
+                              tool={tool}
+                              minimizedWidgets={minimizedCatalyst}
+                              onAdd={handleToggleCatalystPicker}
+                              onRestore={(id) =>
+                                updateWidget(id, { minimized: false })
+                              }
+                              onDelete={(id) => removeWidget(id)}
+                              onDeleteAll={() =>
+                                removeWidgets(
+                                  minimizedCatalyst.map((w) => w.id)
+                                )
+                              }
+                              onRemoveFromDock={() =>
+                                toggleToolVisibility(tool.type)
+                              }
+                              isEditMode={isEditMode}
+                              onLongPress={handleLongPress}
+                              globalStyle={globalStyle}
+                              customLabel={getToolLabel(tool.type)}
+                              onClickOverride={
+                                minimizedCatalyst.length === 0
+                                  ? handleToggleCatalystPicker
+                                  : undefined
+                              }
+                              buttonRef={catalystButtonRef}
                             />
                           );
                         }
