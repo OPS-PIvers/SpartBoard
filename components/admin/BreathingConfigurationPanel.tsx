@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
-import { BreathingGlobalConfig, BuildingBreathingDefaults } from '@/types';
+import {
+  BreathingGlobalConfig,
+  BuildingBreathingDefaults,
+  BreathingConfig,
+} from '@/types';
 import { WIDGET_PALETTE } from '@/config/colors';
 
 interface BreathingConfigurationPanelProps {
@@ -8,14 +12,20 @@ interface BreathingConfigurationPanelProps {
   onChange: (newConfig: BreathingGlobalConfig) => void;
 }
 
-const PATTERNS = [
+const PATTERNS: {
+  value: BreathingConfig['pattern'] | 'global';
+  label: string;
+}[] = [
   { value: 'global', label: 'Inherit (Default)' },
   { value: '4-4-4-4', label: 'Box Breathing' },
   { value: '4-7-8', label: 'Relaxing Breath' },
   { value: '5-5', label: 'Coherent Breath' },
 ];
 
-const VISUALS = [
+const VISUALS: {
+  value: BreathingConfig['visual'] | 'global';
+  label: string;
+}[] = [
   { value: 'global', label: 'Inherit (Default)' },
   { value: 'circle', label: 'Sphere' },
   { value: 'lotus', label: 'Lotus' },
@@ -93,10 +103,7 @@ export const BreathingConfigurationPanel: React.FC<
                 key={opt.value}
                 onClick={() =>
                   handleUpdateBuilding({
-                    pattern:
-                      opt.value === 'global'
-                        ? undefined
-                        : (opt.value as BuildingBreathingDefaults['pattern']),
+                    pattern: opt.value === 'global' ? undefined : opt.value,
                   })
                 }
                 className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
@@ -122,10 +129,7 @@ export const BreathingConfigurationPanel: React.FC<
                 key={opt.value}
                 onClick={() =>
                   handleUpdateBuilding({
-                    visual:
-                      opt.value === 'global'
-                        ? undefined
-                        : (opt.value as BuildingBreathingDefaults['visual']),
+                    visual: opt.value === 'global' ? undefined : opt.value,
                   })
                 }
                 className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
