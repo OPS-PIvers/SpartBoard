@@ -7,6 +7,8 @@ import {
   XCircle,
   Wand2,
   Loader2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
@@ -18,7 +20,7 @@ import { useEmbedConfig } from './hooks/useEmbedConfig';
 const NEW_WIDGET_SPACING = 20;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { addWidget, addToast } = useDashboard();
+  const { addWidget, addToast, updateWidget } = useDashboard();
   const { config: globalConfig } = useEmbedConfig();
   const [isGeneratingApp, setIsGeneratingApp] = useState(false);
   const config = widget.config as EmbedConfig;
@@ -29,7 +31,32 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     refreshInterval = 0,
     isEmbeddable = true,
     blockedReason = '',
+    zoom = 1,
   } = config;
+
+  const ZOOM_STEPS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
+  const currentZoomIndex =
+    ZOOM_STEPS.indexOf(zoom) !== -1
+      ? ZOOM_STEPS.indexOf(zoom)
+      : ZOOM_STEPS.length - 1;
+  const canZoomOut = currentZoomIndex > 0;
+  const canZoomIn = currentZoomIndex < ZOOM_STEPS.length - 1;
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canZoomOut) return;
+    updateWidget(widget.id, {
+      config: { ...config, zoom: ZOOM_STEPS[currentZoomIndex - 1] },
+    });
+  };
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canZoomIn) return;
+    updateWidget(widget.id, {
+      config: { ...config, zoom: ZOOM_STEPS[currentZoomIndex + 1] },
+    });
+  };
   const sanitizedUrl = ensureProtocol(url);
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -171,6 +198,44 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           {((displayMode === 'url' && url.trim()) ||
             (displayMode === 'code' && html.trim())) && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
+                <button
+                  onClick={handleZoomOut}
+                  disabled={!canZoomOut}
+                  className="p-1.5 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Zoom out"
+                >
+                  <ZoomOut
+                    style={{
+                      width: 'min(12px, 2.5cqmin)',
+                      height: 'min(12px, 2.5cqmin)',
+                    }}
+                  />
+                </button>
+                <span
+                  className="text-slate-600 font-mono font-bold select-none"
+                  style={{
+                    fontSize: 'min(10px, 2cqmin)',
+                    minWidth: '2.5em',
+                    textAlign: 'center',
+                  }}
+                >
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={!canZoomIn}
+                  className="p-1.5 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Zoom in"
+                >
+                  <ZoomIn
+                    style={{
+                      width: 'min(12px, 2.5cqmin)',
+                      height: 'min(12px, 2.5cqmin)',
+                    }}
+                  />
+                </button>
+              </div>
               <button
                 onClick={handleGenerateMiniApp}
                 disabled={isGeneratingApp}
@@ -277,7 +342,12 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               title="Embed Content"
               src={displayMode === 'url' ? embedUrl : undefined}
               srcDoc={displayMode === 'code' ? html : undefined}
-              className="flex-1 w-full h-full border-none"
+              className="flex-1 border-none block"
+              style={{
+                zoom: zoom,
+                width: `${100 / zoom}%`,
+                height: `${100 / zoom}%`,
+              }}
               sandbox={sandbox}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen

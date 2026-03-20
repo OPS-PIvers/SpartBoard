@@ -297,6 +297,7 @@ export interface EmbedConfig {
   refreshInterval?: number;
   isEmbeddable?: boolean;
   blockedReason?: string;
+  zoom?: number;
 }
 
 export interface BuildingPollDefaults {
