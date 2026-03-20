@@ -12,7 +12,10 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
   config,
   onChange,
 }) => {
-  const dockDefaults = useMemo(() => config.dockDefaults ?? {}, [config.dockDefaults]);
+  const dockDefaults = useMemo(
+    () => config.dockDefaults ?? {},
+    [config.dockDefaults]
+  );
 
   const handleToggle = (buildingId: string) => {
     onChange({
