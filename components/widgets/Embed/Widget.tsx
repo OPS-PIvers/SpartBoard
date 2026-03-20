@@ -9,6 +9,7 @@ import {
   Loader2,
   ZoomIn,
   ZoomOut,
+  RotateCcw,
 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
@@ -21,11 +22,13 @@ import { useDashboard } from '@/context/useDashboard';
 import { generateMiniAppCode } from '@/utils/ai';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useAuth } from '@/context/useAuth';
 
 const NEW_WIDGET_SPACING = 20;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, addToast, updateWidget } = useDashboard();
+  const { canAccessFeature } = useAuth();
   const { config: globalConfig } = useEmbedConfig();
   const { getDriveFileTextContent } = useGoogleDrive();
   const [isGeneratingApp, setIsGeneratingApp] = useState(false);
@@ -40,16 +43,20 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     zoom = 1,
   } = config;
 
-  const ZOOM_STEPS = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0];
+  const ZOOM_STEPS = [
+    0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.25, 1.5,
+    1.75, 2.0, 2.25, 2.5,
+  ];
   const effectiveZoom = ZOOM_STEPS.reduce(
     (closest, step) => {
       return Math.abs(step - zoom) < Math.abs(closest - zoom) ? step : closest;
     },
-    ZOOM_STEPS[ZOOM_STEPS.length - 1]
+    ZOOM_STEPS[ZOOM_STEPS.indexOf(1.0)]
   );
   const currentZoomIndex = ZOOM_STEPS.indexOf(effectiveZoom);
   const canZoomOut = currentZoomIndex > 0;
   const canZoomIn = currentZoomIndex < ZOOM_STEPS.length - 1;
+  const isDefaultZoom = effectiveZoom === 1.0;
 
   const handleZoomOut = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,6 +72,11 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateWidget(widget.id, {
       config: { ...config, zoom: ZOOM_STEPS[currentZoomIndex + 1] },
     });
+  };
+
+  const handleZoomReset = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateWidget(widget.id, { config: { ...config, zoom: 1.0 } });
   };
   const sanitizedUrl = ensureProtocol(url);
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
@@ -233,77 +245,95 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <button
                   onClick={handleZoomOut}
                   disabled={!canZoomOut}
-                  className="p-1.5 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Zoom out"
                 >
                   <ZoomOut
                     style={{
-                      width: 'min(12px, 2.5cqmin)',
-                      height: 'min(12px, 2.5cqmin)',
+                      width: 'clamp(14px, 4cqmin, 18px)',
+                      height: 'clamp(14px, 4cqmin, 18px)',
                     }}
                   />
                 </button>
-                <span
-                  className="text-slate-600 font-mono font-bold select-none"
+                <button
+                  onClick={handleZoomReset}
+                  disabled={isDefaultZoom}
+                  className="text-slate-600 font-mono font-bold select-none hover:text-blue-500 hover:bg-slate-50 transition-colors px-1 disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
                   style={{
-                    fontSize: 'min(10px, 2cqmin)',
-                    minWidth: '2.5em',
-                    textAlign: 'center',
+                    fontSize: 'clamp(10px, 3cqmin, 13px)',
+                    minWidth: '3em',
                   }}
+                  title={isDefaultZoom ? 'Current zoom' : 'Reset to 100%'}
                 >
                   {Math.round(effectiveZoom * 100)}%
-                </span>
+                </button>
                 <button
                   onClick={handleZoomIn}
                   disabled={!canZoomIn}
-                  className="p-1.5 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Zoom in"
                 >
                   <ZoomIn
                     style={{
-                      width: 'min(12px, 2.5cqmin)',
-                      height: 'min(12px, 2.5cqmin)',
+                      width: 'clamp(14px, 4cqmin, 18px)',
+                      height: 'clamp(14px, 4cqmin, 18px)',
                     }}
                   />
                 </button>
-              </div>
-              <button
-                onClick={handleGenerateMiniApp}
-                disabled={isGeneratingApp}
-                className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg p-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                title="Generate Interactive Mini App"
-                aria-label="Generate Interactive Mini App"
-              >
-                {isGeneratingApp ? (
-                  <Loader2
-                    className="animate-spin"
-                    style={{
-                      width: 'min(12px, 2.5cqmin)',
-                      height: 'min(12px, 2.5cqmin)',
-                    }}
-                  />
-                ) : (
-                  <Wand2
-                    style={{
-                      width: 'min(12px, 2.5cqmin)',
-                      height: 'min(12px, 2.5cqmin)',
-                    }}
-                  />
+                {!isDefaultZoom && (
+                  <button
+                    onClick={handleZoomReset}
+                    className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                    title="Reset zoom to 100%"
+                  >
+                    <RotateCcw
+                      style={{
+                        width: 'clamp(12px, 3.5cqmin, 15px)',
+                        height: 'clamp(12px, 3.5cqmin, 15px)',
+                      }}
+                    />
+                  </button>
                 )}
-              </button>
+              </div>
+              {canAccessFeature('embed-mini-app') && (
+                <button
+                  onClick={handleGenerateMiniApp}
+                  disabled={isGeneratingApp}
+                  className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  title="Generate Interactive Mini App"
+                  aria-label="Generate Interactive Mini App"
+                >
+                  {isGeneratingApp ? (
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'clamp(14px, 4cqmin, 18px)',
+                        height: 'clamp(14px, 4cqmin, 18px)',
+                      }}
+                    />
+                  ) : (
+                    <Wand2
+                      style={{
+                        width: 'clamp(14px, 4cqmin, 18px)',
+                        height: 'clamp(14px, 4cqmin, 18px)',
+                      }}
+                    />
+                  )}
+                </button>
+              )}
               {displayMode === 'url' && sanitizedUrl && (
                 <a
                   href={sanitizedUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors flex items-center justify-center"
+                  className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-2 transition-colors flex items-center justify-center"
                   title="Open in new tab"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <ExternalLink
                     style={{
-                      width: 'min(12px, 2.5cqmin)',
-                      height: 'min(12px, 2.5cqmin)',
+                      width: 'clamp(14px, 4cqmin, 18px)',
+                      height: 'clamp(14px, 4cqmin, 18px)',
                     }}
                   />
                 </a>

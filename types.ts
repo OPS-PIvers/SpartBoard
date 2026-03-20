@@ -1772,7 +1772,8 @@ export type GlobalFeature =
   | 'smart-paste'
   | 'smart-poll'
   | 'screen-recording'
-  | 'remote-control';
+  | 'remote-control'
+  | 'embed-mini-app';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
