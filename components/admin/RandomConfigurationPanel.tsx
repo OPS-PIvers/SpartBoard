@@ -115,7 +115,7 @@ export const RandomConfigurationPanel: React.FC<
         <Card
           rounded="lg"
           padding="sm"
-          className="flex items-center justify-between p-2"
+          className="flex items-center justify-between shadow-none"
         >
           <div>
             <span className="text-xxs font-bold text-slate-700 block">
