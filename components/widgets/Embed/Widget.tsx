@@ -93,8 +93,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isGeneratingApp) return;
-    if (displayMode === 'url' && !url) return;
-    if (displayMode === 'code' && !html) return;
+    if (displayMode === 'url' && !url.trim()) return;
+    if (displayMode === 'code' && !html.trim()) return;
 
     setIsGeneratingApp(true);
     try {
@@ -168,8 +168,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative group/embed-content">
-          {((displayMode === 'url' && url) ||
-            (displayMode === 'code' && html)) && (
+          {((displayMode === 'url' && url.trim()) ||
+            (displayMode === 'code' && html.trim())) && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
               <button
                 onClick={handleGenerateMiniApp}
@@ -195,7 +195,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   />
                 )}
               </button>
-              {displayMode === 'url' && (
+              {displayMode === 'url' && sanitizedUrl && (
                 <a
                   href={sanitizedUrl}
                   target="_blank"
