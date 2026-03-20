@@ -56,7 +56,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
 
         return (
           <div
-            key={(!Array.isArray(groupItem) && groupItem.id) || i}
+            key={(!Array.isArray(groupItem) && groupItem.id) ? groupItem.id : i}
             className="bg-blue-50 border border-blue-200 rounded-xl flex flex-col shadow-sm overflow-hidden"
             style={{ padding: 'min(8px, 2cqmin)' }}
           >
