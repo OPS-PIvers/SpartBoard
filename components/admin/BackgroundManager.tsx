@@ -510,6 +510,16 @@ export const BackgroundManager: React.FC = () => {
     [presets]
   );
 
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    presets.forEach((p) => {
+      if (p.category) {
+        counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [presets]);
+
   // Filtered & typed presets
   const filteredPresets = useMemo(
     () =>
@@ -570,54 +580,326 @@ export const BackgroundManager: React.FC = () => {
         />
       )}
 
-      {/* Header Actions */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-lg font-bold text-slate-700">
-          Managed Backgrounds
-        </h3>
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="dark"
-            onClick={() => void loadDriveImages()}
-            disabled={!isDriveConnected}
-            isLoading={loadingDrive}
-            icon={<Database size={16} />}
-            title={
-              isDriveConnected
-                ? 'Select from Google Drive'
-                : 'Sign in with Google to use Drive'
-            }
+      {/* Filters and Actions */}
+      <div className="flex flex-col gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">
+        {/* Top Row: Actions */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="dark"
+              onClick={() => void loadDriveImages()}
+              disabled={!isDriveConnected}
+              isLoading={loadingDrive}
+              icon={<Database size={16} />}
+              title={
+                isDriveConnected
+                  ? 'Select from Google Drive'
+                  : 'Sign in with Google to use Drive'
+              }
+            >
+              Google Drive
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void restoreDefaults()}
+              icon={<Plus size={16} />}
+              title="Restore original stock images"
+            >
+              Restore Defaults
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => fileInputRef.current?.click()}
+              isLoading={uploading}
+              icon={<Upload size={16} />}
+            >
+              Upload New
+            </Button>
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={(e) => void handleFileUpload(e)}
+          />
+
+          <button
+            onClick={() => setShowCategoryManager((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light text-xs font-semibold transition-all"
           >
-            Google Drive
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => void restoreDefaults()}
-            icon={<Plus size={16} />}
-            title="Restore original stock images"
-          >
-            Restore Defaults
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => fileInputRef.current?.click()}
-            isLoading={uploading}
-            icon={<Upload size={16} />}
-          >
-            Upload New
-          </Button>
+            <Tag size={14} />
+            Manage Categories
+            {showCategoryManager ? (
+              <ChevronUp size={12} />
+            ) : (
+              <ChevronDown size={12} />
+            )}
+          </button>
         </div>
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept="image/*"
-          onChange={(e) => void handleFileUpload(e)}
-        />
+
+        {/* Category Manager */}
+        {showCategoryManager && (
+          <div className="bg-slate-50 border-t border-b border-slate-200 py-3 mt-1 mb-1 px-1">
+            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <Tag className="w-4 h-4 text-brand-blue-primary" />
+              Categories
+            </h4>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {allCategories.length === 0 && (
+                <p className="text-xs text-slate-400">
+                  No categories yet. Add one below.
+                </p>
+              )}
+              {allCategories.map((cat) => (
+                <div
+                  key={cat}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm"
+                >
+                  <Tag className="w-3 h-3 text-brand-blue-primary" />
+                  {cat}
+                  <span className="text-slate-400 ml-1">
+                    ({categoryCounts.get(cat) ?? 0})
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 max-w-xs">
+              <input
+                type="text"
+                placeholder="New category name..."
+                value={categoryManagerName}
+                onChange={(e) => setCategoryManagerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && categoryManagerName.trim()) {
+                    showMessage(
+                      'success',
+                      `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
+                    );
+                    setCategoryManagerName('');
+                  }
+                }}
+                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+              />
+              <button
+                onClick={() => {
+                  if (categoryManagerName.trim()) {
+                    showMessage(
+                      'success',
+                      `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
+                    );
+                    setCategoryManagerName('');
+                  }
+                }}
+                className="px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-blue-dark transition-colors"
+              >
+                Note
+              </button>
+            </div>
+            <p className="text-xxs text-slate-400 mt-2">
+              Categories are created by assigning a name to any background in
+              the list below.
+            </p>
+          </div>
+        )}
+
+        <div className="h-px bg-slate-200 w-full" />
+
+        {/* Bottom Row: Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <Filter className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wide">
+              Filter
+            </span>
+          </div>
+
+          {/* Active filter */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-slate-500 font-medium">Active:</span>
+            {(['all', 'on', 'off'] as const).map((val) => (
+              <button
+                key={val}
+                onClick={() => setFilterActive(val)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                  filterActive === val
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* Availability filter */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-slate-500 font-medium">
+              Availability:
+            </span>
+            {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
+              <button
+                key={val}
+                onClick={() => setFilterAvailability(val)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                  filterAvailability === val
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {val === 'all'
+                  ? 'All'
+                  : val.charAt(0).toUpperCase() + val.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* Category filter */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-slate-500 font-medium">
+              Category:
+            </span>
+            <button
+              onClick={() => setFilterCategory('all')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterCategory === 'all'
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterCategory('__uncategorized__')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterCategory === '__uncategorized__'
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              Uncategorized
+            </button>
+            {allCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilterCategory(cat)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                  filterCategory === cat
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* Building filter */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-slate-500 font-medium">
+              Building:
+            </span>
+            <button
+              onClick={() => setFilterBuilding('all')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                filterBuilding === 'all'
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              All
+            </button>
+            {BUILDINGS.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setFilterBuilding(b.id)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+                  filterBuilding === b.id
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+                title={b.name}
+              >
+                {b.gradeLabel}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* Media Type Toggle */}
+          <div
+            className="flex bg-white p-0.5 rounded-lg border border-slate-200"
+            role="group"
+            aria-label="Media type toggle"
+          >
+            {(
+              [
+                { value: 'all', label: 'All' },
+                { value: 'images', label: 'Images', icon: ImageIcon },
+                { value: 'videos', label: 'Videos', icon: Video },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setMediaType(tab.value)}
+                aria-pressed={mediaType === tab.value}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  mediaType === tab.value
+                    ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {tab.value === 'images' && <ImageIcon size={14} />}
+                {tab.value === 'videos' && <Video size={14} />}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+              title="Grid View"
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'list'
+                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+              title="List View"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
+            >
+              <List size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* YouTube Video Preset Form */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-2">
         <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
           <Video className="w-4 h-4 text-red-600" />
           Add Ambient YouTube Video
@@ -646,267 +928,6 @@ export const BackgroundManager: React.FC = () => {
           >
             Add Video
           </Button>
-        </div>
-      </div>
-
-      {/* View Controls Row */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {/* Media Type Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-          {(
-            [
-              { value: 'all', label: 'All' },
-              { value: 'images', label: 'Images', icon: ImageIcon },
-              { value: 'videos', label: 'Videos', icon: Video },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setMediaType(tab.value)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                mediaType === tab.value
-                  ? 'bg-white text-brand-blue-primary shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              {tab.value === 'images' && <ImageIcon size={14} />}
-              {tab.value === 'videos' && <Video size={14} />}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-6 bg-slate-200" />
-
-        {/* Grid/List Toggle */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'grid'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="Grid View"
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'list'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="List View"
-          >
-            <List size={16} />
-          </button>
-        </div>
-
-        <div className="w-px h-6 bg-slate-200" />
-
-        {/* Category Manager Toggle */}
-        <button
-          onClick={() => setShowCategoryManager((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light text-xs font-semibold transition-all"
-        >
-          <Tag size={14} />
-          Manage Categories
-          {showCategoryManager ? (
-            <ChevronUp size={12} />
-          ) : (
-            <ChevronDown size={12} />
-          )}
-        </button>
-      </div>
-
-      {/* Category Manager */}
-      {showCategoryManager && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-          <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-            <Tag className="w-4 h-4 text-brand-blue-primary" />
-            Categories
-          </h4>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {allCategories.length === 0 && (
-              <p className="text-xs text-slate-400">
-                No categories yet. Add one below.
-              </p>
-            )}
-            {allCategories.map((cat) => (
-              <div
-                key={cat}
-                className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm"
-              >
-                <Tag className="w-3 h-3 text-brand-blue-primary" />
-                {cat}
-                <span className="text-slate-400 ml-1">
-                  ({presets.filter((p) => p.category === cat).length})
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 max-w-xs">
-            <input
-              type="text"
-              placeholder="New category name..."
-              value={categoryManagerName}
-              onChange={(e) => setCategoryManagerName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && categoryManagerName.trim()) {
-                  // Categories are created by assigning them to presets - just note it here
-                  showMessage(
-                    'success',
-                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
-                  );
-                  setCategoryManagerName('');
-                }
-              }}
-              className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            />
-            <button
-              onClick={() => {
-                if (categoryManagerName.trim()) {
-                  showMessage(
-                    'success',
-                    `Category name "${categoryManagerName.trim()}" noted. Assign it to a background below to create it.`
-                  );
-                  setCategoryManagerName('');
-                }
-              }}
-              className="px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-blue-dark transition-colors"
-            >
-              Note
-            </button>
-          </div>
-          <p className="text-xxs text-slate-400 mt-2">
-            Categories are created by assigning a name to any background in the
-            list below.
-          </p>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Filter className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase tracking-wide">
-            Filter
-          </span>
-        </div>
-
-        {/* Active filter */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-slate-500 font-medium">Active:</span>
-          {(['all', 'on', 'off'] as const).map((val) => (
-            <button
-              key={val}
-              onClick={() => setFilterActive(val)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterActive === val
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-slate-200" />
-
-        {/* Availability filter */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-slate-500 font-medium">
-            Availability:
-          </span>
-          {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
-            <button
-              key={val}
-              onClick={() => setFilterAvailability(val)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterAvailability === val
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {val === 'all'
-                ? 'All'
-                : val.charAt(0).toUpperCase() + val.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-slate-200" />
-
-        {/* Category filter */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-xs text-slate-500 font-medium">Category:</span>
-          <button
-            onClick={() => setFilterCategory('all')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-              filterCategory === 'all'
-                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilterCategory('__uncategorized__')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-              filterCategory === '__uncategorized__'
-                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            Uncategorized
-          </button>
-          {allCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterCategory === cat
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-slate-200" />
-
-        {/* Building filter */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-xs text-slate-500 font-medium">Building:</span>
-          <button
-            onClick={() => setFilterBuilding('all')}
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-              filterBuilding === 'all'
-                ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            All
-          </button>
-          {BUILDINGS.map((b) => (
-            <button
-              key={b.id}
-              onClick={() => setFilterBuilding(b.id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterBuilding === b.id
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-              title={b.name}
-            >
-              {b.gradeLabel}
-            </button>
-          ))}
         </div>
       </div>
 

@@ -272,35 +272,6 @@ export const GlobalPermissionsManager: React.FC = () => {
         />
       )}
 
-      {/* Header with View Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-700">Global Settings</h2>
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-md transition-all ${
-              viewMode === 'grid'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="Grid View"
-          >
-            <LayoutGrid size={20} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-md transition-all ${
-              viewMode === 'list'
-                ? 'bg-white text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="List View"
-          >
-            <List size={20} />
-          </button>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">
         <div className="flex items-center gap-1.5 text-slate-500">
@@ -350,6 +321,38 @@ export const GlobalPermissionsManager: React.FC = () => {
                 : val.charAt(0).toUpperCase() + val.slice(1)}
             </button>
           ))}
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'grid'
+                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+            title="Grid View"
+            aria-label="Grid view"
+            aria-pressed={viewMode === 'grid'}
+          >
+            <LayoutGrid size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'list'
+                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+            title="List View"
+            aria-label="List view"
+            aria-pressed={viewMode === 'list'}
+          >
+            <List size={16} />
+          </button>
         </div>
       </div>
 

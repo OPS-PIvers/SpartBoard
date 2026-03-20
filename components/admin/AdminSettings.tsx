@@ -159,15 +159,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               aria-labelledby="tab-global"
               className="animate-in fade-in slide-in-from-bottom-2 duration-300"
             >
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  Global App Settings
-                </h3>
-                <p className="text-slate-600">
-                  Manage app-wide features like Gemini AI, Live Sessions, and
-                  Board Sharing.
-                </p>
-              </div>
               <GlobalPermissionsManager />
             </div>
           )}
@@ -179,15 +170,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               aria-labelledby="tab-backgrounds"
               className="animate-in fade-in slide-in-from-bottom-2 duration-300"
             >
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  Background Management
-                </h3>
-                <p className="text-slate-600">
-                  Upload and manage background presets available to users.
-                  Control visibility and access permissions for each background.
-                </p>
-              </div>
               <BackgroundManager />
             </div>
           )}
@@ -199,16 +181,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               aria-labelledby="tab-announcements"
               className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
             >
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-2">
-                  Announcements
-                </h3>
-                <p className="text-slate-600">
-                  Push widget-based announcements to users in real time. Control
-                  when they activate, how they can be dismissed, and which
-                  buildings receive them.
-                </p>
-              </div>
               <AnnouncementsManager />
             </div>
           )}

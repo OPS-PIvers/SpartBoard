@@ -771,17 +771,17 @@ export const AnnouncementsManager: React.FC = () => {
     <div className="flex gap-6 h-full">
       {/* Left: Announcement list */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-slate-700">
-            <Bell className="w-5 h-5" />
-            <span className="font-semibold">
+        <div className="flex items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4">
+          <div className="flex items-center gap-2 text-slate-500 pl-1">
+            <Bell className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wide">
               {announcements.length} Announcement
               {announcements.length !== 1 ? 's' : ''}
             </span>
           </div>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white text-sm font-semibold rounded-lg hover:bg-brand-blue-dark transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white text-xs font-semibold rounded-lg hover:bg-brand-blue-dark transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             New Announcement
