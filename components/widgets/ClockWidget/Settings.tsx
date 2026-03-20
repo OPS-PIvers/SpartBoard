@@ -125,6 +125,8 @@ export const ClockAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
             {colors.map((c) => (
               <button
                 key={c}
+                aria-label={`color-${c}`}
+                data-testid={`color-button-${c}`}
                 onClick={() =>
                   updateWidget(widget.id, {
                     config: { ...config, themeColor: c },

@@ -64,6 +64,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }`}
         >
           <div
+            data-testid="clock-time-container"
             className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
             style={{
               fontSize: showSeconds ? 'min(82cqh, 20cqw)' : 'min(82cqh, 25cqw)',
@@ -74,7 +75,10 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }}
           >
             {clockStyle === 'lcd' && (
-              <div className="absolute opacity-5 pointer-events-none select-none flex">
+              <div
+                data-testid="clock-lcd-background"
+                className="absolute opacity-5 pointer-events-none select-none flex"
+              >
                 <span>88</span>
                 <span className="mx-[0.25em]">:</span>
                 <span>88</span>
