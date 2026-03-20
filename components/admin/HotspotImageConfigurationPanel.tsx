@@ -3,7 +3,16 @@ import { BUILDINGS } from '@/config/buildings';
 import {
   HotspotImageGlobalConfig,
   BuildingHotspotImageDefaults,
+  HotspotImageConfig,
 } from '@/types';
+
+type PopoverTheme = NonNullable<HotspotImageConfig['popoverTheme']>;
+
+const THEME_OPTIONS: { value: PopoverTheme; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'glass', label: 'Glass' },
+];
 
 interface HotspotImageConfigurationPanelProps {
   config: HotspotImageGlobalConfig;
@@ -77,16 +86,12 @@ export const HotspotImageConfigurationPanel: React.FC<
             Default Popover Theme
           </label>
           <div className="flex gap-2">
-            {[
-              { value: 'light', label: 'Light' },
-              { value: 'dark', label: 'Dark' },
-              { value: 'glass', label: 'Glass' },
-            ].map((theme) => (
+            {THEME_OPTIONS.map((theme) => (
               <button
                 key={theme.value}
                 onClick={() =>
                   handleUpdateBuilding({
-                    popoverTheme: theme.value as 'light' | 'dark' | 'glass',
+                    popoverTheme: theme.value,
                   })
                 }
                 className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors border ${
