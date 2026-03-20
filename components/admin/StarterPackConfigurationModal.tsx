@@ -24,7 +24,13 @@ import {
   doc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { StarterPack, WidgetType, WidgetData } from '@/types';
+import {
+  StarterPack,
+  WidgetType,
+  WidgetData,
+  StarterPackGlobalConfig,
+  FeaturePermission,
+} from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
@@ -33,6 +39,7 @@ import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { Toast } from '@/components/common/Toast';
 import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 import * as LucideIcons from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SNAP_LAYOUTS } from '@/config/snapLayouts';
@@ -41,6 +48,8 @@ import { calculateSnapBounds } from '@/utils/layoutMath';
 interface StarterPackConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  permission?: FeaturePermission;
+  onSave?: (updates: Partial<FeaturePermission>) => void;
 }
 
 const appId =
@@ -247,10 +256,11 @@ const SnapZonePicker: React.FC<SnapZonePickerProps> = ({
 
 export const StarterPackConfigurationModal: React.FC<
   StarterPackConfigurationModalProps
-> = ({ isOpen, onClose }) => {
+> = ({ isOpen, onClose, permission, onSave }) => {
   const { activeDashboard } = useDashboard();
   const { showConfirm } = useDialog();
 
+  const [globalConfig, setGlobalConfig] = useState<StarterPackGlobalConfig>({});
   const [packs, setPacks] = useState<StarterPack[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -292,6 +302,12 @@ export const StarterPackConfigurationModal: React.FC<
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
   };
+
+  useEffect(() => {
+    if (isOpen && permission?.config) {
+      setGlobalConfig(permission.config as unknown as StarterPackGlobalConfig);
+    }
+  }, [isOpen, permission?.config]);
 
   const resetSnapState = useCallback(() => {
     setSnappingWidgetIndex(null);
@@ -606,7 +622,35 @@ export const StarterPackConfigurationModal: React.FC<
       >
         {view === 'list' ? (
           /* ── Pack List ── */
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-6">
+            {onSave && (
+              <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4 mb-2">
+                <DockDefaultsPanel
+                  config={{ dockDefaults: globalConfig.dockDefaults ?? {} }}
+                  onChange={(d) =>
+                    setGlobalConfig((prev) => ({ ...prev, dockDefaults: d }))
+                  }
+                />
+                <div className="flex justify-end border-t border-slate-50 pt-3">
+                  <button
+                    onClick={() => {
+                      onSave({
+                        config: globalConfig as unknown as Record<
+                          string,
+                          unknown
+                        >,
+                      });
+                      showMessage('success', 'Dock defaults saved');
+                    }}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Dock Defaults
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-600">
                 {loading

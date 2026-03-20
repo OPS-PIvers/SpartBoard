@@ -1192,6 +1192,10 @@ export interface StarterPack {
 export type BuildingStarterPack = StarterPack;
 export type UserStarterPack = StarterPack;
 
+export interface StarterPackGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
+
 export type StarterPackConfig = Record<string, never>;
 
 export interface OnboardingConfig {

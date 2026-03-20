@@ -833,6 +833,8 @@ export const FeaturePermissionsManager: React.FC = () => {
         <StarterPackConfigurationModal
           isOpen={true}
           onClose={() => setActiveModalTool(null)}
+          permission={getPermission('starter-pack')}
+          onSave={(updates) => updatePermission('starter-pack', updates)}
         />
       )}
 

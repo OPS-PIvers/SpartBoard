@@ -3,7 +3,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { MusicStation } from '@/types';
 import { useAuth } from '@/context/useAuth';
-import { extractYouTubeId } from '@/components/widgets/MusicWidget/utils';
+import { extractYouTubeId } from '@/utils/url';
 
 export const useMusicStations = () => {
   const [rawStations, setRawStations] = useState<MusicStation[]>([]);
