@@ -6,6 +6,7 @@ import {
   Image as ImageIcon,
   Zap,
   Bell,
+  ChevronLeft,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -33,14 +34,15 @@ const TabButton: React.FC<{
     aria-controls={controls}
     tabIndex={isActive ? 0 : -1}
     onClick={onClick}
-    className={`px-4 py-3 rounded-t-xl font-bold text-sm uppercase tracking-wide flex items-center gap-2 transition-colors ${
+    className={`px-3 py-1.5 rounded-full font-bold text-xs uppercase tracking-wide flex items-center gap-2 transition-colors whitespace-nowrap ${
       isActive
-        ? 'bg-brand-blue-primary text-white shadow-md'
-        : 'text-white/70 hover:bg-white/20 hover:text-white'
+        ? 'bg-white text-brand-blue-dark shadow-sm'
+        : 'text-white/80 hover:bg-white/20 hover:text-white'
     }`}
+    title={label}
   >
     {icon}
-    {label}
+    <span className="hidden lg:inline">{label}</span>
   </button>
 );
 
@@ -75,24 +77,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white p-6 pb-0 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Settings className="w-6 h-6" />
-              <h2 id="admin-settings-title" className="text-2xl font-bold">
+        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 px-4 flex items-center justify-between shadow-sm shrink-0">
+          {/* Left: Navigation & Title */}
+          <div className="flex items-center gap-2 overflow-hidden">
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-white/20 rounded-lg transition-colors shrink-0"
+              aria-label="Close settings"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <Settings className="w-4 h-4 text-white/70 shrink-0" />
+              <h2 id="admin-settings-title" className="text-lg font-bold truncate">
                 Admin Settings
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/30 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 mt-2" role="tablist">
+          {/* Right: Tabs */}
+          <div className="flex gap-1 ml-4" role="tablist">
             <TabButton
               id="tab-features"
               controls="panel-features"
