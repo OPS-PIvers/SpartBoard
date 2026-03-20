@@ -4,26 +4,20 @@ import { Toggle } from '@/components/common/Toggle';
 import { Layout } from 'lucide-react';
 
 interface DockDefaultsPanelProps {
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
+  config: { dockDefaults: Record<string, boolean> };
+  onChange: (dockDefaults: Record<string, boolean>) => void;
 }
 
 export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
   config,
   onChange,
 }) => {
-  const dockDefaults = useMemo(() => {
-    return (config.dockDefaults as Record<string, boolean>) ?? {};
-  }, [config]);
+  const dockDefaults = useMemo(() => config.dockDefaults ?? {}, [config]);
 
   const handleToggle = (buildingId: string) => {
-    const newValue = !dockDefaults[buildingId];
     onChange({
-      ...config,
-      dockDefaults: {
-        ...dockDefaults,
-        [buildingId]: newValue,
-      },
+      ...dockDefaults,
+      [buildingId]: !dockDefaults[buildingId],
     });
   };
 

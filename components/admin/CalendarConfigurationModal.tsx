@@ -25,6 +25,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
 import { Modal } from '../common/Modal';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 
 interface CalendarConfigurationModalProps {
   isOpen: boolean;
@@ -295,6 +296,14 @@ export const CalendarConfigurationModal: React.FC<
             </div>
           ) : (
             <>
+              {/* Dock Defaults */}
+              <DockDefaultsPanel
+                config={{ dockDefaults: config.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
+              />
+
               {/* Proxy Sync Controls */}
               <section className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">

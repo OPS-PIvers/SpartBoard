@@ -20,6 +20,7 @@ import {
 import { Toast } from '../common/Toast';
 import { Button } from '../common/Button';
 import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 
 interface GraphicOrganizerConfigurationModalProps {
   isOpen: boolean;
@@ -285,6 +286,19 @@ export const GraphicOrganizerConfigurationModal: React.FC<
             </div>
           ) : (
             <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
+              {/* Dock Defaults */}
+              <DockDefaultsPanel
+                config={{
+                  dockDefaults: globalConfig.dockDefaults ?? {},
+                }}
+                onChange={(d) =>
+                  setGlobalConfig((prev) => ({
+                    ...prev,
+                    dockDefaults: d,
+                  }))
+                }
+              />
+
               <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">
                 {BUILDINGS.map((building) => (
                   <button

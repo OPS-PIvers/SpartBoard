@@ -22,6 +22,7 @@ import { Toast } from '../common/Toast';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Card } from '@/components/common/Card';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 
 interface SpecialistScheduleConfigurationModalProps {
   isOpen: boolean;
@@ -368,6 +369,14 @@ export const SpecialistScheduleConfigurationModal: React.FC<
             </div>
           ) : (
             <>
+              {/* Dock Defaults */}
+              <DockDefaultsPanel
+                config={{ dockDefaults: config.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
+              />
+
               {/* Building Selector */}
               <section className="space-y-4">
                 <div>

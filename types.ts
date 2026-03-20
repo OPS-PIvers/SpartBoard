@@ -644,6 +644,7 @@ export interface CalendarGlobalConfig {
   buildingDefaults: Record<string, BuildingCalendarDefaults>;
   /** How often the admin proxy should refresh data (in hours) */
   updateFrequencyHours?: number;
+  dockDefaults?: Record<string, boolean>;
 }
 
 export interface ScheduleConfig {
@@ -909,6 +910,10 @@ export interface CatalystSet {
 export type CatalystConfig = {
   initialSetId?: string;
 };
+
+export interface CatalystGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
 
 export interface CatalystInstructionConfig {
   routineId: string;
@@ -1255,6 +1260,7 @@ export interface SpecialistScheduleBuildingConfig {
 export interface SpecialistScheduleGlobalConfig {
   /** Building ID -> Config */
   buildingDefaults: Record<string, SpecialistScheduleBuildingConfig>;
+  dockDefaults?: Record<string, boolean>;
 }
 
 export interface SpecialistScheduleConfig {
@@ -1350,6 +1356,7 @@ export interface GraphicOrganizerBuildingConfig {
 
 export interface GraphicOrganizerGlobalConfig {
   buildings: Record<string, GraphicOrganizerBuildingConfig>;
+  dockDefaults?: Record<string, boolean>;
 }
 
 export type GraphicOrganizerTemplateId = `template-${string}`;

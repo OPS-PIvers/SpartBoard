@@ -249,9 +249,14 @@ export const FeatureConfigurationPanel: React.FC<
     <div className="space-y-4">
       {/* Dock Defaults (Global) */}
       <DockDefaultsPanel
-        config={permission.config ?? {}}
-        onChange={(newConfig) =>
-          updatePermission(tool.type, { config: newConfig })
+        config={{
+          dockDefaults:
+            (permission.config?.dockDefaults as Record<string, boolean>) ?? {},
+        }}
+        onChange={(dockDefaults) =>
+          updatePermission(tool.type, {
+            config: { ...(permission.config ?? {}), dockDefaults },
+          })
         }
       />
 
