@@ -92,13 +92,16 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isGeneratingApp || !url) return;
+    if (isGeneratingApp) return;
+    if (displayMode === 'url' && !url) return;
+    if (displayMode === 'code' && !html) return;
 
     setIsGeneratingApp(true);
     try {
       addToast('Analyzing content and generating Mini App...', 'info');
 
-      const prompt = `Create an interactive educational mini app based on this content/resource: ${sanitizedUrl}`;
+      const resourceContent = displayMode === 'url' ? sanitizedUrl : html;
+      const prompt = `Create an interactive educational mini app based on this content/resource: ${resourceContent}`;
       const result = await generateMiniAppCode(prompt);
 
       // Create new Mini App widget next to this embed
@@ -165,7 +168,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative group/embed-content">
-          {displayMode === 'url' && url && (
+          {((displayMode === 'url' && url) ||
+            (displayMode === 'code' && html)) && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
               <button
                 onClick={handleGenerateMiniApp}
@@ -191,21 +195,23 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   />
                 )}
               </button>
-              <a
-                href={sanitizedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors flex items-center justify-center"
-                title="Open in new tab"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink
-                  style={{
-                    width: 'min(12px, 2.5cqmin)',
-                    height: 'min(12px, 2.5cqmin)',
-                  }}
-                />
-              </a>
+              {displayMode === 'url' && (
+                <a
+                  href={sanitizedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors flex items-center justify-center"
+                  title="Open in new tab"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink
+                    style={{
+                      width: 'min(12px, 2.5cqmin)',
+                      height: 'min(12px, 2.5cqmin)',
+                    }}
+                  />
+                </a>
+              )}
             </div>
           )}
           {displayMode === 'url' && isActuallyEmbeddable === false ? (
