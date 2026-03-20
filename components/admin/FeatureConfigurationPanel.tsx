@@ -42,6 +42,7 @@ import { CarRiderConfigurationPanel } from './CarRiderConfigurationPanel';
 import { PollConfigurationPanel } from './PollConfigurationPanel';
 import { QRConfigurationPanel } from './QRConfigurationPanel';
 import { EmbedConfigurationPanel } from './EmbedConfigurationPanel';
+import { HotspotImageConfigurationPanel } from './HotspotImageConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -72,6 +73,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   poll: PollConfigurationPanel as unknown as BuildingConfigPanel,
   qr: QRConfigurationPanel as unknown as BuildingConfigPanel,
   embed: EmbedConfigurationPanel as unknown as BuildingConfigPanel,
+  'hotspot-image':
+    HotspotImageConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {

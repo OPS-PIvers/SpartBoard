@@ -69,8 +69,11 @@
     - Admin-Only Settings
         -- `templates`: CRUD management of global templates.
         -- `dockDefaults`: Visibility in the building dock.
-[ ] Hotspot Image
-    - No admin config.
+[X] Hotspot Image
+    - Default User-Level Settings
+        -- `popoverTheme`: Default popover theme ('light', 'dark', 'glass').
+    - Admin-Only Settings
+        -- None.
 [X] Instructional Routines
     - Default User-Level Settings
         -- None.
