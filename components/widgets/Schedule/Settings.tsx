@@ -48,12 +48,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Toggle } from '../../common/Toggle';
-
-/** Returns today's date as YYYY-MM-DD in local time. */
-const getTodayStr = (): string => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+import { getTodayStr } from './utils';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -138,6 +133,8 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
     const todayStr = getTodayStr();
     const isOneOff = !!item.oneOffDate;
     const isExpiredOneOff = isOneOff && (item.oneOffDate ?? '') < todayStr;
+    const isTodayOneOff = isOneOff && item.oneOffDate === todayStr;
+    const isUpcomingOneOff = isOneOff && !isExpiredOneOff && !isTodayOneOff;
 
     return (
       <div
@@ -172,13 +169,23 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
               className={`text-xxs px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                 isExpiredOneOff
                   ? 'bg-slate-100 text-slate-400'
-                  : 'bg-amber-100 text-amber-700'
+                  : isUpcomingOneOff
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-amber-100 text-amber-700'
               }`}
               title={
-                isExpiredOneOff ? `One-off: ${item.oneOffDate}` : 'Today only'
+                isExpiredOneOff
+                  ? `One-off: ${item.oneOffDate}`
+                  : isUpcomingOneOff
+                    ? `Upcoming: ${item.oneOffDate}`
+                    : 'Today only'
               }
             >
-              {isExpiredOneOff ? 'Expired' : 'Today'}
+              {isExpiredOneOff
+                ? 'Expired'
+                : isUpcomingOneOff
+                  ? 'Upcoming'
+                  : 'Today'}
             </span>
           )}
           <button
@@ -578,7 +585,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       return;
     }
     const calConfig = calendarWidget.config as CalendarConfig;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const todaysEvents = (calConfig.events ?? []).filter(
       (e) => e.date === today && e.title?.trim()
     );
@@ -731,6 +738,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   <button
                     type="button"
                     onClick={() => handleAddItem(selectedSchedule.id)}
+                    aria-label="Add event"
                     className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
                   >
                     <Plus className="w-3 h-3" /> Add

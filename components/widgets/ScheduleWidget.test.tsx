@@ -59,6 +59,7 @@ vi.mock('lucide-react', () => ({
   Copy: () => <div>Copy Icon</div>,
   Link: () => <div>Link Icon</div>,
   ArrowUpDown: () => <div>ArrowUpDown Icon</div>,
+  CalendarPlus: () => <div>CalendarPlus Icon</div>,
   Ban: () => <div>Ban Icon</div>,
 }));
 
@@ -539,6 +540,8 @@ describe('ScheduleSettings', () => {
   it('renders settings controls', () => {
     render(<ScheduleSettings widget={createWidget()} />);
 
+    // Options section is collapsed by default; expand it first.
+    fireEvent.click(screen.getByRole('button', { name: /options/i }));
     expect(screen.getByText(/auto-checkoff/i)).toBeInTheDocument();
   });
 
@@ -550,11 +553,16 @@ describe('ScheduleSettings', () => {
 
   it('renders the Auto-Scroll View toggle', () => {
     render(<ScheduleSettings widget={createWidget()} />);
+    // Options section is collapsed by default; expand it first.
+    fireEvent.click(screen.getByRole('button', { name: /options/i }));
     expect(screen.getByText('Auto-Scroll View')).toBeInTheDocument();
   });
 
   it('saves autoScroll:true when the Auto-Scroll View toggle is clicked', () => {
     render(<ScheduleSettings widget={createWidget({ autoScroll: false })} />);
+
+    // Options section is collapsed by default; expand it to reveal the toggles.
+    fireEvent.click(screen.getByRole('button', { name: /options/i }));
 
     // The settings panel contains three role="switch" toggles in order:
     // 0 = Auto-Complete Items, 1 = Auto-Scroll View, 2 = Sync Building Schedule.
@@ -587,14 +595,8 @@ describe('ScheduleSettings', () => {
     });
     render(<ScheduleSettings widget={widget} />);
 
-    // Expand the default schedule accordion (the card is a div, not a button;
-    // click the cursor-pointer wrapper since the inner input stops propagation).
-    const scheduleNameInput = screen.getByDisplayValue(/default schedule/i);
-    const accordionCard = scheduleNameInput.closest('.cursor-pointer');
-    if (!accordionCard) throw new Error('Accordion card not found');
-    fireEvent.click(accordionCard);
-
-    // Click "Add Event" to append a new blank item.
+    // With items present the schedule is shown directly — no accordion to expand.
+    // Click the "Add event" button (aria-label set on the inline Add button).
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
 
     // updateWidget should have been called with the existing item + a new blank one.
