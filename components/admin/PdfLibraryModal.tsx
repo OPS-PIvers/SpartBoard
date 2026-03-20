@@ -234,7 +234,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
       await setDoc(doc(db, COLLECTION, id), {
         ...pdfData,
         createdAt: editingId
-          ? (pdfs.find((a) => a.id === editingId)?.createdAt ?? Date.now())
+          ? pdfs.find((a) => a.id === editingId)?.createdAt
           : Date.now(), // to sort correctly in query
       });
 
