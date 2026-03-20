@@ -13,10 +13,12 @@ import {
 import confetti from 'canvas-confetti';
 import { CatalystSettings } from './CatalystSettings';
 
-export const CatalystWidget: React.FC<{ widget: WidgetData }> = () => {
+export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, deleteAllWidgets } = useDashboard();
   const { sets, loading, executeRoutine } = useCatalystSets();
-  const [activeSetId, setActiveSetId] = useState<string | null>(null);
+  const [activeSetId, setActiveSetId] = useState<string | null>(
+    widget.config.initialSetId ?? null
+  );
 
   const activeSet = sets.find((s) => s.id === activeSetId);
 

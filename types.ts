@@ -905,7 +905,9 @@ export interface CatalystSet {
   createdAt: number;
 }
 
-export type CatalystConfig = Record<string, never>;
+export type CatalystConfig = {
+  initialSetId?: string;
+};
 
 export interface CatalystInstructionConfig {
   routineId: string;
