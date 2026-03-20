@@ -1263,6 +1263,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           />,
           document.body
         )}
+
+      {/* Persistent Restore FAB for Maximized State */}
+      {isMaximized && (
+        <div className="absolute bottom-6 right-6 z-[70] pointer-events-auto flex items-center justify-center">
+          <IconButton
+            icon={<Minimize2 className="w-6 h-6" />}
+            label={t('widgetWindow.restore')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMaximizeToggle();
+            }}
+            size="xl"
+            variant="brand-ghost"
+            className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
+          />
+        </div>
+      )}
     </GlassCard>
   );
 

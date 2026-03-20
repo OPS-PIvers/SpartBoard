@@ -230,366 +230,353 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const isTransparent = bgColor === 'transparent';
 
-  // ---------- MINIMAL layout ----------
-  // Thumbnail fills widget, play/pause centred, gradient + title/artist at bottom
-  if (layout === 'minimal') {
-    return (
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div className="w-full h-full relative overflow-hidden rounded-2xl select-none">
-            {hiddenPlayer}
-
-            {/* Background thumbnail */}
-            {activeStation.thumbnail ? (
-              <img
-                src={activeStation.thumbnail}
-                alt={activeStation.title}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="absolute inset-0 flex items-center justify-center"
-                style={{ backgroundColor: bgColor }}
-              >
-                <Music
-                  className="text-slate-300"
-                  style={{
-                    width: 'min(64px, 25cqmin)',
-                    height: 'min(64px, 25cqmin)',
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Darken overlay while playing */}
-            <div
-              className={`absolute inset-0 transition-opacity duration-500 ${isPlaying ? 'opacity-10' : 'opacity-20'} bg-black`}
-            />
-
-            {/* Centered play/pause button */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <PlayButton
-                isPlayerReady={isPlayerReady}
-                isPlaying={isPlaying}
-                onClick={togglePlay}
-                size="min(56px, 20cqmin)"
-              />
-            </div>
-
-            {/* Gradient + title overlay at bottom */}
-            <div
-              className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent"
-              style={{
-                padding:
-                  'min(20px, 5cqmin) min(12px, 3cqmin) min(10px, 2.5cqmin)',
-              }}
-            >
-              <p
-                className="font-black truncate leading-tight text-white"
-                style={{ fontSize: 'min(16px, 6cqmin)' }}
-              >
-                {activeStation.title}
-              </p>
-              <p
-                className="truncate text-white/70 font-medium"
-                style={{
-                  fontSize: 'min(12px, 4cqmin)',
-                  marginTop: 'min(2px, 0.5cqmin)',
-                }}
-              >
-                {activeStation.channel}
-              </p>
-            </div>
-          </div>
-        }
-      />
-    );
-  }
-
-  // ---------- SMALL layout ----------
-  // Always horizontal: thumbnail left, scrolling title + artist right
-  if (layout === 'small') {
-    return (
-      <WidgetLayout
-        padding="p-0"
-        content={
-          <div
-            className={`w-full h-full flex flex-row items-center overflow-hidden rounded-2xl relative select-none ${!isTransparent ? 'shadow-inner' : ''}`}
-            style={{
-              gap: 'min(10px, 3cqmin)',
-              padding: 'min(8px, 2.5cqmin)',
-              backgroundColor: bgColor,
-            }}
-          >
-            {hiddenPlayer}
-
-            {/* Top accent bar */}
-            <div
-              className="absolute top-0 left-0 w-full h-0.5 opacity-80"
-              style={{ backgroundColor: activeStation.color || '#2d3f89' }}
-            />
-
-            {/* Thumbnail with play button overlay */}
-            <div
-              className="relative shrink-0 group"
-              style={{
-                width: 'min(56px, 16cqmin)',
-                height: 'min(56px, 16cqmin)',
-              }}
-            >
-              {activeStation.thumbnail ? (
-                <img
-                  src={activeStation.thumbnail}
-                  alt={activeStation.title}
-                  className={`w-full h-full rounded-xl object-cover shadow-lg transition-all duration-500 ${isPlaying ? 'animate-pulse-slow' : ''}`}
-                />
-              ) : (
-                <div
-                  className={`w-full h-full rounded-xl flex items-center justify-center shadow-lg ${isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'}`}
-                >
-                  <Music
-                    className={
-                      isTransparent ? 'text-slate-400' : 'text-slate-300'
-                    }
-                    style={{ width: '50%', height: '50%' }}
-                  />
-                </div>
-              )}
-              {/* Play/pause overlay on thumbnail */}
-              <div
-                className={`absolute inset-0 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  isPlaying
-                    ? 'bg-black/0 opacity-0 hover:bg-black/20 hover:opacity-100'
-                    : 'bg-black/10 opacity-100'
-                }`}
-                onClick={togglePlay}
-              >
-                <PlayButton
-                  isPlayerReady={isPlayerReady}
-                  isPlaying={isPlaying}
-                  onClick={togglePlay}
-                  size="40%"
-                />
-              </div>
-            </div>
-
-            {/* Station info — scrolling title */}
-            <div className="flex-1 flex flex-col justify-center min-w-0 overflow-hidden">
-              <div className="overflow-hidden relative">
-                <p
-                  className={`font-black whitespace-nowrap ${isPlaying ? 'animate-marquee' : 'truncate'}`}
-                  style={{
-                    fontSize: 'min(15px, 8cqmin)',
-                    lineHeight: 1.2,
-                    color: textColor,
-                  }}
-                >
-                  {activeStation.title}
-                  {/* Duplicate for seamless scroll */}
-                  {isPlaying && (
-                    <span aria-hidden className="ml-8">
-                      {activeStation.title}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <p
-                className="truncate font-bold"
-                style={{
-                  fontSize: 'min(11px, 5.5cqmin)',
-                  marginTop: 'min(2px, 1cqmin)',
-                  opacity: 0.65,
-                  color: textColor,
-                }}
-              >
-                {activeStation.channel}
-              </p>
-              {/* Status dot */}
-              {isPlayerReady && (
-                <div
-                  className="flex items-center"
-                  style={{
-                    gap: 'min(4px, 1.5cqmin)',
-                    marginTop: 'min(3px, 1.2cqmin)',
-                  }}
-                >
-                  <div
-                    className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
-                    style={{
-                      width: 'min(5px, 2cqmin)',
-                      height: 'min(5px, 2cqmin)',
-                    }}
-                  />
-                  <span
-                    className="font-black uppercase tracking-widest opacity-40"
-                    style={{ color: textColor, fontSize: 'min(9px, 4.5cqmin)' }}
-                  >
-                    {isPlaying ? 'Now Playing' : 'Paused'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Sync icon */}
-            {config.syncWithTimeTool && (
-              <Link
-                className="shrink-0"
-                style={{
-                  width: 'min(14px, 5cqmin)',
-                  height: 'min(14px, 5cqmin)',
-                  color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
-                  opacity: 0.8,
-                }}
-                aria-label="Synced with Time Tool"
-              />
-            )}
-          </div>
-        }
-      />
-    );
-  }
-
-  // ---------- DEFAULT layout ----------
-  // Original layout: portrait stacks, landscape goes side-by-side
+  // ---------- YouTube layouts (Consolidated to ensure DOM stability) ----------
   return (
     <WidgetLayout
       padding="p-0"
       content={
         <div
-          className={`w-full h-full rounded-2xl flex flex-col [@container(orientation:landscape)]:flex-row items-center justify-center text-center [@container(orientation:landscape)]:text-left overflow-hidden relative select-none transition-all duration-500 ${
-            !isTransparent ? 'shadow-inner' : ''
+          className={`w-full h-full rounded-2xl overflow-hidden relative select-none transition-all duration-500 ${
+            layout === 'default' && !isTransparent ? 'shadow-inner' : ''
           }`}
           style={{
-            padding: 'min(12px, 3cqh, 4cqw)',
-            gap: 'min(16px, 4cqh, 5cqw)',
-            backgroundColor: bgColor,
+            backgroundColor: layout === 'minimal' ? undefined : bgColor,
           }}
         >
-          {/* Background Branding Accent */}
-          <div
-            className="absolute top-0 left-0 w-full h-1 opacity-80"
-            style={{ backgroundColor: activeStation.color || '#2d3f89' }}
-          />
-
+          {/* Hidden YouTube player mount point (Keep at top for stability) */}
           {hiddenPlayer}
 
-          {/* Album art + Controls */}
-          <div
-            className="relative shrink-0 group"
-            style={{
-              width: 'min(160px, 85cqh, 80cqw)',
-              height: 'min(160px, 85cqh, 80cqw)',
-            }}
-          >
-            {activeStation.thumbnail ? (
-              <img
-                src={activeStation.thumbnail}
-                alt={activeStation.title}
-                className={`w-full h-full rounded-2xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 ${isPlaying ? 'animate-pulse-slow' : ''}`}
-                style={{
-                  border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
-                }}
-              />
-            ) : (
+          {layout === 'minimal' ? (
+            <div className="w-full h-full relative overflow-hidden">
+              {/* Background thumbnail */}
+              {activeStation.thumbnail ? (
+                <img
+                  src={activeStation.thumbnail}
+                  alt={activeStation.title}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: bgColor }}
+                >
+                  <Music
+                    className="text-slate-300"
+                    style={{
+                      width: 'min(64px, 25cqmin)',
+                      height: 'min(64px, 25cqmin)',
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Darken overlay while playing */}
               <div
-                className={`w-full h-full rounded-2xl flex items-center justify-center shadow-2xl ${
-                  isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'
-                }`}
-                style={{
-                  border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}44`,
-                }}
-              >
-                <Music
-                  className={
-                    isTransparent ? 'text-slate-400' : 'text-slate-300'
-                  }
-                  style={{
-                    width: 'min(48px, 20cqmin)',
-                    height: 'min(48px, 20cqmin)',
-                  }}
+                className={`absolute inset-0 transition-opacity duration-500 ${isPlaying ? 'opacity-10' : 'opacity-20'} bg-black`}
+              />
+
+              {/* Centered play/pause button */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <PlayButton
+                  isPlayerReady={isPlayerReady}
+                  isPlaying={isPlaying}
+                  onClick={togglePlay}
+                  size="min(56px, 20cqmin)"
                 />
               </div>
-            )}
 
-            {/* Play/Pause overlay */}
-            <div
-              className={`absolute inset-0 rounded-2xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
-                isPlaying
-                  ? 'bg-black/0 hover:bg-black/20 opacity-0 hover:opacity-100'
-                  : 'bg-black/10 opacity-100'
-              }`}
-              onClick={togglePlay}
-            >
-              <PlayButton
-                isPlayerReady={isPlayerReady}
-                isPlaying={isPlaying}
-                onClick={togglePlay}
-                size="30%"
-              />
-            </div>
-          </div>
-
-          {/* Station info */}
-          <div className="flex-1 flex flex-col items-center [@container(orientation:landscape)]:items-start min-w-0">
-            <div
-              className="flex items-center justify-center [@container(orientation:landscape)]:justify-start w-full"
-              style={{ gap: 'min(8px, 2.5cqmin)' }}
-            >
-              <h3
-                className="font-black truncate max-w-[90%]"
+              {/* Gradient + title overlay at bottom */}
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent"
                 style={{
-                  fontSize: 'min(32px, 35cqh, 12cqw)',
-                  lineHeight: 1.1,
-                  color: textColor,
+                  padding:
+                    'min(20px, 5cqmin) min(12px, 3cqmin) min(10px, 2.5cqmin)',
                 }}
               >
-                {activeStation.title}
-              </h3>
+                <p
+                  className="font-black truncate leading-tight text-white"
+                  style={{ fontSize: 'min(16px, 6cqmin)' }}
+                >
+                  {activeStation.title}
+                </p>
+                <p
+                  className="truncate text-white/70 font-medium"
+                  style={{
+                    fontSize: 'min(12px, 4cqmin)',
+                    marginTop: 'min(2px, 0.5cqmin)',
+                  }}
+                >
+                  {activeStation.channel}
+                </p>
+              </div>
+            </div>
+          ) : layout === 'small' ? (
+            <div
+              className={`w-full h-full flex flex-row items-center px-2 relative ${!isTransparent ? 'shadow-inner' : ''}`}
+              style={{
+                gap: 'min(10px, 3cqmin)',
+                padding: 'min(8px, 2.5cqmin)',
+              }}
+            >
+              {/* Top accent bar */}
+              <div
+                className="absolute top-0 left-0 w-full h-0.5 opacity-80"
+                style={{ backgroundColor: activeStation.color || '#2d3f89' }}
+              />
+
+              {/* Thumbnail with play button overlay */}
+              <div
+                className="relative shrink-0 group"
+                style={{
+                  width: 'min(56px, 16cqmin)',
+                  height: 'min(56px, 16cqmin)',
+                }}
+              >
+                {activeStation.thumbnail ? (
+                  <img
+                    src={activeStation.thumbnail}
+                    alt={activeStation.title}
+                    className={`w-full h-full rounded-xl object-cover shadow-lg transition-all duration-500 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-full rounded-xl flex items-center justify-center shadow-lg ${isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                  >
+                    <Music
+                      className={
+                        isTransparent ? 'text-slate-400' : 'text-slate-300'
+                      }
+                      style={{ width: '50%', height: '50%' }}
+                    />
+                  </div>
+                )}
+                {/* Play/pause overlay on thumbnail */}
+                <div
+                  className={`absolute inset-0 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                    isPlaying
+                      ? 'bg-black/0 opacity-0 hover:bg-black/20 hover:opacity-100'
+                      : 'bg-black/10 opacity-100'
+                  }`}
+                  onClick={togglePlay}
+                >
+                  <PlayButton
+                    isPlayerReady={isPlayerReady}
+                    isPlaying={isPlaying}
+                    onClick={togglePlay}
+                    size="40%"
+                  />
+                </div>
+              </div>
+
+              {/* Station info — scrolling title */}
+              <div className="flex-1 flex flex-col justify-center min-w-0 overflow-hidden">
+                <div className="overflow-hidden relative">
+                  <p
+                    className={`font-black whitespace-nowrap ${isPlaying ? 'animate-marquee' : 'truncate'}`}
+                    style={{
+                      fontSize: 'min(15px, 8cqmin)',
+                      lineHeight: 1.2,
+                      color: textColor,
+                    }}
+                  >
+                    {activeStation.title}
+                    {/* Duplicate for seamless scroll */}
+                    {isPlaying && (
+                      <span aria-hidden className="ml-8">
+                        {activeStation.title}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <p
+                  className="truncate font-bold"
+                  style={{
+                    fontSize: 'min(11px, 5.5cqmin)',
+                    marginTop: 'min(2px, 1cqmin)',
+                    opacity: 0.65,
+                    color: textColor,
+                  }}
+                >
+                  {activeStation.channel}
+                </p>
+                {/* Status dot */}
+                {isPlayerReady && (
+                  <div
+                    className="flex items-center"
+                    style={{
+                      gap: 'min(4px, 1.5cqmin)',
+                      marginTop: 'min(3px, 1.2cqmin)',
+                    }}
+                  >
+                    <div
+                      className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
+                      style={{
+                        width: 'min(5px, 2cqmin)',
+                        height: 'min(5px, 2cqmin)',
+                      }}
+                    />
+                    <span
+                      className="font-black uppercase tracking-widest opacity-40"
+                      style={{
+                        color: textColor,
+                        fontSize: 'min(9px, 4.5cqmin)',
+                      }}
+                    >
+                      {isPlaying ? 'Now Playing' : 'Paused'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Sync icon */}
               {config.syncWithTimeTool && (
                 <Link
                   className="shrink-0"
                   style={{
-                    width: 'min(20px, 20cqh, 6cqw)',
-                    height: 'min(20px, 20cqh, 6cqw)',
+                    width: 'min(14px, 5cqmin)',
+                    height: 'min(14px, 5cqmin)',
                     color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
-                    opacity: textColor === '#ffffff' ? 0.8 : 1,
+                    opacity: 0.8,
                   }}
                   aria-label="Synced with Time Tool"
                 />
               )}
             </div>
-            <p
-              className="font-bold truncate max-w-[85%]"
+          ) : (
+            <div
+              className="w-full h-full flex flex-col [@container(orientation:landscape)]:flex-row items-center justify-center text-center [@container(orientation:landscape)]:text-left"
               style={{
-                fontSize: 'min(18px, 25cqh, 9cqw)',
-                marginTop: 'min(4px, 1cqh, 1cqw)',
-                opacity: 0.7,
-                color: textColor,
+                padding: 'min(12px, 3cqh, 4cqw)',
+                gap: 'min(16px, 4cqh, 5cqw)',
               }}
             >
-              {activeStation.channel}
-            </p>
-
-            {/* Status indicator for wide view */}
-            {isPlayerReady && (
+              {/* Background Branding Accent */}
               <div
-                className="hidden [@container(orientation:landscape)]:flex items-center gap-2"
-                style={{ marginTop: 'min(8px, 2cqh)' }}
+                className="absolute top-0 left-0 w-full h-1 opacity-80"
+                style={{ backgroundColor: activeStation.color || '#2d3f89' }}
+              />
+
+              {/* Album art + Controls */}
+              <div
+                className="relative shrink-0 group"
+                style={{
+                  width: 'min(160px, 85cqh, 80cqw)',
+                  height: 'min(160px, 85cqh, 80cqw)',
+                }}
               >
+                {activeStation.thumbnail ? (
+                  <img
+                    src={activeStation.thumbnail}
+                    alt={activeStation.title}
+                    className={`w-full h-full rounded-2xl object-cover shadow-2xl transition-all duration-500 group-hover:scale-105 ${isPlaying ? 'animate-pulse-slow' : ''}`}
+                    style={{
+                      border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}22`,
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-full rounded-2xl flex items-center justify-center shadow-2xl ${
+                      isTransparent ? 'bg-slate-800/50' : 'bg-slate-50'
+                    }`}
+                    style={{
+                      border: `min(2px, 0.5cqmin) solid ${activeStation.color || '#e2e8f0'}44`,
+                    }}
+                  >
+                    <Music
+                      className={
+                        isTransparent ? 'text-slate-400' : 'text-slate-300'
+                      }
+                      style={{
+                        width: 'min(48px, 20cqmin)',
+                        height: 'min(48px, 20cqmin)',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Play/Pause overlay */}
                 <div
-                  className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
-                  style={{ width: 'min(6px, 8cqh)', height: 'min(6px, 8cqh)' }}
-                />
-                <span
-                  className="font-black uppercase tracking-widest opacity-40"
-                  style={{ color: textColor, fontSize: 'min(9px, 12cqh)' }}
+                  className={`absolute inset-0 rounded-2xl flex items-center justify-center transition-all duration-300 cursor-pointer ${
+                    isPlaying
+                      ? 'bg-black/0 hover:bg-black/20 opacity-0 hover:opacity-100'
+                      : 'bg-black/10 opacity-100'
+                  }`}
+                  onClick={togglePlay}
                 >
-                  {isPlaying ? 'Now Playing' : 'Paused'}
-                </span>
+                  <PlayButton
+                    isPlayerReady={isPlayerReady}
+                    isPlaying={isPlaying}
+                    onClick={togglePlay}
+                    size="30%"
+                  />
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Station info */}
+              <div className="flex-1 flex flex-col items-center [@container(orientation:landscape)]:items-start min-w-0">
+                <div
+                  className="flex items-center justify-center [@container(orientation:landscape)]:justify-start w-full"
+                  style={{ gap: 'min(8px, 2.5cqmin)' }}
+                >
+                  <h3
+                    className="font-black truncate max-w-[90%]"
+                    style={{
+                      fontSize: 'min(32px, 35cqh, 12cqw)',
+                      lineHeight: 1.1,
+                      color: textColor,
+                    }}
+                  >
+                    {activeStation.title}
+                  </h3>
+                  {config.syncWithTimeTool && (
+                    <Link
+                      className="shrink-0"
+                      style={{
+                        width: 'min(20px, 20cqh, 6cqw)',
+                        height: 'min(20px, 20cqh, 6cqw)',
+                        color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
+                        opacity: textColor === '#ffffff' ? 0.8 : 1,
+                      }}
+                      aria-label="Synced with Time Tool"
+                    />
+                  )}
+                </div>
+                <p
+                  className="font-bold truncate max-w-[85%]"
+                  style={{
+                    fontSize: 'min(18px, 25cqh, 9cqw)',
+                    marginTop: 'min(4px, 1cqh, 1cqw)',
+                    opacity: 0.7,
+                    color: textColor,
+                  }}
+                >
+                  {activeStation.channel}
+                </p>
+
+                {/* Status indicator for wide view */}
+                {isPlayerReady && (
+                  <div
+                    className="hidden [@container(orientation:landscape)]:flex items-center gap-2"
+                    style={{ marginTop: 'min(8px, 2cqh)' }}
+                  >
+                    <div
+                      className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
+                      style={{
+                        width: 'min(6px, 8cqh)',
+                        height: 'min(6px, 8cqh)',
+                      }}
+                    />
+                    <span
+                      className="font-black uppercase tracking-widest opacity-40"
+                      style={{ color: textColor, fontSize: 'min(9px, 12cqh)' }}
+                    >
+                      {isPlaying ? 'Now Playing' : 'Paused'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       }
     />

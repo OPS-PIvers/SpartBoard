@@ -508,4 +508,20 @@ describe('DraggableWindow', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  it('renders restore FAB when maximized and handles click', () => {
+    renderComponent({ maximized: true });
+
+    // The restore FAB should be visible
+    const restoreFab = screen.getByLabelText('Restore');
+    expect(restoreFab).toBeInTheDocument();
+
+    // Clicking it should toggle maximized state
+    fireEvent.click(restoreFab);
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'test-widget',
+      expect.objectContaining({ maximized: false })
+    );
+  });
 });
