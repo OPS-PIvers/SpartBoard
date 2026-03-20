@@ -43,10 +43,7 @@ export const sanitizeAIConfig = (
   if (!config || typeof config !== 'object') return {};
 
   // Deep clone to avoid mutating original
-  const sanitized = JSON.parse(JSON.stringify(config)) as Record<
-    string,
-    unknown
-  >;
+  const sanitized = structuredClone(config) as Record<string, unknown>;
 
   // 1. Critical XSS prevention for widgets with HTML/Script capability
   // AI is not intended to generate executable code via the layout tool.

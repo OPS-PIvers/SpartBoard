@@ -2173,7 +2173,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             x: target.x + 20,
             y: target.y + 20,
             z: maxZ + 1,
-            config: JSON.parse(JSON.stringify(target.config)) as WidgetConfig,
+            config: structuredClone(target.config),
           };
           return { ...d, widgets: [...d.widgets, duplicated] };
         })
