@@ -44,19 +44,17 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   } = config;
 
   const ZOOM_STEPS = [
-    0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.25, 1.5,
-    1.75, 2.0, 2.25, 2.5,
+    0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75,
+    2.0, 2.25, 2.5,
   ];
-  const effectiveZoom = ZOOM_STEPS.reduce(
-    (closest, step) => {
-      return Math.abs(step - zoom) < Math.abs(closest - zoom) ? step : closest;
-    },
-    ZOOM_STEPS[ZOOM_STEPS.indexOf(1.0)]
-  );
+  const DEFAULT_ZOOM = 1.0;
+  const effectiveZoom = ZOOM_STEPS.reduce((closest, step) => {
+    return Math.abs(step - zoom) < Math.abs(closest - zoom) ? step : closest;
+  }, DEFAULT_ZOOM);
   const currentZoomIndex = ZOOM_STEPS.indexOf(effectiveZoom);
   const canZoomOut = currentZoomIndex > 0;
   const canZoomIn = currentZoomIndex < ZOOM_STEPS.length - 1;
-  const isDefaultZoom = effectiveZoom === 1.0;
+  const isDefaultZoom = effectiveZoom === DEFAULT_ZOOM;
 
   const handleZoomOut = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -140,6 +138,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleGenerateMiniApp = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canAccessFeature('embed-mini-app')) return;
     if (isGeneratingApp) return;
     if (displayMode === 'url' && !url.trim()) return;
     if (displayMode === 'code' && !html.trim()) return;
@@ -245,7 +244,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <button
                   onClick={handleZoomOut}
                   disabled={!canZoomOut}
-                  className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{ padding: 'min(8px, 2cqmin)' }}
                   title="Zoom out"
                 >
                   <ZoomOut
@@ -255,22 +255,26 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     }}
                   />
                 </button>
-                <button
-                  onClick={handleZoomReset}
-                  disabled={isDefaultZoom}
-                  className="text-slate-600 font-mono font-bold select-none hover:text-blue-500 hover:bg-slate-50 transition-colors px-1 disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
-                  style={{
-                    fontSize: 'clamp(10px, 3cqmin, 13px)',
-                    minWidth: '3em',
-                  }}
-                  title={isDefaultZoom ? 'Current zoom' : 'Reset to 100%'}
-                >
-                  {Math.round(effectiveZoom * 100)}%
-                </button>
+                <span title={isDefaultZoom ? 'Current zoom' : undefined}>
+                  <button
+                    onClick={handleZoomReset}
+                    disabled={isDefaultZoom}
+                    className="text-slate-600 font-mono font-bold select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                    style={{
+                      fontSize: 'clamp(10px, 3cqmin, 13px)',
+                      minWidth: '3em',
+                      padding: '0 min(4px, 1cqmin)',
+                    }}
+                    title={isDefaultZoom ? undefined : 'Reset to 100%'}
+                  >
+                    {Math.round(effectiveZoom * 100)}%
+                  </button>
+                </span>
                 <button
                   onClick={handleZoomIn}
                   disabled={!canZoomIn}
-                  className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{ padding: 'min(8px, 2cqmin)' }}
                   title="Zoom in"
                 >
                   <ZoomIn
@@ -283,7 +287,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {!isDefaultZoom && (
                   <button
                     onClick={handleZoomReset}
-                    className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                    className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                    style={{ padding: 'min(8px, 2cqmin)' }}
                     title="Reset zoom to 100%"
                   >
                     <RotateCcw
@@ -299,7 +304,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <button
                   onClick={handleGenerateMiniApp}
                   disabled={isGeneratingApp}
-                  className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  style={{ padding: 'min(8px, 2cqmin)' }}
                   title="Generate Interactive Mini App"
                   aria-label="Generate Interactive Mini App"
                 >
