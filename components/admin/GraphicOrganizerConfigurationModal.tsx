@@ -95,10 +95,20 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   // Initialize config from permission
   useEffect(() => {
     if (permission.config) {
-      const rawConfig = permission.config as unknown as Record<string, unknown>;
-      setDockDefaults(
-        (rawConfig.dockDefaults as Record<string, boolean>) ?? {}
-      );
+      const rawConfig = permission.config;
+      const dockDefaultsValue = rawConfig.dockDefaults;
+      if (
+        typeof dockDefaultsValue === 'object' &&
+        dockDefaultsValue !== null &&
+        !Array.isArray(dockDefaultsValue) &&
+        Object.values(dockDefaultsValue).every(
+          (val) => typeof val === 'boolean'
+        )
+      ) {
+        setDockDefaults(dockDefaultsValue as Record<string, boolean>);
+      } else {
+        setDockDefaults({});
+      }
       setGlobalConfig(rawConfig as unknown as GraphicOrganizerGlobalConfig);
     }
     setIsLoading(false);
@@ -295,11 +305,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
               {/* Dock Defaults */}
               <DockDefaultsPanel
                 config={{ dockDefaults }}
-                onChange={(newConfig) =>
-                  setDockDefaults(
-                    (newConfig.dockDefaults as Record<string, boolean>) ?? {}
-                  )
-                }
+                onChange={setDockDefaults}
               />
 
               <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">

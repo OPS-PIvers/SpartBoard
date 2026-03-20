@@ -64,10 +64,20 @@ export const CalendarConfigurationModal: React.FC<
       if (snap.exists()) {
         const data = snap.data() as FeaturePermission;
         if (data.config) {
-          const rawConfig = data.config as unknown as Record<string, unknown>;
-          setDockDefaults(
-            (rawConfig.dockDefaults as Record<string, boolean>) ?? {}
-          );
+          const rawConfig = data.config;
+          const dockDefaultsValue = rawConfig.dockDefaults;
+          if (
+            typeof dockDefaultsValue === 'object' &&
+            dockDefaultsValue !== null &&
+            !Array.isArray(dockDefaultsValue) &&
+            Object.values(dockDefaultsValue).every(
+              (val) => typeof val === 'boolean'
+            )
+          ) {
+            setDockDefaults(dockDefaultsValue as Record<string, boolean>);
+          } else {
+            setDockDefaults({});
+          }
           setConfig(rawConfig as unknown as CalendarGlobalConfig);
         }
       }
@@ -265,11 +275,7 @@ export const CalendarConfigurationModal: React.FC<
               {/* Dock Defaults */}
               <DockDefaultsPanel
                 config={{ dockDefaults }}
-                onChange={(newConfig) =>
-                  setDockDefaults(
-                    (newConfig.dockDefaults as Record<string, boolean>) ?? {}
-                  )
-                }
+                onChange={setDockDefaults}
               />
 
               {/* Proxy Sync Controls */}
