@@ -2,10 +2,10 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ClockSettings, ClockAppearanceSettings } from './Settings';
-import { useDashboard } from '../../../context/useDashboard';
-import { WidgetData, ClockConfig } from '../../../types';
+import { useDashboard } from '@/context/useDashboard';
+import { WidgetData, ClockConfig } from '@/types';
 
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
