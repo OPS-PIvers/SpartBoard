@@ -844,6 +844,8 @@ export const FeaturePermissionsManager: React.FC = () => {
         <CatalystConfigurationModal
           isOpen={true}
           onClose={() => setActiveModalTool(null)}
+          permission={getPermission('catalyst')}
+          onSave={(updates) => updatePermission('catalyst', updates)}
         />
       )}
 

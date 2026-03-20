@@ -41,7 +41,6 @@ export const CalendarConfigurationModal: React.FC<
     buildingDefaults: {},
     updateFrequencyHours: 4,
   });
-  const [dockDefaults, setDockDefaults] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -64,21 +63,7 @@ export const CalendarConfigurationModal: React.FC<
       if (snap.exists()) {
         const data = snap.data() as FeaturePermission;
         if (data.config) {
-          const rawConfig = data.config;
-          const dockDefaultsValue = rawConfig.dockDefaults;
-          if (
-            typeof dockDefaultsValue === 'object' &&
-            dockDefaultsValue !== null &&
-            !Array.isArray(dockDefaultsValue) &&
-            Object.values(dockDefaultsValue).every(
-              (val) => typeof val === 'boolean'
-            )
-          ) {
-            setDockDefaults(dockDefaultsValue as Record<string, boolean>);
-          } else {
-            setDockDefaults({});
-          }
-          setConfig(rawConfig as unknown as CalendarGlobalConfig);
+          setConfig(data.config as unknown as CalendarGlobalConfig);
         }
       }
     } catch (err) {
@@ -103,13 +88,10 @@ export const CalendarConfigurationModal: React.FC<
         docRef,
         {
           type: 'calendar',
-          config: {
-            ...((updatedConfig ?? config) as unknown as Record<
-              string,
-              unknown
-            >),
-            dockDefaults,
-          },
+          config: (updatedConfig ?? config) as unknown as Record<
+            string,
+            unknown
+          >,
           updatedAt: Date.now(),
         },
         { merge: true }
@@ -274,8 +256,10 @@ export const CalendarConfigurationModal: React.FC<
             <>
               {/* Dock Defaults */}
               <DockDefaultsPanel
-                config={{ dockDefaults }}
-                onChange={setDockDefaults}
+                config={{ dockDefaults: config.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
               />
 
               {/* Proxy Sync Controls */}

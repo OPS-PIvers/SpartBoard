@@ -55,7 +55,6 @@ export const SpecialistScheduleConfigurationModal: React.FC<
   const [config, setConfig] = useState<SpecialistScheduleGlobalConfig>({
     buildingDefaults: {},
   });
-  const [dockDefaults, setDockDefaults] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
@@ -79,21 +78,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       if (snap.exists()) {
         const data = snap.data() as FeaturePermission;
         if (data.config) {
-          const rawConfig = data.config;
-          const dockDefaultsValue = rawConfig.dockDefaults;
-          if (
-            typeof dockDefaultsValue === 'object' &&
-            dockDefaultsValue !== null &&
-            !Array.isArray(dockDefaultsValue) &&
-            Object.values(dockDefaultsValue).every(
-              (val) => typeof val === 'boolean'
-            )
-          ) {
-            setDockDefaults(dockDefaultsValue as Record<string, boolean>);
-          } else {
-            setDockDefaults({});
-          }
-          setConfig(rawConfig as unknown as SpecialistScheduleGlobalConfig);
+          setConfig(data.config as unknown as SpecialistScheduleGlobalConfig);
         }
       }
     } catch (err) {
@@ -118,13 +103,10 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         docRef,
         {
           type: 'specialist-schedule',
-          config: {
-            ...((updatedConfig ?? config) as unknown as Record<
-              string,
-              unknown
-            >),
-            dockDefaults,
-          },
+          config: (updatedConfig ?? config) as unknown as Record<
+            string,
+            unknown
+          >,
           updatedAt: Date.now(),
         },
         { merge: true }
@@ -348,8 +330,10 @@ export const SpecialistScheduleConfigurationModal: React.FC<
             <>
               {/* Dock Defaults */}
               <DockDefaultsPanel
-                config={{ dockDefaults }}
-                onChange={setDockDefaults}
+                config={{ dockDefaults: config.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
               />
 
               {/* Building Selector */}

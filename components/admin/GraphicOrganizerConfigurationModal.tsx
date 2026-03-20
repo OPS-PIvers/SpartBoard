@@ -79,7 +79,6 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   );
   const [globalConfig, setGlobalConfig] =
     useState<GraphicOrganizerGlobalConfig>({ buildings: {} });
-  const [dockDefaults, setDockDefaults] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -95,21 +94,9 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   // Initialize config from permission
   useEffect(() => {
     if (permission.config) {
-      const rawConfig = permission.config;
-      const dockDefaultsValue = rawConfig.dockDefaults;
-      if (
-        typeof dockDefaultsValue === 'object' &&
-        dockDefaultsValue !== null &&
-        !Array.isArray(dockDefaultsValue) &&
-        Object.values(dockDefaultsValue).every(
-          (val) => typeof val === 'boolean'
-        )
-      ) {
-        setDockDefaults(dockDefaultsValue as Record<string, boolean>);
-      } else {
-        setDockDefaults({});
-      }
-      setGlobalConfig(rawConfig as unknown as GraphicOrganizerGlobalConfig);
+      setGlobalConfig(
+        permission.config as unknown as GraphicOrganizerGlobalConfig
+      );
     }
     setIsLoading(false);
   }, [permission.config]);
@@ -125,10 +112,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
     setIsSaving(true);
     try {
       onSave({
-        config: {
-          ...(globalConfig as unknown as Record<string, unknown>),
-          dockDefaults,
-        },
+        config: globalConfig as unknown as Record<string, unknown>,
       });
       setToastMessage('Configuration applied locally');
       onClose();
@@ -304,8 +288,10 @@ export const GraphicOrganizerConfigurationModal: React.FC<
             <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
               {/* Dock Defaults */}
               <DockDefaultsPanel
-                config={{ dockDefaults }}
-                onChange={setDockDefaults}
+                config={{ dockDefaults: globalConfig.dockDefaults ?? {} }}
+                onChange={(d) =>
+                  setGlobalConfig((prev) => ({ ...prev, dockDefaults: d }))
+                }
               />
 
               <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">

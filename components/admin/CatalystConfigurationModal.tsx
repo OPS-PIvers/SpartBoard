@@ -21,7 +21,14 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { CatalystRoutine, CatalystSet, WidgetData } from '@/types';
+import {
+  CatalystGlobalConfig,
+  CatalystRoutine,
+  CatalystSet,
+  FeaturePermission,
+  WidgetData,
+} from '@/types';
+import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
@@ -35,6 +42,8 @@ const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 interface CatalystConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  permission?: FeaturePermission;
+  onSave?: (updates: Partial<FeaturePermission>) => void;
 }
 
 const appId =
@@ -84,13 +93,14 @@ const EMPTY_ROUTINE_EDITOR: RoutineEditorState = {
 
 export const CatalystConfigurationModal: React.FC<
   CatalystConfigurationModalProps
-> = ({ isOpen, onClose }) => {
+> = ({ isOpen, onClose, permission, onSave }) => {
   const { activeDashboard } = useDashboard();
   const { uploadCatalystImage, uploading } = useStorage();
   const { showConfirm } = useDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewUrlRef = useRef<string | null>(null);
 
+  const [globalConfig, setGlobalConfig] = useState<CatalystGlobalConfig>({});
   const [sets, setSets] = useState<CatalystSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -207,6 +217,12 @@ export const CatalystConfigurationModal: React.FC<
       imagePreviewUrlRef.current = null;
     }
   };
+
+  useEffect(() => {
+    if (isOpen && permission?.config) {
+      setGlobalConfig(permission.config as unknown as CatalystGlobalConfig);
+    }
+  }, [isOpen, permission?.config]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -445,8 +461,16 @@ export const CatalystConfigurationModal: React.FC<
               Loading…
             </div>
           ) : view === 'sets-list' ? (
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-500 mb-4">
+            <div className="p-6 space-y-6">
+              {onSave && (
+                <DockDefaultsPanel
+                  config={{ dockDefaults: globalConfig.dockDefaults ?? {} }}
+                  onChange={(d) =>
+                    setGlobalConfig((prev) => ({ ...prev, dockDefaults: d }))
+                  }
+                />
+              )}
+              <p className="text-sm text-slate-500">
                 Catalyst allows up to 4 sets of routines. Select a set to edit
                 its title, image, and manage the routines inside it.
               </p>
@@ -776,6 +800,23 @@ export const CatalystConfigurationModal: React.FC<
         </div>
 
         {/* Footer */}
+        {view === 'sets-list' && onSave && (
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
+            <button
+              onClick={() => {
+                onSave({
+                  config: globalConfig as unknown as Record<string, unknown>,
+                });
+                showMessage('success', 'Defaults saved');
+              }}
+              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              Save Defaults
+            </button>
+          </div>
+        )}
+
         {view === 'set-editor' && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             {isAuthBypass && (
