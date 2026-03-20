@@ -697,7 +697,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   )}
                 </div>
               ) : (
-                <RandomGroups displayResult={displayResult} />
+                <RandomGroups
+                  displayResult={displayResult}
+                  sharedGroups={activeDashboard?.sharedGroups}
+                />
               )}
             </div>
           )}

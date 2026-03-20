@@ -1,16 +1,35 @@
 import React from 'react';
 import { Users } from 'lucide-react';
-import { RandomGroup } from '../../../types';
-import { useDashboard } from '../../../context/useDashboard';
+import { useMemo } from 'react';
+import { RandomGroup, SharedGroup } from '@/types';
 
 interface RandomGroupsProps {
   displayResult: string | string[] | string[][] | RandomGroup[] | null;
+  sharedGroups?: SharedGroup[];
 }
 
 export const RandomGroups: React.FC<RandomGroupsProps> = ({
   displayResult,
+  sharedGroups,
 }) => {
-  const { activeDashboard } = useDashboard();
+  const groups = useMemo(() => {
+    if (
+      Array.isArray(displayResult) &&
+      (displayResult.length === 0 ||
+        Array.isArray(displayResult[0]) ||
+        (typeof displayResult[0] === 'object' && displayResult[0] !== null))
+    ) {
+      return displayResult as (string[] | RandomGroup)[];
+    }
+    return [];
+  }, [displayResult]);
+
+  const showEmptyState =
+    !displayResult ||
+    !Array.isArray(displayResult) ||
+    (displayResult.length > 0 &&
+      !Array.isArray(displayResult[0]) &&
+      typeof displayResult[0] !== 'object');
 
   return (
     <div
@@ -20,13 +39,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
         gap: '8px',
       }}
     >
-      {(Array.isArray(displayResult) &&
-      (displayResult.length === 0 ||
-        Array.isArray(displayResult[0]) ||
-        (typeof displayResult[0] === 'object' && displayResult[0] !== null))
-        ? (displayResult as (string[] | RandomGroup)[])
-        : []
-      ).map((groupItem, i) => {
+      {groups.map((groupItem, i) => {
         const groupNames = Array.isArray(groupItem)
           ? groupItem
           : groupItem.names;
@@ -34,10 +47,8 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
           !Array.isArray(groupItem) && 'id' in groupItem ? groupItem.id : null;
 
         let groupName = `Group ${i + 1}`;
-        if (groupId && activeDashboard?.sharedGroups) {
-          const shared = activeDashboard.sharedGroups.find(
-            (g) => g.id === groupId
-          );
+        if (groupId && sharedGroups) {
+          const shared = sharedGroups.find((g) => g.id === groupId);
           if (shared) groupName = shared.name;
         }
 
@@ -45,7 +56,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
 
         return (
           <div
-            key={i}
+            key={(!Array.isArray(groupItem) && groupItem.id) || i}
             className="bg-blue-50 border border-blue-200 rounded-xl flex flex-col shadow-sm overflow-hidden"
             style={{ padding: 'min(8px, 2cqmin)' }}
           >
@@ -76,11 +87,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
           </div>
         );
       })}
-      {(!displayResult ||
-        !Array.isArray(displayResult) ||
-        (displayResult.length > 0 &&
-          !Array.isArray(displayResult[0]) &&
-          typeof displayResult[0] !== 'object')) && (
+      {showEmptyState && (
         <div
           className="col-span-full flex flex-col items-center justify-center text-slate-300 italic h-full font-bold"
           style={{
