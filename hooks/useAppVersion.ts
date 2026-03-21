@@ -77,14 +77,9 @@ export const useAppVersion = (checkIntervalMs = 60000) => {
       const abortController = new AbortController();
 
       void (async () => {
-        try {
-          const version = await fetchVersion(abortController.signal);
-          if (isMountedRef.current && version) {
-            setCurrentVersion(version);
-          }
-        } catch (err) {
-          if (err instanceof Error && err.name === 'AbortError') return;
-          console.error('Failed to initial fetch version:', err);
+        const version = await fetchVersion(abortController.signal);
+        if (isMountedRef.current && version) {
+          setCurrentVersion(version);
         }
       })();
 
