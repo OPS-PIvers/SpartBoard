@@ -22,3 +22,5 @@
 
 **Learning:** Found usage of JSON.parse(JSON.stringify()) to deep clone configurations in the DashboardContext and ai_security files. This legacy approach is slower, uses more memory, triggers heavier GC cycles, and does not support many standard data types natively compared to modern browser APIs.
 **Action:** Replaced instances of JSON.parse(JSON.stringify()) with the native structuredClone() API, which provides a significantly more efficient and robust method for object deep cloning without extra serialization overhead.
+
+## 2025-05-15 - [O(N*M) Operations in Render Loops] **Learning:** Found multiple instances where `.filter()` was being called inside a `.map()` or otherwise O(N\*M) iterations per render cycle in `LunchCountWidget`. This meant the application re-evaluated all items for each condition every render, causing slow interactions especially with drag-and-drop. **Action:** Precompute derived data (like categorized arrays) into a single `useMemo` pass that runs O(N) once whenever dependencies change, rather than repeating the full iteration per category per render.
