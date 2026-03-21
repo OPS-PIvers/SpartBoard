@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DiceConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import {
+  WidgetData,
+  DiceConfig,
+  DEFAULT_GLOBAL_STYLE,
+  DiceGlobalConfig,
+} from '@/types';
 import { RefreshCw } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { DiceFace } from './components/DiceFace';
@@ -8,9 +14,22 @@ import { getDiceAudioCtx, playRollSound } from './utils/audio';
 
 export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard, updateWidget } = useDashboard();
+  const { featurePermissions } = useAuth();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as DiceConfig;
   const diceCount = config.count ?? 1;
+
+  const diceConfig = useMemo(() => {
+    const p = featurePermissions?.find((p) => p.widgetType === 'dice');
+    return (p?.config ?? {}) as unknown as DiceGlobalConfig;
+  }, [featurePermissions]);
+
+  const customDie = useMemo(() => {
+    if (!config.activeDieId) return null;
+    return (
+      diceConfig.customDice?.find((d) => d.id === config.activeDieId) ?? null
+    );
+  }, [config.activeDieId, diceConfig.customDice]);
 
   const [values, setValues] = useState<number[]>(() =>
     config.lastRoll?.length === diceCount
@@ -96,6 +115,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               key={i}
               value={v}
               isRolling={isRolling}
+              customDie={customDie}
               size={
                 diceCount === 1
                   ? '75cqmin'

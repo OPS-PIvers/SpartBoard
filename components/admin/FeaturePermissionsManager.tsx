@@ -37,6 +37,7 @@ import { StickerLibraryModal } from '@/components/admin/StickerLibraryModal';
 import { CalendarConfigurationModal } from '@/components/admin/CalendarConfigurationModal';
 import { SpecialistScheduleConfigurationModal } from '@/components/admin/SpecialistScheduleConfigurationModal';
 import { GraphicOrganizerConfigurationModal } from '@/components/admin/GraphicOrganizerConfigurationModal';
+import { DiceConfigurationModal } from '@/components/admin/DiceConfigurationModal';
 import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
 import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
@@ -862,6 +863,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'starter-pack',
           'music',
           'catalyst',
+          'dice',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
@@ -934,6 +936,19 @@ export const FeaturePermissionsManager: React.FC = () => {
             uploadWeatherImage={uploadWeatherImage}
           />
         )}
+
+      {activeModalTool?.type === 'dice' && (
+        <DiceConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+          permission={getPermission('dice')}
+          onSave={(updates) => {
+            updatePermission('dice', updates);
+            void savePermission('dice');
+            setActiveModalTool(null);
+          }}
+        />
+      )}
     </div>
   );
 };

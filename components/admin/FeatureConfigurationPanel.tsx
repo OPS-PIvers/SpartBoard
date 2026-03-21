@@ -31,7 +31,6 @@ import { SoundConfigurationPanel } from './SoundConfigurationPanel';
 import { NoteConfigurationPanel } from './NoteConfigurationPanel';
 import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel';
 import { RandomConfigurationPanel } from './RandomConfigurationPanel';
-import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
@@ -62,7 +61,6 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   text: NoteConfigurationPanel as unknown as BuildingConfigPanel,
   traffic: TrafficLightConfigurationPanel as unknown as BuildingConfigPanel,
   random: RandomConfigurationPanel as unknown as BuildingConfigPanel,
-  dice: DiceConfigurationPanel as unknown as BuildingConfigPanel,
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
   drawing: DrawingConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,

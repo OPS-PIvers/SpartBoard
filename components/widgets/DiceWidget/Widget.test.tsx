@@ -1,12 +1,14 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 import { WidgetData, DiceConfig } from '@/types';
 import { DiceWidget } from './Widget';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/useAuth');
 vi.mock('lucide-react', () => ({
   Dices: () => <div data-testid="dices-icon" />,
   Hash: () => <div data-testid="hash-icon" />,
@@ -60,6 +62,10 @@ const mockWidget: WidgetData = {
   } as DiceConfig,
 };
 
+const defaultAuthContext: Record<string, unknown> = {
+  featurePermissions: [],
+};
+
 const defaultContext: Partial<DashboardContextValue> = {
   updateWidget: mockUpdateWidget,
   activeDashboard: {
@@ -85,6 +91,7 @@ describe('DiceWidget', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     (useDashboard as unknown as Mock).mockReturnValue(defaultContext);
+    (useAuth as unknown as Mock).mockReturnValue(defaultAuthContext);
   });
 
   afterEach(() => {

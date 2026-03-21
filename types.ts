@@ -261,10 +261,25 @@ export interface RandomConfig {
   externalTrigger?: number;
 }
 
+export type DieFaceType = 'standard' | 'text' | 'image';
+
+export interface CustomDieFace {
+  value: string; // The text or image URL
+}
+
+export interface CustomDie {
+  id: string;
+  name: string;
+  type: DieFaceType;
+  faces: CustomDieFace[]; // Always 6 faces for now
+}
+
 export interface DiceConfig {
   count: number;
   /** Last roll result persisted so remote rolls are reflected on the board. */
   lastRoll?: number[];
+  /** The ID of the custom die to use, or undefined for standard pips */
+  activeDieId?: string;
 }
 
 export interface SoundConfig {
@@ -567,10 +582,13 @@ export interface RandomGlobalConfig {
 export interface BuildingDiceDefaults {
   buildingId: string;
   count?: number; // Default number of dice (1-6)
+  activeDieId?: string; // Default custom die ID
 }
 
 export interface DiceGlobalConfig {
   buildingDefaults: Record<string, BuildingDiceDefaults>;
+  customDice?: CustomDie[];
+  dockDefaults?: Record<string, boolean>;
 }
 
 // --- Scoreboard Global Config ---
