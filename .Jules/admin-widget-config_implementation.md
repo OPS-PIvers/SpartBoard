@@ -100,7 +100,13 @@
 -- `source`: OpenWeather vs Earth Networks.
 -- `city`: Default city for weather data.
 -- `useFeelsLike`: Toggle feels-like temperature usage.
-[ ] Reveal Grid - No admin config.
+[X] Reveal Grid - Default User-Level Settings
+-- `columns`: Default column count.
+-- `revealMode`: Default reveal mode ('flip' or 'fade').
+-- `fontFamily`: Default custom font.
+-- `defaultCardColor`: Default front card color.
+-- `defaultCardBackColor`: Default back card color. - Admin-Only Settings
+-- `dockDefaults`: Visibility in the building dock.
 [X] Schedule - Default User-Level Settings
 -- `items`: Default schedule items.
 -- `schedules`: Pre-defined building-level schedules.
