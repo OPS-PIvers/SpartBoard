@@ -42,7 +42,6 @@ import { CarRiderConfigurationPanel } from './CarRiderConfigurationPanel';
 import { PollConfigurationPanel } from './PollConfigurationPanel';
 import { QRConfigurationPanel } from './QRConfigurationPanel';
 import { EmbedConfigurationPanel } from './EmbedConfigurationPanel';
-import { QuizConfigurationPanel } from './QuizConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -73,7 +72,6 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   poll: PollConfigurationPanel as unknown as BuildingConfigPanel,
   qr: QRConfigurationPanel as unknown as BuildingConfigPanel,
   embed: EmbedConfigurationPanel as unknown as BuildingConfigPanel,
-  quiz: QuizConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
@@ -1235,7 +1233,6 @@ export const FeatureConfigurationPanel: React.FC<
         'miniApp',
         'expectations',
         'talking-tool',
-        'quiz',
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
