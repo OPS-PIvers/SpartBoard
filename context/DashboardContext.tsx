@@ -1990,8 +1990,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (raw.popoverTheme) out.popoverTheme = raw.popoverTheme;
           break;
         case 'concept-web':
-          if (typeof raw.defaultNodeWidth === 'number') out.defaultNodeWidth = raw.defaultNodeWidth;
-          if (typeof raw.defaultNodeHeight === 'number') out.defaultNodeHeight = raw.defaultNodeHeight;
+          if (typeof raw.defaultNodeWidth === 'number' && Number.isFinite(raw.defaultNodeWidth)) {
+             out.defaultNodeWidth = Math.max(5, Math.min(50, Math.round(raw.defaultNodeWidth)));
+          }
+          if (typeof raw.defaultNodeHeight === 'number' && Number.isFinite(raw.defaultNodeHeight)) {
+             out.defaultNodeHeight = Math.max(5, Math.min(50, Math.round(raw.defaultNodeHeight)));
+          }
           if (typeof raw.fontFamily === 'string') out.fontFamily = raw.fontFamily;
           break;
         default:
