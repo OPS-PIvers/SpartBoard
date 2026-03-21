@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClassesGlobalConfig, BuildingClassesDefaults } from '@/types';
+import { BuildingClassesDefaults } from '@/types';
 import { BUILDINGS } from '@/config/buildings';
 
 interface Props {
@@ -11,8 +11,8 @@ export const ClassesConfigurationPanel: React.FC<Props> = ({
   config,
   onChange,
 }) => {
-  const globalConfig = config as unknown as ClassesGlobalConfig;
-  const buildingDefaults = globalConfig.buildingDefaults ?? {};
+  const buildingDefaults =
+    (config?.buildingDefaults as Record<string, BuildingClassesDefaults>) ?? {};
 
   const handleUpdateBuilding = (
     buildingId: string,
@@ -23,7 +23,7 @@ export const ClassesConfigurationPanel: React.FC<Props> = ({
     };
 
     onChange({
-      ...globalConfig,
+      ...config,
       buildingDefaults: {
         ...buildingDefaults,
         [buildingId]: {
@@ -31,7 +31,7 @@ export const ClassesConfigurationPanel: React.FC<Props> = ({
           ...updates,
         },
       },
-    } as unknown as Record<string, unknown>);
+    });
   };
 
   return (
