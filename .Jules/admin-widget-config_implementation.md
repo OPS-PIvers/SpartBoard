@@ -46,6 +46,9 @@
 [X] Dice
     - Default User-Level Settings
         -- `count`: Default number of dice (1-6).
+    - Admin-Only Settings
+        -- `dockDefaults`: Visibility in the building dock.
+        -- Global Library: CRUD management of custom text and image dice available to all users.
 [X] Drawing
     - Default User-Level Settings
         -- `mode`: Default mode ('window' or 'overlay').
