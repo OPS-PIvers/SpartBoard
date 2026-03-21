@@ -1,11 +1,10 @@
 # Admin Settings > Feature Permissions > Admin Widget Configuration Modal Audit
 
 ## Required Structure:
-"[X] [WIDGET]
-    - [Default User-Level Settings]
-        -- [Description]
-    - [Admin-Only Settings]
-        -- [Description]"
+
+"[X] [WIDGET] - [Default User-Level Settings]
+-- [Description] - [Admin-Only Settings]
+-- [Description]"
 
 ## Widgets:
 [ ] Breathing
