@@ -800,6 +800,16 @@ export interface PdfItem {
   uploadedAt: number;
   order?: number;
 }
+
+export interface GlobalPdfItem extends PdfItem {
+  buildings?: string[];
+  createdAt?: number;
+}
+
+export interface PdfGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface BreathingConfig {
   pattern: '4-4-4-4' | '4-7-8' | '5-5';
   visual: 'circle' | 'lotus' | 'wave';

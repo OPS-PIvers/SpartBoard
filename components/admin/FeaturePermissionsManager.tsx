@@ -41,6 +41,7 @@ import { MiniAppLibraryModal } from '@/components/admin/MiniAppLibraryModal';
 import { StarterPackConfigurationModal } from '@/components/admin/StarterPackConfigurationModal';
 import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
 import { CatalystConfigurationModal } from '@/components/admin/CatalystConfigurationModal';
+import { PdfLibraryModal } from '@/components/admin/PdfLibraryModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -851,6 +852,10 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'pdf' && (
+        <PdfLibraryModal onClose={() => setActiveModalTool(null)} />
+      )}
+
       {activeModalTool &&
         ![
           'instructionalRoutines',
@@ -863,6 +868,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'music',
           'catalyst',
           'numberLine',
+          'pdf',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}

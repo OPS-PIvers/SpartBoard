@@ -88,7 +88,10 @@
 -- `showArrows`: Default toggle for end arrows. - Admin-Only Settings
 -- None.
 [ ] Onboarding - No admin config.
-[ ] PDF - No admin config.
+[X] PDF - Default User-Level Settings
+-- None. - Admin-Only Settings
+-- Global Library: CRUD management of district and building-level PDFs.
+-- dockDefaults: Visibility in the building dock.
 [X] Poll - Default User-Level Settings
 -- `question`: Pre-populated default question.
 -- `options`: Pre-populated default options.
