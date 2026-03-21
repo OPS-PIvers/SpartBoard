@@ -72,11 +72,12 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeWidth ?? 15}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
                   updateBuildingConfig({
-                    defaultNodeWidth: parseInt(e.target.value, 10),
-                  })
-                }
+                    defaultNodeWidth: !isNaN(value) ? value : undefined,
+                  });
+                }}
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none"
               />
             </div>
@@ -89,11 +90,12 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeHeight ?? 15}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
                   updateBuildingConfig({
-                    defaultNodeHeight: parseInt(e.target.value, 10),
-                  })
-                }
+                    defaultNodeHeight: !isNaN(value) ? value : undefined,
+                  });
+                }}
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none"
               />
             </div>
