@@ -8,6 +8,7 @@ vi.mock('lucide-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('lucide-react')>();
   return {
     ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Plus: (props: any) => {
       plusSpy(props);
       return <div data-testid="plus-icon" />;
