@@ -22,6 +22,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
+import { getTodayStr } from './utils';
 
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 const parseScheduleTime = (t: string | undefined): number => {
@@ -439,7 +440,26 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const activeSchedule = resolved?.schedule ?? null;
 
-  const items = useMemo(() => activeSchedule?.items ?? [], [activeSchedule]);
+  // Recomputed every render; since renders fire at most once per second (from the
+  // nowSeconds ticker), this is cheap. As a string primitive it acts as a stable
+  // dep value — useMemo deps using it only recompute when the date actually changes.
+  const todayDateStr = getTodayStr();
+
+  // Full items from the active schedule — used for persistence writes so that
+  // hidden one-off items (future/expired) are never accidentally dropped.
+  const scheduleItems = useMemo(
+    () => activeSchedule?.items ?? [],
+    [activeSchedule]
+  );
+
+  // Filtered items shown to the user: regular items + one-off items for today only.
+  const displayItems = useMemo(
+    () =>
+      scheduleItems.filter(
+        (item) => !item.oneOffDate || item.oneOffDate === todayDateStr
+      ),
+    [scheduleItems, todayDateStr]
+  );
   const isBuildingSyncEnabled = config.isBuildingSyncEnabled ?? true;
 
   const {
@@ -508,25 +528,25 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
    * Returns -1 when no item is active (e.g. before the first item starts).
    */
   const activeIndex = useMemo(() => {
-    if (items.length === 0) return -1;
+    if (displayItems.length === 0) return -1;
     const nowMinutes = Math.floor(nowSeconds / 60);
 
     // Precompute start minutes once to avoid repeated string parsing.
-    const startMinutes = items.map((item) =>
+    const startMinutes = displayItems.map((item) =>
       parseScheduleTime(item.startTime ?? item.time)
     );
 
     let bestIndex = -1;
 
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < displayItems.length; i++) {
       const startMin = startMinutes[i];
       if (startMin === -1 || nowMinutes < startMin) continue;
 
       // Resolve end boundary: explicit endTime → nearest later start → no bound.
-      let endMin = parseScheduleTime(items[i].endTime ?? '');
+      let endMin = parseScheduleTime(displayItems[i].endTime ?? '');
       if (endMin === -1) {
         let nearestLater = -1;
-        for (let j = 0; j < items.length; j++) {
+        for (let j = 0; j < displayItems.length; j++) {
           const s = startMinutes[j];
           if (s > startMin && (nearestLater === -1 || s < nearestLater)) {
             nearestLater = s;
@@ -546,7 +566,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     return bestIndex;
-  }, [items, nowSeconds]);
+  }, [displayItems, nowSeconds]);
 
   /**
    * Scroll the list so that the previously-completed item is at the top,
@@ -564,7 +584,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
     // Optional chaining guards against jsdom (tests) and edge-case browsers.
     el.scrollTo?.({ top: targetRow.offsetTop, behavior: 'smooth' });
-  }, [activeIndex, autoScroll, items.length]);
+  }, [activeIndex, autoScroll, displayItems.length]);
 
   // Find the clock widget on the board (if any) so we can mirror its time format.
   const clockWidget = useMemo(
@@ -578,17 +598,25 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   // Stable refs so interval callbacks always see the latest values without
   // re-registering the interval on every render.
   const configRef = useRef(config);
-  const itemsRef = useRef(items);
+  // displayItems: filtered view used for rendering and auto-launch checks.
+  const itemsRef = useRef(displayItems);
+  // scheduleItems: full unfiltered list used for persistence writes so hidden
+  // one-off items (future dates) are never accidentally dropped.
+  const scheduleItemsRef = useRef(scheduleItems);
   const widgetRef = useRef(widget);
 
   useEffect(() => {
     configRef.current = config;
-    itemsRef.current = items;
+    itemsRef.current = displayItems;
+    scheduleItemsRef.current = scheduleItems;
     widgetRef.current = widget;
-  }, [config, items, widget]);
+  }, [config, displayItems, scheduleItems, widget]);
 
   const toggle = useCallback(
     (idx: number) => {
+      const targetItem = itemsRef.current[idx]; // item from filtered displayItems
+      if (!targetItem) return;
+
       const currentConfig = configRef.current;
       const { schedules = [], items: legacyItems = [] } = currentConfig;
 
@@ -599,25 +627,34 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       );
       if (!active) return;
 
-      if (active.isLegacy) {
-        const newItems = [...legacyItems];
-        if (newItems[idx]) {
-          newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
-          updateWidget(widget.id, {
-            config: { ...currentConfig, items: newItems } as ScheduleConfig,
-          });
+      // When items have IDs, use ID-based lookup so toggling is correct even
+      // when one-off items are filtered out (shifting array indices).
+      // Fall back to index-based for legacy items without IDs.
+      const applyToggle = (existingItems: ScheduleItem[]): ScheduleItem[] => {
+        if (targetItem.id) {
+          return existingItems.map((item) =>
+            item.id === targetItem.id ? { ...item, done: !item.done } : item
+          );
         }
-      } else {
-        const newSchedules = schedules.map((s) => {
-          if (s.id === active.schedule.id) {
-            const newItems = [...s.items];
-            if (newItems[idx]) {
-              newItems[idx] = { ...newItems[idx], done: !newItems[idx].done };
-            }
-            return { ...s, items: newItems };
-          }
-          return s;
+        // Legacy fallback: index-based (safe since legacy items lack one-off dates)
+        const copy = [...existingItems];
+        if (copy[idx]) copy[idx] = { ...copy[idx], done: !copy[idx].done };
+        return copy;
+      };
+
+      if (active.isLegacy) {
+        updateWidget(widget.id, {
+          config: {
+            ...currentConfig,
+            items: applyToggle(legacyItems),
+          } as ScheduleConfig,
         });
+      } else {
+        const newSchedules = schedules.map((s) =>
+          s.id === active.schedule.id
+            ? { ...s, items: applyToggle(s.items) }
+            : s
+        );
         updateWidget(widget.id, {
           config: {
             ...currentConfig,
@@ -725,11 +762,15 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     const checkTime = () => {
       const now = new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      let changed = false;
-      const currentItems = itemsRef.current;
+      // Use displayItems for completion logic so ordering/inference is correct.
+      const currentDisplayItems = itemsRef.current;
+      // Use scheduleItems for the write-back so hidden one-off items are preserved.
+      const currentScheduleItems = scheduleItemsRef.current;
       const currentConfig = configRef.current;
 
-      const newItems = currentItems.map((item, index) => {
+      // Compute updated done-states for visible items using display ordering.
+      let changed = false;
+      const newDisplayItems = currentDisplayItems.map((item, index) => {
         let isDone = false;
         let completionTime = -1;
 
@@ -737,9 +778,9 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         if (itemEndTime !== -1) {
           // Prioritize the item's own end time when available.
           completionTime = itemEndTime;
-        } else if (index < currentItems.length - 1) {
+        } else if (index < currentDisplayItems.length - 1) {
           // Fall back to the next item's start time.
-          const nextItem = currentItems[index + 1];
+          const nextItem = currentDisplayItems[index + 1];
           completionTime = parseScheduleTime(
             nextItem.startTime ?? nextItem.time
           );
@@ -759,31 +800,42 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         return item;
       });
 
-      if (changed) {
-        const { schedules = [], items: legacyItems = [] } = currentConfig;
-        const active = getActiveScheduleId(
-          schedules,
-          legacyItems,
-          now.getDay()
+      if (!changed) return;
+
+      // Merge updated display items back into the full schedule item list.
+      // Items with IDs use ID-based lookup; legacy items (no IDs) use the
+      // display list directly (safe — legacy items never have one-off dates).
+      const updatedById = new Map(
+        newDisplayItems
+          .filter((i): i is ScheduleItem & { id: string } => !!i.id)
+          .map((i) => [i.id, i])
+      );
+      const allHaveIds = currentScheduleItems.every((i) => !!i.id);
+      const newItems: ScheduleItem[] = allHaveIds
+        ? currentScheduleItems.map((item) =>
+            item.id ? (updatedById.get(item.id) ?? item) : item
+          )
+        : newDisplayItems; // legacy: displayItems === scheduleItems
+
+      const { schedules = [], items: legacyItems = [] } = currentConfig;
+      const active = getActiveScheduleId(schedules, legacyItems, now.getDay());
+
+      if (!active) return;
+
+      if (active.isLegacy) {
+        updateWidget(widget.id, {
+          config: { ...currentConfig, items: newItems } as ScheduleConfig,
+        });
+      } else {
+        const newSchedules = schedules.map((s) =>
+          s.id === active.id ? { ...s, items: newItems } : s
         );
-
-        if (!active) return;
-
-        if (active.isLegacy) {
-          updateWidget(widget.id, {
-            config: { ...currentConfig, items: newItems } as ScheduleConfig,
-          });
-        } else {
-          const newSchedules = schedules.map((s) =>
-            s.id === active.id ? { ...s, items: newItems } : s
-          );
-          updateWidget(widget.id, {
-            config: {
-              ...currentConfig,
-              schedules: newSchedules,
-            } as ScheduleConfig,
-          });
-        }
+        updateWidget(widget.id, {
+          config: {
+            ...currentConfig,
+            schedules: newSchedules,
+          } as ScheduleConfig,
+        });
       }
     };
 
@@ -815,7 +867,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               msOverflowStyle: 'none',
             }}
           >
-            {items.map((item: ScheduleItem, i: number) => (
+            {displayItems.map((item: ScheduleItem, i: number) => (
               <ScheduleRow
                 key={item.id ?? `${item.task}-${item.startTime ?? item.time}`}
                 index={i}
@@ -829,7 +881,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 isActive={i === activeIndex}
               />
             ))}
-            {items.length === 0 && (
+            {displayItems.length === 0 && (
               <ScaledEmptyState
                 icon={Clock}
                 title="No Schedule"

@@ -172,6 +172,7 @@ export interface ScheduleItem {
   mode?: 'clock' | 'timer';
   linkedWidgets?: WidgetType[];
   spawnedWidgetIds?: string[];
+  oneOffDate?: string; // YYYY-MM-DD: if set, item only shows on this specific date
 }
 
 export interface DailySchedule {

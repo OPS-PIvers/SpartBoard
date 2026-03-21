@@ -24,6 +24,7 @@ import {
   Settings2,
   LayoutGrid,
   CalendarDays,
+  CalendarPlus,
   ChevronDown,
   Copy,
   Link,
@@ -47,7 +48,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Toggle } from '../../common/Toggle';
-import { Card } from '@/components/common/Card';
+import { getTodayStr } from './utils';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -129,6 +130,11 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
     };
 
     const hasLinked = (item.linkedWidgets ?? []).length > 0;
+    const todayStr = getTodayStr();
+    const isOneOff = !!item.oneOffDate;
+    const isExpiredOneOff = isOneOff && (item.oneOffDate ?? '') < todayStr;
+    const isTodayOneOff = isOneOff && item.oneOffDate === todayStr;
+    const isUpcomingOneOff = isOneOff && !isExpiredOneOff && !isTodayOneOff;
 
     return (
       <div
@@ -158,6 +164,30 @@ const SortableScheduleItem: React.FC<SortableScheduleItemProps> = React.memo(
             placeholder="Task name"
             className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
           />
+          {isOneOff && (
+            <span
+              className={`text-xxs px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                isExpiredOneOff
+                  ? 'bg-slate-100 text-slate-400'
+                  : isUpcomingOneOff
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-amber-100 text-amber-700'
+              }`}
+              title={
+                isExpiredOneOff
+                  ? `One-off: ${item.oneOffDate}`
+                  : isUpcomingOneOff
+                    ? `Upcoming: ${item.oneOffDate}`
+                    : 'Today only'
+              }
+            >
+              {isExpiredOneOff
+                ? 'Expired'
+                : isUpcomingOneOff
+                  ? 'Upcoming'
+                  : 'Today'}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => item.id && onDelete(item.id)}
@@ -317,13 +347,31 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     return list;
   }, [config.schedules, config.items]);
 
-  const [activeTab, setActiveTab] = useState<'my' | 'building'>('my');
-  const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(
+  // selectedScheduleId: null means "auto-select today's active schedule"
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
     null
   );
+  const [showBuildingSchedules, setShowBuildingSchedules] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
     new Set()
   );
+
+  // Effective selected schedule: honor user's pick, fall back to today's active schedule
+  const effectiveSelectedId = useMemo(() => {
+    if (
+      selectedScheduleId &&
+      schedules.some((s) => s.id === selectedScheduleId)
+    )
+      return selectedScheduleId;
+    if (schedules.length === 0) return null;
+    if (schedules.length === 1) return schedules[0].id;
+    const today = new Date().getDay();
+    return schedules.find((s) => s.days.includes(today))?.id ?? schedules[0].id;
+  }, [selectedScheduleId, schedules]);
+
+  const selectedSchedule =
+    schedules.find((s) => s.id === effectiveSelectedId) ?? null;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -367,7 +415,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         } as ScheduleConfig,
       });
     }
-    setExpandedScheduleId(newSchedule.id);
+    setSelectedScheduleId(newSchedule.id);
   };
 
   const handleUpdateSchedule = (
@@ -388,8 +436,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           schedules: [newSchedule],
         } as ScheduleConfig,
       });
-      if (expandedScheduleId === 'default')
-        setExpandedScheduleId(newSchedule.id);
+      setSelectedScheduleId(newSchedule.id);
       return;
     }
     const newSchedules = schedules.map((s) =>
@@ -428,7 +475,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           config: { ...config, schedules: newSchedules } as ScheduleConfig,
         });
       }
-      if (expandedScheduleId === id) setExpandedScheduleId(null);
     }
   };
 
@@ -442,16 +488,21 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   const saveScheduleItems = useCallback(
     (scheduleId: string, newItems: ScheduleItem[]) => {
+      // Auto-prune one-off items whose date has already passed
+      const todayStr = getTodayStr();
+      const pruned = newItems.filter(
+        (item) => !item.oneOffDate || item.oneOffDate >= todayStr
+      );
       const isLegacy =
         scheduleId === 'default' && (config.schedules?.length ?? 0) === 0;
       if (isLegacy) {
         updateWidget(widget.id, {
-          config: { ...config, items: newItems } as ScheduleConfig,
+          config: { ...config, items: pruned } as ScheduleConfig,
         });
       } else {
         const newSchedules = schedules
           .filter((s) => s.id !== 'default')
-          .map((s) => (s.id === scheduleId ? { ...s, items: newItems } : s));
+          .map((s) => (s.id === scheduleId ? { ...s, items: pruned } : s));
         updateWidget(widget.id, {
           config: { ...config, schedules: newSchedules } as ScheduleConfig,
         });
@@ -468,6 +519,19 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       endTime: '',
       mode: 'clock',
       linkedWidgets: [],
+    };
+    saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
+  };
+
+  const handleAddOneOffItem = (scheduleId: string) => {
+    const newItem: ScheduleItem = {
+      id: crypto.randomUUID(),
+      task: '',
+      startTime: '',
+      endTime: '',
+      mode: 'clock',
+      linkedWidgets: [],
+      oneOffDate: getTodayStr(),
     };
     saveScheduleItems(scheduleId, [...getScheduleItems(scheduleId), newItem]);
   };
@@ -521,7 +585,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       return;
     }
     const calConfig = calendarWidget.config as CalendarConfig;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayStr();
     const todaysEvents = (calConfig.events ?? []).filter(
       (e) => e.date === today && e.title?.trim()
     );
@@ -558,241 +622,236 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const validItems = selectedSchedule?.items.filter((i) => i.id) ?? [];
+
   return (
-    <div className="space-y-6">
-      <div>
-        {/* Tab header */}
-        <div className="flex justify-center gap-2 mb-4 border-b border-slate-200">
+    <div className="space-y-4">
+      {/* ── Schedule picker ─────────────────────────────────────── */}
+      {schedules.length === 0 ? (
+        <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+          No schedules yet.{' '}
           <button
-            onClick={() => setActiveTab('my')}
-            className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'my'
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
+            onClick={handleAddSchedule}
+            className="text-blue-500 hover:underline"
           >
-            My Schedules
-          </button>
-          <button
-            onClick={() => setActiveTab('building')}
-            className={`pb-2 px-2 text-sm font-bold border-b-2 transition-colors ${
-              activeTab === 'building'
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Building Schedules
+            Add one
           </button>
         </div>
-
-        {activeTab === 'my' ? (
-          <>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <LayoutGrid className="w-3 h-3" /> My Schedules
-              </label>
-              <button
-                onClick={handleAddSchedule}
-                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-              >
-                <Plus className="w-3 h-3" /> Add Schedule
-              </button>
+      ) : (
+        <>
+          {/* Pill tabs for multiple schedules */}
+          {schedules.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+              {schedules.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSelectedScheduleId(s.id)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    effectiveSelectedId === s.id
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {s.name}
+                </button>
+              ))}
             </div>
+          )}
 
-            <div className="space-y-3">
-              {schedules.map((s) => {
-                const isExpanded = expandedScheduleId === s.id;
-                const validItems = s.items.filter((i) => i.id);
-
-                return (
-                  <Card
-                    key={s.id}
-                    padding="sm"
-                    rounded="xl"
-                    className="overflow-hidden cursor-pointer select-none"
-                    onClick={() =>
-                      setExpandedScheduleId(isExpanded ? null : s.id)
+          {selectedSchedule && (
+            <>
+              {/* ── Selected schedule header ──────────────────────── */}
+              <div>
+                {/* Name + delete */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={selectedSchedule.name}
+                    onChange={(e) =>
+                      handleUpdateSchedule(selectedSchedule.id, {
+                        name: e.target.value,
+                      })
                     }
-                  >
-                    {/* Accordion header */}
-                    <div className="w-full flex items-center gap-2">
-                      <ChevronDown
-                        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-                          isExpanded ? '' : '-rotate-90'
-                        }`}
-                      />
-                      <input
-                        type="text"
-                        value={s.name}
-                        onChange={(e) =>
-                          handleUpdateSchedule(s.id, { name: e.target.value })
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 truncate flex-1 outline-none cursor-text text-sm select-text"
-                        placeholder="Schedule Name"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleDeleteSchedule(s.id);
-                        }}
-                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
-                        aria-label="Delete schedule"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Days pills */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="flex gap-1">
-                        {DAYS.map((d) => {
-                          const isSelected = s.days.includes(d.id);
-                          const isOnly = schedules.length === 1;
-                          return (
-                            <button
-                              key={d.id}
-                              disabled={isOnly}
-                              aria-label={d.fullName}
-                              title={d.fullName}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const newDays = isSelected
-                                  ? s.days.filter((id) => id !== d.id)
-                                  : [...s.days, d.id];
-                                handleUpdateSchedule(s.id, { days: newDays });
-                              }}
-                              className={`w-6 h-6 rounded-md text-xxs font-bold transition-colors ${
-                                isSelected
-                                  ? 'bg-blue-500 text-white'
-                                  : isOnly
-                                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                              }`}
-                            >
-                              {d.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <span className="text-xxs text-slate-400 ml-auto">
-                        {s.items.length} item
-                        {s.items.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    {/* Expanded items editor */}
-                    {isExpanded && (
-                      <div
-                        className="mt-3 -mx-3 -mb-3 border-t border-slate-100 cursor-default select-text"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {/* Toolbar */}
-                        <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
-                          <button
-                            type="button"
-                            onClick={() => handleSortByTime(s.id)}
-                            className="text-xxs flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium"
-                            title="Sort by start time"
-                          >
-                            <ArrowUpDown className="w-3 h-3" /> Sort
-                          </button>
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => handleAddItem(s.id)}
-                              className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              <Plus className="w-3 h-3" /> Add Event
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleImportFromCalendar(s.id)}
-                              className="text-xxs flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-medium"
-                              title="Import today's events from Calendar widget"
-                            >
-                              <CalendarDays className="w-3 h-3" /> Import
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Items list */}
-                        <div className="p-3 space-y-2">
-                          <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={(e) => handleDragEnd(s.id, e)}
-                          >
-                            <SortableContext
-                              items={validItems.map((i) => i.id as string)}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              {validItems.map((item) => (
-                                <SortableScheduleItem
-                                  key={item.id}
-                                  item={item}
-                                  onUpdate={(itemId, updates) =>
-                                    handleUpdateItem(s.id, itemId, updates)
-                                  }
-                                  onDelete={(itemId) =>
-                                    handleDeleteItem(s.id, itemId)
-                                  }
-                                  isExpanded={expandedItemIds.has(
-                                    item.id ?? ''
-                                  )}
-                                  onToggleExpand={toggleItemExpanded}
-                                />
-                              ))}
-                            </SortableContext>
-                          </DndContext>
-                          {s.items.length === 0 && (
-                            <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-xl bg-slate-50">
-                              <p className="text-xs">No events scheduled.</p>
-                              <button
-                                onClick={() => handleAddItem(s.id)}
-                                className="text-blue-500 text-xxs mt-1 hover:underline"
-                              >
-                                Add your first event
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
-
-              {schedules.length === 0 && (
-                <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-                  No schedules yet.{' '}
+                    className="flex-1 font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none text-sm"
+                    placeholder="Schedule Name"
+                  />
                   <button
-                    onClick={handleAddSchedule}
-                    className="text-blue-500 hover:underline"
+                    type="button"
+                    onClick={() =>
+                      void handleDeleteSchedule(selectedSchedule.id)
+                    }
+                    className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors shrink-0"
+                    aria-label="Delete schedule"
+                    title="Delete this schedule"
                   >
-                    Add one
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="space-y-3">
+
+                {/* Day assignment pills — only when multiple schedules exist */}
+                {schedules.length > 1 && (
+                  <div className="flex gap-1 mt-2">
+                    {DAYS.map((d) => {
+                      const isSelected = selectedSchedule.days.includes(d.id);
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          aria-label={d.fullName}
+                          title={d.fullName}
+                          onClick={() => {
+                            const newDays = isSelected
+                              ? selectedSchedule.days.filter(
+                                  (id) => id !== d.id
+                                )
+                              : [...selectedSchedule.days, d.id];
+                            handleUpdateSchedule(selectedSchedule.id, {
+                              days: newDays,
+                            });
+                          }}
+                          className={`w-6 h-6 rounded-md text-xxs font-bold transition-colors ${
+                            isSelected
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Items toolbar ─────────────────────────────────── */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleSortByTime(selectedSchedule.id)}
+                  className="text-xxs flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium"
+                  title="Sort by start time"
+                >
+                  <ArrowUpDown className="w-3 h-3" /> Sort
+                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleAddItem(selectedSchedule.id)}
+                    aria-label="Add event"
+                    className="text-xxs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <Plus className="w-3 h-3" /> Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddOneOffItem(selectedSchedule.id)}
+                    className="text-xxs flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium"
+                    title="Add a one-time event for today only"
+                  >
+                    <CalendarPlus className="w-3 h-3" /> Today Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleImportFromCalendar(selectedSchedule.id)
+                    }
+                    className="text-xxs flex items-center gap-1 text-indigo-500 hover:text-indigo-700 font-medium"
+                    title="Import today's events from Calendar widget"
+                  >
+                    <CalendarDays className="w-3 h-3" /> Import
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Items list ────────────────────────────────────── */}
+              <div className="space-y-2">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(e) => handleDragEnd(selectedSchedule.id, e)}
+                >
+                  <SortableContext
+                    items={validItems.map((i) => i.id as string)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {validItems.map((item) => (
+                      <SortableScheduleItem
+                        key={item.id}
+                        item={item}
+                        onUpdate={(itemId, updates) =>
+                          handleUpdateItem(selectedSchedule.id, itemId, updates)
+                        }
+                        onDelete={(itemId) =>
+                          handleDeleteItem(selectedSchedule.id, itemId)
+                        }
+                        isExpanded={expandedItemIds.has(item.id ?? '')}
+                        onToggleExpand={toggleItemExpanded}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+                {selectedSchedule.items.length === 0 && (
+                  <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-xl bg-slate-50">
+                    <p className="text-xs">No events scheduled.</p>
+                    <button
+                      onClick={() => handleAddItem(selectedSchedule.id)}
+                      className="text-blue-500 text-xxs mt-1 hover:underline"
+                    >
+                      Add your first event
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Add new schedule button */}
+          <button
+            type="button"
+            onClick={handleAddSchedule}
+            className="w-full text-xxs flex items-center justify-center gap-1 text-slate-400 hover:text-blue-600 font-medium py-1.5 border border-dashed border-slate-200 rounded-lg hover:border-blue-300 transition-colors"
+          >
+            <Plus className="w-3 h-3" /> New Schedule
+          </button>
+        </>
+      )}
+
+      {/* ── Building Schedules (collapsible) ────────────────────── */}
+      <div className="border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowBuildingSchedules((v) => !v)}
+          className="w-full flex items-center justify-between text-xxs font-semibold text-slate-500 uppercase tracking-widest"
+        >
+          <span className="flex items-center gap-1.5">
+            <LayoutGrid className="w-3 h-3" /> Building Schedules
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ${
+              showBuildingSchedules ? '' : '-rotate-90'
+            }`}
+          />
+        </button>
+        {showBuildingSchedules && (
+          <div className="mt-3 space-y-2">
             {buildingSchedules.map((s: DailySchedule) => (
               <div
                 key={s.id}
                 className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between"
               >
                 <div>
-                  <div className="font-bold text-slate-700">{s.name}</div>
+                  <div className="font-bold text-slate-700 text-sm">
+                    {s.name}
+                  </div>
                   <div className="text-xs text-slate-500">
-                    {s.items.length} Items{' '}
+                    {s.items.length} item{s.items.length !== 1 ? 's' : ''}
                     {s.days.length > 0 &&
-                      `• ${s.days.map((d) => DAYS.find((day) => day.id === d)?.label).join(', ')}`}
+                      ` • ${s.days.map((d) => DAYS.find((day) => day.id === d)?.label).join(', ')}`}
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     const newSchedule: DailySchedule = {
                       ...s,
@@ -809,7 +868,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                       } as ScheduleConfig,
                     });
                     addToast(`Added "${s.name}" to My Schedules`, 'success');
-                    setActiveTab('my');
+                    setSelectedScheduleId(newSchedule.id);
                   }}
                   className="p-1.5 text-brand-blue-primary hover:bg-blue-100 rounded"
                   title="Copy to My Schedules"
@@ -827,8 +886,26 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         )}
       </div>
 
-      <hr className="border-slate-100" />
-      {renderGlobalSettings()}
+      {/* ── Options (collapsible) ────────────────────────────────── */}
+      <div className="border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowOptions((v) => !v)}
+          className="w-full flex items-center justify-between text-xxs font-semibold text-slate-500 uppercase tracking-widest"
+        >
+          <span className="flex items-center gap-1.5">
+            <Settings2 className="w-3 h-3" /> Options
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ${
+              showOptions ? '' : '-rotate-90'
+            }`}
+          />
+        </button>
+        {showOptions && (
+          <div className="mt-3 space-y-4">{renderGlobalSettings()}</div>
+        )}
+      </div>
     </div>
   );
 
