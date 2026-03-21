@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { WidgetData, Student, ClassLinkClass, ClassLinkStudent } from '@/types';
+import {
+  WidgetData,
+  Student,
+  ClassLinkClass,
+  ClassLinkStudent,
+  ClassesConfig,
+} from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { Plus, Trash2, Star, Edit2, RefreshCw } from 'lucide-react';
 import { classLinkService } from '@/utils/classlinkService';
@@ -86,6 +92,8 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
   };
 
   const editingRoster = rosters.find((r) => r.id === editingId) ?? null;
+  const config = _widget.config as unknown as ClassesConfig;
+  const classLinkEnabled = config.classLinkEnabled !== false;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -115,25 +123,27 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
                   />{' '}
                   Create New Class
                 </button>
-                <button
-                  onClick={handleFetchClassLink}
-                  className="bg-white text-slate-700 border border-slate-200 rounded-xl font-black flex items-center justify-center hover:bg-slate-50 shadow-sm transition-all"
-                  style={{
-                    padding: 'min(10px, 2cqmin)',
-                    gap: 'min(8px, 2cqmin)',
-                    fontSize: 'min(12px, 3cqmin)',
-                  }}
-                  title="Sync from ClassLink"
-                >
-                  <RefreshCw
-                    className={classLinkLoading ? 'animate-spin' : ''}
+                {classLinkEnabled && (
+                  <button
+                    onClick={handleFetchClassLink}
+                    className="bg-white text-slate-700 border border-slate-200 rounded-xl font-black flex items-center justify-center hover:bg-slate-50 shadow-sm transition-all"
                     style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
+                      padding: 'min(10px, 2cqmin)',
+                      gap: 'min(8px, 2cqmin)',
+                      fontSize: 'min(12px, 3cqmin)',
                     }}
-                  />
-                  ClassLink
-                </button>
+                    title="Sync from ClassLink"
+                  >
+                    <RefreshCw
+                      className={classLinkLoading ? 'animate-spin' : ''}
+                      style={{
+                        width: 'min(16px, 4cqmin)',
+                        height: 'min(16px, 4cqmin)',
+                      }}
+                    />
+                    ClassLink
+                  </button>
+                )}
               </div>
             </div>
           }

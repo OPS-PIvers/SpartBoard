@@ -28,7 +28,7 @@ describe('ClassesWidget RosterEditor', () => {
     h: 4,
     z: 1,
     flipped: false,
-    config: {},
+    config: { classLinkEnabled: true },
   };
 
   beforeEach(() => {
@@ -537,5 +537,17 @@ describe('ClassesWidget RosterEditor', () => {
     await user.click(screen.getByRole('button', { name: /cancel/i }));
 
     expect(screen.queryByText(/ClassLink Rosters/i)).not.toBeInTheDocument();
+  });
+
+  it('hides ClassLink button when classLinkEnabled is false', () => {
+    const disabledWidget = {
+      ...mockWidget,
+      config: { classLinkEnabled: false },
+    };
+    render(<ClassesWidget widget={disabledWidget} />);
+
+    expect(
+      screen.queryByRole('button', { name: /classlink/i })
+    ).not.toBeInTheDocument();
   });
 });

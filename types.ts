@@ -739,7 +739,18 @@ export interface LunchCountConfig {
   gradeLevel?: string;
 }
 
-export type ClassesConfig = Record<string, never>;
+export interface BuildingClassesDefaults {
+  buildingId: string;
+  classLinkEnabled?: boolean;
+}
+
+export interface ClassesGlobalConfig {
+  buildingDefaults: Record<string, BuildingClassesDefaults>;
+}
+
+export interface ClassesConfig {
+  classLinkEnabled?: boolean;
+}
 
 export interface InstructionalRoutinesConfig {
   selectedRoutineId: string | null;

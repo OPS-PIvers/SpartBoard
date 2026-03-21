@@ -112,19 +112,11 @@ Config: `components/admin/ChecklistConfigurationPanel.tsx` _(dedicated panel via
 
 ---
 
-[ ] Classes — Type: `classes` | Label: "Class"
-Config: `components/admin/ClassesConfigurationPanel.tsx` _(does not exist yet — create and register
-in `BUILDING_CONFIG_PANELS`)_
-
-Note: `ClassesWidget.tsx` has no `Settings.tsx`. The widget manages rosters internally via
-`RosterEditor.tsx`. Admin config opportunities are admin-only (no user-level defaults to expose).
-
-- **User-level Defaults:**
-  - None.
-- **Admin-only Settings:**
-  - `dockDefaults`: Per-building dock visibility (already automatic via generic handler).
-  - Investigate additional admin-only opportunities (e.g., default roster source, grade-level
-    visibility) before implementing.
+[x] Classes
+    - [Default User-Level Settings]
+        -- None.
+    - [Admin-Only Settings]
+        -- `classLinkEnabled`: Toggle to enable/disable ClassLink sync for the building.
 
 ---
 
