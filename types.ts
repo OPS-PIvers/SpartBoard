@@ -1134,6 +1134,11 @@ export interface QuizResponse {
   tabSwitchWarnings?: number;
 }
 
+/** Global admin configuration for the Quiz widget */
+export interface QuizGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
+
 /** Widget configuration for the quiz widget (teacher side) */
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
