@@ -198,14 +198,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   }, [activeRoster, assignments]);
 
   const stats = useMemo(() => {
-    const total = activeRoster.length;
     const hotLunch = groupedStudents.hot.length;
     const bentoBox = groupedStudents.bento.length;
     const homeLunch = groupedStudents.home.length;
     const remaining = groupedStudents.unassigned.length;
+    const total = hotLunch + bentoBox + homeLunch + remaining;
 
     return { total, hotLunch, bentoBox, homeLunch, remaining };
-  }, [activeRoster.length, groupedStudents]);
+  }, [groupedStudents]);
 
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
