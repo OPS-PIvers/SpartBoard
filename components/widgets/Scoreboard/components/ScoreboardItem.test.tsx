@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { LucideProps } from 'lucide-react';
 import { ScoreboardItem } from './ScoreboardItem';
 import { ScoreboardTeam } from '@/types';
 
@@ -8,8 +9,7 @@ vi.mock('lucide-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('lucide-react')>();
   return {
     ...actual,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Plus: (props: any) => {
+    Plus: (props: LucideProps) => {
       plusSpy(props);
       return <div data-testid="plus-icon" />;
     },

@@ -1866,22 +1866,74 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           break;
         }
-        case 'reveal-grid':
-          if (raw.columns !== undefined) out.columns = raw.columns;
-          if (raw.revealMode !== undefined) out.revealMode = raw.revealMode;
-          if (raw.fontFamily !== undefined) out.fontFamily = raw.fontFamily;
-          if (raw.defaultCardColor !== undefined)
+        case 'reveal-grid': {
+          const validRevealModes = ['flip', 'fade'] as const;
+          const validRevealFonts = [
+            'sans',
+            'serif',
+            'mono',
+            'handwritten',
+            'rounded',
+            'fun',
+            'comic',
+            'slab',
+            'retro',
+            'marker',
+            'cursive',
+          ] as const;
+          const validColumns = [2, 3, 4, 5] as const;
+          if (
+            typeof raw.columns === 'number' &&
+            (validColumns as readonly number[]).includes(raw.columns)
+          )
+            out.columns = raw.columns;
+          if (
+            typeof raw.revealMode === 'string' &&
+            (validRevealModes as readonly string[]).includes(raw.revealMode)
+          )
+            out.revealMode = raw.revealMode;
+          if (
+            typeof raw.fontFamily === 'string' &&
+            (validRevealFonts as readonly string[]).includes(raw.fontFamily)
+          )
+            out.fontFamily = raw.fontFamily;
+          if (
+            typeof raw.defaultCardColor === 'string' &&
+            raw.defaultCardColor.trim() !== ''
+          )
             out.defaultCardColor = raw.defaultCardColor;
-          if (raw.defaultCardBackColor !== undefined)
+          if (
+            typeof raw.defaultCardBackColor === 'string' &&
+            raw.defaultCardBackColor.trim() !== ''
+          )
             out.defaultCardBackColor = raw.defaultCardBackColor;
           break;
-        case 'numberLine':
-          if (raw.min !== undefined) out.min = raw.min;
-          if (raw.max !== undefined) out.max = raw.max;
-          if (raw.step !== undefined) out.step = raw.step;
-          if (raw.displayMode !== undefined) out.displayMode = raw.displayMode;
-          if (raw.showArrows !== undefined) out.showArrows = raw.showArrows;
+        }
+        case 'numberLine': {
+          const validDisplayModes = [
+            'integers',
+            'decimals',
+            'fractions',
+          ] as const;
+          if (typeof raw.min === 'number' && Number.isFinite(raw.min))
+            out.min = raw.min;
+          if (typeof raw.max === 'number' && Number.isFinite(raw.max))
+            out.max = raw.max;
+          if (
+            typeof raw.step === 'number' &&
+            Number.isFinite(raw.step) &&
+            raw.step > 0
+          )
+            out.step = raw.step;
+          if (
+            typeof raw.displayMode === 'string' &&
+            (validDisplayModes as readonly string[]).includes(raw.displayMode)
+          )
+            out.displayMode = raw.displayMode;
+          if (typeof raw.showArrows === 'boolean')
+            out.showArrows = raw.showArrows;
           break;
+        }
         case 'syntax-framer':
           if (
             typeof raw.mode === 'string' &&
@@ -1901,17 +1953,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (raw.fontFamily) out.fontFamily = raw.fontFamily;
           if (raw.themeColor) out.themeColor = raw.themeColor;
           break;
-        case 'breathing':
-          if (typeof raw.pattern === 'string' && raw.pattern.trim() !== '') {
+        case 'breathing': {
+          const validPatterns = ['4-4-4-4', '4-7-8', '5-5'] as const;
+          const validVisuals = ['circle', 'lotus', 'wave'] as const;
+          if (
+            typeof raw.pattern === 'string' &&
+            (validPatterns as readonly string[]).includes(raw.pattern)
+          )
             out.pattern = raw.pattern;
-          }
-          if (typeof raw.visual === 'string' && raw.visual.trim() !== '') {
+          if (
+            typeof raw.visual === 'string' &&
+            (validVisuals as readonly string[]).includes(raw.visual)
+          )
             out.visual = raw.visual;
-          }
-          if (typeof raw.color === 'string' && raw.color.trim() !== '') {
+          if (typeof raw.color === 'string' && raw.color.trim() !== '')
             out.color = raw.color;
-          }
           break;
+        }
         case 'time-tool':
           if (typeof raw.duration === 'number') {
             out.duration = raw.duration;

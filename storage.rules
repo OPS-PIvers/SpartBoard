@@ -85,7 +85,13 @@ service firebase.storage {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
+
+    // Global PDFs — all authenticated users can read, only admins can write
+    match /global_pdfs/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;
