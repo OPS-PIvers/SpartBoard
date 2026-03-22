@@ -7,7 +7,7 @@ import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { GoogleAuth } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
-import { YoutubeTranscript } from 'youtube-transcript';
+import { fetchTranscript, TranscriptResponse } from 'youtube-transcript';
 
 admin.initializeApp();
 
@@ -920,15 +920,9 @@ export const generateVideoActivity = functionsV1
       }
 
       // Fetch transcript
-      type TranscriptItem = { text: string; offset: number; duration: number };
-      type TranscriptFetcher = {
-        fetchTranscript: (id: string) => Promise<TranscriptItem[]>;
-      };
-      let transcriptItems: TranscriptItem[] = [];
+      let transcriptItems: TranscriptResponse[] = [];
       try {
-        transcriptItems = await (
-          YoutubeTranscript as unknown as TranscriptFetcher
-        ).fetchTranscript(videoId);
+        transcriptItems = await fetchTranscript(videoId);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn(

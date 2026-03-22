@@ -18,6 +18,7 @@ import {
   onSnapshot,
   updateDoc,
   arrayUnion,
+  runTransaction,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
@@ -313,22 +314,6 @@ export const useVideoActivitySessionStudent =
       async (questionId: string, answer: string): Promise<void> => {
         if (!sessionId || !responseDocId) return;
 
-        // Prevent duplicate answers for the same question
-        if (myResponse?.answers.some((a) => a.questionId === questionId)) {
-          return;
-        }
-
-        // Compute correctness client-side from session data
-        const question = session?.questions.find((q) => q.id === questionId);
-        const isCorrect = question ? question.correctAnswer === answer : false;
-
-        const answerEntry: VideoActivityAnswer = {
-          questionId,
-          answer,
-          isCorrect,
-          answeredAt: Date.now(),
-        };
-
         const responseRef = doc(
           db,
           SESSIONS_COLLECTION,
@@ -337,11 +322,24 @@ export const useVideoActivitySessionStudent =
           responseDocId
         );
 
-        await updateDoc(responseRef, {
-          answers: arrayUnion(answerEntry),
+        // Use a transaction so the duplicate-answer check and write are atomic,
+        // preventing race conditions where two rapid submits both pass the UI guard.
+        // isCorrect is intentionally not stored — correctness is always derived
+        // server-side from authoritative question data when displaying results.
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) return;
+          const data = snap.data() as VideoActivityResponse;
+          if (data.answers.some((a) => a.questionId === questionId)) return;
+          const answerEntry: VideoActivityAnswer = {
+            questionId,
+            answer,
+            answeredAt: Date.now(),
+          };
+          tx.update(responseRef, { answers: arrayUnion(answerEntry) });
         });
       },
-      [sessionId, responseDocId, myResponse?.answers, session?.questions]
+      [sessionId, responseDocId]
     );
 
     const completeActivity = useCallback(async (): Promise<void> => {

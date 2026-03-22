@@ -37,8 +37,12 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     isDriveConnected,
   } = useVideoActivity(user?.uid);
 
-  const { createSession, responses, subscribeToSession } =
-    useVideoActivitySessionTeacher();
+  const {
+    createSession,
+    responses,
+    subscribeToSession,
+    unsubscribeFromSession,
+  } = useVideoActivitySessionTeacher();
 
   const [loadedActivity, setLoadedActivity] =
     useState<VideoActivityData | null>(null);
@@ -199,6 +203,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         activity={loadedActivity}
         responses={responses}
         onBack={() => {
+          unsubscribeFromSession();
           setLoadedActivity(null);
           setView('manager');
         }}

@@ -122,6 +122,14 @@ const JoinAndPlay: React.FC = () => {
     [session?.questions]
   );
 
+  // ── Invalid / missing session ID ──────────────────────────────────────────
+
+  if (!sessionId || sessionId.includes('/')) {
+    return (
+      <ErrorScreen message="Invalid activity link. Please ask your teacher for the correct URL." />
+    );
+  }
+
   // ── Not joined yet ────────────────────────────────────────────────────────
 
   if (joinStatus !== 'joined') {
@@ -219,8 +227,14 @@ const JoinAndPlay: React.FC = () => {
   if (videoEnded || myResponse?.completedAt) {
     const answeredCount = myResponse?.answers.length ?? 0;
     const totalQuestions = session?.questions.length ?? 0;
+    // Derive correctness from authoritative session data rather than the stored
+    // isCorrect field, which is no longer written by the client.
     const correct =
-      myResponse?.answers.filter((a) => a.isCorrect === true).length ?? 0;
+      session?.questions.filter((q) =>
+        myResponse?.answers.some(
+          (a) => a.questionId === q.id && a.answer === q.correctAnswer
+        )
+      ).length ?? 0;
 
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">

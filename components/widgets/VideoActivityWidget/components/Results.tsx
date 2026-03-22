@@ -59,9 +59,20 @@ export const Results: React.FC<ResultsProps> = ({
 
   const getStudentScore = (r: VideoActivityResponse): number => {
     if (questions.length === 0) return 0;
-    const correct = r.answers.filter((a) =>
-      isAnswerCorrect(a.questionId, a.answer)
-    ).length;
+    // Count at most one correct answer per question to prevent inflated scores
+    // from duplicate entries (e.g. if arrayUnion raced and stored multiple answers).
+    let correct = 0;
+    for (const question of questions) {
+      if (
+        r.answers.some(
+          (a) =>
+            a.questionId === question.id &&
+            isAnswerCorrect(a.questionId, a.answer)
+        )
+      ) {
+        correct += 1;
+      }
+    }
     return Math.round((correct / questions.length) * 100);
   };
 

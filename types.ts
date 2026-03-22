@@ -1278,7 +1278,8 @@ export interface VideoActivitySession {
 export interface VideoActivityAnswer {
   questionId: string;
   answer: string;
-  /** Whether the answer was correct — computed client-side at submission time. */
+  /** Whether the answer was correct. Not written by the student client; derived from
+   *  authoritative question data (correctAnswer) when displaying teacher results. */
   isCorrect?: boolean;
   answeredAt: number;
 }
