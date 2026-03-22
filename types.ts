@@ -51,6 +51,15 @@ export type WidgetType =
 
 // --- ROSTER SYSTEM TYPES ---
 
+export interface BuildingClassesDefaults {
+  classLinkSyncEnabled?: boolean;
+}
+
+export interface ClassesGlobalConfig {
+  buildingDefaults?: Record<string, BuildingClassesDefaults>;
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface ClassLinkClass {
   sourcedId: string;
   title: string;
@@ -725,7 +734,9 @@ export interface LunchCountConfig {
   gradeLevel?: string;
 }
 
-export type ClassesConfig = Record<string, never>;
+export interface ClassesConfig {
+  classLinkSyncEnabled?: boolean;
+}
 
 export interface InstructionalRoutinesConfig {
   selectedRoutineId: string | null;

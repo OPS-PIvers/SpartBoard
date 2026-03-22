@@ -1989,6 +1989,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'hotspot-image':
           if (raw.popoverTheme) out.popoverTheme = raw.popoverTheme;
           break;
+        case 'classes':
+          if (raw.classLinkSyncEnabled !== undefined)
+            out.classLinkSyncEnabled = raw.classLinkSyncEnabled;
+          break;
         default:
           break;
       }
