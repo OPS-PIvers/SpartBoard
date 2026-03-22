@@ -17,13 +17,40 @@ import {
   Volume2,
   VolumeX,
   Clock,
+  RefreshCw,
 } from 'lucide-react';
+import { Button } from '@/components/common/Button';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard } = useDashboard();
+  const { updateWidget, activeDashboard, rosters, activeRosterId } =
+    useDashboard();
   const { showConfirm } = useDialog();
+
+  const activeRoster = React.useMemo(
+    () => rosters.find((r) => r.id === activeRosterId),
+    [rosters, activeRosterId]
+  );
+
+  const importFromRoster = () => {
+    if (!activeRoster) return;
+
+    const students = activeRoster.students;
+    const newFirstNames = students.map((s) => s.firstName).join('\n');
+    const newLastNames = students.map((s) => s.lastName || '').join('\n');
+
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        firstNames: newFirstNames,
+        lastNames: newLastNames,
+        lastResult: null,
+        remainingStudents: [],
+      },
+    });
+  };
   const config = widget.config as RandomConfig;
   const {
     firstNames = '',
@@ -273,6 +300,28 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {rosterMode === 'custom' && (
         <>
+          {activeRoster && (
+            <div className="flex flex-col gap-2 p-3 bg-brand-blue-lighter/30 border border-brand-blue-lighter rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <SettingsLabel>Import from Class</SettingsLabel>
+                  <div className="text-xxxs text-slate-500">
+                    Replace list with active roster ({activeRoster.name})
+                  </div>
+                </div>
+                <Button
+                  onClick={importFromRoster}
+                  variant="primary"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Import
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-2 block">
