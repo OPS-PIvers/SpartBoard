@@ -42,7 +42,26 @@ export const AlgebraTilesTool: React.FC = () => {
     setTiles((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const PAD = 12;
+  const TILE_GAP = 6;
+  const CANVAS_W = 420;
+
+  type TileRect = {
+    tile: Tile;
+    x: number;
+    y: number;
+    meta: AlgebraTileStyle;
+  };
+
   const { expr, rects, CANVAS_H } = useMemo(() => {
+    const GROUPS: Tile['kind'][] = [
+      'x2-pos',
+      'x2-neg',
+      'x-pos',
+      'x-neg',
+      'unit-pos',
+      'unit-neg',
+    ];
     // Single pass to group tiles and compute counts
     const groupedTiles: Record<AlgebraTileKind, Tile[]> = {
       'x2-pos': [],
@@ -69,31 +88,12 @@ export const AlgebraTilesTool: React.FC = () => {
     const computedExpr =
       parts.length > 0 ? parts.join(' + ').replace('+ −', '− ') : '0';
 
-    const PAD = 12;
-    const TILE_GAP = 6;
-    const CANVAS_W = 420;
-
-    const groups: Tile['kind'][] = [
-      'x2-pos',
-      'x2-neg',
-      'x-pos',
-      'x-neg',
-      'unit-pos',
-      'unit-neg',
-    ];
-
-    type TileRect = {
-      tile: Tile;
-      x: number;
-      y: number;
-      meta: AlgebraTileStyle;
-    };
     const computedRects: TileRect[] = [];
     let curX = PAD;
     let curY = PAD;
     let rowH = 0;
 
-    for (const kind of groups) {
+    for (const kind of GROUPS) {
       const meta = ALGEBRA_TILE_META[kind];
       const group = groupedTiles[kind];
       for (const tile of group) {
@@ -121,8 +121,6 @@ export const AlgebraTilesTool: React.FC = () => {
       CANVAS_H: computedCanvasH,
     };
   }, [tiles]);
-
-  const CANVAS_W = 420;
 
   return (
     <div
