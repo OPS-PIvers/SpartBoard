@@ -3,12 +3,19 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import ClassesWidget from './ClassesWidget';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { classLinkService } from '@/utils/classlinkService';
 
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/useAuth');
 vi.mock('@/utils/classlinkService');
 
 describe('ClassesWidget RosterEditor', () => {
+  const defaultAuthMock = {
+    featurePermissions: [],
+    selectedBuildings: [],
+  };
+
   const defaultDashboardMock = {
     rosters: [] as Record<string, unknown>[],
     addRoster: vi.fn() as Mock,
@@ -34,6 +41,7 @@ describe('ClassesWidget RosterEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useDashboard as Mock).mockReturnValue(defaultDashboardMock);
+    (useAuth as Mock).mockReturnValue(defaultAuthMock);
   });
 
   it('renders single name field by default', async () => {
@@ -539,12 +547,35 @@ describe('ClassesWidget RosterEditor', () => {
     expect(screen.queryByText(/ClassLink Rosters/i)).not.toBeInTheDocument();
   });
 
-  it('hides ClassLink button when classLinkEnabled is false', () => {
+  it('hides ClassLink button when classLinkEnabled is false in widget config', () => {
     const disabledWidget = {
       ...mockWidget,
       config: { classLinkEnabled: false },
     };
     render(<ClassesWidget widget={disabledWidget} />);
+
+    expect(
+      screen.queryByRole('button', { name: /classlink/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides ClassLink button when classLinkEnabled is false in global auth featurePermissions', () => {
+    (useAuth as Mock).mockReturnValue({
+      ...defaultAuthMock,
+      selectedBuildings: ['building-1'],
+      featurePermissions: [
+        {
+          widgetType: 'classes',
+          config: {
+            buildingDefaults: {
+              'building-1': { classLinkEnabled: false },
+            },
+          },
+        },
+      ],
+    });
+
+    render(<ClassesWidget widget={mockWidget} />); // widget config implies true
 
     expect(
       screen.queryByRole('button', { name: /classlink/i })

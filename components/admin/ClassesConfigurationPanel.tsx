@@ -4,8 +4,8 @@ import { BUILDINGS } from '@/config/buildings';
 import { Toggle } from '../common/Toggle';
 
 interface ClassesConfigurationPanelProps {
-  config: Record<string, unknown>;
-  onChange: (newConfig: Record<string, unknown>) => void;
+  config: ClassesGlobalConfig;
+  onChange: (newConfig: ClassesGlobalConfig) => void;
 }
 
 export const ClassesConfigurationPanel: React.FC<
@@ -13,8 +13,7 @@ export const ClassesConfigurationPanel: React.FC<
 > = ({ config, onChange }) => {
   const [activeTab, setActiveTab] = useState(BUILDINGS[0].id);
 
-  const buildingDefaults =
-    (config as unknown as ClassesGlobalConfig)?.buildingDefaults ?? {};
+  const buildingDefaults = config.buildingDefaults ?? {};
   const activeConfig: BuildingClassesDefaults = buildingDefaults[activeTab] || {
     buildingId: activeTab,
     classLinkEnabled: true,

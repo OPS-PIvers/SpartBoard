@@ -2045,8 +2045,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             out.fontFamily = raw.fontFamily;
           break;
         case 'classes':
-          if (raw.classLinkEnabled !== undefined)
+          if (typeof raw.classLinkEnabled === 'boolean') {
             out.classLinkEnabled = raw.classLinkEnabled;
+          }
           break;
         default:
           break;

@@ -7,6 +7,7 @@ import {
   ClassesConfig,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { Plus, Trash2, Star, Edit2, RefreshCw } from 'lucide-react';
 import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
+  const { featurePermissions, selectedBuildings } = useAuth();
   const {
     rosters,
     addRoster,
@@ -93,7 +95,27 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
 
   const editingRoster = rosters.find((r) => r.id === editingId) ?? null;
   const config = _widget.config as ClassesConfig;
-  const classLinkEnabled = config.classLinkEnabled !== false;
+
+  // Calculate effective classLinkEnabled flag
+  const effectiveClassLinkEnabled = (() => {
+    // 1. Check building-specific admin defaults first
+    if (selectedBuildings.length > 0) {
+      const buildingId = selectedBuildings[0];
+      const classesPerm = featurePermissions.find(
+        (p) => p.widgetType === 'classes'
+      );
+      const buildingDefaults = (
+        classesPerm?.config as {
+          buildingDefaults?: Record<string, { classLinkEnabled?: boolean }>;
+        }
+      )?.buildingDefaults?.[buildingId];
+      if (buildingDefaults?.classLinkEnabled !== undefined) {
+        return buildingDefaults.classLinkEnabled;
+      }
+    }
+    // 2. Fall back to widget config if no building default is found
+    return config.classLinkEnabled !== false;
+  })();
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -123,7 +145,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
                   />{' '}
                   Create New Class
                 </button>
-                {classLinkEnabled && (
+                {effectiveClassLinkEnabled && (
                   <button
                     onClick={handleFetchClassLink}
                     className="bg-white text-slate-700 border border-slate-200 rounded-xl font-black flex items-center justify-center hover:bg-slate-50 shadow-sm transition-all"

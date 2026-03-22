@@ -112,9 +112,14 @@ Config: `components/admin/ChecklistConfigurationPanel.tsx` _(dedicated panel via
 
 ---
 
-[x] Classes - [Default User-Level Settings]
--- None. - [Admin-Only Settings]
--- `classLinkEnabled`: Toggle to enable/disable ClassLink sync for the building.
+[x] Classes — Type: `classes` | Label: "Class"
+Config: `components/admin/ClassesConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+
+- **User-level Defaults:**
+  - None.
+- **Admin-only Settings:**
+  - `classLinkEnabled`: Toggle to enable/disable ClassLink sync for the building.
+  - `dockDefaults`: Per-building dock visibility.
 
 ---
 
