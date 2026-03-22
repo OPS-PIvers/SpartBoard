@@ -19,6 +19,11 @@ export const RevealGridConfigurationPanel: React.FC<
     buildingId: activeBuildingId,
   };
 
+  const DEFAULT_COLUMNS = 3;
+  const DEFAULT_REVEAL_MODE = 'flip';
+  const DEFAULT_CARD_COLOR = '#dbeafe';
+  const DEFAULT_CARD_BACK_COLOR = '#dcfce7';
+
   const updateBuildingDefaults = (updates: Partial<typeof currentDefaults>) => {
     onChange({
       ...typedConfig,
@@ -67,7 +72,7 @@ export const RevealGridConfigurationPanel: React.FC<
                 type="button"
                 onClick={() => updateBuildingDefaults({ columns: n })}
                 className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all ${
-                  (currentDefaults.columns ?? 3) === n
+                  (currentDefaults.columns ?? DEFAULT_COLUMNS) === n
                     ? 'bg-brand-blue-primary shadow-sm text-white'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
@@ -90,7 +95,7 @@ export const RevealGridConfigurationPanel: React.FC<
                 type="button"
                 onClick={() => updateBuildingDefaults({ revealMode: mode })}
                 className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
-                  (currentDefaults.revealMode ?? 'flip') === mode
+                  (currentDefaults.revealMode ?? DEFAULT_REVEAL_MODE) === mode
                     ? 'bg-brand-blue-primary shadow-sm text-white'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
@@ -143,12 +148,12 @@ export const RevealGridConfigurationPanel: React.FC<
                 Applied to all new cards
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {currentDefaults.defaultCardColor ?? '#dbeafe'}
+                {currentDefaults.defaultCardColor ?? DEFAULT_CARD_COLOR}
               </span>
             </div>
             <input
               type="color"
-              value={currentDefaults.defaultCardColor ?? '#dbeafe'}
+              value={currentDefaults.defaultCardColor ?? DEFAULT_CARD_COLOR}
               onChange={(e) =>
                 updateBuildingDefaults({ defaultCardColor: e.target.value })
               }
@@ -168,12 +173,15 @@ export const RevealGridConfigurationPanel: React.FC<
                 Background color for revealed cards
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {currentDefaults.defaultCardBackColor ?? '#dcfce7'}
+                {currentDefaults.defaultCardBackColor ??
+                  DEFAULT_CARD_BACK_COLOR}
               </span>
             </div>
             <input
               type="color"
-              value={currentDefaults.defaultCardBackColor ?? '#dcfce7'}
+              value={
+                currentDefaults.defaultCardBackColor ?? DEFAULT_CARD_BACK_COLOR
+              }
               onChange={(e) =>
                 updateBuildingDefaults({ defaultCardBackColor: e.target.value })
               }
