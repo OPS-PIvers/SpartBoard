@@ -49,6 +49,12 @@ export interface AuthContextType {
   savedWidgetConfigs: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save a widget's config globally (debounced Firestore write) */
   saveWidgetConfig: (type: WidgetType, config: Partial<WidgetConfig>) => void;
+  /** True once the profile Firestore fetch has resolved (success or error) */
+  profileLoaded: boolean;
+  /** True after the user completes the first-time setup wizard */
+  setupCompleted: boolean;
+  /** Mark setup as done — writes setupCompleted:true to Firestore */
+  completeSetup: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(

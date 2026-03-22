@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { DashboardProvider } from './context/DashboardContext';
+import { useDashboard } from './context/useDashboard';
 import { DialogProvider } from './context/DialogContext';
 import { DialogContainer } from './components/common/DialogContainer';
 import { UpdateNotification } from './components/layout/UpdateNotification';
@@ -12,6 +13,11 @@ import { StudentProvider } from './components/student/StudentContexts';
 
 // Lazy load heavy components for code splitting
 // Using named export pattern: import(...).then(module => ({ default: module.ExportName }))
+const NewUserSetup = lazy(() =>
+  import('./components/auth/NewUserSetup').then((module) => ({
+    default: module.NewUserSetup,
+  }))
+);
 const MobileRemoteApp = lazy(() =>
   import('./components/remote/MobileRemoteView').then((module) => ({
     default: module.MobileRemoteView,
@@ -62,7 +68,7 @@ const FullPageLoader = () => (
 const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   isRemote = false,
 }) => {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   if (!user) {
     return (
@@ -84,18 +90,42 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
   return (
     <DashboardProvider>
+      <AppContent />
+    </DashboardProvider>
+  );
+};
+
+/** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
+const AppContent: React.FC = () => {
+  const { isAdmin, profileLoaded, setupCompleted } = useAuth();
+  const { loading: dashLoading } = useDashboard();
+
+  // Wait for the user's profile and first dashboard load before deciding what to show.
+  if (!profileLoaded || dashLoading) {
+    return <FullPageLoader />;
+  }
+
+  // First-time users go through the lightweight setup wizard.
+  if (!setupCompleted) {
+    return (
       <Suspense fallback={<FullPageLoader />}>
-        {isAdmin && (
-          <>
-            <AdminWeatherFetcher />
-            <AdminCalendarFetcher />
-          </>
-        )}
-        <DashboardView />
+        <NewUserSetup />
       </Suspense>
+    );
+  }
+
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      {isAdmin && (
+        <>
+          <AdminWeatherFetcher />
+          <AdminCalendarFetcher />
+        </>
+      )}
+      <DashboardView />
       <UpdateNotification />
       <DriveDisconnectBanner />
-    </DashboardProvider>
+    </Suspense>
   );
 };
 

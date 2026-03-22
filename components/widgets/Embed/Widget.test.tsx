@@ -55,6 +55,9 @@ vi.mock('@/context/useAuth', () => ({
     connectGoogleDrive: vi.fn(),
     savedWidgetConfigs: {},
     saveWidgetConfig: vi.fn(),
+    profileLoaded: true,
+    setupCompleted: true,
+    completeSetup: vi.fn(),
   })),
 }));
 
@@ -375,6 +378,9 @@ describe('EmbedWidget', () => {
         connectGoogleDrive: vi.fn(),
         savedWidgetConfigs: {},
         saveWidgetConfig: vi.fn(),
+        profileLoaded: true,
+        setupCompleted: true,
+        completeSetup: vi.fn(),
       });
 
       render(<EmbedWidget widget={validWidget} />);

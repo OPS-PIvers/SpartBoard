@@ -54,6 +54,11 @@ const mockAuthContext = (
   saveWidgetConfig: () => {
     /* mock */
   },
+  profileLoaded: true,
+  setupCompleted: true,
+  completeSetup: async () => {
+    /* mock */
+  },
   ...overrides,
 });
 

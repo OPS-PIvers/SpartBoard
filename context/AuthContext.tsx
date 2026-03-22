@@ -185,6 +185,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [language, setLanguageState] = useState<string>(
     () => i18n.language ?? 'en'
   );
+  const [profileLoaded, setProfileLoaded] = useState(isAuthBypass);
+  const [setupCompleted, setSetupCompletedState] = useState(isAuthBypass);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -505,6 +507,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const loadProfile = async () => {
       if (!user) {
         setSelectedBuildingsState([]);
+        setProfileLoaded(true);
         return;
       }
       try {
@@ -514,6 +517,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (isCancelled) return;
         if (!profileDoc.exists()) {
           setSelectedBuildingsState([]);
+          setProfileLoaded(true);
           return;
         }
         const rawData: unknown = profileDoc.data();
@@ -561,14 +565,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           }
 
+          // Load setupCompleted
+          if ('setupCompleted' in data && data.setupCompleted === true) {
+            setSetupCompletedState(true);
+          }
+
+          setProfileLoaded(true);
           return;
         }
         // Profile exists but has no valid data; clear any previous selection
         setSelectedBuildingsState([]);
+        setProfileLoaded(true);
       } catch (error) {
         if (!isCancelled) {
           console.error('Error loading user profile:', error);
         }
+        if (!isCancelled) setProfileLoaded(true);
       }
     };
 
@@ -621,6 +633,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user]
   );
+
+  const completeSetup = useCallback(async () => {
+    setSetupCompletedState(true);
+    if (!user || isAuthBypass) return;
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid, 'userProfile', 'profile'),
+        { setupCompleted: true },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Error saving setup completion:', error);
+    }
+  }, [user]);
 
   const saveWidgetConfig = useCallback(
     (type: WidgetType, config: Partial<WidgetConfig>) => {
@@ -814,6 +840,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         connectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
+        profileLoaded,
+        setupCompleted,
+        completeSetup,
       }}
     >
       {children}

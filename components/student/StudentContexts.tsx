@@ -44,6 +44,11 @@ const mockAuth: AuthContextType = {
   saveWidgetConfig: () => {
     // No-op
   },
+  profileLoaded: true,
+  setupCompleted: true,
+  completeSetup: async () => {
+    // No-op in student view
+  },
 };
 
 // --- MOCK DASHBOARD ---

@@ -1811,6 +1811,8 @@ export interface UserProfile {
   language?: string;
   /** Global saved widget configs for complex widgets */
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /** True after the user has completed the first-time setup wizard */
+  setupCompleted?: boolean;
 }
 
 export interface SharedGroup {
