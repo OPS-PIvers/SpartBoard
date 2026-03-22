@@ -1278,7 +1278,11 @@ export interface VideoActivitySession {
 export interface VideoActivityAnswer {
   questionId: string;
   answer: string;
-  isCorrect: boolean;
+  /**
+   * @deprecated Not stored from the client — compute correctness server-side
+   * using activity.questions[].correctAnswer vs this answer field.
+   */
+  isCorrect?: boolean;
   answeredAt: number;
 }
 
@@ -1289,6 +1293,8 @@ export interface VideoActivityAnswer {
 export interface VideoActivityResponse {
   pin: string;
   name: string;
+  /** Firebase auth UID of the student who created this response. Used for Firestore ownership rules. */
+  studentUid: string;
   joinedAt: number;
   answers: VideoActivityAnswer[];
   completedAt: number | null;

@@ -158,9 +158,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     return (
       <Creator
         onBack={() => setView('manager')}
-        audioTranscriptionEnabled={
-          isAdmin === true && audioTranscriptionEnabled
-        }
+        audioTranscriptionEnabled={audioTranscriptionEnabled}
         onSave={async (activity) => {
           try {
             await saveActivity(activity);
@@ -222,14 +220,16 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       onResults={async (meta) => {
         const data = await loadActivity(meta);
         if (data) {
-          subscribeToSession(meta.id);
+          const sessionId = config.resultsSessionId;
+          if (sessionId) {
+            subscribeToSession(sessionId);
+          }
           updateWidget(widget.id, {
             config: {
               ...config,
               view: 'results',
               selectedActivityId: meta.id,
               selectedActivityTitle: meta.title,
-              resultsSessionId: meta.id,
             } as VideoActivityConfig,
           });
         }
@@ -238,7 +238,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         if (!user) throw new Error('Not signed in');
         const data = await loadActivity(meta);
         if (!data) throw new Error('Failed to load activity data');
-        return createSession(data, user.uid, []);
+        const sessionId = await createSession(data, user.uid, []);
+        updateWidget(widget.id, {
+          config: {
+            ...config,
+            resultsSessionId: sessionId,
+          } as VideoActivityConfig,
+        });
+        return sessionId;
       }}
       onDelete={async (meta) => {
         try {

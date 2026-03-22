@@ -11,8 +11,12 @@
  *    called and the video is paused.
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
-import { loadYouTubeApi, YT_PLAYER_STATE } from '@/utils/youtube';
+import React, { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import {
+  loadYouTubeApi,
+  YT_PLAYER_STATE,
+  extractYouTubeId,
+} from '@/utils/youtube';
 import type { YTPlayer } from '@/utils/youtube';
 import { VideoActivityQuestion } from '@/types';
 
@@ -30,6 +34,8 @@ interface VideoPlayerProps {
 }
 
 const SEEK_TOLERANCE_SECONDS = 3;
+/** Poll the player state every 250 ms instead of every frame to avoid unnecessary work. */
+const POLL_INTERVAL_MS = 250;
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   youtubeUrl,
@@ -42,6 +48,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const rafRef = useRef<number | null>(null);
+  const lastPollRef = useRef<number>(0);
   const triggeredRef = useRef<Set<string>>(new Set());
 
   // Derive the max time the student may seek to
@@ -64,38 +71,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       : maxAnswered + SEEK_TOLERANCE_SECONDS;
   }, [answeredTimestamps, questions]);
 
-  // Sorted unanswered questions for trigger detection
+  // Refs used inside RAF/callbacks — synced via useLayoutEffect so they are
+  // always up-to-date before the next paint without triggering extra renders.
   const unansweredRef = useRef<VideoActivityQuestion[]>([]);
-  unansweredRef.current = questions
-    .filter((q) => !answeredTimestamps.includes(q.timestamp))
-    .sort((a, b) => a.timestamp - b.timestamp);
-
   const maxAllowedRef = useRef(maxAllowedTime);
-  maxAllowedRef.current = maxAllowedTime;
-
   const questionVisibleRef = useRef(questionVisible);
-  questionVisibleRef.current = questionVisible;
+  const onQuestionTriggerRef = useRef(onQuestionTrigger);
+  const onVideoEndRef = useRef(onVideoEnd);
 
-  const extractVideoId = (url: string): string | null => {
-    const patterns = [
-      /[?&]v=([^&#]+)/,
-      /youtu\.be\/([^?&#]+)/,
-      /embed\/([^?&#]+)/,
-    ];
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) return m[1];
-    }
-    return null;
-  };
+  useLayoutEffect(() => {
+    unansweredRef.current = questions
+      .filter((q) => !answeredTimestamps.includes(q.timestamp))
+      .sort((a, b) => a.timestamp - b.timestamp);
+    maxAllowedRef.current = maxAllowedTime;
+  }, [questions, answeredTimestamps, maxAllowedTime]);
+
+  useLayoutEffect(() => {
+    questionVisibleRef.current = questionVisible;
+  }, [questionVisible]);
+
+  useLayoutEffect(() => {
+    onQuestionTriggerRef.current = onQuestionTrigger;
+    onVideoEndRef.current = onVideoEnd;
+  }, [onQuestionTrigger, onVideoEnd]);
 
   const startPolling = useCallback(() => {
-    const tick = () => {
+    const tick = (timestamp: number) => {
       const player = playerRef.current;
       if (!player) {
         rafRef.current = requestAnimationFrame(tick);
         return;
       }
+
+      // Throttle to ~POLL_INTERVAL_MS to avoid unnecessary 60fps work
+      if (timestamp - lastPollRef.current < POLL_INTERVAL_MS) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      lastPollRef.current = timestamp;
 
       const state = player.getPlayerState();
       const isPlaying = state === YT_PLAYER_STATE.PLAYING;
@@ -118,7 +131,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           ) {
             triggeredRef.current.add(q.id);
             player.pauseVideo();
-            onQuestionTrigger(q);
+            onQuestionTriggerRef.current(q);
             break;
           }
         }
@@ -128,7 +141,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [onQuestionTrigger]);
+  }, []);
 
   const stopPolling = useCallback(() => {
     if (rafRef.current !== null) {
@@ -138,7 +151,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, []);
 
   useEffect(() => {
-    const videoId = extractVideoId(youtubeUrl);
+    const videoId = extractYouTubeId(youtubeUrl);
     if (!videoId || !containerRef.current) return;
 
     let destroyed = false;
@@ -170,7 +183,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onStateChange: (event: { data: number }) => {
             if (event.data === YT_PLAYER_STATE.ENDED) {
               stopPolling();
-              onVideoEnd();
+              onVideoEndRef.current();
             }
           },
         },
@@ -193,8 +206,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         container.innerHTML = '';
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [youtubeUrl]);
+  }, [youtubeUrl, startPolling, stopPolling]);
 
   // Resume polling state when question is dismissed
   useEffect(() => {

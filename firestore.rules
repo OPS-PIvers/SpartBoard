@@ -273,19 +273,28 @@ service cloud.firestore {
       allow update, delete: if false;
 
       match /responses/{pin} {
-        // Any authenticated user (including anonymous students) can read/create their own response
-        allow read: if request.auth != null;
-        // Students create their own response document (PIN is the doc ID)
+        // Teacher can read all responses; students can only read their own (matched by studentUid)
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          resource.data.studentUid == request.auth.uid
+        );
+        // Students create their own response; bind it to their auth UID for ownership enforcement
         allow create: if request.auth != null &&
           request.resource.data.pin == pin &&
+          request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.score == null &&
           request.resource.data.completedAt == null;
-        // Students can update only their own response to add answers or mark complete
+        // Students can update only their own response to add answers or set completedAt;
+        // identity fields and score are immutable from the client
         allow update: if request.auth != null &&
-          resource.data.pin == pin &&
+          resource.data.studentUid == request.auth.uid &&
+          request.resource.data.studentUid == resource.data.studentUid &&
           request.resource.data.pin == resource.data.pin &&
           request.resource.data.name == resource.data.name &&
-          request.resource.data.joinedAt == resource.data.joinedAt;
+          request.resource.data.joinedAt == resource.data.joinedAt &&
+          request.resource.data.score == resource.data.score &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt']);
         allow delete: if false;
       }
     }

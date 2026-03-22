@@ -47,14 +47,21 @@ export const Results: React.FC<ResultsProps> = ({
       ? Math.round(
           responses
             .filter((r) => r.completedAt !== null)
-            .reduce((sum, r) => sum + (r.score ?? 0), 0) / completed
+            .reduce((sum, r) => sum + getStudentScore(r), 0) / completed
         )
       : 0;
 
+  /** Compute correctness from the authoritative activity question data. */
+  const isAnswerCorrect = (questionId: string, answer: string): boolean => {
+    const q = questions.find((q) => q.id === questionId);
+    return q ? answer === q.correctAnswer : false;
+  };
+
   const getStudentScore = (r: VideoActivityResponse): number => {
-    if (r.score !== null) return r.score;
     if (questions.length === 0) return 0;
-    const correct = r.answers.filter((a) => a.isCorrect).length;
+    const correct = r.answers.filter((a) =>
+      isAnswerCorrect(a.questionId, a.answer)
+    ).length;
     return Math.round((correct / questions.length) * 100);
   };
 
@@ -64,14 +71,17 @@ export const Results: React.FC<ResultsProps> = ({
     );
     if (answered.length === 0) return 0;
     const correct = answered.filter((r) =>
-      r.answers.some((a) => a.questionId === questionId && a.isCorrect)
+      r.answers.some(
+        (a) =>
+          a.questionId === questionId && isAnswerCorrect(a.questionId, a.answer)
+      )
     ).length;
     return Math.round((correct / answered.length) * 100);
   };
 
   const formatTimestamp = (seconds: number) => {
     const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
+    const s = Math.floor(seconds % 60);
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
@@ -425,7 +435,9 @@ export const Results: React.FC<ResultsProps> = ({
                 .sort((a, b) => getStudentScore(b) - getStudentScore(a))
                 .map((r) => {
                   const score = getStudentScore(r);
-                  const correct = r.answers.filter((a) => a.isCorrect).length;
+                  const correct = r.answers.filter((a) =>
+                    isAnswerCorrect(a.questionId, a.answer)
+                  ).length;
                   return (
                     <div
                       key={r.pin}
@@ -455,7 +467,7 @@ export const Results: React.FC<ResultsProps> = ({
                         style={{ gap: 'min(6px, 1.5cqmin)' }}
                       >
                         {r.answers.map((a) =>
-                          a.isCorrect ? (
+                          isAnswerCorrect(a.questionId, a.answer) ? (
                             <CheckCircle2
                               key={a.questionId}
                               className="text-emerald-500"

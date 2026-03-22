@@ -11,7 +11,7 @@ import { VideoActivityQuestion } from '@/types';
 interface QuestionOverlayProps {
   question: VideoActivityQuestion;
   /** Called with the selected answer text when the student submits. */
-  onAnswer: (answer: string, isCorrect: boolean) => void;
+  onAnswer: (answer: string) => void;
   /** 1-based index for display */
   questionIndex: number;
   totalQuestions: number;
@@ -49,9 +49,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const handleSubmit = () => {
     if (!selected || submitted) return;
     setSubmitted(true);
-    const isCorrect = selected === question.correctAnswer;
     // Brief delay so student sees feedback before overlay closes
-    setTimeout(() => onAnswer(selected, isCorrect), 1200);
+    setTimeout(() => onAnswer(selected), 1200);
   };
 
   const formatTimestamp = (seconds: number) => {

@@ -9,7 +9,7 @@
  *   /video_activity_sessions/{sessionId}/responses/{pin} — VideoActivityResponse
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   doc,
   collection,
@@ -20,7 +20,7 @@ import {
   arrayUnion,
   Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, auth } from '@/config/firebase';
 import {
   VideoActivitySession,
   VideoActivityResponse,
@@ -44,7 +44,7 @@ export interface UseVideoActivitySessionTeacherResult {
   ) => Promise<string>;
   /** Real-time responses for a specific session. */
   responses: VideoActivityResponse[];
-  /** Subscribe to a specific session's responses. */
+  /** Subscribe to a specific session's responses. Cleans up any previous listener. */
   subscribeToSession: (sessionId: string) => void;
   /** Unsubscribe from the current session listener. */
   unsubscribeFromSession: () => void;
@@ -55,7 +55,7 @@ export const useVideoActivitySessionTeacher =
   (): UseVideoActivitySessionTeacherResult => {
     const [responses, setResponses] = useState<VideoActivityResponse[]>([]);
     const [loading, setLoading] = useState(false);
-    const [unsubFn, setUnsubFn] = useState<Unsubscribe | null>(null);
+    const unsubRef = useRef<Unsubscribe | null>(null);
 
     const createSession = useCallback(
       async (
@@ -84,8 +84,14 @@ export const useVideoActivitySessionTeacher =
     );
 
     const subscribeToSession = useCallback((sessionId: string) => {
+      // Clean up any existing listener before creating a new one
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
+
       setLoading(true);
-      const unsub = onSnapshot(
+      unsubRef.current = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
         (snap) => {
           const list = snap.docs.map((d) => d.data() as VideoActivityResponse);
@@ -100,23 +106,25 @@ export const useVideoActivitySessionTeacher =
           setLoading(false);
         }
       );
-      setUnsubFn(() => unsub);
     }, []);
 
     const unsubscribeFromSession = useCallback(() => {
-      if (unsubFn) {
-        unsubFn();
-        setUnsubFn(null);
-        setResponses([]);
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
       }
-    }, [unsubFn]);
+      setResponses([]);
+    }, []);
 
     // Clean up on unmount
     useEffect(() => {
       return () => {
-        if (unsubFn) unsubFn();
+        if (unsubRef.current) {
+          unsubRef.current();
+          unsubRef.current = null;
+        }
       };
-    }, [unsubFn]);
+    }, []);
 
     return {
       createSession,
@@ -145,11 +153,7 @@ export interface UseVideoActivitySessionStudentResult {
   joinStatus: StudentJoinStatus;
   error: string | null;
   joinSession: (sessionId: string, pin: string, name: string) => Promise<void>;
-  submitAnswer: (
-    questionId: string,
-    answer: string,
-    isCorrect: boolean
-  ) => Promise<void>;
+  submitAnswer: (questionId: string, answer: string) => Promise<void>;
   completeActivity: () => Promise<void>;
 }
 
@@ -252,6 +256,8 @@ export const useVideoActivitySessionStudent =
             return;
           }
 
+          const studentUid = auth.currentUser?.uid ?? studentPin;
+
           // Create or retrieve response document (pin is the document ID)
           const responseRef = doc(
             db,
@@ -266,6 +272,7 @@ export const useVideoActivitySessionStudent =
             const newResponse: VideoActivityResponse = {
               pin: studentPin,
               name: studentName,
+              studentUid,
               joinedAt: Date.now(),
               answers: [],
               completedAt: null,
@@ -291,17 +298,17 @@ export const useVideoActivitySessionStudent =
     );
 
     const submitAnswer = useCallback(
-      async (
-        questionId: string,
-        answer: string,
-        isCorrect: boolean
-      ): Promise<void> => {
+      async (questionId: string, answer: string): Promise<void> => {
         if (!sessionId || !pin) return;
+
+        // Prevent duplicate answers for the same question
+        if (myResponse?.answers.some((a) => a.questionId === questionId)) {
+          return;
+        }
 
         const answerEntry: VideoActivityAnswer = {
           questionId,
           answer,
-          isCorrect,
           answeredAt: Date.now(),
         };
 
@@ -317,15 +324,11 @@ export const useVideoActivitySessionStudent =
           answers: arrayUnion(answerEntry),
         });
       },
-      [sessionId, pin]
+      [sessionId, pin, myResponse?.answers]
     );
 
     const completeActivity = useCallback(async (): Promise<void> => {
-      if (!sessionId || !pin || !myResponse) return;
-
-      const correct = myResponse.answers.filter((a) => a.isCorrect).length;
-      const total = session?.questions.length ?? 0;
-      const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+      if (!sessionId || !pin) return;
 
       const responseRef = doc(
         db,
@@ -337,9 +340,8 @@ export const useVideoActivitySessionStudent =
 
       await updateDoc(responseRef, {
         completedAt: Date.now(),
-        score,
       });
-    }, [sessionId, pin, myResponse, session]);
+    }, [sessionId, pin]);
 
     return {
       session,

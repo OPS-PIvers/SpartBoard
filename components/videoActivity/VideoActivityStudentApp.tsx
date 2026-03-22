@@ -81,11 +81,14 @@ const JoinAndPlay: React.FC = () => {
   } = useVideoActivitySessionStudent();
 
   // Track answered timestamps for anti-skip enforcement in VideoPlayer
-  const answeredTimestamps =
-    myResponse?.answers.map((a) => {
-      const q = session?.questions.find((q) => q.id === a.questionId);
-      return q?.timestamp ?? 0;
-    }) ?? [];
+  const answeredTimestamps = React.useMemo(
+    () =>
+      myResponse?.answers.map((a) => {
+        const q = session?.questions.find((q) => q.id === a.questionId);
+        return q?.timestamp ?? 0;
+      }) ?? [],
+    [myResponse?.answers, session?.questions]
+  );
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,9 +104,9 @@ const JoinAndPlay: React.FC = () => {
   );
 
   const handleAnswer = useCallback(
-    async (answer: string, isCorrect: boolean) => {
+    async (answer: string) => {
       if (!activeQuestion) return;
-      await submitAnswer(activeQuestion.id, answer, isCorrect);
+      await submitAnswer(activeQuestion.id, answer);
       setActiveQuestion(null);
     },
     [activeQuestion, submitAnswer]
@@ -113,6 +116,12 @@ const JoinAndPlay: React.FC = () => {
     setVideoEnded(true);
     await completeActivity();
   }, [completeActivity]);
+
+  const sortedQuestions = React.useMemo(
+    () =>
+      [...(session?.questions ?? [])].sort((a, b) => a.timestamp - b.timestamp),
+    [session?.questions]
+  );
 
   // ── Not joined yet ────────────────────────────────────────────────────────
 
@@ -264,9 +273,6 @@ const JoinAndPlay: React.FC = () => {
 
   // ── Active video + question overlay ───────────────────────────────────────
 
-  const sortedQuestions = [...(session?.questions ?? [])].sort(
-    (a, b) => a.timestamp - b.timestamp
-  );
   const answeredCount = myResponse?.answers.length ?? 0;
   const totalQuestions = sortedQuestions.length;
 
