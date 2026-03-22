@@ -9,6 +9,7 @@ export default mergeConfig(
       environment: 'jsdom',
       setupFiles: './tests/setup.ts',
       exclude: [...configDefaults.exclude, 'tests/e2e/**', 'functions/**'],
+      coverage: { exclude: ['locales/**'] },
     },
   })
 );
