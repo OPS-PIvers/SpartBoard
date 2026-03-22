@@ -1,0 +1,370 @@
+
+> spart-board@0.0.1 test:coverage /app
+> vitest run --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/app[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m components/widgets/SeatingChart/SeatingChartSidebar.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 2046[2mms[22m[39m
+       [33m[2m✓[22m[39m calls updateWidget when a template is clicked [33m 589[2mms[22m[39m
+ [32m✓[39m components/widgets/QRWidget/Widget.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 524[2mms[22m[39m
+ [32m✓[39m components/widgets/Classes/ClassesWidget.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 4996[2mms[22m[39m
+     [33m[2m✓[22m[39m renders single name field by default [33m 540[2mms[22m[39m
+     [33m[2m✓[22m[39m saves correctly in single field mode with full names [33m 452[2mms[22m[39m
+     [33m[2m✓[22m[39m saves correctly in dual field mode [33m 458[2mms[22m[39m
+     [33m[2m✓[22m[39m auto-splits names when toggling from single to dual-field mode [33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m merges names when toggling from dual to single-field mode [33m 398[2mms[22m[39m
+     [33m[2m✓[22m[39m preserves data correctly when toggling modes and then saving [33m 506[2mms[22m[39m
+     [33m[2m✓[22m[39m handles names without spaces when toggling to dual mode [33m 301[2mms[22m[39m
+     [33m[2m✓[22m[39m handles mixed names (some with spaces, some without) when toggling [33m 324[2mms[22m[39m
+     [33m[2m✓[22m[39m handles roster deletion process [33m 411[2mms[22m[39m
+ [32m✓[39m components/widgets/math-tools/CalculatorTool.test.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 5910[2mms[22m[39m
+     [33m[2m✓[22m[39m shows digits on successive button presses [33m 514[2mms[22m[39m
+     [33m[2m✓[22m[39m evaluates basic addition [33m 430[2mms[22m[39m
+     [33m[2m✓[22m[39m evaluates basic multiplication [33m 337[2mms[22m[39m
+     [33m[2m✓[22m[39m shows Error on divide by zero [33m 306[2mms[22m[39m
+       [33m[2m✓[22m[39m produces the correct numeric result after toggling — not NaN [33m 385[2mms[22m[39m
+       [33m[2m✓[22m[39m does not show Error after toggling sign and multiplying [33m 384[2mms[22m[39m
+       [33m[2m✓[22m[39m chains multiple operations correctly after a sign toggle [33m 391[2mms[22m[39m
+       [33m[2m✓[22m[39m division after toggling sign produces correct result [33m 432[2mms[22m[39m
+       [33m[2m✓[22m[39m expression shows stale-free result history after equals [33m 360[2mms[22m[39m
+ [32m✓[39m components/widgets/QuizWidget/components/QuizImporter.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1246[2mms[22m[39m
+     [33m[2m✓[22m[39m handles successful quiz generation with fallback defaults [33m 525[2mms[22m[39m
+ [32m✓[39m components/widgets/ScheduleWidget.test.tsx [2m([22m[2m27 tests[22m[2m)[22m[33m 1174[2mms[22m[39m
+ [32m✓[39m components/widgets/PdfWidget/PdfWidget.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 871[2mms[22m[39m
+     [33m[2m✓[22m[39m renders library view with empty state when no PDFs exist [33m 425[2mms[22m[39m
+ [32m✓[39m components/widgets/SeatingChart/Widget.test.tsx [2m([22m[2m25 tests[22m[2m)[22m[33m 1135[2mms[22m[39m
+     [33m[2m✓[22m[39m should apply templates to generate new layouts [33m 545[2mms[22m[39m
+ [32m✓[39m components/widgets/InstructionalRoutines/Widget.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 611[2mms[22m[39m
+     [33m[2m✓[22m[39m calls addWidget with Tailwind classes when launching Blooms resources [33m 349[2mms[22m[39m
+ [32m✓[39m components/widgets/math-tools/NumberLineTool.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1096[2mms[22m[39m
+     [33m[2m✓[22m[39m renders without crashing with default props [33m 349[2mms[22m[39m
+ [32m✓[39m components/widgets/Embed/Widget.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1166[2mms[22m[39m
+       [33m[2m✓[22m[39m renders the generate mini app button [33m 452[2mms[22m[39m
+ [32m✓[39m tests/components/layout/DashboardView.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 452[2mms[22m[39m
+ [32m✓[39m components/widgets/PollWidget/PollWidget.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m renders question and options, and allows voting [33m 501[2mms[22m[39m
+ [32m✓[39m tests/components/announcements/AnnouncementOverlay.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 853[2mms[22m[39m
+     [33m[2m✓[22m[39m hides announcement after user clicks Dismiss [33m 350[2mms[22m[39m
+ [32m✓[39m components/widgets/ExpectationsWidget/ExpectationsWidget.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 804[2mms[22m[39m
+     [33m[2m✓[22m[39m navigates back to main menu from sub-views [33m 465[2mms[22m[39m
+ [32m✓[39m components/common/DraggableWindow.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 753[2mms[22m[39m
+     [33m[2m✓[22m[39m saves title and resets editing state when clicking outside after editing title [33m 375[2mms[22m[39m
+ [32m✓[39m tests/components/widgets/LiveControl.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 812[2mms[22m[39m
+     [33m[2m✓[22m[39m calls onFreezeAll when "Freeze / Unfreeze All" is clicked [33m 380[2mms[22m[39m
+ [32m✓[39m tests/components/common/ScaledEmptyState.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 384[2mms[22m[39m
+ [32m✓[39m components/widgets/Scoreboard/Widget.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 704[2mms[22m[39m
+     [33m[2m✓[22m[39m uses DEFAULT_TEAMS when config.teams is invalid or missing during handleUpdateScore [33m 333[2mms[22m[39m
+ [32m✓[39m components/widgets/SmartNotebook/Widget.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 788[2mms[22m[39m
+     [33m[2m✓[22m[39m renders library view by default [33m 505[2mms[22m[39m
+ [32m✓[39m components/widgets/NumberLine/Widget.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 722[2mms[22m[39m
+     [33m[2m✓[22m[39m renders correctly without crashing [33m 361[2mms[22m[39m
+ [32m✓[39m components/widgets/PollWidget/components/OptionInput.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 614[2mms[22m[39m
+ [32m✓[39m components/admin/DrawingConfigurationPanel.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 679[2mms[22m[39m
+     [33m[2m✓[22m[39m renders correctly with initial config [33m 407[2mms[22m[39m
+ [32m✓[39m components/widgets/ClockWidget/Settings.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 644[2mms[22m[39m
+     [33m[2m✓[22m[39m updates theme color [33m 466[2mms[22m[39m
+ [32m✓[39m components/widgets/LunchCount/Widget.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 376[2mms[22m[39m
+ [32m✓[39m components/widgets/TrafficLightWidget/Widget.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 624[2mms[22m[39m
+     [33m[2m✓[22m[39m renders correctly with no active light [33m 331[2mms[22m[39m
+ [32m✓[39m components/widgets/Checklist/Widget.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 687[2mms[22m[39m
+     [33m[2m✓[22m[39m toggles item completion on Space keydown [33m 301[2mms[22m[39m
+ [32m✓[39m components/widgets/InstructionalRoutines/IconPicker.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 606[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the panel when clicked [33m 340[2mms[22m[39m
+ [32m✓[39m tests/components/common/Toggle.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 503[2mms[22m[39m
+     [33m[2m✓[22m[39m renders correctly [33m 309[2mms[22m[39m
+ [32m✓[39m components/widgets/RecessGear/Widget.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 521[2mms[22m[39m
+ [32m✓[39m components/widgets/TextWidget/Widget.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 600[2mms[22m[39m
+ [32m✓[39m components/widgets/Scoreboard/components/ScoreboardItem.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 444[2mms[22m[39m
+ [32m✓[39m components/widgets/TimeTool/TimeToolWidget.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 486[2mms[22m[39m
+ [32m✓[39m components/widgets/Catalyst/CatalystWidget.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 468[2mms[22m[39m
+ [32m✓[39m components/common/IconButton.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 419[2mms[22m[39m
+     [33m[2m✓[22m[39m renders with icon and aria-label [33m 306[2mms[22m[39m
+ [32m✓[39m components/widgets/random/RandomWidget.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 442[2mms[22m[39m
+     [33m[2m✓[22m[39m sends groups to scoreboard when button is clicked (New Connection) [33m 309[2mms[22m[39m
+ [32m✓[39m components/widgets/Breathing/BreathingWidget.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 261[2mms[22m[39m
+ [32m✓[39m components/widgets/ClockWidget/Widget.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 426[2mms[22m[39m
+ [32m✓[39m components/common/Toast.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 440[2mms[22m[39m
+ [32m✓[39m components/common/Button.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 423[2mms[22m[39m
+     [33m[2m✓[22m[39m renders correctly with default props [33m 330[2mms[22m[39m
+ [32m✓[39m components/widgets/GraphicOrganizer/Widget.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m components/admin/ScheduleConfigurationPanel.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 345[2mms[22m[39m
+ [32m✓[39m tests/components/common/DraggableWindow.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m components/widgets/LunchCount/useNutrislice.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 317[2mms[22m[39m
+ [32m✓[39m tests/components/widgets/RandomWidget.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 207[2mms[22m[39m
+ [32m✓[39m tests/escapeInteraction.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 208[2mms[22m[39m
+ [32m✓[39m components/widgets/Weather/Widget.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32m✓[39m components/widgets/TalkingTool/Widget.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m tests/hooks/useStorage.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m tests/components/common/MagicInput.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 129[2mms[22m[39m
+ [32m✓[39m components/widgets/SoundWidget/Widget.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m components/widgets/random/RandomWheel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 133[2mms[22m[39m
+ [32m✓[39m components/widgets/DiceWidget/Widget.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m components/widgets/stickers/DraggableSticker.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 153[2mms[22m[39m
+ [32m✓[39m tests/CalendarWidget.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 168[2mms[22m[39m
+ [32m✓[39m components/widgets/DrawingWidget/Widget.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 143[2mms[22m[39m
+ [32m✓[39m tests/components/widgets/QRWidget.connection.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [32m✓[39m tests/DashboardContext_merge.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m utils/security.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 75[2mms[22m[39m
+ [32m✓[39m hooks/useWindowSize.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m components/widgets/random/RandomSlots.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m components/widgets/TimeTool/TimeToolConnection.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 109[2mms[22m[39m
+ [32m✓[39m components/common/AnnotationCanvas.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m tests/DashboardContext_sharing.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 93[2mms[22m[39m
+ [32m✓[39m components/admin/CatalystPermissionEditor.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 131[2mms[22m[39m
+ [32m✓[39m components/widgets/Catalyst/CatalystSettings.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m tests/components/widgets/WidgetRenderer.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m utils/googleCalendarService.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m utils/migration.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m hooks/useMusicStations.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m tests/utils/ai.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m hooks/useClickOutside.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m tests/utils/googleDriveService.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m utils/smartPaste.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/utils/classlinkService.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m utils/widgetHelpers.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m utils/urlHelpers.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m components/widgets/math-tools/mathToolUtils.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m tests/utils/ai_security.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/utils/timeToolAudio.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m utils/notebookParser.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m components/widgets/Classes/rosterUtils.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m utils/dashboardPII.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m tests/utils/dashboardPII.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m tests/utils/layoutMath.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/utils/accessibility.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m86 passed[39m[22m[90m (86)[39m
+[2m      Tests [22m [1m[32m720 passed[39m[22m[90m (720)[39m
+[2m   Start at [22m 15:15:57
+[2m   Duration [22m 66.39s[2m (transform 6.91s, setup 20.45s, import 30.63s, tests 42.31s, environment 70.73s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   60.84 |    52.74 |   54.82 |   63.27 |
+ app               |     100 |      100 |     100 |     100 |
+  types.ts         |     100 |      100 |     100 |     100 |
+ ...mponents/admin |   69.28 |       53 |   64.06 |   73.23 |
+  ...ionEditor.tsx |     100 |      100 |     100 |     100 |
+  ...tionPanel.tsx |   96.42 |    81.25 |   91.66 |   96.42 | 100
+  ...tionPanel.tsx |    62.6 |    47.61 |   56.86 |   66.96 | ...03,417,436-485
+ .../announcements |   80.74 |    77.33 |      80 |   81.73 |
+  ...ntOverlay.tsx |   80.74 |    77.33 |      80 |   81.73 | ...15-224,365,374
+ ...ponents/common |   60.68 |    57.59 |   57.41 |   61.38 |
+  ...ionCanvas.tsx |   88.46 |    70.83 |     100 |   91.54 | 39-41,87,104,126
+  Button.tsx       |     100 |      100 |     100 |     100 |
+  ...heetModal.tsx |   39.47 |    21.42 |   38.46 |   36.11 | ...38-166,172-279
+  ...bleWindow.tsx |   51.62 |    49.74 |   51.06 |   52.32 | ...1488,1540-1568
+  ...tingPanel.tsx |     100 |      100 |     100 |     100 |
+  GlassCard.tsx    |     100 |       80 |     100 |     100 | 33-37,41,60
+  IconButton.tsx   |     100 |      100 |     100 |     100 |
+  MagicInput.tsx   |   76.92 |    55.55 |      75 |      80 | 44-45,54-56
+  ...mptyState.tsx |     100 |      100 |     100 |     100 |
+  ...ingsLabel.tsx |     100 |      100 |     100 |     100 |
+  ...ingsPanel.tsx |   72.41 |    45.23 |   55.55 |   71.42 | ...26,132,158-260
+  Toast.tsx        |   88.88 |    95.45 |      75 |   88.88 | 74-75
+  Toggle.tsx       |     100 |    91.66 |     100 |     100 | 60,91
+  ...ySettings.tsx |   71.42 |    88.88 |      60 |   71.42 | 29,52
+ ...ponents/layout |      50 |    35.41 |   39.28 |   52.99 |
+  ...omControl.tsx |   53.84 |     37.5 |   16.66 |   53.84 | 21-65
+  ...boardView.tsx |   49.85 |    35.35 |      42 |   52.95 | ...15-826,929-984
+ ...ts/layout/dock |      50 |      100 |       0 |      50 |
+  RecordIcon.tsx   |      50 |      100 |       0 |      50 | 4
+ ...onents/widgets |   42.46 |    58.82 |   16.43 |   45.72 |
+  LiveControl.tsx  |      75 |    67.24 |   91.66 |   77.19 | ...,75,89,102-112
+  ...etRegistry.ts |    7.56 |      100 |     0.9 |    7.62 | ...65-265,275-330
+  ...tRenderer.tsx |   61.94 |    53.68 |   52.17 |   74.46 | ...37-348,417-418
+ ...gets/Breathing |   57.54 |    42.85 |   82.35 |   56.73 |
+  ...ngVisuals.tsx |      44 |    35.29 |      60 |   41.66 | 27-33,62-144
+  ...ingWidget.tsx |   76.92 |       80 |     100 |   76.92 | 25-29
+  useBreathing.ts  |   58.82 |    17.64 |   88.88 |    58.2 | 75,86-131
+ ...dgets/Calendar |   62.06 |    54.03 |      65 |   69.29 |
+  Widget.tsx       |   66.66 |    57.42 |   66.66 |   73.07 | ...88-202,222,323
+  constants.ts     |   42.85 |    39.13 |      50 |   52.17 | 29-46
+ ...dgets/Catalyst |   42.85 |     37.5 |      50 |   45.45 |
+  ...tSettings.tsx |     100 |      100 |     100 |     100 |
+  ...ystWidget.tsx |   54.83 |       50 |   55.55 |   59.25 | 28-40,88,119
+  ...stHelpers.tsx |    12.5 |        0 |       0 |   13.33 | 8-18,33-50
+ ...gets/Checklist |   70.27 |    57.94 |      50 |   71.96 |
+  Settings.tsx     |   47.45 |    39.02 |   22.22 |   46.29 | ...19-181,200-342
+  Widget.tsx       |   85.71 |    69.81 |      85 |   88.23 | ...,45,99-103,121
+  constants.ts     |   83.33 |    69.23 |     100 |     100 | 16-25
+ ...ist/components |     100 |      100 |     100 |     100 |
+  ...klistCard.tsx |     100 |      100 |     100 |     100 |
+ ...idgets/Classes |   96.35 |    92.63 |   91.66 |   96.99 |
+  ...sesWidget.tsx |     100 |    93.75 |     100 |     100 | 112,160,209
+  RosterEditor.tsx |    86.2 |     87.5 |      70 |   89.28 | 21,24,27
+  rosterUtils.ts   |   97.56 |    95.65 |     100 |   97.43 | 51
+ ...ts/ClockWidget |     100 |    81.63 |     100 |     100 |
+  Settings.tsx     |     100 |    64.28 |     100 |     100 | 24-34,135-149
+  Widget.tsx       |     100 |    88.57 |     100 |     100 | 12,34-37,72
+ ...ets/DiceWidget |   72.91 |    56.25 |   84.61 |      75 |
+  Widget.tsx       |   72.91 |    56.25 |   84.61 |      75 | 41,61-73,81-84
+ ...get/components |     100 |      100 |     100 |     100 |
+  DiceFace.tsx     |     100 |      100 |     100 |     100 |
+ ...ceWidget/utils |   95.23 |    66.66 |     100 |     100 |
+  audio.ts         |   95.23 |    66.66 |     100 |     100 | 12-22
+ .../DrawingWidget |   72.34 |    51.02 |   58.33 |   75.75 |
+  Widget.tsx       |   72.14 |    51.02 |   58.33 |   75.57 | ...70-347,376-387
+  constants.ts     |     100 |      100 |     100 |     100 |
+ .../widgets/Embed |   55.27 |    59.25 |      50 |   56.37 |
+  Settings.tsx     |    32.2 |    47.91 |   36.36 |   31.57 | ...25,130,149-277
+  Widget.tsx       |   68.62 |    65.51 |      60 |   71.73 | ...67,206,221,337
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...ctationsWidget |   72.72 |    63.35 |   67.74 |   76.92 |
+  Settings.tsx     |   36.84 |    35.29 |    37.5 |   36.84 | 64-103
+  Widget.tsx       |    82.6 |    67.54 |   78.26 |   89.83 | ...93-206,324,397
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...aphicOrganizer |    98.5 |    92.74 |     100 |    98.5 |
+  Widget.tsx       |    98.5 |    92.74 |     100 |    98.5 | 54
+ ...tionalRoutines |   50.31 |     21.6 |   35.18 |   52.05 |
+  IconPicker.tsx   |   91.66 |    88.88 |     100 |     100 | 54
+  Settings.tsx     |   17.77 |        4 |    5.55 |   18.18 | ...35-191,213-227
+  Widget.tsx       |   59.13 |    20.49 |   41.37 |    61.9 | ...13,640,681-709
+  colorHelpers.ts  |   66.66 |       25 |      50 |   66.66 | 40-64
+  constants.ts     |     100 |      100 |     100 |     100 |
+ ...ets/LunchCount |   59.36 |    40.26 |   50.98 |   59.82 |
+  ...portModal.tsx |   45.83 |     9.52 |   33.33 |   42.85 | ...3,59-60,69-232
+  Widget.tsx       |   44.29 |    35.97 |      40 |   45.25 | ...73,471-762,835
+  useNutrislice.ts |    92.3 |    59.09 |   91.66 |   92.95 | 77,147-151
+ ...unt/components |      70 |     37.5 |   66.66 |      70 |
+  ...leStudent.tsx |   57.14 |    33.33 |      50 |   57.14 | 42-45
+  ...pableZone.tsx |     100 |       50 |     100 |     100 | 24
+ ...ets/NumberLine |   65.21 |    55.55 |   46.15 |   65.16 |
+  Widget.tsx       |   65.21 |    55.55 |   46.15 |   65.16 | ...90,197,231-304
+ ...gets/PdfWidget |   74.19 |    62.22 |   73.68 |      80 |
+  PdfWidget.tsx    |   72.41 |    58.53 |   70.58 |   78.37 | ...51,156-174,267
+  Settings.tsx     |     100 |      100 |     100 |     100 |
+ ...get/components |     100 |       75 |     100 |     100 |
+  SortableRow.tsx  |     100 |       75 |     100 |     100 | 27
+ ...ets/PollWidget |   76.31 |    45.45 |      80 |   77.88 |
+  Settings.tsx     |   80.59 |    57.14 |   84.21 |   81.96 | ...18-120,126-134
+  Widget.tsx       |   68.88 |       40 |   72.72 |   70.73 | 35-46,51-58,86
+  index.ts         |     100 |      100 |     100 |     100 |
+ ...get/components |     100 |      100 |     100 |     100 |
+  OptionInput.tsx  |     100 |      100 |     100 |     100 |
+ ...dgets/QRWidget |   95.34 |    90.47 |    90.9 |   97.43 |
+  Settings.tsx     |    87.5 |    85.71 |      75 |     100 | 21
+  Widget.tsx       |   97.14 |    91.42 |     100 |   96.87 | 18
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...get/components |   47.91 |    50.72 |   47.61 |      50 |
+  QuizImporter.tsx |   47.91 |    50.72 |   47.61 |      50 | ...69,316-403,417
+ ...ets/RecessGear |   70.45 |    58.76 |   70.58 |   70.73 |
+  Settings.tsx     |      80 |       50 |   66.66 |   77.77 | 46-60
+  Widget.tsx       |   69.23 |    59.77 |   72.72 |   69.86 | ...42,153,155,159
+ ...dgets/Schedule |   62.67 |    51.58 |   49.27 |    67.2 |
+  ...uleWidget.tsx |    77.1 |    66.56 |   86.53 |   86.36 | ...11,816,830-833
+  Settings.tsx     |   39.54 |    30.49 |   25.88 |    39.6 | ...,982,1027-1091
+  index.ts         |       0 |        0 |       0 |       0 |
+  utils.ts         |     100 |      100 |     100 |     100 |
+ ...ets/Scoreboard |    97.8 |    81.81 |     100 |   97.72 |
+  Settings.tsx     |   97.14 |    77.14 |     100 |   97.01 | 65-66
+  Widget.tsx       |     100 |       90 |     100 |     100 | 60,91
+ ...ard/components |     100 |      100 |     100 |     100 |
+  ...boardItem.tsx |     100 |      100 |     100 |     100 |
+ ...s/SeatingChart |   52.98 |    48.24 |   52.42 |    55.1 |
+  ...mRenderer.tsx |   47.72 |    65.21 |   42.85 |   47.72 | ...49-161,196-209
+  ...rtSidebar.tsx |     100 |    85.71 |     100 |     100 | 97-114
+  ...rtToolbar.tsx |   42.85 |    81.81 |   33.33 |   42.85 | 36-42,77-84
+  Widget.tsx       |   39.01 |     30.2 |   43.93 |   41.73 | ...49-805,812-837
+  constants.ts     |     100 |      100 |     100 |     100 |
+  ...artLayouts.ts |   98.09 |    83.33 |     100 |     100 | 131-166
+ .../SmartNotebook |   78.07 |    61.53 |      75 |   79.61 |
+  Widget.tsx       |   78.07 |    61.53 |      75 |   79.61 | ...16,220,224-230
+ ...ook/components |   56.25 |     92.3 |   46.15 |      60 |
+  Library.tsx      |   71.42 |    83.33 |      60 |   71.42 | 49,141
+  Viewer.tsx       |   44.44 |      100 |    37.5 |      50 | 136-201
+ ...ts/SoundWidget |   92.22 |    76.08 |   94.11 |   96.15 |
+  Widget.tsx       |   92.77 |       75 |   93.75 |   97.26 | 129,200
+  constants.ts     |   85.71 |      100 |     100 |      80 | 16
+ ...get/components |   39.34 |    16.66 |   36.36 |   41.07 |
+  ...BallsView.tsx |    2.63 |        0 |       0 |    2.94 | 9-69
+  ...meterView.tsx |     100 |      100 |     100 |     100 |
+  ...meterView.tsx |     100 |      100 |     100 |     100 |
+ ...ts/TalkingTool |      95 |    81.25 |     100 |     100 |
+  Widget.tsx       |   94.11 |    78.57 |     100 |     100 | 26-30
+  constants.ts     |     100 |      100 |     100 |     100 |
+ ...ets/TextWidget |      95 |    93.54 |   93.33 |   98.27 |
+  Settings.tsx     |   93.75 |      100 |   88.88 |   93.75 | 95
+  Widget.tsx       |   95.12 |     93.1 |     100 |     100 | 34,58
+  constants.ts     |     100 |      100 |     100 |     100 |
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...dgets/TimeTool |   72.72 |    58.33 |      70 |   73.64 |
+  ...oolWidget.tsx |      75 |    58.88 |   74.07 |   76.92 | ...35,345,476-477
+  useTimeTool.ts   |      70 |    57.14 |   61.53 |      70 | ...59,174-178,190
+ ...ficLightWidget |     100 |       90 |     100 |     100 |
+  Widget.tsx       |     100 |       90 |     100 |     100 | 58
+ ...idgets/Weather |   63.09 |    51.35 |   69.23 |   64.47 |
+  Widget.tsx       |   63.09 |    51.35 |   69.23 |   64.47 | ...61,182-193,198
+ ...s/WidgetLayout |   45.45 |    64.28 |   33.33 |   45.45 |
+  WidgetLayout.tsx |     100 |    81.81 |     100 |     100 | 21,35
+  ...utWrapper.tsx |      25 |        0 |       0 |      25 | 6,34-52
+  index.ts         |       0 |        0 |       0 |       0 |
+ ...ets/math-tools |   77.47 |    68.87 |      75 |   81.98 |
+  ...latorTool.tsx |   70.58 |       56 |    87.5 |   76.74 | ...00,122,223,255
+  ...rLineTool.tsx |    84.9 |    82.53 |      25 |   85.71 | ...04-105,173-208
+  mathToolUtils.ts |   88.88 |    76.92 |      75 |    92.3 | 146-147
+ ...widgets/random |   46.61 |    49.79 |   54.16 |   50.19 |
+  RandomGroups.tsx |   84.21 |    81.25 |      80 |     100 | 42-58
+  RandomSlots.tsx  |     100 |    66.66 |     100 |     100 | 17-19
+  RandomWheel.tsx  |     100 |    66.66 |     100 |     100 | 26-77,142
+  RandomWidget.tsx |   37.17 |    43.29 |    47.5 |   39.81 | ...90-492,505,650
+ ...dgets/stickers |      40 |    34.69 |   36.36 |   40.49 |
+  ...leSticker.tsx |      40 |    34.69 |   36.36 |   40.49 | ...23,279,302-313
+ app/config        |     100 |      100 |     100 |     100 |
+  bloomsData.ts    |     100 |      100 |     100 |     100 |
+  colors.ts        |     100 |      100 |     100 |     100 |
+  constants.ts     |     100 |      100 |     100 |     100 |
+  ...ationsData.ts |     100 |      100 |     100 |     100 |
+  fonts.ts         |     100 |      100 |     100 |     100 |
+  ...ionalIcons.ts |     100 |      100 |     100 |     100 |
+  ...alRoutines.ts |     100 |      100 |     100 |     100 |
+  layout.ts        |     100 |      100 |     100 |     100 |
+  scoreboard.ts    |     100 |      100 |     100 |     100 |
+  snapLayouts.tsx  |     100 |      100 |     100 |     100 |
+  ...ngToolData.ts |     100 |      100 |     100 |     100 |
+  tools.ts         |     100 |      100 |     100 |     100 |
+  ...etDefaults.ts |     100 |      100 |     100 |     100 |
+  zIndex.ts        |     100 |      100 |     100 |     100 |
+ app/context       |   30.33 |    20.46 |   22.67 |   32.41 |
+  ...ntextValue.ts |     100 |      100 |     100 |     100 |
+  ...rdContext.tsx |      30 |    20.39 |   22.38 |   32.03 | ...2541,2546-2551
+  ...ntextValue.ts |     100 |      100 |     100 |     100 |
+  useDashboard.ts  |      80 |       50 |     100 |      80 | 7
+ app/hooks         |   63.02 |    62.79 |   69.56 |   63.39 |
+  ...ickOutside.ts |     100 |    88.88 |     100 |     100 | 21
+  useDebounce.ts   |     100 |      100 |     100 |     100 |
+  ...oogleDrive.ts |   35.13 |    16.66 |   33.33 |    38.7 | 29-45,60-77,85-95
+  ...icStations.ts |   88.23 |       70 |    90.9 |   86.66 | 33,37,42-43
+  useStorage.ts    |   53.54 |       60 |      40 |   53.54 | ...74-296,303-315
+  useWindowSize.ts |   94.44 |       80 |     100 |     100 | 16-21
+ app/i18n          |     100 |      100 |     100 |     100 |
+  index.ts         |     100 |      100 |     100 |     100 |
+ app/locales       |       0 |        0 |       0 |       0 |
+  de.json          |       0 |        0 |       0 |       0 |
+  en.json          |       0 |        0 |       0 |       0 |
+  es.json          |       0 |        0 |       0 |       0 |
+  fr.json          |       0 |        0 |       0 |       0 |
+ app/utils         |   82.36 |     74.4 |      90 |   84.66 |
+  accessibility.ts |     100 |      100 |     100 |     100 |
+  ai.ts            |     100 |       96 |     100 |     100 | 65
+  ai_security.ts   |   86.91 |    73.91 |     100 |   89.89 | ...98,105,137-139
+  backgrounds.ts   |     100 |      100 |     100 |     100 |
+  ...inkService.ts |     100 |      100 |     100 |     100 |
+  dashboardPII.ts  |     100 |      100 |     100 |     100 |
+  ...darService.ts |   91.42 |    78.57 |   83.33 |   94.11 | 48-49
+  ...iveService.ts |   57.36 |    54.54 |   78.26 |   57.67 | ...20,636,652,670
+  layoutMath.ts    |     100 |      100 |     100 |     100 |
+  migration.ts     |   80.95 |    76.08 |      60 |    82.5 | 92,100-108
+  ...bookParser.ts |    92.5 |    77.41 |     100 |   94.44 | 66,82
+  security.ts      |   79.16 |    71.42 |      80 |   86.36 | 58-65
+  smartPaste.ts    |   90.76 |    81.39 |     100 |   93.44 | 44,89,107,166
+  styles.ts        |   83.33 |       75 |     100 |     100 | 3
+  timeToolAudio.ts |   96.38 |    70.83 |     100 |   98.76 | 111
+  url.ts           |      80 |       75 |     100 |     100 | 6
+  urlHelpers.ts    |   97.36 |     87.5 |     100 |   98.59 | 47
+  widgetHelpers.ts |   63.46 |       60 |      60 |      75 | ...52,55-56,74-77
+-------------------|---------|----------|---------|---------|-------------------
