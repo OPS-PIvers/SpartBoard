@@ -411,20 +411,17 @@ create `components/admin/RecessGearConfigurationPanel.tsx` and register in `BUIL
 
 ---
 
-[ ] Reveal Grid — Type: `reveal-grid` | Label: "Reveal"
-Config: `components/admin/RevealGridConfigurationPanel.tsx` _(does not exist yet — create and
-register in `BUILDING_CONFIG_PANELS`)_
+[X] Reveal Grid — Type: `reveal-grid` | Label: "Reveal"
+Config: `components/admin/RevealGridConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
 
-User-facing settings are in `components/widgets/RevealGrid/Settings.tsx`.
-
-- **User-level Defaults:**
-  - `columns`: Default column count.
-  - `revealMode`: Default reveal mode (`'flip'` or `'fade'`).
-  - `fontFamily`: Default custom font.
-  - `defaultCardColor`: Default front card color.
-  - `defaultCardBackColor`: Default back card color.
-- **Admin-only Settings:**
-  - `dockDefaults`: Per-building dock visibility (already automatic via generic handler).
+- [Default User-Level Settings]
+  -- columns: Default column count
+  -- revealMode: Default reveal mode
+  -- fontFamily: Default custom font
+  -- defaultCardColor: Default front card color
+  -- defaultCardBackColor: Default back card color
+- [Admin-Only Settings]
+  -- dockDefaults: Per-building dock visibility
 
 ---
 

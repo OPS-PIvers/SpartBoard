@@ -482,6 +482,20 @@ export interface EmbedGlobalConfig {
   buildingDefaults: Record<string, BuildingEmbedDefaults>;
 }
 
+// --- Reveal Grid Global Config ---
+export interface BuildingRevealGridDefaults {
+  buildingId: string;
+  columns?: 2 | 3 | 4 | 5;
+  revealMode?: 'flip' | 'fade';
+  fontFamily?: GlobalFontFamily;
+  defaultCardColor?: string;
+  defaultCardBackColor?: string;
+}
+
+export interface RevealGridGlobalConfig {
+  buildingDefaults: Record<string, BuildingRevealGridDefaults>;
+}
+
 // --- Breathing Global Config ---
 export interface BuildingBreathingDefaults {
   buildingId: string;

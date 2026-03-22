@@ -1860,6 +1860,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           break;
         }
+        case 'reveal-grid':
+          if (raw.columns !== undefined) out.columns = raw.columns;
+          if (raw.revealMode !== undefined) out.revealMode = raw.revealMode;
+          if (raw.fontFamily !== undefined) out.fontFamily = raw.fontFamily;
+          if (raw.defaultCardColor !== undefined)
+            out.defaultCardColor = raw.defaultCardColor;
+          if (raw.defaultCardBackColor !== undefined)
+            out.defaultCardBackColor = raw.defaultCardBackColor;
+          break;
         case 'numberLine':
           if (raw.min !== undefined) out.min = raw.min;
           if (raw.max !== undefined) out.max = raw.max;

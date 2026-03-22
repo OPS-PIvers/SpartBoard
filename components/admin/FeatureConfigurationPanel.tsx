@@ -48,6 +48,7 @@ import { HotspotImageConfigurationPanel } from './HotspotImageConfigurationPanel
 import { ConceptWebConfigurationPanel } from './ConceptWebConfigurationPanel';
 import { SyntaxFramerConfigurationPanel } from './SyntaxFramerConfigurationPanel';
 import { SeatingChartConfigurationPanel } from './SeatingChartConfigurationPanel';
+import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -87,6 +88,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
     SyntaxFramerConfigurationPanel as unknown as BuildingConfigPanel,
   'seating-chart':
     SeatingChartConfigurationPanel as unknown as BuildingConfigPanel,
+  'reveal-grid': RevealGridConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
