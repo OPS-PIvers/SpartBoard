@@ -40,8 +40,9 @@ async def verify():
         await page.get_by_text("Operation Mode").wait_for()
 
         print("Taking final screenshot...")
-        await page.screenshot(path="/home/jules/verification/debug_random_settings.png")
+        await page.screenshot(path="verification/debug_random_settings.png")
 
         await browser.close()
 
-asyncio.run(verify())
+if __name__ == "__main__":
+    asyncio.run(verify())

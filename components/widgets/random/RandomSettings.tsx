@@ -40,8 +40,10 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     if (!activeRoster) return;
 
     const students = activeRoster.students;
-    const newFirstNames = students.map((s) => s.firstName).join('\n');
-    const newLastNames = students.map((s) => s.lastName || '').join('\n');
+    const newFirstNames = students
+      .map((s) => [s.firstName, s.lastName].filter(Boolean).join(' '))
+      .join('\n');
+    const newLastNames = '';
 
     updateWidget(widget.id, {
       config: {
