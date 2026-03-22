@@ -263,6 +263,38 @@ service cloud.firestore {
       }
     }
 
+    // Video Activity Sessions — Teacher creates, anonymous students can read and submit responses
+    match /video_activity_sessions/{sessionId} {
+      // Any authenticated user (including anonymous) can read session documents
+      allow read: if request.auth != null;
+      // Only authenticated (non-anonymous) users can create sessions (teachers)
+      allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      // Sessions are immutable after creation (no updates needed)
+      allow update, delete: if false;
+
+      match /responses/{pin} {
+        // Any authenticated user (including anonymous students) can read/create their own response
+        allow read: if request.auth != null;
+        // Students create their own response document (PIN is the doc ID)
+        allow create: if request.auth != null &&
+          request.resource.data.pin == pin &&
+          request.resource.data.score == null &&
+          request.resource.data.completedAt == null;
+        // Students can update only their own response to add answers or mark complete
+        allow update: if request.auth != null &&
+          resource.data.pin == pin &&
+          request.resource.data.pin == resource.data.pin &&
+          request.resource.data.name == resource.data.name &&
+          request.resource.data.joinedAt == resource.data.joinedAt;
+        allow delete: if false;
+      }
+    }
+
+    // Video Activity metadata — stored per teacher user
+    match /users/{userId}/video_activities/{activityId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // AI Usage Tracking — users can increment their own daily count
     match /ai_usage/{usageId} {
       // Document ID is formatted as {uid}_{YYYY-MM-DD}

@@ -380,4 +380,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 500,
     config: {},
   },
+  'video-activity': {
+    w: 640,
+    h: 560,
+    config: {
+      view: 'manager',
+      selectedActivityId: null,
+      selectedActivityTitle: null,
+      resultsSessionId: null,
+    },
+  },
 };

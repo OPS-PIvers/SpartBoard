@@ -40,7 +40,18 @@ export type AIGenerationType =
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'
-  | 'quiz';
+  | 'quiz'
+  | 'video-activity';
+
+export interface GeneratedVideoQuestion extends GeneratedQuestion {
+  /** Seconds from video start when this question should trigger. */
+  timestamp: number;
+}
+
+export interface GeneratedVideoActivity {
+  title: string;
+  questions: GeneratedVideoQuestion[];
+}
 
 /**
  * Generic helper to call the AI function and handle errors
@@ -212,4 +223,87 @@ export async function generateQuiz(prompt: string): Promise<GeneratedQuiz> {
     title: data.title,
     questions: data.questions,
   };
+}
+
+/**
+ * Generates timestamped multiple-choice questions from a YouTube video's
+ * captions using the dedicated `generateVideoActivity` Cloud Function.
+ *
+ * @param url - Full YouTube video URL.
+ * @param questionCount - Desired number of questions (clamped 1–20 server-side).
+ * @returns Generated activity title and questions with timestamps.
+ * @throws Error if the video has no captions, is private/restricted, or generation fails.
+ */
+export async function generateVideoActivity(
+  url: string,
+  questionCount: number
+): Promise<GeneratedVideoActivity> {
+  try {
+    const fn = httpsCallable<
+      { url: string; questionCount: number },
+      GeneratedVideoActivity
+    >(functions, 'generateVideoActivity');
+
+    const result = await fn({ url, questionCount });
+
+    if (
+      !result.data.title ||
+      !Array.isArray(result.data.questions) ||
+      result.data.questions.length === 0
+    ) {
+      throw new Error(
+        'Invalid response format from AI: activity must have at least one question'
+      );
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Video Activity Generation Error:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(
+      'Failed to generate video activity. Please try again with a different video.'
+    );
+  }
+}
+
+/**
+ * Admin-gated fallback: uses Gemini multimodal audio understanding to generate
+ * timestamped questions for videos that have no captions available.
+ *
+ * Only callable when the `video-activity-audio-transcription` feature permission
+ * is enabled in Firestore and the user has admin access.
+ *
+ * @param url - Full YouTube video URL.
+ * @param questionCount - Desired number of questions.
+ */
+export async function transcribeVideoWithGemini(
+  url: string,
+  questionCount: number
+): Promise<GeneratedVideoActivity> {
+  try {
+    const fn = httpsCallable<
+      { url: string; questionCount: number },
+      GeneratedVideoActivity
+    >(functions, 'transcribeVideoWithGemini');
+
+    const result = await fn({ url, questionCount });
+
+    if (
+      !result.data.title ||
+      !Array.isArray(result.data.questions) ||
+      result.data.questions.length === 0
+    ) {
+      throw new Error('Invalid response format from AI');
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('Audio Transcription Error:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to transcribe video. Please try again.');
+  }
 }

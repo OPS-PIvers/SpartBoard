@@ -7,6 +7,7 @@ import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { GoogleAuth } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
+import { YoutubeTranscript } from 'youtube-transcript';
 
 admin.initializeApp();
 
@@ -39,7 +40,8 @@ interface AIData {
     | 'poll'
     | 'dashboard-layout'
     | 'instructional-routine'
-    | 'ocr';
+    | 'ocr'
+    | 'quiz';
   prompt?: string;
   image?: string; // base64 data
 }
@@ -469,6 +471,32 @@ export const generateWithAI = functionsV1
         `,
           userPrompt: 'Extract text from this image.',
         }),
+        quiz: () => ({
+          systemPrompt: `
+          You are an expert teacher creating a classroom quiz.
+          Generate a quiz based on the topic or content provided within <topic> tags.
+          Return JSON in this exact format:
+          {
+            "title": "Quiz title",
+            "questions": [
+              {
+                "text": "Question text",
+                "type": "MC",
+                "correctAnswer": "The correct answer",
+                "incorrectAnswers": ["Wrong answer 1", "Wrong answer 2", "Wrong answer 3"],
+                "timeLimit": 30
+              }
+            ]
+          }
+          Rules:
+          1. Generate 5-10 questions unless the user specifies a number.
+          2. Use only "MC" (Multiple Choice) type.
+          3. Each question must have exactly 3 incorrect answers.
+          4. Time limit should be 20-60 seconds depending on question complexity.
+          5. Questions should progress from easier to harder.
+        `,
+          userPrompt: `Topic/Content: <topic>${sanitizedUserInput}</topic>`,
+        }),
       };
 
       const promptDataFn = promptMap[genType];
@@ -822,3 +850,435 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Video Activity: Caption-based AI question generation
+// ---------------------------------------------------------------------------
+
+interface VideoActivityRequestData {
+  url: string;
+  questionCount: number;
+}
+
+interface GeneratedVideoQuestion {
+  text: string;
+  timestamp: number;
+  correctAnswer: string;
+  incorrectAnswers: string[];
+  timeLimit: number;
+}
+
+interface GeneratedVideoActivity {
+  title: string;
+  questions: GeneratedVideoQuestion[];
+}
+
+/**
+ * Fetches YouTube captions and uses Gemini to generate timestamped
+ * multiple-choice questions for the Video Activity widget.
+ */
+export const generateVideoActivity = functionsV1
+  .runWith({
+    secrets: ['GEMINI_API_KEY'],
+    memory: '512MB',
+    timeoutSeconds: 120,
+  })
+  .https.onCall(
+    async (
+      data: VideoActivityRequestData,
+      context
+    ): Promise<GeneratedVideoActivity> => {
+      if (!context.auth) {
+        throw new functionsV1.https.HttpsError(
+          'unauthenticated',
+          'The function must be called while authenticated.'
+        );
+      }
+
+      const { url, questionCount } = data;
+
+      if (!url || typeof url !== 'string') {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'A valid YouTube URL is required.'
+        );
+      }
+
+      const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
+
+      // Extract video ID from URL
+      const videoIdMatch = url.match(
+        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+      );
+      const videoId = videoIdMatch?.[1];
+
+      if (!videoId) {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'Could not extract a video ID from the provided URL. Please paste a valid YouTube link.'
+        );
+      }
+
+      // Fetch transcript
+      type TranscriptItem = { text: string; offset: number; duration: number };
+      type TranscriptFetcher = {
+        fetchTranscript: (id: string) => Promise<TranscriptItem[]>;
+      };
+      let transcriptItems: TranscriptItem[] = [];
+      try {
+        transcriptItems = await (
+          YoutubeTranscript as unknown as TranscriptFetcher
+        ).fetchTranscript(videoId);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[generateVideoActivity] Transcript fetch failed for ${videoId}:`,
+          msg
+        );
+        throw new functionsV1.https.HttpsError(
+          'not-found',
+          'No captions are available for this video. Try a different video, or ask your admin to enable Gemini audio transcription.'
+        );
+      }
+
+      if (!transcriptItems || transcriptItems.length === 0) {
+        throw new functionsV1.https.HttpsError(
+          'not-found',
+          'No captions are available for this video. Try a different video, or ask your admin to enable Gemini audio transcription.'
+        );
+      }
+
+      // Build structured transcript text (timestamp + text per segment)
+      const transcriptText = transcriptItems
+        .map((item) => {
+          const secs = Math.floor((item.offset ?? 0) / 1000);
+          const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+          const ss = String(secs % 60).padStart(2, '0');
+          return `[${mm}:${ss}] ${item.text.trim()}`;
+        })
+        .join('\n');
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new functionsV1.https.HttpsError(
+          'internal',
+          'Gemini API Key is missing on the server.'
+        );
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+
+      const systemPrompt = `You are an expert teacher creating a video comprehension activity.
+You will be given a timed transcript of a YouTube video.
+Generate exactly ${count} multiple-choice questions that check understanding of key concepts.
+
+CRITICAL RULES:
+1. Each question's "timestamp" field MUST be the exact second (as an integer) when the answer appears in the transcript.
+   Convert "[MM:SS]" to total seconds: e.g. "[02:15]" → 135.
+2. Questions must be in ascending timestamp order.
+3. Each question must have exactly 3 plausible but clearly incorrect answers.
+4. Only use "MC" (Multiple Choice) type.
+5. Time limit should be 20-45 seconds per question.
+6. Return ONLY valid JSON — no markdown fences, no commentary.
+
+Return JSON in this exact format:
+{
+  "title": "Short descriptive activity title based on video content",
+  "questions": [
+    {
+      "text": "Question text here?",
+      "timestamp": 42,
+      "correctAnswer": "The correct answer",
+      "incorrectAnswers": ["Wrong 1", "Wrong 2", "Wrong 3"],
+      "timeLimit": 30
+    }
+  ]
+}`;
+
+      const userPrompt = `Timed transcript:\n\n${transcriptText}`;
+
+      const contents: Content[] = [
+        {
+          role: 'user',
+          parts: [{ text: systemPrompt + '\n\n' + userPrompt }],
+        },
+      ];
+
+      try {
+        const result = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents,
+          config: { responseMimeType: 'application/json' },
+        });
+
+        const text = result.text;
+        if (!text) throw new Error('Empty response from AI');
+
+        const parsed = JSON.parse(text) as GeneratedVideoActivity;
+
+        if (
+          !parsed.title ||
+          !Array.isArray(parsed.questions) ||
+          parsed.questions.length === 0
+        ) {
+          throw new Error('Invalid response structure from AI');
+        }
+
+        return parsed;
+      } catch (error: unknown) {
+        console.error('[generateVideoActivity] Gemini error:', error);
+        const msg =
+          error instanceof Error ? error.message : 'AI generation failed';
+        throw new functionsV1.https.HttpsError('internal', msg);
+      }
+    }
+  );
+
+// ---------------------------------------------------------------------------
+// Video Activity: Admin-gated Gemini audio transcription fallback
+// For videos that do not have captions available.
+// ---------------------------------------------------------------------------
+
+interface AudioTranscriptionRequestData {
+  url: string;
+  questionCount: number;
+}
+
+interface AudioTranscriptionPermConfig {
+  dailyLimit?: number;
+  model?: string;
+}
+
+interface AudioTranscriptionPerm {
+  enabled: boolean;
+  accessLevel: 'admin' | 'beta' | 'all';
+  betaUsers?: string[];
+  config?: AudioTranscriptionPermConfig;
+}
+
+/**
+ * Admin-only fallback: uses Gemini multimodal to transcribe a video that has
+ * no captions, then generates timestamped quiz questions.
+ *
+ * Gated behind global_permissions/video-activity-audio-transcription.
+ * Separate daily usage counter to control costs independently.
+ *
+ * NOTE: Audio/video extraction from YouTube may be subject to YouTube Terms of
+ * Service. This feature is disabled by default and must be explicitly enabled
+ * by an administrator who accepts the associated risk.
+ */
+export const transcribeVideoWithGemini = functionsV1
+  .runWith({
+    secrets: ['GEMINI_API_KEY'],
+    memory: '1GB',
+    timeoutSeconds: 300,
+  })
+  .https.onCall(
+    async (
+      data: AudioTranscriptionRequestData,
+      context
+    ): Promise<GeneratedVideoActivity> => {
+      if (!context.auth) {
+        throw new functionsV1.https.HttpsError(
+          'unauthenticated',
+          'The function must be called while authenticated.'
+        );
+      }
+
+      const uid = context.auth.uid;
+      const email = context.auth.token.email;
+
+      if (!email) {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'User must have an email associated with their account.'
+        );
+      }
+
+      const db = admin.firestore();
+
+      // Check feature permission — admin-gated, off by default
+      const permDoc = await db
+        .collection('global_permissions')
+        .doc('video-activity-audio-transcription')
+        .get();
+
+      if (!permDoc.exists) {
+        throw new functionsV1.https.HttpsError(
+          'permission-denied',
+          'Gemini audio transcription is not enabled. An administrator must enable it in Feature Permissions.'
+        );
+      }
+
+      const perm = permDoc.data() as AudioTranscriptionPerm;
+
+      if (!perm.enabled) {
+        throw new functionsV1.https.HttpsError(
+          'permission-denied',
+          'Gemini audio transcription is currently disabled.'
+        );
+      }
+
+      // Check admin status
+      const adminDoc = await db
+        .collection('admins')
+        .doc(email.toLowerCase())
+        .get();
+      const isAdmin = adminDoc.exists;
+
+      if (!isAdmin) {
+        if (perm.accessLevel === 'admin') {
+          throw new functionsV1.https.HttpsError(
+            'permission-denied',
+            'Gemini audio transcription is restricted to administrators.'
+          );
+        }
+        if (
+          perm.accessLevel === 'beta' &&
+          !perm.betaUsers?.includes(email.toLowerCase())
+        ) {
+          throw new functionsV1.https.HttpsError(
+            'permission-denied',
+            'You do not have access to Gemini audio transcription.'
+          );
+        }
+      }
+
+      // Separate, lower daily usage limit for audio (costly)
+      const today = new Date().toISOString().split('T')[0];
+      const usageRef = db.collection('ai_usage').doc(`${uid}_audio_${today}`);
+      const AUDIO_DAILY_LIMIT = perm.config?.dailyLimit ?? 5;
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const usageDoc = await transaction.get(usageRef);
+          const currentUsage = usageDoc.exists
+            ? (usageDoc.data()?.count as number) || 0
+            : 0;
+
+          if (currentUsage >= AUDIO_DAILY_LIMIT) {
+            throw new functionsV1.https.HttpsError(
+              'resource-exhausted',
+              `Daily audio transcription limit reached (${AUDIO_DAILY_LIMIT} per day). Please try again tomorrow.`
+            );
+          }
+
+          transaction.set(
+            usageRef,
+            {
+              count: currentUsage + 1,
+              email,
+              lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+      } catch (error) {
+        if (
+          error &&
+          typeof error === 'object' &&
+          'code' in error &&
+          'message' in error
+        ) {
+          throw error;
+        }
+        throw new functionsV1.https.HttpsError(
+          'internal',
+          'Failed to verify audio transcription usage limits.'
+        );
+      }
+
+      const { url, questionCount } = data;
+      const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
+
+      const videoIdMatch = url.match(
+        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+      );
+      const videoId = videoIdMatch?.[1];
+
+      if (!videoId) {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'Could not extract a video ID from the provided URL.'
+        );
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new functionsV1.https.HttpsError(
+          'internal',
+          'Gemini API Key is missing on the server.'
+        );
+      }
+
+      // Use the YouTube video URL directly with Gemini's video understanding
+      const model = perm.config?.model ?? 'gemini-3.1-flash-lite-preview';
+      const ai = new GoogleGenAI({ apiKey });
+
+      const systemPrompt = `You are an expert teacher creating a video comprehension activity.
+Watch the provided YouTube video and generate exactly ${count} multiple-choice questions.
+
+CRITICAL RULES:
+1. Each question's "timestamp" field MUST be an integer (seconds from start) when the answer is discussed.
+2. Questions must be in ascending timestamp order.
+3. Each question must have exactly 3 plausible but incorrect answers.
+4. Only use "MC" type.
+5. Time limit should be 20-45 seconds per question.
+6. Return ONLY valid JSON — no markdown fences, no commentary.
+
+Return JSON:
+{
+  "title": "Short descriptive activity title",
+  "questions": [
+    {
+      "text": "Question?",
+      "timestamp": 42,
+      "correctAnswer": "Correct answer",
+      "incorrectAnswers": ["Wrong 1", "Wrong 2", "Wrong 3"],
+      "timeLimit": 30
+    }
+  ]
+}`;
+
+      try {
+        const result = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  fileData: {
+                    mimeType: 'video/mp4',
+                    fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+                  },
+                },
+                { text: systemPrompt },
+              ],
+            },
+          ],
+          config: { responseMimeType: 'application/json' },
+        });
+
+        const text = result.text;
+        if (!text) throw new Error('Empty response from AI');
+
+        const parsed = JSON.parse(text) as GeneratedVideoActivity;
+
+        if (
+          !parsed.title ||
+          !Array.isArray(parsed.questions) ||
+          parsed.questions.length === 0
+        ) {
+          throw new Error('Invalid response structure from AI');
+        }
+
+        return parsed;
+      } catch (error: unknown) {
+        console.error('[transcribeVideoWithGemini] Gemini error:', error);
+        const msg =
+          error instanceof Error ? error.message : 'AI generation failed';
+        throw new functionsV1.https.HttpsError('internal', msg);
+      }
+    }
+  );

@@ -1,6 +1,7 @@
 import {
   Clock,
   Timer,
+  PlayCircle,
   TrafficCone,
   Type,
   CheckSquare,
@@ -210,5 +211,15 @@ export const TOOLS: ToolMetadata[] = [
     icon: Wand2,
     label: 'Starter Packs',
     color: 'bg-indigo-600',
+  },
+  {
+    type: 'video-activity',
+    icon: PlayCircle,
+    label: 'Video Activity',
+    color: 'bg-red-500',
+    defaultWidth: 640,
+    defaultHeight: 560,
+    minWidth: 480,
+    minHeight: 400,
   },
 ];

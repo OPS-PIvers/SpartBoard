@@ -157,6 +157,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./StarterPack/Widget'),
     'StarterPackWidget'
   ),
+  'video-activity': lazyNamed(
+    () => import('./VideoActivityWidget/index'),
+    'VideoActivityWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -264,6 +268,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   'starter-pack': lazyNamed(
     () => import('./StarterPack/Settings'),
     'StarterPackSettings'
+  ),
+  'video-activity': lazyNamed(
+    () => import('./VideoActivityWidget/index'),
+    'VideoActivityWidgetSettings'
   ),
 };
 
@@ -684,6 +692,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'starter-pack': {
     baseWidth: 600,
     baseHeight: 500,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'video-activity': {
+    baseWidth: 640,
+    baseHeight: 560,
     canSpread: true,
     skipScaling: true,
     padding: 0,

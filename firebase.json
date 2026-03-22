@@ -29,6 +29,15 @@
     ],
     "headers": [
       {
+        "source": "/activity/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "frame-ancestors 'self' https://*.instructure.com https://*.schoology.com https://classroom.google.com"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|ico)",
         "headers": [
           {

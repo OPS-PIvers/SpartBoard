@@ -32,6 +32,11 @@ const NextUpStudentApp = lazy(() =>
     default: module.NextUpStudentApp,
   }))
 );
+const VideoActivityStudentApp = lazy(() =>
+  import('./components/videoActivity/VideoActivityStudentApp').then(
+    (module) => ({ default: module.VideoActivityStudentApp })
+  )
+);
 const LoginScreen = lazy(() =>
   import('./components/auth/LoginScreen').then((module) => ({
     default: module.LoginScreen,
@@ -108,6 +113,20 @@ const App: React.FC = () => {
     pathname === '/nextup' || pathname.startsWith('/nextup/');
   const isRemoteRoute =
     pathname === '/remote' || pathname.startsWith('/remote/');
+  const isVideoActivityRoute =
+    pathname === '/activity' || pathname.startsWith('/activity/');
+
+  // Video Activity student route — anonymous entry, no teacher auth needed
+  if (isVideoActivityRoute) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <VideoActivityStudentApp />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
 
   if (isStudentRoute) {
     return (

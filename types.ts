@@ -47,7 +47,8 @@ export type WidgetType =
   | 'numberLine'
   | 'syntax-framer'
   | 'hotspot-image'
-  | 'starter-pack';
+  | 'starter-pack'
+  | 'video-activity';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1206,6 +1207,94 @@ export interface QuizConfig {
   resultsSessionId: string | null;
 }
 
+// --- VIDEO ACTIVITY TYPES ---
+
+/**
+ * A quiz question that is tied to a specific timestamp in a YouTube video.
+ * Only MC question type is supported in V1.
+ */
+export interface VideoActivityQuestion extends QuizQuestion {
+  /** Seconds into the video when this question should trigger. */
+  timestamp: number;
+}
+
+/** Full video activity data stored in Google Drive as JSON. */
+export interface VideoActivityData {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  /** Total video duration in seconds, populated after the first player load. */
+  videoDuration?: number;
+  questions: VideoActivityQuestion[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Lightweight metadata stored in Firestore (avoids Drive API on every list). */
+export interface VideoActivityMetadata {
+  id: string;
+  title: string;
+  youtubeUrl: string;
+  driveFileId: string;
+  questionCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type VideoActivityView = 'manager' | 'create' | 'editor' | 'results';
+
+/** Widget configuration for the video activity widget (teacher side). */
+export interface VideoActivityConfig {
+  view: VideoActivityView;
+  selectedActivityId: string | null;
+  selectedActivityTitle: string | null;
+  /** Session ID for the most recently created/viewed session. */
+  resultsSessionId: string | null;
+}
+
+/**
+ * A Firestore session document giving students access to an activity.
+ * Stored at /video_activity_sessions/{sessionId}
+ */
+export interface VideoActivitySession {
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  teacherUid: string;
+  youtubeUrl: string;
+  /** Full questions including correctAnswer — used server-side for grading. */
+  questions: VideoActivityQuestion[];
+  /**
+   * Roster PINs allowed to join. Teacher sets this when assigning to a class.
+   * Empty array means any PIN is accepted.
+   */
+  allowedPins: string[];
+  createdAt: number;
+  /** Optional Unix timestamp when the session link expires. */
+  expiresAt?: number;
+}
+
+/** A single answer submitted by a student for a video activity question. */
+export interface VideoActivityAnswer {
+  questionId: string;
+  answer: string;
+  isCorrect: boolean;
+  answeredAt: number;
+}
+
+/**
+ * Per-student response document in Firestore.
+ * Stored at /video_activity_sessions/{sessionId}/responses/{pin}
+ */
+export interface VideoActivityResponse {
+  pin: string;
+  name: string;
+  joinedAt: number;
+  answers: VideoActivityAnswer[];
+  completedAt: number | null;
+  score: number | null;
+}
+
 export type TalkingToolConfig = Record<string, never>;
 
 export interface NextUpQueueItem {
@@ -1613,7 +1702,8 @@ export type WidgetConfig =
   | ConceptWebConfig
   | SyntaxFramerConfig
   | HotspotImageConfig
-  | StarterPackConfig;
+  | StarterPackConfig
+  | VideoActivityConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -1714,7 +1804,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
                                                                                                 ? HotspotImageConfig
                                                                                                 : T extends 'starter-pack'
                                                                                                   ? StarterPackConfig
-                                                                                                  : never;
+                                                                                                  : T extends 'video-activity'
+                                                                                                    ? VideoActivityConfig
+                                                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -1876,7 +1968,8 @@ export type GlobalFeature =
   | 'smart-poll'
   | 'screen-recording'
   | 'remote-control'
-  | 'embed-mini-app';
+  | 'embed-mini-app'
+  | 'video-activity-audio-transcription';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
