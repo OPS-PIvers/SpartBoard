@@ -1240,6 +1240,7 @@ export const FeatureConfigurationPanel: React.FC<
         'miniApp',
         'expectations',
         'talking-tool',
+        'quiz',
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">

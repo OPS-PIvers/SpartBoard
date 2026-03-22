@@ -372,9 +372,8 @@ Config: `components/admin/QRConfigurationPanel.tsx` _(dedicated panel via `BUILD
 
 ---
 
-[ ] Quiz — Type: `quiz` | Label: "Quiz"
-Config: `components/admin/QuizConfigurationPanel.tsx` _(does not exist yet — create and register in
-`BUILDING_CONFIG_PANELS`)_
+[X] Quiz — Type: `quiz` | Label: "Quiz"
+Config: Inline in `components/admin/FeatureConfigurationPanel.tsx` — no dedicated file. Added to exclusion array to render only DockDefaultsPanel.
 
 Note: `QuizWidget/Settings.tsx` exposes only `customTitle` (not a meaningful building default). Admin
 config opportunity is primarily admin-only (e.g., a global quiz library). Investigate admin-only
@@ -383,8 +382,7 @@ settings before implementing.
 - **User-level Defaults:**
   - None.
 - **Admin-only Settings:**
-  - `dockDefaults`: Per-building dock visibility (already automatic via generic handler).
-  - Investigate: global quiz library, default quiz source/integration settings.
+  - `dockDefaults`: Per-building dock visibility.
 
 ---
 
