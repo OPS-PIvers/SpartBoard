@@ -156,3 +156,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Discovered multiple hardcoded instances of the pattern `bg-white rounded-[xl|2xl|3xl] border border-slate-200 shadow-sm` acting as card containers across random widget settings, app rows, sortable items, and configuration panels.
 **Fix:** Refactored multiple target files to use the `Card` component (`components/common/Card.tsx`) to unify standard padding, border radius, and shadow hover states.
+
+## 2026-03-15 - Standardized Modal Overlays
+
+**Drift:** Discovered multiple hardcoded instances of the pattern `bg-black/50` acting as fixed modal overlays across various admin settings panels and modals. This deviated from the standard `bg-slate-900/50 backdrop-blur-sm` used in `components/common/Modal.tsx`.
+**Fix:** Refactored multiple target files (`InstructionalRoutinesManager.tsx`, `BackgroundManager.tsx`, `MiniAppLibraryModal.tsx`, `StickerLibraryModal.tsx`, `PdfLibraryModal.tsx`, `CatalystConfigurationModal.tsx`, `GraphicOrganizerConfigurationModal.tsx`) to use the standard `bg-slate-900/50 backdrop-blur-sm` overlay classes to enforce design system consistency and eliminate "snowflakes".

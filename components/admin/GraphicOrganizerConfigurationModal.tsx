@@ -249,7 +249,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-black/50 p-4 font-sans backdrop-blur-sm">
+    <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-slate-900/50 p-4 font-sans backdrop-blur-sm">
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}

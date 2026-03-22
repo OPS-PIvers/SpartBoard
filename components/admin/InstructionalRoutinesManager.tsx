@@ -45,7 +45,7 @@ export const InstructionalRoutinesManager: React.FC<
   }, []);
 
   return (
-    <div className="fixed inset-0 z-modal-nested bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-black text-sm uppercase tracking-widest text-slate-500">
@@ -163,7 +163,7 @@ export const InstructionalRoutinesManager: React.FC<
 
       {/* Routine Editor Modal */}
       {editingRoutine && (
-        <div className="fixed inset-0 z-modal-deep bg-black/50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-modal-deep bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-2xl h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             <LibraryManager
               routine={editingRoutine}
