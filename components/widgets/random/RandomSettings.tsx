@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useDashboard } from '../../../context/useDashboard';
+import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { WidgetData, RandomConfig } from '../../../types';
-import { RosterModeControl } from '../../common/RosterModeControl';
-import { Toggle } from '../../common/Toggle';
+import { WidgetData, RandomConfig } from '@/types';
+import { RosterModeControl } from '@/components/common/RosterModeControl';
+import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
 import {
   Users,
