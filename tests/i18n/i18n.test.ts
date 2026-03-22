@@ -7,6 +7,8 @@ describe('i18n config', () => {
     expect(i18n.options.supportedLngs).toEqual(
       expect.arrayContaining(expectedLangs)
     );
+    // Added cimode which is automatically added by i18next in tests/debug
+    expect(i18n.options.supportedLngs).toHaveLength(expectedLangs.length + 1);
   });
 
   it('should default to english fallback', () => {
