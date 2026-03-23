@@ -223,6 +223,51 @@ describe('ScoreboardWidget', () => {
     );
   });
 
+  it('correctly handles rapid successive clicks without dropping updates', () => {
+    const teams = [
+      { id: '1', name: 'Team One', score: 10, color: 'bg-blue-500' },
+    ];
+    const widget: WidgetData = {
+      id: 'test-id',
+      type: 'scoreboard',
+      config: { teams } as ScoreboardConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    };
+
+    // To simulate rapid clicks, we render once and fire multiple click events.
+    // The component should synchronously update its internal ref and issue updateWidget
+    // with the accumulating score.
+    render(<ScoreboardWidget widget={widget} />);
+
+    mockUpdateWidget.mockClear();
+
+    const plusBtns = screen.getAllByRole('button', { name: /increase score/i });
+
+    // Simulate rapid, synchronous clicks
+    fireEvent.click(plusBtns[0]); // Score goes 10 -> 11
+    fireEvent.click(plusBtns[0]); // Score goes 11 -> 12
+    fireEvent.click(plusBtns[0]); // Score goes 12 -> 13
+
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(3);
+
+    // Check that the last call correctly accumulated the score to 13
+    expect(mockUpdateWidget).toHaveBeenLastCalledWith(
+      'test-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ id: '1', score: 13 }),
+          ]),
+        }),
+      })
+    );
+  });
+
   it('resets scores after confirmation', () => {
     const teams = [
       { id: '1', name: 'Team One', score: 10, color: 'bg-blue-500' },

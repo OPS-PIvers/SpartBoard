@@ -57,14 +57,44 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const handleUpdateScore = useCallback(
     (teamId: string, delta: number) => {
       const currentConfig = configRef.current;
-      const currentTeams = Array.isArray(currentConfig.teams)
-        ? currentConfig.teams
-        : DEFAULT_TEAMS;
+
+      let currentTeams: ScoreboardTeam[];
+      if (Array.isArray(currentConfig.teams)) {
+        currentTeams = currentConfig.teams;
+      } else if (
+        'teamA' in currentConfig ||
+        'teamB' in currentConfig ||
+        'scoreA' in currentConfig ||
+        'scoreB' in currentConfig
+      ) {
+        currentTeams = [
+          {
+            id: 'team-a',
+            name: currentConfig.teamA ?? 'Team A',
+            score: currentConfig.scoreA ?? 0,
+            color: 'bg-blue-500',
+          },
+          {
+            id: 'team-b',
+            name: currentConfig.teamB ?? 'Team B',
+            score: currentConfig.scoreB ?? 0,
+            color: 'bg-red-500',
+          },
+        ];
+      } else {
+        currentTeams = DEFAULT_TEAMS;
+      }
+
       const newTeams = currentTeams.map((t) =>
         t.id === teamId ? { ...t, score: Math.max(0, t.score + delta) } : t
       );
+      const nextConfig = { ...currentConfig, teams: newTeams };
+
+      // Update ref synchronously to prevent stale state on rapid clicks
+      configRef.current = nextConfig;
+
       updateWidget(widget.id, {
-        config: { ...currentConfig, teams: newTeams },
+        config: nextConfig,
       });
     },
     [widget.id, updateWidget]

@@ -1,7 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderPlus, X } from 'lucide-react';
-import { useSortable, SortableContext, arrayMove } from '@dnd-kit/sortable';
+import {
+  useSortable,
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import {
   DndContext,
   closestCenter,
@@ -156,7 +161,10 @@ export const FolderItem = React.memo(
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                <SortableContext items={folder.items}>
+                <SortableContext
+                  items={folder.items}
+                  strategy={rectSortingStrategy}
+                >
                   <div className="grid grid-cols-3 gap-3">
                     {folder.items.map((type) => {
                       const tool = TOOLS.find((t) => t.type === type);
