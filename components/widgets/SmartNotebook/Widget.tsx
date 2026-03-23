@@ -93,9 +93,15 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Check file size (limit to 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      addToast('File is too large (max 50MB)', 'error');
+    // Retrieve storage limit from admin configuration, fallback to 50MB
+    const rawLimit = config?.storageLimitMb;
+    const parsedLimit =
+      typeof rawLimit === 'number' && Number.isFinite(rawLimit) ? rawLimit : 50;
+    const limitMb = Math.max(0, parsedLimit);
+
+    // Check file size (0 means no limit)
+    if (limitMb > 0 && file.size > limitMb * 1024 * 1024) {
+      addToast(`File is too large (max ${limitMb}MB)`, 'error');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }

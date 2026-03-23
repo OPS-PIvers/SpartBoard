@@ -50,6 +50,7 @@ import { ConceptWebConfigurationPanel } from './ConceptWebConfigurationPanel';
 import { SyntaxFramerConfigurationPanel } from './SyntaxFramerConfigurationPanel';
 import { SeatingChartConfigurationPanel } from './SeatingChartConfigurationPanel';
 import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
+import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -91,6 +92,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
     SeatingChartConfigurationPanel as unknown as BuildingConfigPanel,
   'reveal-grid': RevealGridConfigurationPanel as unknown as BuildingConfigPanel,
   classes: ClassesConfigurationPanel as unknown as BuildingConfigPanel,
+  smartNotebook:
+    SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {

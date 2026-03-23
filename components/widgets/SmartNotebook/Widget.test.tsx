@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
 import { SmartNotebookWidget } from './Widget';
 import { useAuth } from '@/context/useAuth';
@@ -27,7 +33,7 @@ describe('SmartNotebookWidget', () => {
   const mockWidget = {
     id: 'widget-1',
     type: 'smartNotebook',
-    config: { activeNotebookId: null },
+    config: { activeNotebookId: null, storageLimitMb: 50 },
     w: 600,
     h: 500,
     x: 0,
@@ -70,6 +76,90 @@ describe('SmartNotebookWidget', () => {
     expect(screen.getByText('Library is empty')).toBeInTheDocument();
     // Use getAllByText because button and input might have similar text or just find by role
     expect(screen.getByRole('button', { name: /Import/i })).toBeInTheDocument();
+  });
+
+  it('rejects files over the storage limit', async () => {
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_query: unknown, callback: (snapshot: { docs: unknown[] }) => void) => {
+        callback({ docs: [] });
+        return vi.fn();
+      }
+    );
+
+    const limitedWidget = {
+      ...mockWidget,
+      config: { ...mockWidget.config, storageLimitMb: 1 }, // 1MB limit
+    };
+
+    const mockFile = new File(['dummy'], 'huge.notebook', {
+      type: 'application/zip',
+    });
+    Object.defineProperty(mockFile, 'size', { value: 2 * 1024 * 1024 });
+
+    const { container } = render(
+      <SmartNotebookWidget widget={limitedWidget as WidgetData} />
+    );
+
+    const fileInput = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'File is too large (max 1MB)',
+      'error'
+    );
+    expect(parser.parseNotebookFile).not.toHaveBeenCalled();
+  });
+
+  it('allows files when storage limit is 0 (no limit)', async () => {
+    (firestore.onSnapshot as unknown as Mock).mockImplementation(
+      (_query: unknown, callback: (snapshot: { docs: unknown[] }) => void) => {
+        callback({ docs: [] });
+        return vi.fn();
+      }
+    );
+
+    const noLimitWidget = {
+      ...mockWidget,
+      config: { ...mockWidget.config, storageLimitMb: 0 },
+    };
+
+    const mockFile = new File(
+      ['dummy'], // Mock file is small for testing parse, we mock property below
+      'massive.notebook',
+      { type: 'application/zip' }
+    );
+    Object.defineProperty(mockFile, 'size', { value: 100 * 1024 * 1024 });
+
+    (parser.parseNotebookFile as unknown as Mock).mockResolvedValue({
+      title: 'Test Notebook',
+      pages: [],
+      assets: [],
+    });
+
+    const { container } = render(
+      <SmartNotebookWidget widget={noLimitWidget as WidgetData} />
+    );
+
+    const fileInput = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(mockAddToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('File is too large'),
+      'error'
+    );
+    expect(parser.parseNotebookFile).toHaveBeenCalledWith(mockFile);
   });
 
   it('handles import flow with assets', async () => {
