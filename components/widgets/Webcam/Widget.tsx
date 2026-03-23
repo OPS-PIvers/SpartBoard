@@ -12,7 +12,7 @@ import {
   Video,
   FlipHorizontal,
 } from 'lucide-react';
-import { WidgetData, TextConfig } from '@/types';
+import { WidgetData, TextConfig, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -33,6 +33,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const config = (webcamPermission?.config ?? {}) as WebcamGlobalConfig;
   const ocrMode = config.ocrMode ?? 'standard';
+  const widgetConfig = _widget.config as WebcamConfig;
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isMirrored, setIsMirrored] = useState(true);
@@ -105,6 +106,44 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     setSelectedDeviceId(devices[nextIndex].deviceId);
   }, [devices, selectedDeviceId]);
 
+  const performSendToNotes = useCallback(
+    (text: string) => {
+      if (!text) return;
+
+      // Find an existing text widget
+      const existingTextWidget = activeDashboard?.widgets.find(
+        (w) => w.type === 'text'
+      );
+
+      if (existingTextWidget) {
+        // Append text
+        const existingConfig = existingTextWidget.config as TextConfig;
+        const currentContent = existingConfig.content ?? '';
+        const newContent = currentContent
+          ? `${currentContent}<br/><br/>${text}`
+          : text;
+        updateWidget(existingTextWidget.id, {
+          config: {
+            ...existingConfig,
+            content: newContent,
+          },
+        });
+        addToast('Text appended to Notes', 'success');
+      } else {
+        // Create new text widget
+        addWidget('text', {
+          x: _widget.x + _widget.w + 20,
+          y: _widget.y,
+          config: {
+            content: text,
+          },
+        });
+        addToast('Created new Notes widget with text', 'success');
+      }
+    },
+    [activeDashboard, updateWidget, addWidget, addToast, _widget]
+  );
+
   const extractText = useCallback(async () => {
     if (!videoRef.current) return;
 
@@ -131,8 +170,12 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
         text = result.data.text;
       }
 
-      setExtractedText(text);
-      setShowTextModal(true);
+      if (widgetConfig.autoSendToNotes) {
+        performSendToNotes(text);
+      } else {
+        setExtractedText(text);
+        setShowTextModal(true);
+      }
     } catch (err) {
       console.error('OCR Error:', err);
       await showAlert('Failed to extract text. Please try again.', {
@@ -142,7 +185,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     } finally {
       setIsExtracting(false);
     }
-  }, [isMirrored, ocrMode, showAlert]);
+  }, [isMirrored, ocrMode, showAlert, widgetConfig.autoSendToNotes, performSendToNotes]);
 
   const handleCopy = useCallback(() => {
     if (extractedText) {
@@ -154,46 +197,9 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
 
   const handleSendToNotes = useCallback(() => {
     if (!extractedText) return;
-
-    // Find an existing text widget
-    const existingTextWidget = activeDashboard?.widgets.find(
-      (w) => w.type === 'text'
-    );
-
-    if (existingTextWidget) {
-      // Append text
-      const existingConfig = existingTextWidget.config as TextConfig;
-      const currentContent = existingConfig.content ?? '';
-      const newContent = currentContent
-        ? `${currentContent}<br/><br/>${extractedText}`
-        : extractedText;
-      updateWidget(existingTextWidget.id, {
-        config: {
-          ...existingConfig,
-          content: newContent,
-        },
-      });
-      addToast('Text appended to Notes', 'success');
-    } else {
-      // Create new text widget
-      addWidget('text', {
-        x: _widget.x + _widget.w + 20,
-        y: _widget.y,
-        config: {
-          content: extractedText,
-        },
-      });
-      addToast('Created new Notes widget with text', 'success');
-    }
+    performSendToNotes(extractedText);
     setShowTextModal(false);
-  }, [
-    extractedText,
-    activeDashboard,
-    updateWidget,
-    addWidget,
-    addToast,
-    _widget,
-  ]);
+  }, [extractedText, performSendToNotes]);
 
   const takePhoto = useCallback(() => {
     if (videoRef.current) {

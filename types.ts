@@ -321,6 +321,7 @@ export interface WebcamConfig {
   deviceId?: string;
   zoomLevel?: number;
   isMirrored?: boolean;
+  autoSendToNotes?: boolean;
 }
 
 export interface ScoreboardTeam {
