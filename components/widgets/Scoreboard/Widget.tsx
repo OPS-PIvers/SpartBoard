@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,

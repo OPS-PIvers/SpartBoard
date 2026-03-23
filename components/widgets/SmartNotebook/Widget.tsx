@@ -72,7 +72,14 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
         config: { ...config, activeNotebookId: null },
       });
     }
-  }, [activeNotebookId, activeNotebook, notebooks.length, widget.id, updateWidget, config]);
+  }, [
+    activeNotebookId,
+    activeNotebook,
+    notebooks.length,
+    widget.id,
+    updateWidget,
+    config,
+  ]);
 
   // Adjusting state while rendering: clamp currentPage when the active notebook shrinks
   const pageCount = activeNotebook?.pageUrls.length ?? 0;

@@ -53,7 +53,13 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Keep a ref to the latest config values so the Firestore callbacks can read
   // them without being listed as effect dependencies (which would cause the
   // subscription to be torn down and recreated on every weather update).
-  const weatherStateRef = React.useRef({ temp, feelsLike, condition, lastSync, config });
+  const weatherStateRef = React.useRef({
+    temp,
+    feelsLike,
+    condition,
+    lastSync,
+    config,
+  });
   weatherStateRef.current = { temp, feelsLike, condition, lastSync, config };
 
   // Initial Admin Proxy Fetch — only re-runs when the strategy itself changes
