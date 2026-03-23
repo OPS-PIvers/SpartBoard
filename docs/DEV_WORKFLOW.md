@@ -6,18 +6,14 @@ Each developer has their own persistent test environment on Firebase Hosting.
 
 ### Branch Names
 
-- `dev-paul` - Lead developer test environment
-- `dev-jen` - Developer 1 test environment
-- `dev-bailey` - Developer 2 test environment
-- `dev-joel` - Joel's test environment
-- `dev-jason` - Jason's test environment
+- Any branch starting with `dev-` (e.g., `dev-paul`, `dev-jane`) will automatically trigger a preview deployment.
 
 ### How It Works
 
 1. **Create your branch** (if it doesn't exist):
 
    ```bash
-   git checkout -b dev-paul  # or dev-jen, dev-bailey, dev-joel, dev-jason
+   git checkout -b dev-[your-name]
    ```
 
 2. **Make your changes and commit**:
@@ -37,11 +33,6 @@ Each developer has their own persistent test environment on Firebase Hosting.
    - Build your code
    - Deploy to a Firebase preview channel
      - Give you a unique URL like: `https://spartboard--dev-lead-XXXXXXXX.web.app`
-     - dev-paul: spartboard--dev-paul-g42pu859.web.app
-     - dev-jen: spartboard--dev-jen-w38uta3f.web.app
-     - dev-bailey: spartboard--dev-bailey-2w0bszdm.web.app
-     - dev-joel: spartboard--dev-joel-w38uta3f.web.app (example)
-     - dev-jason: spartboard--dev-jason-w38uta3f.web.app (example)
 5. **Find your URL**:
    - Go to your repo's "Actions" tab on GitHub
    - Click on the latest workflow run
@@ -81,6 +72,5 @@ Once you're happy with your changes on your dev branch:
 
 ## Troubleshooting
 
-- **Workflow not triggering?** Make sure you pushed to the exact branch name (`dev-lead`, `dev-developer1`, or `dev-developer2`)
+- **Workflow not triggering?** Make sure your branch name starts with `dev-` (e.g., `dev-jane`).
 - **Build failing?** Check the Actions tab for error details
-- **Need different branch names?** Edit [`.github/workflows/firebase-dev-deploy.yml`](.github/workflows/firebase-dev-deploy.yml) and update the branch list

@@ -186,7 +186,7 @@ Runs on pushes to `main` branch:
 
 #### 3. Dev Branch Deploy (`firebase-dev-deploy.yml`)
 
-Runs on pushes to `dev-paul`, `dev-jen`, `dev-bailey` branches:
+Runs on pushes to `dev-*` branches:
 
 - ✅ Type checking
 - ✅ Linting

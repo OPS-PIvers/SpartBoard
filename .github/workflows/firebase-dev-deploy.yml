@@ -3,11 +3,7 @@ name: Deploy Dev Branches to Firebase Preview
 on:
   push:
     branches:
-      - dev-paul        # Your branch
-      - dev-jen         # Developer 1's branch
-      - dev-bailey      # Developer 2's branch
-      - dev-joel        # Joel's branch
-      - dev-jason       # Jason's branch
+      - 'dev-*'
 
 jobs:
   lint:
