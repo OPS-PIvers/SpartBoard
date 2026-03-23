@@ -1552,10 +1552,22 @@ export interface RevealCard {
   bgColor?: string;
 }
 
+export interface MemoryCard {
+  id: string;
+  originalId: string;
+  content: string;
+  type: 'term' | 'definition';
+  isRevealed: boolean;
+  isMatched: boolean;
+  bgColor?: string;
+}
+
 export interface RevealGridConfig {
   columns: 2 | 3 | 4 | 5;
   cards: RevealCard[];
   revealMode: 'flip' | 'fade';
+  isMemoryMode?: boolean;
+  memoryCards?: MemoryCard[];
   fontFamily?: GlobalFontFamily;
   defaultCardColor?: string;
   defaultCardBackColor?: string;

@@ -307,6 +307,49 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
 
+      {/* Game Mode */}
+      <div>
+        <SettingsLabel>Game Mode</SettingsLabel>
+        <div className="flex bg-slate-100 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, isMemoryMode: false },
+              })
+            }
+            className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
+              !config.isMemoryMode
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Review
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, isMemoryMode: true },
+              })
+            }
+            className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
+              config.isMemoryMode
+                ? 'bg-white shadow-sm text-slate-800'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Memory
+          </button>
+        </div>
+        {config.isMemoryMode && (
+          <p className="text-xs text-slate-500 mt-2">
+            In Memory mode, the grid acts as a matching game. Terms and
+            definitions are hidden on the back of cards and randomly shuffled.
+          </p>
+        )}
+      </div>
+
       {/* Reveal Mode */}
       <div>
         <SettingsLabel>Reveal Mode</SettingsLabel>
