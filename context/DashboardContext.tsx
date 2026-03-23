@@ -51,7 +51,14 @@ const migrateToDockItems = (
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
-    widgets: d.widgets,
+    widgets: d.widgets.map((w) => {
+      const { config, ...rest } = w;
+      return {
+        ...rest,
+        // Fallback for old widgets without version
+        ...(w.version === undefined ? { config } : {}),
+      };
+    }),
     background: d.background,
     name: d.name,
     libraryOrder: d.libraryOrder,
@@ -704,7 +711,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
 
                 const configChangedLocally =
-                  JSON.stringify(lw.config) !== JSON.stringify(saved.config);
+                  lw.version !== undefined && saved.version !== undefined
+                    ? lw.version !== saved.version
+                    : JSON.stringify(lw.config) !==
+                      JSON.stringify(saved.config);
                 const layoutChangedLocally = LAYOUT_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
@@ -2144,6 +2154,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             h: defaults.h ?? 200,
             flipped: false,
             z: maxZ + 1,
+            version: 1,
             ...defaults,
             ...overrides,
             // Layer order: widget defaults → admin building defaults → saved global config → explicit overrides
@@ -2246,6 +2257,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 type: item.type,
                 flipped: false,
                 z: maxZ,
+                version: 1,
                 ...defaults,
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
@@ -2272,6 +2284,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               h: defaults.h ?? 250,
               flipped: false,
               z: maxZ,
+              version: 1,
               ...defaults,
               config: baseConfig,
             } as WidgetData;
@@ -2318,6 +2331,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             x: target.x + 20,
             y: target.y + 20,
             z: maxZ + 1,
+            version: 1,
             config: structuredClone(target.config),
           };
           return { ...d, widgets: [...d.widgets, duplicated] };
@@ -2377,12 +2391,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const newWidgets = d.widgets.map((w) => {
             if (w.id === id) {
               widgetType = w.type;
+              let newVersion = w.version;
+
+              let newConfig = w.config;
+              if (updates.config) {
+                newConfig = { ...w.config, ...updates.config };
+                if (JSON.stringify(w.config) !== JSON.stringify(newConfig)) {
+                  newVersion = (w.version ?? 1) + 1;
+                }
+              }
+
               return {
                 ...w,
                 ...updates,
-                config: updates.config
-                  ? { ...w.config, ...updates.config }
-                  : w.config,
+                version: newVersion,
+                config: newConfig,
               };
             }
             return w;

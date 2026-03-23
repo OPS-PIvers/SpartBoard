@@ -1855,6 +1855,7 @@ export interface WidgetData {
   h: number;
   z: number;
   flipped: boolean;
+  version?: number;
   minimized?: boolean;
   maximized?: boolean;
   customTitle?: string | null;
