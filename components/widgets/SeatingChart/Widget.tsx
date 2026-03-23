@@ -761,8 +761,11 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       return;
     }
 
+    const randomBuffer = new Uint32Array(1);
+
     for (let i = unassigned.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      window.crypto.getRandomValues(randomBuffer);
+      const j = randomBuffer[0] % (i + 1);
       [unassigned[i], unassigned[j]] = [unassigned[j], unassigned[i]];
     }
 
@@ -777,7 +780,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     for (let i = emptySpots.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      window.crypto.getRandomValues(randomBuffer);
+      const j = randomBuffer[0] % (i + 1);
       [emptySpots[i], emptySpots[j]] = [emptySpots[j], emptySpots[i]];
     }
 
@@ -821,11 +825,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     const uniqueIds = [...new Set(occupiedFurnitureIds)];
+    const randomBuffer = new Uint32Array(1);
+
+    const getRandomIndex = (max: number) => {
+      window.crypto.getRandomValues(randomBuffer);
+      return randomBuffer[0] % max;
+    };
 
     let count = 0;
     const max = 15;
     animationIntervalRef.current = setInterval(() => {
-      const rnd = uniqueIds[Math.floor(Math.random() * uniqueIds.length)];
+      const rnd = uniqueIds[getRandomIndex(uniqueIds.length)];
       setRandomHighlight(rnd);
       count++;
       if (count > max) {
@@ -833,7 +843,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           clearInterval(animationIntervalRef.current);
           animationIntervalRef.current = null;
         }
-        const winner = uniqueIds[Math.floor(Math.random() * uniqueIds.length)];
+        const winner = uniqueIds[getRandomIndex(uniqueIds.length)];
         setRandomHighlight(winner);
       }
     }, 100);
