@@ -6,8 +6,8 @@ describe('catalystHelpers', () => {
   describe('isSafeIconUrl', () => {
     it('returns false for empty or null strings', () => {
       expect(isSafeIconUrl('')).toBe(false);
-      expect(isSafeIconUrl(undefined as any)).toBe(false);
-      expect(isSafeIconUrl(null as any)).toBe(false);
+      expect(isSafeIconUrl(undefined as unknown as string)).toBe(false);
+      expect(isSafeIconUrl(null as unknown as string)).toBe(false);
     });
 
     it('returns true for valid https URLs', () => {
@@ -25,7 +25,8 @@ describe('catalystHelpers', () => {
     });
 
     it('returns true for valid image data URLs', () => {
-      const validDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+      const validDataUrl =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
       expect(isSafeIconUrl(validDataUrl)).toBe(true);
     });
 
@@ -56,7 +57,9 @@ describe('catalystHelpers', () => {
     });
 
     it('renders a Lucide icon for valid icon names', () => {
-      const { container } = render(renderCatalystIcon('Activity', 24, 'icon-class'));
+      const { container } = render(
+        renderCatalystIcon('Activity', 24, 'icon-class')
+      );
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
@@ -66,7 +69,9 @@ describe('catalystHelpers', () => {
     });
 
     it('renders the fallback icon (Zap) for invalid icon names', () => {
-      const { container } = render(renderCatalystIcon('InvalidIconName', 24, 'fallback-class'));
+      const { container } = render(
+        renderCatalystIcon('InvalidIconName', 24, 'fallback-class')
+      );
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
@@ -76,11 +81,16 @@ describe('catalystHelpers', () => {
     });
 
     it('supports string sizes (like CSS min functions)', () => {
-      const { container } = render(renderCatalystIcon('Activity', 'min(8cqw, 8cqh)'));
+      const { container } = render(
+        renderCatalystIcon('Activity', 'min(8cqw, 8cqh)')
+      );
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg).toHaveStyle({ width: 'min(8cqw, 8cqh)', height: 'min(8cqw, 8cqh)' });
+      expect(svg).toHaveStyle({
+        width: 'min(8cqw, 8cqh)',
+        height: 'min(8cqw, 8cqh)',
+      });
     });
   });
 });
