@@ -451,11 +451,9 @@ Config: `components/admin/SeatingChartConfigurationPanel.tsx` _(dedicated panel 
 
 ---
 
-[x] Smart Notebook
-    - [Default User-Level Settings]
-        -- None
-    - [Admin-Only Settings]
-        -- dockDefaults: Per-building dock visibility
+[x] Smart Notebook - [Default User-Level Settings]
+-- None - [Admin-Only Settings]
+-- dockDefaults: Per-building dock visibility
 
 ---
 
