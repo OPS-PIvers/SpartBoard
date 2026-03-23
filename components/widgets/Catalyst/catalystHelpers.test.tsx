@@ -51,9 +51,11 @@ describe('catalystHelpers', () => {
       const img = container.querySelector('img');
       expect(img).toBeInTheDocument();
       expect(img).toHaveAttribute('src', url);
-      expect(img).toHaveClass('test-class');
-      expect(img).toHaveStyle({ width: '32px', height: '32px' });
+      expect(img).toHaveAttribute('alt', '');
+      expect(img).toHaveAttribute('loading', 'lazy');
       expect(img).toHaveAttribute('referrerPolicy', 'no-referrer');
+      expect(img).toHaveClass('object-contain', 'test-class');
+      expect(img).toHaveStyle({ width: '32px', height: '32px' });
     });
 
     it('renders a Lucide icon for valid icon names', () => {
