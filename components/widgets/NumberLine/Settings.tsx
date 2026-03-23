@@ -196,7 +196,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Marker Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="flex-1">
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
               Value
             </label>
             <input
@@ -209,7 +209,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
               Label
             </label>
             <input
@@ -278,7 +278,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
         {/* Add Jump Form */}
         <div className="flex gap-2 items-end mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
           <div className="w-16">
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
               Start
             </label>
             <input
@@ -289,7 +289,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="w-16">
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
               End
             </label>
             <input
@@ -300,7 +300,7 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
             />
           </div>
           <div className="flex-1">
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+            <label className="block text-xxs font-bold uppercase text-slate-400 mb-1">
               Label
             </label>
             <input

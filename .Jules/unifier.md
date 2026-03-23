@@ -161,3 +161,13 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Discovered multiple hardcoded instances of the pattern `bg-black/50` acting as fixed modal overlays across various admin settings panels and modals. This deviated from the standard `bg-slate-900/50 backdrop-blur-sm` used in `components/common/Modal.tsx`.
 **Fix:** Refactored multiple target files (`InstructionalRoutinesManager.tsx`, `BackgroundManager.tsx`, `MiniAppLibraryModal.tsx`, `StickerLibraryModal.tsx`, `PdfLibraryModal.tsx`, `CatalystConfigurationModal.tsx`, `GraphicOrganizerConfigurationModal.tsx`) to use the standard `bg-slate-900/50 backdrop-blur-sm` overlay classes to enforce design system consistency and eliminate "snowflakes".
+
+## 2026-03-23 - Micro-Typography Standardization (text-xxs)
+
+**Drift:** Identified multiple hardcoded font sizes (`text-[10px]`) across components (`NumberLine/Settings.tsx`, `QRConfigurationPanel.tsx`, `StarterPackConfigurationModal.tsx`, `RemoteControlMenu.tsx`, `BoardZoomControl.tsx`) bypassing the design system's `text-xxs` token.
+**Fix:** Refactored all instances to use the standard Tailwind utility class `text-xxs` (10px/14px) to enforce consistency.
+
+## 2026-03-23 - Micro-Typography Standardization (text-xxxs)
+
+**Drift:** Identified hardcoded font sizes (`text-[9px]`) in `DriveDisconnectBanner.tsx` bypassing the design system.
+**Fix:** Refactored instances to use the closest standard Tailwind utility class `text-xxxs` (8px/10px) to enforce consistency and eliminate the 'snowflake'.

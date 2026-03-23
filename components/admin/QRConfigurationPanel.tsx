@@ -83,7 +83,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
             placeholder="e.g. https://google.com"
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none transition-all"
           />
-          <p className="text-[10px] text-slate-400 font-medium">
+          <p className="text-xxs text-slate-400 font-medium">
             The initial link applied to new QR widgets. Users can still change
             this in their widget settings.
           </p>
