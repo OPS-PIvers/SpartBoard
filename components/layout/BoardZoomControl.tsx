@@ -32,7 +32,7 @@ export const BoardZoomControl: React.FC = () => {
   return (
     <div className="fixed bottom-16 right-4 z-critical flex flex-col items-center gap-2 animate-in slide-in-from-right-4 fade-in duration-300">
       <div className="bg-white/80 backdrop-blur-md border border-white/40 shadow-xl rounded-2xl p-1.5 flex flex-col gap-1 items-center">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter px-2 pt-1">
+        <span className="text-xxs font-black text-slate-500 uppercase tracking-tighter px-2 pt-1">
           {t('common.zoom') ?? 'Zoom'}
         </span>
         <div className="flex flex-col items-center gap-1">

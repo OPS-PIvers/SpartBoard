@@ -117,14 +117,14 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
                   className="w-32 h-32 object-contain"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              <p className="text-xxs text-slate-400 font-bold uppercase tracking-wider">
                 Scan to Control Board
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 flex items-center justify-between gap-2 overflow-hidden group hover:border-slate-300 transition-colors">
-                <span className="text-[10px] font-mono text-slate-400 truncate">
+                <span className="text-xxs font-mono text-slate-400 truncate">
                   {remoteUrl}
                 </span>
                 <button

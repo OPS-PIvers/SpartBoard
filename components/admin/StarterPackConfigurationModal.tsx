@@ -1132,7 +1132,7 @@ export const StarterPackConfigurationModal: React.FC<
                     onClick={() =>
                       setShowManualPositioning(!showManualPositioning)
                     }
-                    className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-colors ${
+                    className={`text-xxs font-black uppercase tracking-widest px-2 py-1 rounded-md transition-colors ${
                       showManualPositioning
                         ? 'bg-slate-200 text-slate-600'
                         : 'bg-slate-100 text-slate-400 hover:text-slate-600'
@@ -1187,7 +1187,7 @@ export const StarterPackConfigurationModal: React.FC<
                         ][]
                       ).map(([label, val, setter]) => (
                         <div key={label}>
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          <label className="text-xxs font-bold text-slate-400 uppercase tracking-wider block mb-1">
                             {label === 'X' || label === 'Y'
                               ? `${label} Position`
                               : label === 'W'
