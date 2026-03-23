@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useRef, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -50,9 +50,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Keep a ref to the latest config to ensure handleUpdateScore is stable
   const configRef = useRef(config);
-  useEffect(() => {
-    configRef.current = config;
-  }, [config]);
+  configRef.current = config;
 
   const handleUpdateScore = useCallback(
     (teamId: string, delta: number) => {

@@ -200,13 +200,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     [verticalSplitLayout]
   );
 
-  useEffect(() => {
-    if (!showTools && showSnapMenu) {
-      setShowSnapMenu(false);
-      setSnapPreviewZone(null);
-      snapPreviewZoneRef.current = null;
-    }
-  }, [showTools, showSnapMenu]);
+  // Adjusting state while rendering: close snap menu when the tool overlay is dismissed
+  if (!showTools && showSnapMenu) {
+    setShowSnapMenu(false);
+    setSnapPreviewZone(null);
+    snapPreviewZoneRef.current = null;
+  }
 
   // OPTIMIZATION: Transient drag state for direct DOM manipulation
   // This allows us to update the DOM directly during drag/resize without triggering React re-renders for the whole tree
@@ -218,14 +217,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   } | null>(null);
 
   // OPTIMIZATION: Lazy initialization of settings
-  // We only set this to true once the widget is opened for the first time.
-  // This prevents downloading and rendering the settings chunk for every widget on load.
-  useEffect(() => {
-    if (widget.flipped && !shouldRenderSettings) {
-      setShouldRenderSettings(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widget.flipped]);
+  // Latch to true once the widget is flipped for the first time so the settings
+  // chunk is never unmounted after being loaded (prevents re-mount cost).
+  if (widget.flipped && !shouldRenderSettings) {
+    setShouldRenderSettings(true);
+  }
 
   // Annotation state
   const [isAnnotating, setIsAnnotating] = useState(false);

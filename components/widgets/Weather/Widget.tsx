@@ -50,7 +50,13 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const showFeelsLike =
     localShowFeelsLike ?? globalConfig?.showFeelsLike ?? false;
 
-  // Initial Admin Proxy Fetch
+  // Keep a ref to the latest config values so the Firestore callbacks can read
+  // them without being listed as effect dependencies (which would cause the
+  // subscription to be torn down and recreated on every weather update).
+  const weatherStateRef = React.useRef({ temp, feelsLike, condition, lastSync, config });
+  weatherStateRef.current = { temp, feelsLike, condition, lastSync, config };
+
+  // Initial Admin Proxy Fetch — only re-runs when the strategy itself changes
   useEffect(() => {
     if (!isAuto || globalConfig?.fetchingStrategy !== 'admin_proxy') return;
 
@@ -61,7 +67,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           const data = snap.data() as GlobalWeatherData;
           updateWidget(widget.id, {
             config: {
-              ...config,
+              ...weatherStateRef.current.config,
               temp: data.temp,
               feelsLike: data.feelsLike,
               condition: data.condition,
@@ -76,9 +82,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
 
     void fetchInitial();
-  }, [isAuto, globalConfig?.fetchingStrategy, widget.id, config, updateWidget]);
+  }, [isAuto, globalConfig?.fetchingStrategy, widget.id, updateWidget]);
 
-  // Admin Proxy Subscription
+  // Admin Proxy Subscription — stable; reads current values via ref to avoid restart
   useEffect(() => {
     if (!isAuto) return;
     if (globalConfig?.fetchingStrategy !== 'admin_proxy') return;
@@ -88,7 +94,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as GlobalWeatherData;
-          // Avoid infinite loop: check if data actually changed significantly
+          const { temp, feelsLike, condition, lastSync, config } =
+            weatherStateRef.current;
+          // Only update widget if data actually changed to avoid write loops
           if (
             Math.round(data.temp) !== Math.round(temp) ||
             data.feelsLike !== feelsLike ||
@@ -114,17 +122,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
 
     return () => unsubscribe();
-  }, [
-    isAuto,
-    globalConfig?.fetchingStrategy,
-    widget.id,
-    updateWidget,
-    temp,
-    feelsLike,
-    condition,
-    lastSync,
-    config,
-  ]);
+  }, [isAuto, globalConfig?.fetchingStrategy, widget.id, updateWidget]);
 
   // Nexus Connection: Weather -> Background Theme
   // Maps weather conditions to preset IDs from BACKGROUND_GRADIENTS

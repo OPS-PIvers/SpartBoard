@@ -30,15 +30,12 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
   const { activeNotebookId } = config;
 
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
-  const [activeNotebook, setActiveNotebook] = useState<NotebookItem | null>(
-    null
-  );
   const [currentPage, setCurrentPage] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch notebooks
+  // Fetch notebooks from Firestore
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -62,33 +59,32 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
     return () => unsubscribe();
   }, [user]);
 
-  // Sync active notebook state
-  useEffect(() => {
-    if (activeNotebookId) {
-      const found = notebooks.find((n) => n.id === activeNotebookId);
-      if (found) {
-        setActiveNotebook(found);
-      } else if (notebooks.length > 0) {
-        // If notebooks are loaded but the active one is missing, clear config
-        setActiveNotebook(null);
-        // Defer the update to avoid conflicts during render
-        setTimeout(() => {
-          updateWidget(widget.id, {
-            config: { ...config, activeNotebookId: null },
-          });
-        }, 0);
-      }
-    } else {
-      setActiveNotebook(null);
-    }
-  }, [activeNotebookId, notebooks, widget.id, updateWidget, config]);
+  // Derive active notebook directly — no redundant state
+  const activeNotebook = React.useMemo(
+    () => notebooks.find((n) => n.id === activeNotebookId) ?? null,
+    [notebooks, activeNotebookId]
+  );
 
-  // Clamp current page index when notebook changes
+  // Side effect: clear stale activeNotebookId from config when its notebook is deleted
   useEffect(() => {
-    if (activeNotebook && currentPage >= activeNotebook.pageUrls.length) {
-      setCurrentPage(Math.max(0, activeNotebook.pageUrls.length - 1));
+    if (activeNotebookId && notebooks.length > 0 && !activeNotebook) {
+      updateWidget(widget.id, {
+        config: { ...config, activeNotebookId: null },
+      });
     }
-  }, [activeNotebook, currentPage]);
+  }, [activeNotebookId, activeNotebook, notebooks.length, widget.id, updateWidget, config]);
+
+  // Adjusting state while rendering: clamp currentPage when the active notebook shrinks
+  const pageCount = activeNotebook?.pageUrls.length ?? 0;
+  const [prevPageCount, setPrevPageCount] = useState(pageCount);
+  const [prevNotebookId, setPrevNotebookId] = useState(activeNotebookId);
+  if (activeNotebookId !== prevNotebookId || pageCount !== prevPageCount) {
+    setPrevNotebookId(activeNotebookId);
+    setPrevPageCount(pageCount);
+    if (activeNotebook && currentPage >= pageCount) {
+      setCurrentPage(Math.max(0, pageCount - 1));
+    }
+  }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
