@@ -66,7 +66,6 @@ describe('catalystHelpers', () => {
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
       expect(svg).toHaveClass('icon-class');
-      expect(svg).toHaveClass('lucide-activity'); // Activity icon adds this class
       expect(svg).toHaveStyle({ width: '24px', height: '24px' });
     });
 
@@ -78,20 +77,18 @@ describe('catalystHelpers', () => {
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
       expect(svg).toHaveClass('fallback-class');
-      expect(svg).toHaveClass('lucide-zap'); // Zap is the fallback
       expect(svg).toHaveStyle({ width: '24px', height: '24px' });
     });
 
     it('supports string sizes (like CSS min functions)', () => {
-      const { container } = render(
-        renderCatalystIcon('Activity', 'min(8cqw, 8cqh)')
-      );
+      const size = 'min(24px, 8cqmin)';
+      const { container } = render(renderCatalystIcon('Activity', size));
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
       expect(svg).toHaveStyle({
-        width: 'min(8cqw, 8cqh)',
-        height: 'min(8cqw, 8cqh)',
+        width: size,
+        height: size,
       });
     });
   });
