@@ -7,7 +7,14 @@ import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { GoogleAuth } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
-import type { TranscriptResponse } from 'youtube-transcript';
+
+// Local mirror of youtube-transcript's TranscriptResponse to avoid depending on
+// an ESM-only package at the type level (dynamic import used at runtime instead).
+interface TranscriptResponse {
+  text: string;
+  duration: number;
+  offset: number;
+}
 
 admin.initializeApp();
 
@@ -922,7 +929,10 @@ export const generateVideoActivity = functionsV1
       // Fetch transcript
       let transcriptItems: TranscriptResponse[] = [];
       try {
-        const { fetchTranscript } = await import('youtube-transcript');
+        // @ts-expect-error -- youtube-transcript is an ESM-only package; imported dynamically at runtime, types provided via local TranscriptResponse interface
+        const { fetchTranscript } = (await import('youtube-transcript')) as {
+          fetchTranscript: (videoId: string) => Promise<TranscriptResponse[]>;
+        };
         transcriptItems = await fetchTranscript(videoId);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
