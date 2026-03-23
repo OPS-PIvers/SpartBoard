@@ -356,6 +356,13 @@ const OverviewTab: React.FC<{
     },
   ];
 
+  // ⚡ Bolt: Pre-calculate scores for all completed responses once
+  // This avoids calculating `getResponseScore` inside the `buckets.map` filter
+  // which was O(B*R*Q), changing it to O(R*Q + B*R).
+  const completedScores = React.useMemo(() => {
+    return completed.map((r) => getResponseScore(r, questions));
+  }, [completed, questions]);
+
   return (
     <div className="flex flex-col" style={{ gap: 'min(20px, 5cqmin)' }}>
       {/* Top Level Scoreboard */}
@@ -413,10 +420,9 @@ const OverviewTab: React.FC<{
         </div>
         <div className="space-y-4">
           {buckets.map((b) => {
-            const count = completed.filter((r) => {
-              const s = getResponseScore(r, questions);
-              return s >= b.min && s <= b.max;
-            }).length;
+            const count = completedScores.filter(
+              (s) => s >= b.min && s <= b.max
+            ).length;
             const pct =
               completed.length > 0
                 ? Math.round((count / completed.length) * 100)
@@ -451,91 +457,117 @@ const OverviewTab: React.FC<{
 const QuestionsTab: React.FC<{
   questions: QuizData['questions'];
   responses: QuizResponse[];
-}> = ({ questions, responses }) => (
-  <div className="space-y-3">
-    {questions.map((q, i) => {
-      const answered = responses.filter((r) =>
-        r.answers.some((a) => a.questionId === q.id)
-      );
-      const correct = answered.filter((r) =>
-        r.answers.some((a) => a.questionId === q.id && gradeAnswer(q, a.answer))
-      );
-      const pct =
-        answered.length > 0
-          ? Math.round((correct.length / answered.length) * 100)
-          : 0;
+}> = ({ questions, responses }) => {
+  // ⚡ Bolt: Pre-calculate counts of "answered" and "correct" per question.
+  // This avoids O(Q*R*A) iteration inside `questions.map` loop and instead
+  // uses a single O(R*A) pass with O(Q) rendering.
+  const questionStats = React.useMemo(() => {
+    const stats: Record<string, { answered: number; correct: number }> = {};
+    const questionsById: Record<string, QuizQuestion> = {};
 
-      return (
-        <div
-          key={q.id}
-          className="bg-white border border-brand-blue-primary/10 rounded-2xl p-4 shadow-sm hover:border-brand-blue-primary/20 transition-all"
-        >
-          <div className="flex items-start justify-between mb-2">
-            <div
-              className="bg-brand-blue-lighter px-2 py-0.5 rounded text-brand-blue-primary font-black uppercase tracking-tighter"
-              style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-            >
-              Question {i + 1}
-            </div>
-            <div
-              className="font-black text-brand-blue-dark"
-              style={{ fontSize: 'min(12px, 4cqmin)' }}
-            >
-              {pct}% Accuracy
-            </div>
-          </div>
+    questions.forEach((q) => {
+      stats[q.id] = { answered: 0, correct: 0 };
+      questionsById[q.id] = q;
+    });
 
-          <p
-            className="font-bold text-brand-blue-dark leading-tight line-clamp-2"
-            style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+    responses.forEach((r) => {
+      r.answers.forEach((a) => {
+        const qStats = stats[a.questionId];
+        const q = questionsById[a.questionId];
+
+        if (qStats && q) {
+          qStats.answered++;
+          if (gradeAnswer(q, a.answer)) {
+            qStats.correct++;
+          }
+        }
+      });
+    });
+
+    return stats;
+  }, [responses, questions]);
+
+  return (
+    <div className="space-y-3">
+      {questions.map((q, i) => {
+        const stats = questionStats[q.id] || { answered: 0, correct: 0 };
+        const pct =
+          stats.answered > 0
+            ? Math.round((stats.correct / stats.answered) * 100)
+            : 0;
+
+        return (
+          <div
+            key={q.id}
+            className="bg-white border border-brand-blue-primary/10 rounded-2xl p-4 shadow-sm hover:border-brand-blue-primary/20 transition-all"
           >
-            {q.text}
-          </p>
-
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t border-brand-blue-primary/5">
-            <div
-              className="flex items-center gap-1.5 text-emerald-600 font-bold"
-              style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-            >
-              <CheckCircle2
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-              {correct.length} Correct
+            <div className="flex items-start justify-between mb-2">
+              <div
+                className="bg-brand-blue-lighter px-2 py-0.5 rounded text-brand-blue-primary font-black uppercase tracking-tighter"
+                style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+              >
+                Question {i + 1}
+              </div>
+              <div
+                className="font-black text-brand-blue-dark"
+                style={{ fontSize: 'min(12px, 4cqmin)' }}
+              >
+                {pct}% Accuracy
+              </div>
             </div>
-            <div
-              className="flex items-center gap-1.5 text-brand-red-primary font-bold"
-              style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+
+            <p
+              className="font-bold text-brand-blue-dark leading-tight line-clamp-2"
+              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
             >
-              <XCircle
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
+              {q.text}
+            </p>
+
+            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-brand-blue-primary/5">
+              <div
+                className="flex items-center gap-1.5 text-emerald-600 font-bold"
+                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+              >
+                <CheckCircle2
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                {stats.correct} Correct
+              </div>
+              <div
+                className="flex items-center gap-1.5 text-brand-red-primary font-bold"
+                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+              >
+                <XCircle
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                {stats.answered - stats.correct} Missed
+              </div>
+            </div>
+
+            <div className="h-2 bg-brand-blue-lighter rounded-full overflow-hidden mt-3">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  pct >= 80
+                    ? 'bg-emerald-500'
+                    : pct >= 60
+                      ? 'bg-amber-500'
+                      : 'bg-brand-red-primary'
+                }`}
+                style={{ width: `${pct}%` }}
               />
-              {answered.length - correct.length} Missed
             </div>
           </div>
-
-          <div className="h-2 bg-brand-blue-lighter rounded-full overflow-hidden mt-3">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                pct >= 80
-                  ? 'bg-emerald-500'
-                  : pct >= 60
-                    ? 'bg-amber-500'
-                    : 'bg-brand-red-primary'
-              }`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      );
-    })}
-  </div>
-);
+        );
+      })}
+    </div>
+  );
+};
 
 const StudentsTab: React.FC<{
   responses: QuizResponse[];

@@ -680,9 +680,24 @@ const MCDistribution: React.FC<{
     question.correctAnswer,
     ...question.incorrectAnswers.filter(Boolean),
   ];
-  const totalAnswered = responses.filter((r) =>
-    r.answers.some((a) => a.questionId === question.id)
-  ).length;
+
+  // ⚡ Bolt: Optimize O(N*M) array filtering inside the render loop
+  // Instead of scanning all responses for every option, we pre-calculate
+  // the distribution in a single pass O(M) and lookup by option O(1).
+  const { totalAnswered, distribution } = React.useMemo(() => {
+    let answered = 0;
+    const dist: Record<string, number> = {};
+
+    responses.forEach((r) => {
+      const ans = r.answers.find((a) => a.questionId === question.id);
+      if (ans) {
+        answered++;
+        dist[ans.answer] = (dist[ans.answer] || 0) + 1;
+      }
+    });
+
+    return { totalAnswered: answered, distribution: dist };
+  }, [responses, question.id]);
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
@@ -693,11 +708,7 @@ const MCDistribution: React.FC<{
         Live Answer Distribution
       </p>
       {options.map((opt) => {
-        const count = responses.filter((r) =>
-          r.answers.some(
-            (a) => a.questionId === question.id && a.answer === opt
-          )
-        ).length;
+        const count = distribution[opt] || 0;
         const pct =
           totalAnswered > 0 ? Math.round((count / totalAnswered) * 100) : 0;
         const isCorrect = gradeAnswer(question, opt);
