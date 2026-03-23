@@ -451,12 +451,9 @@ Config: `components/admin/SeatingChartConfigurationPanel.tsx` _(dedicated panel 
 
 ---
 
-[ ] Smart Notebook — Type: `smartNotebook` | Label: "Notebook"
-Config: `components/admin/SmartNotebookConfigurationPanel.tsx` _(does not exist yet — create and
-register in `BUILDING_CONFIG_PANELS`)_
-
-Note: `SmartNotebook` has no `Settings.tsx`. The widget manages notebook state internally. Admin
-config opportunities are admin-only. Investigate before implementing.
+[x] Smart Notebook - Default User-Level Settings
+-- No configurable user-level defaults natively exist in Settings.tsx. - Admin-Only Settings
+-- Configurable maximum file upload size limit (storageLimitMb) added globally per building.
 
 - **User-level Defaults:**
   - None.

@@ -27,7 +27,7 @@ describe('SmartNotebookWidget', () => {
   const mockWidget = {
     id: 'widget-1',
     type: 'smartNotebook',
-    config: { activeNotebookId: null },
+    config: { activeNotebookId: null, storageLimitMb: 50 },
     w: 600,
     h: 500,
     x: 0,

@@ -1921,6 +1921,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             out.defaultCardBackColor = raw.defaultCardBackColor;
           break;
         }
+        case 'smartNotebook':
+          if (raw.storageLimitMb !== undefined)
+            out.storageLimitMb = raw.storageLimitMb;
+          break;
         case 'numberLine': {
           const validDisplayModes = [
             'integers',
