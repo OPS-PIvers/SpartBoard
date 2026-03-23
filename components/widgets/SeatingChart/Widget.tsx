@@ -27,6 +27,7 @@ import {
   DEFAULT_TEMPLATE_COLUMNS,
 } from './constants';
 import { useDialog } from '@/context/useDialog';
+import { shuffleArray, getRandomInt } from '../../../utils/randomHelpers';
 
 // Drag state tracks current positions for all items being dragged simultaneously
 type DragPositions = Map<string, { x: number; y: number }>;
@@ -149,10 +150,10 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     [students]
   );
 
-  const assignedStudentIds = new Set(Object.keys(assignments));
-  const unassignedStudents = students.filter(
-    (s) => !assignedStudentIds.has(s.id)
-  );
+  const unassignedStudents = useMemo(() => {
+    const assignedIds = new Set(Object.keys(assignments));
+    return students.filter((s) => !assignedIds.has(s.id));
+  }, [assignments, students]);
 
   // --- LEGACY MIGRATION: name-keyed → id-keyed assignments ---
   // Prior to adding roster support, seating-chart assignments used student
@@ -760,31 +761,23 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('All students are already assigned!', 'info');
       return;
     }
-
-    for (let i = unassigned.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [unassigned[i], unassigned[j]] = [unassigned[j], unassigned[i]];
-    }
+    const shuffledUnassigned = shuffleArray(unassigned);
 
     const occupiedIds = new Set(Object.values(assignments));
-    const emptySpots = targetFurniture
+    const emptySpotsBase = targetFurniture
       .filter((f) => !occupiedIds.has(f.id))
       .map((f) => f.id);
 
-    if (emptySpots.length === 0) {
+    if (emptySpotsBase.length === 0) {
       addToast('No empty spots available!', 'error');
       return;
     }
-
-    for (let i = emptySpots.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [emptySpots[i], emptySpots[j]] = [emptySpots[j], emptySpots[i]];
-    }
+    const emptySpots = shuffleArray(emptySpotsBase);
 
     const nextAssignments = { ...assignments };
     let count = 0;
-    while (unassigned.length > 0 && emptySpots.length > 0) {
-      const student = unassigned.pop();
+    while (shuffledUnassigned.length > 0 && emptySpots.length > 0) {
+      const student = shuffledUnassigned.pop();
       const spotId = emptySpots.pop();
       if (student && spotId) {
         nextAssignments[student.id] = spotId;
@@ -825,7 +818,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     let count = 0;
     const max = 15;
     animationIntervalRef.current = setInterval(() => {
-      const rnd = uniqueIds[Math.floor(Math.random() * uniqueIds.length)];
+      const rnd = uniqueIds[getRandomInt(uniqueIds.length)];
       setRandomHighlight(rnd);
       count++;
       if (count > max) {
@@ -833,7 +826,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           clearInterval(animationIntervalRef.current);
           animationIntervalRef.current = null;
         }
-        const winner = uniqueIds[Math.floor(Math.random() * uniqueIds.length)];
+        const winner = uniqueIds[getRandomInt(uniqueIds.length)];
         setRandomHighlight(winner);
       }
     }, 100);
