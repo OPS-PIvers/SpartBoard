@@ -97,3 +97,9 @@
 **Weed:** Monolithic files holding multiple components and settings (`TimeToolWidget.tsx` scattered in the root widgets folder).
 **Root Cause:** Component grew organically as features were added (visuals, sounds, widget settings) without separating concerns.
 **Plan:** Extracted `TimeToolSettings` and `TimeToolAppearanceSettings` to `components/widgets/TimeTool/Settings.tsx` to reduce file size and improve readability/maintainability.
+
+## 2026-03-23 - Extracted SortableScheduleItem
+
+**Weed:** `ScheduleSettings` component in `components/widgets/Schedule/Settings.tsx` was over 1100 lines and contained a complex inner component `SortableScheduleItem` along with large constant arrays like `AVAILABLE_WIDGETS`.
+**Root Cause:** "God Component" pattern where the settings UI for the Schedule widget grew organically, mixing the main settings list view with the complex rendering and editing logic of individual sortable schedule items.
+**Plan:** Extracted `SortableScheduleItem` and `AVAILABLE_WIDGETS` into a dedicated `components/widgets/Schedule/components/SortableScheduleItem.tsx` file, reducing the size and complexity of `Settings.tsx`.
