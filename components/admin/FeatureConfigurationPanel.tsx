@@ -59,6 +59,20 @@ type BuildingConfigPanel = React.ComponentType<{
   onChange: (newConfig: Record<string, unknown>) => void;
 }>;
 
+const WIDGETS_WITH_SPECIAL_HANDLING = [
+  'calendar',
+  'expectations',
+  'instructionalRoutines',
+  'lunchCount',
+  'miniApp',
+  'quiz',
+  'smartNotebook',
+  'stickers',
+  'talking-tool',
+  'weather',
+  'webcam',
+];
+
 // Map from widget/tool type to its building-defaults configuration panel.
 // Catalyst is excluded here because it requires additional props.
 const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
@@ -1243,17 +1257,7 @@ export const FeatureConfigurationPanel: React.FC<
       })()}
 
       {![
-        'calendar',
-        'expectations',
-        'instructionalRoutines',
-        'lunchCount',
-        'miniApp',
-        'quiz',
-        'smartNotebook',
-        'stickers',
-        'talking-tool',
-        'weather',
-        'webcam',
+        ...WIDGETS_WITH_SPECIAL_HANDLING,
         ...Object.keys(BUILDING_CONFIG_PANELS),
       ].includes(tool.type) && (
         <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
