@@ -12,7 +12,7 @@ import {
   Video,
   FlipHorizontal,
 } from 'lucide-react';
-import { WidgetData, TextConfig, WebcamConfig } from '@/types';
+import { WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -26,7 +26,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
 }) => {
   const { featurePermissions } = useAuth();
-  const { activeDashboard, updateWidget, addWidget, addToast } = useDashboard();
+  const { addWidget, addToast } = useDashboard();
   const { showAlert, showConfirm } = useDialog();
   const webcamPermission = featurePermissions.find(
     (p) => p.widgetType === 'webcam'
@@ -109,39 +109,31 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   const performSendToNotes = useCallback(
     (text: string) => {
       if (!text) return;
+      const trimmedText = text.trim();
 
-      // Find an existing text widget
-      const existingTextWidget = activeDashboard?.widgets.find(
-        (w) => w.type === 'text'
-      );
-
-      if (existingTextWidget) {
-        // Append text
-        const existingConfig = existingTextWidget.config as TextConfig;
-        const currentContent = existingConfig.content ?? '';
-        const newContent = currentContent
-          ? `${currentContent}<br/><br/>${text}`
-          : text;
-        updateWidget(existingTextWidget.id, {
-          config: {
-            ...existingConfig,
-            content: newContent,
-          },
-        });
-        addToast('Text appended to Notes', 'success');
-      } else {
-        // Create new text widget
-        addWidget('text', {
-          x: _widget.x + _widget.w + 20,
-          y: _widget.y,
-          config: {
-            content: text,
-          },
-        });
-        addToast('Created new Notes widget with text', 'success');
+      if (!trimmedText) {
+        addToast('No usable text detected.', 'info');
+        return;
       }
+
+      const safeText = trimmedText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/\n/g, '<br/>');
+
+      addWidget('text', {
+        x: _widget.x + _widget.w + 20,
+        y: _widget.y,
+        config: {
+          content: safeText,
+        },
+      });
+      addToast('Created new Notes widget with text', 'success');
     },
-    [activeDashboard, updateWidget, addWidget, addToast, _widget]
+    [addWidget, addToast, _widget]
   );
 
   const extractText = useCallback(async () => {

@@ -31,6 +31,7 @@ export const WebcamSettings: React.FC<{ widget: WidgetData }> = ({
               })
             }
             size="md"
+            aria-label="Auto-Send OCR to Notes"
           />
         </div>
       </div>
