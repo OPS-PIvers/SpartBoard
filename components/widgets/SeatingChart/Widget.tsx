@@ -149,10 +149,10 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     [students]
   );
 
-  const assignedStudentIds = new Set(Object.keys(assignments));
-  const unassignedStudents = students.filter(
-    (s) => !assignedStudentIds.has(s.id)
-  );
+  const unassignedStudents = useMemo(() => {
+    const assignedIds = new Set(Object.keys(assignments));
+    return students.filter((s) => !assignedIds.has(s.id));
+  }, [assignments, students]);
 
   // --- LEGACY MIGRATION: name-keyed → id-keyed assignments ---
   // Prior to adding roster support, seating-chart assignments used student
