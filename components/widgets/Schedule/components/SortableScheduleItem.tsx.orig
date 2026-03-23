@@ -3,7 +3,7 @@ import { ScheduleItem, WidgetType } from '@/types';
 import { GripVertical, Trash2, Timer, Link, CheckCircle2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getTodayStr } from '@/components/widgets/Schedule/utils';
+import { getTodayStr } from '../utils';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
