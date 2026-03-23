@@ -49,10 +49,11 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const teams = Array.isArray(config.teams) ? config.teams : DEFAULT_TEAMS;
 
   const [localTeams, setLocalTeams] = useState<ScoreboardTeam[]>(teams);
-  const [prevTeams, setPrevTeams] = useState<ScoreboardTeam[]>(teams);
 
   // Track the most recently computed teams to handle rapid clicks synchronously
   const latestTeamsRef = useRef<ScoreboardTeam[]>(teams);
+
+  const [prevTeams, setPrevTeams] = useState<ScoreboardTeam[]>(teams);
 
   // Sync localTeams when config.teams changes externally (e.g., remote control or initialization)
   if (JSON.stringify(teams) !== JSON.stringify(prevTeams)) {
@@ -60,14 +61,10 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
     setPrevTeams(teams);
   }
 
-  // Keep a ref to the latest config to ensure handleUpdateScore is stable
-  const configRef = useRef(config);
-
-  // Safe to write to ref during effect (not render)
+  // Effect solely to ensure latestTeamsRef is updated securely, never triggering renders
   useEffect(() => {
     latestTeamsRef.current = localTeams;
-    configRef.current = config;
-  }, [localTeams, config]);
+  }, [localTeams]);
 
   const handleUpdateScore = useCallback(
     (teamId: string, delta: number) => {
@@ -83,7 +80,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
 
       // Fire the side-effect to sync back to global state outside of the React updater function
       updateWidget(widget.id, {
-        config: { ...configRef.current, teams: newTeams },
+        config: { teams: newTeams },
       });
     },
     [widget.id, updateWidget]
