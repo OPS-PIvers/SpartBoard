@@ -26,5 +26,6 @@
 ## 2025-05-15 - [O(N*M) Operations in Render Loops] **Learning:** Found multiple instances where `.filter()` was being called inside a `.map()` or otherwise O(N\*M) iterations per render cycle in `LunchCountWidget`. This meant the application re-evaluated all items for each condition every render, causing slow interactions especially with drag-and-drop. **Action:** Precompute derived data (like categorized arrays) into a single `useMemo` pass that runs O(N) once whenever dependencies change, rather than repeating the full iteration per category per render.
 
 ## 2024-05-15 - Optimize array filtering inside React render loops
-**Learning:** Found O(N*M) and O(B*R*Q) bottlenecks in `QuizLiveMonitor` and `QuizResults` where arrays were repeatedly filtered inside `.map()` rendering functions. This causes severe performance degradation on large datasets (many students answering many questions).
+
+**Learning:** Found O(N*M) and O(B*R\*Q) bottlenecks in `QuizLiveMonitor` and `QuizResults` where arrays were repeatedly filtered inside `.map()` rendering functions. This causes severe performance degradation on large datasets (many students answering many questions).
 **Action:** When calculating statistics or distributions from an array of data inside a `.map()`, always pre-calculate the counts or scores in a single pass using `useMemo` and a dictionary/map before the render loop to achieve O(N+M) complexity.
