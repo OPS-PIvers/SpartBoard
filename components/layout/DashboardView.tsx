@@ -164,6 +164,47 @@ export const DashboardView: React.FC = () => {
     }
   }, [activeDashboard, dashboards, addWidget]);
 
+  // WIDGET POSITION RESCUE
+  // Single centralized listener (vs one per widget) that snaps any widget
+  // back on-screen when the viewport shrinks or a dashboard loads on a
+  // narrower display than the one it was saved on.
+  // rAF-throttled so rapid resize events don't flood state updates.
+  const rescueWidgets = React.useCallback(() => {
+    const widgets = activeDashboard?.widgets;
+    if (!widgets) return;
+    const MIN_VISIBLE = 80;
+    const TITLE_BAR = 40;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    widgets.forEach(({ id, x, y, w }) => {
+      const newX = Math.max(-(w - MIN_VISIBLE), Math.min(x, vw - MIN_VISIBLE));
+      const newY = Math.max(0, Math.min(y, vh - TITLE_BAR));
+      if (newX !== x || newY !== y) {
+        updateWidget(id, { x: newX, y: newY });
+      }
+    });
+  }, [activeDashboard?.widgets, updateWidget]);
+
+  React.useEffect(() => {
+    rescueWidgets();
+  }, [rescueWidgets]);
+
+  React.useEffect(() => {
+    let rafId: number | null = null;
+    const onResize = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rescueWidgets();
+        rafId = null;
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [rescueWidgets]);
+
   const { canAccessFeature } = useAuth();
 
   const {

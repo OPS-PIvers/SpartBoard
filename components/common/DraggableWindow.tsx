@@ -3,6 +3,7 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -240,11 +241,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const snapMenuRef = useRef<HTMLDivElement>(null);
   const dragDistanceRef = useRef(0);
-
-  // Always-current ref for the rescue effect — avoids stale closures without
-  // re-registering the resize listener on every position/size change.
-  const widgetPropsRef = useRef(widget);
-  widgetPropsRef.current = widget;
 
   const saveTitle = useCallback(() => {
     if (tempTitle.trim()) {
@@ -786,13 +782,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   };
 
   // TOOL MENU POSITIONING
+  // useLayoutEffect runs synchronously after the DOM is mutated but before paint,
+  // guaranteeing offsetHeight/offsetWidth are final when we read them.
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (showTools && windowRef.current) {
       const updatePosition = () => {
         const rect = windowRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        const menuEl = menuRef.current;
+        if (!rect || !menuEl) return;
 
         if (isMaximized) {
           setMenuStyle({
@@ -805,16 +804,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
 
         const MARGIN = 8;
-        const menuEl = menuRef.current;
-        const menuHeight = menuEl?.offsetHeight ?? 52;
-        const menuWidth = menuEl?.offsetWidth ?? 260;
+        const menuHeight = menuEl.offsetHeight;
+        const menuWidth = menuEl.offsetWidth;
 
-        // Vertical: prefer above, flip below when there's not enough space above
+        // Vertical: prefer above; flip below only when space above is tight AND
+        // there is room below. If neither side fits, pick whichever has more space
+        // and clamp to keep the toolbar on-screen.
         const spaceAbove = rect.top;
         const spaceBelow = window.innerHeight - rect.bottom;
         const showBelow =
-          spaceAbove < menuHeight + MARGIN && spaceBelow >= menuHeight + MARGIN;
-        const topPos = showBelow ? rect.bottom + 8 : rect.top - menuHeight - 8;
+          spaceAbove < menuHeight + MARGIN && spaceBelow >= spaceAbove;
+        const rawTopPos = showBelow
+          ? rect.bottom + 8
+          : rect.top - menuHeight - 8;
+        const clampedTop = Math.max(
+          MARGIN,
+          Math.min(rawTopPos, window.innerHeight - menuHeight - MARGIN)
+        );
 
         // Horizontal: center on widget, clamp so toolbar never overflows viewport
         const idealLeft = rect.left + rect.width / 2 - menuWidth / 2;
@@ -825,42 +831,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         setMenuStyle({
           position: 'fixed',
-          top: topPos,
+          top: clampedTop,
           left: clampedLeft,
           zIndex: Z_INDEX.toolMenu,
         });
       };
 
       updatePosition();
-      // Update on scroll or resize just in case, though widgets are absolute
       window.addEventListener('resize', updatePosition);
       return () => window.removeEventListener('resize', updatePosition);
     }
     return undefined;
   }, [showTools, widget.x, widget.y, widget.w, widget.h, isMaximized]);
-
-  // WIDGET POSITION RESCUE
-  // On mount and window resize, snap any widget that has drifted off-screen
-  // (e.g. from being saved on a wider screen) back to a visible position.
-  useEffect(() => {
-    const MIN_VISIBLE = 80; // px of widget that must remain on-screen horizontally
-    const TITLE_BAR = 40; // px — ensure at least the title bar is reachable
-
-    const rescueIfNeeded = () => {
-      const { x, y, w, id } = widgetPropsRef.current;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const newX = Math.max(-(w - MIN_VISIBLE), Math.min(x, vw - MIN_VISIBLE));
-      const newY = Math.max(0, Math.min(y, vh - TITLE_BAR));
-      if (newX !== x || newY !== y) {
-        updateWidget(id, { x: newX, y: newY });
-      }
-    };
-
-    rescueIfNeeded();
-    window.addEventListener('resize', rescueIfNeeded);
-    return () => window.removeEventListener('resize', rescueIfNeeded);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleCustomKeyboard = (e: Event) => {
