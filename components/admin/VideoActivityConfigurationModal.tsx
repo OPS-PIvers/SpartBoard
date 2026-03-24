@@ -225,19 +225,9 @@ export const VideoActivityConfigurationModal: React.FC<
             <div className="max-w-2xl mx-auto space-y-6">
               <DockDefaultsPanel
                 config={{ dockDefaults: config.dockDefaults ?? {} }}
-                onChange={async (dockDefaults) => {
-                  const updatedPermission: FeaturePermission = {
-                    ...permission,
-                    config: { ...config, dockDefaults },
-                  };
-                  // Update local state / mark unsaved changes in parent
-                  onSave({ config: updatedPermission.config });
-                  // Persist changes to Firestore so they are not lost on close
-                  await setDoc(
-                    doc(db, 'feature_permissions', 'video-activity'),
-                    updatedPermission
-                  );
-                }}
+                onChange={(dockDefaults) =>
+                  onSave({ config: { ...config, dockDefaults } })
+                }
               />
             </div>
           ) : (
