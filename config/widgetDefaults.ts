@@ -388,6 +388,9 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       selectedActivityId: null,
       selectedActivityTitle: null,
       resultsSessionId: null,
+      autoPlay: false,
+      requireCorrectAnswer: true,
+      allowSkipping: false,
     },
   },
 };
