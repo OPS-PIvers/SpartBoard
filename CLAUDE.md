@@ -57,21 +57,23 @@ SPART Board is an interactive classroom management dashboard built with React 19
 
 ## Development Commands
 
-- **Start dev server**: `npm run dev` (runs on port 3000)
-- **Build for production**: `npm run build`
-- **Preview production build**: `npm run preview`
-- **Install dependencies**: `npm install`
+> **Package manager**: This project uses **pnpm** throughout. Do not use `npm install` — use `pnpm` commands instead.
+
+- **Install dependencies**: `pnpm run install:all` (installs root + `functions/` — always use this, not bare `pnpm install`)
+- **Start dev server**: `pnpm run dev` (runs on port 3000)
+- **Build for production**: `pnpm run build`
+- **Preview production build**: `pnpm run preview`
 
 ### Code Quality Commands
 
-- **Type checking**: `npm run type-check`
-- **Linting**: `npm run lint` (fails on errors, allows warnings)
-- **Auto-fix linting**: `npm run lint:fix`
-- **Format code**: `npm run format`
-- **Check formatting**: `npm run format:check`
-- **Validate all**: `npm run validate` (type-check + lint + format-check)
+- **Type checking**: `pnpm run type-check`
+- **Linting**: `pnpm run lint` (fails on errors, allows warnings)
+- **Auto-fix linting**: `pnpm run lint:fix`
+- **Format code**: `pnpm run format`
+- **Check formatting**: `pnpm run format:check`
+- **Validate all**: `pnpm run validate` (type-check + lint + format-check)
 
-> **IMPORTANT — Pre-push requirement:** You **must not push any commit** that contains TypeScript type errors, ESLint errors or warnings, or Prettier formatting violations. Always run `npm run validate` (or at minimum `npm run lint` and `npm run format:check`) before committing and pushing. If the environment does not have node_modules installed, note that CI will still enforce these checks and will block the PR. Fix all issues before pushing.
+> **IMPORTANT — Pre-push requirement:** You **must not push any commit** that contains TypeScript type errors, ESLint errors or warnings, or Prettier formatting violations. Always run `pnpm run validate` (or at minimum `pnpm run lint` and `pnpm run format:check`) before committing and pushing. If the environment does not have node_modules installed, note that CI will still enforce these checks and will block the PR. Fix all issues before pushing.
 
 See [LINTING_SETUP.md](LINTING_SETUP.md) for detailed linting and CI/CD configuration.
 
@@ -706,7 +708,7 @@ The app uses Firebase Authentication with admin role management through Firestor
 
 3. **Run the admin setup script** (optional):
    ```bash
-   npm install firebase-admin
+   pnpm add firebase-admin
    # Get service account credentials from Firebase Console
    # Save as scripts/service-account-key.json
    node scripts/setup-admins.js
