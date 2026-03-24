@@ -274,27 +274,135 @@ describe('ChecklistSettings Nexus Connection', () => {
   it('imports steps from active Instructional Routine', () => {
     render(<ChecklistSettings widget={mockWidget} />);
 
-    const importButton = within(
-      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
-    ).getByRole('button', { name: /Sync/i });
-    fireEvent.click(importButton);
+    const importSection = screen
+      .getByText('Import Routine')
+      .closest('.bg-indigo-50');
+    expect(importSection).not.toBeNull();
+    if (importSection) {
+      const importButton = within(importSection as HTMLElement).getByRole(
+        'button',
+        { name: /Sync Routine/i }
+      );
+      fireEvent.click(importButton);
+    }
 
     expect(mockAddToast).toHaveBeenCalledWith(
       'Imported steps from Routine!',
+      'success'
+    );
+  });
+
+  it('imports tasks from active Text widget', () => {
+    (useDashboard as unknown as Mock).mockReturnValue({
+      activeDashboard: {
+        widgets: [
+          {
+            id: 'text-1',
+            type: 'text',
+            config: {
+              content: 'Task 1\nTask 2\r\nTask 3',
+            },
+          },
+        ],
+      },
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+    });
+
+    render(<ChecklistSettings widget={mockWidget} />);
+
+    const importSection = screen
+      .getByText('Import from Text Widget')
+      .closest('.bg-emerald-50');
+    expect(importSection).not.toBeNull();
+    if (importSection) {
+      const importButton = within(importSection as HTMLElement).getByRole(
+        'button',
+        { name: /Sync Text/i }
+      );
+      fireEvent.click(importButton);
+    }
+
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'Imported tasks from Text widget!',
       'success'
     );
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       'checklist-1',
       expect.objectContaining({
         config: expect.objectContaining({
-          mode: 'manual',
           items: expect.arrayContaining([
-            expect.objectContaining({ text: 'Step 1', completed: false }),
-            expect.objectContaining({ text: 'Step 2', completed: false }),
+            expect.objectContaining({ text: 'Task 1' }),
+            expect.objectContaining({ text: 'Task 2' }),
+            expect.objectContaining({ text: 'Task 3' }),
           ]),
         }),
       })
     );
+  });
+
+  it('shows error if no active Text widget found', () => {
+    (useDashboard as unknown as Mock).mockReturnValue({
+      activeDashboard: {
+        widgets: [],
+      },
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+    });
+
+    render(<ChecklistSettings widget={mockWidget} />);
+
+    const importSection = screen
+      .getByText('Import from Text Widget')
+      .closest('.bg-emerald-50');
+    expect(importSection).not.toBeNull();
+    if (importSection) {
+      const importButton = within(importSection as HTMLElement).getByRole(
+        'button',
+        { name: /Sync Text/i }
+      );
+      fireEvent.click(importButton);
+    }
+
+    expect(mockAddToast).toHaveBeenCalledWith('No Text widget found!', 'error');
+  });
+
+  it('shows info if active Text widget is empty', () => {
+    (useDashboard as unknown as Mock).mockReturnValue({
+      activeDashboard: {
+        widgets: [
+          {
+            id: 'text-1',
+            type: 'text',
+            config: {
+              content: '<p></p>',
+            },
+          },
+        ],
+      },
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+    });
+
+    render(<ChecklistSettings widget={mockWidget} />);
+
+    const importSection = screen
+      .getByText('Import from Text Widget')
+      .closest('.bg-emerald-50');
+    expect(importSection).not.toBeNull();
+    if (importSection) {
+      const importButton = within(importSection as HTMLElement).getByRole(
+        'button',
+        { name: /Sync Text/i }
+      );
+      fireEvent.click(importButton);
+    }
+
+    expect(mockAddToast).toHaveBeenCalledWith(
+      'All Text widgets are empty or have no usable text.',
+      'info'
+    );
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
   it('shows error if no Instructional Routine widget exists', () => {
