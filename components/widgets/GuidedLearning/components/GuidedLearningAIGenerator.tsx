@@ -36,19 +36,23 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       const base64 = dataUrl.split(',')[1];
       setImageBase64(base64);
       setImageMimeType(file.type);
-      // Also upload to Storage for display
+      // Upload to Storage; if it fails, reject rather than persisting a large data URI
       try {
         const url = await uploadHotspotImage(user.uid, file);
         setImageUrl(url);
       } catch {
-        setImageUrl(dataUrl); // fall back to data URI
+        setError(
+          'Image upload failed. Please check your connection and try again.'
+        );
+        setImageBase64('');
+        setImageMimeType('');
       }
     };
     reader.readAsDataURL(file);
   };
 
   const handleGenerate = async () => {
-    if (!imageBase64) return;
+    if (!imageBase64 || !imageUrl) return;
     setGenerating(true);
     setError('');
     try {
@@ -159,7 +163,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
       <button
         onClick={handleGenerate}
-        disabled={!imageBase64 || generating || uploading}
+        disabled={!imageBase64 || !imageUrl || generating || uploading}
         className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
       >
         {generating ? (

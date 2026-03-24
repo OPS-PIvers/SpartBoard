@@ -19,7 +19,7 @@ interface Props {
   onAnswer?: (
     stepId: string,
     answer: string | string[],
-    isCorrect: boolean
+    isCorrect: boolean | null
   ) => void;
   /** Teacher mode: has access to correct answers */
   teacherMode?: boolean;
@@ -58,8 +58,29 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   }
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef(0);
+
+  const [imgOffset, setImgOffset] = useState<{
+    left: number;
+    top: number;
+    scaleX: number;
+    scaleY: number;
+  } | null>(null);
+
+  const measureImg = useCallback(() => {
+    if (!imgRef.current || !containerRef.current) return;
+    const imgRect = imgRef.current.getBoundingClientRect();
+    const contRect = containerRef.current.getBoundingClientRect();
+    if (contRect.width === 0 || contRect.height === 0) return;
+    setImgOffset({
+      left: ((imgRect.left - contRect.left) / contRect.width) * 100,
+      top: ((imgRect.top - contRect.top) / contRect.height) * 100,
+      scaleX: imgRect.width / contRect.width,
+      scaleY: imgRect.height / contRect.height,
+    });
+  }, []);
 
   // Observe container size for overlay positioning
   useEffect(() => {
@@ -71,10 +92,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           h: entry.contentRect.height,
         });
       }
+      measureImg();
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [measureImg]);
 
   const currentStep = steps[currentIdx] ?? null;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
@@ -147,7 +169,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const handleAnswer = (
     stepId: string,
     answer: string | string[],
-    isCorrect: boolean
+    isCorrect: boolean | null
   ) => {
     setAnsweredSteps((prev) => new Set([...prev, stepId]));
     onAnswer?.(stepId, answer, isCorrect);
@@ -355,10 +377,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           <div className="w-full h-full relative" style={getPanZoomStyle()}>
             {set.imageUrl && (
               <img
+                ref={imgRef}
                 src={set.imageUrl}
                 alt={set.title}
                 className="w-full h-full object-contain pointer-events-none"
                 draggable={false}
+                onLoad={measureImg}
               />
             )}
 
@@ -375,11 +399,19 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 <div
                   key={step.id}
                   className="absolute z-10"
-                  style={{
-                    left: `${step.xPct}%`,
-                    top: `${step.yPct}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
+                  style={
+                    imgOffset
+                      ? {
+                          left: `${imgOffset.left + step.xPct * imgOffset.scaleX}%`,
+                          top: `${imgOffset.top + step.yPct * imgOffset.scaleY}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }
+                      : {
+                          left: `${step.xPct}%`,
+                          top: `${step.yPct}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }
+                  }
                 >
                   <button
                     onClick={() => handlePinClick(step)}

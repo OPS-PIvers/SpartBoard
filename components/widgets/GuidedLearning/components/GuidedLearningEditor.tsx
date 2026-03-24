@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Upload,
   ImageIcon,
@@ -69,6 +69,26 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const [imgBounds, setImgBounds] = useState<{
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const measureImage = useCallback(() => {
+    if (!imageRef.current || !imageContainerRef.current) return;
+    const imgRect = imageRef.current.getBoundingClientRect();
+    const contRect = imageContainerRef.current.getBoundingClientRect();
+    setImgBounds({
+      offsetLeft: imgRect.left - contRect.left,
+      offsetTop: imgRect.top - contRect.top,
+      width: imgRect.width,
+      height: imgRect.height,
+    });
+  }, []);
 
   // Handle file upload
   const handleImageUpload = async (file: File) => {
@@ -113,8 +133,8 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   // Click on image to add a step
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!addingStep || !imageContainerRef.current) return;
-    const rect = imageContainerRef.current.getBoundingClientRect();
+    if (!addingStep || !imageRef.current) return;
+    const rect = imageRef.current.getBoundingClientRect();
     const xPct = Math.max(
       2,
       Math.min(98, ((e.clientX - rect.left) / rect.width) * 100)
@@ -248,17 +268,30 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 onClick={handleImageClick}
               >
                 <img
+                  ref={imageRef}
                   src={imageUrl}
                   alt="Base"
                   className="w-full object-contain max-h-48"
                   draggable={false}
+                  onLoad={measureImage}
                 />
                 {/* Step pins overlay */}
                 {steps.map((s, idx) => (
                   <div
                     key={s.id}
                     className="absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center border-2 border-white cursor-pointer select-none"
-                    style={{ left: `${s.xPct}%`, top: `${s.yPct}%` }}
+                    style={
+                      imgBounds
+                        ? {
+                            left:
+                              imgBounds.offsetLeft +
+                              (s.xPct / 100) * imgBounds.width,
+                            top:
+                              imgBounds.offsetTop +
+                              (s.yPct / 100) * imgBounds.height,
+                          }
+                        : { left: `${s.xPct}%`, top: `${s.yPct}%` }
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedStepId((prev) =>

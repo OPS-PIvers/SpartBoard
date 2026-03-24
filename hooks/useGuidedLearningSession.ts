@@ -31,6 +31,38 @@ import {
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
+// ─── Public helpers ───────────────────────────────────────────────────────────
+
+/** Verify a stored answer against the teacher's answer key. */
+export function isAnswerCorrect(
+  step: GuidedLearningStep,
+  answer: string | string[]
+): boolean {
+  const q = step.question;
+  if (!q) return false;
+
+  if (q.type === 'multiple-choice') {
+    return typeof answer === 'string' && answer === q.correctAnswer;
+  }
+
+  if (q.type === 'matching') {
+    if (!Array.isArray(answer) || !q.matchingPairs) return false;
+    return q.matchingPairs.every((pair) =>
+      answer.includes(`${pair.left}:${pair.right}`)
+    );
+  }
+
+  if (q.type === 'sorting') {
+    if (!Array.isArray(answer) || !q.sortingItems) return false;
+    return (
+      answer.length === q.sortingItems.length &&
+      answer.every((item, i) => item === q.sortingItems?.[i])
+    );
+  }
+
+  return false;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -185,7 +217,8 @@ export const useGuidedLearningSessionTeacher = (
         });
         const questionCorrect = questionSteps.map((s) => {
           const ans = r.answers.find((a) => a.stepId === s.id);
-          return ans ? (ans.isCorrect ? 'Yes' : 'No') : '';
+          if (!ans) return '';
+          return isAnswerCorrect(s, ans.answer) ? 'Yes' : 'No';
         });
 
         return [

@@ -102,7 +102,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   }, []);
 
   const handleAnswer = useCallback(
-    (stepId: string, answer: string | string[], isCorrect: boolean) => {
+    (stepId: string, answer: string | string[], isCorrect: boolean | null) => {
       setAnswers((prev) => {
         const existing = prev.find((a) => a.stepId === stepId);
         if (existing)

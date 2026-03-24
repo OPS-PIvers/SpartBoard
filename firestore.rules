@@ -318,6 +318,41 @@ service cloud.firestore {
         (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff');
     }
 
+    // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
+    match /guided_learning_sessions/{sessionId} {
+      // Any authenticated user (including anonymous) can read session documents
+      allow read: if request.auth != null;
+      // Only authenticated (non-anonymous) teachers can create sessions
+      allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      // Sessions are immutable after creation
+      allow update, delete: if false;
+
+      match /responses/{studentUid} {
+        // Teacher can read all responses; students can only read their own
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          studentUid == request.auth.uid
+        );
+        // Students create their own response; doc ID and studentAnonymousId must match auth UID
+        allow create: if request.auth != null &&
+          studentUid == request.auth.uid &&
+          request.resource.data.studentAnonymousId == request.auth.uid &&
+          request.resource.data.score == null;
+        // Students can update only their own response to add answers or set completedAt;
+        // identity fields and score are immutable from the client
+        allow update: if request.auth != null &&
+          studentUid == request.auth.uid &&
+          request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
+          request.resource.data.sessionId == resource.data.sessionId &&
+          request.resource.data.startedAt == resource.data.startedAt &&
+          request.resource.data.score == resource.data.score &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt', 'pin']) &&
+          request.resource.data.answers.size() >= resource.data.answers.size();
+        allow delete: if false;
+      }
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

@@ -1816,7 +1816,7 @@ export interface GuidedLearningResponse {
   answers: {
     stepId: string;
     answer: string | string[];
-    isCorrect: boolean;
+    isCorrect: boolean | null; // null when correctness can't be computed client-side (student mode)
   }[];
   completedAt: number | null;
   startedAt: number;

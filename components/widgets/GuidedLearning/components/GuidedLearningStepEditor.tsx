@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import {
   GuidedLearningStep,
   GuidedLearningInteractionType,
@@ -51,7 +51,6 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
     <div className="border border-white/10 rounded-lg overflow-hidden">
       {/* Header row */}
       <div className="flex items-center gap-2 px-3 py-2 bg-white/5">
-        <GripVertical className="w-4 h-4 text-slate-500 cursor-grab flex-shrink-0" />
         <button
           onClick={onToggle}
           className="flex-1 text-left text-sm text-white font-medium truncate hover:text-indigo-300 transition-colors"

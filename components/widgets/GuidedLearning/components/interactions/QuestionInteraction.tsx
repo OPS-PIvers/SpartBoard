@@ -5,7 +5,7 @@ import { GuidedLearningPublicStep } from '@/types';
 interface Props {
   step: GuidedLearningPublicStep;
   /** Called when answered; pass the answer and isCorrect */
-  onAnswer: (answer: string | string[], isCorrect: boolean) => void;
+  onAnswer: (answer: string | string[], isCorrect: boolean | null) => void;
   onContinue: () => void;
   /** Original step data (with answer key) — only present in teacher/player mode */
   correctAnswer?: string;
@@ -32,27 +32,22 @@ export const QuestionInteraction: React.FC<Props> = ({
     q?.sortingItems ?? []
   );
   const [submitted, setSubmitted] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
   if (!q) return null;
 
   const handleSubmit = () => {
-    let correct = false;
+    let correct: boolean | null = null;
     let answer: string | string[] = '';
 
     if (q.type === 'multiple-choice') {
       answer = selectedMC ?? '';
-      if (studentMode) {
-        // Answer key not available client-side; correctness computed in teacher view
-        correct = true;
-      } else {
+      if (!studentMode) {
         correct = correctAnswer ? selectedMC === correctAnswer : true;
       }
     } else if (q.type === 'matching') {
       answer = Object.entries(matchingAnswers).map(([l, r]) => `${l}:${r}`);
-      if (studentMode) {
-        correct = true;
-      } else {
+      if (!studentMode) {
         correct = correctMatchingPairs
           ? correctMatchingPairs.every(
               (pair) => matchingAnswers[pair.left] === pair.right
@@ -61,9 +56,7 @@ export const QuestionInteraction: React.FC<Props> = ({
       }
     } else if (q.type === 'sorting') {
       answer = sortingOrder;
-      if (studentMode) {
-        correct = true;
-      } else {
+      if (!studentMode) {
         correct = correctSortingItems
           ? sortingOrder.every((item, i) => item === correctSortingItems[i])
           : true;

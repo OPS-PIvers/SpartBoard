@@ -7,43 +7,16 @@ import {
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
-import { GuidedLearningSet, GuidedLearningStep } from '@/types';
-import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
+import { GuidedLearningSet } from '@/types';
+import {
+  useGuidedLearningSessionTeacher,
+  isAnswerCorrect,
+} from '@/hooks/useGuidedLearningSession';
 
 interface Props {
   set: GuidedLearningSet;
   sessionId: string;
   onClose: () => void;
-}
-
-/** Verify a stored answer against the teacher's answer key. */
-function isAnswerCorrect(
-  step: GuidedLearningStep,
-  answer: string | string[]
-): boolean {
-  const q = step.question;
-  if (!q) return false;
-
-  if (q.type === 'multiple-choice') {
-    return typeof answer === 'string' && answer === q.correctAnswer;
-  }
-
-  if (q.type === 'matching') {
-    if (!Array.isArray(answer) || !q.matchingPairs) return false;
-    return q.matchingPairs.every((pair) =>
-      answer.includes(`${pair.left}:${pair.right}`)
-    );
-  }
-
-  if (q.type === 'sorting') {
-    if (!Array.isArray(answer) || !q.sortingItems) return false;
-    return (
-      answer.length === q.sortingItems.length &&
-      answer.every((item, i) => item === q.sortingItems?.[i])
-    );
-  }
-
-  return false;
 }
 
 export const GuidedLearningResults: React.FC<Props> = ({
@@ -215,10 +188,13 @@ export const GuidedLearningResults: React.FC<Props> = ({
               </h3>
               <div className="space-y-1.5">
                 {responses.map((r) => {
-                  const qAnswered = r.answers.filter(
-                    (a) => a.isCorrect !== undefined
+                  const qCorrect = questionSteps.filter((step) => {
+                    const a = r.answers.find((ans) => ans.stepId === step.id);
+                    return a ? isAnswerCorrect(step, a.answer) : false;
+                  }).length;
+                  const qAnswered = questionSteps.filter((step) =>
+                    r.answers.some((ans) => ans.stepId === step.id)
                   ).length;
-                  const qCorrect = r.answers.filter((a) => a.isCorrect).length;
                   return (
                     <div
                       key={r.studentAnonymousId}
