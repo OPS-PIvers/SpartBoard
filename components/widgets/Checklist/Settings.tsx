@@ -109,8 +109,8 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     // Split by newline and filter empty lines
     const lines = plainText
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
     if (lines.length === 0) {
       addToast('Text widget is empty or has no usable text.', 'info');

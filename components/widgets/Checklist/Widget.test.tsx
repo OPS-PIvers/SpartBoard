@@ -274,7 +274,7 @@ describe('ChecklistSettings Nexus Connection', () => {
   it('imports steps from active Instructional Routine', () => {
     render(<ChecklistSettings widget={mockWidget} />);
 
-    const importButton = screen.getByText('Sync');
+    const importButton = screen.getAllByText('Sync')[0];
     fireEvent.click(importButton);
 
     expect(mockAddToast).toHaveBeenCalledWith(
@@ -306,7 +306,7 @@ describe('ChecklistSettings Nexus Connection', () => {
 
     render(<ChecklistSettings widget={mockWidget} />);
 
-    const importButton = screen.getByText('Sync');
+    const importButton = screen.getAllByText('Sync')[0];
     fireEvent.click(importButton);
 
     expect(mockAddToast).toHaveBeenCalledWith(
