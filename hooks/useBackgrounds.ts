@@ -4,6 +4,14 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/useAuth';
 import { BackgroundPreset } from '../types';
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from '../config/backgrounds';
+import { resolveCategory } from '../utils/backgroundCategories';
+
+export interface BackgroundPresetItem {
+  id: string;
+  label: string;
+  thumbnailUrl?: string;
+  category: string;
+}
 
 export const useBackgrounds = () => {
   const { user, isAdmin } = useAuth();
@@ -116,11 +124,26 @@ export const useBackgrounds = () => {
     return () => unsubscribes.forEach((unsub) => unsub());
   }, [user, isAdmin]);
 
-  const presets = useMemo(() => {
+  // Preload the first 20 thumbnails into the browser cache so the sidebar
+  // feels instant when opened. This is a legitimate external side-effect
+  // (warming the HTTP cache) rather than derived state.
+  useEffect(() => {
+    const toPreload = managedBackgrounds.slice(0, 20);
+    toPreload.forEach((bg) => {
+      const src = bg.thumbnailUrl ?? bg.url;
+      if (src?.startsWith('http')) {
+        const img = new Image();
+        img.src = src;
+      }
+    });
+  }, [managedBackgrounds]);
+
+  const presets = useMemo<BackgroundPresetItem[]>(() => {
     return managedBackgrounds.map((bg) => ({
       id: bg.url,
       label: bg.label,
       thumbnailUrl: bg.thumbnailUrl,
+      category: resolveCategory(bg.label, bg.category),
     }));
   }, [managedBackgrounds]);
 

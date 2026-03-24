@@ -4,6 +4,7 @@ import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { extractYouTubeId } from '@/utils/url';
+import { BACKGROUND_CATEGORY_ORDER } from '@/utils/backgroundCategories';
 
 interface SidebarBackgroundsProps {
   isVisible: boolean;
@@ -23,6 +24,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
   const [designTab, setDesignTab] = useState<'media' | 'colors' | 'my-uploads'>(
     'media'
   );
+  const [activeCategory, setActiveCategory] = useState<string>('All');
 
   // My Uploads state
   const [userUploads, setUserUploads] = useState<string[]>([]);
@@ -48,6 +50,41 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
       { imagePresets: [], videoPresets: [] }
     );
   }, [presets]);
+
+  // Categories present in imagePresets, in canonical order
+  const availableCategories = useMemo(() => {
+    const cats = new Set(imagePresets.map((bg) => bg.category));
+    return BACKGROUND_CATEGORY_ORDER.filter((c) => cats.has(c));
+  }, [imagePresets]);
+
+  // When filtering: flat list for the active category; null means show all grouped
+  const filteredImagePresets = useMemo(() => {
+    if (activeCategory === 'All') return null;
+    return imagePresets.filter((bg) => bg.category === activeCategory);
+  }, [imagePresets, activeCategory]);
+
+  // Grouped presets used when activeCategory === 'All'
+  const groupedImagePresets = useMemo(() => {
+    const groups = new Map<string, typeof imagePresets>();
+    for (const bg of imagePresets) {
+      const existing = groups.get(bg.category);
+      if (existing) {
+        existing.push(bg);
+      } else {
+        groups.set(bg.category, [bg]);
+      }
+    }
+    return BACKGROUND_CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => ({
+      category: c,
+      items: groups.get(c) ?? [],
+    }));
+  }, [imagePresets]);
+
+  // Reset category filter when switching away from media tab
+  const handleTabChange = (tab: typeof designTab) => {
+    setDesignTab(tab);
+    if (tab !== 'media') setActiveCategory('All');
+  };
 
   // Fetch past uploads from Google Drive when the "My Uploads" tab is opened
   useEffect(() => {
@@ -107,6 +144,40 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     }
   };
 
+  // Shared thumbnail button used in both grouped and filtered views
+  const ThumbnailButton = ({
+    id,
+    label,
+    thumbnailUrl,
+  }: {
+    id: string;
+    label: string;
+    thumbnailUrl?: string;
+  }) => (
+    <button
+      key={id}
+      onClick={() => setBackground(id)}
+      className={`group relative aspect-video rounded-lg overflow-hidden border transition-all ${
+        activeDashboard?.background === id
+          ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
+          : 'border-slate-200'
+      }`}
+    >
+      <img
+        src={thumbnailUrl ?? id}
+        alt={label}
+        loading="lazy"
+        decoding="async"
+        className="w-full h-full object-cover"
+      />
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <span className="text-white text-xxxs font-bold uppercase px-1 text-center">
+          {label}
+        </span>
+      </div>
+    </button>
+  );
+
   return (
     <div
       className={`absolute inset-0 p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar transition-all duration-300 ease-in-out ${
@@ -118,7 +189,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
       {/* Tab bar */}
       <div className="flex bg-slate-100 p-0.5 rounded-lg text-xxs font-bold uppercase tracking-widest shrink-0">
         <button
-          onClick={() => setDesignTab('media')}
+          onClick={() => handleTabChange('media')}
           className={`flex-1 py-1.5 rounded-md transition-all ${
             designTab === 'media'
               ? 'bg-white shadow-sm text-brand-blue-primary'
@@ -128,7 +199,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
           Media
         </button>
         <button
-          onClick={() => setDesignTab('colors')}
+          onClick={() => handleTabChange('colors')}
           className={`flex-1 py-1.5 rounded-md transition-all ${
             designTab === 'colors'
               ? 'bg-white shadow-sm text-brand-blue-primary'
@@ -138,7 +209,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
           Colors
         </button>
         <button
-          onClick={() => setDesignTab('my-uploads')}
+          onClick={() => handleTabChange('my-uploads')}
           className={`flex-1 py-1.5 rounded-md transition-all ${
             designTab === 'my-uploads'
               ? 'bg-white shadow-sm text-brand-blue-primary'
@@ -151,39 +222,78 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
 
       {/* ── Media tab ── */}
       {designTab === 'media' && (
-        <div className="flex flex-col gap-6 pb-4">
-          {imagePresets.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                <ImageIcon className="w-3 h-3" /> Images
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {imagePresets.map((bg) => (
-                  <button
-                    key={bg.id}
-                    onClick={() => setBackground(bg.id)}
-                    className={`group relative aspect-video rounded-lg overflow-hidden border transition-all ${
-                      activeDashboard?.background === bg.id
-                        ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
-                        : 'border-slate-200'
-                    }`}
-                  >
-                    <img
-                      src={bg.thumbnailUrl ?? bg.id}
-                      alt={bg.label}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xxxs font-bold uppercase px-1 text-center">
-                        {bg.label}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        <div className="flex flex-col gap-4 pb-4">
+          {/* Category filter chips — only shown when there are categorised images */}
+          {availableCategories.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 shrink-0">
+              <button
+                onClick={() => setActiveCategory('All')}
+                className={`px-2.5 py-1 rounded-full text-xxs font-bold uppercase tracking-wide transition-all border ${
+                  activeCategory === 'All'
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-brand-blue-primary hover:text-brand-blue-primary'
+                }`}
+              >
+                All
+              </button>
+              {availableCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-2.5 py-1 rounded-full text-xxs font-bold uppercase tracking-wide transition-all border ${
+                    activeCategory === cat
+                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-brand-blue-primary hover:text-brand-blue-primary'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           )}
 
+          {/* Filtered view — specific category selected */}
+          {filteredImagePresets !== null && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                {filteredImagePresets.map((bg) => (
+                  <ThumbnailButton key={bg.id} {...bg} />
+                ))}
+              </div>
+              {filteredImagePresets.length === 0 && (
+                <p className="text-center text-xs text-slate-400 py-8">
+                  No backgrounds in this category.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Grouped view — "All" selected */}
+          {filteredImagePresets === null && (
+            <div className="flex flex-col gap-6">
+              {groupedImagePresets.map(({ category, items }) => (
+                <div key={category} className="space-y-2">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <ImageIcon className="w-3 h-3" /> {category}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((bg) => (
+                      <ThumbnailButton key={bg.id} {...bg} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {groupedImagePresets.length === 0 &&
+                videoPresets.length === 0 && (
+                  <p className="text-center text-xs text-slate-400 py-8">
+                    No media backgrounds available yet.
+                  </p>
+                )}
+            </div>
+          )}
+
+          {/* Ambient Videos — always shown at the bottom of the media tab */}
           {videoPresets.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
@@ -191,35 +301,10 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 {videoPresets.map((bg) => (
-                  <button
-                    key={bg.id}
-                    onClick={() => setBackground(bg.id)}
-                    className={`group relative aspect-video rounded-lg overflow-hidden border transition-all ${
-                      activeDashboard?.background === bg.id
-                        ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
-                        : 'border-slate-200'
-                    }`}
-                  >
-                    <img
-                      src={bg.thumbnailUrl ?? bg.id}
-                      alt={bg.label}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xxxs font-bold uppercase px-1 text-center">
-                        {bg.label}
-                      </span>
-                    </div>
-                  </button>
+                  <ThumbnailButton key={bg.id} {...bg} />
                 ))}
               </div>
             </div>
-          )}
-
-          {imagePresets.length === 0 && videoPresets.length === 0 && (
-            <p className="text-center text-xs text-slate-400 py-8">
-              No media backgrounds available yet.
-            </p>
           )}
         </div>
       )}
@@ -320,6 +405,8 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                   <img
                     src={url}
                     alt="Custom background"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </button>

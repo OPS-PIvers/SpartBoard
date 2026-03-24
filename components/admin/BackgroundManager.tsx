@@ -12,6 +12,7 @@ import {
   getDocs,
   deleteDoc,
   updateDoc,
+  onSnapshot,
   query,
   orderBy,
   where,
@@ -224,32 +225,26 @@ export const BackgroundManager: React.FC = () => {
     return undefined;
   }, [message]);
 
-  const loadPresets = useCallback(async () => {
-    try {
-      setLoading(true);
-      const q = query(
-        collection(db, 'admin_backgrounds'),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      const loadedPresets: BackgroundPreset[] = [];
-
-      snapshot.forEach((doc) => {
-        loadedPresets.push(doc.data() as BackgroundPreset);
-      });
-
-      setPresets(loadedPresets);
-    } catch (error) {
-      console.error('Error loading backgrounds:', error);
-      showMessage('error', 'Failed to load backgrounds');
-    } finally {
-      setLoading(false);
-    }
-  }, [showMessage]);
-
   useEffect(() => {
-    void loadPresets();
-  }, [loadPresets]);
+    setLoading(true);
+    const q = query(
+      collection(db, 'admin_backgrounds'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setPresets(snapshot.docs.map((d) => d.data() as BackgroundPreset));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error loading backgrounds:', error);
+        showMessage('error', 'Failed to load backgrounds');
+        setLoading(false);
+      }
+    );
+    return unsub;
+  }, [showMessage]);
 
   const restoreDefaults = async () => {
     const confirmed = await showConfirm(
@@ -281,7 +276,6 @@ export const BackgroundManager: React.FC = () => {
           await setDoc(doc(db, 'admin_backgrounds', newPreset.id), newPreset);
         }
       }
-      void loadPresets();
       showMessage('success', 'Default presets restored');
     } catch (error) {
       console.error('Error restoring defaults:', error);
