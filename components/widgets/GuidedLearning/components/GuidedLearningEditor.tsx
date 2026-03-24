@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Upload,
   ImageIcon,
@@ -27,8 +27,16 @@ interface Props {
   saving: boolean;
 }
 
-const MODE_OPTIONS: { value: GuidedLearningMode; label: string; desc: string }[] = [
-  { value: 'structured', label: 'Structured', desc: 'Step-by-step with Prev/Next' },
+const MODE_OPTIONS: {
+  value: GuidedLearningMode;
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: 'structured',
+    label: 'Structured',
+    desc: 'Step-by-step with Prev/Next',
+  },
   { value: 'guided', label: 'Guided', desc: 'Auto-advances with Play/Pause' },
   { value: 'explore', label: 'Explore', desc: 'Student clicks any hotspot' },
 ];
@@ -43,20 +51,24 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   const { user } = useAuth();
   const { uploading, uploadHotspotImage } = useStorage();
 
-  const now = Date.now();
   const [title, setTitle] = useState(existingSet?.title ?? '');
-  const [description, setDescription] = useState(existingSet?.description ?? '');
-  const [mode, setMode] = useState<GuidedLearningMode>(existingSet?.mode ?? 'structured');
+  const [description, setDescription] = useState(
+    existingSet?.description ?? ''
+  );
+  const [mode, setMode] = useState<GuidedLearningMode>(
+    existingSet?.mode ?? 'structured'
+  );
   const [imageUrl, setImageUrl] = useState(existingSet?.imageUrl ?? '');
-  const [imagePath, setImagePath] = useState(existingSet?.imagePath ?? '');
-  const [steps, setSteps] = useState<GuidedLearningStep[]>(existingSet?.steps ?? []);
+  const [imagePath] = useState(existingSet?.imagePath ?? '');
+  const [steps, setSteps] = useState<GuidedLearningStep[]>(
+    existingSet?.steps ?? []
+  );
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
   const [addingStep, setAddingStep] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
-  const pasteInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file upload
   const handleImageUpload = async (file: File) => {
@@ -74,46 +86,11 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // PDF: render first page to canvas
-    if (file.type === 'application/pdf') {
-      await renderPDFFirstPage(file);
-    } else {
-      await handleImageUpload(file);
-    }
-  };
-
-  const renderPDFFirstPage = async (file: File) => {
-    if (!user) return;
-    try {
-      // Dynamically import pdfjs if available, otherwise show error
-      const pdfjsLib = await import('pdfjs-dist').catch(() => null);
-      if (!pdfjsLib) {
-        setImageError('PDF rendering requires pdfjs-dist. Please upload an image instead.');
-        return;
-      }
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        const pngFile = new File([blob], `${file.name}.png`, { type: 'image/png' });
-        await handleImageUpload(pngFile);
-      }, 'image/png');
-    } catch (err) {
-      setImageError('Failed to render PDF. Please upload an image instead.');
-    }
+    await handleImageUpload(file);
   };
 
   // Paste from clipboard
-  const handlePaste = useCallback(async () => {
+  const handlePaste = async () => {
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -128,16 +105,24 @@ export const GuidedLearningEditor: React.FC<Props> = ({
       }
       setImageError('No image found in clipboard.');
     } catch {
-      setImageError('Could not read clipboard. Try using the file upload instead.');
+      setImageError(
+        'Could not read clipboard. Try using the file upload instead.'
+      );
     }
-  }, [user]);
+  };
 
   // Click on image to add a step
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!addingStep || !imageContainerRef.current) return;
     const rect = imageContainerRef.current.getBoundingClientRect();
-    const xPct = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
+    const xPct = Math.max(
+      2,
+      Math.min(98, ((e.clientX - rect.left) / rect.width) * 100)
+    );
+    const yPct = Math.max(
+      2,
+      Math.min(98, ((e.clientY - rect.top) / rect.height) * 100)
+    );
 
     const newStep: GuidedLearningStep = {
       id: crypto.randomUUID(),
@@ -153,6 +138,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   const handleSave = async () => {
     if (!title.trim()) return;
+    const now = Date.now();
     const setId = existingSet?.id ?? crypto.randomUUID();
     const set: GuidedLearningSet = {
       id: setId,
@@ -213,7 +199,9 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
           {/* Description */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Description (optional)</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              Description (optional)
+            </label>
             <input
               type="text"
               value={description}
@@ -237,8 +225,12 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                       : 'border-white/10 bg-white/5 hover:border-white/20'
                   }`}
                 >
-                  <div className="text-white text-xs font-semibold mb-0.5">{opt.label}</div>
-                  <div className="text-slate-400 text-xs leading-tight">{opt.desc}</div>
+                  <div className="text-white text-xs font-semibold mb-0.5">
+                    {opt.label}
+                  </div>
+                  <div className="text-slate-400 text-xs leading-tight">
+                    {opt.desc}
+                  </div>
                 </button>
               ))}
             </div>
@@ -246,7 +238,9 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
           {/* Image upload */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Base Image *</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              Base Image *
+            </label>
             {imageUrl ? (
               <div
                 ref={imageContainerRef}
@@ -267,7 +261,9 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                     style={{ left: `${s.xPct}%`, top: `${s.yPct}%` }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setExpandedStepId((prev) => (prev === s.id ? null : s.id));
+                      setExpandedStepId((prev) =>
+                        prev === s.id ? null : s.id
+                      );
                     }}
                   >
                     {idx + 1}
@@ -373,7 +369,8 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 ))}
                 {steps.length === 0 && (
                   <p className="text-slate-500 text-xs text-center py-4">
-                    Click "Add Step" then click the image to place a hotspot.
+                    Click &quot;Add Step&quot; then click the image to place a
+                    hotspot.
                   </p>
                 )}
               </div>

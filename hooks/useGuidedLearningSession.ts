@@ -128,10 +128,7 @@ export const useGuidedLearningSessionTeacher = (
         createdAt: Date.now(),
       };
 
-      await setDoc(
-        doc(db, GL_SESSIONS_COLLECTION, sessionId),
-        session
-      );
+      await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);
 
       return `${window.location.origin}/guided-learning/${sessionId}`;
     },
@@ -202,8 +199,7 @@ export const useGuidedLearningSessionTeacher = (
         ];
       });
 
-      const escape = (v: string) =>
-        `"${v.replace(/"/g, '""')}"`;
+      const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
 
       return [headers, ...rows]
         .map((row) => row.map(escape).join(','))
@@ -240,9 +236,7 @@ export const useGuidedLearningSessionStudent = (
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDoc(
-          doc(db, GL_SESSIONS_COLLECTION, sessionId)
-        );
+        const snap = await getDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId));
         if (!snap.exists()) {
           setError('This guided learning session was not found.');
         } else {

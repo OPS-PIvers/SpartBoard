@@ -167,8 +167,7 @@ const App: React.FC = () => {
   }
 
   const isGuidedLearningRoute =
-    pathname === '/guided-learning' ||
-    pathname.startsWith('/guided-learning/');
+    pathname === '/guided-learning' || pathname.startsWith('/guided-learning/');
 
   // Guided Learning student route — anonymous entry, no teacher auth needed
   if (isGuidedLearningRoute) {

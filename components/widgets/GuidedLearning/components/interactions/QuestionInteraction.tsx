@@ -25,8 +25,12 @@ export const QuestionInteraction: React.FC<Props> = ({
 }) => {
   const q = step.question;
   const [selectedMC, setSelectedMC] = useState<string | null>(null);
-  const [matchingAnswers, setMatchingAnswers] = useState<Record<string, string>>({});
-  const [sortingOrder, setSortingOrder] = useState<string[]>(q?.sortingItems ?? []);
+  const [matchingAnswers, setMatchingAnswers] = useState<
+    Record<string, string>
+  >({});
+  const [sortingOrder, setSortingOrder] = useState<string[]>(
+    q?.sortingItems ?? []
+  );
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
@@ -73,7 +77,9 @@ export const QuestionInteraction: React.FC<Props> = ({
   return (
     <div className="w-full h-full flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl p-5 max-w-sm w-full shadow-xl">
-        <p className="text-white font-semibold text-sm mb-4 leading-snug">{q.text}</p>
+        <p className="text-white font-semibold text-sm mb-4 leading-snug">
+          {q.text}
+        </p>
 
         {!submitted ? (
           <>
@@ -99,7 +105,9 @@ export const QuestionInteraction: React.FC<Props> = ({
             {/* Matching */}
             {q.type === 'matching' && (
               <div className="space-y-2">
-                <p className="text-slate-400 text-xs mb-2">Match each item on the left to its pair:</p>
+                <p className="text-slate-400 text-xs mb-2">
+                  Match each item on the left to its pair:
+                </p>
                 {(q.matchingLeft ?? []).map((left) => (
                   <div key={left} className="flex items-center gap-2">
                     <span className="text-slate-200 text-xs flex-1 bg-slate-700 rounded px-2 py-1">
@@ -131,14 +139,20 @@ export const QuestionInteraction: React.FC<Props> = ({
             {/* Sorting */}
             {q.type === 'sorting' && (
               <div className="space-y-1.5">
-                <p className="text-slate-400 text-xs mb-2">Drag or use arrows to put items in the correct order:</p>
+                <p className="text-slate-400 text-xs mb-2">
+                  Drag or use arrows to put items in the correct order:
+                </p>
                 {sortingOrder.map((item, idx) => (
                   <div
                     key={item}
                     className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2"
                   >
-                    <span className="text-slate-400 text-xs w-5 text-center">{idx + 1}</span>
-                    <span className="flex-1 text-slate-200 text-xs">{item}</span>
+                    <span className="text-slate-400 text-xs w-5 text-center">
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1 text-slate-200 text-xs">
+                      {item}
+                    </span>
                     <div className="flex flex-col gap-0.5">
                       <button
                         disabled={idx === 0}
@@ -185,12 +199,15 @@ export const QuestionInteraction: React.FC<Props> = ({
             ) : (
               <XCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
             )}
-            <p className={`font-bold text-base mb-1 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
+            <p
+              className={`font-bold text-base mb-1 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
+            >
               {isCorrect ? 'Correct!' : 'Not quite'}
             </p>
             {!isCorrect && correctAnswer && (
               <p className="text-slate-400 text-xs mb-3">
-                Correct answer: <span className="text-white">{correctAnswer}</span>
+                Correct answer:{' '}
+                <span className="text-white">{correctAnswer}</span>
               </p>
             )}
             <button

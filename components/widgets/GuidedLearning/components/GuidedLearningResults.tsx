@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   BarChart2,
   Download,
@@ -7,13 +7,8 @@ import {
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
-import {
-  GuidedLearningSet,
-  GuidedLearningResponse,
-} from '@/types';
-import {
-  useGuidedLearningSessionTeacher,
-} from '@/hooks/useGuidedLearningSession';
+import { GuidedLearningSet } from '@/types';
+import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 
 interface Props {
   set: GuidedLearningSet;
@@ -26,8 +21,12 @@ export const GuidedLearningResults: React.FC<Props> = ({
   sessionId,
   onClose,
 }) => {
-  const { responses, responsesLoading, subscribeToResponses, exportResponsesAsCSV } =
-    useGuidedLearningSessionTeacher(undefined);
+  const {
+    responses,
+    responsesLoading,
+    subscribeToResponses,
+    exportResponsesAsCSV,
+  } = useGuidedLearningSessionTeacher(undefined);
 
   useEffect(() => {
     const unsub = subscribeToResponses(sessionId);
@@ -92,7 +91,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
           {/* Summary cards */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-white/5 rounded-xl p-3 text-center">
-              <div className="text-2xl font-bold text-white">{responses.length}</div>
+              <div className="text-2xl font-bold text-white">
+                {responses.length}
+              </div>
               <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <Users className="w-3 h-3" /> Total
               </div>
@@ -131,10 +132,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                       : null;
 
                   return (
-                    <div
-                      key={step.id}
-                      className="bg-white/5 rounded-xl p-3"
-                    >
+                    <div key={step.id} className="bg-white/5 rounded-xl p-3">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <p className="text-white text-xs font-medium flex-1">
                           Q{idx + 1}: {step.question?.text}
@@ -177,7 +175,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
               </h3>
               <div className="space-y-1.5">
                 {responses.map((r) => {
-                  const qAnswered = r.answers.filter((a) => a.isCorrect !== undefined).length;
+                  const qAnswered = r.answers.filter(
+                    (a) => a.isCorrect !== undefined
+                  ).length;
                   const qCorrect = r.answers.filter((a) => a.isCorrect).length;
                   return (
                     <div

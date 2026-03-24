@@ -95,6 +95,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   'hotspot-image': ALL_GRADE_LEVELS,
   'starter-pack': ALL_GRADE_LEVELS,
   'video-activity': ALL_GRADE_LEVELS,
+  'guided-learning': ALL_GRADE_LEVELS,
 };
 
 /**

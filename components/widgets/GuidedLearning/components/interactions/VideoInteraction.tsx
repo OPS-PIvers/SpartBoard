@@ -15,7 +15,11 @@ function extractYouTubeId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-export const VideoInteraction: React.FC<Props> = ({ step, onClose, onEnded }) => {
+export const VideoInteraction: React.FC<Props> = ({
+  step,
+  onClose,
+  onEnded,
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const url = step.videoUrl ?? '';
   const youtubeId = extractYouTubeId(url);

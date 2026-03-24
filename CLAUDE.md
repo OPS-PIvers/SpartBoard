@@ -57,21 +57,21 @@ SPART Board is an interactive classroom management dashboard built with React 19
 
 ## Development Commands
 
-- **Start dev server**: `npm run dev` (runs on port 3000)
-- **Build for production**: `npm run build`
-- **Preview production build**: `npm run preview`
-- **Install dependencies**: `npm install`
+- **Start dev server**: `pnpm dev` (runs on port 3000)
+- **Build for production**: `pnpm build`
+- **Preview production build**: `pnpm preview`
+- **Install dependencies**: `pnpm install`
 
 ### Code Quality Commands
 
-- **Type checking**: `npm run type-check`
-- **Linting**: `npm run lint` (fails on errors, allows warnings)
-- **Auto-fix linting**: `npm run lint:fix`
-- **Format code**: `npm run format`
-- **Check formatting**: `npm run format:check`
-- **Validate all**: `npm run validate` (type-check + lint + format-check)
+- **Type checking**: `pnpm type-check`
+- **Linting**: `pnpm lint` (fails on errors and warnings)
+- **Auto-fix linting**: `pnpm lint:fix`
+- **Format code**: `pnpm format`
+- **Check formatting**: `pnpm format:check`
+- **Validate all**: `pnpm validate` (type-check + lint + format-check + tests)
 
-> **IMPORTANT — Pre-push requirement:** You **must not push any commit** that contains TypeScript type errors, ESLint errors or warnings, or Prettier formatting violations. Always run `npm run validate` (or at minimum `npm run lint` and `npm run format:check`) before committing and pushing. If the environment does not have node_modules installed, note that CI will still enforce these checks and will block the PR. Fix all issues before pushing.
+> **IMPORTANT — Pre-push requirement:** You **must not push any commit** that contains TypeScript type errors, ESLint errors or warnings, or Prettier formatting violations. Always run `pnpm validate` (or at minimum `pnpm lint` and `pnpm format:check`) before committing and pushing. If the environment does not have node_modules installed, run `pnpm install` first. CI enforces zero errors AND zero warnings (`--max-warnings 0`). Fix all issues before pushing.
 
 See [LINTING_SETUP.md](LINTING_SETUP.md) for detailed linting and CI/CD configuration.
 
@@ -425,7 +425,7 @@ const getTitle = (widget: WidgetData) => {
 
 ### 5. Test Your Widget
 
-1. Run `npm run dev`
+1. Run `pnpm dev`
 2. Open the Dock (bottom toolbar)
 3. Click your new widget to add it
 4. Test drag, resize, flip, settings
@@ -706,7 +706,7 @@ The app uses Firebase Authentication with admin role management through Firestor
 
 3. **Run the admin setup script** (optional):
    ```bash
-   npm install firebase-admin
+   pnpm add firebase-admin
    # Get service account credentials from Firebase Console
    # Save as scripts/service-account-key.json
    node scripts/setup-admins.js
@@ -877,7 +877,7 @@ See [LINTING_SETUP.md](LINTING_SETUP.md) for complete linting documentation.
 
 ### Linting errors blocking commits
 
-- Run `npm run lint:fix` to auto-fix
+- Run `pnpm lint:fix` to auto-fix
 - Check pre-commit hook output for specific errors
 - See [LINTING_SETUP.md](LINTING_SETUP.md)
 

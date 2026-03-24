@@ -24,7 +24,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     setError('');
@@ -52,7 +52,11 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     setGenerating(true);
     setError('');
     try {
-      const result = await generateGuidedLearning(imageBase64, imageMimeType, prompt || undefined);
+      const result = await generateGuidedLearning(
+        imageBase64,
+        imageMimeType,
+        prompt || undefined
+      );
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
         title: result.suggestedTitle,
@@ -80,13 +84,15 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           <X className="w-4 h-4" />
         </button>
         <Wand2 className="w-4 h-4 text-violet-400" />
-        <span className="text-white font-semibold text-sm">Generate with AI</span>
+        <span className="text-white font-semibold text-sm">
+          Generate with AI
+        </span>
       </div>
 
       <div className="space-y-3 flex-1 overflow-y-auto">
         <p className="text-slate-400 text-xs">
-          Upload an image and Gemini will analyze it to automatically create a guided
-          learning experience with hotspot steps.
+          Upload an image and Gemini will analyze it to automatically create a
+          guided learning experience with hotspot steps.
         </p>
 
         {/* Image upload */}
@@ -94,9 +100,16 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           <label className="block text-xs text-slate-400 mb-1">Image *</label>
           {imageUrl ? (
             <div className="relative rounded-lg overflow-hidden">
-              <img src={imageUrl} alt="Selected" className="w-full max-h-40 object-contain bg-slate-800" />
+              <img
+                src={imageUrl}
+                alt="Selected"
+                className="w-full max-h-40 object-contain bg-slate-800"
+              />
               <button
-                onClick={() => { setImageUrl(''); setImageBase64(''); }}
+                onClick={() => {
+                  setImageUrl('');
+                  setImageBase64('');
+                }}
                 className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
                 aria-label="Remove image"
               >
@@ -109,10 +122,18 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
               className="w-full border-2 border-dashed border-white/20 rounded-xl py-6 text-center hover:border-white/30 transition-colors"
             >
               <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-              <span className="text-slate-400 text-xs">Click to upload image</span>
+              <span className="text-slate-400 text-xs">
+                Click to upload image
+              </span>
             </button>
           )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFile}
+          />
         </div>
 
         {/* Optional prompt */}
@@ -130,7 +151,9 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         </div>
 
         {error && (
-          <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">
+            {error}
+          </p>
         )}
       </div>
 

@@ -13,13 +13,11 @@ import {
   BarChart2,
 } from 'lucide-react';
 import {
-  GuidedLearningConfig,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningMode,
   WidgetData,
 } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
@@ -30,11 +28,23 @@ interface GuidedLearningLibraryProps {
   loading: boolean;
   buildingLoading: boolean;
   isDriveConnected: boolean;
-  onPlay: (setId: string, driveFileId?: string, buildingSet?: GuidedLearningSet) => void;
-  onEdit: (setId: string, driveFileId?: string, buildingSet?: GuidedLearningSet) => void;
+  onPlay: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
+  onEdit: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
   onDelete: (setId: string, driveFileId: string) => void;
   onDeleteBuilding: (setId: string) => void;
-  onAssign: (setId: string, driveFileId?: string, buildingSet?: GuidedLearningSet) => void;
+  onAssign: (
+    setId: string,
+    driveFileId?: string,
+    buildingSet?: GuidedLearningSet
+  ) => void;
   onCreateNew: () => void;
   onCreateNewBuilding: () => void;
   onViewResults: (sessionId: string) => void;
@@ -100,12 +110,16 @@ const SetCard: React.FC<SetCardProps> = ({
         <h3 className="font-semibold text-white text-sm leading-tight line-clamp-2">
           {title}
         </h3>
-        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${MODE_COLORS[mode]}`}>
+        <span
+          className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${MODE_COLORS[mode]}`}
+        >
           {MODE_LABELS[mode]}
         </span>
       </div>
       {description && (
-        <p className="text-slate-400 text-xs mb-2 line-clamp-2">{description}</p>
+        <p className="text-slate-400 text-xs mb-2 line-clamp-2">
+          {description}
+        </p>
       )}
       <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
         {isBuilding && (
@@ -114,7 +128,9 @@ const SetCard: React.FC<SetCardProps> = ({
             Building
           </span>
         )}
-        <span>{stepCount} step{stepCount !== 1 ? 's' : ''}</span>
+        <span>
+          {stepCount} step{stepCount !== 1 ? 's' : ''}
+        </span>
       </div>
       <div className="flex gap-1.5 flex-wrap">
         <button
@@ -167,7 +183,7 @@ const SetCard: React.FC<SetCardProps> = ({
 );
 
 export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
-  widget,
+  widget: _widget,
   sets,
   buildingSets,
   loading,
@@ -184,9 +200,7 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
   onGenerateWithAI,
   recentSessionIds,
 }) => {
-  const { updateWidget } = useDashboard();
   const { isAdmin } = useAuth();
-  const config = widget.config as GuidedLearningConfig;
   const [tab, setTab] = useState<'my' | 'building'>('my');
 
   if (!isDriveConnected && tab === 'my') {
@@ -196,7 +210,8 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
         <div>
           <p className="text-white font-semibold mb-1">Connect Google Drive</p>
           <p className="text-slate-400 text-sm">
-            Your guided learning sets are saved to Google Drive. Sign out and sign back in to grant Drive access.
+            Your guided learning sets are saved to Google Drive. Sign out and
+            sign back in to grant Drive access.
           </p>
         </div>
         <button
@@ -286,38 +301,40 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
               ))}
             </div>
           )
+        ) : buildingLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          </div>
+        ) : buildingSets.length === 0 ? (
+          <ScaledEmptyState
+            icon={Building2}
+            title="No Building Sets"
+            subtitle={
+              isAdmin
+                ? 'Click + New to create a building-level set.'
+                : 'No building sets have been created yet.'
+            }
+          />
         ) : (
-          buildingLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-            </div>
-          ) : buildingSets.length === 0 ? (
-            <ScaledEmptyState
-              icon={Building2}
-              title="No Building Sets"
-              subtitle={isAdmin ? 'Click + New to create a building-level set.' : 'No building sets have been created yet.'}
-            />
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {buildingSets.map((set) => (
-                <SetCard
-                  key={set.id}
-                  title={set.title}
-                  description={set.description}
-                  stepCount={set.steps.length}
-                  mode={set.mode}
-                  imageUrl={set.imageUrl}
-                  isBuilding
-                  onPlay={() => onPlay(set.id, undefined, set)}
-                  onEdit={() => onEdit(set.id, undefined, set)}
-                  onDelete={() => onDeleteBuilding(set.id)}
-                  onAssign={() => onAssign(set.id, undefined, set)}
-                  showEdit={isAdmin}
-                  showDelete={isAdmin}
-                />
-              ))}
-            </div>
-          )
+          <div className="grid grid-cols-1 gap-3">
+            {buildingSets.map((set) => (
+              <SetCard
+                key={set.id}
+                title={set.title}
+                description={set.description}
+                stepCount={set.steps.length}
+                mode={set.mode}
+                imageUrl={set.imageUrl}
+                isBuilding
+                onPlay={() => onPlay(set.id, undefined, set)}
+                onEdit={() => onEdit(set.id, undefined, set)}
+                onDelete={() => onDeleteBuilding(set.id)}
+                onAssign={() => onAssign(set.id, undefined, set)}
+                showEdit={isAdmin ?? false}
+                showDelete={isAdmin ?? false}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

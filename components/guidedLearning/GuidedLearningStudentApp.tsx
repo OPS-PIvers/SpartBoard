@@ -12,20 +12,23 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
-import { BookOpen, Loader2, AlertCircle, CheckCircle2, Trophy } from 'lucide-react';
+import {
+  BookOpen,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Trophy,
+} from 'lucide-react';
 import { auth } from '@/config/firebase';
-import {
-  useGuidedLearningSessionStudent,
-} from '@/hooks/useGuidedLearningSession';
-import {
-  GuidedLearningResponse,
-  GuidedLearningSession,
-} from '@/types';
+import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
+import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const FullPageLoader: React.FC<{ message?: string }> = ({ message = 'Loading…' }) => (
+const FullPageLoader: React.FC<{ message?: string }> = ({
+  message = 'Loading…',
+}) => (
   <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3">
     <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
     <p className="text-slate-400 text-sm">{message}</p>
@@ -67,7 +70,10 @@ export const GuidedLearningStudentApp: React.FC = () => {
   }, []);
 
   if (!authReady) return <FullPageLoader />;
-  if (authFailed) return <ErrorScreen message="Unable to connect. Please refresh and try again." />;
+  if (authFailed)
+    return (
+      <ErrorScreen message="Unable to connect. Please refresh and try again." />
+    );
   if (!anonymousUid) return <FullPageLoader />;
 
   return <StudentExperience anonymousUid={anonymousUid} />;
@@ -75,8 +81,11 @@ export const GuidedLearningStudentApp: React.FC = () => {
 
 // ─── Main experience ──────────────────────────────────────────────────────────
 
-const StudentExperience: React.FC<{ anonymousUid: string }> = ({ anonymousUid }) => {
-  const sessionId = window.location.pathname.split('/guided-learning/')[1] ?? '';
+const StudentExperience: React.FC<{ anonymousUid: string }> = ({
+  anonymousUid,
+}) => {
+  const sessionId =
+    window.location.pathname.split('/guided-learning/')[1] ?? '';
   const { session, loading, error, submitResponse } =
     useGuidedLearningSessionStudent(sessionId);
 
@@ -85,13 +94,21 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({ anonymousUid })
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
-  const startedAt = React.useRef(Date.now());
+  const startedAt = React.useRef<number>(0);
+  useEffect(() => {
+    if (startedAt.current === 0) {
+      startedAt.current = Date.now();
+    }
+  }, []);
 
   const handleAnswer = useCallback(
     (stepId: string, answer: string | string[], isCorrect: boolean) => {
       setAnswers((prev) => {
         const existing = prev.find((a) => a.stepId === stepId);
-        if (existing) return prev.map((a) => a.stepId === stepId ? { stepId, answer, isCorrect } : a);
+        if (existing)
+          return prev.map((a) =>
+            a.stepId === stepId ? { stepId, answer, isCorrect } : a
+          );
         return [...prev, { stepId, answer, isCorrect }];
       });
     },
@@ -164,7 +181,9 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({ anonymousUid })
     <div className="min-h-screen bg-slate-950 flex flex-col">
       <div className="flex-1 relative">
         <GuidedLearningPlayer
-          set={setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']}
+          set={
+            setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
+          }
           onAnswer={handleAnswer}
           teacherMode={false}
         />
@@ -193,7 +212,9 @@ const StartScreen: React.FC<{
     <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
       <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
       <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-      <p className="text-slate-400 text-sm mb-6 capitalize">{session.mode} mode · {session.publicSteps.length} steps</p>
+      <p className="text-slate-400 text-sm mb-6 capitalize">
+        {session.mode} mode · {session.publicSteps.length} steps
+      </p>
 
       <div className="mb-6">
         <label className="block text-slate-400 text-xs mb-1.5 text-left">
@@ -226,14 +247,13 @@ const CompletionScreen: React.FC<{
   <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
     <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
       <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-      <h1 className="text-white font-bold text-xl mb-1">
-        {session.title}
-      </h1>
+      <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
       <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
       <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
       {score !== null && (
         <p className="text-slate-300 text-sm mb-4">
-          You scored <span className="text-white font-bold">{score}%</span> on the comprehension questions.
+          You scored <span className="text-white font-bold">{score}%</span> on
+          the comprehension questions.
         </p>
       )}
       <p className="text-slate-500 text-xs">

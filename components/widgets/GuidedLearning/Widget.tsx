@@ -45,11 +45,14 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [loadingSet, setLoadingSet] = useState(false);
   const [activeSet, setActiveSet] = useState<GuidedLearningSet | null>(null);
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
-  const [editingMeta, setEditingMeta] = useState<GuidedLearningSetMetadata | null>(null);
+  const [editingMeta, setEditingMeta] =
+    useState<GuidedLearningSetMetadata | null>(null);
   const [saving, setSaving] = useState(false);
   const [showAIGen, setShowAIGen] = useState(false);
   const [resultsSessionId, setResultsSessionId] = useState<string | null>(null);
-  const [recentSessionIds, setRecentSessionIds] = useState<Record<string, string>>({});
+  const [recentSessionIds, setRecentSessionIds] = useState<
+    Record<string, string>
+  >({});
 
   const setView = useCallback(
     (view: GuidedLearningConfig['view']) => {
@@ -163,11 +166,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     if (!data) return;
     try {
       const url = await createSession(data);
-      setRecentSessionIds((prev) => ({ ...prev, [setId]: url.split('/').pop() ?? '' }));
+      setRecentSessionIds((prev) => ({
+        ...prev,
+        [setId]: url.split('/').pop() ?? '',
+      }));
       await navigator.clipboard.writeText(url);
       addToast('Assignment link copied to clipboard!', 'success');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create session';
+      const msg =
+        err instanceof Error ? err.message : 'Failed to create session';
       addToast(msg, 'error');
     }
   };

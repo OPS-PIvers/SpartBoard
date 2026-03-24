@@ -8,7 +8,11 @@ interface Props {
   onEnded?: () => void;
 }
 
-export const AudioInteraction: React.FC<Props> = ({ step, autoPlay, onEnded }) => {
+export const AudioInteraction: React.FC<Props> = ({
+  step,
+  autoPlay,
+  onEnded,
+}) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -16,7 +20,9 @@ export const AudioInteraction: React.FC<Props> = ({ step, autoPlay, onEnded }) =
 
   useEffect(() => {
     if (autoPlay && audioRef.current) {
-      void audioRef.current.play().catch(() => {});
+      void audioRef.current.play().catch(() => {
+        /* autoplay blocked; user can press play */
+      });
     }
   }, [autoPlay]);
 
@@ -25,7 +31,9 @@ export const AudioInteraction: React.FC<Props> = ({ step, autoPlay, onEnded }) =
     if (playing) {
       audioRef.current.pause();
     } else {
-      void audioRef.current.play().catch(() => {});
+      void audioRef.current.play().catch(() => {
+        /* autoplay blocked; user can press play */
+      });
     }
   };
 
@@ -45,7 +53,10 @@ export const AudioInteraction: React.FC<Props> = ({ step, autoPlay, onEnded }) =
           src={step.audioUrl}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onEnded={() => { setPlaying(false); onEnded?.(); }}
+          onEnded={() => {
+            setPlaying(false);
+            onEnded?.();
+          }}
           onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />
@@ -77,7 +88,9 @@ export const AudioInteraction: React.FC<Props> = ({ step, autoPlay, onEnded }) =
         <div className="relative h-1.5 bg-slate-700 rounded-full overflow-hidden">
           <div
             className="absolute left-0 top-0 h-full bg-indigo-500 rounded-full transition-all"
-            style={{ width: duration > 0 ? `${(progress / duration) * 100}%` : '0%' }}
+            style={{
+              width: duration > 0 ? `${(progress / duration) * 100}%` : '0%',
+            }}
           />
         </div>
         <div className="flex justify-between text-xs text-slate-500 mt-1">

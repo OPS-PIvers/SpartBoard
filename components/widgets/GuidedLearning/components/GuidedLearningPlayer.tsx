@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Play,
-  Pause,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Circle,
-} from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
@@ -23,7 +16,11 @@ interface Props {
   set: GuidedLearningSet;
   onClose?: () => void;
   /** Called when a question is answered (student mode) */
-  onAnswer?: (stepId: string, answer: string | string[], isCorrect: boolean) => void;
+  onAnswer?: (
+    stepId: string,
+    answer: string | string[],
+    isCorrect: boolean
+  ) => void;
   /** Teacher mode: has access to correct answers */
   teacherMode?: boolean;
 }
@@ -43,8 +40,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
-  const [panZoomActive, setPanZoomActive] = useState<string | null>(null);
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
+
+  // Track previous mode to reset step index when mode changes (adjusting state while rendering)
+  const [prevMode, setPrevMode] = useState(mode);
+  if (prevMode !== mode) {
+    setPrevMode(mode);
+    if (mode !== 'explore' && steps.length > 0) {
+      setCurrentIdx(0);
+      setActiveStepId(steps[0].id);
+    }
+  }
 
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -68,28 +74,30 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const currentStep = steps[currentIdx] ?? null;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
 
-  // Set first step active when entering structured/guided
-  useEffect(() => {
-    if (mode !== 'explore' && steps.length > 0) {
-      setActiveStepId(steps[0].id);
-      setCurrentIdx(0);
-    }
-  }, [mode, steps]);
+  // Derive pan-zoom active state from current step (no effect needed)
+  const panZoomActive =
+    currentStep?.interactionType === 'pan-zoom' ? currentStep.id : null;
 
-  // Pan-zoom activation when step changes in non-explore modes
-  useEffect(() => {
-    if (currentStep?.interactionType === 'pan-zoom') {
-      setPanZoomActive(currentStep.id);
-    } else {
-      setPanZoomActive(null);
-    }
-  }, [currentIdx, currentStep]);
+  const goNext = useCallback(() => {
+    setCurrentIdx((prev) => {
+      const next = Math.min(prev + 1, steps.length - 1);
+      setActiveStepId(steps[next]?.id ?? null);
+      return next;
+    });
+  }, [steps]);
 
-  // Guided mode: auto-advance timer
+  const goPrev = useCallback(() => {
+    setCurrentIdx((prev) => {
+      const prevIdx = Math.max(prev - 1, 0);
+      setActiveStepId(steps[prevIdx]?.id ?? null);
+      return prevIdx;
+    });
+  }, [steps]);
+
+  // Guided mode: auto-advance timer (no setState calls — setProgress only from interval cb)
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
-    setProgress(0);
 
     const duration = (currentStep?.autoAdvanceDuration ?? 5) * 1000;
     if (duration <= 0) return;
@@ -111,35 +119,19 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         goNext();
       }
     }, interval);
-  }, [currentStep, answeredSteps]);
+  }, [currentStep, answeredSteps, goNext]);
 
   useEffect(() => {
     if (mode === 'guided' && playing) {
       startTimer();
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      setProgress(0);
+      progressRef.current = 0;
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [mode, playing, currentIdx, startTimer]);
-
-  const goNext = useCallback(() => {
-    setCurrentIdx((prev) => {
-      const next = Math.min(prev + 1, steps.length - 1);
-      setActiveStepId(steps[next]?.id ?? null);
-      return next;
-    });
-  }, [steps]);
-
-  const goPrev = useCallback(() => {
-    setCurrentIdx((prev) => {
-      const prevIdx = Math.max(prev - 1, 0);
-      setActiveStepId(steps[prevIdx]?.id ?? null);
-      return prevIdx;
-    });
-  }, [steps]);
 
   const handlePinClick = (step: GuidedLearningPublicStep) => {
     if (mode === 'explore') {
@@ -163,8 +155,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (!step) return {};
     const scale = step.panZoomScale ?? 2.5;
     // Translate so the hotspot is centred
-    const tx = containerSize.w / 2 - (step.xPct / 100) * containerSize.w * scale;
-    const ty = containerSize.h / 2 - (step.yPct / 100) * containerSize.h * scale;
+    const tx =
+      containerSize.w / 2 - (step.xPct / 100) * containerSize.w * scale;
+    const ty =
+      containerSize.h / 2 - (step.yPct / 100) * containerSize.h * scale;
     return {
       transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
       transition: 'transform 0.6s ease-in-out',
@@ -231,7 +225,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
     if (type === 'question') {
       // Find original step for answer key (teacher mode only)
-      const origStep = teacherMode ? (set.steps.find((s) => s.id === activeStep.id)) : null;
+      const origStep = teacherMode
+        ? set.steps.find((s) => s.id === activeStep.id)
+        : null;
       return (
         <div className="absolute inset-0 z-30 pointer-events-auto overflow-y-auto">
           <QuestionInteraction
@@ -328,7 +324,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         )}
 
         {mode === 'explore' && (
-          <span className="text-slate-400 text-xs">Click any pin to explore</span>
+          <span className="text-slate-400 text-xs">
+            Click any pin to explore
+          </span>
         )}
       </div>
 
@@ -364,8 +362,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               const isActive = activeStepId === step.id;
               const isCurrentStructured =
                 mode !== 'explore' && step.id === currentStep?.id;
-              const showPin =
-                mode === 'explore' || isCurrentStructured;
+              const showPin = mode === 'explore' || isCurrentStructured;
 
               if (!showPin) return null;
 

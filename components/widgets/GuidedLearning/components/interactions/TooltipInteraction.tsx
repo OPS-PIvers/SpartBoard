@@ -29,9 +29,7 @@ export const TooltipInteraction: React.FC<Props> = ({
       <div
         className={`bg-black/70 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 leading-relaxed shadow-lg border border-white/10 ${alignRight ? 'text-right' : 'text-left'}`}
       >
-        {step.label && (
-          <div className="font-semibold mb-0.5">{step.label}</div>
-        )}
+        {step.label && <div className="font-semibold mb-0.5">{step.label}</div>}
         {step.text}
       </div>
     </div>

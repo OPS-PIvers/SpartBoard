@@ -1,6 +1,12 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import { WidgetType, WidgetConfig, GridPosition, GuidedLearningStep, GuidedLearningMode } from '@/types';
+import {
+  WidgetType,
+  WidgetConfig,
+  GridPosition,
+  GuidedLearningStep,
+  GuidedLearningMode,
+} from '@/types';
 import { TOOLS } from '@/config/tools';
 
 export interface GeneratedMiniApp {
@@ -353,7 +359,11 @@ export async function generateGuidedLearning(
       throw new Error('Invalid response format from AI');
     }
 
-    const validModes: GuidedLearningMode[] = ['structured', 'guided', 'explore'];
+    const validModes: GuidedLearningMode[] = [
+      'structured',
+      'guided',
+      'explore',
+    ];
     const suggestedMode: GuidedLearningMode = validModes.includes(
       data.suggestedMode as GuidedLearningMode
     )
@@ -368,6 +378,8 @@ export async function generateGuidedLearning(
   } catch (error) {
     console.error('Guided Learning Generation Error:', error);
     if (error instanceof Error) throw error;
-    throw new Error('Failed to generate guided learning experience. Please try again.');
+    throw new Error(
+      'Failed to generate guided learning experience. Please try again.'
+    );
   }
 }

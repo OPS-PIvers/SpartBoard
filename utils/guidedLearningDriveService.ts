@@ -153,7 +153,8 @@ export class GuidedLearningDriveService {
         mimeType: 'application/json',
       }),
     });
-    if (!metaRes.ok) throw new Error('Failed to create guided learning file in Drive');
+    if (!metaRes.ok)
+      throw new Error('Failed to create guided learning file in Drive');
     const meta = (await metaRes.json()) as DriveFileCreateResponse;
 
     const uploadRes = await fetch(
@@ -171,11 +172,11 @@ export class GuidedLearningDriveService {
 
   /** Load full set data from Drive by file ID */
   async loadSet(driveFileId: string): Promise<GuidedLearningSet> {
-    const res = await fetch(
-      `${DRIVE_API_URL}/files/${driveFileId}?alt=media`,
-      { headers: this.authHeaders }
-    );
-    if (!res.ok) throw new Error('Failed to load guided learning set from Drive');
+    const res = await fetch(`${DRIVE_API_URL}/files/${driveFileId}?alt=media`, {
+      headers: this.authHeaders,
+    });
+    if (!res.ok)
+      throw new Error('Failed to load guided learning set from Drive');
     return (await res.json()) as GuidedLearningSet;
   }
 

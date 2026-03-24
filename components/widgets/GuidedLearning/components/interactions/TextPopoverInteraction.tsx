@@ -18,7 +18,9 @@ export const TextPopoverInteraction: React.FC<Props> = ({ step, onClose }) => (
         <X className="w-4 h-4" />
       </button>
       {step.label && (
-        <h3 className="text-white font-bold text-base mb-2 pr-6">{step.label}</h3>
+        <h3 className="text-white font-bold text-base mb-2 pr-6">
+          {step.label}
+        </h3>
       )}
       <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
         {step.text ?? ''}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import {
   GuidedLearningStep,
@@ -14,7 +14,10 @@ interface Props {
   onToggle: () => void;
 }
 
-const INTERACTION_TYPES: { value: GuidedLearningInteractionType; label: string }[] = [
+const INTERACTION_TYPES: {
+  value: GuidedLearningInteractionType;
+  label: string;
+}[] = [
   { value: 'text-popover', label: 'Text Popover' },
   { value: 'tooltip', label: 'Tooltip' },
   { value: 'audio', label: 'Audio' },
@@ -53,7 +56,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           onClick={onToggle}
           className="flex-1 text-left text-sm text-white font-medium truncate hover:text-indigo-300 transition-colors"
         >
-          {step.label || interactionLabel}{' '}
+          {step.label ?? interactionLabel}{' '}
           <span className="text-slate-500 font-normal text-xs">
             ({step.xPct.toFixed(0)}%, {step.yPct.toFixed(0)}%)
           </span>
@@ -75,7 +78,9 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
         <div className="p-3 space-y-3 bg-slate-900/50">
           {/* Label */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Label (optional)</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              Label (optional)
+            </label>
             <input
               type="text"
               value={step.label ?? ''}
@@ -87,11 +92,16 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
 
           {/* Interaction type */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Interaction Type</label>
+            <label className="block text-xs text-slate-400 mb-1">
+              Interaction Type
+            </label>
             <select
               value={step.interactionType}
               onChange={(e) =>
-                update({ interactionType: e.target.value as GuidedLearningInteractionType })
+                update({
+                  interactionType: e.target
+                    .value as GuidedLearningInteractionType,
+                })
               }
               className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
             >
@@ -107,7 +117,9 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {(step.interactionType === 'text-popover' ||
             step.interactionType === 'tooltip') && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Text Content</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                Text Content
+              </label>
               <textarea
                 value={step.text ?? ''}
                 onChange={(e) => update({ text: e.target.value })}
@@ -121,7 +133,9 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Audio URL */}
           {step.interactionType === 'audio' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Audio URL</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                Audio URL
+              </label>
               <input
                 type="url"
                 value={step.audioUrl ?? ''}
@@ -138,7 +152,9 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Video URL */}
           {step.interactionType === 'video' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Video URL</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                Video URL
+              </label>
               <input
                 type="url"
                 value={step.videoUrl ?? ''}
@@ -236,7 +252,9 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
   return (
     <div className="space-y-3 border border-white/10 rounded-lg p-3 bg-slate-800/30">
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Question Type</label>
+        <label className="block text-xs text-slate-400 mb-1">
+          Question Type
+        </label>
         <select
           value={q.type}
           onChange={(e) =>
@@ -253,7 +271,9 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
       </div>
 
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Question Text</label>
+        <label className="block text-xs text-slate-400 mb-1">
+          Question Text
+        </label>
         <textarea
           value={q.text}
           onChange={(e) => updateQ({ text: e.target.value })}
@@ -264,24 +284,21 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
       </div>
 
       {/* Multiple Choice */}
-      {q.type === 'multiple-choice' && (
-        <MCEditor q={q} updateQ={updateQ} />
-      )}
+      {q.type === 'multiple-choice' && <MCEditor q={q} updateQ={updateQ} />}
 
       {/* Matching */}
-      {q.type === 'matching' && (
-        <MatchingEditor q={q} updateQ={updateQ} />
-      )}
+      {q.type === 'matching' && <MatchingEditor q={q} updateQ={updateQ} />}
 
       {/* Sorting */}
-      {q.type === 'sorting' && (
-        <SortingEditor q={q} updateQ={updateQ} />
-      )}
+      {q.type === 'sorting' && <SortingEditor q={q} updateQ={updateQ} />}
     </div>
   );
 };
 
-const MCEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void }> = ({ q, updateQ }) => {
+const MCEditor: React.FC<{
+  q: NonNullable<GuidedLearningStep['question']>;
+  updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void;
+}> = ({ q, updateQ }) => {
   const choices = q.choices ?? ['', '', '', ''];
 
   const setChoice = (idx: number, val: string) => {
@@ -298,7 +315,9 @@ const MCEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updat
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-slate-400">Answer Choices (mark correct answer)</label>
+      <label className="block text-xs text-slate-400">
+        Answer Choices (mark correct answer)
+      </label>
       {choices.map((choice, idx) => (
         <div key={idx} className="flex items-center gap-2">
           <input
@@ -316,7 +335,11 @@ const MCEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updat
               const newVal = e.target.value;
               const wasCorrect = q.correctAnswer === choice;
               setChoice(idx, newVal);
-              if (wasCorrect) updateQ({ correctAnswer: newVal, choices: choices.map((c, i) => i === idx ? newVal : c) });
+              if (wasCorrect)
+                updateQ({
+                  correctAnswer: newVal,
+                  choices: choices.map((c, i) => (i === idx ? newVal : c)),
+                });
             }}
             placeholder={`Choice ${idx + 1}`}
             className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-xs"
@@ -341,13 +364,18 @@ const MCEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updat
         </button>
       )}
       {!q.correctAnswer && (
-        <p className="text-xs text-amber-400">Select the correct answer using the radio button.</p>
+        <p className="text-xs text-amber-400">
+          Select the correct answer using the radio button.
+        </p>
       )}
     </div>
   );
 };
 
-const MatchingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void }> = ({ q, updateQ }) => {
+const MatchingEditor: React.FC<{
+  q: NonNullable<GuidedLearningStep['question']>;
+  updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void;
+}> = ({ q, updateQ }) => {
   const pairs = q.matchingPairs ?? [{ left: '', right: '' }];
 
   const setPair = (idx: number, side: 'left' | 'right', val: string) => {
@@ -379,7 +407,9 @@ const MatchingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>;
           />
           {pairs.length > 2 && (
             <button
-              onClick={() => updateQ({ matchingPairs: pairs.filter((_, i) => i !== idx) })}
+              onClick={() =>
+                updateQ({ matchingPairs: pairs.filter((_, i) => i !== idx) })
+              }
               className="text-red-400 hover:text-red-300"
               aria-label="Remove pair"
             >
@@ -390,7 +420,9 @@ const MatchingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>;
       ))}
       {pairs.length < 8 && (
         <button
-          onClick={() => updateQ({ matchingPairs: [...pairs, { left: '', right: '' }] })}
+          onClick={() =>
+            updateQ({ matchingPairs: [...pairs, { left: '', right: '' }] })
+          }
           className="flex items-center gap-1 text-xs text-slate-400 hover:text-white"
         >
           <Plus className="w-3 h-3" /> Add pair
@@ -400,15 +432,22 @@ const MatchingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>;
   );
 };
 
-const SortingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void }> = ({ q, updateQ }) => {
+const SortingEditor: React.FC<{
+  q: NonNullable<GuidedLearningStep['question']>;
+  updateQ: (p: Partial<NonNullable<GuidedLearningStep['question']>>) => void;
+}> = ({ q, updateQ }) => {
   const items = q.sortingItems ?? [''];
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-slate-400">Items in correct order</label>
+      <label className="block text-xs text-slate-400">
+        Items in correct order
+      </label>
       {items.map((item, idx) => (
         <div key={idx} className="flex items-center gap-2">
-          <span className="text-slate-500 text-xs w-5 text-center">{idx + 1}.</span>
+          <span className="text-slate-500 text-xs w-5 text-center">
+            {idx + 1}.
+          </span>
           <input
             type="text"
             value={item}
@@ -422,7 +461,9 @@ const SortingEditor: React.FC<{ q: NonNullable<GuidedLearningStep['question']>; 
           />
           {items.length > 2 && (
             <button
-              onClick={() => updateQ({ sortingItems: items.filter((_, i) => i !== idx) })}
+              onClick={() =>
+                updateQ({ sortingItems: items.filter((_, i) => i !== idx) })
+              }
               className="text-red-400 hover:text-red-300"
               aria-label="Remove item"
             >

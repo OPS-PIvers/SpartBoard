@@ -1312,7 +1312,10 @@ interface GeneratedGuidedLearning {
 }
 
 export const generateGuidedLearning = functionsV1.https.onCall(
-  async (data: { imageBase64: string; mimeType: string; prompt?: string }, context) => {
+  async (
+    data: { imageBase64: string; mimeType: string; prompt?: string },
+    context
+  ) => {
     // Admin only
     const uid = context.auth?.uid;
     if (!uid) {
@@ -1323,7 +1326,11 @@ export const generateGuidedLearning = functionsV1.https.onCall(
     }
 
     const userEmail = context.auth?.token.email ?? '';
-    const adminDoc = await admin.firestore().collection('admins').doc(userEmail.toLowerCase()).get();
+    const adminDoc = await admin
+      .firestore()
+      .collection('admins')
+      .doc(userEmail.toLowerCase())
+      .get();
     if (!adminDoc.exists) {
       throw new functionsV1.https.HttpsError(
         'permission-denied',

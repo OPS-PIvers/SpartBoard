@@ -19,10 +19,7 @@ import {
 import { db } from '../config/firebase';
 import { useAuth } from '../context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
-import {
-  GuidedLearningSet,
-  GuidedLearningSetMetadata,
-} from '../types';
+import { GuidedLearningSet, GuidedLearningSetMetadata } from '../types';
 import { GuidedLearningDriveService } from '../utils/guidedLearningDriveService';
 
 const GL_COLLECTION = 'guided_learning';
@@ -152,10 +149,7 @@ export const useGuidedLearning = (
         updatedAt: updatedSet.updatedAt,
       };
 
-      await setDoc(
-        doc(db, 'users', userId, GL_COLLECTION, set.id),
-        metadata
-      );
+      await setDoc(doc(db, 'users', userId, GL_COLLECTION, set.id), metadata);
 
       return metadata;
     },
@@ -193,10 +187,7 @@ export const useGuidedLearning = (
         isBuilding: true,
         updatedAt: Date.now(),
       };
-      await setDoc(
-        doc(db, BUILDING_GL_COLLECTION, set.id),
-        updatedSet
-      );
+      await setDoc(doc(db, BUILDING_GL_COLLECTION, set.id), updatedSet);
     },
     [isAdmin]
   );
