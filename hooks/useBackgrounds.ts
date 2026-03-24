@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { useAuth } from '../context/useAuth';
-import { BackgroundPreset } from '../types';
-import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from '../config/backgrounds';
-import { resolveCategory } from '../utils/backgroundCategories';
+import { db } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
+import { BackgroundPreset } from '@/types';
+import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from '@/config/backgrounds';
+import { resolveCategory } from '@/utils/backgroundCategories';
 
 export interface BackgroundPresetItem {
   id: string;

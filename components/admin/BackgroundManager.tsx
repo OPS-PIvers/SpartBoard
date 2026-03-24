@@ -107,6 +107,7 @@ export const BackgroundManager: React.FC = () => {
   const { showConfirm } = useDialog();
   const [presets, setPresets] = useState<BackgroundPreset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{
     type: 'success' | 'error';
@@ -254,7 +255,7 @@ export const BackgroundManager: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      setLoading(true);
+      setActionLoading(true);
       for (const item of DEFAULT_PRESETS) {
         // Query by URL to avoid duplicates (IDs are random so we check against Firestore)
         const q = query(
@@ -281,7 +282,7 @@ export const BackgroundManager: React.FC = () => {
       console.error('Error restoring defaults:', error);
       showMessage('error', 'Failed to restore defaults');
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -598,6 +599,7 @@ export const BackgroundManager: React.FC = () => {
               onClick={() => void restoreDefaults()}
               icon={<Plus size={16} />}
               title="Restore original stock images"
+              disabled={actionLoading}
             >
               Restore Defaults
             </Button>
