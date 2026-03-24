@@ -108,7 +108,7 @@ export const VideoActivityConfigurationModal: React.FC<
       setSavingId(activity.id);
       await setDoc(
         doc(db, 'global_video_activities', activity.id),
-        { buildings: isAll ? [BUILDINGS[0].id] : [] }, // Toggle between all (empty array) and first building
+        { buildings: isAll ? [BUILDINGS[0].id] : [] }, // Toggle between all buildings (empty array) and the first building in the list
         { merge: true }
       );
     } catch (error) {
@@ -273,7 +273,7 @@ export const VideoActivityConfigurationModal: React.FC<
                             <a
                               href={activity.youtubeUrl}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="text-brand-blue-primary hover:underline truncate"
                             >
                               {activity.youtubeUrl}
