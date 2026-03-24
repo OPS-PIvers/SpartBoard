@@ -2,8 +2,6 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { GoogleDriveService } from '@/utils/googleDriveService';
 import { APP_NAME } from '@/config/constants';
 
 vi.mock('@/context/useAuth', () => ({
@@ -13,8 +11,6 @@ vi.mock('@/context/useAuth', () => ({
 vi.mock('@/utils/googleDriveService', () => {
   return {
     GoogleDriveService: class {
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      constructor() {}
       uploadFile = vi.fn();
       makePublic = vi.fn();
       findFolder = vi.fn();
@@ -244,10 +240,9 @@ describe('useGoogleDrive', () => {
         const mockDriveService = result.current.driveService as unknown as {
           getFileMetadata: Mock;
         };
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(
-          // eslint-disable-next-line @typescript-eslint/no-empty-function
-          () => {}
-        );
+        const consoleErrorSpy = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => undefined);
 
         mockDriveService.getFileMetadata.mockRejectedValue(
           new Error('API Error')

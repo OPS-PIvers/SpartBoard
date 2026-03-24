@@ -23,9 +23,7 @@
 **Gap:** Trying to hit a fallback `if (!someDep) { toast(); return; }` inside a custom `<Button>`'s `onClick` handler via React Testing Library failed because RTL strictly enforces that `disabled` elements do not emit click events.
 **Fix:** Since the logic wasn't tightly coupled to the DOM implementation (it was testing a fallback logic branch directly within the component's setup), I temporarily modified the wrapper `data-testid` element's underlying DOM `disabled` attribute (`removeAttribute('disabled')`) and updated its pointer-events styling so the event could be triggered, keeping the test contained without exporting internal functions just for testing.
 
-## 2026-03-24 - Mocking ES6 Classes in Vitest Hooks\n\n**Gap:** The tests for failed with 'is not a constructor' when mocking as a function that returns an object, because the hook invokes it with .\n**Fix:** Modified the factory to return an actual inline ES6 definition that initializes the required mock methods, correctly simulating class instantiation.
-
-## 2024-10-26 - Mocking ES6 Classes in Vitest Hooks
+## 2026-03-24 - Mocking ES6 Classes in Vitest Hooks
 
 **Gap:** The tests for `useGoogleDrive` failed with 'is not a constructor' when mocking `GoogleDriveService` as a function that returns an object, because the hook invokes it with `new`.
 **Fix:** Modified the `vi.mock` factory to return an actual inline ES6 `class` definition that initializes the required mock methods, correctly simulating class instantiation.
