@@ -5,6 +5,7 @@ import {
   ChecklistItem,
   WidgetData,
   InstructionalRoutinesConfig,
+  TextConfig,
 } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
@@ -92,6 +93,47 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     addToast('Imported steps from Routine!', 'success');
   };
 
+  const importFromTextWidget = () => {
+    const textWidget = activeDashboard?.widgets.find((w) => w.type === 'text');
+    if (!textWidget) {
+      addToast('No Text widget found!', 'error');
+      return;
+    }
+
+    const textConfig = textWidget.config as TextConfig;
+    const rawContent = textConfig.content || '';
+
+    // Strip HTML tags using regex
+    const plainText = rawContent.replace(/<[^>]*>?/gm, '');
+
+    // Split by newline and filter empty lines
+    const lines = plainText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lines.length === 0) {
+      addToast('Text widget is empty or has no usable text.', 'info');
+      return;
+    }
+
+    const newItems: ChecklistItem[] = lines.map((line) => ({
+      id: crypto.randomUUID(),
+      text: line,
+      completed: false,
+    }));
+
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        mode: 'manual',
+        items: newItems,
+      },
+    });
+    setLocalText(newItems.map((i) => i.text).join('\n'));
+    addToast('Imported tasks from Text widget!', 'success');
+  };
+
   return (
     <div className="space-y-6">
       {/* Nexus Connection: Routine Import */}
@@ -105,6 +147,22 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
         <button
           onClick={importFromRoutine}
           className="bg-white text-indigo-600 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors flex items-center gap-1"
+        >
+          <RefreshCw className="w-3 h-3" /> Sync
+        </button>
+      </div>
+
+      {/* Nexus Connection: Text Import */}
+      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+        <div className="flex items-center gap-2 text-emerald-900">
+          <Type className="w-4 h-4" />
+          <span className="text-xs font-black uppercase tracking-wider">
+            Import from Text Widget
+          </span>
+        </div>
+        <button
+          onClick={importFromTextWidget}
+          className="bg-white text-emerald-600 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase shadow-sm border border-emerald-100 hover:bg-emerald-50 transition-colors flex items-center gap-1"
         >
           <RefreshCw className="w-3 h-3" /> Sync
         </button>
