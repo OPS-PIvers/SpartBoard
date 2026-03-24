@@ -6,6 +6,44 @@ import { useDashboard } from '@/context/useDashboard';
 import { extractYouTubeId } from '@/utils/url';
 import { BACKGROUND_CATEGORY_ORDER } from '@/utils/backgroundCategories';
 
+interface ThumbnailButtonProps {
+  id: string;
+  label: string;
+  thumbnailUrl?: string;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+}
+
+const ThumbnailButton: React.FC<ThumbnailButtonProps> = ({
+  id,
+  label,
+  thumbnailUrl,
+  isActive,
+  onSelect,
+}) => (
+  <button
+    onClick={() => onSelect(id)}
+    className={`group relative aspect-video rounded-lg overflow-hidden border transition-all ${
+      isActive
+        ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
+        : 'border-slate-200'
+    }`}
+  >
+    <img
+      src={thumbnailUrl ?? id}
+      alt={label}
+      loading="lazy"
+      decoding="async"
+      className="w-full h-full object-cover"
+    />
+    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+      <span className="text-white text-xxxs font-bold uppercase px-1 text-center">
+        {label}
+      </span>
+    </div>
+  </button>
+);
+
 interface SidebarBackgroundsProps {
   isVisible: boolean;
 }
@@ -51,11 +89,23 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     );
   }, [presets]);
 
-  // Categories present in imagePresets, in canonical order
+  // Categories present in imagePresets: canonical order first, then any extras
   const availableCategories = useMemo(() => {
     const cats = new Set(imagePresets.map((bg) => bg.category));
-    return BACKGROUND_CATEGORY_ORDER.filter((c) => cats.has(c));
+    const canonical = BACKGROUND_CATEGORY_ORDER.filter((c) => cats.has(c));
+    const extras = [...cats].filter(
+      (c) => !(BACKGROUND_CATEGORY_ORDER as readonly string[]).includes(c)
+    );
+    return [...canonical, ...extras];
   }, [imagePresets]);
+
+  // Reset stale activeCategory if it no longer exists in the available list
+  if (
+    activeCategory !== 'All' &&
+    !availableCategories.some((c) => c === activeCategory)
+  ) {
+    setActiveCategory('All');
+  }
 
   // When filtering: flat list for the active category; null means show all grouped
   const filteredImagePresets = useMemo(() => {
@@ -74,7 +124,14 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
         groups.set(bg.category, [bg]);
       }
     }
-    return BACKGROUND_CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => ({
+    // Canonical order first, then any unrecognized categories
+    const allCategories = [
+      ...BACKGROUND_CATEGORY_ORDER.filter((c) => groups.has(c)),
+      ...[...groups.keys()].filter(
+        (c) => !(BACKGROUND_CATEGORY_ORDER as readonly string[]).includes(c)
+      ),
+    ];
+    return allCategories.map((c) => ({
       category: c,
       items: groups.get(c) ?? [],
     }));
@@ -143,40 +200,6 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
-
-  // Shared thumbnail button used in both grouped and filtered views
-  const ThumbnailButton = ({
-    id,
-    label,
-    thumbnailUrl,
-  }: {
-    id: string;
-    label: string;
-    thumbnailUrl?: string;
-  }) => (
-    <button
-      key={id}
-      onClick={() => setBackground(id)}
-      className={`group relative aspect-video rounded-lg overflow-hidden border transition-all ${
-        activeDashboard?.background === id
-          ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
-          : 'border-slate-200'
-      }`}
-    >
-      <img
-        src={thumbnailUrl ?? id}
-        alt={label}
-        loading="lazy"
-        decoding="async"
-        className="w-full h-full object-cover"
-      />
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <span className="text-white text-xxxs font-bold uppercase px-1 text-center">
-          {label}
-        </span>
-      </div>
-    </button>
-  );
 
   return (
     <div
@@ -257,7 +280,12 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 {filteredImagePresets.map((bg) => (
-                  <ThumbnailButton key={bg.id} {...bg} />
+                  <ThumbnailButton
+                    key={bg.id}
+                    {...bg}
+                    isActive={activeDashboard?.background === bg.id}
+                    onSelect={setBackground}
+                  />
                 ))}
               </div>
               {filteredImagePresets.length === 0 && (
@@ -278,7 +306,12 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
                     {items.map((bg) => (
-                      <ThumbnailButton key={bg.id} {...bg} />
+                      <ThumbnailButton
+                        key={bg.id}
+                        {...bg}
+                        isActive={activeDashboard?.background === bg.id}
+                        onSelect={setBackground}
+                      />
                     ))}
                   </div>
                 </div>
@@ -301,7 +334,12 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 {videoPresets.map((bg) => (
-                  <ThumbnailButton key={bg.id} {...bg} />
+                  <ThumbnailButton
+                    key={bg.id}
+                    {...bg}
+                    isActive={activeDashboard?.background === bg.id}
+                    onSelect={setBackground}
+                  />
                 ))}
               </div>
             </div>
