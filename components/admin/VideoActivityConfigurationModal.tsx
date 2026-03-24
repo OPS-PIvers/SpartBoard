@@ -40,10 +40,18 @@ export const VideoActivityConfigurationModal: React.FC<
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -61,8 +69,11 @@ export const VideoActivityConfigurationModal: React.FC<
       q,
       (snapshot) => {
         const loaded: GlobalVideoActivity[] = [];
-        snapshot.forEach((doc) => {
-          loaded.push({ id: doc.id, ...doc.data() } as GlobalVideoActivity);
+        snapshot.forEach((docSnap) => {
+          loaded.push({
+            ...docSnap.data(),
+            id: docSnap.id,
+          } as GlobalVideoActivity);
         });
         setActivities(loaded);
         setLoading(false);
@@ -102,13 +113,14 @@ export const VideoActivityConfigurationModal: React.FC<
   };
 
   const toggleAllBuildings = async (activity: GlobalVideoActivity) => {
-    const isAll = (activity.buildings ?? []).length === 0;
+    const currentBuildings = activity.buildings ?? [];
+    if (currentBuildings.length === 0) return; // If already all buildings, do nothing
 
     try {
       setSavingId(activity.id);
       await setDoc(
         doc(db, 'global_video_activities', activity.id),
-        { buildings: isAll ? [BUILDINGS[0].id] : [] }, // Toggle between all buildings (empty array) and the first building in the list
+        { buildings: [] }, // Explicitly assign to all buildings
         { merge: true }
       );
     } catch (error) {
@@ -146,7 +158,7 @@ export const VideoActivityConfigurationModal: React.FC<
   const config = (permission.config ?? {}) as VideoActivityGlobalConfig;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-[100] p-4 font-sans backdrop-blur-sm">
+    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-modal-nested p-4 font-sans backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white shrink-0">
@@ -213,9 +225,19 @@ export const VideoActivityConfigurationModal: React.FC<
             <div className="max-w-2xl mx-auto space-y-6">
               <DockDefaultsPanel
                 config={{ dockDefaults: config.dockDefaults ?? {} }}
-                onChange={(dockDefaults) =>
-                  onSave({ config: { ...config, dockDefaults } })
-                }
+                onChange={async (dockDefaults) => {
+                  const updatedPermission: FeaturePermission = {
+                    ...permission,
+                    config: { ...config, dockDefaults },
+                  };
+                  // Update local state / mark unsaved changes in parent
+                  onSave({ config: updatedPermission.config });
+                  // Persist changes to Firestore so they are not lost on close
+                  await setDoc(
+                    doc(db, 'feature_permissions', 'video-activity'),
+                    updatedPermission
+                  );
+                }}
               />
             </div>
           ) : (

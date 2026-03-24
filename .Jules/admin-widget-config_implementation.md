@@ -585,7 +585,7 @@ Config: `components/admin/VideoActivityConfigurationModal.tsx` _(separate modal;
   -- `requireCorrectAnswer`: Default whether students must answer correctly to proceed.
   -- `allowSkipping`: Default whether students can skip questions.
 - [Admin-Only Settings]
-  -- Global Library: CRUD management of globally available video activities assigned to specific buildings.
+  -- Global Library: Manage globally available video activities by listing existing entries, deleting them, and toggling per-building assignments (no create/update flows in this modal).
   -- `dockDefaults`: Per-building dock visibility.
 
 ---
