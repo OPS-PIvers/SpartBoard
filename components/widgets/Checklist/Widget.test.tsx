@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ChecklistWidget } from './Widget';
 import { ChecklistSettings } from './Settings';
@@ -274,7 +274,9 @@ describe('ChecklistSettings Nexus Connection', () => {
   it('imports steps from active Instructional Routine', () => {
     render(<ChecklistSettings widget={mockWidget} />);
 
-    const importButton = screen.getAllByText('Sync')[0];
+    const importButton = within(
+      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
+    ).getByRole('button', { name: /Sync/i });
     fireEvent.click(importButton);
 
     expect(mockAddToast).toHaveBeenCalledWith(
@@ -306,7 +308,9 @@ describe('ChecklistSettings Nexus Connection', () => {
 
     render(<ChecklistSettings widget={mockWidget} />);
 
-    const importButton = screen.getAllByText('Sync')[0];
+    const importButton = within(
+      screen.getByText('Import Routine').closest('.bg-indigo-50') as HTMLElement
+    ).getByRole('button', { name: /Sync/i });
     fireEvent.click(importButton);
 
     expect(mockAddToast).toHaveBeenCalledWith(

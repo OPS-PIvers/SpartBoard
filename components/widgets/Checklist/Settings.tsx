@@ -103,8 +103,10 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     const textConfig = textWidget.config as TextConfig;
     const rawContent = textConfig.content || '';
 
-    // Strip HTML tags using regex
-    const plainText = rawContent.replace(/<[^>]*>?/gm, '');
+    // Strip HTML tags using DOMParser
+    const plainText =
+      new DOMParser().parseFromString(rawContent, 'text/html').body
+        .textContent || '';
 
     // Split by newline and filter empty lines
     const lines = plainText
