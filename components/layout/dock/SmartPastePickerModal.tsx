@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { AlignLeft, CheckSquare, X } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
+import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
 
 interface SmartPastePickerModalProps {
@@ -24,22 +24,8 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
       ? text.slice(0, PREVIEW_MAX_LENGTH).trimEnd() + '…'
       : text;
 
-  // Dismiss on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+  return (
+    <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
       <GlassCard
         globalStyle={globalStyle}
         className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
@@ -110,7 +96,6 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
           </button>
         </div>
       </GlassCard>
-    </div>,
-    document.body
+    </Modal>
   );
 };

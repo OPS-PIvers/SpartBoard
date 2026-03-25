@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { GlassCard } from '../../common/GlassCard';
-import { GlobalStyle } from '../../../types';
+import { GlassCard } from '@/components/common/GlassCard';
+import { Modal } from '@/components/common/Modal';
+import { GlobalStyle } from '@/types';
 
 interface RenameFolderModalProps {
   name: string;
@@ -19,8 +19,8 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
   globalStyle,
 }) => {
   const [val, setVal] = useState(name);
-  return createPortal(
-    <div className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+  return (
+    <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
       <GlassCard
         globalStyle={globalStyle}
         className="w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"
@@ -52,7 +52,6 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
           </button>
         </div>
       </GlassCard>
-    </div>,
-    document.body
+    </Modal>
   );
 };

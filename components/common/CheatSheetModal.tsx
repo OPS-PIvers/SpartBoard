@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { X, Keyboard, Hand } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
+import { Modal } from './Modal';
 
 interface CheatSheetModalProps {
   isOpen: boolean;
@@ -23,9 +23,6 @@ const KeyBadge: React.FC<{ label: string }> = ({ label }) => (
     {label}
   </kbd>
 );
-
-// Track open modals for nested scroll-lock, matching the shared Modal pattern
-let openCheatSheetCount = 0;
 
 export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
   isOpen,
@@ -141,45 +138,15 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
       // Ignore storage errors so the cheat sheet can still open
     }
     window.dispatchEvent(new Event('spart:cheatsheet-opened'));
+  }, [isOpen]);
 
-    // Body scroll lock (matching shared Modal behaviour)
-    if (openCheatSheetCount === 0) {
-      document.body.style.overflow = 'hidden';
-    }
-    openCheatSheetCount++;
-
-    // Use capture phase so Escape is intercepted before DashboardView's
-    // global keydown handler (which also handles Escape for widget actions).
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopImmediatePropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleEscape, { capture: true });
-
-    return () => {
-      openCheatSheetCount--;
-      if (openCheatSheetCount === 0) {
-        document.body.style.overflow = 'unset';
-      }
-      window.removeEventListener('keydown', handleEscape, { capture: true });
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen || typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('widgets.cheatSheet.title')}
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      variant="bare"
+      maxWidth="max-w-2xl"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
       {/* Panel */}
       <div
         className="relative w-full max-w-2xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
@@ -304,7 +271,6 @@ export const CheatSheetModal: React.FC<CheatSheetModalProps> = ({
           </p>
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };
