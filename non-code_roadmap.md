@@ -46,7 +46,6 @@ Many widgets currently lack global admin settings, relying instead on user-level
       - **Record:** Max duration/resolution caps.
       - **Seating Chart:** Fire code limits (max nodes), default templates.
       - **Smart Notebook:** Storage limits (pages/paths).
-      - **Breathing:** Default patterns.
 
 2.  **JSON Schema-Driven Admin UI:**
     - **Current State:** Each widget requires a bespoke React component for its admin configuration panel (e.g., `ClockConfigurationPanel.tsx`).
@@ -55,14 +54,14 @@ Many widgets currently lack global admin settings, relying instead on user-level
 
 ## Phase 3: No-Code / Low-Code Widget Creation
 
-Currently, adding a new widget requires writing a React component, updating `types.ts`, and modifying `WidgetRegistry.ts`.
+Currently, adding a new widget requires writing a React component and updating multiple files: `types.ts`, `config/tools.ts`, `components/widgets/WidgetRegistry.ts`, `config/widgetDefaults.ts`, and `config/widgetGradeLevels.ts`.
 
 ### Opportunities
 
 1.  **Enhance Mini Apps (Low-Code):**
     - **Current State:** The `MiniAppLibraryModal` allows admins to publish HTML/JS apps.
     - **Goal:** Provide an integrated code editor (like Monaco Editor) directly in the Admin Dashboard for writing HTML/CSS/JS.
-    - **Implementation:** Expand the `MiniAppItem` schema. Expose a JavaScript API injected into the Mini App iframe to allow secure communication with the SPART Board state (e.g., `window.SPART.getRoster()`, `window.SPART.playSound()`).
+    - **Implementation:** Expand the `MiniAppItem` schema and define a message-based SPART bridge between the sandboxed Mini App iframe and the main dashboard. Mini Apps should run in an `iframe` with a restrictive `sandbox` (without `allow-same-origin`), and communicate exclusively via `window.postMessage` using a narrow, versioned message schema. The parent validates origin and payload, then performs allowed actions on behalf of the Mini App (for example, handling `getRoster` or `playSound` requests) instead of exposing direct parent-page APIs like `window.SPART`.
 
 2.  **Visual Widget Builder (No-Code):**
     - **Goal:** Allow non-technical admins to create simple widgets by combining predefined blocks (Text, Image, Button, Iframe).
@@ -70,11 +69,11 @@ Currently, adding a new widget requires writing a React component, updating `typ
 
 3.  **Data Binding & API Integrations:**
     - **Goal:** Allow admins to create widgets that fetch and display data from third-party APIs (e.g., a custom cafeteria menu API or bus tracker).
-    - **Implementation:** Within the Visual Widget Builder, allow defining a REST endpoint. Map the JSON response fields to text blocks or lists within the custom widget.
+    *   **Implementation:** Within the Visual Widget Builder, allow defining a logical "data source" that is backed by a REST endpoint, but never call arbitrary third-party URLs directly from the client. All external requests should flow through a server-side proxy (e.g., Firebase Cloud Functions) that enforces per-domain allowlists, basic validation, rate limiting, and secret management (API keys, headers). The JSON response fields from the proxy are then mapped to text blocks or lists within the custom widget.
 
 4.  **Action Buttons (Webhooks):**
     - **Goal:** Allow admins to create buttons that trigger external actions (e.g., "Send Help Request to IT").
-    - **Implementation:** Allow configuring a button block to send a POST request (webhook) with context (user ID, room number) when clicked.
+    *   **Implementation:** Rather than sending POST requests directly from the browser (which is easy to abuse for exfiltration or spam and often requires auth/secret headers), configure button blocks to call a trusted server-side "webhook executor" endpoint. The admin UI defines an allowed webhook/action identifier, payload template (e.g., user ID, room number, dashboard context), and optional metadata. When clicked, the widget calls the backend executor with the logical action ID; the backend enforces an allowlist of destinations, attaches stored secrets/headers, performs per-user permission checks, executes the outbound webhook, and records audit logs of each invocation.
 
 ## Phase 4: Layout & Dashboard Templates
 
