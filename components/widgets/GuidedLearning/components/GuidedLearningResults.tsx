@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   BarChart2,
   Download,
@@ -36,25 +36,69 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return unsub;
   }, [sessionId, subscribeToResponses]);
 
-  const questionSteps = set.steps.filter(
-    (s) => s.interactionType === 'question' && s.question
-  );
+  const {
+    questionSteps,
+    completedResponsesCount,
+    avgScore,
+    questionStats,
+    responseStats,
+  } = useMemo(() => {
+    const qSteps = set.steps.filter(
+      (s) => s.interactionType === 'question' && s.question
+    );
 
-  const completedResponses = responses.filter((r) => r.completedAt !== null);
+    const completed = responses.filter((r) => r.completedAt !== null);
 
-  // Compute avg score from answer keys rather than trusting client-provided scores
-  const avgScore = (() => {
-    if (completedResponses.length === 0 || questionSteps.length === 0)
-      return null;
-    const total = completedResponses.reduce((sum, r) => {
-      const correct = questionSteps.filter((step) => {
+    // Process step stats
+    const qStats = qSteps.map((step) => {
+      const stepAnswers = responses.flatMap((r) =>
+        r.answers.filter((a) => a.stepId === step.id)
+      );
+      const correct = stepAnswers.filter((a) =>
+        isAnswerCorrect(step, a.answer)
+      ).length;
+      const pct =
+        stepAnswers.length > 0
+          ? Math.round((correct / stepAnswers.length) * 100)
+          : null;
+
+      return { step, correct, total: stepAnswers.length, pct };
+    });
+
+    // Process response stats
+    const rStats = responses.map((r) => {
+      const qCorrect = qSteps.filter((step) => {
         const a = r.answers.find((ans) => ans.stepId === step.id);
         return a ? isAnswerCorrect(step, a.answer) : false;
       }).length;
-      return sum + Math.round((correct / questionSteps.length) * 100);
-    }, 0);
-    return Math.round(total / completedResponses.length);
-  })();
+      const qAnswered = qSteps.filter((step) =>
+        r.answers.some((ans) => ans.stepId === step.id)
+      ).length;
+
+      return { response: r, qCorrect, qAnswered };
+    });
+
+    // Compute avg score
+    let computedAvgScore: number | null = null;
+    if (completed.length > 0 && qSteps.length > 0) {
+      const total = completed.reduce((sum, r) => {
+        const correct = qSteps.filter((step) => {
+          const a = r.answers.find((ans) => ans.stepId === step.id);
+          return a ? isAnswerCorrect(step, a.answer) : false;
+        }).length;
+        return sum + Math.round((correct / qSteps.length) * 100);
+      }, 0);
+      computedAvgScore = Math.round(total / completed.length);
+    }
+
+    return {
+      questionSteps: qSteps,
+      completedResponsesCount: completed.length,
+      avgScore: computedAvgScore,
+      questionStats: qStats,
+      responseStats: rStats,
+    };
+  }, [set.steps, responses]);
 
   const handleExport = () => {
     const csv = exportResponsesAsCSV(responses, set);
@@ -110,7 +154,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             </div>
             <div className="bg-white/5 rounded-xl p-3 text-center">
               <div className="text-2xl font-bold text-emerald-400">
-                {completedResponses.length}
+                {completedResponsesCount}
               </div>
               <div className="text-slate-400 text-xs mt-0.5 flex items-center justify-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Done
@@ -131,51 +175,37 @@ export const GuidedLearningResults: React.FC<Props> = ({
                 Question Results
               </h3>
               <div className="space-y-2">
-                {questionSteps.map((step, idx) => {
-                  const stepAnswers = responses.flatMap((r) =>
-                    r.answers.filter((a) => a.stepId === step.id)
-                  );
-                  // Recompute correctness from the teacher's answer key
-                  const correct = stepAnswers.filter((a) =>
-                    isAnswerCorrect(step, a.answer)
-                  ).length;
-                  const pct =
-                    stepAnswers.length > 0
-                      ? Math.round((correct / stepAnswers.length) * 100)
-                      : null;
-
-                  return (
-                    <div key={step.id} className="bg-white/5 rounded-xl p-3">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="text-white text-xs font-medium flex-1">
-                          Q{idx + 1}: {step.question?.text}
-                        </p>
-                        <span
-                          className={`shrink-0 text-xs font-bold ${
-                            pct === null
-                              ? 'text-slate-500'
-                              : pct >= 70
-                                ? 'text-emerald-400'
-                                : 'text-amber-400'
-                          }`}
-                        >
-                          {pct !== null ? `${pct}%` : '—'}
-                        </span>
-                      </div>
-                      {pct !== null && (
-                        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      )}
-                      <p className="text-slate-500 text-xs mt-1">
-                        {correct} / {stepAnswers.length} correct
+                {questionStats.map(({ step, correct, total, pct }, idx) => (
+                  <div key={step.id} className="bg-white/5 rounded-xl p-3">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="text-white text-xs font-medium flex-1">
+                        Q{idx + 1}: {step.question?.text}
                       </p>
+                      <span
+                        className={`shrink-0 text-xs font-bold ${
+                          pct === null
+                            ? 'text-slate-500'
+                            : pct >= 70
+                              ? 'text-emerald-400'
+                              : 'text-amber-400'
+                        }`}
+                      >
+                        {pct !== null ? `${pct}%` : '—'}
+                      </span>
                     </div>
-                  );
-                })}
+                    {pct !== null && (
+                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
+                    <p className="text-slate-500 text-xs mt-1">
+                      {correct} / {total} correct
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -187,35 +217,26 @@ export const GuidedLearningResults: React.FC<Props> = ({
                 Responses
               </h3>
               <div className="space-y-1.5">
-                {responses.map((r) => {
-                  const qCorrect = questionSteps.filter((step) => {
-                    const a = r.answers.find((ans) => ans.stepId === step.id);
-                    return a ? isAnswerCorrect(step, a.answer) : false;
-                  }).length;
-                  const qAnswered = questionSteps.filter((step) =>
-                    r.answers.some((ans) => ans.stepId === step.id)
-                  ).length;
-                  return (
-                    <div
-                      key={r.studentAnonymousId}
-                      className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
-                    >
-                      <div>
-                        <span className="text-white text-xs font-medium">
-                          {r.pin ? `PIN: ${r.pin}` : 'Anonymous'}
-                        </span>
-                        <span className="text-slate-500 text-xs ml-2">
-                          {r.completedAt ? 'Completed' : 'In progress'}
-                        </span>
-                      </div>
-                      {questionSteps.length > 0 && (
-                        <span className="text-slate-300 text-xs">
-                          {qCorrect}/{qAnswered} correct
-                        </span>
-                      )}
+                {responseStats.map(({ response: r, qCorrect, qAnswered }) => (
+                  <div
+                    key={r.studentAnonymousId}
+                    className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
+                  >
+                    <div>
+                      <span className="text-white text-xs font-medium">
+                        {r.pin ? `PIN: ${r.pin}` : 'Anonymous'}
+                      </span>
+                      <span className="text-slate-500 text-xs ml-2">
+                        {r.completedAt ? 'Completed' : 'In progress'}
+                      </span>
                     </div>
-                  );
-                })}
+                    {questionSteps.length > 0 && (
+                      <span className="text-slate-300 text-xs">
+                        {qCorrect}/{qAnswered} correct
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
