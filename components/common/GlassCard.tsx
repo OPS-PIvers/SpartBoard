@@ -11,6 +11,7 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   allowInvisible?: boolean;
   selected?: boolean;
   disableBlur?: boolean;
+  bgClass?: string;
 }
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
@@ -25,6 +26,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       disableBlur = false,
       selected = false,
       allowInvisible: _allowInvisible,
+      bgClass,
       style,
       ...props
     },
@@ -46,12 +48,15 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
     // We normalize to the default transparency so it looks consistent at 80%
     const factor = finalTransparency / DEFAULT_GLOBAL_STYLE.windowTransparency;
 
+    // If bgClass is set, append it to the wrapper class and do not apply an inline background color
     return (
       <div
         ref={ref}
-        className={`${finalRadiusClass} ${className}`}
+        className={`${finalRadiusClass} ${bgClass ?? ''} ${className}`}
         style={{
-          backgroundColor: `rgba(255, 255, 255, ${finalTransparency})`,
+          backgroundColor: bgClass
+            ? undefined
+            : `rgba(255, 255, 255, ${finalTransparency})`,
           border: `1px solid rgba(255, 255, 255, ${Math.min(1, 0.3 * factor)})`,
           boxShadow: selected
             ? `0 0 0 2px rgba(99, 102, 241, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.25)`

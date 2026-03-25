@@ -963,10 +963,17 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     !POSITION_AWARE_WIDGETS.includes(widget.type) &&
     dragState.current;
 
+  const UNIVERSAL_TEXT_SIZES: Record<string, string> = {
+    sm: 'text-sm',
+    base: 'text-base',
+    lg: 'text-lg',
+    xl: 'text-xl',
+    '2xl': 'text-2xl',
+  };
+
   const universalStyleClasses = [
     widget.fontFamily ? `font-${widget.fontFamily}` : '',
-    widget.backgroundColor ?? '',
-    widget.baseTextSize ? `text-${widget.baseTextSize}` : '',
+    widget.baseTextSize ? UNIVERSAL_TEXT_SIZES[widget.baseTextSize] : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -993,6 +1000,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       className={`absolute select-none widget group will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
         isMaximized ? 'border-none !shadow-none' : ''
       } ${universalStyleClasses}`}
+      bgClass={widget.backgroundColor}
       style={{
         left: isMaximized
           ? 0

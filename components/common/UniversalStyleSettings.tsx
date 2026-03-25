@@ -69,7 +69,9 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
                 type="button"
                 onClick={() =>
                   updateWidget(widget.id, {
-                    backgroundColor: color.value || undefined,
+                    backgroundColor:
+                      (color.value as WidgetData['backgroundColor']) ??
+                      undefined,
                   })
                 }
                 className={`w-8 h-8 rounded-full border-2 transition-all ${
@@ -113,7 +115,8 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
                 type="button"
                 onClick={() =>
                   updateWidget(widget.id, {
-                    fontFamily: font.value || undefined,
+                    fontFamily:
+                      (font.value as WidgetData['fontFamily']) ?? undefined,
                   })
                 }
                 className={`px-3 py-2 rounded-lg text-sm transition-all text-center ${
@@ -152,7 +155,8 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
           value={widget.baseTextSize ?? ''}
           onChange={(e) =>
             updateWidget(widget.id, {
-              baseTextSize: e.target.value || undefined,
+              baseTextSize:
+                (e.target.value as WidgetData['baseTextSize']) ?? undefined,
             })
           }
           className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
