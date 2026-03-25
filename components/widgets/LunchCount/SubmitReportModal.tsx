@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '../../common/Button';
+import { Modal } from '../../common/Modal';
 import { FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
@@ -53,17 +54,6 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
     onClose();
   }, [onClose]);
 
-  // Handle keyboard events (Escape to close)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isSubmitting) {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleClose, isSubmitting]);
-
   if (!isOpen) return null;
 
   const isIntermediate = data.schoolSite === 'orono-intermediate-school';
@@ -72,14 +62,11 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
   const columnBLabel = data.submissionLabel;
 
   return (
-    <div
-      className="absolute inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 rounded-3xl overflow-hidden"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) handleClose();
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="report-modal-title"
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      variant="bare"
+      maxWidth="max-w-[90%]"
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[90%] max-h-[90%] overflow-y-auto border border-slate-200 animate-in zoom-in-95 duration-200 custom-scrollbar">
         <div className="p-6 bg-brand-blue-primary/90 backdrop-blur-sm text-white flex justify-between items-center sticky top-0 z-10">
@@ -241,6 +228,6 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

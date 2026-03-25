@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
 import { Wand2, Loader2 } from 'lucide-react';
 import { GlassCard } from '../../common/GlassCard';
+import { Modal } from '../../common/Modal';
 import { generateDashboardLayout } from '../../../utils/ai';
 import { useDashboard } from '../../../context/useDashboard';
 
@@ -15,16 +15,6 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   const { addWidgets, addToast } = useDashboard();
   const [description, setDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isGenerating) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, isGenerating]);
 
   const handleGenerate = async () => {
     if (!description.trim()) return;
@@ -46,8 +36,8 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-critical flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+  return (
+    <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
       <GlassCard className="w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg text-white">
@@ -125,7 +115,6 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           </button>
         </div>
       </GlassCard>
-    </div>,
-    document.body
+    </Modal>
   );
 };
