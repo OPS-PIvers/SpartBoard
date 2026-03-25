@@ -29,6 +29,7 @@ const mockAuthContext = (
   googleAccessToken: null,
   loading: false,
   isAdmin: false,
+  userRoles: null,
   featurePermissions: [],
   globalPermissions: [],
   canAccessWidget: () => true,

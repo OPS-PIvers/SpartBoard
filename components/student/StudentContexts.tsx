@@ -15,6 +15,7 @@ const mockAuth: AuthContextType = {
   googleAccessToken: null,
   loading: false,
   isAdmin: null,
+  userRoles: null,
   featurePermissions: [],
   globalPermissions: [],
   canAccessWidget: () => true, // Allow everything in student view
