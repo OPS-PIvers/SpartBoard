@@ -176,6 +176,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Identified a hardcoded z-index value (`z-[70]`) in `DraggableWindow.tsx` for the persistent restore FAB when a widget is maximized, bypassing the centralized `Z_INDEX` registry.
 **Fix:** Added `widgetControl: 70` to `config/zIndex.ts`, exposed it as `'widget-control'` in `tailwind.config.js`, and refactored the component to use the new `z-widget-control` class.
+
 ## YYYY-MM-DD - Standardized Admin Configuration Settings Labels
+
 **Drift:** Hardcoded settings labels across admin widget configuration panels (e.g. `text-xxs font-bold text-slate-500 uppercase`) caused inconsistency.
 **Fix:** Replaced hardcoded labels with the standardized `<SettingsLabel>` component from `@/components/common/SettingsLabel` in `BreathingConfigurationPanel`, `TimeToolConfigurationPanel`, and `ClockConfigurationPanel` to ensure a consistent `text-xxs font-black text-slate-400 uppercase tracking-widest block mb-2` rendering.
