@@ -1261,6 +1261,19 @@ export interface VideoActivityConfig {
   selectedActivityTitle: string | null;
   /** Session ID for the most recently created/viewed session. */
   resultsSessionId: string | null;
+  /** Default settings for sessions created via this widget */
+  autoPlay?: boolean;
+  requireCorrectAnswer?: boolean;
+  allowSkipping?: boolean;
+}
+
+export interface GlobalVideoActivity extends VideoActivityMetadata {
+  /** Building IDs this activity is assigned to; empty array = all buildings */
+  buildings?: string[];
+}
+
+export interface VideoActivityGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
 }
 
 /**

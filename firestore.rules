@@ -65,6 +65,12 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
+
+    // Global Video Activities - all authenticated users can read, only admins can write
+    match /global_video_activities/{activityId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
     // Catalyst Routines (legacy)
     match /artifacts/{appId}/public/data/catalystRoutines/{routineId} {
       allow read: if request.auth != null;

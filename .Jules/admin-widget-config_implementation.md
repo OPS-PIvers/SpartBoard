@@ -577,6 +577,19 @@ create `components/admin/WeatherConfigurationPanel.tsx` and register in `BUILDIN
 
 ---
 
+[X] Video Activity — Type: `video-activity` | Label: "Video Activity"
+Config: `components/admin/VideoActivityConfigurationModal.tsx` _(separate modal; includes `DockDefaultsPanel`)_
+
+- [Default User-Level Settings]
+  -- `autoPlay`: Default to auto-playing the video.
+  -- `requireCorrectAnswer`: Default whether students must answer correctly to proceed.
+  -- `allowSkipping`: Default whether students can skip questions.
+- [Admin-Only Settings]
+  -- Global Library: Manage globally available video activities by listing existing entries, deleting them, and toggling per-building assignments (no create/update flows in this modal).
+  -- `dockDefaults`: Per-building dock visibility.
+
+---
+
 [X] Webcam — Type: `webcam` | Label: "Camera"
 Config: Inline in `components/admin/FeatureConfigurationPanel.tsx` — no dedicated file. To extract,
 create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING_CONFIG_PANELS`.

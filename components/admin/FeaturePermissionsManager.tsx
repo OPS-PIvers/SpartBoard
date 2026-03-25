@@ -42,6 +42,7 @@ import { StarterPackConfigurationModal } from '@/components/admin/StarterPackCon
 import { MusicLibraryModal } from '@/components/admin/MusicLibraryModal';
 import { CatalystConfigurationModal } from '@/components/admin/CatalystConfigurationModal';
 import { PdfLibraryModal } from '@/components/admin/PdfLibraryModal';
+import { VideoActivityConfigurationModal } from '@/components/admin/VideoActivityConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -856,6 +857,14 @@ export const FeaturePermissionsManager: React.FC = () => {
         <PdfLibraryModal onClose={() => setActiveModalTool(null)} />
       )}
 
+      {activeModalTool?.type === 'video-activity' && (
+        <VideoActivityConfigurationModal
+          onClose={() => setActiveModalTool(null)}
+          permission={getPermission('video-activity')}
+          onSave={(updates) => updatePermission('video-activity', updates)}
+        />
+      )}
+
       {activeModalTool &&
         ![
           'calendar',
@@ -868,6 +877,7 @@ export const FeaturePermissionsManager: React.FC = () => {
           'specialist-schedule',
           'starter-pack',
           'stickers',
+          'video-activity',
         ].includes(activeModalTool.type) && (
           <GenericConfigurationModal
             tool={activeModalTool}
