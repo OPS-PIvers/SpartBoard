@@ -6,6 +6,7 @@ import {
   Zap,
   Bell,
   ChevronLeft,
+  Users,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -14,7 +15,6 @@ import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
 import { AnnouncementsManager } from './Announcements';
 import { UserManagementPanel } from './UserManagement/UserManagementPanel';
-import { Users } from 'lucide-react';
 
 interface AdminSettingsProps {
   onClose: () => void;

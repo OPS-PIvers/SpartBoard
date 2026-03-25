@@ -477,19 +477,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const adminDoc = await getDoc(
           doc(db, 'admins', user.email.toLowerCase())
         );
-        const isInAdminCollection = adminDoc.exists();
-        const inUserRoles = checkUserAdminRoles(user.email);
 
-        setIsAdmin(isInAdminCollection || inUserRoles);
+        // As per code review, we are keeping isAdmin aligned with the /admins collection
+        // until a safer data model for roles is established, to avoid authorization failures
+        // on writes since firestore.rules still only uses the /admins collection.
+        setIsAdmin(adminDoc.exists());
       } catch (error) {
         console.error('Error checking admin status:', error);
-        // Fallback to roles if collection check fails
-        setIsAdmin(checkUserAdminRoles(user.email));
+        setIsAdmin(false);
       }
     };
 
     void checkAdminStatus();
-  }, [user, checkUserAdminRoles]);
+  }, [user]);
 
   // Listen to feature permissions (only when authenticated)
   useEffect(() => {
