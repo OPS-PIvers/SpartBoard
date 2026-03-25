@@ -55,6 +55,7 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 ## WILL NOT IMPLEMENT
 
 - **Poll -> Scoreboard:** this is not a connection that adds meaningful value.
+- **Scoreboard & Randomizer (additional automations):** Beyond the existing _Randomizer -> Scoreboard (Team Builder)_ handoff documented above, we do not plan further automatic or bi-directional integrations between these widgets, to maintain their simplicity.
 
 ## 2024-05-20 - [Event Countdown] **Source:** Calendar **Destination:** Timer (Time Tool) **Value:** Launches a timer that counts down to the start of a calendar event.
 
