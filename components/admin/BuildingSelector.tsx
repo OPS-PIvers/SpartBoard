@@ -15,13 +15,14 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   return (
     <div
       className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar"
-      role="tablist"
+      role="group"
+      aria-label="Building Selection"
     >
       {BUILDINGS.map((building) => (
         <button
           key={building.id}
-          role="tab"
-          aria-selected={selectedId === building.id}
+          type="button"
+          aria-pressed={selectedId === building.id}
           onClick={() => onSelect(building.id)}
           className={
             'px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ' +
