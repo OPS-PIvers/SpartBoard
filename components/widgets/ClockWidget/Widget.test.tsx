@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, ClockConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { ClockWidget } from './Widget';
 
-vi.mock('../../../context/useDashboard');
+vi.mock('@/context/useDashboard');
 
 const mockDashboardContext = {
   activeDashboard: {
