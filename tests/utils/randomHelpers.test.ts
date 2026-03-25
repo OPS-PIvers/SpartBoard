@@ -31,10 +31,12 @@ describe('randomHelpers', () => {
     });
 
     it('returns a number between 0 and max (exclusive) using crypto API', () => {
-      const mockGetRandomValues = vi.fn().mockImplementation((array: Uint32Array) => {
-        array[0] = 42; // arbitrary number
-        return array;
-      });
+      const mockGetRandomValues = vi
+        .fn()
+        .mockImplementation((array: Uint32Array) => {
+          array[0] = 42; // arbitrary number
+          return array;
+        });
 
       // Mock globalThis.crypto
       Object.defineProperty(globalThis, 'crypto', {
@@ -75,7 +77,8 @@ describe('randomHelpers', () => {
 
       // First call returns a value > limit (forcing rejection)
       // Second call returns a valid value <= limit
-      const mockGetRandomValues = vi.fn()
+      const mockGetRandomValues = vi
+        .fn()
         .mockImplementationOnce((array: Uint32Array) => {
           array[0] = limit + 1;
           return array;
@@ -128,7 +131,9 @@ describe('randomHelpers', () => {
 
   describe('generateSecureSessionCode', () => {
     it('returns a 6-character uppercase string using crypto.randomUUID', () => {
-      const mockRandomUUID = vi.fn().mockReturnValue('12345678-abcd-efgh-ijkl-mnopqrstuvwx');
+      const mockRandomUUID = vi
+        .fn()
+        .mockReturnValue('12345678-abcd-efgh-ijkl-mnopqrstuvwx');
 
       Object.defineProperty(globalThis, 'crypto', {
         value: {
@@ -165,20 +170,20 @@ describe('randomHelpers', () => {
     });
 
     it('pads the end with 0s if Math.random string is too short', () => {
-        Object.defineProperty(globalThis, 'crypto', {
-          value: undefined,
-          configurable: true,
-        });
-
-        // 0.toString(36) is "0"
-        const mockMathRandom = vi.fn().mockReturnValue(0);
-        Math.random = mockMathRandom;
-
-        const result = generateSecureSessionCode();
-
-        expect(mockMathRandom).toHaveBeenCalled();
-        expect(result).toBe('000000');
-        expect(result.length).toBe(6);
+      Object.defineProperty(globalThis, 'crypto', {
+        value: undefined,
+        configurable: true,
       });
+
+      // 0.toString(36) is "0"
+      const mockMathRandom = vi.fn().mockReturnValue(0);
+      Math.random = mockMathRandom;
+
+      const result = generateSecureSessionCode();
+
+      expect(mockMathRandom).toHaveBeenCalled();
+      expect(result).toBe('000000');
+      expect(result.length).toBe(6);
+    });
   });
 });
