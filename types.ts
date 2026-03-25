@@ -2058,7 +2058,7 @@ export interface WidgetData {
   // Universal style properties
   backgroundColor?: string;
   fontFamily?: string;
-  fontSize?: string;
+  baseTextSize?: string;
 }
 
 /**

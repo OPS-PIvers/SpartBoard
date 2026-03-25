@@ -23,8 +23,8 @@ const FONTS = [
   { label: 'Sans', value: 'sans' },
   { label: 'Serif', value: 'serif' },
   { label: 'Mono', value: 'mono' },
+  { label: 'Handwritten', value: 'handwritten' },
   { label: 'Comic', value: 'comic' },
-  { label: 'Dyslexic', value: 'opendyslexic' },
 ];
 
 const SIZES = [
@@ -136,10 +136,12 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
           <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
             Default Text Size
           </span>
-          {widget.fontSize && (
+          {widget.baseTextSize && (
             <button
               type="button"
-              onClick={() => updateWidget(widget.id, { fontSize: undefined })}
+              onClick={() =>
+                updateWidget(widget.id, { baseTextSize: undefined })
+              }
               className="text-xxs font-black text-indigo-600 hover:text-indigo-700 uppercase"
             >
               Reset
@@ -147,10 +149,10 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
           )}
         </div>
         <select
-          value={widget.fontSize ?? ''}
+          value={widget.baseTextSize ?? ''}
           onChange={(e) =>
             updateWidget(widget.id, {
-              fontSize: e.target.value || undefined,
+              baseTextSize: e.target.value || undefined,
             })
           }
           className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

@@ -230,8 +230,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <div>{appearanceSettings}</div>
               )}
 
-              {/* Universal Style Settings */}
-              {shouldRenderSettings && (
+              {/* Universal Style Settings (only if no custom appearance settings) */}
+              {shouldRenderSettings && !appearanceSettings && (
                 <UniversalStyleSettings
                   widget={widget}
                   updateWidget={updateWidget}
