@@ -47,13 +47,22 @@ export const GuidedLearningResults: React.FC<Props> = ({
       (s) => s.interactionType === 'question' && s.question
     );
 
-    const completed = responses.filter((r) => r.completedAt !== null);
+    // Pre-process responses to create lookup maps for efficiency.
+    const answersByStep = new Map<string, { answer: string | string[] }[]>();
+    responses.forEach((r) => {
+      for (const a of r.answers) {
+        if (!answersByStep.has(a.stepId)) {
+          answersByStep.set(a.stepId, []);
+        }
+        const bucket = answersByStep.get(a.stepId);
+        if (bucket) {
+          bucket.push(a);
+        }
+      }
+    });
 
-    // Process step stats
     const qStats = qSteps.map((step) => {
-      const stepAnswers = responses.flatMap((r) =>
-        r.answers.filter((a) => a.stepId === step.id)
-      );
+      const stepAnswers = answersByStep.get(step.id) ?? [];
       const correct = stepAnswers.filter((a) =>
         isAnswerCorrect(step, a.answer)
       ).length;
@@ -61,39 +70,41 @@ export const GuidedLearningResults: React.FC<Props> = ({
         stepAnswers.length > 0
           ? Math.round((correct / stepAnswers.length) * 100)
           : null;
-
       return { step, correct, total: stepAnswers.length, pct };
     });
 
-    // Process response stats
     const rStats = responses.map((r) => {
-      const qCorrect = qSteps.filter((step) => {
-        const a = r.answers.find((ans) => ans.stepId === step.id);
-        return a ? isAnswerCorrect(step, a.answer) : false;
-      }).length;
-      const qAnswered = qSteps.filter((step) =>
-        r.answers.some((ans) => ans.stepId === step.id)
-      ).length;
-
+      const answersByStepId = new Map(r.answers.map((a) => [a.stepId, a]));
+      let qCorrect = 0;
+      let qAnswered = 0;
+      for (const step of qSteps) {
+        const a = answersByStepId.get(step.id);
+        if (a) {
+          qAnswered++;
+          if (isAnswerCorrect(step, a.answer)) {
+            qCorrect++;
+          }
+        }
+      }
       return { response: r, qCorrect, qAnswered };
     });
 
-    // Compute avg score
+    const completedResponses = rStats.filter(
+      (r) => r.response.completedAt !== null
+    );
+
     let computedAvgScore: number | null = null;
-    if (completed.length > 0 && qSteps.length > 0) {
-      const total = completed.reduce((sum, r) => {
-        const correct = qSteps.filter((step) => {
-          const a = r.answers.find((ans) => ans.stepId === step.id);
-          return a ? isAnswerCorrect(step, a.answer) : false;
-        }).length;
-        return sum + Math.round((correct / qSteps.length) * 100);
+    if (completedResponses.length > 0 && qSteps.length > 0) {
+      const totalScore = completedResponses.reduce((sum, { qCorrect }) => {
+        const score = Math.round((qCorrect / qSteps.length) * 100);
+        return sum + score;
       }, 0);
-      computedAvgScore = Math.round(total / completed.length);
+      computedAvgScore = Math.round(totalScore / completedResponses.length);
     }
 
     return {
       questionSteps: qSteps,
-      completedResponsesCount: completed.length,
+      completedResponsesCount: completedResponses.length,
       avgScore: computedAvgScore,
       questionStats: qStats,
       responseStats: rStats,
