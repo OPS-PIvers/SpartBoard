@@ -448,21 +448,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return unsubscribe;
   }, [user]);
 
-  // Helper for admin checks
-  const checkUserAdminRoles = useCallback(
-    (email: string | null | undefined) => {
-      if (!email || !userRoles) return false;
-      const lowerEmail = email.toLowerCase();
-      return (
-        (userRoles.admins?.some((e) => e.toLowerCase() === lowerEmail) ??
-          false) ||
-        (userRoles.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
-          false)
-      );
-    },
-    [userRoles]
-  );
-
   // Check if user is admin
   useEffect(() => {
     if (isAuthBypass) return;

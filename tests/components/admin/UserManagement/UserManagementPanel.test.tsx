@@ -1,10 +1,4 @@
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  waitFor,
-} from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UserManagementPanel } from '@/components/admin/UserManagement/UserManagementPanel';
 import { setDoc } from 'firebase/firestore';
@@ -47,10 +41,8 @@ describe('UserManagementPanel', () => {
     });
 
     // Check if the existing data is rendered in the beta teachers textarea
-    const betaTextarea = screen.getByLabelText(
-      'Teachers (Beta) Emails'
-    ) as HTMLTextAreaElement;
-    expect(betaTextarea.value).toBe('existing@test.com');
+    const betaTextarea = screen.getByLabelText('Teachers (Beta) Emails');
+    expect(betaTextarea).toHaveValue('existing@test.com');
   });
 
   it('parses, deduplicates, and lowercases emails on blur', async () => {
@@ -60,9 +52,7 @@ describe('UserManagementPanel', () => {
       expect(screen.getByText('User Management')).toBeInTheDocument();
     });
 
-    const studentTextarea = screen.getByLabelText(
-      'Students Emails'
-    ) as HTMLTextAreaElement;
+    const studentTextarea = screen.getByLabelText('Students Emails');
 
     // Type mixed case, spaces, newlines, commas, and invalid emails
     fireEvent.change(studentTextarea, {
@@ -76,7 +66,7 @@ describe('UserManagementPanel', () => {
     fireEvent.blur(studentTextarea);
 
     // Verify it was cleaned up and deduplicated
-    expect(studentTextarea.value).toBe('test1@example.com\ntest2@example.com');
+    expect(studentTextarea).toHaveValue('test1@example.com\ntest2@example.com');
   });
 
   it('enables save button on change and saves to firestore', async () => {
@@ -89,9 +79,7 @@ describe('UserManagementPanel', () => {
     const saveButton = screen.getByRole('button', { name: /save changes/i });
     expect(saveButton).toBeDisabled();
 
-    const adminsTextarea = screen.getByLabelText(
-      'Admins Emails'
-    ) as HTMLTextAreaElement;
+    const adminsTextarea = screen.getByLabelText('Admins Emails');
 
     fireEvent.change(adminsTextarea, {
       target: { value: 'newadmin@test.com' },
