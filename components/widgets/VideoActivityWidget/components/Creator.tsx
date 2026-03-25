@@ -340,7 +340,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     {isAdmin && audioTranscriptionEnabled
                       ? ', or use Gemini audio transcription below.'
                       : isAdmin && !audioTranscriptionEnabled
-                        ? ', or enable Gemini audio transcription in Admin Settings → Feature Permissions.'
+                        ? ', or enable Gemini audio transcription in Admin Settings → Global Settings.'
                         : ', or ask your admin to enable Gemini audio transcription.'}
                   </p>
                 </div>

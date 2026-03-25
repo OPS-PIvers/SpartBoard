@@ -90,6 +90,13 @@ const GLOBAL_FEATURES: {
     description:
       'AI button inside Embed widgets that generates an interactive mini app from the embedded content.',
   },
+  {
+    id: 'video-activity-audio-transcription',
+    label: 'Video Activity Audio Transcription',
+    icon: Wand2,
+    description:
+      'Allow generating quizzes from videos that do not have captions, using Gemini AI audio transcription.',
+  },
 ];
 
 export const GlobalPermissionsManager: React.FC = () => {

@@ -13,3 +13,4 @@ test-results/
 playwright-report/
 .agents
 .gemini
+.Jules/admin-widget-config_implementation.md

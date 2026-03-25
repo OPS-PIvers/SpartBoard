@@ -586,3 +586,12 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
 - **Admin-only Settings:**
   - `ocrMode`: `'standard'` (local browser OCR) vs `'gemini'` (AI-powered, uses API quota).
   - `dockDefaults`: Per-building dock visibility.
+
+---
+
+[x] Video Activity
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- video-activity-audio-transcription: Admin-only global toggle to allow Gemini AI audio transcription for uncaptioned videos.
+        -- dockDefaults: Per-building dock visibility.
