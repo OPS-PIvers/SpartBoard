@@ -3,7 +3,7 @@ import {
   getRandomInt,
   shuffleArray,
   generateSecureSessionCode,
-} from '../../utils/randomHelpers';
+} from '@/utils/randomHelpers';
 
 describe('randomHelpers', () => {
   const originalCrypto = globalThis.crypto;
@@ -164,9 +164,8 @@ describe('randomHelpers', () => {
       const result = generateSecureSessionCode();
 
       expect(mockMathRandom).toHaveBeenCalled();
-      // 0.123456789.toString(36) is approx "0.4gq..."
-      expect(result.length).toBe(6);
-      expect(result).toMatch(/^[A-Z0-9]+$/);
+      // 0.123456789.toString(36) is '0.4fzzzxj...', so the code is '4FZZZX'
+      expect(result).toBe('4FZZZX');
     });
 
     it('pads the end with 0s if Math.random string is too short', () => {
