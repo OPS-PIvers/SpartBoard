@@ -15,21 +15,21 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   return (
     <div
       className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar"
-      role="group"
+      role="tablist"
       aria-label="Building Selection"
     >
       {BUILDINGS.map((building) => (
         <button
           key={building.id}
           type="button"
-          aria-pressed={selectedId === building.id}
+          role="tab"
+          aria-selected={selectedId === building.id}
           onClick={() => onSelect(building.id)}
-          className={
-            'px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ' +
-            (selectedId === building.id
+          className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
+            selectedId === building.id
               ? activeClassName
-              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
-          }
+              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+          }`}
         >
           {building.name}
         </button>
