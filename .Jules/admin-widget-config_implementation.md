@@ -608,3 +608,9 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
     - [Admin-Only Settings]
         -- video-activity-audio-transcription: Admin-only global toggle to allow Gemini AI audio transcription for uncaptioned videos.
         -- dockDefaults: Per-building dock visibility.
+
+[x] Guided Learning
+    - [Default User-Level Settings]
+        -- None natively configurable. Settings are configured per-set inside the editor.
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.

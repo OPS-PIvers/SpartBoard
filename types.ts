@@ -1837,6 +1837,10 @@ export interface GuidedLearningResponse {
 }
 
 /** Widget config (teacher-side, stored in WidgetData.config) */
+export interface GuidedLearningGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface GuidedLearningConfig {
   view: 'library' | 'editor' | 'player' | 'results';
   /** ID of the set currently loaded in player view */

@@ -1248,6 +1248,7 @@ export const FeatureConfigurationPanel: React.FC<
       {![
         'calendar',
         'expectations',
+        'guided-learning',
         'instructionalRoutines',
         'lunchCount',
         'miniApp',
