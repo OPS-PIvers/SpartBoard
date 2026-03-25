@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { BUILDINGS } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import { useDialog } from '@/context/useDialog';
 import {
   ScheduleGlobalConfig,
@@ -349,24 +350,13 @@ export const ScheduleConfigurationPanel: React.FC<
         <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-2">
           <Settings2 className="w-3 h-3" /> Configure Building Schedule Defaults
         </label>
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {BUILDINGS.map((building) => (
-            <button
-              key={building.id}
-              onClick={() => {
-                setSelectedBuildingId(building.id);
-                setActiveScheduleId(null);
-              }}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
-                selectedBuildingId === building.id
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {building.name}
-            </button>
-          ))}
-        </div>
+        <BuildingSelector
+          selectedId={selectedBuildingId}
+          onSelect={(id) => {
+            setSelectedBuildingId(id);
+            setActiveScheduleId(null);
+          }}
+        />
       </div>
 
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

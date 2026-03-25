@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import { NextUpGlobalConfig } from '@/types';
 import { Settings2, ListOrdered, Palette, Type } from 'lucide-react';
 
@@ -44,21 +45,10 @@ export const NextUpConfigurationPanel: React.FC<
         <label className="text-xxs font-black text-slate-500 uppercase mb-3 block flex items-center gap-2 tracking-widest">
           <Settings2 className="w-3 h-3" /> Select Building for Defaults
         </label>
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {BUILDINGS.map((building) => (
-            <button
-              key={building.id}
-              onClick={() => setSelectedBuildingId(building.id)}
-              className={`px-4 py-2 text-xs font-bold rounded-xl border whitespace-nowrap transition-all ${
-                selectedBuildingId === building.id
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm scale-105'
-                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {building.name}
-            </button>
-          ))}
-        </div>
+        <BuildingSelector
+          selectedId={selectedBuildingId}
+          onSelect={setSelectedBuildingId}
+        />
       </div>
 
       {/* Configuration Section */}

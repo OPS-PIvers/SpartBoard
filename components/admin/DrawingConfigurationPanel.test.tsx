@@ -94,7 +94,7 @@ describe('DrawingConfigurationPanel', () => {
       <DrawingConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
 
-    const b2Button = screen.getByRole('button', { name: 'Building 2' });
+    const b2Button = screen.getByRole('tab', { name: 'Building 2' });
     fireEvent.click(b2Button);
 
     // Should now show defaults for b2 (which are the internal defaults: width 4)

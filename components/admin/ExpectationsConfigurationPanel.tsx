@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import { ExpectationsGlobalConfig, ExpectationsOptionOverride } from '@/types';
 import { Toggle } from '../common/Toggle';
 import {
@@ -169,21 +170,10 @@ export const ExpectationsConfigurationPanel: React.FC<
         <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
           Select Building to Configure
         </label>
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {BUILDINGS.map((building) => (
-            <button
-              key={building.id}
-              onClick={() => setSelectedBuildingId(building.id)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
-                selectedBuildingId === building.id
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {building.name}
-            </button>
-          ))}
-        </div>
+        <BuildingSelector
+          selectedId={selectedBuildingId}
+          onSelect={setSelectedBuildingId}
+        />
       </div>
 
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

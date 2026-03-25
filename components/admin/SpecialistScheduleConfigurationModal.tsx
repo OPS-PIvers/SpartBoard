@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import {
   SpecialistScheduleGlobalConfig,
   SpecialistScheduleBuildingConfig,
@@ -384,21 +385,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                     <Settings2 className="w-3.5 h-3.5" /> Select Building to
                     Configure
                   </label>
-                  <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                    {BUILDINGS.map((building) => (
-                      <button
-                        key={building.id}
-                        onClick={() => setSelectedBuildingId(building.id)}
-                        className={`px-4 py-2 text-xs font-black rounded-xl border whitespace-nowrap transition-all ${
-                          selectedBuildingId === building.id
-                            ? 'bg-teal-600 text-white border-teal-600 shadow-lg scale-105'
-                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        {building.name}
-                      </button>
-                    ))}
-                  </div>
+                  <BuildingSelector
+                    selectedId={selectedBuildingId}
+                    onSelect={setSelectedBuildingId}
+                    activeClassName="bg-teal-500 text-white border-teal-500 shadow-sm"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">

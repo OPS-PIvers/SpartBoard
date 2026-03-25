@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
+import { BuildingSelector } from './BuildingSelector';
 import { ClockGlobalConfig, BuildingClockDefaults } from '@/types';
 import { Toggle } from '../common/Toggle';
 import { STANDARD_COLORS } from '@/config/colors';
@@ -49,21 +50,10 @@ export const ClockConfigurationPanel: React.FC<
       {/* Building Selector */}
       <div>
         <SettingsLabel>Configure Building Clock Defaults</SettingsLabel>
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {BUILDINGS.map((building) => (
-            <button
-              key={building.id}
-              onClick={() => setSelectedBuildingId(building.id)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border whitespace-nowrap transition-colors ${
-                selectedBuildingId === building.id
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {building.name}
-            </button>
-          ))}
-        </div>
+        <BuildingSelector
+          selectedId={selectedBuildingId}
+          onSelect={setSelectedBuildingId}
+        />
       </div>
 
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
