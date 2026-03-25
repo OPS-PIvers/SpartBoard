@@ -269,7 +269,7 @@ describe('DashboardContext per-widget merge', () => {
     });
   });
 
-  it('does not preserve local changes to non-config non-layout fields (customTitle, transparency)', async () => {
+  it('preserves local changes to style fields but drops un-tracked fields like customTitle', async () => {
     const stateRef = setup();
 
     const widgetA = makeWidget('wA', 'original-A');
@@ -305,18 +305,19 @@ describe('DashboardContext per-widget merge', () => {
     ]);
     await pushSnapshot([{ ...serverDashboard, updatedAt: 2000 }]);
 
-    // Known behaviour: non-config, non-layout fields (customTitle, transparency,
+    // Known behaviour: non-config, non-layout fields (customTitle,
     // maximized) are NOT covered by the per-field merge logic.  The merge uses
     // `...sw` (the server widget) as the base, so server values overwrite any
-    // locally-changed fields outside of `config` and LAYOUT_FIELDS.
+    // locally-changed fields outside of `config`, `STYLE_FIELDS` and `LAYOUT_FIELDS`.
     // This test documents that limitation as a regression baseline.
     await waitFor(() => {
       const wA = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wA'
       );
-      // customTitle and transparency revert to the server's (undefined) value
+      // customTitle reverts to the server's (undefined) value
       expect(wA?.customTitle).toBeUndefined();
-      expect(wA?.transparency).toBeUndefined();
+      // transparency is preserved since it is in STYLE_FIELDS
+      expect(wA?.transparency).toBe(0.5);
       // But widget B's server config is still accepted
       const wB = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wB'

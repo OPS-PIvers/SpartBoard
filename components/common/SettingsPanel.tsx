@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { WidgetData, GlobalStyle } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
+import { UniversalStyleSettings } from '@/components/common/UniversalStyleSettings';
 import { useWindowSize } from '@/hooks/useWindowSize';
 
 interface SettingsPanelProps {
@@ -227,6 +228,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               {/* Widget-specific appearance settings */}
               {shouldRenderSettings && appearanceSettings && (
                 <div>{appearanceSettings}</div>
+              )}
+
+              {/* Universal Style Settings (only if no custom appearance settings) */}
+              {shouldRenderSettings && !appearanceSettings && (
+                <UniversalStyleSettings
+                  widget={widget}
+                  updateWidget={updateWidget}
+                />
               )}
 
               {/* Universal: Transparency */}

@@ -14,7 +14,7 @@ export default {
     // Dynamic font classes used by Clock and TimeTool widgets via font-${globalStyle.fontFamily}
     {
       pattern:
-        /^font-(sans|mono|handwritten|rounded|fun|comic|slab|retro|marker|cursive)$/,
+        /^font-(sans|serif|mono|handwritten|rounded|fun|comic|slab|retro|marker|cursive)$/,
     },
     'bg-blue-500',
     'bg-red-500',

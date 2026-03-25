@@ -686,6 +686,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 'maximized',
               ] as const;
 
+              const STYLE_FIELDS = [
+                'backgroundColor',
+                'fontFamily',
+                'baseTextSize',
+                'transparency',
+              ] as const;
+
               const remoteControlEnabled =
                 currentActive.settings?.remoteControlEnabled ?? true;
 
@@ -718,6 +725,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const layoutChangedLocally = LAYOUT_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
+                const styleChangedLocally = STYLE_FIELDS.some(
+                  (f) => lw[f] !== saved[f]
+                );
 
                 return {
                   sw,
@@ -729,29 +739,47 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     configChangedLocally || !remoteControlEnabled,
                   keepLocalLayout:
                     layoutChangedLocally || !remoteControlEnabled,
+                  keepLocalStyle: styleChangedLocally || !remoteControlEnabled,
                 };
               });
 
               const mergedWidgets = widgetMergeDecisions
                 .filter((d) => !d.isDeletedLocally)
-                .map(({ sw, lw, keepLocalConfig, keepLocalLayout }) => {
-                  if (!lw) return sw; // new widget from server -> accept
+                .map(
+                  ({
+                    sw,
+                    lw,
+                    keepLocalConfig,
+                    keepLocalLayout,
+                    keepLocalStyle,
+                  }) => {
+                    if (!lw) return sw; // new widget from server -> accept
 
-                  return {
-                    ...sw,
-                    version: keepLocalConfig ? lw.version : sw.version,
-                    config: keepLocalConfig ? lw.config : sw.config,
-                    ...(keepLocalLayout
-                      ? LAYOUT_FIELDS.reduce(
-                          (acc, field) => ({
-                            ...acc,
-                            [field]: lw[field as keyof WidgetData],
-                          }),
-                          {}
-                        )
-                      : {}),
-                  };
-                });
+                    return {
+                      ...sw,
+                      version: keepLocalConfig ? lw.version : sw.version,
+                      config: keepLocalConfig ? lw.config : sw.config,
+                      ...(keepLocalLayout
+                        ? LAYOUT_FIELDS.reduce(
+                            (acc, field) => ({
+                              ...acc,
+                              [field]: lw[field as keyof WidgetData],
+                            }),
+                            {}
+                          )
+                        : {}),
+                      ...(keepLocalStyle
+                        ? STYLE_FIELDS.reduce(
+                            (acc, field) => ({
+                              ...acc,
+                              [field]: lw[field as keyof WidgetData],
+                            }),
+                            {}
+                          )
+                        : {}),
+                    };
+                  }
+                );
 
               // Append widgets added locally that aren't on the server yet
               const serverIds = new Set(db.widgets.map((w) => w.id));
@@ -785,7 +813,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.
               const nextLastSavedWidgets = widgetMergeDecisions.map(
-                ({ sw, lw, saved, keepLocalConfig, keepLocalLayout }) => {
+                ({
+                  sw,
+                  lw,
+                  saved,
+                  keepLocalConfig,
+                  keepLocalLayout,
+                  keepLocalStyle,
+                }) => {
                   if (!lw || !saved) return sw;
 
                   return {
@@ -794,6 +829,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     config: keepLocalConfig ? saved.config : sw.config,
                     ...(keepLocalLayout
                       ? LAYOUT_FIELDS.reduce(
+                          (acc, field) => ({
+                            ...acc,
+                            [field]: saved[field as keyof WidgetData],
+                          }),
+                          {}
+                        )
+                      : {}),
+                    ...(keepLocalStyle
+                      ? STYLE_FIELDS.reduce(
                           (acc, field) => ({
                             ...acc,
                             [field]: saved[field as keyof WidgetData],

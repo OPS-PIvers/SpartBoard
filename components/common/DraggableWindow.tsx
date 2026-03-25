@@ -963,6 +963,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     !POSITION_AWARE_WIDGETS.includes(widget.type) &&
     dragState.current;
 
+  const UNIVERSAL_TEXT_SIZES: Record<string, string> = {
+    sm: 'text-sm',
+    base: 'text-base',
+    lg: 'text-lg',
+    xl: 'text-xl',
+    '2xl': 'text-2xl',
+  };
+
+  const universalStyleClasses = [
+    widget.fontFamily ? `font-${widget.fontFamily}` : '',
+    widget.baseTextSize ? UNIVERSAL_TEXT_SIZES[widget.baseTextSize] : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   const content = (
     <GlassCard
       globalStyle={globalStyle}
@@ -984,7 +999,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       cornerRadius={isMaximized ? 'none' : undefined}
       className={`absolute select-none widget group will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 ${
         isMaximized ? 'border-none !shadow-none' : ''
-      } `}
+      }`}
+      bgClass={widget.backgroundColor}
       style={{
         left: isMaximized
           ? 0
@@ -1019,7 +1035,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* Widget Content (always visible) */}
       <div
         data-testid="drag-surface"
-        className="h-full w-full flex flex-col rounded-[inherit] overflow-hidden"
+        className={`h-full w-full flex flex-col rounded-[inherit] overflow-hidden ${universalStyleClasses}`}
         onPointerDown={handleDragStart}
         style={{ touchAction: 'none' }}
       >
