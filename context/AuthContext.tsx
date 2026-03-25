@@ -449,14 +449,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user]);
 
   // Helper for admin checks
-  const checkUserAdminRoles = useCallback((email: string | null | undefined) => {
-    if (!email || !userRoles) return false;
-    const lowerEmail = email.toLowerCase();
-    return (
-      userRoles.admins.some((e) => e.toLowerCase() === lowerEmail) ||
-      userRoles.superAdmins.some((e) => e.toLowerCase() === lowerEmail)
-    );
-  }, [userRoles]);
+  const checkUserAdminRoles = useCallback(
+    (email: string | null | undefined) => {
+      if (!email || !userRoles) return false;
+      const lowerEmail = email.toLowerCase();
+      return (
+        userRoles.admins.some((e) => e.toLowerCase() === lowerEmail) ||
+        userRoles.superAdmins.some((e) => e.toLowerCase() === lowerEmail)
+      );
+    },
+    [userRoles]
+  );
 
   // Check if user is admin
   useEffect(() => {
@@ -754,14 +757,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // Helper for checking if a user has beta access
-  const isBetaUser = useCallback((betaUsers: string[], email: string | null | undefined) => {
-    const lowerEmail = email?.toLowerCase() ?? '';
-    return (
-      betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
-      (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ?? false) ||
-      (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ?? false)
-    );
-  }, [userRoles]);
+  const isBetaUser = useCallback(
+    (betaUsers: string[], email: string | null | undefined) => {
+      const lowerEmail = email?.toLowerCase() ?? '';
+      return (
+        betaUsers.some((e) => e.toLowerCase() === lowerEmail) ||
+        (userRoles?.betaTeachers?.some((e) => e.toLowerCase() === lowerEmail) ??
+          false) ||
+        (userRoles?.superAdmins?.some((e) => e.toLowerCase() === lowerEmail) ??
+          false)
+      );
+    },
+    [userRoles]
+  );
 
   // Check if user can access a specific widget
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
