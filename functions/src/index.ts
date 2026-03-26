@@ -739,11 +739,19 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
-    const accessTokenResponse = await auth.getAccessToken();
+    const accessTokenResponse = (await auth.getAccessToken()) as
+      | string
+      | null
+      | undefined
+      | { token?: string | null };
     const accessToken =
       typeof accessTokenResponse === 'string'
         ? accessTokenResponse
-        : (accessTokenResponse as { token: string | null } | null)?.token;
+        : accessTokenResponse &&
+            typeof accessTokenResponse === 'object' &&
+            'token' in accessTokenResponse
+          ? accessTokenResponse.token
+          : null;
 
     if (!accessToken) {
       throw new functionsV2.https.HttpsError(
