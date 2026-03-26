@@ -72,8 +72,7 @@ export const createBoardSnapshot = (
   widgets: WidgetData[]
 ): Omit<WidgetData, 'id'>[] => {
   return widgets.map((w) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, ...rest } = w;
+    const { id: _id, ...rest } = w;
     return {
       ...rest,
       config: structuredClone(rest.config),
