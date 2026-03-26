@@ -527,46 +527,62 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
    *
    * Returns -1 when no item is active (e.g. before the first item starts).
    */
+  // ⚡ BOLT OPTIMIZATION: Extract O(N^2) boundary calculation out of the per-second interval.
+  // This computationally expensive loop now only runs when the schedule layout actually changes,
+  // preventing main thread blocking on every clock tick.
+  const boundaries = useMemo(() => {
+    const starts = displayItems.map((item) =>
+      parseScheduleTime(item.startTime ?? item.time)
+    );
+
+    const ends = displayItems.map((item, i) => {
+      let endMin = parseScheduleTime(item.endTime ?? '');
+      if (endMin === -1) {
+        const startMin = starts[i];
+        if (startMin !== -1) {
+          let nearestLater = -1;
+          for (let j = 0; j < starts.length; j++) {
+            if (
+              starts[j] > startMin &&
+              (nearestLater === -1 || starts[j] < nearestLater)
+            ) {
+              nearestLater = starts[j];
+            }
+          }
+          endMin = nearestLater;
+        }
+      }
+      return endMin;
+    });
+
+    return { starts, ends };
+  }, [displayItems]);
+
   const activeIndex = useMemo(() => {
     if (displayItems.length === 0) return -1;
     const nowMinutes = Math.floor(nowSeconds / 60);
-
-    // Precompute start minutes once to avoid repeated string parsing.
-    const startMinutes = displayItems.map((item) =>
-      parseScheduleTime(item.startTime ?? item.time)
-    );
+    const { starts, ends } = boundaries;
 
     let bestIndex = -1;
 
     for (let i = 0; i < displayItems.length; i++) {
-      const startMin = startMinutes[i];
+      const startMin = starts[i];
       if (startMin === -1 || nowMinutes < startMin) continue;
 
-      // Resolve end boundary: explicit endTime → nearest later start → no bound.
-      let endMin = parseScheduleTime(displayItems[i].endTime ?? '');
-      if (endMin === -1) {
-        let nearestLater = -1;
-        for (let j = 0; j < displayItems.length; j++) {
-          const s = startMinutes[j];
-          if (s > startMin && (nearestLater === -1 || s < nearestLater)) {
-            nearestLater = s;
-          }
-        }
-        endMin = nearestLater;
-      }
-
+      const endMin = ends[i];
       const isActive = endMin === -1 ? true : nowMinutes < endMin;
+
       if (isActive) {
         // When items overlap, prefer the one with the latest start time
         // (the most recently started event is the most specific match).
-        if (bestIndex === -1 || startMin > startMinutes[bestIndex]) {
+        if (bestIndex === -1 || startMin > starts[bestIndex]) {
           bestIndex = i;
         }
       }
     }
 
     return bestIndex;
-  }, [displayItems, nowSeconds]);
+  }, [displayItems.length, nowSeconds, boundaries]);
 
   /**
    * Scroll the list so that the previously-completed item is at the top,

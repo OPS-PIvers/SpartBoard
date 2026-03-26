@@ -17,3 +17,8 @@
 
 **Learning:** When computing summary data (like counts or expression parts) and grouped display data (like rectangles or lists) from an array in a React component, doing multiple consecutive `.filter()` or `.map()` calls can lead to `O(N*M)` or higher complexity. This can cause significant main thread blocking on each re-render, especially during rapid state updates (like drag-and-drop or continuous tile additions).
 **Action:** Consolidate multiple passes into a single grouping loop inside a `useMemo` block. Gather counts, generate derived strings (like expressions), and build UI representations (like grouped rectangles) in one go, caching the results against the dependency array. This reduces complexity back down to O(N) and prevents layout thrashing.
+
+## 2025-03-01 - O(N^2) Computation Inside High-Frequency Render Hook
+
+**Learning:** Calculating derived configuration logic (like the start and end boundaries of schedule items) inside a `useMemo` block that depends on a rapidly updating variable (like a per-second clock tick) causes that expensive `O(N^2)` computation to run on every tick. This blocks the main thread needlessly when the underlying layout structure hasn't changed.
+**Action:** Separate computationally expensive structural parsing from time-dependent active state checks. Compute and cache structural bounds in a `useMemo` dependent only on the structural data (e.g., `displayItems`), and let the high-frequency `useMemo` (dependent on `nowSeconds`) perform only a lightweight `O(N)` lookup against the cached bounds.
