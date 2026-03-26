@@ -1,14 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, collectionGroup, getDocs } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import { BarChart, Users, Zap, LayoutGrid, AlertCircle } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
-
-// Extend types to include what we need from dashboards
-interface DashboardData {
-  lastModified?: number;
-  widgets: { type: string }[];
-}
+import { TOOLS } from '@/config/tools';
 
 interface AnalyticsData {
   users: {
@@ -35,49 +30,13 @@ interface AnalyticsData {
   };
 }
 
-const WIDGET_LABELS: Record<string, string> = {
-  note: 'Text / Note',
-  embed: 'Embed',
-  random: 'Randomizer',
-  weather: 'Weather',
-  timer: 'Timer',
-  noise: 'Noise Meter',
-  drawing: 'Drawing',
-  pdf: 'PDF Viewer',
-  classes: 'Classes',
-  scoreboard: 'Scoreboard',
-  stickers: 'Stickers',
-  calendar: 'Calendar',
-  expectations: 'Expectations',
-  trafficLight: 'Traffic Light',
-  qr: 'QR Code',
-  poll: 'Poll',
-  dice: 'Dice',
-  clock: 'Clock',
-  checklist: 'Checklist',
-  hotspotImage: 'Hotspot Image',
-  breathing: 'Breathing',
-  materials: 'Materials',
-  mathTools: 'Math Tools',
-  seatingChart: 'Seating Chart',
-  lunchCount: 'Lunch Count',
-  music: 'Music',
-  revealGrid: 'Reveal Grid',
-  instructionalRoutines: 'Instructional Routines',
-  smartNotebook: 'Smart Notebook',
-  nextUp: 'Next Up',
-  conceptWeb: 'Concept Web',
-  syntaxFramer: 'Syntax Framer',
-  talkingTool: 'Talking Tool',
-  numberLine: 'Number Line',
-  'specialist-schedule': 'Specialist Schedule',
-  miniApp: 'Mini App',
-  'starter-pack': 'Starter Pack',
-  'video-activity': 'Video Activity',
-  catalyst: 'Catalyst',
-  'recess-gear': 'Recess Gear',
-  'car-rider-pro': 'Car Rider Pro',
-};
+const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
+  (acc, tool) => {
+    acc[tool.type] = tool.label;
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 const StatCard: React.FC<{
   title: string;
@@ -118,133 +77,20 @@ export const AnalyticsManager: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // 1. Fetch Users
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const totalUsers = usersSnap.size;
+        const getAnalyticsData = httpsCallable<void, AnalyticsData>(
+          functions,
+          'getAdminAnalytics'
+        );
 
-        const now = Date.now();
-
-        // We assume the user documents are denormalized and contain a `buildings` array.
-        // This avoids fetching `userProfile` subcollections, solving the N+1 queries.
-        const usersData = usersSnap.docs.map((userDoc) => {
-          const userData = userDoc.data();
-          const email =
-            typeof userData.email === 'string' ? userData.email : '';
-          const domain = email.includes('@') ? email.split('@')[1] : 'unknown';
-
-          let buildings: string[] = [];
-          if (Array.isArray(userData.buildings)) {
-            buildings = userData.buildings.map(String);
-          }
-
-          return {
-            id: userDoc.id,
-            email,
-            domain,
-            lastLogin:
-              typeof userData.lastLogin === 'number'
-                ? userData.lastLogin
-                : undefined,
-            buildings,
-          };
-        });
-
-        // 2. Fetch all dashboards via collectionGroup
-        const totalWidgetCounts: Record<string, number> = {};
-        const activeWidgetCounts: Record<string, number> = {};
-
-        try {
-          const dashboardsSnap = await getDocs(
-            collectionGroup(db, 'dashboards')
-          );
-          const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
-
-          for (const dashDoc of dashboardsSnap.docs) {
-            const dashData = dashDoc.data() as DashboardData;
-            const isActive =
-              (dashData.lastModified &&
-                dashData.lastModified > activeThreshold) ??
-              false;
-
-            if (dashData.widgets && Array.isArray(dashData.widgets)) {
-              dashData.widgets.forEach((w) => {
-                if (w.type) {
-                  totalWidgetCounts[w.type] =
-                    (totalWidgetCounts[w.type] || 0) + 1;
-                  if (isActive) {
-                    activeWidgetCounts[w.type] =
-                      (activeWidgetCounts[w.type] || 0) + 1;
-                  }
-                }
-              });
-            }
-          }
-        } catch (e) {
-          console.warn('Could not fetch collectionGroup dashboards', e);
-          // Fallback: If indexing is not ready or fails, we just show empty arrays
-        }
-
-        // Count Monthly/Daily active users *before* adding to state, so they can be filtered
-        let monthlyActive = 0;
-        let dailyActive = 0;
-        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-        const oneDayMs = 24 * 60 * 60 * 1000;
-
-        usersData.forEach((u) => {
-          if (u.lastLogin) {
-            if (now - u.lastLogin <= thirtyDaysMs) monthlyActive++;
-            if (now - u.lastLogin <= oneDayMs) dailyActive++;
-          }
-        });
-
-        // 3. Fetch AI Usage
-        let totalAiCalls = 0;
-        const callsPerUser: Record<string, number> = {};
-        const dailyCallCounts: Record<string, number> = {};
-
-        try {
-          const aiUsageSnap = await getDocs(collection(db, 'ai_usage'));
-          aiUsageSnap.docs.forEach((usageDoc) => {
-            // Doc ID format: {uid}_{YYYY-MM-DD} or {uid}_audio_{YYYY-MM-DD}
-            const idParts = usageDoc.id.split('_');
-            const uid = idParts[0];
-            const datePart = idParts.length > 2 ? idParts[2] : idParts[1];
-
-            const data = usageDoc.data();
-            const count = typeof data.count === 'number' ? data.count : 0;
-
-            totalAiCalls += count;
-            callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-            dailyCallCounts[datePart] =
-              (dailyCallCounts[datePart] ?? 0) + count;
-          });
-        } catch (e) {
-          console.warn('Could not fetch AI usage', e);
-        }
-
-        const uniqueDays = Object.keys(dailyCallCounts).length || 1;
-        const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
-
-        const activeAiUsers = Object.keys(callsPerUser).length || 1;
-        const avgDailyCallsPerUser =
-          Math.round((avgDailyCalls / activeAiUsers) * 10) / 10;
+        const result = await getAnalyticsData();
+        const dataPayload = result.data;
 
         setData({
+          ...dataPayload,
           users: {
-            total: totalUsers,
-            monthly: monthlyActive,
-            daily: dailyActive,
-            data: usersData,
-          },
-          widgets: {
-            totalInstances: totalWidgetCounts,
-            activeInstances: activeWidgetCounts,
-          },
-          api: {
-            totalCalls: totalAiCalls,
-            callsPerUser,
-            avgDailyCalls,
-            avgDailyCallsPerUser,
+            ...dataPayload.users,
+            monthly: 0, // Calculated dynamically by the memo below
+            daily: 0,
           },
         });
       } catch (err: unknown) {
