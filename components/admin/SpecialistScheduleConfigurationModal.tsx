@@ -626,7 +626,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest">
                                       Start Date
                                     </label>
                                     <input
@@ -646,7 +646,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    <label className="text-xxxs font-black text-slate-400 uppercase tracking-widest">
                                       End Date
                                     </label>
                                     <input
@@ -775,7 +775,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       </div>
                     )}
 
-                    <p className="text-[11px] text-slate-400 italic text-center px-4 leading-tight">
+                    <p className="text-xs text-slate-400 italic text-center px-4 leading-tight">
                       {currentBuildingConfig.cycleLength === 10
                         ? 'Set explicit date ranges for each of the 10 rotation blocks.'
                         : 'Click dates to mark them as school days. The rotation only advances on marked days.'}

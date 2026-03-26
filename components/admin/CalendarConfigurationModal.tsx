@@ -377,7 +377,7 @@ export const CalendarConfigurationModal: React.FC<
                           </span>
                           {lastSync && (
                             <span
-                              className="text-[9px] font-bold text-slate-400 uppercase"
+                              className="text-xxxs font-bold text-slate-400 uppercase"
                               title={new Date(lastSync).toLocaleString()}
                             >
                               {new Date(lastSync).toLocaleTimeString([], {
