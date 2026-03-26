@@ -30,8 +30,10 @@ const mockAuthContext = (
   loading: false,
   isAdmin: false,
   userRoles: null,
+  appSettings: null,
   featurePermissions: [],
   globalPermissions: [],
+  updateAppSettings: () => Promise.resolve(),
   canAccessWidget: () => true,
   canAccessFeature: () => true,
   signInWithGoogle: async () => {

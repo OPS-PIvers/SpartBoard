@@ -21,6 +21,8 @@ import {
   List,
   Filter,
 } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
+import { useStorage } from '@/hooks/useStorage';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
 
@@ -108,10 +110,48 @@ export const GlobalPermissionsManager: React.FC = () => {
   } | null>(null);
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
 
+  const { appSettings, updateAppSettings } = useAuth();
+  const { uploadAdminLogo, uploading } = useStorage();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Filter state
   const [filterEnabled, setFilterEnabled] = useState<'all' | 'on' | 'off'>(
     'all'
   );
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showMessage('error', 'Please upload an image file');
+      return;
+    }
+
+    try {
+      const url = await uploadAdminLogo(file);
+      await updateAppSettings({ logoUrl: url });
+      showMessage('success', 'Logo updated successfully');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      showMessage('error', 'Failed to upload logo');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    try {
+      await updateAppSettings({ logoUrl: '' });
+      showMessage('success', 'Logo removed successfully');
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      showMessage('error', 'Failed to remove logo');
+    }
+  };
+
   const [filterAvailability, setFilterAvailability] = useState<
     'all' | AccessLevel
   >('all');
@@ -285,6 +325,63 @@ export const GlobalPermissionsManager: React.FC = () => {
           onClose={() => setMessage(null)}
         />
       )}
+
+      {/* Global Branding */}
+      <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
+            <Shield className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Upload a custom logo to replace the default SPART Board logo in
+              the sidebar header.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
+            {appSettings?.logoUrl ? (
+              <img
+                src={appSettings.logoUrl}
+                alt="Custom Logo"
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <LayoutGrid className="w-8 h-8 text-slate-400" />
+            )}
+          </div>
+
+          <div className="flex-1 flex items-center gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={(e) => void handleLogoUpload(e)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
+            >
+              {uploading ? 'Uploading...' : 'Upload Logo'}
+            </button>
+
+            {appSettings?.logoUrl && (
+              <button
+                onClick={() => void handleRemoveLogo()}
+                disabled={uploading}
+                className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                Remove Logo
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">

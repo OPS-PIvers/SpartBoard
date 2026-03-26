@@ -34,6 +34,7 @@ import {
   GradeLevel,
   WidgetConfig,
   UserRolesConfig,
+  AppSettings,
 } from '../types';
 import { AuthContext } from './AuthContextValue';
 import { getBuildingGradeLevels } from '../config/buildings';
@@ -172,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAuthBypass ? true : null
   ); // null = not yet checked
   const [userRoles, setUserRoles] = useState<UserRolesConfig | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [featurePermissions, setFeaturePermissions] = useState<
     FeaturePermission[]
   >([]);
@@ -445,7 +447,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error('Error loading user roles:', error);
       }
     );
-    return unsubscribe;
+
+    const appSettingsUnsubscribe = onSnapshot(
+      doc(db, 'admin_settings', 'app_settings'),
+      (doc) => {
+        if (doc.exists()) {
+          setAppSettings(doc.data() as AppSettings);
+        } else {
+          setAppSettings(null);
+        }
+      },
+      (error) => {
+        console.error('Error loading app settings:', error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      appSettingsUnsubscribe();
+    };
   }, [user]);
 
   // Check if user is admin
@@ -856,6 +876,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const updateAppSettings = useCallback(
+    async (updates: Partial<AppSettings>) => {
+      if (!isAdmin || isAuthBypass) return;
+      try {
+        await setDoc(doc(db, 'admin_settings', 'app_settings'), updates, {
+          merge: true,
+        });
+      } catch (error) {
+        console.error('Error updating app settings:', error);
+        throw error;
+      }
+    },
+    [isAdmin]
+  );
+
   const signOut = async () => {
     if (isAuthBypass) {
       console.warn('Bypassing Sign Out');
@@ -882,8 +917,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         loading,
         isAdmin,
         userRoles,
+        appSettings,
         featurePermissions,
         globalPermissions,
+        updateAppSettings,
         canAccessWidget,
         canAccessFeature,
         signInWithGoogle,

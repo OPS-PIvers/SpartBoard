@@ -8,6 +8,7 @@ import {
   GradeLevel,
   WidgetConfig,
   UserRolesConfig,
+  AppSettings,
 } from '../types';
 
 export interface AuthContextType {
@@ -16,8 +17,10 @@ export interface AuthContextType {
   loading: boolean;
   isAdmin: boolean | null; // null = admin status not yet determined
   userRoles: UserRolesConfig | null;
+  appSettings: AppSettings | null;
   featurePermissions: FeaturePermission[];
   globalPermissions: GlobalFeaturePermission[];
+  updateAppSettings: (updates: Partial<AppSettings>) => Promise<void>;
   canAccessWidget: (widgetType: WidgetType) => boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
   signInWithGoogle: () => Promise<void>;

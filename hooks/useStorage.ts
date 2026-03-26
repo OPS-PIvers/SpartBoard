@@ -228,6 +228,11 @@ export const useStorage = () => {
     return uploadFile(`admin_stickers/${timestamp}-${file.name}`, file);
   };
 
+  const uploadAdminLogo = async (file: File): Promise<string> => {
+    const timestamp = Date.now();
+    return uploadFile(`admin_logos/${timestamp}-${file.name}`, file);
+  };
+
   const uploadCatalystImage = async (
     routineId: string,
     file: File
@@ -327,6 +332,7 @@ export const useStorage = () => {
     uploadAdminBackground,
     uploadWeatherImage,
     uploadAdminSticker,
+    uploadAdminLogo,
     uploadCatalystImage,
     uploadPdf,
     uploadAdminPdf,

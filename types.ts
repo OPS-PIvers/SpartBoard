@@ -2206,6 +2206,7 @@ export interface GlobalFeaturePermission {
 
 export interface AppSettings {
   geminiDailyLimit: number;
+  logoUrl?: string;
 }
 
 /**

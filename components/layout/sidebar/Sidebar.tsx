@@ -41,7 +41,7 @@ export const Sidebar: React.FC = () => {
   const [activeSection, setActiveSection] = useState<MenuSection>('main');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, appSettings } = useAuth();
   const {
     dashboards,
     activeDashboard,
@@ -279,8 +279,16 @@ export const Sidebar: React.FC = () => {
                     className="-ml-1.5"
                   />
                 ) : (
-                  <div className="w-6 h-6 bg-brand-blue-primary rounded flex items-center justify-center">
-                    <LayoutGrid className="w-4 h-4 text-white" />
+                  <div className="w-6 h-6 bg-brand-blue-primary rounded flex items-center justify-center overflow-hidden">
+                    {appSettings?.logoUrl ? (
+                      <img
+                        src={appSettings.logoUrl}
+                        alt="Custom Logo"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <LayoutGrid className="w-4 h-4 text-white" />
+                    )}
                   </div>
                 )}
                 <span className="text-xxs font-bold tracking-wider uppercase text-slate-500">
