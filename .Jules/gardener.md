@@ -104,6 +104,8 @@
 **Root Cause:** "God Component" pattern where the settings UI for the Schedule widget grew organically, mixing the main settings list view with the complex rendering and editing logic of individual sortable schedule items.
 **Plan:** Extracted `SortableScheduleItem` and `AVAILABLE_WIDGETS` into a dedicated `components/widgets/Schedule/components/SortableScheduleItem.tsx` file, reducing the size and complexity of `Settings.tsx`.
 
-## 2025-03-26 - Unused Variables in Utils
+## 2026-03-26 - Unused Variables in Utils
 
-**Weed:** `eslint-disable-next-line @typescript-eslint/no-unused-vars` **Root Cause:** Bypassing linter for intentionally unused destructured variables instead of using the configured `^_` prefix. **Plan:** Rename unused destructured variables with a leading underscore (e.g. `id` -> `_id`).
+**Weed:** `eslint-disable-next-line @typescript-eslint/no-unused-vars`
+**Root Cause:** Bypassing linter for intentionally unused destructured variables instead of using the configured `^_` prefix.
+**Plan:** Rename unused destructured variables with a leading underscore (e.g. `id` -> `_id`).
