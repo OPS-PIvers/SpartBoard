@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { WidgetData, NextUpConfig, NextUpSession } from '@/types';
+import {
+  WidgetData,
+  NextUpConfig,
+  NextUpSession,
+  NextUpQueueItem,
+} from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { Plus, RefreshCcw, Check, Trash2, Copy } from 'lucide-react';
+import { Plus, RefreshCcw, Check, Trash2, Copy, Users } from 'lucide-react';
 
 const NEXTUP_FOLDER_NAME = 'NextUp';
 const SESSIONS_COLLECTION = 'nextup_sessions';
@@ -17,7 +22,7 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as NextUpConfig;
   const { user } = useAuth();
   const { driveService } = useGoogleDrive();
-  const { updateWidget } = useDashboard();
+  const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showAlert, showConfirm, showPrompt } = useDialog();
 
   const [existingFiles, setExistingFiles] = useState<
@@ -168,6 +173,71 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
     setTimeout(() => setCopy(false), 2000);
   };
 
+  const handleImportRoster = async () => {
+    if (!activeRosterId) {
+      addToast('No active class selected in the Classes widget.', 'error');
+      return;
+    }
+
+    const roster = rosters.find((r) => r.id === activeRosterId);
+    if (!roster || roster.students.length === 0) {
+      addToast('Active class is empty or not found.', 'error');
+      return;
+    }
+
+    if (!config.activeDriveFileId || !driveService) {
+      addToast('No active drive file found for this session.', 'error');
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Replace current queue with ${roster.students.length} students from ${roster.name}?`,
+      {
+        title: 'Import Class',
+        variant: 'warning',
+        confirmLabel: 'Import',
+      }
+    );
+
+    if (!confirmed) return;
+
+    const MAX_QUEUE_LENGTH = 500;
+    const studentsToImport = roster.students.slice(0, MAX_QUEUE_LENGTH);
+    const wasTruncated = roster.students.length > MAX_QUEUE_LENGTH;
+
+    const newQueue: NextUpQueueItem[] = studentsToImport.map(
+      (student, index) => ({
+        id: crypto.randomUUID(),
+        name: `${student.firstName} ${student.lastName}`.trim(),
+        status: index === 0 ? 'active' : 'waiting',
+        joinedAt: Date.now(),
+      })
+    );
+
+    try {
+      const blob = new Blob([JSON.stringify(newQueue)], {
+        type: 'application/json',
+      });
+      await driveService.updateFileContent(config.activeDriveFileId, blob);
+
+      updateWidget(widget.id, {
+        config: { ...config, lastUpdated: Date.now() },
+      });
+
+      if (wasTruncated) {
+        addToast(
+          `Imported 500 students. The roster was truncated as it exceeded the maximum queue size.`,
+          'warning'
+        );
+      } else {
+        addToast(`Imported ${newQueue.length} students!`, 'success');
+      }
+    } catch (error) {
+      console.error('Failed to import roster to queue:', error);
+      addToast('Failed to import class to queue.', 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden font-lexend">
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar text-brand-gray-darkest">
@@ -243,20 +313,29 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => handleEndSession(true)}
-                  className="flex items-center justify-center gap-2 p-3 bg-white border-2 border-slate-100 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors text-xs font-bold"
+                  onClick={handleImportRoster}
+                  className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-50 border-2 border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-colors text-xs font-bold group"
                 >
-                  End & Save
+                  <Users className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  Import Active Class
                 </button>
-                <button
-                  onClick={() => handleEndSession(false)}
-                  className="flex items-center justify-center gap-2 p-3 bg-red-50 border-2 border-red-100 rounded-xl text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Discard
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleEndSession(true)}
+                    className="flex items-center justify-center gap-2 p-3 bg-white border-2 border-slate-100 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors text-xs font-bold"
+                  >
+                    End & Save
+                  </button>
+                  <button
+                    onClick={() => handleEndSession(false)}
+                    className="flex items-center justify-center gap-2 p-3 bg-red-50 border-2 border-red-100 rounded-xl text-red-600 hover:bg-red-100 transition-colors text-xs font-bold"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Discard
+                  </button>
+                </div>
               </div>
             </div>
           )}

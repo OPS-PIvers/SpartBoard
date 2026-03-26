@@ -358,7 +358,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                   the parent window. Include this code in your mini-app&apos;s
                   JavaScript:
                 </p>
-                <pre className="p-2 bg-slate-900 rounded-lg text-[9px] text-emerald-400 font-mono overflow-x-auto">
+                <pre className="p-2 bg-slate-900 rounded-lg text-xxxs text-emerald-400 font-mono overflow-x-auto">
                   {`window.parent.postMessage({
   type: 'SPART_MINIAPP_RESULT',
   payload: {
@@ -367,7 +367,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
   }
 }, '*');`}
                 </pre>
-                <p className="text-[9px] text-slate-400 italic">
+                <p className="text-xxxs text-slate-400 italic">
                   Note: The payload can be any JSON object.
                 </p>
               </div>

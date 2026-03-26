@@ -50,6 +50,8 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 
 ## 2024-05-22 - [OCR to Notes] **Source:** Webcam **Destination:** Text **Value:** Instantly converts physical documents into editable digital text on the dashboard.
 
+## 2024-05-23 - [Roster to Queue] **Source:** Classes (Roster) **Destination:** NextUp **Value:** Allows teachers to instantly populate the NextUp queue with their active class roster.
+
 ## Planned Connections
 
 ## WILL NOT IMPLEMENT

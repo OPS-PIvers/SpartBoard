@@ -79,7 +79,7 @@ export const DriveDisconnectBanner: React.FC = () => {
           <button
             onClick={() => void handleConnect()}
             disabled={isConnecting}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-blue-primary text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-brand-blue-dark transition-all disabled:opacity-60"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-blue-primary text-white text-xxxs font-black uppercase tracking-widest rounded-lg hover:bg-brand-blue-dark transition-all disabled:opacity-60"
           >
             {isConnecting ? (
               <Loader2 className="w-3 h-3 animate-spin" />

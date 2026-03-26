@@ -27,3 +27,8 @@
 
 **Gap:** The tests for `useGoogleDrive` failed with 'is not a constructor' when mocking `GoogleDriveService` as a function that returns an object, because the hook invokes it with `new`.
 **Fix:** Modified the `vi.mock` factory to return an actual inline ES6 `class` definition that initializes the required mock methods, correctly simulating class instantiation.
+
+## 2026-03-26 - Testing Window Location Reload in React Testing Library
+
+**Gap:** Tests needing to verify `window.location.reload` calling frequently fail because `window.location` is read-only in JSDOM environments. Trying to mock `reload` by deleting `location` (`delete window.location`) or assigning it as `any` causes TypeScript and ESLint type-safety errors and can't be safely restored without `Object.defineProperty`.
+**Fix:** Use `Object.defineProperty` to safely redefine `window.location` for the duration of the test, and mock the `reload` function correctly.

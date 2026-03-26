@@ -124,3 +124,37 @@ Empower admins to control the initial user experience for teachers.
 | 4.2   | Admin UI to lock/unlock live widgets        | 🔲 Remaining                              |
 
 By migrating hardcoded styles to dynamic CSS variables, utilizing JSON schemas for admin forms, expanding the Mini App system into a fully-fledged API playground, and introducing visual widget building, SPART Board can evolve into a highly scalable, white-label platform suitable for diverse educational environments without requiring developer intervention for every customization.
+| Phase | Item                                            | Status                                         |
+| ----- | ----------------------------------------------- | ---------------------------------------------- |
+| 1.1   | Dynamic Color Palettes (CSS variables)          | ✅ Done                                        |
+| 1.2   | Custom Typography (Google Fonts)                | 🔲 Remaining                                   |
+| 1.3   | UI Elements Styling (borders, transparency)     | ✅ Done                                        |
+| 1.4   | Custom Backgrounds & Logos                      | ✅ Done                                        |
+| 2.1   | Widget Admin Configs (24 of 34 widget types)    | ✅ Partial — 10 types + 13 newer types pending |
+| 2.2   | JSON Schema-Driven Admin UI                     | 🔲 Remaining                                   |
+| 3.1   | Enhanced Mini Apps (Monaco Editor)              | 🔲 Remaining (building targeting ✅ done)      |
+| 3.2   | Visual Widget Builder                           | 🔲 Remaining                                   |
+| 3.3   | Data Binding & API Integrations                 | 🔲 Remaining                                   |
+| 3.4   | Action Buttons (Webhooks)                       | 🔲 Remaining                                   |
+| 4.1   | Dashboard Templates (create/apply/publish)      | ✅ Done                                        |
+| 4.1   | Auto-assign template on first login             | 🔲 Remaining                                   |
+| 4.2   | Mandatory/Locked Widgets (enforcement)          | ✅ Done                                        |
+| 4.2   | Admin UI to lock/unlock live widgets            | 🔲 Remaining                                   |
+| 5.1   | Global Feature Permissions                      | ✅ Done                                        |
+| 5.2   | Widget-Level Feature Permissions                | ✅ Done                                        |
+| 5.3   | Custom Announcements Widget                     | ✅ Done                                        |
+| 5.4   | Student / Read-Only View (code layer)           | ✅ Done                                        |
+| 5.4   | Student-facing shareable published URL          | 🔲 Remaining                                   |
+| 5.5   | User Management UI                              | ✅ Done                                        |
+| 5.5   | Bulk user provisioning / directory sync         | 🔲 Remaining                                   |
+| 5.6   | Analytics (basic)                               | ✅ Done                                        |
+| 5.6   | District-level analytics dashboards + export    | 🔲 Remaining                                   |
+| 5.7   | Onboarding / Setup Wizard (completion tracking) | ✅ Done                                        |
+| 5.7   | Building-profile-driven onboarding flow         | 🔲 Remaining                                   |
+
+By completing the remaining widget admin config panels, integrating Monaco Editor for the Mini App library, implementing template auto-assignment on first login, and adding the student-facing publish URL, SPART Board will reach a state where a district admin can fully configure, brand, and deploy the platform for their teachers and students without any developer intervention. The JSON Schema-driven admin UI (Phase 2.2) and Visual Widget Builder (Phase 3.2) represent the next frontier — turning widget creation itself into an admin-level operation.
+
+---
+
+**Last Updated**: 2026-03-26
+**Version**: 1.2.0

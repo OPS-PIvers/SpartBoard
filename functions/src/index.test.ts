@@ -79,6 +79,57 @@ vi.mock('google-auth-library', () => {
   };
 });
 
+describe('Token Object Type Guard', () => {
+  it('should successfully pass when auth.getAccessToken returns an object with a token property', async () => {
+    // Override the mock specifically for this test
+    const { GoogleAuth } = await import('google-auth-library');
+
+    vi.mocked(GoogleAuth).mockImplementationOnce(() => {
+      return {
+        getClient: vi.fn(),
+        getAccessToken: vi
+          .fn()
+          .mockResolvedValue({ token: 'mock-object-token' }),
+      } as unknown as InstanceType<typeof GoogleAuth>;
+    });
+
+    // Mock Admin Check using the granular mock
+    getMock.mockResolvedValue({ exists: true });
+
+    const mockPost = vi.mocked(axios.post);
+    mockPost.mockResolvedValue({
+      data: {
+        name: 'sessions/12345',
+        id: '12345',
+      },
+    });
+
+    const request = {
+      auth: {
+        token: { email: 'admin@example.com' },
+        uid: 'test-uid',
+      },
+      data: {
+        widgetName: 'Test Widget',
+        description: 'Test Description',
+      },
+    };
+
+    const handler = triggerJulesWidgetGeneration as unknown as (
+      req: typeof request
+    ) => Promise<{ success: boolean; message: string; consoleUrl: string }>;
+    const result = await handler(request);
+
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    const config = mockPost.mock.calls[0][2] as {
+      headers: Record<string, string>;
+    };
+    // Should correctly extract 'mock-object-token' from the { token: 'mock-object-token' } object
+    expect(config.headers.Authorization).toBe('Bearer mock-object-token');
+    expect(result.success).toBe(true);
+  });
+});
+
 describe('triggerJulesWidgetGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
