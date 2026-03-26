@@ -52,7 +52,12 @@ const TabButton: React.FC<{
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    'features' | 'global' | 'backgrounds' | 'announcements' | 'users' | 'analytics'
+    | 'features'
+    | 'global'
+    | 'backgrounds'
+    | 'announcements'
+    | 'users'
+    | 'analytics'
   >('features');
 
   // Close modal on Escape key press
