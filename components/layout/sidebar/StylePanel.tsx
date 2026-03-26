@@ -6,6 +6,8 @@ import {
   ChevronRight,
   Maximize,
   Minimize,
+  Palette,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Dashboard,
@@ -36,13 +38,20 @@ interface StylePanelProps {
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
+// Brand color defaults — must match the defaults in DashboardView.tsx
+const DEFAULT_PRIMARY_COLOR = '#2d3f89';
+const DEFAULT_ACCENT_COLOR = '#ad2122';
+const DEFAULT_WINDOW_TITLE_COLOR = '#ffffff';
+
 export const StylePanel: React.FC<StylePanelProps> = ({
   isVisible,
   activeDashboard,
   setGlobalStyle,
   addToast,
 }) => {
-  const [styleTab, setStyleTab] = useState<'window' | 'dock'>('window');
+  const [styleTab, setStyleTab] = useState<'window' | 'dock' | 'colors'>(
+    'window'
+  );
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const [pendingStyle, setPendingStyle] =
     useState<GlobalStyle>(DEFAULT_GLOBAL_STYLE);
@@ -106,6 +115,17 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               }`}
             >
               <Minimize className="w-3.5 h-3.5 rotate-90" /> Dock
+            </button>
+
+            <button
+              onClick={() => setStyleTab('colors')}
+              className={`flex-1 py-1.5 rounded-md flex items-center justify-center gap-2 transition-all ${
+                styleTab === 'colors'
+                  ? 'bg-white shadow-sm text-brand-blue-primary'
+                  : 'text-slate-500'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" /> Colors
             </button>
           </div>
         </div>
@@ -242,7 +262,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               </div>
             </div>
           </div>
-        ) : (
+        ) : styleTab === 'dock' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
             {/* Dock Transparency */}
             <div className="space-y-3">
@@ -349,7 +369,158 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               </div>
             </div>
           </div>
-        )}
+        ) : styleTab === 'colors' ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+            <p className="text-xxs text-slate-400 px-1 leading-relaxed">
+              Set custom brand colors for this dashboard. These are injected as
+              CSS variables and used throughout the interface.
+            </p>
+
+            {/* Primary Color */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  Primary Color
+                </h3>
+                <button
+                  onClick={() =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      primaryColor: undefined,
+                    })
+                  }
+                  className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
+                  title="Reset to default"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
+              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
+                <input
+                  type="color"
+                  value={pendingStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
+                  onChange={(e) =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      primaryColor: e.target.value,
+                    })
+                  }
+                  className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xxs font-bold text-slate-600 uppercase">
+                    Brand Primary
+                  </span>
+                  <span className="text-xxs font-mono text-slate-400">
+                    {pendingStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Accent Color */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  Accent Color
+                </h3>
+                <button
+                  onClick={() =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      accentColor: undefined,
+                    })
+                  }
+                  className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
+                  title="Reset to default"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
+              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
+                <input
+                  type="color"
+                  value={pendingStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
+                  onChange={(e) =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      accentColor: e.target.value,
+                    })
+                  }
+                  className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xxs font-bold text-slate-600 uppercase">
+                    Brand Accent
+                  </span>
+                  <span className="text-xxs font-mono text-slate-400">
+                    {pendingStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Window Title Color */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  Window Title Color
+                </h3>
+                <button
+                  onClick={() =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      windowTitleColor: undefined,
+                    })
+                  }
+                  className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
+                  title="Reset to default"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
+              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
+                <input
+                  type="color"
+                  value={
+                    pendingStyle.windowTitleColor ?? DEFAULT_WINDOW_TITLE_COLOR
+                  }
+                  onChange={(e) =>
+                    setPendingStyle({
+                      ...pendingStyle,
+                      windowTitleColor: e.target.value,
+                    })
+                  }
+                  className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xxs font-bold text-slate-600 uppercase">
+                    Widget Title Text
+                  </span>
+                  <span className="text-xxs font-mono text-slate-400">
+                    {pendingStyle.windowTitleColor ??
+                      DEFAULT_WINDOW_TITLE_COLOR}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Reset All Colors */}
+            <button
+              onClick={() =>
+                setPendingStyle({
+                  ...pendingStyle,
+                  primaryColor: undefined,
+                  accentColor: undefined,
+                  windowTitleColor: undefined,
+                })
+              }
+              className="w-full py-2 bg-slate-100 text-slate-500 rounded-xl font-bold text-xxs uppercase tracking-widest hover:bg-slate-200 transition-all"
+            >
+              Reset All Colors to Default
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* ACTION BUTTONS */}

@@ -862,10 +862,20 @@ export const DashboardView: React.FC = () => {
   const globalStyle = activeDashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const fontClass = `font-${globalStyle.fontFamily} font-bold`;
 
+  // Inject brand colors as CSS custom properties so widgets/components can
+  // reference var(--spart-primary), var(--spart-accent), var(--spart-window-title)
+  // without hardcoding the brand-blue/brand-red Tailwind tokens.
+  const cssVars: React.CSSProperties = {
+    '--spart-primary': globalStyle.primaryColor ?? '#2d3f89',
+    '--spart-accent': globalStyle.accentColor ?? '#ad2122',
+    '--spart-window-title': globalStyle.windowTitleColor ?? '#ffffff',
+  } as React.CSSProperties;
+
   return (
     <div
       ref={dashboardRef}
       id="dashboard-root"
+      style={cssVars}
       className={`relative h-screen w-screen overflow-hidden transition-all duration-1000 ${fontClass}`}
       onClick={(e) => {
         e.stopPropagation();

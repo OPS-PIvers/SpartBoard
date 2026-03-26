@@ -242,6 +242,12 @@ service cloud.firestore {
       }
     }
 
+    // Dashboard Templates - all authenticated users can read, only admins can write
+    match /dashboard_templates/{templateId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Global PDFs - all authenticated users can read, only admins can write
     match /global_pdfs/{pdfId} {
       allow read: if request.auth != null;

@@ -2055,6 +2055,7 @@ export interface WidgetData {
   maximized?: boolean;
   customTitle?: string | null;
   isLive?: boolean;
+  isLocked?: boolean; // When true: widget cannot be moved, resized, or deleted by end-users
   transparency?: number;
   annotation?: DrawingConfig;
   config: WidgetConfig;
@@ -2310,6 +2311,10 @@ export interface GlobalStyle {
   dockBorderRadius: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'full';
   dockTextColor: string; // hex color
   dockTextShadow: boolean;
+  /** Custom brand colors — injected as CSS variables at the dashboard root */
+  primaryColor?: string; // hex, defaults to brand-blue-primary (#2d3f89)
+  accentColor?: string; // hex, defaults to brand-red-primary (#ad2122)
+  windowTitleColor?: string; // hex, defaults to white (#ffffff)
 }
 
 /**
@@ -2405,3 +2410,35 @@ export const DEFAULT_GLOBAL_STYLE: GlobalStyle = {
   dockTextColor: '#334155', // Slate 700 (dark grey)
   dockTextShadow: false,
 };
+
+// --- DASHBOARD TEMPLATE TYPES ---
+
+export type TemplateDifficultyLevel = 'elementary' | 'middle' | 'high' | 'all';
+
+/**
+ * A reusable dashboard template that admins can define and assign to users.
+ * Stored in Firestore under /dashboard_templates/{id}.
+ * All authenticated users can read; only admins can write.
+ */
+export interface DashboardTemplate {
+  id: string;
+  name: string;
+  description: string;
+  /** Snapshot of widgets to pre-populate the dashboard with */
+  widgets: WidgetData[];
+  /** Optional global style override applied when template is deployed */
+  globalStyle?: Partial<GlobalStyle>;
+  /** Optional background to apply (Tailwind class, hex, gradient, or URL) */
+  background?: string;
+  /** Tag labels for filtering in the template browser */
+  tags: string[];
+  /** Grade-level targeting — empty means applicable to all grades */
+  targetGradeLevels: GradeLevel[];
+  /** Building IDs this template is offered to; empty = all buildings */
+  targetBuildings: string[];
+  /** When true, this template is shown in the user-facing starter pack */
+  isPublished: boolean;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string; // admin email
+}

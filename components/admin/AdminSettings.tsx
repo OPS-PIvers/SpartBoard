@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Users,
   BarChart,
+  LayoutTemplate,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -17,6 +18,7 @@ import { GlobalPermissionsManager } from './GlobalPermissionsManager';
 import { AnnouncementsManager } from './Announcements';
 import { UserManagementPanel } from './UserManagement/UserManagementPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
+import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -58,6 +60,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     | 'announcements'
     | 'users'
     | 'analytics'
+    | 'templates'
   >('features');
 
   // Close modal on Escape key press
@@ -156,6 +159,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               icon={<BarChart className="w-4 h-4" />}
               label="Analytics"
             />
+            <TabButton
+              id="tab-templates"
+              controls="panel-templates"
+              isActive={activeTab === 'templates'}
+              onClick={() => setActiveTab('templates')}
+              icon={<LayoutTemplate className="w-4 h-4" />}
+              label="Templates"
+            />
           </div>
         </div>
 
@@ -229,6 +240,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
             >
               <AnalyticsManager />
+            </div>
+          )}
+
+          {activeTab === 'templates' && (
+            <div
+              id="panel-templates"
+              role="tabpanel"
+              aria-labelledby="tab-templates"
+              className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
+              <DashboardTemplatesManager />
             </div>
           )}
         </div>

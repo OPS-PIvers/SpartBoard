@@ -22,6 +22,7 @@ import {
   Trash2,
   Highlighter,
   LayoutTemplate,
+  Lock,
 } from 'lucide-react';
 import {
   WidgetData,
@@ -296,6 +297,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
 
   const isMaximized = widget.maximized ?? false;
+  const isLocked = widget.isLocked ?? false;
   const canScreenshot = !SCREENSHOT_BLACKLIST.includes(widget.type);
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -365,7 +367,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }
 
     if (e.key === 'Delete' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
-      // NEW BEHAVIOR: Delete removes the widget
+      // NEW BEHAVIOR: Delete removes the widget (blocked for locked widgets)
+      if (isLocked) return;
       e.preventDefault();
       e.stopPropagation();
       if (skipCloseConfirmation) {
@@ -425,6 +428,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const handleDragStart = (e: React.PointerEvent) => {
     if (isMaximized) return;
+    if (isLocked) return;
 
     // Don't drag if clicking interactive elements or resize handle
     const target = e.target as HTMLElement;
@@ -612,6 +616,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const handleResizeStart = (e: React.PointerEvent, direction: string) => {
     if (isMaximized) return;
+    if (isLocked) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -861,11 +866,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           updateWidget(widget.id, { minimized: true, flipped: false });
         }
       } else if (key === 'Delete') {
-        if (skipCloseConfirmation) {
-          removeWidget(widget.id);
-        } else {
-          setShowConfirm(true);
-          handleCloseTools();
+        if (!isLocked) {
+          if (skipCloseConfirmation) {
+            removeWidget(widget.id);
+          } else {
+            setShowConfirm(true);
+            handleCloseTools();
+          }
         }
       }
     };
@@ -881,6 +888,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     widget.flipped,
     showConfirm,
     isAnnotating,
+    isLocked,
     skipCloseConfirmation,
     removeWidget,
     updateWidget,
@@ -1183,27 +1191,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         </div>
 
         {/* Resize Handles (Corners Only) */}
-        <div
-          onPointerDown={(e) => handleResizeStart(e, 'nw')}
-          className="resize-handle absolute top-0 left-0 w-6 h-6 cursor-nw-resize z-widget-resize touch-none"
-        />
-        <div
-          onPointerDown={(e) => handleResizeStart(e, 'ne')}
-          className="resize-handle absolute top-0 right-0 w-6 h-6 cursor-ne-resize z-widget-resize touch-none"
-        />
-        <div
-          onPointerDown={(e) => handleResizeStart(e, 'sw')}
-          className="resize-handle absolute bottom-0 left-0 w-6 h-6 cursor-sw-resize z-widget-resize touch-none"
-        />
-        <div
-          onPointerDown={(e) => handleResizeStart(e, 'se')}
-          className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-end justify-end p-1.5 z-widget-resize touch-none"
-        >
-          <ResizeHandleIcon
-            className="text-slate-400"
-            style={{ opacity: isSelected ? 1 : transparency }}
-          />
-        </div>
+        {!isLocked && (
+          <>
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'nw')}
+              className="resize-handle absolute top-0 left-0 w-6 h-6 cursor-nw-resize z-widget-resize touch-none"
+            />
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'ne')}
+              className="resize-handle absolute top-0 right-0 w-6 h-6 cursor-ne-resize z-widget-resize touch-none"
+            />
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'sw')}
+              className="resize-handle absolute bottom-0 left-0 w-6 h-6 cursor-sw-resize z-widget-resize touch-none"
+            />
+            <div
+              onPointerDown={(e) => handleResizeStart(e, 'se')}
+              className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-end justify-end p-1.5 z-widget-resize touch-none"
+            >
+              <ResizeHandleIcon
+                className="text-slate-400"
+                style={{ opacity: isSelected ? 1 : transparency }}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Invisible edge grab zones — extend INVISIBLE_EDGE_PAD px outside the widget's visual
@@ -1574,21 +1586,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   size="sm"
                   variant="glass"
                 />
-                <IconButton
-                  onClick={() => {
-                    if (skipCloseConfirmation) {
-                      removeWidget(widget.id);
-                    } else {
-                      setShowConfirm(true);
-                      handleCloseTools();
-                    }
-                  }}
-                  icon={<X className="w-3.5 h-3.5" />}
-                  label={t('widgetWindow.close')}
-                  size="sm"
-                  variant="danger"
-                  className="hover:!bg-red-500/20"
-                />
+                {isLocked ? (
+                  <div
+                    className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400"
+                    title="Widget is locked by admin"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                  </div>
+                ) : (
+                  <IconButton
+                    onClick={() => {
+                      if (skipCloseConfirmation) {
+                        removeWidget(widget.id);
+                      } else {
+                        setShowConfirm(true);
+                        handleCloseTools();
+                      }
+                    }}
+                    icon={<X className="w-3.5 h-3.5" />}
+                    label={t('widgetWindow.close')}
+                    size="sm"
+                    variant="danger"
+                    className="hover:!bg-red-500/20"
+                  />
+                )}
               </div>
             </div>
           </div>,
