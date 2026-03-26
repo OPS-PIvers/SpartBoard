@@ -321,8 +321,12 @@ const ScheduleRow = React.memo<ScheduleRowProps>(
       >
         {isActive && (
           <div
-            className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest px-2 py-1 rounded-bl-xl z-20"
-            style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            className="absolute top-0 right-0 bg-brand-blue-primary text-white font-black uppercase tracking-widest z-20"
+            style={{
+              fontSize: 'min(10px, 2.5cqmin)',
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              borderBottomLeftRadius: 'min(12px, 3cqmin)',
+            }}
           >
             Now
           </div>
