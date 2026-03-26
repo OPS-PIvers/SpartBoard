@@ -744,12 +744,15 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       | null
       | undefined
       | { token?: string | null };
+
+    const isTokenObject = (v: unknown): v is { token?: string | null } => {
+      return !!v && typeof v === 'object' && 'token' in v;
+    };
+
     const accessToken =
       typeof accessTokenResponse === 'string'
         ? accessTokenResponse
-        : accessTokenResponse &&
-            typeof accessTokenResponse === 'object' &&
-            'token' in accessTokenResponse
+        : isTokenObject(accessTokenResponse)
           ? accessTokenResponse.token
           : null;
 
