@@ -28,9 +28,8 @@ Currently, the application relies heavily on hardcoded Tailwind utility classes 
 3.  ✅ **UI Elements Styling (Borders, Transparencies):**
     - **Implemented:** `StylePanel` already provides sliders and selectors for `windowTransparency`, `windowBorderRadius`, `dockTransparency`, `dockBorderRadius`, `dockTextColor`, and `dockTextShadow`. All values persist to Firestore via `setGlobalStyle()`.
 
-4.  🔲 **Custom Backgrounds & Logos:**
-    - **Current State:** `BackgroundManager` admin panel allows uploading and managing background presets with building targeting, access levels, and categories.
-    - **Remaining:** Logo upload fields for district/school branding to replace the default SPART Board logo. Store logo URL in global Firestore settings and render conditionally in the Sidebar header.
+4.  ✅ **Custom Backgrounds & Logos:**
+    - **Implemented:** `BackgroundManager` admin panel allows uploading and managing background presets. Global branding UI added to `GlobalPermissionsManager` for uploading a custom logo to replace the default SPART Board logo in the sidebar header. The logo URL is stored in the `app_settings` global Firestore configuration.
 
 ---
 
@@ -108,21 +107,21 @@ Empower admins to control the initial user experience for teachers.
 
 ## Summary
 
-| Phase | Item                                        | Status                                           |
-| ----- | ------------------------------------------- | ------------------------------------------------ |
-| 1.1   | Dynamic Color Palettes (CSS variables)      | ✅ Done                                          |
-| 1.2   | Custom Typography (Google Fonts)            | 🔲 Remaining                                     |
-| 1.3   | UI Elements Styling (borders, transparency) | ✅ Done                                          |
-| 1.4   | Custom Backgrounds & Logos                  | 🔲 Remaining (backgrounds done; logos remaining) |
-| 2.1   | Pending Widget Admin Configs                | ✅ Mostly done (Magic & Record remaining)        |
-| 2.2   | JSON Schema-Driven Admin UI                 | 🔲 Remaining                                     |
-| 3.1   | Enhanced Mini Apps (Monaco Editor)          | 🔲 Remaining                                     |
-| 3.2   | Visual Widget Builder                       | 🔲 Remaining                                     |
-| 3.3   | Data Binding & API Integrations             | 🔲 Remaining                                     |
-| 3.4   | Action Buttons (Webhooks)                   | 🔲 Remaining                                     |
-| 4.1   | Dashboard Templates (create/apply/publish)  | ✅ Done                                          |
-| 4.1   | Auto-assign template on first login         | 🔲 Remaining                                     |
-| 4.2   | Mandatory/Locked Widgets (enforcement)      | ✅ Done                                          |
-| 4.2   | Admin UI to lock/unlock live widgets        | 🔲 Remaining                                     |
+| Phase | Item                                        | Status                                    |
+| ----- | ------------------------------------------- | ----------------------------------------- |
+| 1.1   | Dynamic Color Palettes (CSS variables)      | ✅ Done                                   |
+| 1.2   | Custom Typography (Google Fonts)            | 🔲 Remaining                              |
+| 1.3   | UI Elements Styling (borders, transparency) | ✅ Done                                   |
+| 1.4   | Custom Backgrounds & Logos                  | ✅ Done                                   |
+| 2.1   | Pending Widget Admin Configs                | ✅ Mostly done (Magic & Record remaining) |
+| 2.2   | JSON Schema-Driven Admin UI                 | 🔲 Remaining                              |
+| 3.1   | Enhanced Mini Apps (Monaco Editor)          | 🔲 Remaining                              |
+| 3.2   | Visual Widget Builder                       | 🔲 Remaining                              |
+| 3.3   | Data Binding & API Integrations             | 🔲 Remaining                              |
+| 3.4   | Action Buttons (Webhooks)                   | 🔲 Remaining                              |
+| 4.1   | Dashboard Templates (create/apply/publish)  | ✅ Done                                   |
+| 4.1   | Auto-assign template on first login         | 🔲 Remaining                              |
+| 4.2   | Mandatory/Locked Widgets (enforcement)      | ✅ Done                                   |
+| 4.2   | Admin UI to lock/unlock live widgets        | 🔲 Remaining                              |
 
 By migrating hardcoded styles to dynamic CSS variables, utilizing JSON schemas for admin forms, expanding the Mini App system into a fully-fledged API playground, and introducing visual widget building, SPART Board can evolve into a highly scalable, white-label platform suitable for diverse educational environments without requiring developer intervention for every customization.
