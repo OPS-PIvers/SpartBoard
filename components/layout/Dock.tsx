@@ -27,6 +27,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useCustomWidgets } from '@/context/useCustomWidgets';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
@@ -96,6 +97,30 @@ export const Dock: React.FC = () => {
     featurePermissions,
   } = useAuth();
   const { driveService } = useGoogleDrive();
+  const { customWidgets } = useCustomWidgets();
+
+  const publishedCustomWidgets = useMemo(
+    () => customWidgets.filter((w) => w.published && w.enabled),
+    [customWidgets]
+  );
+
+  const handleAddCustomWidget = useCallback(
+    (customWidgetId: string) => {
+      const cw = customWidgets.find((w) => w.id === customWidgetId);
+      if (!cw) return;
+      addWidget('custom-widget', {
+        w: cw.defaultWidth,
+        h: cw.defaultHeight,
+        config: {
+          customWidgetId: cw.id,
+          mode: cw.mode,
+          gridDefinition: cw.gridDefinition,
+          codeContent: cw.codeContent,
+        },
+      });
+    },
+    [customWidgets, addWidget]
+  );
 
   const getToolLabel = useCallback(
     (type: WidgetType | InternalToolType): string => {
@@ -677,6 +702,8 @@ export const Dock: React.FC = () => {
               onReorderLibrary={reorderLibrary}
               onAddFolder={() => setShowCreateFolderModal(true)}
               getToolLabel={getToolLabel}
+              customWidgets={publishedCustomWidgets}
+              onAddCustomWidget={handleAddCustomWidget}
             />
           )}
 

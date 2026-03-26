@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
+import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
 import { DashboardProvider } from './context/DashboardContext';
 import { useDashboard } from './context/useDashboard';
 import { DialogProvider } from './context/DialogContext';
@@ -90,18 +91,22 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
   if (isRemote) {
     return (
-      <DashboardProvider>
-        <Suspense fallback={<FullPageLoader />}>
-          <MobileRemoteApp />
-        </Suspense>
-      </DashboardProvider>
+      <CustomWidgetsProvider>
+        <DashboardProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <MobileRemoteApp />
+          </Suspense>
+        </DashboardProvider>
+      </CustomWidgetsProvider>
     );
   }
 
   return (
-    <DashboardProvider>
-      <AppContent />
-    </DashboardProvider>
+    <CustomWidgetsProvider>
+      <DashboardProvider>
+        <AppContent />
+      </DashboardProvider>
+    </CustomWidgetsProvider>
   );
 };
 

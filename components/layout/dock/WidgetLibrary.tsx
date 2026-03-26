@@ -1,6 +1,14 @@
 import React, { forwardRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { LayoutGrid, Plus, X, FolderPlus, RotateCcw } from 'lucide-react';
+import {
+  LayoutGrid,
+  Plus,
+  X,
+  FolderPlus,
+  RotateCcw,
+  Puzzle,
+} from 'lucide-react';
+import { CustomWidgetDoc } from '@/types';
 import {
   DndContext,
   closestCenter,
@@ -38,6 +46,10 @@ interface WidgetLibraryProps {
   isEditMode?: boolean;
   onAddFolder?: () => void;
   getToolLabel?: (type: WidgetType | InternalToolType) => string;
+  /** Published custom widgets to show as an additional section */
+  customWidgets?: CustomWidgetDoc[];
+  /** Called when a custom widget card is clicked */
+  onAddCustomWidget?: (customWidgetId: string) => void;
 }
 
 const SortableLibraryTool = React.memo(
@@ -127,6 +139,8 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       isEditMode = false,
       onAddFolder,
       getToolLabel,
+      customWidgets = [],
+      onAddCustomWidget,
     },
     ref
   ) => {
@@ -241,7 +255,38 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               size="md"
             />
           </div>
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
+            {customWidgets.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Puzzle className="w-3.5 h-3.5 text-slate-400" />
+                  <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                    Custom Widgets
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {customWidgets.map((w) => (
+                    <button
+                      key={w.id}
+                      onClick={() => {
+                        onAddCustomWidget?.(w.id);
+                        onClose();
+                      }}
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}
+                      >
+                        {w.icon}
+                      </div>
+                      <span className="text-xs font-semibold text-slate-700 leading-tight line-clamp-2">
+                        {w.title}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {availableTools.length > 0 ? (
               <DndContext
                 sensors={sensors}

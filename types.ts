@@ -49,7 +49,8 @@ export type WidgetType =
   | 'hotspot-image'
   | 'starter-pack'
   | 'video-activity'
-  | 'guided-learning';
+  | 'guided-learning'
+  | 'custom-widget';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1901,7 +1902,8 @@ export type WidgetConfig =
   | HotspotImageConfig
   | StarterPackConfig
   | VideoActivityConfig
-  | GuidedLearningConfig;
+  | GuidedLearningConfig
+  | CustomWidgetConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'clock'
@@ -2179,6 +2181,10 @@ export interface ToolMetadata {
   defaultHeight?: number;
   minWidth?: number;
   minHeight?: number;
+  /** For custom-widget type: the Firestore doc ID of the specific custom widget */
+  customWidgetId?: string;
+  /** For custom-widget type: the emoji icon of the custom widget */
+  customWidgetIcon?: string;
 }
 
 export type AccessLevel = 'admin' | 'beta' | 'public';
@@ -2444,4 +2450,313 @@ export interface DashboardTemplate {
   createdAt: number;
   updatedAt: number;
   createdBy: string; // admin email
+}
+
+// --- CUSTOM WIDGET TYPES (Phase 3: No-Code Widget Builder) ---
+
+/** Block types available in the visual block builder */
+export type CustomBlockType =
+  // Display blocks
+  | 'text'
+  | 'heading'
+  | 'image'
+  | 'reveal'
+  | 'flip-card'
+  | 'conditional-label'
+  | 'badge'
+  | 'traffic-light'
+  | 'divider'
+  | 'spacer'
+  // Input & Control blocks
+  | 'cb-button'
+  | 'counter'
+  | 'toggle'
+  | 'stars'
+  | 'text-input'
+  | 'poll'
+  // Game & Assessment blocks
+  | 'multiple-choice'
+  | 'match-pair'
+  | 'hotspot'
+  | 'sort-bin'
+  // Progress & Measurement blocks
+  | 'progress'
+  | 'timer'
+  | 'score'
+  | 'checklist';
+
+/** Events that blocks can fire */
+export type BlockEvent =
+  | 'on-click'
+  | `on-spot-clicked-${number}`
+  | 'on-correct'
+  | 'on-incorrect'
+  | 'on-all-matched'
+  | 'on-item-sorted'
+  | 'on-all-sorted'
+  | 'on-timer-end'
+  | 'on-timer-start'
+  | `on-counter-reach-${number}`
+  | 'on-toggle-on'
+  | 'on-toggle-off'
+  | `on-vote-option-${number}`
+  | `on-star-rated-${number}`
+  | 'on-item-checked'
+  | 'on-all-checked'
+  | 'on-input-submit'
+  | `on-score-reach-${number}`;
+
+/** Actions that blocks can receive */
+export type BlockAction =
+  | 'show'
+  | 'hide'
+  | 'reveal'
+  | 'flip'
+  | 'flip-back'
+  | 'set-text'
+  | 'set-image'
+  | 'increment'
+  | 'decrement'
+  | 'set-value'
+  | 'reset'
+  | 'reset-all'
+  | 'start-timer'
+  | 'stop-timer'
+  | 'set-traffic'
+  | 'play-sound'
+  | 'show-toast'
+  | 'check-item'
+  | 'add-score'
+  | 'toggle-on'
+  | 'toggle-off';
+
+/** An IFTTT-style connection between two blocks */
+export interface BlockConnection {
+  id: string;
+  sourceBlockId: string;
+  event: string; // BlockEvent (string for flexibility)
+  targetBlockId: string;
+  action: BlockAction;
+  /** Optional string payload (e.g. text for set-text, sound name for play-sound) */
+  actionPayload?: string;
+  /** Optional numeric payload (e.g. value for set-value, add-score) */
+  actionValue?: number;
+  /** Optional guard condition */
+  condition?: {
+    watchBlockId: string;
+    operator: 'gte' | 'lte' | 'eq';
+    value: number | boolean;
+  };
+}
+
+/** Style overrides for an individual block cell */
+export interface BlockStyle {
+  backgroundColor?: string;
+  textColor?: string;
+  borderRadius?: string;
+  padding?: string;
+  fontSize?: string;
+}
+
+/** Per-block config types */
+export interface TextBlockConfig {
+  text: string;
+}
+export interface HeadingBlockConfig {
+  text: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+export interface ImageBlockConfig {
+  url: string;
+  alt?: string;
+  objectFit?: 'cover' | 'contain';
+}
+export interface RevealBlockConfig {
+  contentType: 'text' | 'image';
+  content: string;
+  animation?: 'fade' | 'scale' | 'slide';
+}
+export interface FlipCardBlockConfig {
+  frontType: 'text' | 'image';
+  frontContent: string;
+  backType: 'text' | 'image';
+  backContent: string;
+}
+export interface ConditionalLabelBlockConfig {
+  initialText: string;
+}
+export interface BadgeBlockConfig {
+  icon: string; // emoji
+  label?: string;
+}
+export interface TrafficLightBlockConfig {
+  initialColor: 'red' | 'yellow' | 'green';
+  label?: string;
+}
+export interface ButtonBlockConfig {
+  label: string;
+  icon?: string;
+  style?: 'primary' | 'secondary' | 'danger';
+  initialHidden?: boolean;
+}
+export interface CounterBlockConfig {
+  label?: string;
+  startValue: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  eventThreshold?: number;
+}
+export interface ToggleBlockConfig {
+  label?: string;
+  initialOn?: boolean;
+}
+export interface StarsBlockConfig {
+  maxStars?: number;
+  initialValue?: number;
+}
+export interface TextInputBlockConfig {
+  label?: string;
+  placeholder?: string;
+  submitLabel?: string;
+}
+export interface PollBlockConfig {
+  question?: string;
+  options: string[];
+  showResults?: boolean;
+}
+export interface MultipleChoiceBlockConfig {
+  question?: string;
+  options: string[];
+  correctIndex: number;
+}
+export interface MatchPairBlockConfig {
+  leftItems: string[];
+  rightItems: string[];
+  correctPairs: number[]; // rightItems[i] matches leftItems[correctPairs[i]]
+}
+export interface HotspotBlockConfig {
+  imageUrl: string;
+  spots: Array<{ label: string; x: number; y: number }>;
+}
+export interface SortBinBlockConfig {
+  bins: string[];
+  items: Array<{ label: string; correctBin: number }>;
+}
+export interface ProgressBlockConfig {
+  min?: number;
+  max?: number;
+  startValue?: number;
+  label?: string;
+}
+export interface TimerBlockConfig {
+  durationSeconds: number;
+  autoStart?: boolean;
+  showControls?: boolean;
+}
+export interface ScoreBlockConfig {
+  label?: string;
+  startValue?: number;
+  eventThreshold?: number;
+}
+export interface ChecklistBlockConfig {
+  items: string[];
+}
+
+export type BlockConfig =
+  | TextBlockConfig
+  | HeadingBlockConfig
+  | ImageBlockConfig
+  | RevealBlockConfig
+  | FlipCardBlockConfig
+  | ConditionalLabelBlockConfig
+  | BadgeBlockConfig
+  | TrafficLightBlockConfig
+  | ButtonBlockConfig
+  | CounterBlockConfig
+  | ToggleBlockConfig
+  | StarsBlockConfig
+  | TextInputBlockConfig
+  | PollBlockConfig
+  | MultipleChoiceBlockConfig
+  | MatchPairBlockConfig
+  | HotspotBlockConfig
+  | SortBinBlockConfig
+  | ProgressBlockConfig
+  | TimerBlockConfig
+  | ScoreBlockConfig
+  | ChecklistBlockConfig
+  | Record<string, unknown>;
+
+/** A single block placed in a grid cell */
+export interface CustomBlockDefinition {
+  id: string;
+  type: CustomBlockType;
+  config: BlockConfig;
+  style: BlockStyle;
+  /** Auto-generated human-readable name, e.g. "Button A1" */
+  name?: string;
+}
+
+/** A cell in the custom widget grid */
+export interface CustomGridCell {
+  id: string;
+  colStart: number;
+  rowStart: number;
+  colSpan: number;
+  rowSpan: number;
+  block: CustomBlockDefinition | null;
+}
+
+/** Grid layout for a block-mode custom widget */
+export interface CustomGridDefinition {
+  columns: number; // 1–4
+  rows: number; // 1–8
+  cells: CustomGridCell[];
+  connections: BlockConnection[];
+}
+
+/** An admin-configurable setting exposed by a custom widget */
+export interface CustomWidgetSettingDef {
+  key: string;
+  label: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  defaultValue: string | number | boolean;
+  options?: string[]; // for type 'select'
+}
+
+/** Firestore document for a published custom widget */
+export interface CustomWidgetDoc {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  icon: string; // emoji
+  color: string; // Tailwind bg-* class
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  mode: 'block' | 'code';
+  published: boolean;
+  buildings: string[];
+  gridDefinition?: CustomGridDefinition;
+  codeContent?: string;
+  defaultWidth: number;
+  defaultHeight: number;
+  settings: CustomWidgetSettingDef[];
+  accessLevel: 'admin' | 'beta' | 'public';
+  betaUsers: string[];
+  enabled: boolean;
+}
+
+/** Config stored in WidgetData for a custom-widget instance */
+export interface CustomWidgetConfig {
+  /** ID of the CustomWidgetDoc in Firestore */
+  customWidgetId: string;
+  /** Snapshot of the grid or code at time of widget creation, updated live */
+  gridDefinition?: CustomGridDefinition;
+  codeContent?: string;
+  mode: 'block' | 'code';
+  /** Admin-configured settings values (keyed by CustomWidgetSettingDef.key) */
+  adminSettings?: Record<string, string | number | boolean>;
 }

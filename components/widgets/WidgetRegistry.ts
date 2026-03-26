@@ -165,6 +165,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./GuidedLearning/index'),
     'GuidedLearningWidget'
   ),
+  'custom-widget': lazyNamed(
+    () => import('./CustomWidget/Widget'),
+    'CustomWidgetWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -280,6 +284,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   'guided-learning': lazyNamed(
     () => import('./GuidedLearning/index'),
     'GuidedLearningSettings'
+  ),
+  'custom-widget': lazyNamed(
+    () => import('./CustomWidget/Settings'),
+    'CustomWidgetSettings'
   ),
 };
 
@@ -716,6 +724,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     baseHeight: 520,
     canSpread: true,
     skipScaling: false,
+    padding: 0,
+  },
+  'custom-widget': {
+    baseWidth: 400,
+    baseHeight: 300,
+    canSpread: true,
+    skipScaling: true,
     padding: 0,
   },
 };

@@ -402,4 +402,12 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       resultsSessionId: null,
     },
   },
+  'custom-widget': {
+    w: 400,
+    h: 300,
+    config: {
+      customWidgetId: '',
+      mode: 'block',
+    },
+  },
 };

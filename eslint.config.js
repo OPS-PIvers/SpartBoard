@@ -129,6 +129,12 @@ export default tseslint.config(
       'no-console': 'off',
       'react/jsx-no-target-blank': 'off',
       'react-refresh/only-export-components': 'off',
+      // These rules require type resolution that may fail for cloud functions
+      // dependencies, causing false positives in the functions build environment
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
     },
   },
   prettierConfig
