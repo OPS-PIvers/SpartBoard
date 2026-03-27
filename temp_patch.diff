@@ -1,0 +1,10 @@
+<<<<<<< SEARCH
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+=======
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+>>>>>>> REPLACE
