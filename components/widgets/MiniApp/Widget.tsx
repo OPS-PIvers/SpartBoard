@@ -332,27 +332,30 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!user || !over || active.id === over.id) return;
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!user || !over || active.id === over.id) return;
 
-    const oldIndex = library.findIndex((a) => a.id === active.id);
-    const newIndex = library.findIndex((a) => a.id === over.id);
-    const reordered = arrayMove(library, oldIndex, newIndex);
+      const oldIndex = library.findIndex((a) => a.id === active.id);
+      const newIndex = library.findIndex((a) => a.id === over.id);
+      const reordered = arrayMove(library, oldIndex, newIndex);
 
-    const batch = writeBatch(db);
-    reordered.forEach((app, index) => {
-      const docRef = doc(db, 'users', user.uid, 'miniapps', app.id);
-      batch.set(docRef, { ...app, order: index });
-    });
+      const batch = writeBatch(db);
+      reordered.forEach((app, index) => {
+        const docRef = doc(db, 'users', user.uid, 'miniapps', app.id);
+        batch.set(docRef, { ...app, order: index });
+      });
 
-    try {
-      await batch.commit();
-    } catch (err) {
-      console.error('Failed to save reorder', err);
-      addToast('Failed to save order', 'error');
-    }
-  };
+      try {
+        await batch.commit();
+      } catch (err) {
+        console.error('Failed to save reorder', err);
+        addToast('Failed to save order', 'error');
+      }
+    },
+    [library, user, addToast]
+  );
 
   const handleSaveToLibrary = async (app: GlobalMiniAppItem) => {
     if (!user) return;

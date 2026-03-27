@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Upload, ArrowLeft, Loader2 } from 'lucide-react';
 import {
   collection,
@@ -152,28 +152,31 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!user || !over || active.id === over.id) return;
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!user || !over || active.id === over.id) return;
 
-    const oldIndex = library.findIndex((p) => p.id === active.id);
-    const newIndex = library.findIndex((p) => p.id === over.id);
-    const reordered = arrayMove(library, oldIndex, newIndex);
+      const oldIndex = library.findIndex((p) => p.id === active.id);
+      const newIndex = library.findIndex((p) => p.id === over.id);
+      const reordered = arrayMove(library, oldIndex, newIndex);
 
-    const batch = writeBatch(db);
-    reordered.forEach((pdf, index) => {
-      batch.set(doc(db, 'users', user.uid, 'pdfs', pdf.id), {
-        ...pdf,
-        order: index,
+      const batch = writeBatch(db);
+      reordered.forEach((pdf, index) => {
+        batch.set(doc(db, 'users', user.uid, 'pdfs', pdf.id), {
+          ...pdf,
+          order: index,
+        });
       });
-    });
 
-    try {
-      await batch.commit();
-    } catch (err) {
-      console.error('Failed to save reorder', err);
-    }
-  };
+      try {
+        await batch.commit();
+      } catch (err) {
+        console.error('Failed to save reorder', err);
+      }
+    },
+    [library, user]
+  );
 
   // --- VIEWER MODE ---
   if (config.activePdfUrl) {

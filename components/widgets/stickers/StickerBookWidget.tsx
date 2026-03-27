@@ -403,54 +403,66 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
 
-    if (active.id !== over?.id && over) {
-      const oldIndex = unifiedStickers.findIndex((s) => s.id === active.id);
-      const newIndex = unifiedStickers.findIndex((s) => s.id === over.id);
+      if (active.id !== over?.id && over) {
+        const oldIndex = unifiedStickers.findIndex((s) => s.id === active.id);
+        const newIndex = unifiedStickers.findIndex((s) => s.id === over.id);
 
-      const reorderedVisible = arrayMove(unifiedStickers, oldIndex, newIndex);
+        const reorderedVisible = arrayMove(unifiedStickers, oldIndex, newIndex);
 
-      // We need to merge this back into the overall stickerOrder
-      // A simple way is to take the previous stickerOrder (or implicitly all unique URLs),
-      // remove the visible ones from it, and insert the reordered visible ones back in
-      // where the first visible one was, or simply overwrite the order of all visible elements.
+        // We need to merge this back into the overall stickerOrder
+        // A simple way is to take the previous stickerOrder (or implicitly all unique URLs),
+        // remove the visible ones from it, and insert the reordered visible ones back in
+        // where the first visible one was, or simply overwrite the order of all visible elements.
 
-      const currentOrder = config.stickerOrder ?? [];
+        const currentOrder = config.stickerOrder ?? [];
 
-      // Ensure all current items exist in the order list before manipulating it
-      const fullOrderList = new Set(currentOrder);
-      // Collect all known stickers into the list to be safe
-      DEFAULT_STICKERS.forEach((url) => fullOrderList.add(url));
-      globalStickers.forEach((url) => fullOrderList.add(url));
-      customStickers.forEach((url) => fullOrderList.add(url));
+        // Ensure all current items exist in the order list before manipulating it
+        const fullOrderList = new Set(currentOrder);
+        // Collect all known stickers into the list to be safe
+        DEFAULT_STICKERS.forEach((url) => fullOrderList.add(url));
+        globalStickers.forEach((url) => fullOrderList.add(url));
+        customStickers.forEach((url) => fullOrderList.add(url));
 
-      const baseArray = Array.from(fullOrderList);
+        const baseArray = Array.from(fullOrderList);
 
-      // For simplicity: when reordering the filtered list, we update the main order
-      // We can just create a new full order where the currently visible items are placed
-      // in their new sorted order, while the invisible items stay in their relative positions.
+        // For simplicity: when reordering the filtered list, we update the main order
+        // We can just create a new full order where the currently visible items are placed
+        // in their new sorted order, while the invisible items stay in their relative positions.
 
-      const newOrder = [...baseArray];
-      const visibleUrls = reorderedVisible.map((s) => s.url);
+        const newOrder = [...baseArray];
+        const visibleUrls = reorderedVisible.map((s) => s.url);
 
-      // Find where visible items are in the base array
-      const visibleUrlsBeforeMove = new Set(unifiedStickers.map((s) => s.url));
-      const indices = newOrder
-        .map((url, index) => (visibleUrlsBeforeMove.has(url) ? index : -1))
-        .filter((index) => index !== -1);
+        // Find where visible items are in the base array
+        const visibleUrlsBeforeMove = new Set(
+          unifiedStickers.map((s) => s.url)
+        );
+        const indices = newOrder
+          .map((url, index) => (visibleUrlsBeforeMove.has(url) ? index : -1))
+          .filter((index) => index !== -1);
 
-      // Replace at those indices with the new ordered visible URLs
-      for (let i = 0; i < indices.length; i++) {
-        newOrder[indices[i]] = visibleUrls[i];
+        // Replace at those indices with the new ordered visible URLs
+        for (let i = 0; i < indices.length; i++) {
+          newOrder[indices[i]] = visibleUrls[i];
+        }
+
+        updateWidget(widget.id, {
+          config: { ...config, stickerOrder: newOrder },
+        });
       }
-
-      updateWidget(widget.id, {
-        config: { ...config, stickerOrder: newOrder },
-      });
-    }
-  };
+    },
+    [
+      unifiedStickers,
+      config,
+      globalStickers,
+      customStickers,
+      updateWidget,
+      widget.id,
+    ]
+  );
 
   return (
     <WidgetLayout
