@@ -109,3 +109,9 @@
 **Weed:** `eslint-disable-next-line @typescript-eslint/no-unused-vars`
 **Root Cause:** Bypassing linter for intentionally unused destructured variables instead of using the configured `^_` prefix.
 **Plan:** Rename unused destructured variables with a leading underscore (e.g. `id` -> `_id`).
+
+## 2024-03-24 - Unsafe Assignment Type-Casting from Third-Party Libraries
+
+**Weed:** Using unsafe assignment (e.g., `const value = await auth.getAccessToken() as unknown`) when extracting properties from third-party libraries (like `google-auth-library`), which causes strict linting violations (`@typescript-eslint/no-unsafe-assignment`, `no-unsafe-member-access`).
+**Root Cause:** Loose typings in external libraries combined with strict `tsconfig.json` and ESLint rules lead to `any` propagation if not correctly handled or guarded at runtime.
+**Plan:** Always explicitly cast third-party responses, and use runtime checks or type-safe structure validation (e.g., checking `typeof === 'string'` or explicit interface casts) before accessing internal properties.
