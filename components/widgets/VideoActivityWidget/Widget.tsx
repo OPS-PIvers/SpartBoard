@@ -243,6 +243,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         // Use loadActivityData directly to avoid setting loadingActivity
         // which would cause the Manager component to unmount and destroy the modal
         const data = await loadActivityData(meta.driveFileId);
+        if (!data) throw new Error('Failed to load activity data');
         const sessionId = await createSession(data, user.uid, []);
         updateWidget(widget.id, {
           config: {
