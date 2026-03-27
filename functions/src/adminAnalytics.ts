@@ -7,8 +7,9 @@ interface DashboardData {
   widgets?: { type: string }[];
 }
 
-export const getAdminAnalytics = functionsV1.https.onCall(
-  async (data, context) => {
+export const getAdminAnalytics = functionsV1
+  .runWith({ timeoutSeconds: 300, memory: '1GB' })
+  .https.onCall(async (data, context) => {
     // 1. Verify caller is authenticated
     if (!context.auth || !context.auth.token.email) {
       throw new functionsV1.https.HttpsError(
@@ -146,5 +147,4 @@ export const getAdminAnalytics = functionsV1.https.onCall(
           : 'An internal error occurred fetching analytics.';
       throw new functionsV1.https.HttpsError('internal', errorMessage);
     }
-  }
-);
+  });
