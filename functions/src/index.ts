@@ -543,10 +543,7 @@ export const generateWithAI = functionsV1
       }
 
       const result = await ai.models.generateContent({
-        model:
-          genType === 'ocr'
-            ? 'gemini-3-flash-preview'
-            : 'gemini-3-flash-preview',
+        model: genType === 'ocr' ? 'gemini-2.5-flash' : 'gemini-2.5-flash',
         contents,
         config: {
           responseMimeType: 'application/json',
@@ -1006,7 +1003,7 @@ Return JSON in this exact format:
 
       try {
         const result = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-2.5-flash',
           contents,
           config: { responseMimeType: 'application/json' },
         });
@@ -1212,7 +1209,7 @@ export const transcribeVideoWithGemini = functionsV1
       }
 
       // Use the YouTube video URL directly with Gemini's video understanding
-      const model = perm.config?.model ?? 'gemini-3-flash-preview';
+      const model = perm.config?.model ?? 'gemini-2.5-flash';
       const ai = new GoogleGenAI({ apiKey });
 
       const systemPrompt = `You are an expert teacher creating a video comprehension activity.
