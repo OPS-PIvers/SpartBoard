@@ -86,6 +86,11 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    match /admin_logos/{fileName} {
+      allow read: if true; // Logo should be public for all users
+      allow write: if isAdmin();
+    }
+
     // Global PDFs — all authenticated users can read, only admins can write
     match /global_pdfs/{fileName} {
       allow read: if request.auth != null;
