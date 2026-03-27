@@ -151,6 +151,44 @@ export const TimeToolConfigurationPanel: React.FC<
           </div>
         </div>
       </div>
+
+      <div className="flex items-center justify-between border-b pb-4">
+        <div>
+          <p className="font-medium text-slate-800">Auto-Pick Random Student</p>
+          <p className="text-sm text-slate-500">
+            Pick a random student when the timer ends.
+          </p>
+        </div>
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.timerEndTriggerRandom ?? false}
+            onChange={(e) =>
+              handleUpdateBuilding({ timerEndTriggerRandom: e.target.checked })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pb-2">
+        <div>
+          <p className="font-medium text-slate-800">
+            Auto-Advance Next Up Queue
+          </p>
+          <p className="text-sm text-slate-500">
+            Advance to the next student in the queue when the timer ends.
+          </p>
+        </div>
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={currentBuildingConfig.timerEndTriggerNextUp ?? false}
+            onChange={(e) =>
+              handleUpdateBuilding({ timerEndTriggerNextUp: e.target.checked })
+            }
+          />
+        </div>
+      </div>
     </div>
   );
 };
