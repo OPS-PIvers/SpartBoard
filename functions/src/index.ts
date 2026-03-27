@@ -543,10 +543,7 @@ export const generateWithAI = functionsV1
       }
 
       const result = await ai.models.generateContent({
-        model:
-          genType === 'ocr'
-            ? 'gemini-3.1-flash-lite-preview'
-            : 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         contents,
         config: {
           responseMimeType: 'application/json',
