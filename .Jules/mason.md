@@ -35,3 +35,5 @@
 ## 2026-03-25 - [Docker Build Validation] **Bottleneck:** The Dockerfile wasn't being tested in CI, allowing broken Docker builds to potentially merge into main. **Fix:** Added `.github/workflows/docker-build.yml` to validate Docker builds on PRs and pushes to main using `docker/build-push-action`, with secret fallbacks for forks and GitHub Actions caching for improved pipeline speed.
 
 ## 2026-03-25 - [Google Auth Token Assertion] **Bottleneck:** CI type checks failed when processing `auth.getAccessToken` due to strict `@typescript-eslint/no-unsafe-assignment` errors, breaking the CI build. **Fix:** Cast the response to `string | null | undefined | { token?: string | null }` and used safe runtime checks for the properties instead of relying on `any`.
+
+## 2026-03-27 - [Strict Infrastructure Versions] **Bottleneck:** Lack of strict dependency versions allowed drift (dynamic pnpm in GitHub Actions and generic nginx:alpine Docker image). **Fix:** Enforced explicit pnpm version 10.0.0 in setup action and pinned Dockerfile nginx stage to 1.27-alpine.

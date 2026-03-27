@@ -39,7 +39,7 @@ ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN pnpm run build
 
 # Stage 2: Serve
-FROM nginx:alpine
+FROM nginx:1.27-alpine
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
