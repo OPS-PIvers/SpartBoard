@@ -47,7 +47,8 @@ interface AIData {
     | 'dashboard-layout'
     | 'instructional-routine'
     | 'ocr'
-    | 'quiz';
+    | 'quiz'
+    | 'widget-builder';
   prompt?: string;
   image?: string; // base64 data
 }
@@ -497,6 +498,19 @@ export const generateWithAI = functionsV1
         `,
           userPrompt: `Topic/Content: <topic>${sanitizedUserInput}</topic>`,
         }),
+        'widget-builder': () => ({
+          systemPrompt: `
+          You are an expert frontend developer creating classroom widgets. Create a complete self-contained HTML widget for a classroom dashboard.
+          Requirements:
+          1. Use vanilla HTML/CSS/JS only (no external libraries except optional Tailwind CDN).
+          2. Use a dark background (#1e293b) with light text.
+          3. Include all styles inline in the HTML file.
+          4. The widget must work in a sandboxed iframe.
+          5. Make buttons and interactive elements large enough for tablet use.
+          6. Output ONLY the complete HTML code, nothing else - no explanations, no markdown.
+          `,
+          userPrompt: `Create a widget that: <user_request>${sanitizedUserInput}</user_request>`,
+        }),
       };
 
       const promptDataFn = promptMap[genType];
@@ -735,10 +749,12 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
 
     // Generate OAuth 2.0 Access Token
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const auth = new GoogleAuth({
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const accessTokenResponse = (await auth.getAccessToken()) as unknown;
 
     const isTokenObject = (v: unknown): v is { token: string } => {

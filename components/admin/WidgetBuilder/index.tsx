@@ -250,7 +250,12 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
     setSaving(true);
     setSaveMessage(null);
     try {
-      const doc = builderStateToDoc(state, user.email, existingWidget?.id);
+      const doc = builderStateToDoc(
+        state,
+        user.email,
+        existingWidget?.id,
+        existingWidget ?? undefined
+      );
       const id = await saveCustomWidget(doc);
       if (publish) {
         await setPublished(id, true);

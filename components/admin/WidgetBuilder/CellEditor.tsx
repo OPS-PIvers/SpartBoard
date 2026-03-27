@@ -24,9 +24,9 @@ function buildDefaultConfig(type: CustomBlockType): Record<string, unknown> {
     case 'heading':
       return { text: 'Heading', level: 2 };
     case 'image':
-      return { src: '', alt: '', objectFit: 'contain' };
+      return { url: '', alt: '', objectFit: 'contain' };
     case 'cb-button':
-      return { label: 'Click Me', variant: 'primary' };
+      return { label: 'Click Me', style: 'primary' };
     case 'counter':
       return { label: 'Count', startValue: 0, step: 1 };
     case 'toggle':
@@ -46,7 +46,7 @@ function buildDefaultConfig(type: CustomBlockType): Record<string, unknown> {
     case 'multiple-choice':
       return {
         question: 'Question?',
-        choices: ['A', 'B', 'C', 'D'],
+        options: ['A', 'B', 'C', 'D'],
         correctIndex: 0,
       };
     case 'text-input':

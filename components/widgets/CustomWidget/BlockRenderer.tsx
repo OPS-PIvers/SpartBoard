@@ -410,28 +410,36 @@ function ButtonBlock({
 function CounterBlock({
   block,
   config,
-  blockState: _blockState,
+  blockState,
   dispatch,
 }: BlockProps<CounterBlockConfig>) {
   const min = config.min ?? -Infinity;
   const max = config.max ?? Infinity;
   const step = config.step ?? 1;
-  const [localValue, setLocalValue] = useState(config.startValue ?? 0);
 
   const inc = () => {
-    if (localValue >= max) return;
-    const next = localValue + step;
-    setLocalValue(next);
+    if (blockState.value >= max) return;
+    dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'increment',
+      actionValue: step,
+    });
     dispatch({
       type: 'BLOCK_EVENT',
       sourceId: block.id,
-      event: `on-counter-reach-${next}`,
+      event: `on-counter-reach-${blockState.value + step}`,
     });
   };
 
   const dec = () => {
-    if (localValue <= min) return;
-    setLocalValue(localValue - step);
+    if (blockState.value <= min) return;
+    dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'decrement',
+      actionValue: step,
+    });
   };
 
   return (
@@ -451,7 +459,7 @@ function CounterBlock({
           color: block.style.textColor ?? 'white',
         }}
       >
-        {localValue}
+        {blockState.value}
       </div>
       <div className="flex gap-1">
         <button
@@ -461,7 +469,7 @@ function CounterBlock({
             padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
           }}
           onClick={dec}
-          disabled={localValue <= min}
+          disabled={blockState.value <= min}
         >
           −
         </button>
@@ -472,7 +480,7 @@ function CounterBlock({
             padding: 'min(4px, 1.5cqmin) min(10px, 3cqmin)',
           }}
           onClick={inc}
-          disabled={localValue >= max}
+          disabled={blockState.value >= max}
         >
           +
         </button>
@@ -491,11 +499,21 @@ function ToggleBlock({
   const handleToggle = () => {
     if (isOn) {
       dispatch({
+        type: 'DIRECT_ACTION',
+        blockId: block.id,
+        action: 'toggle-off',
+      });
+      dispatch({
         type: 'BLOCK_EVENT',
         sourceId: block.id,
         event: 'on-toggle-off',
       });
     } else {
+      dispatch({
+        type: 'DIRECT_ACTION',
+        blockId: block.id,
+        action: 'toggle-on',
+      });
       dispatch({
         type: 'BLOCK_EVENT',
         sourceId: block.id,
@@ -551,13 +569,19 @@ function StarsBlock({
         {Array.from({ length: maxStars }, (_, i) => (
           <button
             key={i}
-            onClick={() =>
+            onClick={() => {
+              dispatch({
+                type: 'DIRECT_ACTION',
+                blockId: block.id,
+                action: 'set-value',
+                actionValue: i + 1,
+              });
               dispatch({
                 type: 'BLOCK_EVENT',
                 sourceId: block.id,
                 event: `on-star-rated-${i + 1}`,
-              })
-            }
+              });
+            }}
             style={{ fontSize: 'min(28px, 10cqmin)' }}
             className="transition-transform hover:scale-110"
           >
@@ -644,7 +668,7 @@ function PollBlock({
     dispatch({
       type: 'BLOCK_EVENT',
       sourceId: block.id,
-      event: `on-vote-option-${index}`,
+      event: `on-vote-option-${index + 1}`,
     });
   };
 
@@ -1064,6 +1088,11 @@ function TimerBlock({
 
   const handleStart = () => {
     dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'start-timer',
+    });
+    dispatch({
       type: 'BLOCK_EVENT',
       sourceId: block.id,
       event: 'on-timer-start',
@@ -1071,7 +1100,11 @@ function TimerBlock({
   };
 
   const handleStop = () => {
-    // Stop via connections or direct state update
+    dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'stop-timer',
+    });
     dispatch({
       type: 'BLOCK_EVENT',
       sourceId: `__timer_stop_${block.id}`,
@@ -1087,7 +1120,6 @@ function TimerBlock({
     });
   };
 
-  void handleStop;
   void handleReset;
 
   return (
@@ -1119,13 +1151,7 @@ function TimerBlock({
             </button>
           ) : (
             <button
-              onClick={() =>
-                dispatch({
-                  type: 'BLOCK_EVENT',
-                  sourceId: block.id,
-                  event: 'on-click',
-                })
-              }
+              onClick={handleStop}
               className="bg-yellow-700 hover:bg-yellow-600 text-white rounded transition-colors"
               style={{
                 fontSize: 'min(12px, 4.5cqmin)',

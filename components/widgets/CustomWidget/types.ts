@@ -3,7 +3,7 @@
  * These types are used by the widget at runtime (in the browser by teachers/students).
  */
 
-import { CustomBlockType } from '@/types';
+import { CustomBlockType, BlockAction } from '@/types';
 
 /** Runtime state for a single block within a custom widget instance */
 export interface BlockState {
@@ -70,7 +70,14 @@ export type WidgetAction =
     }
   | { type: 'RESET_ALL' }
   | { type: 'TIMER_TICK'; blockId: string }
-  | { type: 'INIT'; state: WidgetBlockState };
+  | { type: 'INIT'; state: WidgetBlockState }
+  | {
+      type: 'DIRECT_ACTION';
+      blockId: string;
+      action: BlockAction;
+      actionPayload?: string;
+      actionValue?: number;
+    };
 
 /** Category metadata for block palette display */
 export interface BlockCategory {

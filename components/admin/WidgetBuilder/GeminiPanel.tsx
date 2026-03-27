@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import { Wand2, Wrench, Plus, HelpCircle, Loader2 } from 'lucide-react';
 
 interface GeminiPanelProps {
@@ -38,59 +40,12 @@ function extractCode(text: string): string {
 }
 
 async function callGemini(prompt: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!apiKey) {
-    throw new Error(
-      'VITE_GEMINI_API_KEY is not configured. Add it to your .env.local file.'
-    );
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    // Try fallback model
-    const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-    const fallbackResponse = await fetch(fallbackUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 8192,
-        },
-      }),
-    });
-    if (!fallbackResponse.ok) {
-      const err = await fallbackResponse.text();
-      throw new Error(`Gemini API error: ${fallbackResponse.status} — ${err}`);
-    }
-    const data = (await fallbackResponse.json()) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-    };
-    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  }
-
-  const data = (await response.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
-  };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const generate = httpsCallable<
+    { type: string; prompt: string },
+    { result: string }
+  >(functions, 'generateWithAI');
+  const response = await generate({ type: 'widget-builder', prompt });
+  return response.data.result;
 }
 
 export const GeminiPanel: React.FC<GeminiPanelProps> = ({

@@ -328,6 +328,20 @@ export function blockReducer(
       return nextState;
     }
 
+    case 'DIRECT_ACTION': {
+      const bs = state[action.blockId];
+      if (!bs) return state;
+      return {
+        ...state,
+        [action.blockId]: applyAction(
+          bs,
+          action.action,
+          action.actionPayload,
+          action.actionValue
+        ),
+      };
+    }
+
     default:
       return state;
   }

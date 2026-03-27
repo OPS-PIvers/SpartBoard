@@ -121,21 +121,25 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [activeGrid]);
 
-  // Timer intervals: for each block that is timerRunning, tick every second
-  useEffect(() => {
-    const runningBlocks = Object.entries(state).filter(
-      ([, bs]) => bs.timerRunning && bs.timerRemaining > 0
-    );
-    if (runningBlocks.length === 0) return;
+  // Derive stable set of running timer block IDs so the interval is not
+  // recreated on every tick (only when the set of running timers changes).
+  const runningTimerIds = Object.entries(state)
+    .filter(([, bs]) => bs.timerRunning && bs.timerRemaining > 0)
+    .map(([id]) => id);
+  const runningTimerKey = runningTimerIds.join(',');
 
+  // Timer intervals: tick each running timer block every second
+  useEffect(() => {
+    if (runningTimerIds.length === 0) return;
+    const ids = runningTimerIds;
     const interval = setInterval(() => {
-      for (const [blockId] of runningBlocks) {
+      for (const blockId of ids) {
         dispatch({ type: 'TIMER_TICK', blockId });
       }
     }, 1000);
-
     return () => clearInterval(interval);
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runningTimerKey]);
 
   // Side-effect: fire timer-end events when timers reach 0
   const prevStateRef = useRef<WidgetBlockState>({});

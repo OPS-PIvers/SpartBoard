@@ -82,9 +82,12 @@ vi.mock('google-auth-library', () => {
 describe('Token Object Type Guard', () => {
   it('should successfully pass when auth.getAccessToken returns an object with a token property', async () => {
     // Override the mock specifically for this test
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { GoogleAuth } = await import('google-auth-library');
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     vi.mocked(GoogleAuth).mockImplementationOnce(() => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return {
         getClient: vi.fn(),
         getAccessToken: vi

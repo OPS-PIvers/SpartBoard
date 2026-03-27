@@ -48,7 +48,8 @@ export interface BuilderStepProps {
 export function builderStateToDoc(
   state: BuilderState,
   createdBy: string,
-  existingId?: string
+  existingId?: string,
+  existingDoc?: Pick<CustomWidgetDoc, 'createdAt' | 'published'>
 ): Omit<CustomWidgetDoc, 'id'> & { id?: string } {
   return {
     ...(existingId ? { id: existingId } : {}),
@@ -58,10 +59,10 @@ export function builderStateToDoc(
     icon: state.meta.icon,
     color: state.meta.color,
     createdBy,
-    createdAt: Date.now(),
+    createdAt: existingDoc?.createdAt ?? Date.now(),
     updatedAt: Date.now(),
     mode: state.mode,
-    published: false,
+    published: existingDoc?.published ?? false,
     buildings: state.meta.buildings,
     gridDefinition: state.mode === 'block' ? state.gridDefinition : undefined,
     codeContent: state.mode === 'code' ? state.codeContent : undefined,
