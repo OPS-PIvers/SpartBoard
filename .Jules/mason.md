@@ -36,4 +36,4 @@
 
 ## 2026-03-25 - [Google Auth Token Assertion] **Bottleneck:** CI type checks failed when processing `auth.getAccessToken` due to strict `@typescript-eslint/no-unsafe-assignment` errors, breaking the CI build. **Fix:** Cast the response to `string | null | undefined | { token?: string | null }` and used safe runtime checks for the properties instead of relying on `any`.
 
-## 2026-03-27 - [Strict Infrastructure Versions] **Bottleneck:** Lack of strict dependency versions allowed drift (dynamic pnpm in GitHub Actions and generic nginx:alpine Docker image). **Fix:** Enforced explicit pnpm version 10.0.0 in setup action and pinned Dockerfile nginx stage to 1.27-alpine.
+## 2026-03-27 - [Strict Infrastructure Versions] **Bottleneck:** Lack of strict dependency versions allowed drift (dynamic pnpm in GitHub Actions and generic nginx:alpine Docker image). **Fix:** Enforced explicit pnpm version 10.30.2 in setup action and pinned Dockerfile nginx stage to 1.27-alpine.
