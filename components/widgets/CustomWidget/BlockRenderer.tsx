@@ -935,11 +935,11 @@ function HotspotBlock({
 function SortBinBlock({
   block,
   config,
-  blockState,
+  blockState: _blockState,
   dispatch,
 }: BlockProps<SortBinBlockConfig>) {
   const [selectedItem, setSelectedItem] = useState<number | null>(null);
-  const sortedItems = blockState.sortedItems;
+  const [sortedItems, setSortedItems] = useState<Record<number, number>>({});
 
   const unsortedItems = config.items
     .map((item, i) => ({ item, i }))
@@ -952,6 +952,7 @@ function SortBinBlock({
   const handleBinClick = (binIndex: number) => {
     if (selectedItem === null) return;
     const updatedSortedItems = { ...sortedItems, [selectedItem]: binIndex };
+    setSortedItems(updatedSortedItems);
     const isCorrect = config.items[selectedItem].correctBin === binIndex;
     dispatch({
       type: 'BLOCK_EVENT',
@@ -1205,6 +1206,12 @@ function ChecklistBlock({
 
   const handleCheck = (index: number) => {
     if (checked[index]) return;
+    dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'check-item',
+      actionValue: index,
+    });
     dispatch({
       type: 'BLOCK_EVENT',
       sourceId: block.id,

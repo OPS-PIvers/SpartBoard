@@ -22,7 +22,7 @@ function buildDefaultConfig(type: CustomBlockType): Record<string, unknown> {
     case 'text':
       return { text: 'Enter text here', fontSize: 16, align: 'left' };
     case 'heading':
-      return { text: 'Heading', level: 2 };
+      return { text: 'Heading', size: 'md' };
     case 'image':
       return { url: '', alt: '', objectFit: 'contain' };
     case 'cb-button':
@@ -32,7 +32,7 @@ function buildDefaultConfig(type: CustomBlockType): Record<string, unknown> {
     case 'toggle':
       return { label: 'Toggle', onLabel: 'ON', offLabel: 'OFF' };
     case 'stars':
-      return { max: 5, label: 'Rating' };
+      return { maxStars: 5, label: 'Rating' };
     case 'progress':
       return { min: 0, max: 100, startValue: 0, label: 'Progress' };
     case 'timer':
@@ -52,7 +52,7 @@ function buildDefaultConfig(type: CustomBlockType): Record<string, unknown> {
     case 'text-input':
       return { placeholder: 'Type here...', label: '' };
     case 'reveal':
-      return { hiddenText: 'Hidden content', triggerLabel: 'Reveal' };
+      return { contentType: 'text', content: 'Hidden content' };
     case 'flip-card':
       return { frontText: 'Front', backText: 'Back' };
     case 'conditional-label':

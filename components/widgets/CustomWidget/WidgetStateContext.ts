@@ -9,13 +9,13 @@ export interface WidgetStateContextValue {
   adminSettings: Record<string, string | number | boolean> | undefined;
 }
 
-export const WidgetStateContext = createContext<WidgetStateContextValue>({
-  state: {},
-  dispatch: () => undefined,
-  gridDefinition: undefined,
-  adminSettings: undefined,
-});
+export const WidgetStateContext = createContext<WidgetStateContextValue | null>(
+  null
+);
 
 export function useWidgetState(): WidgetStateContextValue {
-  return useContext(WidgetStateContext);
+  const ctx = useContext(WidgetStateContext);
+  if (!ctx)
+    throw new Error('useWidgetState must be used inside CustomWidgetWidget');
+  return ctx;
 }

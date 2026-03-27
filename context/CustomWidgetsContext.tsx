@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { Puzzle } from 'lucide-react';
-import { db } from '../config/firebase';
+import { db, isConfigured, isAuthBypass } from '../config/firebase';
 import { CustomWidgetDoc, ToolMetadata } from '../types';
 import { useAuth } from './useAuth';
 import { CustomWidgetsContext } from './CustomWidgetsContextValue';
@@ -28,7 +28,7 @@ export const CustomWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Real-time Firestore listener
   useEffect(() => {
-    if (!user) {
+    if (!user || !isConfigured || isAuthBypass) {
       const timer = setTimeout(() => {
         setCustomWidgets([]);
         setLoading(false);
@@ -37,20 +37,26 @@ export const CustomWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const ref = collection(db, 'custom_widgets');
-    const unsub = onSnapshot(ref, (snap) => {
-      const docs = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as CustomWidgetDoc[];
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const docs = snap.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as CustomWidgetDoc[];
 
-      // Admins see all docs; non-admins only see published, enabled widgets
-      const filtered = isAdmin
-        ? docs
-        : docs.filter((w) => w.published && w.enabled);
+        // Admins see all docs; non-admins only see published, enabled widgets
+        const filtered = isAdmin
+          ? docs
+          : docs.filter((w) => w.published && w.enabled);
 
-      setCustomWidgets(filtered);
-      setLoading(false);
-    });
+        setCustomWidgets(filtered);
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+      }
+    );
 
     return unsub;
   }, [user, isAdmin]);

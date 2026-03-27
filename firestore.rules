@@ -260,6 +260,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Custom Widgets - admins can read/write all; authenticated users can read published+enabled widgets
+    match /custom_widgets/{widgetId} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.published == true && resource.data.enabled == true);
+      allow write: if isAdmin();
+    }
+
     // Next Up Sessions — Teacher owns it, students submit entries to buffer
     match /nextup_sessions/{sessionId} {
       // Students read session to check if active

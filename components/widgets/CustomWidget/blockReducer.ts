@@ -87,6 +87,7 @@ function applyAction(
         completedPairs: [],
         sortedItems: {},
         selectedRight: null,
+        timerRunning: false,
       };
     case 'reset-all':
       // reset-all is handled at the reducer level, this is a no-op per-block

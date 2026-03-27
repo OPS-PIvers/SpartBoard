@@ -219,7 +219,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
       <div className="w-full h-full">
         <iframe
           srcDoc={activeCode ?? ''}
-          sandbox="allow-scripts allow-forms allow-modals allow-same-origin"
+          sandbox="allow-scripts allow-forms allow-modals"
           className="w-full h-full border-0"
           title={widgetDoc?.title ?? 'Custom Widget'}
         />
