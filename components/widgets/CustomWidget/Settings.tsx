@@ -101,6 +101,22 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
                     }
                     className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
                   />
+                ) : def.type === 'select' ? (
+                  <select
+                    value={String(
+                      def.options?.includes(String(val))
+                        ? val
+                        : (def.defaultValue ?? '')
+                    )}
+                    onChange={(e) => handleChange(def.key, e.target.value)}
+                    className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
+                  >
+                    {(def.options ?? []).map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     type="text"

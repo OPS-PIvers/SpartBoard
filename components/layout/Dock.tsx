@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, Users, Cast, Square } from 'lucide-react';
+import { LayoutGrid, Puzzle, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -541,6 +541,13 @@ export const Dock: React.FC = () => {
       acc
     );
   }, [activeDashboard]);
+
+  // Minimized custom-widget instances (not in the static TOOLS list so
+  // they need a separate restore path in the dock).
+  const minimizedCustomWidgets = useMemo(
+    () => minimizedWidgetsByType['custom-widget' as WidgetType] ?? [],
+    [minimizedWidgetsByType]
+  );
 
   return (
     <div
@@ -1079,6 +1086,32 @@ export const Dock: React.FC = () => {
                     </GlassCard>,
                     document.body
                   )}
+
+                {/* Minimized custom widgets — not in static TOOLS list so
+                    surfaced here so they can always be restored */}
+                {minimizedCustomWidgets.length > 0 && (
+                  <>
+                    <div className="w-px h-8 bg-slate-200 mx-1 flex-shrink-0" />
+                    {minimizedCustomWidgets.map((cw) => (
+                      <button
+                        key={cw.id}
+                        onClick={() =>
+                          updateWidget(cw.id, { minimized: false })
+                        }
+                        className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
+                        title={`Restore: ${(cw.config as { customWidgetId?: string }).customWidgetId ?? 'Custom Widget'}`}
+                      >
+                        <DockIcon
+                          color="bg-purple-600 shadow-lg shadow-purple-600/20"
+                          className="flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-purple-500 transition-all"
+                        >
+                          <Puzzle className="w-5 h-5 md:w-6 md:h-6" />
+                        </DockIcon>
+                        <DockLabel className="text-slate-600">Custom</DockLabel>
+                      </button>
+                    ))}
+                  </>
+                )}
 
                 {/* Separator and More Button */}
                 <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2 flex-shrink-0" />

@@ -226,6 +226,9 @@ export function buildInitialState(
     const timerRemaining =
       typeof cfg.durationSeconds === 'number' ? cfg.durationSeconds : 0;
 
+    const autoStart =
+      typeof cfg.autoStart === 'boolean' ? cfg.autoStart : false;
+
     const initialHidden =
       typeof cfg.initialHidden === 'boolean' ? cfg.initialHidden : false;
 
@@ -255,6 +258,7 @@ export function buildInitialState(
       image: initialImage,
       votes: pollOptions.map(() => 0),
       checked: checklistItems.map(() => false),
+      timerRunning: autoStart && timerRemaining > 0,
       timerRemaining,
       initialDuration: timerRemaining,
       trafficColor: initialColor,
