@@ -11,6 +11,7 @@ import {
   Type,
   Users,
   RefreshCw,
+  ListPlus,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { MagicInput } from '@/components/common/MagicInput';
@@ -20,7 +21,8 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { OptionInput } from './components/OptionInput';
 
 export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
+  const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
+    useDashboard();
   const { showConfirm } = useDialog();
   const { canAccessFeature } = useAuth();
   const config = (widget.config || {}) as PollConfig;
@@ -30,6 +32,12 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId),
     [rosters, activeRosterId]
+  );
+
+  const activeChecklist = useMemo(
+    () =>
+      activeDashboard?.widgets.find((w: WidgetData) => w.type === 'checklist'),
+    [activeDashboard]
   );
 
   // Question local state
@@ -68,6 +76,43 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: { ...config, options: newOptions } as PollConfig,
     });
     addToast(`Imported ${newOptions.length} students!`, 'success');
+  };
+
+  const importFromChecklist = async () => {
+    if (!activeChecklist) {
+      addToast('No Checklist widget found!', 'error');
+      return;
+    }
+
+    const checklistConfig = activeChecklist.config as {
+      items?: { text: string; completed: boolean }[];
+    };
+    const items = checklistConfig.items ?? [];
+    const uncompletedItems = items.filter((i) => !i.completed);
+
+    if (uncompletedItems.length === 0) {
+      addToast('Checklist has no uncompleted tasks to import.', 'info');
+      return;
+    }
+
+    if (options.length > 0) {
+      const confirmed = await showConfirm(
+        'This will replace current options. Continue?',
+        { title: 'Replace Options', confirmLabel: 'Replace' }
+      );
+      if (!confirmed) return;
+    }
+
+    const newOptions = uncompletedItems.map((item) => ({
+      id: crypto.randomUUID(),
+      label: item.text.trim(),
+      votes: 0,
+    }));
+
+    updateWidget(widget.id, {
+      config: { ...config, options: newOptions } as PollConfig,
+    });
+    addToast(`Imported ${newOptions.length} tasks!`, 'success');
   };
 
   const handleExport = () => {
@@ -139,31 +184,61 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <div className="space-y-6">
       {/* Import Section */}
-      <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <SettingsLabel icon={Users} className="text-indigo-900 mb-0">
-            Import from Class
-          </SettingsLabel>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={importFromRoster}
-            disabled={!activeRoster}
-            title={
-              !activeRoster
-                ? 'Select a class in the Classes widget'
-                : `Import ${activeRoster.name}`
-            }
-            icon={<RefreshCw className="w-3 h-3" />}
-          >
-            Import Class
-          </Button>
-        </div>
-        {!activeRoster && (
-          <div className="text-xxs text-indigo-400 font-medium">
-            Tip: Select a class in the Classes widget to import student names.
+      <div className="space-y-3">
+        <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <SettingsLabel icon={Users} className="text-indigo-900 mb-0">
+              Import from Class
+            </SettingsLabel>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={importFromRoster}
+              disabled={!activeRoster}
+              title={
+                !activeRoster
+                  ? 'Select a class in the Classes widget'
+                  : `Import ${activeRoster.name}`
+              }
+              icon={<RefreshCw className="w-3 h-3" />}
+            >
+              Import Class
+            </Button>
           </div>
-        )}
+          {!activeRoster && (
+            <div className="text-xxs text-indigo-400 font-medium">
+              Tip: Select a class in the Classes widget to import student names.
+            </div>
+          )}
+        </div>
+
+        {/* Nexus Connection: Import from Checklist */}
+        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <SettingsLabel icon={ListPlus} className="text-emerald-900 mb-0">
+              Import from Checklist
+            </SettingsLabel>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={importFromChecklist}
+              disabled={!activeChecklist}
+              title={
+                !activeChecklist
+                  ? 'Add a Checklist widget first'
+                  : 'Import uncompleted tasks'
+              }
+              icon={<RefreshCw className="w-3 h-3" />}
+            >
+              Import Tasks
+            </Button>
+          </div>
+          {!activeChecklist && (
+            <div className="text-xxs text-emerald-600 font-medium">
+              Tip: Add a Checklist widget to import tasks as poll options.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Magic Generator */}
