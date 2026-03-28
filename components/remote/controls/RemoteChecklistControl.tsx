@@ -12,10 +12,7 @@ export const RemoteChecklistControl: React.FC<RemoteChecklistControlProps> = ({
   updateWidget,
 }) => {
   const config = widget.config as ChecklistConfig;
-  const items: ChecklistItem[] = useMemo(
-    () => config.items ?? [],
-    [config.items]
-  );
+  const items: ChecklistItem[] = config.items ?? [];
 
   const toggleItem = (itemId: string) => {
     const updated = items.map((item) =>
@@ -36,8 +33,9 @@ export const RemoteChecklistControl: React.FC<RemoteChecklistControlProps> = ({
 
   // ⚡ Bolt Optimization: Use reduce instead of filter().length to prevent generating intermediate array objects
   const completedCount = useMemo(
-    () => items.reduce((acc, i) => acc + (i.completed ? 1 : 0), 0),
-    [items]
+    () =>
+      (config.items ?? []).reduce((acc, i) => acc + (i.completed ? 1 : 0), 0),
+    [config.items]
   );
 
   return (
