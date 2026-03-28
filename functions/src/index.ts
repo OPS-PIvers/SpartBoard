@@ -563,7 +563,9 @@ export const generateWithAI = functionsV1
             : 'gemini-3-flash-preview',
         contents,
         config: {
-          responseMimeType: 'application/json',
+          // widget-builder returns raw HTML; all other types return JSON
+          responseMimeType:
+            genType === 'widget-builder' ? 'text/plain' : 'application/json',
         },
       });
 
@@ -571,6 +573,11 @@ export const generateWithAI = functionsV1
 
       if (!text) {
         throw new Error('Empty response from AI');
+      }
+
+      // widget-builder returns raw HTML — wrap in { result } for the client
+      if (genType === 'widget-builder') {
+        return { result: text };
       }
 
       return JSON.parse(text) as Record<string, unknown>;
