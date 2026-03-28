@@ -5,7 +5,7 @@
 export const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
   const match = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|shorts\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/
   );
   return match ? match[1] : null;
 };

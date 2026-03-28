@@ -40,5 +40,11 @@ describe('url utility', () => {
     it('returns null for non-youtube url', () => {
       expect(extractYouTubeId('https://example.com')).toBe(null);
     });
+
+    it('extracts id from shorts url', () => {
+      expect(
+        extractYouTubeId('https://www.youtube.com/shorts/dQw4w9WgXcQ')
+      ).toBe('dQw4w9WgXcQ');
+    });
   });
 });
