@@ -97,11 +97,20 @@ function applyAction(
       return { ...blockState, timerRunning: true };
     case 'stop-timer':
       return { ...blockState, timerRunning: false };
-    case 'set-traffic':
+    case 'set-traffic': {
+      const color = actionPayload;
+      const validColors: BlockState['trafficColor'][] = [
+        'red',
+        'yellow',
+        'green',
+      ];
       return {
         ...blockState,
-        trafficColor: (actionPayload as BlockState['trafficColor']) ?? 'green',
+        trafficColor: validColors.includes(color as BlockState['trafficColor'])
+          ? (color as BlockState['trafficColor'])
+          : 'green',
       };
+    }
     case 'play-sound':
       // Side effect handled in Widget.tsx, no state change
       return blockState;
@@ -207,9 +216,7 @@ export function buildInitialState(
         ? cfg.startValue
         : typeof cfg.initialValue === 'number'
           ? cfg.initialValue
-          : typeof cfg.startValue === 'number'
-            ? cfg.startValue
-            : 0;
+          : 0;
 
     const initialText =
       typeof cfg.text === 'string'
