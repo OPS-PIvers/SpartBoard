@@ -74,7 +74,10 @@ function applyAction(
     case 'decrement':
       return { ...blockState, value: safeValue - step };
     case 'set-value':
-      return { ...blockState, value: actionValue ?? 0 };
+      return {
+        ...blockState,
+        value: Number.isFinite(actionValue) ? (actionValue as number) : 0,
+      };
     case 'add-score':
       return { ...blockState, value: safeValue + step };
     case 'reset':
@@ -214,9 +217,9 @@ export function buildInitialState(
     const cfg = block.config as Record<string, unknown>;
 
     const startValue =
-      typeof cfg.startValue === 'number'
+      typeof cfg.startValue === 'number' && Number.isFinite(cfg.startValue)
         ? cfg.startValue
-        : typeof cfg.initialValue === 'number'
+        : typeof cfg.initialValue === 'number' && Number.isFinite(cfg.initialValue)
           ? cfg.initialValue
           : 0;
 
@@ -233,7 +236,9 @@ export function buildInitialState(
     const checklistItems = Array.isArray(cfg.items) ? cfg.items : [];
 
     const timerRemaining =
-      typeof cfg.durationSeconds === 'number' ? cfg.durationSeconds : 0;
+      typeof cfg.durationSeconds === 'number' && Number.isFinite(cfg.durationSeconds)
+        ? cfg.durationSeconds
+        : 0;
 
     const autoStart =
       typeof cfg.autoStart === 'boolean' ? cfg.autoStart : false;
@@ -241,16 +246,22 @@ export function buildInitialState(
     const initialHidden =
       typeof cfg.initialHidden === 'boolean' ? cfg.initialHidden : false;
 
-    const initialColor =
-      typeof cfg.initialColor === 'string'
-        ? (cfg.initialColor as BlockState['trafficColor'])
+    const rawInitialColor =
+      typeof cfg.initialColor === 'string' ? cfg.initialColor : undefined;
+    const initialColor: BlockState['trafficColor'] =
+      rawInitialColor === 'red' ||
+      rawInitialColor === 'yellow' ||
+      rawInitialColor === 'green'
+        ? rawInitialColor
         : 'green';
 
     const initialOn =
       typeof cfg.initialOn === 'boolean' ? cfg.initialOn : false;
 
     const initialStars =
-      typeof cfg.initialValue === 'number' ? cfg.initialValue : 0;
+      typeof cfg.initialValue === 'number' && Number.isFinite(cfg.initialValue)
+        ? cfg.initialValue
+        : 0;
 
     const computedInitialValue =
       block.type === 'toggle'

@@ -90,9 +90,13 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           <input
             type="text"
             value={meta.icon}
-            onChange={(e) => update({ icon: e.target.value.slice(-2) || '🧩' })}
+            onChange={(e) => {
+              const segs = [...new Intl.Segmenter().segment(e.target.value)];
+              update({
+                icon: segs.length > 0 ? segs[segs.length - 1].segment : '🧩',
+              });
+            }}
             className="w-16 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 text-center focus:outline-none focus:border-blue-500"
-            maxLength={2}
           />
         </div>
         <div className="flex flex-wrap gap-1.5">

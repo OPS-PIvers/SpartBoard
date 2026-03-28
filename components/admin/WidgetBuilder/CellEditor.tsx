@@ -129,7 +129,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                                 ...(block.config as Record<string, unknown>),
                                 [key]:
                                   typeof val === 'number'
-                                    ? Number(e.target.value)
+                                    ? Number.isFinite(Number(e.target.value))
+                                      ? Number(e.target.value)
+                                      : val
                                     : e.target.value,
                               },
                             };

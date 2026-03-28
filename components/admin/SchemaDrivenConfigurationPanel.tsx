@@ -43,7 +43,10 @@ export const SchemaDrivenConfigurationPanel: React.FC<
 
         return (
           <div key={key}>
-            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+            <label
+              htmlFor={field.type === 'boolean' ? `sdcp-${key}` : undefined}
+              className="text-xxs font-bold text-slate-500 uppercase mb-1 block"
+            >
               {field.label}
             </label>
             {field.description && (
@@ -73,10 +76,12 @@ export const SchemaDrivenConfigurationPanel: React.FC<
             {field.type === 'boolean' && (
               <input
                 type="checkbox"
+                id={`sdcp-${key}`}
                 checked={!!value}
                 onChange={(e) =>
                   onChange({ ...config, [key]: e.target.checked })
                 }
+                className="accent-brand-blue-primary"
               />
             )}
 
