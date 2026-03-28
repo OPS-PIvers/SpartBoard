@@ -36,6 +36,7 @@ import {
 } from '@/types';
 import { BUILDINGS } from '@/config/buildings';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 import { AnnouncementFormData } from './types';
@@ -985,19 +986,17 @@ export const AnnouncementsManager: React.FC = () => {
               icon={<Clock className="w-4 h-4" />}
             >
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
+                <div className="flex items-center gap-2 select-none">
+                  <Toggle
                     checked={form.maximized}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, maximized: e.target.checked }))
+                    onChange={(checked) =>
+                      setForm((f) => ({ ...f, maximized: checked }))
                     }
-                    className="w-4 h-4 accent-brand-blue-primary"
                   />
                   <span className="text-sm font-medium text-slate-700">
                     Maximize (full screen)
                   </span>
-                </label>
+                </div>
               </div>
               {!form.maximized && (
                 <div className="flex gap-3">
@@ -1211,15 +1210,13 @@ export const AnnouncementsManager: React.FC = () => {
               </p>
               <div className="space-y-2">
                 {BUILDINGS.map((b) => (
-                  <label
+                  <div
                     key={b.id}
-                    className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
                   >
-                    <input
-                      type="checkbox"
+                    <Toggle
                       checked={form.targetBuildings.includes(b.id)}
                       onChange={() => toggleBuilding(b.id)}
-                      className="w-4 h-4 accent-brand-blue-primary"
                     />
                     <div>
                       <div className="text-sm font-medium text-slate-700">
@@ -1229,7 +1226,7 @@ export const AnnouncementsManager: React.FC = () => {
                         {b.gradeLabel}
                       </div>
                     </div>
-                  </label>
+                  </div>
                 ))}
               </div>
               {form.targetBuildings.length === 0 && (

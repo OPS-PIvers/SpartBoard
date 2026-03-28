@@ -186,3 +186,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Codebase was using hardcoded hex codes for primary brand colors (e.g., `#2d3f89`) in inline styles and string literals, bypassing the defined Tailwind design system config. Additionally, there were numerous arbitrary text utility classes (`text-[9px]`, `text-[11px]`) instead of standardized micro-typography (`text-xxxs`, `text-xs`).
 **Fix:** Replaced hardcoded `#2d3f89` with `bg-brand-blue-primary` and `border-brand-blue-primary` classes. Standardized all instances of `text-[9px]` to `text-xxxs` and `text-[11px]` to `text-xs`.
+
+## 2026-03-27 - Standardized Boolean Input Toggles
+
+**Drift:** Discovered multiple instances of raw `<input type="checkbox">` elements acting as boolean settings across widget settings and admin panels, bypassing the centralized design system.
+**Fix:** Replaced hardcoded checkboxes with the shared `<Toggle>` component in `NumberLine/Settings`, `DashboardTemplatesManager`, and `Announcements/Widget` to enforce consistency.

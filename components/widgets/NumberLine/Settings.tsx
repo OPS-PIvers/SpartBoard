@@ -7,6 +7,7 @@ import {
   NumberLineJump,
 } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { Toggle } from '@/components/common/Toggle';
 import { Settings, Plus, X, ArrowRightCircle, Target } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
 
@@ -178,15 +179,15 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
         </div>
 
-        <label className="flex items-center gap-2 mt-4 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3 mt-4">
+          <Toggle
             checked={showArrows}
-            onChange={(e) => updateConfig({ showArrows: e.target.checked })}
-            className="w-4 h-4 text-blue-600 rounded"
+            onChange={(checked) => updateConfig({ showArrows: checked })}
           />
-          Show arrows on ends
-        </label>
+          <span className="text-sm text-slate-700 font-medium">
+            Show arrows on ends
+          </span>
+        </div>
       </section>
 
       {/* Markers Section */}

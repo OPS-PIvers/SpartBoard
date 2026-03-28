@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
+import { Toggle } from '@/components/common/Toggle';
 import { BUILDINGS } from '@/config/buildings';
 import {
   Plus,
@@ -381,34 +382,28 @@ export const DashboardTemplatesManager: React.FC = () => {
           )}
 
           {/* Capture Board Checkbox */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-3">
+            <Toggle
               checked={form.captureCurrentBoard}
-              onChange={(e) =>
-                setForm({ ...form, captureCurrentBoard: e.target.checked })
+              onChange={(checked) =>
+                setForm({ ...form, captureCurrentBoard: checked })
               }
-              className="w-4 h-4 accent-brand-blue-primary"
             />
             <span className="text-sm text-slate-700 font-medium">
               Capture current board widgets &amp; style
             </span>
-          </label>
+          </div>
 
           {/* Published Checkbox */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-3">
+            <Toggle
               checked={form.isPublished}
-              onChange={(e) =>
-                setForm({ ...form, isPublished: e.target.checked })
-              }
-              className="w-4 h-4 accent-brand-blue-primary"
+              onChange={(checked) => setForm({ ...form, isPublished: checked })}
             />
             <span className="text-sm text-slate-700 font-medium">
               Publish template (visible in user Starter Pack)
             </span>
-          </label>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
