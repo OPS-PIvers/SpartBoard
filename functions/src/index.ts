@@ -739,25 +739,12 @@ export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
-    const accessTokenResponse = (await auth.getAccessToken()) as unknown;
-
-    const isTokenObject = (v: unknown): v is { token: string } => {
-      if (!v || typeof v !== 'object') {
-        return false;
-      }
-      if (!('token' in v)) {
-        return false;
-      }
-      const value = (v as Record<string, unknown>).token;
-      return typeof value === 'string' && value.length > 0;
-    };
+    const accessTokenResponse = await auth.getAccessToken();
 
     const accessToken =
       typeof accessTokenResponse === 'string' && accessTokenResponse.length > 0
         ? accessTokenResponse
-        : isTokenObject(accessTokenResponse)
-          ? accessTokenResponse.token
-          : null;
+        : null;
 
     if (!accessToken) {
       throw new functionsV2.https.HttpsError(
