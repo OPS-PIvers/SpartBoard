@@ -106,9 +106,17 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       prog = 0,
       join = 0;
     for (const r of responses) {
-      if (r.status === 'completed') comp++;
-      else if (r.status === 'in-progress') prog++;
-      else if (r.status === 'joined') join++;
+      switch (r.status) {
+        case 'completed':
+          comp++;
+          break;
+        case 'in-progress':
+          prog++;
+          break;
+        case 'joined':
+          join++;
+          break;
+      }
     }
     return { completed: comp, inProgress: prog, joined: join };
   }, [responses]);
