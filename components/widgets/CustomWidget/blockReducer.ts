@@ -219,7 +219,8 @@ export function buildInitialState(
     const startValue =
       typeof cfg.startValue === 'number' && Number.isFinite(cfg.startValue)
         ? cfg.startValue
-        : typeof cfg.initialValue === 'number' && Number.isFinite(cfg.initialValue)
+        : typeof cfg.initialValue === 'number' &&
+            Number.isFinite(cfg.initialValue)
           ? cfg.initialValue
           : 0;
 
@@ -236,7 +237,8 @@ export function buildInitialState(
     const checklistItems = Array.isArray(cfg.items) ? cfg.items : [];
 
     const timerRemaining =
-      typeof cfg.durationSeconds === 'number' && Number.isFinite(cfg.durationSeconds)
+      typeof cfg.durationSeconds === 'number' &&
+      Number.isFinite(cfg.durationSeconds)
         ? cfg.durationSeconds
         : 0;
 
