@@ -22,14 +22,24 @@ export const SchemaDrivenConfigurationPanel: React.FC<
     <div className="space-y-4">
       {Object.entries(schema).map(([key, field]) => {
         const rawValue = (config || {})[key] ?? field.default;
-        const value =
-          field.type === 'number'
-            ? ((rawValue as number) ?? 0)
-            : field.type === 'boolean'
-              ? ((rawValue as boolean) ?? false)
-              : field.type === 'stringArray'
-                ? ((rawValue as string[]) ?? [])
-                : ((rawValue as string) ?? '');
+        let value: string | number | boolean | string[];
+        switch (field.type) {
+          case 'number': {
+            const n = Number(rawValue ?? 0);
+            value = isNaN(n) ? 0 : n;
+            break;
+          }
+          case 'boolean':
+            value = !!rawValue;
+            break;
+          case 'stringArray':
+            value = Array.isArray(rawValue) ? (rawValue as string[]) : [];
+            break;
+          case 'string':
+          default:
+            value = typeof rawValue === 'string' ? rawValue : '';
+            break;
+        }
 
         return (
           <div key={key}>

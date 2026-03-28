@@ -5,7 +5,7 @@
  * Renders admin-configurable settings defined in the CustomWidgetDoc.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   WidgetData,
   CustomWidgetConfig,
@@ -13,6 +13,20 @@ import {
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
+
+function buildDefaults(
+  defs: CustomWidgetSettingDef[],
+  saved: Record<string, string | number | boolean>
+): Record<string, string | number | boolean> {
+  const result: Record<string, string | number | boolean> = {};
+  for (const def of defs) {
+    result[def.key] =
+      saved[def.key] ??
+      def.defaultValue ??
+      (def.type === 'number' ? 0 : def.type === 'boolean' ? false : '');
+  }
+  return { ...result, ...saved };
+}
 
 interface SettingsProps {
   widget: WidgetData;
@@ -27,21 +41,11 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
 
   // Find the live widget doc to get setting definitions
   const widgetDoc = customWidgets.find((cw) => cw.id === config.customWidgetId);
-  const settingDefs: CustomWidgetSettingDef[] = widgetDoc?.settings ?? [];
-
-  const buildDefaults = (
-    defs: CustomWidgetSettingDef[],
-    saved: Record<string, string | number | boolean>
-  ) => {
-    const result: Record<string, string | number | boolean> = {};
-    for (const def of defs) {
-      result[def.key] =
-        saved[def.key] ??
-        def.defaultValue ??
-        (def.type === 'number' ? 0 : def.type === 'boolean' ? false : '');
-    }
-    return { ...result, ...saved };
-  };
+  const settingDefs = useMemo<CustomWidgetSettingDef[]>(
+    () => widgetDoc?.settings ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [widgetDoc?.id]
+  );
 
   // Initialize localValues from adminSettings, falling back to setting defaults
   const [localValues, setLocalValues] = useState<
@@ -52,8 +56,7 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
   // often has an empty array before customWidgets resolves from context).
   useEffect(() => {
     setLocalValues((prev) => buildDefaults(settingDefs, prev));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetDoc?.id]);
+  }, [settingDefs]);
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setLocalValues((prev) => ({ ...prev, [key]: value }));

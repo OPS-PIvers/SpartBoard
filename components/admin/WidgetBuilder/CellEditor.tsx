@@ -35,7 +35,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       const newBlock: CustomBlockDefinition = {
         id: crypto.randomUUID(),
         type,
-        config: buildDefaultConfig(type) as never,
+        config: buildDefaultConfig(type),
         style: {},
       };
       onDropBlock(cell.id, type);
@@ -131,7 +131,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                                   typeof val === 'number'
                                     ? Number(e.target.value)
                                     : e.target.value,
-                              } as never,
+                              },
                             };
                             onUpdateBlock(cell.id, updated);
                           }}
@@ -153,7 +153,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                               config: {
                                 ...(block.config as Record<string, unknown>),
                                 [key]: e.target.checked,
-                              } as never,
+                              },
                             };
                             onUpdateBlock(cell.id, updated);
                           }}

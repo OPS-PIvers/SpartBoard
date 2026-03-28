@@ -35,7 +35,7 @@ function initialCells(columns: number, rows: number): CustomGridCell[] {
   for (let row = 1; row <= rows; row++) {
     for (let col = 1; col <= columns; col++) {
       cells.push({
-        id: `cell-${col}-${row}-init`,
+        id: crypto.randomUUID(),
         colStart: col,
         rowStart: row,
         colSpan: 1,
