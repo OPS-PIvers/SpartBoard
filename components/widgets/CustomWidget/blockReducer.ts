@@ -78,7 +78,7 @@ function applyAction(
     case 'reset':
       return {
         ...blockState,
-        value: 0,
+        value: blockState.initialValue,
         checked: blockState.checked.map(() => false),
         votes: blockState.votes.map(() => 0),
         revealed: false,
@@ -250,16 +250,19 @@ export function buildInitialState(
     const initialStars =
       typeof cfg.initialValue === 'number' ? cfg.initialValue : 0;
 
+    const computedInitialValue =
+      block.type === 'toggle'
+        ? initialOn
+          ? 1
+          : 0
+        : block.type === 'stars'
+          ? initialStars
+          : startValue;
+
     state[block.id] = {
       ...DEFAULT_BLOCK_STATE,
-      value:
-        block.type === 'toggle'
-          ? initialOn
-            ? 1
-            : 0
-          : block.type === 'stars'
-            ? initialStars
-            : startValue,
+      value: computedInitialValue,
+      initialValue: computedInitialValue,
       visible: !initialHidden,
       text: initialText,
       image: initialImage,

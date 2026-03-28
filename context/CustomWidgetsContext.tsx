@@ -150,7 +150,7 @@ export const CustomWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveCustomWidget = useCallback(
     async (widgetDoc: Omit<CustomWidgetDoc, 'id'> & { id?: string }) => {
       if (!isConfigured || isAuthBypass)
-        throw new Error('Firebase not configured');
+        return widgetDoc.id ?? crypto.randomUUID();
       const id = widgetDoc.id ?? crypto.randomUUID();
       const ref = doc(db, 'custom_widgets', id);
       await setDoc(

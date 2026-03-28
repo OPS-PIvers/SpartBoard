@@ -14,6 +14,7 @@ import {
   CustomGridDefinition,
   CustomWidgetDoc,
 } from '@/types';
+import { useDashboard } from '@/context/useDashboard';
 import { WidgetBlockState, WidgetAction } from './types';
 import {
   blockReducer,
@@ -66,6 +67,7 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as CustomWidgetConfig;
   const { customWidgetId } = config;
+  const { addToast } = useDashboard();
 
   // Live Firestore doc for the custom widget definition
   const [widgetDoc, setWidgetDoc] = React.useState<CustomWidgetDoc | null>(
@@ -199,14 +201,10 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
         playBeep();
       }
       if (conn.action === 'show-toast' && conn.actionPayload) {
-        window.dispatchEvent(
-          new CustomEvent('custom-widget-toast', {
-            detail: { message: conn.actionPayload },
-          })
-        );
+        addToast(conn.actionPayload, 'info');
       }
     }
-  }, [state, activeGrid]);
+  }, [state, activeGrid, addToast]);
 
   // Context value
   const contextValue: WidgetStateContextValue = React.useMemo(

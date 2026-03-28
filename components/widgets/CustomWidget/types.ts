@@ -37,6 +37,8 @@ export interface BlockState {
   timerRemaining: number;
   /** Timer: initial duration set by config (used to restore on reset) */
   initialDuration: number;
+  /** Initial numeric value set by config (used to restore value on reset) */
+  initialValue: number;
   /** Multiple choice: which option was selected (-1 = none) */
   selectedOption: number;
 }
@@ -57,6 +59,7 @@ export const DEFAULT_BLOCK_STATE: BlockState = {
   timerRunning: false,
   timerRemaining: 0,
   initialDuration: 0,
+  initialValue: 0,
   selectedOption: -1,
 };
 

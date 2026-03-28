@@ -146,7 +146,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
             <div className="space-y-1">
               <label className="block text-xs text-slate-400">Event</label>
               <select
-                value={newConn.event ?? 'click'}
+                value={newConn.event ?? 'on-click'}
                 onChange={(e) =>
                   setNewConn((p) => ({
                     ...p,

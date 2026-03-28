@@ -212,6 +212,29 @@ describe('buildInitialState', () => {
     expect(buildInitialState(grid)['tog1'].value).toBe(1);
   });
 
+  it('stores initialValue matching the configured start value', () => {
+    const grid = makeGrid({
+      cells: [
+        {
+          id: 'c1',
+          colStart: 1,
+          rowStart: 1,
+          colSpan: 1,
+          rowSpan: 1,
+          block: {
+            id: 'score1',
+            type: 'score',
+            config: { startValue: 10 } as never,
+            style: {},
+          },
+        },
+      ],
+    });
+    const state = buildInitialState(grid);
+    expect(state['score1'].value).toBe(10);
+    expect(state['score1'].initialValue).toBe(10);
+  });
+
   it('initialises poll votes array from options', () => {
     const grid = makeGrid({
       cells: [
@@ -556,10 +579,11 @@ describe('blockReducer DIRECT_ACTION', () => {
     expect(result['b1'].value).toBe(1);
   });
 
-  it('reset restores value to 0 and resets boolean fields', () => {
+  it('reset restores value to initialValue and resets boolean fields', () => {
     const state = makeState({
       b1: {
         value: 10,
+        initialValue: 5,
         revealed: true,
         flipped: true,
         selectedOption: 2,
@@ -573,12 +597,22 @@ describe('blockReducer DIRECT_ACTION', () => {
       blockId: 'b1',
       action: 'reset',
     });
-    expect(result['b1'].value).toBe(0);
+    expect(result['b1'].value).toBe(5); // restored to initialValue, not 0
     expect(result['b1'].revealed).toBe(false);
     expect(result['b1'].flipped).toBe(false);
     expect(result['b1'].selectedOption).toBe(-1);
     expect(result['b1'].timerRunning).toBe(false);
     expect(result['b1'].timerRemaining).toBe(30); // restored to initialDuration
+  });
+
+  it('reset restores value to 0 when no initialValue was set', () => {
+    const state = makeState({ b1: { value: 42, initialValue: 0 } });
+    const result = blockReducer(state, {
+      type: 'DIRECT_ACTION',
+      blockId: 'b1',
+      action: 'reset',
+    });
+    expect(result['b1'].value).toBe(0);
   });
 
   it('set-traffic validates payload and defaults to green on invalid', () => {
