@@ -2499,15 +2499,14 @@ export type BlockEvent =
   | 'on-timer-end'
   | 'on-timer-start'
   | 'on-timer-stop'
-  | `on-counter-reach-${number}`
+  | `on-value-reach-${number}`
   | 'on-toggle-on'
   | 'on-toggle-off'
   | `on-vote-option-${number}`
   | `on-star-rated-${number}`
   | 'on-item-checked'
   | 'on-all-checked'
-  | 'on-input-submit'
-  | `on-score-reach-${number}`;
+  | 'on-input-submit';
 
 /** Actions that blocks can receive */
 export type BlockAction =
@@ -2534,7 +2533,8 @@ export type BlockAction =
   | 'toggle-off'
   | 'select-option'
   | 'complete-pair'
-  | 'sort-item';
+  | 'sort-item'
+  | 'vote-option';
 
 /** An IFTTT-style connection between two blocks */
 export interface BlockConnection {
@@ -2759,12 +2759,6 @@ export interface CustomWidgetDoc {
 export interface CustomWidgetConfig {
   /** ID of the CustomWidgetDoc in Firestore */
   customWidgetId: string;
-  /** Snapshot of the grid or code at time of widget creation, updated live */
-  gridDefinition?: CustomGridDefinition;
-  codeContent?: string;
-  mode: 'block' | 'code';
   /** Admin-configured settings values (keyed by CustomWidgetSettingDef.key) */
   adminSettings?: Record<string, string | number | boolean>;
-  /** Setting definitions snapshotted from the CustomWidgetDoc at add time */
-  settings?: CustomWidgetSettingDef[];
 }

@@ -6,11 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  WidgetData,
-  CustomWidgetConfig,
-  CustomWidgetSettingDef,
-} from '@/types';
+import { WidgetData, CustomWidgetConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
 interface SettingsProps {
@@ -23,14 +19,8 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
   const adminSettings: Record<string, string | number | boolean> =
     config.adminSettings ?? {};
 
-  // We don't have the live doc here, but we can show settings if they were
-  // snapshotted into the config. For a live experience the Widget.tsx has the
-  // full doc, but the settings panel only needs the persisted values.
-  // If there are no setting defs available we fall back to a simple message.
-
-  // Pull setting defs from the widget doc snapshot if present.
-  // (The builder stores them at the top level of config for convenience.)
-  const settingDefs: CustomWidgetSettingDef[] = config.settings ?? [];
+  // The settings panel renders admin-configurable values stored in adminSettings.
+  // Widget definition (gridDefinition, mode, etc.) is loaded live in Widget.tsx.
 
   const [localValues, setLocalValues] =
     useState<Record<string, string | number | boolean>>(adminSettings);
@@ -60,72 +50,47 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
             {config.customWidgetId}
           </span>
         </p>
-        <p className="text-slate-400 text-sm mt-1">
-          Mode: <span className="text-slate-200 capitalize">{config.mode}</span>
-        </p>
       </div>
 
-      {settingDefs.length > 0 ? (
+      {Object.keys(adminSettings).length > 0 ? (
         <div className="flex flex-col gap-3">
           <h4 className="text-slate-200 font-medium text-sm">Settings</h4>
-          {settingDefs.map((def) => {
-            const currentValue = localValues[def.key] ?? def.defaultValue;
-            return (
-              <div key={def.key} className="flex flex-col gap-1">
-                <label className="text-slate-300 text-sm font-medium">
-                  {def.label}
+          {Object.entries(adminSettings).map(([key, value]) => (
+            <div key={key} className="flex flex-col gap-1">
+              <label className="text-slate-300 text-sm font-medium">
+                {key}
+              </label>
+              {typeof value === 'boolean' ? (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localValues[key] ?? value)}
+                    onChange={(e) => handleChange(key, e.target.checked)}
+                    className="w-4 h-4 accent-blue-500"
+                  />
+                  <span className="text-slate-400 text-xs">
+                    {localValues[key] ? 'Enabled' : 'Disabled'}
+                  </span>
                 </label>
-
-                {def.type === 'boolean' && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(currentValue)}
-                      onChange={(e) => handleChange(def.key, e.target.checked)}
-                      className="w-4 h-4 accent-blue-500"
-                    />
-                    <span className="text-slate-400 text-xs">
-                      {currentValue ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </label>
-                )}
-
-                {def.type === 'number' && (
-                  <input
-                    type="number"
-                    value={String(currentValue)}
-                    onChange={(e) =>
-                      handleChange(def.key, parseFloat(e.target.value) || 0)
-                    }
-                    className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
-                  />
-                )}
-
-                {def.type === 'string' && (
-                  <input
-                    type="text"
-                    value={String(currentValue)}
-                    onChange={(e) => handleChange(def.key, e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
-                  />
-                )}
-
-                {def.type === 'select' && def.options && (
-                  <select
-                    value={String(currentValue)}
-                    onChange={(e) => handleChange(def.key, e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
-                  >
-                    {def.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            );
-          })}
+              ) : typeof value === 'number' ? (
+                <input
+                  type="number"
+                  value={String(localValues[key] ?? value)}
+                  onChange={(e) =>
+                    handleChange(key, parseFloat(e.target.value) || 0)
+                  }
+                  className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={String(localValues[key] ?? value)}
+                  onChange={(e) => handleChange(key, e.target.value)}
+                  className="bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-white text-sm outline-none focus:border-blue-400"
+                />
+              )}
+            </div>
+          ))}
 
           <button
             onClick={handleSave}

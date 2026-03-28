@@ -13,7 +13,6 @@ import {
   CustomWidgetConfig,
   CustomGridDefinition,
   CustomWidgetDoc,
-  CustomWidgetSettingDef,
 } from '@/types';
 import { WidgetBlockState, WidgetAction } from './types';
 import {
@@ -74,16 +73,14 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const [docLoading, setDocLoading] = React.useState(true);
 
-  // Active grid definition — prefer live doc, fall back to config snapshot
+  // Active grid definition — sourced from live Firestore doc only
   const activeGrid: CustomGridDefinition | undefined =
-    widgetDoc?.gridDefinition ?? config.gridDefinition;
+    widgetDoc?.gridDefinition;
 
-  const activeCode: string | undefined =
-    widgetDoc?.codeContent ?? config.codeContent;
+  const activeCode: string | undefined = widgetDoc?.codeContent;
 
-  const activeMode: 'block' | 'code' = widgetDoc?.mode ?? config.mode;
+  const activeMode: 'block' | 'code' = widgetDoc?.mode ?? 'block';
 
-  const activeSettings: CustomWidgetSettingDef[] = widgetDoc?.settings ?? [];
   const adminSettings = config.adminSettings;
 
   const [state, dispatch] = useReducer(
@@ -248,10 +245,6 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
       </div>
     );
   }
-
-  // Block mode — settings not yet exposed in this component (only adminSettings)
-  // Suppress unused variable warning for activeSettings
-  void activeSettings;
 
   return (
     <WidgetStateContext.Provider value={contextValue}>

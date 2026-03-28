@@ -147,6 +147,14 @@ function applyAction(
         sortedItems: { ...blockState.sortedItems, [itemIdx]: binIdx },
       };
     }
+    case 'vote-option': {
+      const idx = actionValue ?? 0;
+      const newVotes = [...blockState.votes];
+      if (idx >= 0 && idx < newVotes.length) {
+        newVotes[idx] = (newVotes[idx] ?? 0) + 1;
+      }
+      return { ...blockState, votes: newVotes, selectedOption: idx };
+    }
     default:
       return blockState;
   }
@@ -160,17 +168,13 @@ function getThresholdEvents(
 ): Array<{ sourceId: string; event: string }> {
   const events: Array<{ sourceId: string; event: string }> = [];
 
-  // Counter threshold: on-counter-reach-N
+  // Value threshold: on-value-reach-N
   if (nextState.value !== prevState.value) {
     // Fire if we just crossed or reached the threshold from below
     if (nextState.value > prevState.value) {
       events.push({
         sourceId: blockId,
-        event: `on-counter-reach-${nextState.value}`,
-      });
-      events.push({
-        sourceId: blockId,
-        event: `on-score-reach-${nextState.value}`,
+        event: `on-value-reach-${nextState.value}`,
       });
     }
   }

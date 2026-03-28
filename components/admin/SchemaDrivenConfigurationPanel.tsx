@@ -21,7 +21,15 @@ export const SchemaDrivenConfigurationPanel: React.FC<
   return (
     <div className="space-y-4">
       {Object.entries(schema).map(([key, field]) => {
-        const value = (config || {})[key] ?? field.default;
+        const rawValue = (config || {})[key] ?? field.default;
+        const value =
+          field.type === 'number'
+            ? ((rawValue as number) ?? 0)
+            : field.type === 'boolean'
+              ? ((rawValue as boolean) ?? false)
+              : field.type === 'stringArray'
+                ? ((rawValue as string[]) ?? [])
+                : ((rawValue as string) ?? '');
 
         return (
           <div key={key}>
@@ -64,7 +72,7 @@ export const SchemaDrivenConfigurationPanel: React.FC<
 
             {field.type === 'stringArray' && (
               <textarea
-                value={((value as string[]) || []).join('\n')}
+                value={(value as string[]).join('\n')}
                 onChange={(e) =>
                   onChange({ ...config, [key]: e.target.value.split('\n') })
                 }

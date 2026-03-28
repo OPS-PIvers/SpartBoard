@@ -652,19 +652,24 @@ function TextInputBlock({
 function PollBlock({
   block,
   config,
-  blockState: _blockState,
+  blockState,
   dispatch,
 }: BlockProps<PollBlockConfig>) {
-  const [localVotes, setLocalVotes] = useState<number[]>(() =>
-    config.options.map(() => 0)
-  );
-  const [voted, setVoted] = useState(false);
-  const totalVotes = localVotes.reduce((a, b) => a + b, 0);
+  const votes =
+    blockState.votes.length === config.options.length
+      ? blockState.votes
+      : config.options.map(() => 0);
+  const voted = blockState.selectedOption !== -1;
+  const totalVotes = votes.reduce((a, b) => a + b, 0);
 
   const handleVote = (index: number) => {
     if (voted) return;
-    setVoted(true);
-    setLocalVotes((prev) => prev.map((v, i) => (i === index ? v + 1 : v)));
+    dispatch({
+      type: 'DIRECT_ACTION',
+      blockId: block.id,
+      action: 'vote-option',
+      actionValue: index,
+    });
     dispatch({
       type: 'BLOCK_EVENT',
       sourceId: block.id,
@@ -687,9 +692,9 @@ function PollBlock({
       )}
       <div className="flex flex-col gap-0.5">
         {config.options.map((option, i) => {
-          const votes = localVotes[i] ?? 0;
+          const voteCount = votes[i] ?? 0;
           const pct =
-            totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+            totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
           return (
             <button
               key={i}
@@ -709,7 +714,8 @@ function PollBlock({
               )}
               <span className="relative text-white">
                 {option}
-                {voted && ` — ${votes} vote${votes !== 1 ? 's' : ''} (${pct}%)`}
+                {voted &&
+                  ` — ${voteCount} vote${voteCount !== 1 ? 's' : ''} (${pct}%)`}
               </span>
             </button>
           );
@@ -827,7 +833,7 @@ function MatchPairBlock({
       dispatch({
         type: 'BLOCK_EVENT',
         sourceId: block.id,
-        event: 'on-item-sorted',
+        event: 'on-correct',
       });
       if (completedPairs.length + 1 === config.leftItems.length) {
         dispatch({

@@ -113,10 +113,6 @@ export const Dock: React.FC = () => {
         h: cw.defaultHeight,
         config: {
           customWidgetId: cw.id,
-          mode: cw.mode,
-          gridDefinition: cw.gridDefinition,
-          codeContent: cw.codeContent,
-          settings: cw.settings,
         },
       });
     },
