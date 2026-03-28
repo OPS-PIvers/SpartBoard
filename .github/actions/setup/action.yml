@@ -14,12 +14,12 @@ runs:
       id: pnpm-version
       shell: bash
       run: |
-        PNPM_VERSION=$(grep '"packageManager"' package.json | cut -d'"' -f4 | cut -d'@' -f2)
+        PNPM_VERSION=$(grep -m1 '"packageManager"' package.json | cut -d'"' -f4 | cut -d'@' -f2)
         if [ -z "$PNPM_VERSION" ]; then
           echo "Error: pnpm version could not be extracted from package.json. Please ensure 'packageManager' field is correctly formatted (e.g., \"pnpm@X.Y.Z\")." >&2
           exit 1
         fi
-        echo "version=$PNPM_VERSION" >> $GITHUB_OUTPUT
+        echo "version=$PNPM_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Install pnpm
       uses: pnpm/action-setup@v4
