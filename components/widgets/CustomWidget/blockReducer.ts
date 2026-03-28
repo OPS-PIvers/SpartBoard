@@ -52,6 +52,8 @@ function applyAction(
   actionValue: number | undefined
 ): BlockState {
   const step = actionValue ?? 1;
+  // Guard against NaN from malformed block state (value should always be a number)
+  const safeValue = Number.isFinite(blockState.value) ? blockState.value : 0;
   switch (action) {
     case 'show':
       return { ...blockState, visible: true };
@@ -68,13 +70,13 @@ function applyAction(
     case 'set-image':
       return { ...blockState, image: actionPayload ?? '' };
     case 'increment':
-      return { ...blockState, value: blockState.value + step };
+      return { ...blockState, value: safeValue + step };
     case 'decrement':
-      return { ...blockState, value: blockState.value - step };
+      return { ...blockState, value: safeValue - step };
     case 'set-value':
       return { ...blockState, value: actionValue ?? 0 };
     case 'add-score':
-      return { ...blockState, value: blockState.value + step };
+      return { ...blockState, value: safeValue + step };
     case 'reset':
       return {
         ...blockState,
@@ -279,6 +281,87 @@ export function buildInitialState(
 }
 
 // ---------------------------------------------------------------------------
+// Connection processing helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Apply all state-changing connections for a given (sourceId, event) pair.
+ * play-sound and show-toast are no-ops here (side effects handled in Widget.tsx).
+ * Reused by both BLOCK_EVENT and TIMER_TICK for atomic state transitions.
+ */
+function processEventConnections(
+  state: WidgetBlockState,
+  sourceId: string,
+  event: string,
+  gridDefinition: CustomGridDefinition
+): WidgetBlockState {
+  const connections = gridDefinition.connections.filter(
+    (c) => c.sourceBlockId === sourceId && c.event === event
+  );
+
+  if (connections.length === 0) return state;
+
+  let nextState = { ...state };
+  const pendingEvents: Array<{ sourceId: string; event: string }> = [];
+
+  for (const conn of connections) {
+    if (!conditionPasses(conn.condition, nextState)) continue;
+
+    if (conn.action === 'reset-all') {
+      nextState = buildInitialState(gridDefinition);
+      continue;
+    }
+
+    const targetState = nextState[conn.targetBlockId];
+    if (!targetState) continue;
+
+    const prevTargetState = targetState;
+    const newTargetState = applyAction(
+      targetState,
+      conn.action,
+      conn.actionPayload,
+      conn.actionValue
+    );
+
+    nextState = { ...nextState, [conn.targetBlockId]: newTargetState };
+
+    const thresholds = getThresholdEvents(
+      conn.targetBlockId,
+      prevTargetState,
+      newTargetState
+    );
+    pendingEvents.push(...thresholds);
+  }
+
+  // Process threshold events (one level deep to avoid infinite loops)
+  for (const evt of pendingEvents) {
+    const thresholdConns = gridDefinition.connections.filter(
+      (c) => c.sourceBlockId === evt.sourceId && c.event === evt.event
+    );
+    for (const conn of thresholdConns) {
+      if (!conditionPasses(conn.condition, nextState)) continue;
+      if (conn.action === 'reset-all') {
+        nextState = buildInitialState(gridDefinition);
+        continue;
+      }
+      const targetState = nextState[conn.targetBlockId];
+      if (!targetState) continue;
+      nextState = {
+        ...nextState,
+        [conn.targetBlockId]: applyAction(
+          targetState,
+          conn.action,
+          conn.actionPayload,
+          conn.actionValue
+        ),
+      };
+    }
+  }
+
+  return nextState;
+}
+
+// ---------------------------------------------------------------------------
 // Reducer
 // ---------------------------------------------------------------------------
 
@@ -299,7 +382,7 @@ export function blockReducer(
       if (!bs || !bs.timerRunning || bs.timerRemaining <= 0) return state;
       const newRemaining = bs.timerRemaining - 1;
       const nowDone = newRemaining <= 0;
-      return {
+      const timerDoneState: WidgetBlockState = {
         ...state,
         [action.blockId]: {
           ...bs,
@@ -307,76 +390,26 @@ export function blockReducer(
           timerRunning: nowDone ? false : bs.timerRunning,
         },
       };
+      // Process on-timer-end connections atomically to avoid a second render cycle
+      if (nowDone && gridDefinition) {
+        return processEventConnections(
+          timerDoneState,
+          action.blockId,
+          'on-timer-end',
+          gridDefinition
+        );
+      }
+      return timerDoneState;
     }
 
     case 'BLOCK_EVENT': {
       if (!gridDefinition) return state;
-
-      const { sourceId, event } = action;
-      const connections = gridDefinition.connections.filter(
-        (c) => c.sourceBlockId === sourceId && c.event === event
+      return processEventConnections(
+        state,
+        action.sourceId,
+        action.event,
+        gridDefinition
       );
-
-      if (connections.length === 0) return state;
-
-      let nextState = { ...state };
-      const pendingEvents: Array<{ sourceId: string; event: string }> = [];
-
-      for (const conn of connections) {
-        if (!conditionPasses(conn.condition, nextState)) continue;
-
-        // reset-all is a special action that affects all blocks
-        if (conn.action === 'reset-all') {
-          nextState = buildInitialState(gridDefinition);
-          continue;
-        }
-
-        const targetState = nextState[conn.targetBlockId];
-        if (!targetState) continue;
-
-        const prevTargetState = targetState;
-        const newTargetState = applyAction(
-          targetState,
-          conn.action,
-          conn.actionPayload,
-          conn.actionValue
-        );
-
-        nextState = { ...nextState, [conn.targetBlockId]: newTargetState };
-
-        // Collect threshold events from value changes
-        const thresholds = getThresholdEvents(
-          conn.targetBlockId,
-          prevTargetState,
-          newTargetState
-        );
-        pendingEvents.push(...thresholds);
-      }
-
-      // Process threshold events (one level deep to avoid infinite loops)
-      for (const evt of pendingEvents) {
-        const thresholdConns = gridDefinition.connections.filter(
-          (c) => c.sourceBlockId === evt.sourceId && c.event === evt.event
-        );
-        for (const conn of thresholdConns) {
-          if (!conditionPasses(conn.condition, nextState)) continue;
-          if (conn.action === 'reset-all') {
-            nextState = buildInitialState(gridDefinition);
-            continue;
-          }
-          const targetState = nextState[conn.targetBlockId];
-          if (!targetState) continue;
-          const newTargetState = applyAction(
-            targetState,
-            conn.action,
-            conn.actionPayload,
-            conn.actionValue
-          );
-          nextState = { ...nextState, [conn.targetBlockId]: newTargetState };
-        }
-      }
-
-      return nextState;
     }
 
     case 'DIRECT_ACTION': {

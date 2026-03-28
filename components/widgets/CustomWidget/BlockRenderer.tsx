@@ -1311,7 +1311,7 @@ interface BlockRendererProps {
   block: CustomBlockDefinition;
 }
 
-export const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
+const BlockRendererInner: React.FC<BlockRendererProps> = ({ block }) => {
   const { state, dispatch } = useWidgetState();
   const blockState = state[block.id];
 
@@ -1489,3 +1489,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
       return null;
   }
 };
+
+// Memoised to avoid re-renders when unrelated blocks change
+export const BlockRenderer = React.memo(BlockRendererInner);

@@ -149,30 +149,10 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
     return () => clearInterval(interval);
   }, [hasRunningTimers, dispatch]);
 
-  // Side-effect: fire timer-end events when timers reach 0
-  const prevStateRef = useRef<WidgetBlockState>({});
-  useEffect(() => {
-    const prev = prevStateRef.current;
-    for (const [blockId, bs] of Object.entries(state)) {
-      const prevBs = prev[blockId];
-      if (
-        prevBs &&
-        prevBs.timerRemaining > 0 &&
-        bs.timerRemaining === 0 &&
-        !bs.timerRunning
-      ) {
-        dispatch({
-          type: 'BLOCK_EVENT',
-          sourceId: blockId,
-          event: 'on-timer-end',
-        });
-      }
-    }
-    prevStateRef.current = state;
-  }, [state]);
-
   // Track the last dispatched BLOCK_EVENT for post-update side effects.
   const lastEventRef = useRef<WidgetAction | null>(null);
+  // Track previous state to detect timer-end transitions for side effects.
+  const prevStateRef = useRef<WidgetBlockState>({});
 
   const dispatchWithSideEffects = React.useCallback(
     (action: WidgetAction) => {
@@ -184,25 +164,49 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
     [dispatch]
   );
 
-  // After state update: fire play-sound / show-toast side effects with
-  // up-to-date state so condition evaluation is never stale.
+  // After state update: fire play-sound / show-toast side effects.
+  // Timer-end state transitions are now handled atomically in the TIMER_TICK
+  // reducer case — this effect only handles the side effects (sound/toast).
   useEffect(() => {
-    const lastEvent = lastEventRef.current;
-    if (!lastEvent || lastEvent.type !== 'BLOCK_EVENT' || !activeGrid) return;
-    lastEventRef.current = null;
+    if (!activeGrid) {
+      prevStateRef.current = state;
+      return;
+    }
 
-    const connections = activeGrid.connections.filter(
+    // Timer-end side effects: play-sound / show-toast for on-timer-end connections
+    const prev = prevStateRef.current;
+    for (const [blockId, bs] of Object.entries(state)) {
+      const prevBs = prev[blockId];
+      if (
+        prevBs &&
+        prevBs.timerRemaining > 0 &&
+        bs.timerRemaining === 0 &&
+        !bs.timerRunning
+      ) {
+        for (const conn of activeGrid.connections.filter(
+          (c) => c.sourceBlockId === blockId && c.event === 'on-timer-end'
+        )) {
+          if (!conditionPasses(conn.condition, state)) continue;
+          if (conn.action === 'play-sound') playBeep();
+          if (conn.action === 'show-toast' && conn.actionPayload)
+            addToast(conn.actionPayload, 'info');
+        }
+      }
+    }
+    prevStateRef.current = state;
+
+    // BLOCK_EVENT side effects: play-sound / show-toast from explicit events
+    const lastEvent = lastEventRef.current;
+    if (!lastEvent || lastEvent.type !== 'BLOCK_EVENT') return;
+    lastEventRef.current = null;
+    for (const conn of activeGrid.connections.filter(
       (c) =>
         c.sourceBlockId === lastEvent.sourceId && c.event === lastEvent.event
-    );
-    for (const conn of connections) {
+    )) {
       if (!conditionPasses(conn.condition, state)) continue;
-      if (conn.action === 'play-sound') {
-        playBeep();
-      }
-      if (conn.action === 'show-toast' && conn.actionPayload) {
+      if (conn.action === 'play-sound') playBeep();
+      if (conn.action === 'show-toast' && conn.actionPayload)
         addToast(conn.actionPayload, 'info');
-      }
     }
   }, [state, activeGrid, addToast]);
 
