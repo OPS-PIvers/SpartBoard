@@ -32,12 +32,11 @@ export const loadYouTubeApi = (callback: () => void): void => {
   }
 };
 
-/** Extracts the 11-character video ID from any YouTube URL format. */
+import { extractYouTubeId as coreExtractYouTubeId } from './url';
+
+/** Extracts the video ID from any YouTube URL format. */
 export const extractYouTubeId = (url: string): string | null => {
-  const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|shorts\/|v\/|watch\?v=|watch\?.+&v=))([^&?]{11})/
-  );
-  return m ? m[1] : null;
+  return coreExtractYouTubeId(url);
 };
 
 /** Returns the Spotify embed URL, or null if the URL is not a valid https Spotify URL. */
