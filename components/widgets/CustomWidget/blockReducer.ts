@@ -40,7 +40,8 @@ export function conditionPasses(
     case 'eq':
       return watchValue === condValue;
     default:
-      return true;
+      // Fail closed: unknown/malformed operator should not bypass guards
+      return false;
   }
 }
 

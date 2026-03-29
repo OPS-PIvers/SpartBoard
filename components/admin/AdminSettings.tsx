@@ -20,7 +20,11 @@ import { AnnouncementsManager } from './Announcements';
 import { UserManagementPanel } from './UserManagement/UserManagementPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
 import { DashboardTemplatesManager } from './DashboardTemplatesManager';
-import { WidgetBuilderManager } from './WidgetBuilderManager';
+const LazyWidgetBuilderManager = React.lazy(() =>
+  import('./WidgetBuilderManager').then((m) => ({
+    default: m.WidgetBuilderManager,
+  }))
+);
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -278,7 +282,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                   AI-assisted code editor.
                 </p>
               </div>
-              <WidgetBuilderManager />
+              <React.Suspense
+                fallback={
+                  <div className="text-slate-400 text-sm p-4 text-center">
+                    Loading builder…
+                  </div>
+                }
+              >
+                <LazyWidgetBuilderManager />
+              </React.Suspense>
             </div>
           )}
         </div>

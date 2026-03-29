@@ -2693,8 +2693,7 @@ export type BlockConfig =
   | ProgressBlockConfig
   | TimerBlockConfig
   | ScoreBlockConfig
-  | ChecklistBlockConfig
-  | Record<string, unknown>;
+  | ChecklistBlockConfig;
 
 /** A single block placed in a grid cell */
 export interface CustomBlockDefinition {
