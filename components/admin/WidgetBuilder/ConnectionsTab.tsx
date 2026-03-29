@@ -80,7 +80,7 @@ const BLANK_FORM: NewConnForm = {
   targetBlockId: '',
   action: 'show',
   actionPayload: '',
-  actionValue: 0,
+  actionValue: 1,
   hasCondition: false,
   conditionWatchBlockId: '',
   conditionOperator: 'gte',
@@ -138,7 +138,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
       ...(PAYLOAD_ACTIONS.includes(form.action) && form.actionPayload
         ? { actionPayload: form.actionPayload }
         : {}),
-      ...(VALUE_ACTIONS.includes(form.action)
+      ...(VALUE_ACTIONS.includes(form.action) && form.actionValue !== 0
         ? { actionValue: form.actionValue }
         : {}),
       ...(form.hasCondition && form.conditionWatchBlockId

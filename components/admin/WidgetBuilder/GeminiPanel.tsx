@@ -40,11 +40,17 @@ function extractCode(text: string): string {
 }
 
 async function callGemini(prompt: string): Promise<string> {
+  const isExplain = prompt.startsWith(
+    'Explain what this HTML widget does in simple terms'
+  );
   const generate = httpsCallable<
     { type: string; prompt: string },
     { result: string }
   >(functions, 'generateWithAI');
-  const response = await generate({ type: 'widget-builder', prompt });
+  const response = await generate({
+    type: isExplain ? 'widget-explainer' : 'widget-builder',
+    prompt,
+  });
   return response.data.result;
 }
 
