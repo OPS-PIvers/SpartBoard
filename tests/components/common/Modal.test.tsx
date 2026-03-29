@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Modal } from '../../../components/common/Modal';
+import { Modal } from '@/components/common/Modal';
 
 describe('Modal Component', () => {
   const defaultProps = {
@@ -12,11 +12,6 @@ describe('Modal Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    // Reset overflow changes made by Modal
-    document.body.style.overflow = 'unset';
   });
 
   it('renders correctly when isOpen is true', () => {
