@@ -70,28 +70,35 @@ export const Results: React.FC<ResultsProps> = ({
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
   const { completed, avgScore } = React.useMemo(() => {
+    if (responses.length === 0) {
+      return { completed: 0, avgScore: 0 };
+    }
+
+    const correctAnswersMap = new Map<string, string>();
+    for (const q of questions) {
+      correctAnswersMap.set(q.id, q.correctAnswer);
+    }
+
     let completedCount = 0;
     let scoreSum = 0;
 
     for (const r of responses) {
       if (r.completedAt !== null) {
         completedCount++;
-        let correct = 0;
-        for (const question of questions) {
-          if (
-            r.answers.some(
-              (a) =>
-                a.questionId === question.id &&
-                a.answer === question.correctAnswer
-            )
-          ) {
-            correct += 1;
+
+        const correctAnswersForStudent = new Set<string>();
+        for (const answer of r.answers) {
+          if (answer.answer === correctAnswersMap.get(answer.questionId)) {
+            correctAnswersForStudent.add(answer.questionId);
           }
         }
-        scoreSum +=
+        const score =
           questions.length > 0
-            ? Math.round((correct / questions.length) * 100)
+            ? Math.round(
+                (correctAnswersForStudent.size / questions.length) * 100
+              )
             : 0;
+        scoreSum += score;
       }
     }
 
