@@ -58,6 +58,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const playerRef = useRef<YTPlayer | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastPollRef = useRef<number>(0);
+  const triggeredRef = useRef<Set<string>>(new Set());
 
   // Derive the max time the student may seek to
   const maxAllowedTime = React.useMemo(() => {
@@ -83,6 +84,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const unansweredRef = useRef<VideoActivityQuestion[]>([]);
   const maxAllowedRef = useRef(maxAllowedTime);
   const questionVisibleRef = useRef(questionVisible);
+  const allowSkippingRef = useRef(allowSkipping);
+  const autoPlayRef = useRef(autoPlay);
   const onQuestionTriggerRef = useRef(onQuestionTrigger);
   const onVideoEndRef = useRef(onVideoEnd);
 
@@ -96,6 +99,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useLayoutEffect(() => {
     questionVisibleRef.current = questionVisible;
   }, [questionVisible]);
+
+  useLayoutEffect(() => {
+    allowSkippingRef.current = allowSkipping;
+    autoPlayRef.current = autoPlay;
+  }, [allowSkipping, autoPlay]);
 
   useLayoutEffect(() => {
     onQuestionTriggerRef.current = onQuestionTrigger;
@@ -124,7 +132,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const currentTime = player.getCurrentTime();
 
         // Anti-skip: if student seeked past allowed time, seek back
-        if (!allowSkipping && currentTime > maxAllowedRef.current) {
+        if (!allowSkippingRef.current && currentTime > maxAllowedRef.current) {
           player.seekTo(maxAllowedRef.current, true);
           rafRef.current = requestAnimationFrame(tick);
           return;
@@ -132,7 +140,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         // Question trigger detection
         for (const q of unansweredRef.current) {
-          if (currentTime >= q.timestamp - 0.5) {
+          if (
+            currentTime >= q.timestamp - 0.5 &&
+            !triggeredRef.current.has(q.id)
+          ) {
+            triggeredRef.current.add(q.id);
             player.pauseVideo();
             onQuestionTriggerRef.current(q);
             break;
@@ -144,7 +156,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [allowSkipping]);
+  }, []);
 
   const stopPolling = useCallback(() => {
     if (rafRef.current !== null) {
@@ -183,7 +195,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         },
         events: {
           onReady: () => {
-            if (autoPlay) {
+            if (autoPlayRef.current) {
               playerRef.current?.playVideo();
             }
             startPolling();
@@ -214,7 +226,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         container.innerHTML = '';
       }
     };
-  }, [youtubeUrl, autoPlay, startPolling, stopPolling]);
+  }, [youtubeUrl, startPolling, stopPolling]);
 
   // Resume polling state when question is dismissed
   useEffect(() => {
@@ -228,6 +240,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (!seekRequest || !playerRef.current) return;
+    triggeredRef.current.clear();
     playerRef.current.seekTo(Math.max(0, seekRequest.time), true);
     if (!questionVisible) {
       playerRef.current.playVideo();

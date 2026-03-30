@@ -795,38 +795,49 @@ export const generateVideoActivity = functionsV1
         ];
 
         for (const candidate of captionCandidates) {
-          const timedtextResp = await axios.get<{
-            events?: Array<{
-              tStartMs?: number;
-              dDurationMs?: number;
-              segs?: Array<{ utf8?: string }>;
-            }>;
-          }>('https://www.youtube.com/api/timedtext', {
-            params: {
-              v: videoId,
-              lang: candidate.lang,
-              fmt: 'json3',
-              ...(candidate.kind ? { kind: candidate.kind } : {}),
-            },
-            timeout: 10000,
-          });
+          try {
+            const timedtextResp = await axios.get<{
+              events?: Array<{
+                tStartMs?: number;
+                dDurationMs?: number;
+                segs?: Array<{ utf8?: string }>;
+              }>;
+            }>('https://www.youtube.com/api/timedtext', {
+              params: {
+                v: videoId,
+                lang: candidate.lang,
+                fmt: 'json3',
+                ...(candidate.kind ? { kind: candidate.kind } : {}),
+              },
+              timeout: 10000,
+            });
 
-          const events = timedtextResp.data.events ?? [];
-          const parsed = events
-            .filter((e) => e.segs && e.segs.length > 0)
-            .map((e) => ({
-              text: (e.segs ?? [])
-                .map((s) => s.utf8 ?? '')
-                .join('')
-                .trim(),
-              offset: e.tStartMs ?? 0,
-              duration: e.dDurationMs ?? 0,
-            }))
-            .filter((item) => item.text.length > 0 && item.text !== '\n');
+            const events = timedtextResp.data.events ?? [];
+            const parsed = events
+              .filter((e) => e.segs && e.segs.length > 0)
+              .map((e) => ({
+                text: (e.segs ?? [])
+                  .map((s) => s.utf8 ?? '')
+                  .join('')
+                  .trim(),
+                offset: e.tStartMs ?? 0,
+                duration: e.dDurationMs ?? 0,
+              }))
+              .filter((item) => item.text.length > 0 && item.text !== '\n');
 
-          if (parsed.length > 0) {
-            transcriptItems = parsed;
-            break;
+            if (parsed.length > 0) {
+              transcriptItems = parsed;
+              break;
+            }
+          } catch (candidateErr: unknown) {
+            const msg =
+              candidateErr instanceof Error
+                ? candidateErr.message
+                : String(candidateErr);
+            console.warn(
+              `[generateVideoActivity] Timedtext fetch failed for ${candidate.lang}${candidate.kind ? ` (${candidate.kind})` : ''}:`,
+              msg
+            );
           }
         }
       } catch (err: unknown) {

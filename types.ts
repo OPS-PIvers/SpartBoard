@@ -1297,7 +1297,7 @@ export interface VideoActivitySession {
   /** Full questions including correctAnswer — used server-side for grading. */
   questions: VideoActivityQuestion[];
   /** Session-level behavior controls configured at assignment time. */
-  settings: VideoActivitySessionSettings;
+  settings?: VideoActivitySessionSettings;
   /**
    * Roster PINs allowed to join. Teacher sets this when assigning to a class.
    * Empty array means any PIN is accepted.
