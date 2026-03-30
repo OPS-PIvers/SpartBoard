@@ -1,11 +1,9 @@
 import * as functionsV1 from 'firebase-functions/v1';
-import * as functionsV2 from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
-import { GoogleAuth } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 // Local mirror of youtube-transcript's TranscriptResponse to avoid depending on
 // an ESM-only package at the type level (dynamic import used at runtime instead).
@@ -16,9 +14,6 @@ interface TranscriptResponse {
 }
 
 admin.initializeApp();
-
-export const JULES_API_SESSIONS_ENDPOINT =
-  'https://jules.googleapis.com/v1alpha/sessions';
 
 interface ClassLinkUser {
   sourcedId: string;
@@ -712,177 +707,6 @@ export const checkUrlCompatibility = functionsV1
     }
   });
 
-interface JulesData {
-  widgetName: string;
-  description: string;
-}
-
-interface JulesSessionResponse {
-  name?: string;
-  id?: string;
-}
-
-interface JulesError {
-  error?: {
-    message?: string;
-  };
-}
-
-export const triggerJulesWidgetGeneration = functionsV2.https.onCall<JulesData>(
-  {
-    timeoutSeconds: 300,
-    memory: '256MiB',
-    cors: true,
-  },
-  async (request) => {
-    if (!request.auth) {
-      throw new functionsV2.https.HttpsError(
-        'unauthenticated',
-        'The function must be called while authenticated.'
-      );
-    }
-
-    const email = request.auth.token.email;
-    if (!email) {
-      throw new functionsV2.https.HttpsError(
-        'invalid-argument',
-        'User must have an email associated with their account.'
-      );
-    }
-
-    const db = admin.firestore();
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    if (!adminDoc.exists) {
-      throw new functionsV2.https.HttpsError(
-        'permission-denied',
-        'This function is restricted to administrators.'
-      );
-    }
-
-    // Generate OAuth 2.0 Access Token
-
-    const auth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-
-    const accessTokenResponse = (await auth.getAccessToken()) as unknown;
-
-    const isTokenObject = (v: unknown): v is { token: string } => {
-      if (!v || typeof v !== 'object') {
-        return false;
-      }
-      if (!('token' in v)) {
-        return false;
-      }
-      const value = (v as Record<string, unknown>).token;
-      return typeof value === 'string' && value.length > 0;
-    };
-
-    const accessToken =
-      typeof accessTokenResponse === 'string' && accessTokenResponse.length > 0
-        ? accessTokenResponse
-        : isTokenObject(accessTokenResponse)
-          ? accessTokenResponse.token
-          : null;
-
-    if (!accessToken) {
-      throw new functionsV2.https.HttpsError(
-        'internal',
-        'Failed to generate OAuth token.'
-      );
-    }
-
-    const repoName = 'OPS-PIvers/SPART_Board';
-    const { widgetName, description } = request.data;
-
-    const prompt = `
-      As a Jules Agent, your task is to implement a new widget for the SPART Board application.
-      
-      Widget Name: ${widgetName}
-      Features Requested: ${description}
-      
-      Implementation Requirements:
-      1. Create a new component in 'components/widgets/' named '${widgetName.replace(/\s+/g, '')}Widget.tsx'.
-      2. Follow the existing patterns:
-         - Accept 'widget: WidgetData' as a prop.
-         - Use 'useDashboard()' for state updates.
-         - Use Tailwind CSS for styling, adhering to the brand theme (brand-blue, brand-red, etc.).
-         - Use Lucide icons.
-      3. Register the new type in 'types.ts' (WidgetType).
-      4. Add metadata to 'TOOLS' in 'config/tools.ts'.
-      5. Map the component in 'WidgetRenderer.tsx'.
-      6. Define default configuration in 'context/DashboardContext.tsx' (inside the 'addWidget' function).
-      7. Add a unit test in 'components/widgets/' named '${widgetName.replace(/\s+/g, '')}Widget.test.tsx'.
-      
-      Please ensure all code is strictly typed and follows the project's 'Zero-tolerance' linting policy.
-    `;
-
-    try {
-      // Use the named constant for the endpoint
-      const { data: session } = await axios.post<JulesSessionResponse>(
-        JULES_API_SESSIONS_ENDPOINT,
-        {
-          prompt: prompt,
-          sourceContext: {
-            source: `sources/github.com/${repoName}`,
-            githubRepoContext: {
-              startingBranch: 'main',
-            },
-          },
-          automationMode: 'AUTO_CREATE_PR',
-          title: `Generate Widget: ${widgetName}`,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const sessionIdFromName = session.name?.split('/').pop();
-      const sessionId = sessionIdFromName ?? session.id;
-
-      if (!sessionId) {
-        throw new functionsV2.https.HttpsError(
-          'internal',
-          'Jules API response is missing a session identifier (name or id).'
-        );
-      }
-
-      return {
-        success: true,
-        message: `Jules session started successfully. Session ID: ${sessionId}`,
-        consoleUrl: `https://jules.google.com/session/${sessionId}`,
-      };
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.warn(
-          'Jules API 404: The source entity was not found. Please ensure the repository is connected to the Jules project.'
-        );
-      }
-      let errorMessage = 'An unknown error occurred';
-      if (axios.isAxiosError(error)) {
-        console.error('Jules API Error Response Data:', error.response?.data);
-        console.error('Jules API Error Status:', error.response?.status);
-
-        const data = error.response?.data as JulesError | undefined;
-        errorMessage = data?.error?.message ?? error.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      console.error('Jules API Error:', errorMessage);
-      throw new functionsV2.https.HttpsError(
-        'internal',
-        `Failed to trigger Jules: ${errorMessage}`
-      );
-    }
-  }
-);
-
 // ---------------------------------------------------------------------------
 // Video Activity: Caption-based AI question generation
 // ---------------------------------------------------------------------------
@@ -1337,59 +1161,65 @@ interface GeneratedGuidedLearning {
   steps: GuidedLearningStep[];
 }
 
-export const generateGuidedLearning = functionsV1.https.onCall(
-  async (
-    data: { imageBase64: string; mimeType: string; prompt?: string },
-    context
-  ) => {
-    // Admin only
-    const uid = context.auth?.uid;
-    if (!uid) {
-      throw new functionsV1.https.HttpsError(
-        'unauthenticated',
-        'Must be authenticated to use this feature.'
-      );
-    }
+export const generateGuidedLearning = functionsV1
+  .runWith({
+    secrets: ['GEMINI_API_KEY'],
+    memory: '512MB',
+    timeoutSeconds: 120,
+  })
+  .https.onCall(
+    async (
+      data: { imageBase64: string; mimeType: string; prompt?: string },
+      context
+    ) => {
+      // Admin only
+      const uid = context.auth?.uid;
+      if (!uid) {
+        throw new functionsV1.https.HttpsError(
+          'unauthenticated',
+          'Must be authenticated to use this feature.'
+        );
+      }
 
-    const userEmail = context.auth?.token.email;
-    if (!userEmail) {
-      throw new functionsV1.https.HttpsError(
-        'invalid-argument',
-        'Authenticated user must have an email address.'
-      );
-    }
-    const adminDoc = await admin
-      .firestore()
-      .collection('admins')
-      .doc(userEmail.toLowerCase())
-      .get();
-    if (!adminDoc.exists) {
-      throw new functionsV1.https.HttpsError(
-        'permission-denied',
-        'Admin access required to use AI generation.'
-      );
-    }
+      const userEmail = context.auth?.token.email;
+      if (!userEmail) {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'Authenticated user must have an email address.'
+        );
+      }
+      const adminDoc = await admin
+        .firestore()
+        .collection('admins')
+        .doc(userEmail.toLowerCase())
+        .get();
+      if (!adminDoc.exists) {
+        throw new functionsV1.https.HttpsError(
+          'permission-denied',
+          'Admin access required to use AI generation.'
+        );
+      }
 
-    const { imageBase64, mimeType, prompt } = data;
-    if (!imageBase64 || !mimeType) {
-      throw new functionsV1.https.HttpsError(
-        'invalid-argument',
-        'imageBase64 and mimeType are required.'
-      );
-    }
+      const { imageBase64, mimeType, prompt } = data;
+      if (!imageBase64 || !mimeType) {
+        throw new functionsV1.https.HttpsError(
+          'invalid-argument',
+          'imageBase64 and mimeType are required.'
+        );
+      }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new functionsV1.https.HttpsError(
-        'internal',
-        'AI service is not configured.'
-      );
-    }
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new functionsV1.https.HttpsError(
+          'internal',
+          'AI service is not configured.'
+        );
+      }
 
-    try {
-      const ai = new GoogleGenAI({ apiKey });
+      try {
+        const ai = new GoogleGenAI({ apiKey });
 
-      const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
+        const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
 Analyze the provided image and generate a guided learning experience as a JSON object.
 
 Return ONLY valid JSON with this exact structure:
@@ -1427,56 +1257,56 @@ Guidelines:
 - Make content educational and age-appropriate
 - Set autoAdvanceDuration to 5-15 seconds for non-question steps in guided mode`;
 
-      const userPrompt = prompt
-        ? `Additional instructions: ${sanitizePrompt(prompt)}`
-        : 'Analyze this educational image and create an engaging guided learning experience.';
+        const userPrompt = prompt
+          ? `Additional instructions: ${sanitizePrompt(prompt)}`
+          : 'Analyze this educational image and create an engaging guided learning experience.';
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: userPrompt },
-              {
-                inlineData: {
-                  mimeType,
-                  data: imageBase64,
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: userPrompt },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: imageBase64,
+                  },
                 },
-              },
-            ],
+              ],
+            },
+          ],
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
           },
-        ],
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-        },
-      });
+        });
 
-      const rawText = response.text ?? '';
-      const parsed = JSON.parse(rawText) as GeneratedGuidedLearning;
+        const rawText = response.text ?? '';
+        const parsed = JSON.parse(rawText) as GeneratedGuidedLearning;
 
-      if (
-        !parsed.suggestedTitle ||
-        !Array.isArray(parsed.steps) ||
-        parsed.steps.length === 0
-      ) {
-        throw new Error('Invalid response structure from AI');
+        if (
+          !parsed.suggestedTitle ||
+          !Array.isArray(parsed.steps) ||
+          parsed.steps.length === 0
+        ) {
+          throw new Error('Invalid response structure from AI');
+        }
+
+        // Ensure all steps have IDs
+        parsed.steps = parsed.steps.map((step, i) => ({
+          ...step,
+          id: step.id || `step-${i + 1}-${Date.now()}`,
+        }));
+
+        return parsed;
+      } catch (error: unknown) {
+        console.error('[generateGuidedLearning] Gemini error:', error);
+        const msg =
+          error instanceof Error ? error.message : 'AI generation failed';
+        throw new functionsV1.https.HttpsError('internal', msg);
       }
-
-      // Ensure all steps have IDs
-      parsed.steps = parsed.steps.map((step, i) => ({
-        ...step,
-        id: step.id || `step-${i + 1}-${Date.now()}`,
-      }));
-
-      return parsed;
-    } catch (error: unknown) {
-      console.error('[generateGuidedLearning] Gemini error:', error);
-      const msg =
-        error instanceof Error ? error.message : 'AI generation failed';
-      throw new functionsV1.https.HttpsError('internal', msg);
     }
-  }
-);
+  );
 export * from './adminAnalytics';
