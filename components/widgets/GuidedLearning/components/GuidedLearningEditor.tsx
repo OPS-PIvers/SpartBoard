@@ -178,48 +178,90 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 flex-shrink-0">
+      <div
+        className="flex items-center border-b border-white/10 flex-shrink-0"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+        }}
+      >
         <button
           onClick={onCancel}
           className="text-slate-400 hover:text-white transition-colors"
           aria-label="Cancel"
         >
-          <X className="w-4 h-4" />
+          <X
+            style={{
+              width: 'min(16px, 4cqmin)',
+              height: 'min(16px, 4cqmin)',
+            }}
+          />
         </button>
-        <span className="text-white font-semibold text-sm flex-1 truncate">
+        <span
+          className="text-white font-bold flex-1 truncate"
+          style={{ fontSize: 'min(14px, 4cqmin)' }}
+        >
           {existingSet ? 'Edit Set' : 'New Set'}
         </span>
         <button
           onClick={handleSave}
           disabled={saving || uploading || !title.trim() || !imageUrl}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs rounded-lg transition-colors"
+          className="flex items-center bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-lg transition-all active:scale-95"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(11px, 3cqmin)',
+          }}
         >
           {saving || uploading ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
+            <Loader2
+              className="animate-spin"
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
           ) : (
-            <Save className="w-3 h-3" />
+            <Save
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
           )}
           Save
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="space-y-3" style={{ padding: 'min(12px, 3cqmin)' }}>
           {/* Title */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Title *</label>
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
+              Title *
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Parts of a Cell"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              style={{
+                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(13px, 3.5cqmin)',
+              }}
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               Description (optional)
             </label>
             <input
@@ -227,28 +269,47 @@ export const GuidedLearningEditor: React.FC<Props> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of this experience"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              style={{
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(12px, 3.2cqmin)',
+              }}
             />
           </div>
 
           {/* Mode */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Mode</label>
-            <div className="grid grid-cols-3 gap-1.5">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
+              Mode
+            </label>
+            <div
+              className="grid grid-cols-3"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
               {MODE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setMode(opt.value)}
-                  className={`rounded-lg p-2 text-left border transition-colors ${
+                  className={`rounded-lg text-left border transition-all active:scale-95 ${
                     mode === opt.value
                       ? 'border-indigo-400 bg-indigo-500/20'
                       : 'border-white/10 bg-white/5 hover:border-white/20'
                   }`}
+                  style={{ padding: 'min(8px, 2cqmin)' }}
                 >
-                  <div className="text-white text-xs font-semibold mb-0.5">
+                  <div
+                    className="text-white font-bold mb-0.5"
+                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                  >
                     {opt.label}
                   </div>
-                  <div className="text-slate-400 text-xs leading-tight">
+                  <div
+                    className="text-slate-400 leading-tight"
+                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+                  >
                     {opt.desc}
                   </div>
                 </button>
@@ -258,7 +319,10 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
           {/* Image upload */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               Base Image *
             </label>
             {imageUrl ? (
@@ -271,7 +335,8 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                   ref={imageRef}
                   src={imageUrl}
                   alt="Base"
-                  className="w-full object-contain max-h-48"
+                  className="w-full object-contain"
+                  style={{ maxHeight: 'min(200px, 50cqh)' }}
                   draggable={false}
                   onLoad={measureImage}
                 />
@@ -279,7 +344,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 {steps.map((s, idx) => (
                   <div
                     key={s.id}
-                    className="absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center border-2 border-white cursor-pointer select-none"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white rounded-full flex items-center justify-center border-2 border-white cursor-pointer select-none shadow-md"
                     style={
                       imgBounds
                         ? {
@@ -289,8 +354,17 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                             top:
                               imgBounds.offsetTop +
                               (s.yPct / 100) * imgBounds.height,
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                            fontSize: 'min(10px, 2.5cqmin)',
                           }
-                        : { left: `${s.xPct}%`, top: `${s.yPct}%` }
+                        : {
+                            left: `${s.xPct}%`,
+                            top: `${s.yPct}%`,
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                            fontSize: 'min(10px, 2.5cqmin)',
+                          }
                     }
                     onClick={(e) => {
                       e.stopPropagation();
@@ -304,35 +378,88 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 ))}
                 {addingStep && (
                   <div className="absolute inset-0 bg-indigo-500/10 border-2 border-indigo-400 border-dashed rounded-lg flex items-center justify-center pointer-events-none">
-                    <span className="text-indigo-200 text-sm font-semibold bg-indigo-900/70 px-3 py-1 rounded-lg">
+                    <span
+                      className="text-indigo-200 font-bold bg-indigo-900/70 rounded-lg shadow-xl"
+                      style={{
+                        padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
+                        fontSize: 'min(12px, 3cqmin)',
+                      }}
+                    >
                       Click to place hotspot
                     </span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center">
+              <div
+                className="border-2 border-dashed border-white/20 rounded-xl text-center"
+                style={{ padding: 'min(24px, 6cqmin)' }}
+              >
                 {uploading ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                    <p className="text-slate-400 text-sm">Uploading…</p>
+                  <div
+                    className="flex flex-col items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
+                  >
+                    <Loader2
+                      className="text-indigo-400 animate-spin"
+                      style={{
+                        width: 'min(32px, 8cqmin)',
+                        height: 'min(32px, 8cqmin)',
+                      }}
+                    />
+                    <p
+                      className="text-slate-400 font-medium"
+                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    >
+                      Uploading…
+                    </p>
                   </div>
                 ) : (
                   <>
-                    <ImageIcon className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                    <div className="flex flex-col gap-2">
+                    <ImageIcon
+                      className="text-slate-500 mx-auto"
+                      style={{
+                        width: 'min(32px, 8cqmin)',
+                        height: 'min(32px, 8cqmin)',
+                        marginBottom: 'min(8px, 2cqmin)',
+                      }}
+                    />
+                    <div
+                      className="flex flex-col"
+                      style={{ gap: 'min(8px, 2cqmin)' }}
+                    >
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 mx-auto px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors"
+                        className="flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
+                        style={{
+                          gap: 'min(6px, 1.5cqmin)',
+                          padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                          fontSize: 'min(11px, 3cqmin)',
+                        }}
                       >
-                        <Upload className="w-3 h-3" />
+                        <Upload
+                          style={{
+                            width: 'min(12px, 3cqmin)',
+                            height: 'min(12px, 3cqmin)',
+                          }}
+                        />
                         Upload Image
                       </button>
                       <button
                         onClick={handlePaste}
-                        className="flex items-center gap-1.5 mx-auto px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors"
+                        className="flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
+                        style={{
+                          gap: 'min(6px, 1.5cqmin)',
+                          padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                          fontSize: 'min(11px, 3cqmin)',
+                        }}
                       >
-                        <Clipboard className="w-3 h-3" />
+                        <Clipboard
+                          style={{
+                            width: 'min(12px, 3cqmin)',
+                            height: 'min(12px, 3cqmin)',
+                          }}
+                        />
                         Paste from Clipboard
                       </button>
                     </div>
@@ -348,13 +475,28 @@ export const GuidedLearningEditor: React.FC<Props> = ({
               onChange={handleFileSelect}
             />
             {imageError && (
-              <p className="text-red-400 text-xs mt-1">{imageError}</p>
+              <p
+                className="text-red-400 font-medium"
+                style={{
+                  fontSize: 'min(11px, 2.8cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                {imageError}
+              </p>
             )}
             {imageUrl && (
-              <div className="flex gap-2 mt-2">
+              <div
+                className="flex"
+                style={{
+                  gap: 'min(8px, 2cqmin)',
+                  marginTop: 'min(8px, 2cqmin)',
+                }}
+              >
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-slate-400 hover:text-white transition-colors"
+                  className="text-slate-400 hover:text-white font-medium transition-colors"
+                  style={{ fontSize: 'min(11px, 2.8cqmin)' }}
                 >
                   Change image
                 </button>
@@ -365,19 +507,35 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           {/* Steps */}
           {imageUrl && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-slate-400">
+              <div
+                className="flex items-center justify-between"
+                style={{ marginBottom: 'min(8px, 2cqmin)' }}
+              >
+                <label
+                  className="text-slate-400 font-bold uppercase tracking-wider"
+                  style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                >
                   Steps ({steps.length})
                 </label>
                 <button
                   onClick={() => setAddingStep((v) => !v)}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                  className={`flex items-center font-bold rounded-lg transition-colors ${
                     addingStep
                       ? 'bg-indigo-600 text-white'
                       : 'bg-slate-700 hover:bg-slate-600 text-white'
                   }`}
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(11px, 3cqmin)',
+                  }}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
                   {addingStep ? 'Click image…' : 'Add Step'}
                 </button>
               </div>
@@ -401,7 +559,13 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                   />
                 ))}
                 {steps.length === 0 && (
-                  <p className="text-slate-500 text-xs text-center py-4">
+                  <p
+                    className="text-slate-500 font-medium text-center"
+                    style={{
+                      padding: 'min(16px, 4cqmin) 0',
+                      fontSize: 'min(11px, 3cqmin)',
+                    }}
+                  >
                     Click &quot;Add Step&quot; then click the image to place a
                     hotspot.
                   </p>

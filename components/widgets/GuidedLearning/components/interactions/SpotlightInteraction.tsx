@@ -58,11 +58,12 @@ export const SpotlightInteraction: React.FC<Props> = ({
       {step.label && (
         <text
           x={cx}
-          y={cy + radius + 20}
+          y={cy + radius + Math.max(12, containerHeight * 0.04)}
           textAnchor="middle"
           fill="white"
-          fontSize={13}
           fontFamily="inherit"
+          fontWeight="bold"
+          style={{ fontSize: 'min(14px, 4cqmin)' }}
           opacity={0.9}
         >
           {step.label}

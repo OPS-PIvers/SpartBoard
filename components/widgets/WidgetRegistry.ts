@@ -723,7 +723,7 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     baseWidth: 720,
     baseHeight: 520,
     canSpread: true,
-    skipScaling: false,
+    skipScaling: true,
     padding: 0,
   },
   'custom-widget': {

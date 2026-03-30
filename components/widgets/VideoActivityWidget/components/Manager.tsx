@@ -3,7 +3,7 @@
  * Lists all saved activities with actions: Edit, Assign, Results, Delete.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Plus,
   Edit2,
@@ -16,8 +16,10 @@ import {
   CheckCircle2,
   ExternalLink,
   X,
+  Search,
 } from 'lucide-react';
 import { VideoActivityMetadata } from '@/types';
+import ScaledEmptyState from '@/components/common/ScaledEmptyState';
 
 interface ManagerProps {
   activities: VideoActivityMetadata[];
@@ -199,6 +201,13 @@ export const Manager: React.FC<ManagerProps> = ({
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredActivities = useMemo(() => {
+    if (!searchQuery.trim()) return activities;
+    const low = searchQuery.toLowerCase();
+    return activities.filter((a) => a.title.toLowerCase().includes(low));
+  }, [activities, searchQuery]);
 
   const handleAssignConfirm = async () => {
     if (!assignTarget) return;
@@ -262,261 +271,293 @@ export const Manager: React.FC<ManagerProps> = ({
 
       {/* Header */}
       <div
-        className="flex items-center justify-between border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
-        style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
+        className="flex items-center justify-between border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30 flex-shrink-0 shadow-sm"
+        style={{
+          padding: 'min(12px, 3cqmin) min(16px, 4cqmin) min(10px, 2.5cqmin)',
+          gap: 'min(8px, 2cqmin)',
+        }}
       >
-        <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
+        <div
+          className="flex items-center"
+          style={{ gap: 'min(10px, 2.5cqmin)' }}
+        >
           <div
-            className="bg-brand-red-primary text-white flex items-center justify-center rounded-lg"
-            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+            className="bg-brand-red-primary text-white flex items-center justify-center rounded-lg shadow-sm"
+            style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
           >
             <PlayCircle
               style={{
-                width: 'min(14px, 3.5cqmin)',
-                height: 'min(14px, 3.5cqmin)',
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
               }}
             />
           </div>
           <div className="flex flex-col">
             <span
-              className="font-bold text-brand-blue-dark leading-none"
-              style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+              className="font-black text-brand-blue-dark uppercase tracking-tight"
+              style={{ fontSize: 'min(15px, 4cqmin)' }}
             >
               Video Activities
             </span>
             <span
-              className="text-brand-blue-primary/70 font-medium"
-              style={{ fontSize: 'min(11px, 3cqmin)' }}
+              className="text-brand-blue-primary/60 font-bold"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
             >
-              {activities.length} saved{' '}
-              {activities.length === 1 ? 'activity' : 'activities'}
+              {activities.length} total • Interactive Lessons
             </span>
           </div>
         </div>
         <button
           onClick={onNew}
-          className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all shadow-sm active:scale-95"
+          className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-brand-blue-primary/20"
           style={{
             gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-            fontSize: 'min(12px, 3.5cqmin)',
+            padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
+            fontSize: 'min(12px, 3cqmin)',
           }}
         >
           <Plus
             style={{
-              width: 'min(14px, 4cqmin)',
-              height: 'min(14px, 4cqmin)',
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
             }}
           />
-          New Activity
+          New
         </button>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div
-          className="flex items-center bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark"
-          style={{
-            margin: 'min(12px, 2.5cqmin) min(16px, 4cqmin) 0',
-            padding: 'min(10px, 2.5cqmin)',
-            gap: 'min(8px, 2cqmin)',
-            fontSize: 'min(11px, 3.5cqmin)',
-            fontWeight: 500,
-          }}
-        >
-          <AlertCircle
-            className="shrink-0"
-            style={{
-              width: 'min(16px, 4.5cqmin)',
-              height: 'min(16px, 4.5cqmin)',
-            }}
-          />
-          {error}
-        </div>
-      )}
-
-      {/* Activity list */}
+      {/* Main Content */}
       <div
-        className="flex-1 overflow-y-auto custom-scrollbar"
-        style={{ padding: 'min(16px, 4cqmin)' }}
+        className="flex-1 overflow-y-auto custom-scrollbar flex flex-col"
+        style={{ padding: 'min(12px, 3cqmin)' }}
       >
-        {activities.length === 0 ? (
+        {/* Search Bar */}
+        {activities.length > 0 && (
           <div
-            className="flex flex-col items-center justify-center h-full text-brand-blue-primary/40 py-12"
-            style={{ gap: 'min(16px, 4cqmin)' }}
+            className="relative group flex-shrink-0"
+            style={{ marginBottom: 'min(12px, 3cqmin)' }}
           >
-            <div
-              className="bg-brand-blue-lighter/50 p-6 rounded-full border-2 border-dashed border-brand-blue-primary/20"
-              style={{ padding: 'min(24px, 6cqmin)' }}
-            >
-              <PlayCircle
-                style={{
-                  width: 'min(48px, 12cqmin)',
-                  height: 'min(48px, 12cqmin)',
-                }}
-              />
-            </div>
-            <div className="text-center">
-              <p
-                className="font-bold text-brand-blue-primary"
-                style={{ fontSize: 'min(15px, 5cqmin)' }}
-              >
-                No activities yet
-              </p>
-              <p
-                className="text-brand-blue-primary/60 font-medium"
-                style={{
-                  fontSize: 'min(12px, 3.5cqmin)',
-                  marginTop: 'min(4px, 1cqmin)',
-                  maxWidth: '200px',
-                }}
-              >
-                Paste a YouTube URL to create your first AI-powered activity
-              </p>
-            </div>
-            <button
-              onClick={onNew}
-              className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
+            <Search
+              className="absolute text-brand-blue-primary/40 group-focus-within:text-brand-blue-primary transition-colors"
               style={{
-                gap: 'min(8px, 2cqmin)',
-                padding: 'min(10px, 2.5cqmin) min(20px, 5cqmin)',
-                fontSize: 'min(14px, 4.5cqmin)',
+                left: 'min(12px, 3cqmin)',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
               }}
+            />
+            <input
+              type="text"
+              placeholder="Search activities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-brand-blue-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 text-brand-blue-dark placeholder:text-brand-blue-primary/30"
+              style={{
+                padding:
+                  'min(8px, 2cqmin) min(12px, 3cqmin) min(8px, 2cqmin) min(34px, 8cqmin)',
+                fontSize: 'min(13px, 3.5cqmin)',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div
+            className="flex items-center bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark mb-3"
+            style={{
+              padding: 'min(10px, 2.5cqmin)',
+              gap: 'min(8px, 2cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+              fontWeight: 500,
+            }}
+          >
+            <AlertCircle
+              className="shrink-0"
+              style={{
+                width: 'min(16px, 4.5cqmin)',
+                height: 'min(16px, 4.5cqmin)',
+              }}
+            />
+            {error}
+          </div>
+        )}
+
+        {/* List or Empty State */}
+        {activities.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <ScaledEmptyState
+              icon={PlayCircle}
+              title="No Activities"
+              subtitle="Create your first interactive video activity to get started."
+              actionLabel="Create Activity"
+              onAction={onNew}
+            />
+          </div>
+        ) : filteredActivities.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center py-12">
+            <p
+              className="text-slate-400 font-bold"
+              style={{ fontSize: 'min(14px, 4cqmin)' }}
             >
-              <Plus
-                style={{
-                  width: 'min(18px, 4.5cqmin)',
-                  height: 'min(18px, 4.5cqmin)',
-                }}
-              />
-              Create First Activity
-            </button>
+              No matches for &quot;{searchQuery}&quot;
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {activities.map((activity) => (
+          <div className="space-y-2">
+            {filteredActivities.map((activity) => (
               <div
                 key={activity.id}
-                className="bg-white border border-brand-blue-primary/10 rounded-2xl shadow-sm hover:shadow-md hover:border-brand-blue-primary/20 transition-all overflow-hidden"
-                style={{ padding: 'min(12px, 3cqmin)' }}
+                className="group bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm hover:shadow-md hover:border-brand-blue-primary/20 transition-all flex items-center"
+                style={{
+                  padding: 'min(10px, 2.5cqmin)',
+                  gap: 'min(12px, 3cqmin)',
+                }}
               >
-                {/* Activity info */}
+                {/* Icon */}
                 <div
-                  className="flex items-start justify-between"
+                  className="bg-brand-red-lighter/50 text-brand-red-primary rounded-lg flex items-center justify-center shrink-0 border border-brand-red-primary/10"
                   style={{
-                    gap: 'min(12px, 3cqmin)',
-                    marginBottom: 'min(10px, 2.5cqmin)',
+                    width: 'min(40px, 10cqmin)',
+                    height: 'min(40px, 10cqmin)',
                   }}
                 >
-                  <div className="min-w-0">
+                  <PlayCircle
+                    style={{
+                      width: 'min(20px, 5cqmin)',
+                      height: 'min(20px, 5cqmin)',
+                    }}
+                  />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  >
                     <h3
                       className="font-bold text-brand-blue-dark truncate"
-                      style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                      style={{ fontSize: 'min(14px, 4cqmin)' }}
                     >
                       {activity.title}
                     </h3>
-                    <div
-                      className="flex items-center flex-wrap mt-0.5"
-                      style={{ gap: 'min(6px, 1.5cqmin)' }}
+                    <span
+                      className="bg-brand-red-lighter text-brand-red-primary font-black uppercase tracking-widest rounded-md shrink-0"
+                      style={{
+                        fontSize: 'min(8px, 2cqmin)',
+                        padding: 'min(1px, 0.2cqmin) min(6px, 1.5cqmin)',
+                      }}
                     >
-                      <span
-                        className="bg-brand-red-lighter text-brand-red-primary font-bold rounded-md"
-                        style={{
-                          fontSize: 'min(10px, 3cqmin)',
-                          padding: 'min(1px, 0.2cqmin) min(6px, 1.5cqmin)',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {activity.questionCount} Qs
-                      </span>
-                      <span
-                        className="text-brand-gray-primary font-medium truncate max-w-xs"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
-                      >
-                        {activity.youtubeUrl}
-                      </span>
-                    </div>
+                      {activity.questionCount} Qs
+                    </span>
                   </div>
-                  <span
-                    className="text-brand-gray-primary font-medium shrink-0"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  <div
+                    className="flex items-center text-brand-gray-primary font-medium"
+                    style={{
+                      gap: 'min(8px, 2cqmin)',
+                      fontSize: 'min(11px, 3cqmin)',
+                      marginTop: 'min(1px, 0.2cqmin)',
+                    }}
                   >
-                    {new Date(
-                      activity.updatedAt || activity.createdAt
-                    ).toLocaleDateString()}
-                  </span>
+                    <span className="truncate max-w-[120px] hidden sm:inline opacity-60">
+                      {activity.youtubeUrl}
+                    </span>
+                    {activity.youtubeUrl && (
+                      <span className="hidden sm:inline opacity-20">•</span>
+                    )}
+                    <span className="shrink-0 opacity-60">
+                      {new Date(
+                        activity.updatedAt || activity.createdAt
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Actions */}
-                {confirmDelete === activity.id ? (
-                  <div
-                    className="flex items-center justify-end bg-brand-red-lighter/30 rounded-xl"
-                    style={{
-                      gap: 'min(8px, 2cqmin)',
-                      padding: 'min(8px, 2cqmin)',
-                    }}
-                  >
-                    <span
-                      className="text-brand-red-dark font-bold"
-                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                <div
+                  className="flex items-center"
+                  style={{ gap: 'min(6px, 1.5cqmin)' }}
+                >
+                  {confirmDelete === activity.id ? (
+                    <div
+                      className="flex items-center bg-brand-red-lighter/30 rounded-lg overflow-hidden"
+                      style={{ gap: '1px' }}
                     >
-                      Delete?
-                    </span>
-                    <button
-                      onClick={() => {
-                        setConfirmDelete(null);
-                        onDelete(activity);
-                      }}
-                      className="bg-brand-red-primary hover:bg-brand-red-dark text-white font-bold rounded-lg transition-colors shadow-sm"
-                      style={{
-                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                        fontSize: 'min(12px, 3.5cqmin)',
-                      }}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(null)}
-                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
-                      style={{
-                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                        fontSize: 'min(12px, 3.5cqmin)',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center justify-end"
-                    style={{ gap: 'min(6px, 1.5cqmin)' }}
-                  >
-                    <ActionButton
-                      icon={<BarChart3 />}
-                      label="Results"
-                      onClick={() => onResults(activity)}
-                      color="text-violet-600 hover:bg-violet-50"
-                    />
-                    <ActionButton
-                      icon={<Edit2 />}
-                      label="Edit"
-                      onClick={() => onEdit(activity)}
-                      color="text-brand-blue-primary hover:bg-brand-blue-lighter/50"
-                    />
-                    <ActionButton
-                      icon={<Link2 />}
-                      label="Assign"
-                      onClick={() => setAssignTarget(activity)}
-                      color="text-emerald-600 hover:bg-emerald-50"
-                    />
-                    <ActionButton
-                      icon={<Trash2 />}
-                      label="Delete"
-                      onClick={() => setConfirmDelete(activity.id)}
-                      color="text-brand-red-primary hover:bg-brand-red-lighter/40"
-                    />
-                  </div>
-                )}
+                      <button
+                        onClick={() => {
+                          setConfirmDelete(null);
+                          onDelete(activity);
+                        }}
+                        className="bg-brand-red-primary hover:bg-brand-red-dark text-white font-bold transition-colors"
+                        style={{
+                          padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 2.5cqmin)',
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(null)}
+                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold transition-colors"
+                        style={{
+                          padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 2.5cqmin)',
+                        }}
+                      >
+                        Esc
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <ActionButton
+                        icon={<BarChart3 />}
+                        label="Results"
+                        onClick={() => onResults(activity)}
+                        color="bg-violet-50 text-violet-600 hover:bg-violet-100"
+                      />
+                      <ActionButton
+                        icon={<Link2 />}
+                        label="Assign"
+                        onClick={() => setAssignTarget(activity)}
+                        color="bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                      />
+                      <div
+                        className="flex items-center border-l border-slate-100"
+                        style={{
+                          paddingLeft: 'min(6px, 1.5cqmin)',
+                          gap: 'min(4px, 1cqmin)',
+                        }}
+                      >
+                        <button
+                          onClick={() => onEdit(activity)}
+                          className="text-slate-400 hover:text-brand-blue-primary p-1.5 hover:bg-slate-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2
+                            style={{
+                              width: 'min(14px, 3.5cqmin)',
+                              height: 'min(14px, 3.5cqmin)',
+                            }}
+                          />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(activity.id)}
+                          className="text-slate-400 hover:text-brand-red-primary p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2
+                            style={{
+                              width: 'min(14px, 3.5cqmin)',
+                              height: 'min(14px, 3.5cqmin)',
+                            }}
+                          />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -534,10 +575,10 @@ const ActionButton: React.FC<{
 }> = ({ icon, label, onClick, color }) => (
   <button
     onClick={onClick}
-    className={`flex items-center font-bold rounded-lg transition-all active:scale-95 ${color}`}
+    className={`flex items-center font-bold rounded-lg transition-all active:scale-95 shadow-sm ${color}`}
     style={{
       gap: 'min(4px, 1cqmin)',
-      padding: 'min(5px, 1.2cqmin) min(9px, 2.2cqmin)',
+      padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
       fontSize: 'min(11px, 3cqmin)',
     }}
   >
@@ -550,6 +591,6 @@ const ActionButton: React.FC<{
         },
       }
     )}
-    {label}
+    <span className="hidden sm:inline">{label}</span>
   </button>
 );

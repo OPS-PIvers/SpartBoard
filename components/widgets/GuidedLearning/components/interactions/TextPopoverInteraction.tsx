@@ -8,21 +8,45 @@ interface Props {
 }
 
 export const TextPopoverInteraction: React.FC<Props> = ({ step, onClose }) => (
-  <div className="w-full h-full flex items-center justify-center p-4">
-    <div className="relative bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl max-w-sm w-full p-5">
+  <div
+    className="w-full h-full flex items-center justify-center"
+    style={{ padding: 'min(16px, 4cqmin)' }}
+  >
+    <div
+      className="relative bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl w-full"
+      style={{
+        maxWidth: 'min(380px, 90cqw)',
+        padding: 'min(20px, 5cqmin)',
+      }}
+    >
       <button
         onClick={onClose}
-        className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
+        className="absolute text-slate-400 hover:text-white transition-colors"
+        style={{
+          top: 'min(12px, 3cqmin)',
+          right: 'min(12px, 3cqmin)',
+        }}
         aria-label="Close"
       >
-        <X className="w-4 h-4" />
+        <X
+          style={{
+            width: 'min(16px, 4cqmin)',
+            height: 'min(16px, 4cqmin)',
+          }}
+        />
       </button>
       {step.label && (
-        <h3 className="text-white font-bold text-base mb-2 pr-6">
+        <h3
+          className="text-white font-bold mb-2 pr-6 leading-tight"
+          style={{ fontSize: 'min(16px, 4.5cqmin)' }}
+        >
           {step.label}
         </h3>
       )}
-      <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+      <p
+        className="text-slate-200 leading-relaxed whitespace-pre-wrap"
+        style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+      >
         {step.text ?? ''}
       </p>
     </div>

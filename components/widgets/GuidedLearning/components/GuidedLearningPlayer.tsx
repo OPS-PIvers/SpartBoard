@@ -295,65 +295,114 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {/* Controls bar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 flex-shrink-0 bg-slate-900/90 backdrop-blur-sm">
+      <div
+        className="flex items-center border-b border-white/10 flex-shrink-0 bg-slate-900/90 backdrop-blur-sm"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+        }}
+      >
         {onClose && (
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors"
             aria-label="Close player"
           >
-            <X className="w-4 h-4" />
+            <X
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />
           </button>
         )}
-        <span className="text-white font-semibold text-sm flex-1 truncate">
+        <span
+          className="text-white font-bold flex-1 truncate"
+          style={{ fontSize: 'min(14px, 4cqmin)' }}
+        >
           {set.title}
         </span>
 
         {mode === 'structured' && steps.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             <button
               onClick={goPrev}
               disabled={currentIdx === 0}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+              className="text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
               aria-label="Previous"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft
+                style={{
+                  width: 'min(20px, 5cqmin)',
+                  height: 'min(20px, 5cqmin)',
+                }}
+              />
             </button>
-            <span className="text-slate-300 text-xs">
+            <span
+              className="text-slate-300 font-bold"
+              style={{ fontSize: 'min(11px, 3cqmin)' }}
+            >
               {currentIdx + 1} / {steps.length}
             </span>
             <button
               onClick={goNext}
               disabled={currentIdx === steps.length - 1}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+              className="text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
               aria-label="Next"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight
+                style={{
+                  width: 'min(20px, 5cqmin)',
+                  height: 'min(20px, 5cqmin)',
+                }}
+              />
             </button>
           </div>
         )}
 
         {mode === 'guided' && (
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
             <button
               onClick={() => setPlaying((v) => !v)}
-              className="p-1 text-white hover:text-indigo-300 transition-colors"
+              className="text-white hover:text-indigo-300 transition-colors"
               aria-label={playing ? 'Pause' : 'Play'}
             >
               {playing ? (
-                <Pause className="w-5 h-5" />
+                <Pause
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
               ) : (
-                <Play className="w-5 h-5" />
+                <Play
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
               )}
             </button>
-            <span className="text-slate-300 text-xs">
+            <span
+              className="text-slate-300 font-bold"
+              style={{ fontSize: 'min(11px, 3cqmin)' }}
+            >
               {currentIdx + 1} / {steps.length}
             </span>
           </div>
         )}
 
         {mode === 'explore' && (
-          <span className="text-slate-400 text-xs">
+          <span
+            className="text-slate-400 font-medium"
+            style={{ fontSize: 'min(11px, 3cqmin)' }}
+          >
             Click any pin to explore
           </span>
         )}
@@ -361,7 +410,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
       {/* Guided progress bar */}
       {mode === 'guided' && playing && (
-        <div className="h-0.5 bg-slate-700 flex-shrink-0">
+        <div
+          className="bg-slate-700 flex-shrink-0"
+          style={{ height: 'min(3px, 0.8cqmin)' }}
+        >
           <div
             className="h-full bg-indigo-500 transition-all duration-100"
             style={{ width: `${progress * 100}%` }}
@@ -422,10 +474,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                         ? 'bg-indigo-600 scale-125 shadow-indigo-500/60'
                         : 'bg-white/20 hover:bg-white/30 animate-pulse'
                     }`}
-                    style={{ width: 32, height: 32 }}
+                    style={{
+                      width: 'min(32px, 8cqmin)',
+                      height: 'min(32px, 8cqmin)',
+                    }}
                     aria-label={step.label ?? `Step ${idx + 1}`}
                   >
-                    <span className="text-white text-xs font-bold select-none">
+                    <span
+                      className="text-white font-bold select-none"
+                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    >
                       {idx + 1}
                     </span>
                   </button>
@@ -444,7 +502,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
       {/* Step indicator dots for structured/guided */}
       {mode !== 'explore' && steps.length > 1 && steps.length <= 20 && (
-        <div className="flex items-center justify-center gap-1 py-2 flex-shrink-0 bg-slate-900/50">
+        <div
+          className="flex items-center justify-center flex-shrink-0 bg-slate-900/50"
+          style={{ gap: 'min(4px, 1cqmin)', padding: 'min(8px, 2cqmin) 0' }}
+        >
           {steps.map((s, i) => (
             <button
               key={s.id}
@@ -454,9 +515,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               }}
               className={`rounded-full transition-all ${
                 i === currentIdx
-                  ? 'w-4 h-2 bg-indigo-500'
-                  : 'w-2 h-2 bg-slate-600 hover:bg-slate-500'
+                  ? 'bg-indigo-500'
+                  : 'bg-slate-600 hover:bg-slate-500'
               }`}
+              style={{
+                width:
+                  i === currentIdx ? 'min(16px, 4cqmin)' : 'min(8px, 2cqmin)',
+                height: 'min(8px, 2cqmin)',
+              }}
               aria-label={`Go to step ${i + 1}`}
             />
           ))}

@@ -27,24 +27,47 @@ export const VideoInteraction: React.FC<Props> = ({
   if (!url) return null;
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm">
-      <div className="relative bg-black rounded-xl overflow-hidden shadow-2xl w-full max-w-lg">
+    <div
+      className="w-full h-full flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      style={{ padding: 'min(12px, 3cqmin)' }}
+    >
+      <div
+        className="relative bg-black rounded-xl overflow-hidden shadow-2xl w-full"
+        style={{ maxWidth: 'min(500px, 90cqw)' }}
+      >
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 z-10 w-7 h-7 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors"
+          className="absolute z-10 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-all active:scale-90"
+          style={{
+            top: 'min(8px, 2cqmin)',
+            right: 'min(8px, 2cqmin)',
+            width: 'min(28px, 7cqmin)',
+            height: 'min(28px, 7cqmin)',
+          }}
           aria-label="Close video"
         >
-          <X className="w-4 h-4" />
+          <X
+            style={{
+              width: 'min(16px, 4cqmin)',
+              height: 'min(16px, 4cqmin)',
+            }}
+          />
         </button>
         {step.label && (
-          <div className="px-3 py-2 bg-black/80 text-white text-sm font-semibold">
+          <div
+            className="bg-black/80 text-white font-bold truncate"
+            style={{
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
             {step.label}
           </div>
         )}
         {youtubeId ? (
           <div className="aspect-video w-full">
             <iframe
-              className="w-full h-full"
+              className="w-full h-full border-0"
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
               title={step.label ?? 'Video'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

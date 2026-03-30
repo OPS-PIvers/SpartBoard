@@ -95,89 +95,187 @@ const SetCard: React.FC<SetCardProps> = ({
   showEdit = true,
   showDelete = true,
 }) => (
-  <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-colors">
-    {imageUrl && (
-      <div className="h-24 overflow-hidden bg-slate-800">
+  <div
+    className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden hover:border-white/20 transition-all flex items-center"
+    style={{
+      padding: 'min(10px, 2.5cqmin)',
+      gap: 'min(12px, 3cqmin)',
+    }}
+  >
+    {/* Image / Icon */}
+    <div
+      className="bg-slate-800 rounded-lg flex items-center justify-center shrink-0 border border-white/10 overflow-hidden"
+      style={{
+        width: 'min(48px, 12cqmin)',
+        height: 'min(48px, 12cqmin)',
+      }}
+    >
+      {imageUrl ? (
         <img
           src={imageUrl}
           alt={title}
-          className="w-full h-full object-cover opacity-70"
+          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
         />
-      </div>
-    )}
-    <div className="p-3">
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <h3 className="font-semibold text-white text-sm leading-tight line-clamp-2">
+      ) : (
+        <BookOpen
+          className="text-slate-500"
+          style={{
+            width: 'min(20px, 5cqmin)',
+            height: 'min(20px, 5cqmin)',
+          }}
+        />
+      )}
+    </div>
+
+    {/* Info */}
+    <div className="flex-1 min-w-0">
+      <div
+        className="flex items-center"
+        style={{
+          gap: 'min(6px, 1.5cqmin)',
+          marginBottom: 'min(2px, 0.5cqmin)',
+        }}
+      >
+        <h3
+          className="font-bold text-white truncate"
+          style={{ fontSize: 'min(14px, 4cqmin)' }}
+        >
           {title}
         </h3>
         <span
-          className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${MODE_COLORS[mode]}`}
+          className={`shrink-0 font-black uppercase tracking-widest rounded-md ${MODE_COLORS[mode]}`}
+          style={{
+            fontSize: 'min(8px, 2.2cqmin)',
+            padding: 'min(1px, 0.2cqmin) min(6px, 1.5cqmin)',
+          }}
         >
           {MODE_LABELS[mode]}
         </span>
       </div>
-      {description && (
-        <p className="text-slate-400 text-xs mb-2 line-clamp-2">
-          {description}
-        </p>
-      )}
-      <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-        {isBuilding && (
-          <span className="flex items-center gap-1">
-            <Building2 className="w-3 h-3" />
-            Building
+      <div
+        className="flex items-center flex-wrap"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        <div
+          className="flex items-center text-slate-400 font-medium"
+          style={{ gap: 'min(4px, 1cqmin)', fontSize: 'min(11px, 3cqmin)' }}
+        >
+          {isBuilding && (
+            <span
+              className="flex items-center"
+              style={{ gap: 'min(3px, 0.8cqmin)' }}
+            >
+              <Building2
+                style={{
+                  width: 'min(11px, 3cqmin)',
+                  height: 'min(11px, 3cqmin)',
+                }}
+              />
+              Building
+            </span>
+          )}
+          <span>
+            {stepCount} step{stepCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {description && (
+          <span
+            className="text-slate-500 truncate italic hidden sm:inline"
+            style={{ fontSize: 'min(11px, 3cqmin)' }}
+          >
+            — {description}
           </span>
         )}
-        <span>
-          {stepCount} step{stepCount !== 1 ? 's' : ''}
-        </span>
       </div>
-      <div className="flex gap-1.5 flex-wrap">
+    </div>
+
+    {/* Actions */}
+    <div className="flex items-center" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+      <button
+        onClick={onPlay}
+        className="flex items-center bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-all active:scale-95"
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(11px, 3cqmin)',
+        }}
+        title="Play (display to class)"
+      >
+        <Play
+          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+        />
+        <span className="hidden sm:inline">Play</span>
+      </button>
+
+      <button
+        onClick={onAssign}
+        className="flex items-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all active:scale-95 shadow-sm"
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(11px, 3cqmin)',
+        }}
+        title="Assign (copy student link)"
+      >
+        <Link2
+          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+        />
+        <span className="hidden sm:inline">Assign</span>
+      </button>
+
+      {onViewResults && (
         <button
-          onClick={onPlay}
-          className="flex items-center gap-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded-lg transition-colors"
-          title="Play (display to class)"
+          onClick={onViewResults}
+          className="flex items-center bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-all active:scale-95"
+          style={{
+            gap: 'min(4px, 1cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+            fontSize: 'min(11px, 3cqmin)',
+          }}
+          title="View results"
         >
-          <Play className="w-3 h-3" />
-          Play
+          <BarChart2
+            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          />
+          <span className="hidden sm:inline">Results</span>
         </button>
-        <button
-          onClick={onAssign}
-          className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors"
-          title="Assign (copy student link)"
+      )}
+
+      {(showEdit || showDelete) && (
+        <div
+          className="flex items-center border-l border-white/10"
+          style={{ paddingLeft: 'min(6px, 1.5cqmin)', gap: 'min(4px, 1cqmin)' }}
         >
-          <Link2 className="w-3 h-3" />
-          Assign
-        </button>
-        {onViewResults && (
-          <button
-            onClick={onViewResults}
-            className="flex items-center gap-1 px-2 py-1 bg-slate-600 hover:bg-slate-500 text-white text-xs rounded-lg transition-colors"
-            title="View results"
-          >
-            <BarChart2 className="w-3 h-3" />
-            Results
-          </button>
-        )}
-        {showEdit && (
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors"
-            title="Edit"
-          >
-            <Pencil className="w-3 h-3" />
-          </button>
-        )}
-        {showDelete && (
-          <button
-            onClick={onDelete}
-            className="flex items-center gap-1 px-2 py-1 bg-red-900/50 hover:bg-red-800/70 text-red-300 text-xs rounded-lg transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        )}
-      </div>
+          {showEdit && (
+            <button
+              onClick={onEdit}
+              className="text-slate-400 hover:text-white p-1.5 hover:bg-white/5 rounded-lg transition-colors"
+              title="Edit"
+            >
+              <Pencil
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
+            </button>
+          )}
+          {showDelete && (
+            <button
+              onClick={onDelete}
+              className="text-slate-500 hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+              title="Delete"
+            >
+              <Trash2
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   </div>
 );
@@ -227,59 +325,121 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 gap-2 flex-shrink-0">
-        <div className="flex gap-1 bg-slate-800 rounded-lg p-0.5">
+      <div
+        className="flex items-center justify-between flex-shrink-0"
+        style={{
+          padding: 'min(12px, 3cqmin) min(12px, 3cqmin) min(8px, 2cqmin)',
+          gap: 'min(8px, 2cqmin)',
+        }}
+      >
+        <div
+          className="flex bg-slate-800 rounded-lg p-0.5"
+          style={{ gap: 'min(2px, 0.5cqmin)' }}
+        >
           <button
             onClick={() => setTab('my')}
-            className={`px-3 py-1.5 text-xs rounded-md transition-colors ${tab === 'my' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`rounded-md transition-colors font-bold uppercase tracking-tight ${tab === 'my' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+            style={{
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(10px, 2.5cqmin)',
+            }}
           >
-            <User className="w-3 h-3 inline mr-1" />
+            <User
+              style={{
+                width: 'min(11px, 2.8cqmin)',
+                height: 'min(11px, 2.8cqmin)',
+                marginRight: 'min(4px, 1cqmin)',
+              }}
+              className="inline"
+            />
             My Sets
           </button>
           <button
             onClick={() => setTab('building')}
-            className={`px-3 py-1.5 text-xs rounded-md transition-colors ${tab === 'building' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`rounded-md transition-colors font-bold uppercase tracking-tight ${tab === 'building' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+            style={{
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(10px, 2.5cqmin)',
+            }}
           >
-            <Building2 className="w-3 h-3 inline mr-1" />
+            <Building2
+              style={{
+                width: 'min(11px, 2.8cqmin)',
+                height: 'min(11px, 2.8cqmin)',
+                marginRight: 'min(4px, 1cqmin)',
+              }}
+              className="inline"
+            />
             Building
           </button>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex" style={{ gap: 'min(6px, 1.5cqmin)' }}>
           {isAdmin && tab === 'building' && (
             <button
               onClick={onGenerateWithAI}
               title="Generate with AI (Admin)"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-violet-700 hover:bg-violet-600 text-white text-xs rounded-lg transition-colors"
+              className="flex items-center bg-violet-700 hover:bg-violet-600 text-white font-bold rounded-lg transition-colors"
+              style={{
+                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                gap: 'min(4px, 1cqmin)',
+                fontSize: 'min(10px, 2.5cqmin)',
+              }}
             >
-              <Wand2 className="w-3 h-3" />
+              <Wand2
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
               AI
             </button>
           )}
           <button
             onClick={tab === 'my' ? onCreateNew : onCreateNewBuilding}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg transition-colors"
+            className="flex items-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors shadow-sm"
+            style={{
+              padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+              gap: 'min(4px, 1cqmin)',
+              fontSize: 'min(10px, 2.5cqmin)',
+            }}
           >
-            <Plus className="w-3 h-3" />
+            <Plus
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
             New
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3">
+      <div
+        className="flex-1 overflow-y-auto custom-scrollbar"
+        style={{ padding: '0 min(12px, 3cqmin) min(12px, 3cqmin)' }}
+      >
         {tab === 'my' ? (
           loading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+              <Loader2
+                className="text-slate-400 animate-spin"
+                style={{
+                  width: 'min(24px, 6cqmin)',
+                  height: 'min(24px, 6cqmin)',
+                }}
+              />
             </div>
           ) : sets.length === 0 ? (
-            <ScaledEmptyState
-              icon={BookOpen}
-              title="No Sets Yet"
-              subtitle="Click + New to create your first guided experience."
-            />
+            <div style={{ paddingTop: 'min(40px, 10cqmin)' }}>
+              <ScaledEmptyState
+                icon={BookOpen}
+                title="No Sets Yet"
+                subtitle="Click + New to create your first guided experience."
+              />
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-2">
               {sets.map((meta) => (
                 <SetCard
                   key={meta.id}
@@ -303,20 +463,28 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
           )
         ) : buildingLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+            <Loader2
+              className="text-slate-400 animate-spin"
+              style={{
+                width: 'min(24px, 6cqmin)',
+                height: 'min(24px, 6cqmin)',
+              }}
+            />
           </div>
         ) : buildingSets.length === 0 ? (
-          <ScaledEmptyState
-            icon={Building2}
-            title="No Building Sets"
-            subtitle={
-              isAdmin
-                ? 'Click + New to create a building-level set.'
-                : 'No building sets have been created yet.'
-            }
-          />
+          <div style={{ paddingTop: 'min(40px, 10cqmin)' }}>
+            <ScaledEmptyState
+              icon={Building2}
+              title="No Building Sets"
+              subtitle={
+                isAdmin
+                  ? 'Click + New to create a building-level set.'
+                  : 'No building sets have been created yet.'
+              }
+            />
+          </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-2">
             {buildingSets.map((set) => (
               <SetCard
                 key={set.id}

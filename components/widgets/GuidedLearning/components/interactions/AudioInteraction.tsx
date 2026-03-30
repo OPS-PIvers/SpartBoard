@@ -46,8 +46,14 @@ export const AudioInteraction: React.FC<Props> = ({
   if (!step.audioUrl) return null;
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-4">
-      <div className="bg-slate-800/95 border border-white/20 rounded-2xl p-5 max-w-xs w-full shadow-xl">
+    <div
+      className="w-full h-full flex items-center justify-center"
+      style={{ padding: 'min(16px, 4cqmin)' }}
+    >
+      <div
+        className="bg-slate-800/95 border border-white/20 rounded-2xl w-full shadow-xl"
+        style={{ maxWidth: 'min(320px, 80cqw)', padding: 'min(20px, 5cqmin)' }}
+      >
         <audio
           ref={audioRef}
           src={step.audioUrl}
@@ -60,32 +66,75 @@ export const AudioInteraction: React.FC<Props> = ({
           onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <Volume2 className="w-5 h-5 text-white" />
+        <div
+          className="flex items-center"
+          style={{
+            gap: 'min(12px, 3cqmin)',
+            marginBottom: 'min(12px, 3cqmin)',
+          }}
+        >
+          <div
+            className="rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0"
+            style={{
+              width: 'min(40px, 10cqmin)',
+              height: 'min(40px, 10cqmin)',
+            }}
+          >
+            <Volume2
+              className="text-white"
+              style={{
+                width: 'min(20px, 5cqmin)',
+                height: 'min(20px, 5cqmin)',
+              }}
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm truncate">
+            <p
+              className="text-white font-bold truncate"
+              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+            >
               {step.label ?? 'Audio'}
             </p>
             {step.text && (
-              <p className="text-slate-400 text-xs truncate">{step.text}</p>
+              <p
+                className="text-slate-400 font-medium truncate"
+                style={{ fontSize: 'min(11px, 2.8cqmin)' }}
+              >
+                {step.text}
+              </p>
             )}
           </div>
           <button
             onClick={togglePlay}
-            className="w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center flex-shrink-0 transition-colors"
+            className="rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center flex-shrink-0 transition-all active:scale-90"
+            style={{ width: 'min(36px, 9cqmin)', height: 'min(36px, 9cqmin)' }}
             aria-label={playing ? 'Pause' : 'Play'}
           >
             {playing ? (
-              <Pause className="w-4 h-4 text-white" />
+              <Pause
+                className="text-white"
+                style={{
+                  width: 'min(16px, 4cqmin)',
+                  height: 'min(16px, 4cqmin)',
+                }}
+              />
             ) : (
-              <Play className="w-4 h-4 text-white ml-0.5" />
+              <Play
+                className="text-white"
+                style={{
+                  width: 'min(16px, 4cqmin)',
+                  height: 'min(16px, 4cqmin)',
+                  marginLeft: 'min(2px, 0.5cqmin)',
+                }}
+              />
             )}
           </button>
         </div>
         {/* Progress bar */}
-        <div className="relative h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className="relative bg-slate-700 rounded-full overflow-hidden"
+          style={{ height: 'min(6px, 1.5cqmin)' }}
+        >
           <div
             className="absolute left-0 top-0 h-full bg-indigo-500 rounded-full transition-all"
             style={{
@@ -93,7 +142,10 @@ export const AudioInteraction: React.FC<Props> = ({
             }}
           />
         </div>
-        <div className="flex justify-between text-xs text-slate-500 mt-1">
+        <div
+          className="flex justify-between text-slate-500 font-mono mt-1"
+          style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+        >
           <span>{formatTime(progress)}</span>
           <span>{formatTime(duration)}</span>
         </div>

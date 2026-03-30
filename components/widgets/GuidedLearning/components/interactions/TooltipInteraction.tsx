@@ -24,12 +24,27 @@ export const TooltipInteraction: React.FC<Props> = ({
   return (
     <div
       className="absolute pointer-events-none z-20"
-      style={{ left: x + offsetX, top: y + offsetY, maxWidth: 200 }}
+      style={{
+        left: x + offsetX,
+        top: y + offsetY,
+        maxWidth: 'min(200px, 40cqw)',
+      }}
     >
       <div
-        className={`bg-black/70 backdrop-blur-sm text-white text-xs rounded-lg px-3 py-2 leading-relaxed shadow-lg border border-white/10 ${alignRight ? 'text-right' : 'text-left'}`}
+        className={`bg-black/70 backdrop-blur-sm text-white rounded-lg leading-relaxed shadow-lg border border-white/10 ${alignRight ? 'text-right' : 'text-left'}`}
+        style={{
+          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+          fontSize: 'min(12px, 3cqmin)',
+        }}
       >
-        {step.label && <div className="font-semibold mb-0.5">{step.label}</div>}
+        {step.label && (
+          <div
+            className="font-bold mb-0.5"
+            style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+          >
+            {step.label}
+          </div>
+        )}
         {step.text}
       </div>
     </div>

@@ -50,17 +50,33 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
   return (
     <div className="border border-white/10 rounded-lg overflow-hidden">
       {/* Header row */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-white/5">
+      <div
+        className="flex items-center bg-white/5"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+        }}
+      >
         <button
           onClick={onToggle}
-          className="flex-1 text-left text-sm text-white font-medium truncate hover:text-indigo-300 transition-colors"
+          className="flex-1 text-left text-white font-bold truncate hover:text-indigo-300 transition-colors"
+          style={{ fontSize: 'min(13px, 3.5cqmin)' }}
         >
           {step.label ?? interactionLabel}{' '}
-          <span className="text-slate-500 font-normal text-xs">
+          <span
+            className="text-slate-500 font-normal"
+            style={{ fontSize: 'min(11px, 3cqmin)' }}
+          >
             ({step.xPct.toFixed(0)}%, {step.yPct.toFixed(0)}%)
           </span>
         </button>
-        <span className="text-xs text-slate-500 bg-slate-700 px-1.5 py-0.5 rounded">
+        <span
+          className="text-slate-500 bg-slate-700 rounded font-black uppercase tracking-tighter"
+          style={{
+            fontSize: 'min(9px, 2.2cqmin)',
+            padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+          }}
+        >
           {interactionLabel}
         </span>
         <button
@@ -68,16 +84,27 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
           aria-label="Delete step"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2
+            style={{
+              width: 'min(16px, 4cqmin)',
+              height: 'min(16px, 4cqmin)',
+            }}
+          />
         </button>
       </div>
 
       {/* Expanded editor */}
       {isExpanded && (
-        <div className="p-3 space-y-3 bg-slate-900/50">
+        <div
+          className="space-y-3 bg-slate-900/50"
+          style={{ padding: 'min(12px, 3cqmin)' }}
+        >
           {/* Label */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               Label (optional)
             </label>
             <input
@@ -85,13 +112,20 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               value={step.label ?? ''}
               onChange={(e) => update({ label: e.target.value })}
               placeholder="Step title or caption"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              style={{
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(12px, 3.2cqmin)',
+              }}
             />
           </div>
 
           {/* Interaction type */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               Interaction Type
             </label>
             <select
@@ -102,7 +136,11 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                     .value as GuidedLearningInteractionType,
                 })
               }
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+              style={{
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(12px, 3.2cqmin)',
+              }}
             >
               {INTERACTION_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -116,7 +154,10 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {(step.interactionType === 'text-popover' ||
             step.interactionType === 'tooltip') && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label
+                className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              >
                 Text Content
               </label>
               <textarea
@@ -124,7 +165,11 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 onChange={(e) => update({ text: e.target.value })}
                 rows={4}
                 placeholder="Enter the text to display…"
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm resize-none"
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
+                style={{
+                  padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                  fontSize: 'min(12px, 3.2cqmin)',
+                }}
               />
             </div>
           )}
@@ -132,7 +177,10 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Audio URL */}
           {step.interactionType === 'audio' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label
+                className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              >
                 Audio URL
               </label>
               <input
@@ -140,9 +188,19 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 value={step.audioUrl ?? ''}
                 onChange={(e) => update({ audioUrl: e.target.value })}
                 placeholder="Firebase Storage or external audio URL"
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                style={{
+                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                  fontSize: 'min(12px, 3.2cqmin)',
+                }}
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p
+                className="text-slate-500 font-medium"
+                style={{
+                  fontSize: 'min(10px, 2.5cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
                 Paste a direct URL to an audio file (.mp3, .wav, .ogg)
               </p>
             </div>
@@ -151,7 +209,10 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Video URL */}
           {step.interactionType === 'video' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label
+                className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              >
                 Video URL
               </label>
               <input
@@ -159,7 +220,11 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 value={step.videoUrl ?? ''}
                 onChange={(e) => update({ videoUrl: e.target.value })}
                 placeholder="YouTube URL or direct video URL"
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                style={{
+                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                  fontSize: 'min(12px, 3.2cqmin)',
+                }}
               />
             </div>
           )}
@@ -167,7 +232,10 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Pan-zoom scale */}
           {step.interactionType === 'pan-zoom' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label
+                className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              >
                 Zoom Level: {step.panZoomScale ?? 2.5}×
               </label>
               <input
@@ -187,8 +255,11 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {/* Spotlight radius */}
           {step.interactionType === 'spotlight' && (
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                Spotlight Radius: {step.spotlightRadius ?? 25}% of container
+              <label
+                className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              >
+                Spotlight Radius: {step.spotlightRadius ?? 25}%
               </label>
               <input
                 type="range"
@@ -211,7 +282,10 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
 
           {/* Auto-advance duration (for guided mode) */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label
+              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            >
               Auto-advance after (seconds, 0 = manual)
             </label>
             <input
@@ -222,7 +296,12 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               onChange={(e) =>
                 update({ autoAdvanceDuration: parseInt(e.target.value) || 0 })
               }
-              className="w-24 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+              className="bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              style={{
+                width: 'min(80px, 20cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(12px, 3.2cqmin)',
+              }}
             />
           </div>
         </div>
@@ -249,9 +328,15 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
   };
 
   return (
-    <div className="space-y-3 border border-white/10 rounded-lg p-3 bg-slate-800/30">
+    <div
+      className="space-y-3 border border-white/10 rounded-lg bg-slate-800/30"
+      style={{ padding: 'min(12px, 3cqmin)' }}
+    >
       <div>
-        <label className="block text-xs text-slate-400 mb-1">
+        <label
+          className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+          style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+        >
           Question Type
         </label>
         <select
@@ -259,7 +344,11 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
           onChange={(e) =>
             updateQ({ type: e.target.value as GuidedLearningQuestionType })
           }
-          className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm"
+          className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+          style={{
+            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(12px, 3cqmin)',
+          }}
         >
           {QUESTION_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -270,7 +359,10 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
       </div>
 
       <div>
-        <label className="block text-xs text-slate-400 mb-1">
+        <label
+          className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+          style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+        >
           Question Text
         </label>
         <textarea
@@ -278,7 +370,11 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
           onChange={(e) => updateQ({ text: e.target.value })}
           rows={2}
           placeholder="Enter your question…"
-          className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm resize-none"
+          className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
+          style={{
+            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(12px, 3cqmin)',
+          }}
         />
       </div>
 
@@ -317,17 +413,28 @@ const MCEditor: React.FC<{
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-slate-400">
-        Answer Choices (mark correct answer)
+      <label
+        className="block text-slate-400 font-bold uppercase tracking-wider"
+        style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+      >
+        Answer Choices (mark correct)
       </label>
       {choices.map((choice, idx) => (
-        <div key={idx} className="flex items-center gap-2">
+        <div
+          key={idx}
+          className="flex items-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
           <input
             type="radio"
             name={`correct-${stepId}`}
             checked={q.correctAnswer === choice && choice !== ''}
             onChange={() => updateQ({ correctAnswer: choice })}
             className="accent-emerald-500 flex-shrink-0"
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
             aria-label={`Mark choice ${idx + 1} as correct`}
           />
           <input
@@ -344,15 +451,24 @@ const MCEditor: React.FC<{
                 });
             }}
             placeholder={`Choice ${idx + 1}`}
-            className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+            className="flex-1 bg-slate-800 border border-slate-600 rounded text-white placeholder:text-slate-500 focus:outline-none"
+            style={{
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(11px, 2.8cqmin)',
+            }}
           />
           {choices.length > 2 && (
             <button
               onClick={() => removeChoice(idx)}
-              className="text-red-400 hover:text-red-300"
+              className="text-red-400 hover:text-red-300 transition-colors"
               aria-label="Remove choice"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
             </button>
           )}
         </div>
@@ -360,13 +476,20 @@ const MCEditor: React.FC<{
       {choices.length < 6 && (
         <button
           onClick={addChoice}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
+          className="flex items-center text-slate-400 hover:text-white transition-colors font-bold"
+          style={{ gap: 'min(4px, 1cqmin)', fontSize: 'min(10px, 2.5cqmin)' }}
         >
-          <Plus className="w-3 h-3" /> Add choice
+          <Plus
+            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          />
+          Add choice
         </button>
       )}
       {!q.correctAnswer && (
-        <p className="text-xs text-amber-400">
+        <p
+          className="text-amber-400 font-bold"
+          style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+        >
           Select the correct answer using the radio button.
         </p>
       )}
@@ -389,33 +512,60 @@ const MatchingEditor: React.FC<{
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-slate-400">Matching Pairs</label>
+      <label
+        className="block text-slate-400 font-bold uppercase tracking-wider"
+        style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+      >
+        Matching Pairs
+      </label>
       {pairs.map((pair, idx) => (
-        <div key={idx} className="flex items-center gap-2">
+        <div
+          key={idx}
+          className="flex items-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
           <input
             type="text"
             value={pair.left}
             onChange={(e) => setPair(idx, 'left', e.target.value)}
             placeholder="Term"
-            className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+            className="flex-1 bg-slate-800 border border-slate-600 rounded text-white placeholder:text-slate-500 focus:outline-none"
+            style={{
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(11px, 2.8cqmin)',
+            }}
           />
-          <span className="text-slate-500 text-xs">→</span>
+          <span
+            className="text-slate-500 font-bold"
+            style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+          >
+            →
+          </span>
           <input
             type="text"
             value={pair.right}
             onChange={(e) => setPair(idx, 'right', e.target.value)}
             placeholder="Definition"
-            className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+            className="flex-1 bg-slate-800 border border-slate-600 rounded text-white placeholder:text-slate-500 focus:outline-none"
+            style={{
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(11px, 2.8cqmin)',
+            }}
           />
           {pairs.length > 2 && (
             <button
               onClick={() =>
                 updateQ({ matchingPairs: pairs.filter((_, i) => i !== idx) })
               }
-              className="text-red-400 hover:text-red-300"
+              className="text-red-400 hover:text-red-300 transition-colors"
               aria-label="Remove pair"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
             </button>
           )}
         </div>
@@ -425,9 +575,13 @@ const MatchingEditor: React.FC<{
           onClick={() =>
             updateQ({ matchingPairs: [...pairs, { left: '', right: '' }] })
           }
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white"
+          className="flex items-center text-slate-400 hover:text-white transition-colors font-bold"
+          style={{ gap: 'min(4px, 1cqmin)', fontSize: 'min(10px, 2.5cqmin)' }}
         >
-          <Plus className="w-3 h-3" /> Add pair
+          <Plus
+            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          />
+          Add pair
         </button>
       )}
     </div>
@@ -442,12 +596,25 @@ const SortingEditor: React.FC<{
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs text-slate-400">
+      <label
+        className="block text-slate-400 font-bold uppercase tracking-wider"
+        style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+      >
         Items in correct order
       </label>
       {items.map((item, idx) => (
-        <div key={idx} className="flex items-center gap-2">
-          <span className="text-slate-500 text-xs w-5 text-center">
+        <div
+          key={idx}
+          className="flex items-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          <span
+            className="text-slate-500 font-mono font-bold text-center"
+            style={{
+              width: 'min(20px, 5cqmin)',
+              fontSize: 'min(10px, 2.5cqmin)',
+            }}
+          >
             {idx + 1}.
           </span>
           <input
@@ -459,17 +626,26 @@ const SortingEditor: React.FC<{
               updateQ({ sortingItems: updated });
             }}
             placeholder={`Item ${idx + 1}`}
-            className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white text-xs"
+            className="flex-1 bg-slate-800 border border-slate-600 rounded text-white placeholder:text-slate-500 focus:outline-none"
+            style={{
+              padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              fontSize: 'min(11px, 2.8cqmin)',
+            }}
           />
           {items.length > 2 && (
             <button
               onClick={() =>
                 updateQ({ sortingItems: items.filter((_, i) => i !== idx) })
               }
-              className="text-red-400 hover:text-red-300"
+              className="text-red-400 hover:text-red-300 transition-colors"
               aria-label="Remove item"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
             </button>
           )}
         </div>
@@ -477,9 +653,13 @@ const SortingEditor: React.FC<{
       {items.length < 10 && (
         <button
           onClick={() => updateQ({ sortingItems: [...items, ''] })}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white"
+          className="flex items-center text-slate-400 hover:text-white transition-colors font-bold"
+          style={{ gap: 'min(4px, 1cqmin)', fontSize: 'min(10px, 2.5cqmin)' }}
         >
-          <Plus className="w-3 h-3" /> Add item
+          <Plus
+            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          />
+          Add item
         </button>
       )}
     </div>
