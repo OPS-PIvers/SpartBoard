@@ -2602,7 +2602,7 @@ export interface ConditionalLabelBlockConfig {
   initialText: string;
 }
 export interface BadgeBlockConfig {
-  icon: string; // emoji
+  icon: string; // lucide key (or legacy emoji)
   label?: string;
 }
 export interface TrafficLightBlockConfig {
@@ -2746,7 +2746,7 @@ export interface CustomWidgetDoc {
   slug: string;
   title: string;
   description?: string;
-  icon: string; // emoji
+  icon: string; // lucide key (or legacy emoji)
   color: string; // Tailwind bg-* class
   createdBy: string;
   createdAt: number;

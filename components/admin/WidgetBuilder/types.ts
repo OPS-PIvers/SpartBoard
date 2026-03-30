@@ -27,7 +27,7 @@ export interface WidgetMeta {
   title: string;
   slug: string;
   description: string;
-  icon: string; // emoji
+  icon: string; // lucide key (or legacy emoji)
   color: string; // Tailwind bg-* class
   defaultWidth: number;
   defaultHeight: number;
@@ -89,40 +89,4 @@ export const WIDGET_COLOR_PRESETS = [
   { label: 'Emerald', value: 'bg-emerald-500' },
   { label: 'Teal', value: 'bg-teal-500' },
   { label: 'Slate', value: 'bg-slate-700' },
-];
-
-/** Common emoji options for widget icons */
-export const WIDGET_ICON_PRESETS = [
-  '⭐',
-  '🎯',
-  '🎨',
-  '🧩',
-  '🏆',
-  '📊',
-  '🎲',
-  '🔔',
-  '💡',
-  '🎓',
-  '🌟',
-  '🎭',
-  '🎪',
-  '🎠',
-  '🎡',
-  '🎢',
-  '🌈',
-  '🦋',
-  '🌺',
-  '🍎',
-  '🚀',
-  '🎸',
-  '🎹',
-  '🥁',
-  '📚',
-  '✏️',
-  '🔬',
-  '🔭',
-  '🧲',
-  '⚗️',
-  '🧮',
-  '🖥️',
 ];
