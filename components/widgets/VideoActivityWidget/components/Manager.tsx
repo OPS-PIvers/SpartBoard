@@ -19,7 +19,7 @@ import {
   Search,
 } from 'lucide-react';
 import { VideoActivityMetadata } from '@/types';
-import ScaledEmptyState from '@/components/common/ScaledEmptyState';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface ManagerProps {
   activities: VideoActivityMetadata[];
@@ -391,8 +391,16 @@ export const Manager: React.FC<ManagerProps> = ({
               icon={PlayCircle}
               title="No Activities"
               subtitle="Create your first interactive video activity to get started."
-              actionLabel="Create Activity"
-              onAction={onNew}
+              action={
+                <button
+                  type="button"
+                  onClick={onNew}
+                  className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary px-4 py-2 text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
+                  style={{ fontSize: 'min(11px, 3.25cqmin)' }}
+                >
+                  Create Activity
+                </button>
+              }
             />
           </div>
         ) : filteredActivities.length === 0 ? (

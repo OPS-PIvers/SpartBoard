@@ -6,10 +6,10 @@
 
 **SPART Board** is a React-based dashboard application for classrooms, built with:
 
-- **Frontend:** React 19, TypeScript 5.x, Vite
+- **Frontend:** React 19.2, TypeScript 5.9, Vite 6
 - **Styling:** Tailwind CSS
 - **State Management:** React Context (`DashboardContext`, `AuthContext`) + Firestore (real-time)
-- **Backend:** Firebase Functions (Node.js)
+- **Backend:** Firebase Functions (Node.js + TypeScript)
 - **Testing:** Vitest (Unit), Playwright (E2E)
 - **Linting:** ESLint (Flat Config), Prettier
 
@@ -24,6 +24,8 @@
 - `context/`: React Context definitions and hooks.
 - `hooks/`: Custom React hooks.
 - `functions/`: Firebase Cloud Functions.
+- `.github/workflows/`: CI validation and deployment pipelines.
+- `locales/`: Translation files (notably `locales/en.json` for rendered UI strings).
 - `tests/`: Test files (E2E and unit tests for utilities). Note: Component tests are often co-located.
 
 ---
@@ -87,10 +89,17 @@ Use these standardized components to maintain consistency:
 ### Scripts (pnpm)
 
 - **`pnpm run dev`**: Start the development server.
-- **`pnpm run validate`**: **Run this before pushing.** Executes `type-check`, `lint`, `format:check`, and `test`.
+- **`pnpm run validate`**: **Run this before pushing.** Executes `type-check:all`, `lint`, `format:check`, and `test`.
+- **`pnpm run type-check:all`**: Type-checks root app and Firebase functions.
 - **`pnpm run lint:fix`**: Automatically fix linting errors.
 - **`pnpm run test`**: Run unit tests (Vitest).
 - **`pnpm run test:e2e`**: Run end-to-end tests (Playwright).
+
+### Strict quality gate (required)
+
+- Workflows fail if there are **any** lint, TypeScript, or Prettier issues (including warnings where applicable).
+- Treat `pnpm run lint`, `pnpm run type-check:all`, and `pnpm run format:check` as mandatory pre-PR checks.
+- Keep the repository warning-free and formatting-clean at all times.
 
 ### Authentication
 
