@@ -6,10 +6,10 @@
 
 **SPART Board** is a React-based dashboard application for classrooms, built with:
 
-- **Frontend:** React 19.2, TypeScript 5.9, Vite 6
+- **Frontend:** React ^19.2.4, TypeScript ^5.9.3, Vite ^6.4.1
 - **Styling:** Tailwind CSS
 - **State Management:** React Context (`DashboardContext`, `AuthContext`) + Firestore (real-time)
-- **Backend:** Firebase Functions (Node.js + TypeScript)
+- **Backend:** Firebase Functions (Node.js 22 runtime + TypeScript)
 - **Testing:** Vitest (Unit), Playwright (E2E)
 - **Linting:** ESLint (Flat Config), Prettier
 

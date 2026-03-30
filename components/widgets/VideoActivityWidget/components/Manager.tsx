@@ -395,8 +395,11 @@ export const Manager: React.FC<ManagerProps> = ({
                 <button
                   type="button"
                   onClick={onNew}
-                  className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary px-4 py-2 text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
-                  style={{ fontSize: 'min(11px, 3.25cqmin)' }}
+                  className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
+                  style={{
+                    fontSize: 'min(11px, 3.25cqmin)',
+                    padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+                  }}
                 >
                   Create Activity
                 </button>
