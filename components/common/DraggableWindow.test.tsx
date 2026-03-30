@@ -6,7 +6,6 @@ import {
   waitFor,
   fireEvent,
   cleanup,
-  act,
 } from '@testing-library/react';
 import {
   describe,
@@ -479,9 +478,7 @@ describe('DraggableWindow', () => {
     expect(input).toBeInTheDocument();
 
     // Change title
-    act(() => {
-      fireEvent.change(input, { target: { value: 'New Saved Title' } });
-    });
+    fireEvent.change(input, { target: { value: 'New Saved Title' } });
 
     // Simulate clicking outside using the mocked hook's captured callback
     const clickOutsideCall = vi.mocked(useClickOutside).mock.calls[0];
@@ -491,7 +488,6 @@ describe('DraggableWindow', () => {
     ) => void; // the handler is the 2nd arg
 
     // Call it manually
-
     clickOutsideCallback(new MouseEvent('mousedown'));
 
     // Check if updateWidget was called with the new title
