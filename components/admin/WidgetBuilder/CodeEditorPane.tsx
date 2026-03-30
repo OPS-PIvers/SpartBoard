@@ -39,10 +39,16 @@ interface CodeEditorPaneProps {
 }
 
 function constrainPreviewContent(content: string): string {
-  const guardStyle = `\n<style>html,body{width:100%;height:100%;overflow:hidden;}body{max-width:100vw;max-height:100vh;}</style>\n`;
+  const guardStyle = `\n<style>html,body{width:100%;height:100%;overflow:auto;}body{max-width:100vw;max-height:100vh;}</style>\n`;
   const closingHeadTagRegex = /<\/head\s*>/i;
   if (closingHeadTagRegex.test(content)) {
     return content.replace(closingHeadTagRegex, `${guardStyle}$&`);
+  }
+  const doctypeMatch = content.match(/^\s*<!doctype html[^>]*>/i);
+  if (doctypeMatch) {
+    const doctype = doctypeMatch[0];
+    const restOfContent = content.slice(doctype.length);
+    return `${doctype}${guardStyle}${restOfContent}`;
   }
   return `${guardStyle}${content}`;
 }
@@ -122,8 +128,8 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
           </button>
         </div>
 
-        <div className="border border-slate-700 border-t-0 rounded-b-lg p-3 flex-1 min-h-0 bg-slate-900">
-          <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="border border-slate-700 border-t-0 rounded-b-lg p-3 flex-1 min-h-0 bg-slate-900 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-2 flex-shrink-0">
             <label className="text-xs text-slate-400">
               Width: {previewWidth}px
               <input
@@ -150,7 +156,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
             </label>
           </div>
 
-          <div className="h-[calc(100%-62px)] rounded-lg border border-slate-700 bg-slate-950 p-4 overflow-auto flex items-start justify-center">
+          <div className="flex-1 min-h-0 rounded-lg border border-slate-700 bg-slate-950 p-4 overflow-auto flex items-start justify-center">
             <div
               className="rounded-lg border border-slate-600 shadow-2xl overflow-hidden bg-white"
               style={{

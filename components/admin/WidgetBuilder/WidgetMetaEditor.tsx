@@ -53,6 +53,10 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
       : [...meta.buildings, id];
     update({ buildings: next });
   };
+  const selectedIconOption = CUSTOM_WIDGET_ICON_OPTIONS.find(
+    (option) => option.key === meta.icon
+  );
+  const selectedIconLabel = selectedIconOption?.label ?? meta.icon;
 
   return (
     <div className="space-y-5">
@@ -103,7 +107,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         <label className="block text-xs text-slate-400 mb-2">Widget Icon</label>
         <div className="flex items-center gap-3 mb-2 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2">
           {renderWidgetIcon(meta.icon, 'text-blue-300', 20)}
-          <span className="text-xs text-slate-300">{meta.icon}</span>
+          <span className="text-xs text-slate-300">{selectedIconLabel}</span>
         </div>
         <p className="text-xs text-slate-500 mb-2">
           Use a Lucide icon so your widget matches the rest of SPART.
