@@ -71,8 +71,8 @@ function parseTimedtextXml(xml: string): TranscriptResponse[] {
     const attrs = node[1] ?? '';
     const rawText = node[2] ?? '';
 
-    const startMatch = attrs.match(/\bstart="([^"]+)"/);
-    const durationMatch = attrs.match(/\bdur="([^"]+)"/);
+    const startMatch = attrs.match(/\bstart=["']([^"']+)["']/);
+    const durationMatch = attrs.match(/\bdur=["']([^"']+)["']/);
     const startSeconds = startMatch ? Number.parseFloat(startMatch[1]) : 0;
     const durationSeconds = durationMatch
       ? Number.parseFloat(durationMatch[1])
@@ -80,6 +80,7 @@ function parseTimedtextXml(xml: string): TranscriptResponse[] {
 
     const text = decodeHtmlEntities(rawText)
       .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -882,27 +883,52 @@ export const generateVideoActivity = functionsV1
 
         for (const candidate of captionCandidates) {
           try {
-            const timedtextResp = await axios.get<{
-              events?: TimedtextJson3Event[];
-            }>('https://www.youtube.com/api/timedtext', {
-              params: {
-                v: videoId,
-                lang: candidate.lang,
-                fmt: 'json3',
-                ...(candidate.kind ? { kind: candidate.kind } : {}),
-              },
-              timeout: 10000,
-            });
-
-            const json3Parsed = parseTimedtextJson3(
-              timedtextResp.data.events ?? []
+            // Fetch as text so we can inspect the body regardless of content-type.
+            // YouTube sometimes returns XML even when fmt=json3 is requested.
+            const timedtextResp = await axios.get<string>(
+              'https://www.youtube.com/api/timedtext',
+              {
+                params: {
+                  v: videoId,
+                  lang: candidate.lang,
+                  fmt: 'json3',
+                  ...(candidate.kind ? { kind: candidate.kind } : {}),
+                },
+                timeout: 10000,
+                responseType: 'text',
+              }
             );
-            if (json3Parsed.length > 0) {
-              transcriptItems = json3Parsed;
-              break;
+
+            const rawBody = timedtextResp.data ?? '';
+
+            // Try JSON3 first
+            if (rawBody.trimStart().startsWith('{')) {
+              let parsed: { events?: TimedtextJson3Event[] } = {};
+              try {
+                parsed = JSON.parse(rawBody) as {
+                  events?: TimedtextJson3Event[];
+                };
+              } catch {
+                // not valid JSON3 — fall through to XML
+              }
+              const json3Parsed = parseTimedtextJson3(parsed.events ?? []);
+              if (json3Parsed.length > 0) {
+                transcriptItems = json3Parsed;
+                break;
+              }
             }
 
-            // Some caption tracks are only returned as XML even when json3 is requested.
+            // If the response body looks like XML, parse it directly without
+            // issuing a second HTTP request.
+            if (rawBody.trimStart().startsWith('<')) {
+              const xmlParsed = parseTimedtextXml(rawBody);
+              if (xmlParsed.length > 0) {
+                transcriptItems = xmlParsed;
+                break;
+              }
+            }
+
+            // As a last resort, fetch without fmt=json3 to get XML explicitly.
             const xmlResp = await axios.get<string>(
               'https://www.youtube.com/api/timedtext',
               {
