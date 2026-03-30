@@ -39,7 +39,6 @@ export const formatCountdown = (totalSeconds: number): string => {
 /**
  * Formats an "HH:MM" (24-hour) stored time string for display.
  * Returns 12-hour "h:MM AM/PM" when format24 is false, otherwise "HH:MM".
- * Defaults to 12-hour when no clock widget is present on the dashboard.
  */
 export const formatScheduleTime = (
   time: string | undefined,

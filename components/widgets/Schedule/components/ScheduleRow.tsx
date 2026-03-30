@@ -255,3 +255,5 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     </div>
   );
 }, areScheduleRowPropsEqual);
+
+ScheduleRow.displayName = 'ScheduleRow';
