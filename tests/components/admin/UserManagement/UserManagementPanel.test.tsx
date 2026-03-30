@@ -66,7 +66,9 @@ describe('UserManagementPanel', () => {
     fireEvent.blur(studentTextarea);
 
     // Verify it was cleaned up and deduplicated
-    expect(studentTextarea).toHaveValue('test1@example.com\ntest2@example.com');
+    await waitFor(() => {
+      expect(studentTextarea).toHaveValue('test1@example.com\ntest2@example.com');
+    });
   });
 
   it('enables save button on change and saves to firestore', async () => {
