@@ -26,7 +26,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
 }) => {
   const { featurePermissions } = useAuth();
-  const { addWidget, addToast } = useDashboard();
+  const { addWidget, addToast, updateWidget } = useDashboard();
   const { showAlert, showConfirm } = useDialog();
   const webcamPermission = featurePermissions.find(
     (p) => p.widgetType === 'webcam'
@@ -137,22 +137,29 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const extractText = useCallback(async () => {
-    if (!videoRef.current) return;
+    const isRemote =
+      widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl;
+    if (!isRemote && !videoRef.current) return;
 
     setIsExtracting(true);
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
+      let dataUrl = '';
+      if (isRemote && widgetConfig.remoteCaptureDataUrl) {
+        dataUrl = widgetConfig.remoteCaptureDataUrl;
+      } else if (videoRef.current) {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not get canvas context');
 
-      if (isMirrored) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
+        if (isMirrored) {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+        }
+        ctx.drawImage(videoRef.current, 0, 0);
+        dataUrl = canvas.toDataURL('image/png');
       }
-      ctx.drawImage(videoRef.current, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
 
       let text = '';
       if (ocrMode === 'gemini') {
@@ -182,6 +189,8 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     ocrMode,
     showAlert,
     widgetConfig.autoSendToNotes,
+    widgetConfig.isRemoteMode,
+    widgetConfig.remoteCaptureDataUrl,
     performSendToNotes,
   ]);
 
@@ -200,7 +209,11 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   }, [extractedText, performSendToNotes]);
 
   const takePhoto = useCallback(() => {
-    if (videoRef.current) {
+    let dataUrl = '';
+
+    if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
+      dataUrl = widgetConfig.remoteCaptureDataUrl;
+    } else if (videoRef.current) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -211,21 +224,28 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
           ctx.scale(-1, 1);
         }
         ctx.drawImage(videoRef.current, 0, 0);
-        const dataUrl = canvas.toDataURL('image/png');
-        const newItem: CapturedItem = {
-          id: crypto.randomUUID(),
-          timestamp: Date.now(),
-          dataUrl,
-          status: 'captured',
-        };
-        setCapturedItems((prev) => [newItem, ...prev]);
-
-        // Visual feedback
-        setShowCaptureSuccess(true);
-        setTimeout(() => setShowCaptureSuccess(false), 1500);
+        dataUrl = canvas.toDataURL('image/png');
       }
     }
-  }, [isMirrored]);
+
+    if (dataUrl) {
+      const newItem: CapturedItem = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        dataUrl,
+        status: 'captured',
+      };
+      setCapturedItems((prev) => [newItem, ...prev]);
+
+      // Visual feedback
+      setShowCaptureSuccess(true);
+      setTimeout(() => setShowCaptureSuccess(false), 1500);
+    }
+  }, [
+    isMirrored,
+    widgetConfig.isRemoteMode,
+    widgetConfig.remoteCaptureDataUrl,
+  ]);
 
   const toggleMirror = useCallback(() => setIsMirrored((prev) => !prev), []);
 
@@ -280,13 +300,22 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
             />
           ) : (
             <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover transition-transform duration-500 ${isMirrored ? 'scale-x-[-1]' : 'scale-x-1'}`}
-              />
+              {widgetConfig.isRemoteMode &&
+              widgetConfig.remoteCaptureDataUrl ? (
+                <img
+                  src={widgetConfig.remoteCaptureDataUrl}
+                  alt="Remote Capture"
+                  className="w-full h-full object-cover transition-transform duration-500"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover transition-transform duration-500 ${isMirrored ? 'scale-x-[-1]' : 'scale-x-1'}`}
+                />
+              )}
 
               {/* Controls Overlay */}
               <div
@@ -305,7 +334,11 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                 >
                   <button
                     onClick={takePhoto}
-                    disabled={!stream}
+                    disabled={
+                      widgetConfig.isRemoteMode
+                        ? !widgetConfig.remoteCaptureDataUrl
+                        : !stream
+                    }
                     className="hover:bg-white/30 rounded-2xl text-white disabled:opacity-30 disabled:cursor-not-allowed"
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
                     title="Take Photo"
@@ -319,7 +352,11 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                   </button>
                   <button
                     onClick={extractText}
-                    disabled={!stream || isExtracting}
+                    disabled={
+                      (widgetConfig.isRemoteMode
+                        ? !widgetConfig.remoteCaptureDataUrl
+                        : !stream) || isExtracting
+                    }
                     className={`rounded-2xl text-white transition-all ${isExtracting ? 'bg-blue-500/30 text-blue-400 animate-pulse' : 'hover:bg-white/30'}`}
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
                     title="Extract Text (OCR)"
@@ -343,7 +380,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                   </button>
                   <button
                     onClick={toggleMirror}
-                    disabled={!stream}
+                    disabled={widgetConfig.isRemoteMode ? false : !stream}
                     className={`rounded-2xl text-white transition-all ${isMirrored ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
                     title="Mirror Camera"
@@ -356,7 +393,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                       }}
                     />
                   </button>
-                  {devices.length > 1 && (
+                  {devices.length > 1 && !widgetConfig.isRemoteMode && (
                     <button
                       onClick={switchCamera}
                       disabled={!stream}
@@ -365,6 +402,30 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
                       title="Switch Camera"
                     >
                       <Video
+                        style={{
+                          width: 'min(20px, 5cqmin)',
+                          height: 'min(20px, 5cqmin)',
+                        }}
+                      />
+                    </button>
+                  )}
+                  {widgetConfig.isRemoteMode && (
+                    <button
+                      onClick={() => {
+                        updateWidget(_widget.id, {
+                          config: {
+                            ...widgetConfig,
+                            isRemoteMode: false,
+                            remoteCaptureDataUrl: undefined,
+                            remoteCaptureTimestamp: undefined,
+                          },
+                        });
+                      }}
+                      className="hover:bg-white/30 rounded-2xl text-white"
+                      style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      title="Exit Remote Mode"
+                    >
+                      <X
                         style={{
                           width: 'min(20px, 5cqmin)',
                           height: 'min(20px, 5cqmin)',

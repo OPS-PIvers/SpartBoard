@@ -23,6 +23,7 @@ import { RemoteBreathingControl } from './controls/RemoteBreathingControl';
 import { RemoteMusicControl } from './controls/RemoteMusicControl';
 import { RemoteNextUpControl } from './controls/RemoteNextUpControl';
 import { RemoteSoundControl } from './controls/RemoteSoundControl';
+import { RemoteWebcamControl } from './controls/RemoteWebcamControl';
 
 interface RemoteWidgetCardProps {
   widget: WidgetData;
@@ -124,6 +125,10 @@ const renderControls = (
       );
     case 'sound':
       return <RemoteSoundControl widget={widget} updateWidget={updateWidget} />;
+    case 'webcam':
+      return (
+        <RemoteWebcamControl widget={widget} updateWidget={updateWidget} />
+      );
     default:
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-white/40 p-8 text-center">

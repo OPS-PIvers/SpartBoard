@@ -324,6 +324,9 @@ export interface WebcamConfig {
   zoomLevel?: number;
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
+  isRemoteMode?: boolean;
+  remoteCaptureDataUrl?: string;
+  remoteCaptureTimestamp?: number;
 }
 
 export interface ScoreboardTeam {

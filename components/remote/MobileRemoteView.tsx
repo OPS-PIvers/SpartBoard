@@ -51,6 +51,7 @@ const REMOTE_SUPPORTED_TYPES: WidgetType[] = [
   'music',
   'nextUp',
   'sound',
+  'webcam',
 ];
 
 /** Widget types that are always skipped on the remote (truly non-interactive) */
