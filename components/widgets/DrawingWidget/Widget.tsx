@@ -13,8 +13,10 @@ import {
   Camera,
   Cast,
   CloudUpload,
+  Type,
 } from 'lucide-react';
 import { useScreenshot } from '@/hooks/useScreenshot';
+import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { Button } from '@/components/common/Button';
@@ -26,7 +28,7 @@ export const DrawingWidget: React.FC<{
   isStudentView?: boolean;
   scale?: number;
 }> = ({ widget, isStudentView = false, scale = 1 }) => {
-  const { updateWidget, activeDashboard, addToast } = useDashboard();
+  const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
   const { user } = useAuth();
   const { session, startSession, endSession } = useLiveSession(
     user?.uid,
@@ -63,6 +65,7 @@ export const DrawingWidget: React.FC<{
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const currentPathRef = useRef<Point[]>([]);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -260,6 +263,58 @@ export const DrawingWidget: React.FC<{
     });
   };
 
+  const handleSendToText = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    try {
+      setIsExtracting(true);
+      addToast('Scanning handwriting...', 'info');
+      const dataUrl = canvas.toDataURL('image/png');
+      const extractedText = await extractTextWithGemini(dataUrl);
+
+      if (!extractedText || !extractedText.trim()) {
+        addToast('No text could be extracted.', 'info');
+        return;
+      }
+
+      const existingTextWidget = activeDashboard?.widgets.find(
+        (w) => w.type === 'text'
+      );
+
+      if (existingTextWidget) {
+        const currentConfig = existingTextWidget.config as { content?: string };
+        const newContent = currentConfig.content
+          ? `${currentConfig.content}<br><br>${extractedText}`
+          : extractedText;
+
+        updateWidget(existingTextWidget.id, {
+          config: {
+            ...currentConfig,
+            content: newContent,
+          } as unknown as import('@/types').WidgetConfig,
+        });
+        addToast('Appended text to notes!', 'success');
+      } else {
+        addWidget('text', {
+          x: widget.x + widget.w + 20,
+          y: widget.y,
+          w: 400,
+          h: 300,
+          config: {
+            content: extractedText,
+          } as unknown as import('@/types').WidgetConfig,
+        });
+        addToast('Created new note with text!', 'success');
+      }
+    } catch (error) {
+      console.error('OCR Error:', error);
+      addToast('Failed to extract text.', 'error');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const PaletteUI = (
     <div className="flex flex-wrap items-center gap-2 p-2">
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
@@ -337,6 +392,20 @@ export const DrawingWidget: React.FC<{
             size="icon"
             title="Save to Cloud"
             icon={<CloudUpload className="w-4 h-4" />}
+          />
+          <Button
+            onClick={() => void handleSendToText()}
+            disabled={isCapturing || isExtracting}
+            variant="ghost"
+            size="icon"
+            title="Extract Text (AI)"
+            icon={
+              isExtracting ? (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Type className="w-4 h-4" />
+              )
+            }
           />
           <div className="h-6 w-px bg-slate-200 mx-1" />
         </>
