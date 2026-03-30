@@ -1728,14 +1728,25 @@ export const getAdminAnalytics = functionsV1
         .select('email', 'lastLogin', 'buildings')
         .stream();
 
-      const usersData: any[] = [];
+      interface UserDataResponse {
+        id: string;
+        email: string;
+        domain: string;
+        lastLogin?: number;
+        buildings: string[];
+      }
+
+      const usersData: UserDataResponse[] = [];
 
       for await (const chunk of usersStream) {
         const userDoc = chunk as unknown as admin.firestore.DocumentSnapshot;
         if (!userDoc.exists) continue;
         const userData = userDoc.data() as FirebaseFirestore.DocumentData;
-        const userEmail = typeof userData.email === 'string' ? userData.email : '';
-        const domain = userEmail.includes('@') ? userEmail.split('@')[1] : 'unknown';
+        const userEmail =
+          typeof userData.email === 'string' ? userData.email : '';
+        const domain = userEmail.includes('@')
+          ? userEmail.split('@')[1]
+          : 'unknown';
 
         let buildings: string[] = [];
         if (Array.isArray(userData.buildings)) {
@@ -1746,7 +1757,10 @@ export const getAdminAnalytics = functionsV1
           id: userDoc.id,
           email: userEmail,
           domain,
-          lastLogin: typeof userData.lastLogin === 'number' ? userData.lastLogin : undefined,
+          lastLogin:
+            typeof userData.lastLogin === 'number'
+              ? userData.lastLogin
+              : undefined,
           buildings,
         });
       }
@@ -1755,7 +1769,10 @@ export const getAdminAnalytics = functionsV1
         '[getAdminAnalytics] Fetching dashboards via collectionGroup...'
       );
       // 4. Fetch Dashboards for Widget Stats
-      const dashboardsCountSnap = await db.collectionGroup('dashboards').count().get();
+      const dashboardsCountSnap = await db
+        .collectionGroup('dashboards')
+        .count()
+        .get();
       const totalDashboards = dashboardsCountSnap.data().count;
       console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
 
@@ -1772,7 +1789,8 @@ export const getAdminAnalytics = functionsV1
         const dashDoc = chunk as unknown as admin.firestore.DocumentSnapshot;
         if (!dashDoc.exists) continue;
         const dashData = dashDoc.data() as DashboardData;
-        const updatedAt = typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
+        const updatedAt =
+          typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
         const isActive = updatedAt > activeThreshold;
 
         if (dashData.widgets && Array.isArray(dashData.widgets)) {
@@ -1780,7 +1798,8 @@ export const getAdminAnalytics = functionsV1
             if (w && w.type) {
               totalWidgetCounts[w.type] = (totalWidgetCounts[w.type] || 0) + 1;
               if (isActive) {
-                activeWidgetCounts[w.type] = (activeWidgetCounts[w.type] || 0) + 1;
+                activeWidgetCounts[w.type] =
+                  (activeWidgetCounts[w.type] || 0) + 1;
               }
             }
           });
@@ -1791,7 +1810,9 @@ export const getAdminAnalytics = functionsV1
       // 5. Fetch AI Usage
       const aiUsageCountSnap = await db.collection('ai_usage').count().get();
       const totalAiUsageRecords = aiUsageCountSnap.data().count;
-      console.log(`[getAdminAnalytics] Found ${totalAiUsageRecords} AI usage records`);
+      console.log(
+        `[getAdminAnalytics] Found ${totalAiUsageRecords} AI usage records`
+      );
 
       let totalAiCalls = 0;
       const callsPerUser: Record<string, number> = {};
@@ -1813,7 +1834,8 @@ export const getAdminAnalytics = functionsV1
 
         const datePart = idParts[idParts.length - 1];
         const secondToLast = idParts[idParts.length - 2];
-        const isSpecificFeature = GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
+        const isSpecificFeature =
+          GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
 
         // Exclude the feature ID and date to get the original UID
         const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
