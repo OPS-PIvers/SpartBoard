@@ -278,7 +278,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                         className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
                       >
                         <div
-                          className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}
+                          className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl text-white shadow-sm group-hover:scale-110 transition-transform`}
                         >
                           {Icon ? <Icon size={20} /> : w.icon}
                         </div>

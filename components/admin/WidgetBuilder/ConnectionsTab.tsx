@@ -303,8 +303,16 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                   onChange={(e) =>
                     setForm((p) => ({ ...p, actionPayload: e.target.value }))
                   }
-                  placeholder="Optional text value..."
-                  aria-label="Action payload value"
+                  placeholder={
+                    form.action === 'set-traffic'
+                      ? 'red | yellow | green'
+                      : form.action === 'set-image'
+                        ? 'https://example.com/image.png'
+                        : form.action === 'show-toast'
+                          ? 'Message to display'
+                          : 'Text value'
+                  }
+                  aria-label={`Action payload for ${form.action}`}
                   className={inputCls}
                 />
               </div>
