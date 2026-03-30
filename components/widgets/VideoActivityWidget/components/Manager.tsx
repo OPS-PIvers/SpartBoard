@@ -667,8 +667,8 @@ const ActionButton: React.FC<{
     onClick={onClick}
     className={`flex items-center font-bold rounded-lg transition-all active:scale-95 shadow-sm ${color}`}
     style={{
-      gap: 'min(4px, 1cqmin)',
-      padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+      gap: 'clamp(4px, 1cqmin, 6px)',
+      padding: 'clamp(6px, 1.5cqmin, 8px) clamp(10px, 2.5cqmin, 12px)',
       fontSize: 'clamp(10px, 3cqmin, 11px)',
     }}
   >

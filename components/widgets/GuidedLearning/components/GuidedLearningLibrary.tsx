@@ -145,7 +145,7 @@ const SetCard: React.FC<SetCardProps> = ({
         <span
           className={`shrink-0 font-black uppercase tracking-widest rounded-md ${MODE_COLORS[mode]}`}
           style={{
-            fontSize: 'clamp(8px, 2.2cqmin, 9px)',
+            fontSize: 'clamp(10px, 2.2cqmin, 11px)',
             padding: 'min(1px, 0.2cqmin) min(6px, 1.5cqmin)',
           }}
         >
