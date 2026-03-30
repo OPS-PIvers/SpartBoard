@@ -1680,8 +1680,8 @@ interface DashboardData {
  */
 export const getAdminAnalytics = functionsV1
   .runWith({
-    timeoutSeconds: 300,
-    memory: '1GB',
+    timeoutSeconds: 540,
+    memory: '4GB',
   })
   .https.onCall(async (data, context) => {
     console.log('[getAdminAnalytics] Function started');
