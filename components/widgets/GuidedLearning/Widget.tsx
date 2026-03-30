@@ -49,7 +49,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     useState<GuidedLearningSetMetadata | null>(null);
   const [saving, setSaving] = useState(false);
   const [showAIGen, setShowAIGen] = useState(false);
-  const [resultsSessionId, setResultsSessionId] = useState<string | null>(null);
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
   >({});
@@ -191,8 +190,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       const loaded = await loadSet(setId, meta?.driveFileId, buildingSet);
       if (loaded) setActiveSet(loaded);
     }
-    setResultsSessionId(sessionId);
-    setView('results');
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'results',
+        resultsSessionId: sessionId,
+      } as GuidedLearningConfig,
+    });
   };
 
   const handleCreateNew = () => {
@@ -278,13 +282,23 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             />
           )}
 
-          {config.view === 'results' && resultsSessionId && activeSet && (
-            <GuidedLearningResults
-              set={activeSet}
-              sessionId={resultsSessionId}
-              onClose={() => setView('library')}
-            />
-          )}
+          {config.view === 'results' &&
+            config.resultsSessionId &&
+            activeSet && (
+              <GuidedLearningResults
+                set={activeSet}
+                sessionId={config.resultsSessionId}
+                onClose={() =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      view: 'library',
+                      resultsSessionId: null,
+                    } as GuidedLearningConfig,
+                  })
+                }
+              />
+            )}
 
           {showAIGen && (
             <GuidedLearningAIGenerator

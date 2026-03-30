@@ -308,15 +308,17 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   };
 
   const handleMaximizeToggle = useCallback(() => {
+    if (isLocked) return;
     const newMaximized = !isMaximized;
     updateWidget(widget.id, { maximized: newMaximized, flipped: false });
     if (newMaximized) {
       bringToFront(widget.id);
     }
-  }, [isMaximized, widget.id, updateWidget, bringToFront]);
+  }, [isLocked, isMaximized, widget.id, updateWidget, bringToFront]);
 
   const handleSnapToZone = useCallback(
     (zone: SnapZone) => {
+      if (isLocked) return;
       const { x, y, w, h } = calculateSnapBounds(zone);
 
       updateWidget(widget.id, {
@@ -331,7 +333,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       setShowSnapMenu(false);
       handleCloseTools();
     },
-    [widget.id, updateWidget, handleCloseTools]
+    [isLocked, widget.id, updateWidget, handleCloseTools]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

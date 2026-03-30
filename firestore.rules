@@ -345,16 +345,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // AI Usage Tracking — users can increment their own daily count
+    // AI Usage Tracking — read-only for users; all writes go through Cloud Functions (Admin SDK)
+    // The Cloud Function uses db.runTransaction() via the Admin SDK, which bypasses these rules.
+    // Client-side write access is intentionally removed to prevent users from resetting their
+    // daily quota by writing a document with count = 0 via the Firestore client SDK.
     match /ai_usage/{usageId} {
       // Document ID is formatted as {uid}_{YYYY-MM-DD}
       // Security rule replacement for startsWith: usageId >= prefix && usageId < prefix + '\uf8ff'
       allow read: if request.auth != null && (
-        (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff') || 
+        (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff') ||
         isAdmin()
       );
-      allow write: if request.auth != null && 
-        (usageId >= request.auth.uid + '_' && usageId < request.auth.uid + '_' + '\uf8ff');
+      // No client write — quota increments are performed server-side via Admin SDK only.
     }
 
     // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
