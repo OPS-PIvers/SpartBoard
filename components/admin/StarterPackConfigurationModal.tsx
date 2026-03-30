@@ -834,7 +834,7 @@ export const StarterPackConfigurationModal: React.FC<
                     </button>
 
                     {showIconPicker && (
-                      <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 w-full sm:w-[320px]">
+                      <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-2xl shadow-xl border border-slate-200 z-popover w-full sm:w-[320px]">
                         <div className="grid grid-cols-6 gap-2 max-h-[240px] overflow-y-auto p-1 custom-scrollbar">
                           {ICON_OPTIONS.map((name) => {
                             const IconComp = (

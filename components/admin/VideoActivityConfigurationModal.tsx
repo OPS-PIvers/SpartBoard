@@ -184,7 +184,7 @@ export const VideoActivityConfigurationModal: React.FC<
         </div>
 
         {message && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-toast">
             <Toast
               message={message.text}
               type={message.type}

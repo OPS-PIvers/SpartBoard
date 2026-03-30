@@ -82,7 +82,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col p-4">
+    <div className="absolute inset-0 z-widget-internal-overlay bg-slate-900/95 backdrop-blur-sm flex flex-col p-4">
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onClose} className="text-slate-400 hover:text-white">
           <X className="w-4 h-4" />

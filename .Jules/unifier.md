@@ -186,3 +186,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Codebase was using hardcoded hex codes for primary brand colors (e.g., `#2d3f89`) in inline styles and string literals, bypassing the defined Tailwind design system config. Additionally, there were numerous arbitrary text utility classes (`text-[9px]`, `text-[11px]`) instead of standardized micro-typography (`text-xxxs`, `text-xs`).
 **Fix:** Replaced hardcoded `#2d3f89` with `bg-brand-blue-primary` and `border-brand-blue-primary` classes. Standardized all instances of `text-[9px]` to `text-xxxs` and `text-[11px]` to `text-xs`.
+
+## 2026-03-30 - Typography & Z-Index Standardization
+
+**Drift:** Identified hardcoded font sizes (`text-[11px]`) and generic z-indices (`z-50`) across components (`Calendar/Settings.tsx`, `GuidedLearningAIGenerator.tsx`, `VideoActivityConfigurationModal.tsx`, `StarterPackConfigurationModal.tsx`) bypassing the design system's tokens.
+**Fix:** Refactored instances to use the closest standard Tailwind utility class (`text-xxs`) and specific z-index tokens (`z-widget-internal-overlay`, `z-toast`, `z-popover`) to enforce consistency.

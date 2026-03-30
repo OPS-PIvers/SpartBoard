@@ -177,7 +177,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         {showInstructions && (
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-[11px] text-blue-800 space-y-2 animate-in slide-in-from-top-2">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xxs text-blue-800 space-y-2 animate-in slide-in-from-top-2">
             <p className="font-bold">How to find your Calendar ID:</p>
             <ol className="list-decimal list-inside space-y-1 opacity-90">
               <li>Open Google Calendar on your computer.</li>
