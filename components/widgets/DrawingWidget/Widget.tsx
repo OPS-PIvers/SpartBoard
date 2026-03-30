@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DrawingConfig, Point, Path } from '@/types';
+import { WidgetData, DrawingConfig, Point, Path, TextConfig } from '@/types';
 import {
   Pencil,
   Eraser,
@@ -283,7 +283,7 @@ export const DrawingWidget: React.FC<{
       );
 
       if (existingTextWidget) {
-        const currentConfig = existingTextWidget.config as { content?: string };
+        const currentConfig = existingTextWidget.config as TextConfig;
         const newContent = currentConfig.content
           ? `${currentConfig.content}<br><br>${extractedText}`
           : extractedText;
@@ -292,7 +292,7 @@ export const DrawingWidget: React.FC<{
           config: {
             ...currentConfig,
             content: newContent,
-          } as unknown as import('@/types').WidgetConfig,
+          },
         });
         addToast('Appended text to notes!', 'success');
       } else {
@@ -303,7 +303,7 @@ export const DrawingWidget: React.FC<{
           h: 300,
           config: {
             content: extractedText,
-          } as unknown as import('@/types').WidgetConfig,
+          } as TextConfig,
         });
         addToast('Created new note with text!', 'success');
       }
