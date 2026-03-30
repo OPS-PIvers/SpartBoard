@@ -1716,8 +1716,11 @@ export const getAdminAnalytics = functionsV1
       console.log('[getAdminAnalytics] Fetching users...');
 
       // 3. Fetch Users
-      // NOTE: We fetch the full collection to provide the list in the UI.
-      const usersSnap = await db.collection('users').get();
+      // Using .select() limits the memory footprint by only retrieving necessary fields
+      const usersSnap = await db
+        .collection('users')
+        .select('email', 'lastLogin', 'buildings')
+        .get();
       console.log(`[getAdminAnalytics] Found ${usersSnap.size} user documents`);
 
       const usersData = usersSnap.docs.map((userDoc) => {
@@ -1751,13 +1754,13 @@ export const getAdminAnalytics = functionsV1
         '[getAdminAnalytics] Fetching dashboards via collectionGroup...'
       );
       // 4. Fetch Dashboards for Widget Stats
-      // Use collectionGroup on backend safely bypassing the user-only read rules
       const totalWidgetCounts: Record<string, number> = {};
       const activeWidgetCounts: Record<string, number> = {};
 
-      // TODO: In the future, use count() for the total count, but we still need
-      // the docs here to calculate widget-specific statistics.
-      const dashboardsSnap = await db.collectionGroup('dashboards').get();
+      const dashboardsSnap = await db
+        .collectionGroup('dashboards')
+        .select('widgets', 'updatedAt')
+        .get();
       console.log(
         `[getAdminAnalytics] Found ${dashboardsSnap.size} dashboards`
       );
@@ -1789,7 +1792,7 @@ export const getAdminAnalytics = functionsV1
       const callsPerUser: Record<string, number> = {};
       const dailyCallCounts: Record<string, number> = {};
 
-      const aiUsageSnap = await db.collection('ai_usage').get();
+      const aiUsageSnap = await db.collection('ai_usage').select('count').get();
       console.log(
         `[getAdminAnalytics] Found ${aiUsageSnap.size} AI usage records`
       );
