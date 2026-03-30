@@ -185,7 +185,7 @@ VITE_GOOGLE_CLIENT_ID=...
 
 ## AI Model Requirements
 
-- **Primary Model:** `gemini-3-flash-preview`
+- **Primary Model:** `gemini-3-flash-preview` and `gemini-3.1-flash-lite-preview`
 - **Status:** This model is **REQUIRED** for all AI generation tasks (mini-apps, polls, etc.). Older models (e.g., gemini-1.5-flash) are considered deprecated for this project and should not be used.
 
 ## Usage Limits
