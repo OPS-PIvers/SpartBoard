@@ -52,6 +52,19 @@ function initialCells(columns: number, rows: number): CustomGridCell[] {
   return cells;
 }
 
+function renderSelectedMetaIcon(iconKey: string): React.ReactNode {
+  const Icon = getCustomWidgetIcon(iconKey);
+  if (Icon) return <Icon size={28} className="text-blue-300" />;
+  if (iconKey.trim().length === 0) {
+    return <Puzzle size={28} className="text-blue-300" />;
+  }
+  return (
+    <span aria-hidden="true" className="text-2xl leading-none">
+      {iconKey}
+    </span>
+  );
+}
+
 const INITIAL_META: WidgetMeta = {
   title: '',
   slug: '',
@@ -301,7 +314,6 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
 
   const selectedCell =
     state.gridDefinition.cells.find((c) => c.id === selectedCellId) ?? null;
-  const SelectedWidgetIcon = getCustomWidgetIcon(state.meta.icon) ?? Puzzle;
 
   if (!isOpen) return null;
 
@@ -564,7 +576,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                 {/* Summary header */}
                 <div className="flex items-center gap-4 bg-slate-800 rounded-xl border border-slate-700 px-5 py-4">
                   <span className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center">
-                    <SelectedWidgetIcon size={28} className="text-blue-300" />
+                    {renderSelectedMetaIcon(state.meta.icon)}
                   </span>
                   <div>
                     <h3 className="text-lg font-bold text-white">

@@ -24,8 +24,16 @@ function renderWidgetIcon(
   className: string,
   size: number
 ): React.ReactNode {
-  const Icon = getCustomWidgetIcon(iconKey) ?? Puzzle;
-  return React.createElement(Icon, { size, className });
+  const Icon = getCustomWidgetIcon(iconKey);
+  if (Icon) return React.createElement(Icon, { size, className });
+  if (iconKey.trim().length === 0) {
+    return React.createElement(Puzzle, { size, className });
+  }
+  return (
+    <span className={className} style={{ fontSize: size }} aria-hidden="true">
+      {iconKey}
+    </span>
+  );
 }
 
 export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({

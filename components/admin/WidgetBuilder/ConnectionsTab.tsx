@@ -289,29 +289,53 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
             </div>
 
             {PAYLOAD_ACTIONS.includes(form.action) && (
-              <input
-                type="text"
-                value={form.actionPayload}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, actionPayload: e.target.value }))
-                }
-                placeholder="Optional text value..."
-                className={inputCls}
-              />
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">
+                  {form.action === 'set-traffic'
+                    ? 'Traffic color'
+                    : form.action === 'show-toast'
+                      ? 'Toast message'
+                      : 'Text value'}
+                </label>
+                <input
+                  type="text"
+                  value={form.actionPayload}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, actionPayload: e.target.value }))
+                  }
+                  placeholder="Optional text value..."
+                  aria-label="Action payload value"
+                  className={inputCls}
+                />
+              </div>
             )}
 
             {VALUE_ACTIONS.includes(form.action) && (
-              <input
-                type="number"
-                value={form.actionValue}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    actionValue: Number(e.target.value),
-                  }))
-                }
-                className={inputCls}
-              />
+              <div className="space-y-1">
+                <label
+                  htmlFor="action-value-input"
+                  className="block text-xs text-slate-400"
+                >
+                  {form.action === 'increment' || form.action === 'decrement'
+                    ? 'Step value'
+                    : form.action === 'check-item'
+                      ? 'Item index'
+                      : 'Numeric value'}
+                </label>
+                <input
+                  id="action-value-input"
+                  type="number"
+                  value={form.actionValue}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      actionValue: Number(e.target.value),
+                    }))
+                  }
+                  aria-label={`Action value for ${form.action}`}
+                  className={inputCls}
+                />
+              </div>
             )}
 
             <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
@@ -421,7 +445,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                   <b>{conn.action}</b>
                 </span>
               </div>
-              {(conn.actionPayload ?? conn.actionValue !== undefined) && (
+              {(conn.actionPayload != null || conn.actionValue != null) && (
                 <p className="text-xs text-slate-500 mt-0.5">
                   Details: {conn.actionPayload ?? conn.actionValue}
                 </p>

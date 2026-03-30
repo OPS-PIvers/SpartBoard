@@ -40,8 +40,9 @@ interface CodeEditorPaneProps {
 
 function constrainPreviewContent(content: string): string {
   const guardStyle = `\n<style>html,body{width:100%;height:100%;overflow:hidden;}body{max-width:100vw;max-height:100vh;}</style>\n`;
-  if (content.includes('</head>')) {
-    return content.replace('</head>', `${guardStyle}</head>`);
+  const closingHeadTagRegex = /<\/head\s*>/i;
+  if (closingHeadTagRegex.test(content)) {
+    return content.replace(closingHeadTagRegex, `${guardStyle}$&`);
   }
   return `${guardStyle}${content}`;
 }
