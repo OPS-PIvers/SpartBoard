@@ -7,8 +7,12 @@ interface DashboardData {
   widgets?: { type: string }[];
 }
 
-export const getAdminAnalytics = functionsV1.https.onCall(
-  async (data, context) => {
+// TODO: This function is memory-intensive due to unbounded reads on large collections (users, dashboards, ai_usage).
+// It has been allocated more memory (1GB) and a longer timeout (300s) as a temporary fix for OOM errors.
+// To ensure long-term scalability, this function should be refactored to use paginated queries or Firestore aggregation queries (e.g., `count()`) instead of fetching entire collections into memory.
+export const getAdminAnalytics = functionsV1
+  .runWith({ timeoutSeconds: 300, memory: '1GB' })
+  .https.onCall(async (data, context) => {
     // 1. Verify caller is authenticated
     if (!context.auth || !context.auth.token.email) {
       throw new functionsV1.https.HttpsError(
@@ -146,5 +150,4 @@ export const getAdminAnalytics = functionsV1.https.onCall(
           : 'An internal error occurred fetching analytics.';
       throw new functionsV1.https.HttpsError('internal', errorMessage);
     }
-  }
-);
+  });
