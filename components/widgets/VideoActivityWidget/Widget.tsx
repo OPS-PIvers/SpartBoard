@@ -9,6 +9,7 @@ import {
   VideoActivityConfig,
   VideoActivityMetadata,
   VideoActivityData,
+  VideoActivitySessionSettings,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -157,6 +158,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   // ─── Views ─────────────────────────────────────────────────────────────────
 
   const view = config.view ?? 'manager';
+  const defaultSessionSettings: VideoActivitySessionSettings = {
+    autoPlay: config.autoPlay ?? false,
+    requireCorrectAnswer: config.requireCorrectAnswer ?? true,
+    allowSkipping: config.allowSkipping ?? false,
+  };
 
   if (view === 'create') {
     return (
@@ -239,12 +245,18 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
         }
       }}
-      onAssign={async (meta) => {
+      defaultSessionSettings={defaultSessionSettings}
+      onAssign={async (meta, sessionSettings) => {
         // Use loadActivityData directly to avoid setting loadingActivity
         // which would cause the Manager component to unmount and destroy the modal
         const data = await loadActivityData(meta.driveFileId);
         if (!data) throw new Error('Failed to load activity data');
-        const sessionId = await createSession(data, user.uid, []);
+        const sessionId = await createSession(
+          data,
+          user.uid,
+          [],
+          sessionSettings
+        );
         updateWidget(widget.id, {
           config: {
             ...config,

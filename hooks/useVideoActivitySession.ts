@@ -27,6 +27,7 @@ import {
   VideoActivityResponse,
   VideoActivityData,
   VideoActivityAnswer,
+  VideoActivitySessionSettings,
 } from '@/types';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -41,7 +42,8 @@ export interface UseVideoActivitySessionTeacherResult {
   createSession: (
     activity: VideoActivityData,
     teacherUid: string,
-    allowedPins?: string[]
+    allowedPins?: string[],
+    settings?: Partial<VideoActivitySessionSettings>
   ) => Promise<string>;
   /** Real-time responses for a specific session. */
   responses: VideoActivityResponse[];
@@ -62,9 +64,15 @@ export const useVideoActivitySessionTeacher =
       async (
         activity: VideoActivityData,
         teacherUid: string,
-        allowedPins: string[] = []
+        allowedPins: string[] = [],
+        settings?: Partial<VideoActivitySessionSettings>
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
+        const sessionSettings: VideoActivitySessionSettings = {
+          autoPlay: settings?.autoPlay ?? false,
+          requireCorrectAnswer: settings?.requireCorrectAnswer ?? true,
+          allowSkipping: settings?.allowSkipping ?? false,
+        };
 
         const session: VideoActivitySession = {
           id: sessionId,
@@ -73,6 +81,7 @@ export const useVideoActivitySessionTeacher =
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
           questions: activity.questions,
+          settings: sessionSettings,
           allowedPins,
           createdAt: Date.now(),
         };

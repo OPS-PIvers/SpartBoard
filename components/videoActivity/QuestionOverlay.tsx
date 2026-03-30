@@ -1,7 +1,5 @@
 /**
- * QuestionOverlay — shown when a video question is triggered.
- * The video is paused behind this overlay; the student must answer
- * before playback resumes.
+ * QuestionOverlay — active question card shown below the video player.
  */
 
 import React, { useState } from 'react';
@@ -10,11 +8,12 @@ import { VideoActivityQuestion } from '@/types';
 
 interface QuestionOverlayProps {
   question: VideoActivityQuestion;
-  /** Called with the selected answer text when the student submits. */
-  onAnswer: (answer: string) => void;
+  /** Called with selected answer + correctness once feedback is shown. */
+  onAnswer: (answer: string, isCorrect: boolean) => void;
   /** 1-based index for display */
   questionIndex: number;
   totalQuestions: number;
+  requireCorrectAnswer: boolean;
 }
 
 export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
@@ -22,6 +21,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   onAnswer,
   questionIndex,
   totalQuestions,
+  requireCorrectAnswer,
 }) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -49,8 +49,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const handleSubmit = () => {
     if (!selected || submitted) return;
     setSubmitted(true);
+    const isCorrect = selected === question.correctAnswer;
     // Brief delay so student sees feedback before overlay closes
-    setTimeout(() => onAnswer(selected), 1200);
+    setTimeout(() => onAnswer(selected, isCorrect), isCorrect ? 800 : 1200);
   };
 
   const formatTimestamp = (seconds: number) => {
@@ -60,8 +61,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-10 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in zoom-in-95 duration-200">
+    <div className="w-full bg-white border-t border-slate-200 p-4 md:p-5">
+      <div className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="bg-brand-blue-primary rounded-t-2xl px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
@@ -154,7 +155,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             >
               {selected === question.correctAnswer
                 ? '✓ Correct! Resuming video…'
-                : '✗ Incorrect. Resuming video…'}
+                : requireCorrectAnswer
+                  ? '✗ Incorrect. Rewinding section…'
+                  : '✗ Incorrect. Resuming video…'}
             </div>
           </div>
         )}

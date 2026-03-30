@@ -741,7 +741,7 @@ interface GeneratedVideoActivity {
  */
 export const generateVideoActivity = functionsV1
   .runWith({
-    secrets: ['GEMINI_API_KEY', 'YOUTUBE_API_KEY'],
+    secrets: ['GEMINI_API_KEY'],
     memory: '512MB',
     timeoutSeconds: 120,
   })
@@ -781,83 +781,54 @@ export const generateVideoActivity = functionsV1
         );
       }
 
-      // Fetch transcript via YouTube Data API v3 (caption track discovery)
-      // then timedtext endpoint (caption content) — both are official/free.
-      const ytApiKey = process.env.YOUTUBE_API_KEY;
-      if (!ytApiKey) {
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'YouTube API key is not configured on the server. Please contact your administrator.'
-        );
-      }
-
       let transcriptItems: TranscriptResponse[] = [];
       try {
-        // Step 1: List available caption tracks for this video
-        const captionListResp = await axios.get<{
-          items?: Array<{
-            id: string;
-            snippet: { language: string; trackKind: string };
-          }>;
-        }>('https://www.googleapis.com/youtube/v3/captions', {
-          params: { videoId, part: 'snippet', key: ytApiKey },
-          timeout: 10000,
-        });
+        // Fetch captions directly from timedtext (no Data API key dependency).
+        // Try common language/kind combinations in preference order.
+        const captionCandidates: Array<{ lang: string; kind?: 'asr' }> = [
+          { lang: 'en' },
+          { lang: 'en', kind: 'asr' },
+          { lang: 'en-US' },
+          { lang: 'en-US', kind: 'asr' },
+          { lang: 'en-GB' },
+          { lang: 'en-GB', kind: 'asr' },
+        ];
 
-        const tracks = captionListResp.data.items ?? [];
-        if (tracks.length === 0) {
-          throw new functionsV1.https.HttpsError(
-            'not-found',
-            'No captions are available for this video. Try a different video, or ask your admin to enable Gemini audio transcription.'
-          );
+        for (const candidate of captionCandidates) {
+          const timedtextResp = await axios.get<{
+            events?: Array<{
+              tStartMs?: number;
+              dDurationMs?: number;
+              segs?: Array<{ utf8?: string }>;
+            }>;
+          }>('https://www.youtube.com/api/timedtext', {
+            params: {
+              v: videoId,
+              lang: candidate.lang,
+              fmt: 'json3',
+              ...(candidate.kind ? { kind: candidate.kind } : {}),
+            },
+            timeout: 10000,
+          });
+
+          const events = timedtextResp.data.events ?? [];
+          const parsed = events
+            .filter((e) => e.segs && e.segs.length > 0)
+            .map((e) => ({
+              text: (e.segs ?? [])
+                .map((s) => s.utf8 ?? '')
+                .join('')
+                .trim(),
+              offset: e.tStartMs ?? 0,
+              duration: e.dDurationMs ?? 0,
+            }))
+            .filter((item) => item.text.length > 0 && item.text !== '\n');
+
+          if (parsed.length > 0) {
+            transcriptItems = parsed;
+            break;
+          }
         }
-
-        // Prefer manual English → auto-generated English → any manual → any track
-        const track =
-          tracks.find(
-            (t) =>
-              t.snippet.language === 'en' && t.snippet.trackKind === 'standard'
-          ) ??
-          tracks.find(
-            (t) => t.snippet.language === 'en' && t.snippet.trackKind === 'asr'
-          ) ??
-          tracks.find((t) => t.snippet.trackKind === 'standard') ??
-          tracks.find((t) => t.snippet.trackKind === 'asr') ??
-          tracks[0];
-
-        const lang = track.snippet.language;
-        const isAsr = track.snippet.trackKind === 'asr';
-
-        // Step 2: Fetch caption content via YouTube's timedtext endpoint
-        // (the same endpoint YouTube's own player uses to render captions)
-        const timedtextResp = await axios.get<{
-          events?: Array<{
-            tStartMs?: number;
-            dDurationMs?: number;
-            segs?: Array<{ utf8?: string }>;
-          }>;
-        }>('https://www.youtube.com/api/timedtext', {
-          params: {
-            v: videoId,
-            lang,
-            fmt: 'json3',
-            ...(isAsr ? { kind: 'asr' } : {}),
-          },
-          timeout: 10000,
-        });
-
-        const events = timedtextResp.data.events ?? [];
-        transcriptItems = events
-          .filter((e) => e.segs && e.segs.length > 0)
-          .map((e) => ({
-            text: (e.segs ?? [])
-              .map((s) => s.utf8 ?? '')
-              .join('')
-              .trim(),
-            offset: e.tStartMs ?? 0,
-            duration: e.dDurationMs ?? 0,
-          }))
-          .filter((item) => item.text.length > 0 && item.text !== '\n');
       } catch (err: unknown) {
         if (err instanceof functionsV1.https.HttpsError) throw err;
         const msg = err instanceof Error ? err.message : String(err);
@@ -905,6 +876,7 @@ Generate exactly ${count} multiple-choice questions that check understanding of 
 CRITICAL RULES:
 1. Each question's "timestamp" field MUST be the exact second (as an integer) when the answer appears in the transcript.
    Convert "[MM:SS]" to total seconds: e.g. "[02:15]" → 135.
+1b. The question should be asked AFTER students have heard the explanation, so choose a timestamp near the END of the relevant explanation chunk (not the beginning).
 2. Questions must be in ascending timestamp order.
 3. Each question must have exactly 3 plausible but clearly incorrect answers.
 4. Only use "MC" (Multiple Choice) type.
@@ -1150,6 +1122,7 @@ Watch the provided YouTube video and generate exactly ${count} multiple-choice q
 
 CRITICAL RULES:
 1. Each question's "timestamp" field MUST be an integer (seconds from start) when the answer is discussed.
+1b. Place each question timestamp near the END of the explanation segment so students hear the content before being prompted.
 2. Questions must be in ascending timestamp order.
 3. Each question must have exactly 3 plausible but incorrect answers.
 4. Only use "MC" type.

@@ -18,8 +18,9 @@ import {
   X,
   Search,
 } from 'lucide-react';
-import { VideoActivityMetadata } from '@/types';
-import ScaledEmptyState from '@/components/common/ScaledEmptyState';
+import { VideoActivityMetadata, VideoActivitySessionSettings } from '@/types';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { Toggle } from '@/components/common/Toggle';
 
 interface ManagerProps {
   activities: VideoActivityMetadata[];
@@ -28,25 +29,34 @@ interface ManagerProps {
   onNew: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
   onResults: (activity: VideoActivityMetadata) => void;
-  onAssign: (activity: VideoActivityMetadata) => Promise<string>;
+  onAssign: (
+    activity: VideoActivityMetadata,
+    settings: VideoActivitySessionSettings
+  ) => Promise<string>;
   onDelete: (activity: VideoActivityMetadata) => void;
+  defaultSessionSettings: VideoActivitySessionSettings;
 }
 
 interface AssignModalProps {
   activity: VideoActivityMetadata;
+  initialSettings: VideoActivitySessionSettings;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (settings: VideoActivitySessionSettings) => void;
   isCreating: boolean;
   error: string | null;
 }
 
 const AssignModal: React.FC<AssignModalProps> = ({
   activity,
+  initialSettings,
   onClose,
   onConfirm,
   isCreating,
   error,
 }) => {
+  const [settings, setSettings] =
+    useState<VideoActivitySessionSettings>(initialSettings);
+
   return (
     <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -77,9 +87,72 @@ const AssignModal: React.FC<AssignModalProps> = ({
           </div>
 
           <p className="text-slate-600 text-sm text-center">
-            Click &quot;Create Link&quot; to generate a shareable session.
-            Students open the link and enter their roster PIN to join.
+            Configure this session, then create a shareable student link.
           </p>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-700">Auto-Play</p>
+                <p className="text-xs text-slate-500">
+                  Start video automatically after join
+                </p>
+              </div>
+              <Toggle
+                checked={settings.autoPlay}
+                onChange={(checked) =>
+                  setSettings((prev) => ({ ...prev, autoPlay: checked }))
+                }
+                size="sm"
+                showLabels={false}
+              />
+            </div>
+
+            <div className="w-full h-px bg-slate-200" />
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-700">
+                  Require Correct Answers
+                </p>
+                <p className="text-xs text-slate-500">
+                  Incorrect answers rewind to section start
+                </p>
+              </div>
+              <Toggle
+                checked={settings.requireCorrectAnswer}
+                onChange={(checked) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    requireCorrectAnswer: checked,
+                  }))
+                }
+                size="sm"
+                showLabels={false}
+              />
+            </div>
+
+            <div className="w-full h-px bg-slate-200" />
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-slate-700">
+                  Allow Skipping
+                </p>
+                <p className="text-xs text-slate-500">
+                  Let students scrub ahead
+                </p>
+              </div>
+              <Toggle
+                checked={settings.allowSkipping}
+                onChange={(checked) =>
+                  setSettings((prev) => ({ ...prev, allowSkipping: checked }))
+                }
+                size="sm"
+                showLabels={false}
+              />
+            </div>
+          </div>
 
           {error && (
             <p className="text-sm text-brand-red-primary text-center font-medium">
@@ -88,7 +161,7 @@ const AssignModal: React.FC<AssignModalProps> = ({
           )}
           <div className="grid gap-3">
             <button
-              onClick={onConfirm}
+              onClick={() => onConfirm(settings)}
               disabled={isCreating}
               className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
             >
@@ -194,6 +267,7 @@ export const Manager: React.FC<ManagerProps> = ({
   onResults,
   onAssign,
   onDelete,
+  defaultSessionSettings,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] =
@@ -209,12 +283,14 @@ export const Manager: React.FC<ManagerProps> = ({
     return activities.filter((a) => a.title.toLowerCase().includes(low));
   }, [activities, searchQuery]);
 
-  const handleAssignConfirm = async () => {
+  const handleAssignConfirm = async (
+    settings: VideoActivitySessionSettings
+  ) => {
     if (!assignTarget) return;
     setIsCreating(true);
     setAssignError(null);
     try {
-      const sessionId = await onAssign(assignTarget);
+      const sessionId = await onAssign(assignTarget, settings);
       setAssignTarget(null);
       setCreatedSessionId(sessionId);
     } catch (err) {
@@ -249,6 +325,7 @@ export const Manager: React.FC<ManagerProps> = ({
       {assignTarget && (
         <AssignModal
           activity={assignTarget}
+          initialSettings={defaultSessionSettings}
           onClose={() => {
             if (!isCreating) {
               setAssignTarget(null);
@@ -391,8 +468,19 @@ export const Manager: React.FC<ManagerProps> = ({
               icon={PlayCircle}
               title="No Activities"
               subtitle="Create your first interactive video activity to get started."
-              actionLabel="Create Activity"
-              onAction={onNew}
+              action={
+                <button
+                  onClick={onNew}
+                  className="bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-colors"
+                  style={{
+                    padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+                    fontSize: 'min(12px, 3.5cqmin)',
+                    marginTop: 'min(12px, 3cqmin)',
+                  }}
+                >
+                  Create Activity
+                </button>
+              }
             />
           </div>
         ) : filteredActivities.length === 0 ? (

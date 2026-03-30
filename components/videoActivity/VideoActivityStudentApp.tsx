@@ -69,6 +69,10 @@ const JoinAndPlay: React.FC = () => {
   const [activeQuestion, setActiveQuestion] =
     useState<VideoActivityQuestion | null>(null);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [seekRequest, setSeekRequest] = useState<{
+    time: number;
+    nonce: number;
+  } | null>(null);
 
   const {
     session,
@@ -102,25 +106,42 @@ const JoinAndPlay: React.FC = () => {
     []
   );
 
+  const sortedQuestions = React.useMemo(
+    () =>
+      [...(session?.questions ?? [])].sort((a, b) => a.timestamp - b.timestamp),
+    [session?.questions]
+  );
+
   const handleAnswer = useCallback(
-    async (answer: string) => {
+    async (answer: string, isCorrect: boolean) => {
       if (!activeQuestion) return;
+      const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
+      if (requireCorrect && !isCorrect) {
+        const activeIdx = sortedQuestions.findIndex(
+          (q) => q.id === activeQuestion.id
+        );
+        const rewindTo =
+          activeIdx > 0 ? (sortedQuestions[activeIdx - 1]?.timestamp ?? 0) : 0;
+        setSeekRequest({ time: rewindTo, nonce: Date.now() });
+        setActiveQuestion(null);
+        return;
+      }
+
       await submitAnswer(activeQuestion.id, answer);
       setActiveQuestion(null);
     },
-    [activeQuestion, submitAnswer]
+    [
+      activeQuestion,
+      session?.settings?.requireCorrectAnswer,
+      sortedQuestions,
+      submitAnswer,
+    ]
   );
 
   const handleVideoEnd = useCallback(async () => {
     setVideoEnded(true);
     await completeActivity();
   }, [completeActivity]);
-
-  const sortedQuestions = React.useMemo(
-    () =>
-      [...(session?.questions ?? [])].sort((a, b) => a.timestamp - b.timestamp),
-    [session?.questions]
-  );
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 
@@ -290,7 +311,7 @@ const JoinAndPlay: React.FC = () => {
   const totalQuestions = sortedQuestions.length;
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top bar */}
       <div className="bg-slate-900 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -305,17 +326,26 @@ const JoinAndPlay: React.FC = () => {
       </div>
 
       {/* Video area */}
-      <div className="flex-1 relative" style={{ minHeight: 0 }}>
-        <VideoPlayer
-          youtubeUrl={session?.youtubeUrl ?? ''}
-          questions={sortedQuestions}
-          answeredQuestionIds={answeredQuestionIds}
-          onQuestionTrigger={handleQuestionTrigger}
-          onVideoEnd={handleVideoEnd}
-          questionVisible={activeQuestion !== null}
-        />
+      <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
+        <div className="px-4 md:px-6 pt-4 md:pt-6">
+          <div className="w-full max-w-5xl mx-auto rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
+            <div className="aspect-video w-full">
+              <VideoPlayer
+                youtubeUrl={session?.youtubeUrl ?? ''}
+                questions={sortedQuestions}
+                answeredQuestionIds={answeredQuestionIds}
+                onQuestionTrigger={handleQuestionTrigger}
+                onVideoEnd={handleVideoEnd}
+                questionVisible={activeQuestion !== null}
+                allowSkipping={session?.settings?.allowSkipping ?? false}
+                autoPlay={session?.settings?.autoPlay ?? false}
+                seekRequest={seekRequest}
+              />
+            </div>
+          </div>
+        </div>
 
-        {activeQuestion && (
+        {activeQuestion ? (
           <QuestionOverlay
             question={activeQuestion}
             onAnswer={handleAnswer}
@@ -323,7 +353,18 @@ const JoinAndPlay: React.FC = () => {
               sortedQuestions.findIndex((q) => q.id === activeQuestion.id) + 1
             }
             totalQuestions={totalQuestions}
+            requireCorrectAnswer={
+              session?.settings?.requireCorrectAnswer ?? true
+            }
           />
+        ) : (
+          <div className="w-full px-4 md:px-6 pb-4 md:pb-6 pt-3">
+            <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300">
+              {totalQuestions > 0
+                ? 'Watch the video. Questions will appear below as you reach each section.'
+                : 'Watch the video to complete this activity.'}
+            </div>
+          </div>
         )}
       </div>
     </div>

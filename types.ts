@@ -1269,6 +1269,12 @@ export interface VideoActivityConfig {
   allowSkipping?: boolean;
 }
 
+export interface VideoActivitySessionSettings {
+  autoPlay: boolean;
+  requireCorrectAnswer: boolean;
+  allowSkipping: boolean;
+}
+
 export interface GlobalVideoActivity extends VideoActivityMetadata {
   /** Building IDs this activity is assigned to; empty array = all buildings */
   buildings?: string[];
@@ -1290,6 +1296,8 @@ export interface VideoActivitySession {
   youtubeUrl: string;
   /** Full questions including correctAnswer — used server-side for grading. */
   questions: VideoActivityQuestion[];
+  /** Session-level behavior controls configured at assignment time. */
+  settings: VideoActivitySessionSettings;
   /**
    * Roster PINs allowed to join. Teacher sets this when assigning to a class.
    * Empty array means any PIN is accepted.
