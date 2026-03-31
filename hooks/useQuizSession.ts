@@ -485,6 +485,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
         teacherUidRef.current = sessionDoc.id;
         studentUidRef.current = studentUid;
+        // Reset warning count before activating snapshot listeners so a
+        // late-arriving snapshot from a previous session can't race with
+        // the finally-block reset and leave the counter stuck at 0.
+        warningCountRef.current = 0;
+        setWarningCount(0);
         setTeacherUidState(sessionDoc.id);
         setStudentUidState(studentUid);
 
@@ -521,8 +526,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setError(msg);
         throw err;
       } finally {
-        warningCountRef.current = 0;
-        setWarningCount(0);
         setLoading(false);
       }
     },
@@ -600,10 +603,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       tabSwitchWarnings: increment(1),
     });
 
-    // Increment the ref synchronously so the return value is correct.
-    // (React functional updaters run during the next render, so reading
-    // newCount out of setWarningCount would always be 0.)
-    const newCount = warningCountRef.current + 1;
+    // Base the new count on whichever is higher: our local ref or the latest
+    // server value (via myResponseRef). This guards against the case where the
+    // sync effect hasn't fired yet (e.g., rapid blur before first snapshot),
+    // which would cause warningCountRef to under-count and return too low a
+    // value, preventing the auto-submit threshold from triggering.
+    const baseCount = Math.max(
+      warningCountRef.current,
+      myResponseRef.current?.tabSwitchWarnings ?? 0
+    );
+    const newCount = baseCount + 1;
     warningCountRef.current = newCount;
     setWarningCount(newCount);
     return newCount;
