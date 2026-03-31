@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { WidgetData, SoundboardConfig, SoundboardGlobalConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { BUILDINGS } from '@/config/buildings';
 import { Toggle } from '@/components/common/Toggle';
 
 export const SoundboardSettings: React.FC<{ widget: WidgetData }> = ({
@@ -23,8 +22,8 @@ export const SoundboardSettings: React.FC<{ widget: WidgetData }> = ({
   const availableSounds = useMemo(() => {
     if (!buildingId) {
       // Aggregate all sounds if no building is specifically selected
-      const allDefaults = globalConfig?.buildingDefaults || {};
-      return Object.values(allDefaults).flatMap(d => d.availableSounds || []);
+      const allDefaults = globalConfig?.buildingDefaults ?? {};
+      return Object.values(allDefaults).flatMap((d) => d.availableSounds ?? []);
     }
     return globalConfig?.buildingDefaults?.[buildingId]?.availableSounds ?? [];
   }, [globalConfig, buildingId]);

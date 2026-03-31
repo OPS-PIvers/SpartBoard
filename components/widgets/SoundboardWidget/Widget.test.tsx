@@ -1,44 +1,74 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { SoundboardWidget } from './Widget';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn()
+  useAuth: vi.fn(),
 }));
 
-const mockPlay = vi.fn().mockResolvedValue(undefined);
-vi.stubGlobal('Audio', class {
-  play() { return mockPlay(); }
-});
+const mockPlay = vi
+  .fn<() => Promise<void>>()
+  .mockResolvedValue(undefined as unknown as void);
 
-const defaultWidget: WidgetData = {
+vi.stubGlobal(
+  'Audio',
+  class {
+    play(): Promise<void> {
+      return mockPlay();
+    }
+  }
+);
+
+const defaultWidget = {
   id: 'soundboard-1',
   type: 'soundboard',
-  config: { selectedSoundIds: ['sound-1'] }
+  config: { selectedSoundIds: ['sound-1'] },
 } as unknown as WidgetData;
 
 describe('SoundboardWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+
+    // Provide a safe cast for the Auth context to avoid TS errors
+    // while keeping the test isolated to the needed fields
+    vi.mocked(useAuth).mockReturnValue({
       selectedBuildings: ['school-1'],
-      featurePermissions: [{
-        widgetType: 'soundboard',
-        config: {
-          buildingDefaults: {
-            'school-1': {
-              availableSounds: [
-                { id: 'sound-1', label: 'Applause', url: 'http://test.com/1.mp3', color: '#000000' },
-                { id: 'sound-2', label: 'Empty URL', url: '', color: '#111111' },
-                { id: 'sound-3', label: 'Not Selected', url: 'http://test.com/3.mp3' }
-              ]
-            }
-          }
-        }
-      }]
-    });
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          accessLevel: 'admin',
+          enabled: true,
+          betaUsers: [],
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [
+                  {
+                    id: 'sound-1',
+                    label: 'Applause',
+                    url: 'http://test.com/1.mp3',
+                    color: '#000000',
+                  },
+                  {
+                    id: 'sound-2',
+                    label: 'Empty URL',
+                    url: '',
+                    color: '#111111',
+                  },
+                  {
+                    id: 'sound-3',
+                    label: 'Not Selected',
+                    url: 'http://test.com/3.mp3',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
   });
 
   afterAll(() => {
@@ -58,9 +88,11 @@ describe('SoundboardWidget', () => {
   it('hides selected sounds if their URL is empty', () => {
     const emptyUrlWidget = {
       ...defaultWidget,
-      config: { selectedSoundIds: ['sound-2'] }
+      config: { selectedSoundIds: ['sound-2'] },
     };
-    render(<SoundboardWidget widget={emptyUrlWidget as unknown as WidgetData} />);
+    render(
+      <SoundboardWidget widget={emptyUrlWidget as unknown as WidgetData} />
+    );
 
     // Empty URL should be filtered out, showing empty state
     expect(screen.queryByText('Empty URL')).not.toBeInTheDocument();
@@ -70,7 +102,7 @@ describe('SoundboardWidget', () => {
   it('shows empty state when no sounds are available or selected', () => {
     const emptyWidget = {
       ...defaultWidget,
-      config: { selectedSoundIds: [] }
+      config: { selectedSoundIds: [] },
     };
     render(<SoundboardWidget widget={emptyWidget as unknown as WidgetData} />);
 
@@ -78,26 +110,35 @@ describe('SoundboardWidget', () => {
   });
 
   it('aggregates all sounds when no building is selected', () => {
-    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       selectedBuildings: [],
-      featurePermissions: [{
-        widgetType: 'soundboard',
-        config: {
-          buildingDefaults: {
-            'school-1': {
-              availableSounds: [{ id: 'sound-1', label: 'Applause', url: '1.mp3' }]
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          accessLevel: 'admin',
+          enabled: true,
+          betaUsers: [],
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [
+                  { id: 'sound-1', label: 'Applause', url: '1.mp3' },
+                ],
+              },
+              'school-2': {
+                availableSounds: [
+                  { id: 'sound-4', label: 'Gong', url: '4.mp3' },
+                ],
+              },
             },
-            'school-2': {
-              availableSounds: [{ id: 'sound-4', label: 'Gong', url: '4.mp3' }]
-            }
-          }
-        }
-      }]
-    });
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
 
     const multiWidget = {
       ...defaultWidget,
-      config: { selectedSoundIds: ['sound-1', 'sound-4'] }
+      config: { selectedSoundIds: ['sound-1', 'sound-4'] },
     };
 
     render(<SoundboardWidget widget={multiWidget as unknown as WidgetData} />);

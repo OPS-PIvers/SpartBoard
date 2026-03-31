@@ -1,7 +1,11 @@
 import React, { useMemo } from 'react';
-import { WidgetData, SoundboardConfig, SoundboardGlobalConfig } from '@/types';
+import {
+  WidgetData,
+  SoundboardConfig,
+  SoundboardGlobalConfig,
+  SoundboardSound,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
-import { BUILDINGS } from '@/config/buildings';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Volume2 } from 'lucide-react';
@@ -20,17 +24,18 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
     return perm?.config as SoundboardGlobalConfig | undefined;
   }, [featurePermissions]);
 
-
-
   const visibleSounds = useMemo(() => {
     let availableSounds: SoundboardSound[] = [];
 
     if (!buildingId) {
       // If no building selected, aggregate all available sounds from all building defaults
-      const allDefaults = globalConfig?.buildingDefaults || {};
-      availableSounds = Object.values(allDefaults).flatMap(d => d.availableSounds || []);
+      const allDefaults = globalConfig?.buildingDefaults ?? {};
+      availableSounds = Object.values(allDefaults).flatMap(
+        (d) => d.availableSounds ?? []
+      );
     } else {
-      availableSounds = globalConfig?.buildingDefaults?.[buildingId]?.availableSounds ?? [];
+      availableSounds =
+        globalConfig?.buildingDefaults?.[buildingId]?.availableSounds ?? [];
     }
 
     return availableSounds.filter(
@@ -42,8 +47,11 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
   }, [globalConfig, buildingId, selectedSoundIds]);
 
   const playSound = (url: string) => {
+    if (!url) return;
     const audio = new Audio(url);
-    audio.play().catch((e) => console.error('Failed to play sound', e));
+    audio.play().catch(() => {
+      /* silent */
+    });
   };
 
   if (visibleSounds.length === 0) {
