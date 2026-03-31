@@ -23,6 +23,7 @@ interface CreatorProps {
   onSave: (activity: VideoActivityData) => Promise<void>;
   aiEnabled: boolean; // From widget global settings
   isAdmin: boolean;
+  audioTranscriptionEnabled: boolean;
   createTemplateSheet: (title: string) => Promise<string>;
 }
 
