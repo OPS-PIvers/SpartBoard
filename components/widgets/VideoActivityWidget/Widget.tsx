@@ -10,6 +10,7 @@ import {
   VideoActivityMetadata,
   VideoActivityData,
   VideoActivitySessionSettings,
+  VideoActivityGlobalConfig,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -25,7 +26,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user, googleAccessToken, isAdmin, canAccessFeature } = useAuth();
+  const {
+    user,
+    googleAccessToken,
+    isAdmin,
+    canAccessFeature,
+    featurePermissions,
+  } = useAuth();
   const config = widget.config as VideoActivityConfig;
 
   const {
@@ -35,6 +42,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity,
     loadActivityData,
     deleteActivity,
+    createTemplateSheet,
     isDriveConnected,
   } = useVideoActivity(user?.uid);
 
@@ -50,6 +58,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedMeta, setSelectedMeta] =
     useState<VideoActivityMetadata | null>(null);
+
+  // Get global AI generation permission from feature permissions
+  const videoActivityPerm = featurePermissions.find(
+    (p) => p.widgetType === 'video-activity'
+  );
+  const aiEnabled =
+    (videoActivityPerm?.config as VideoActivityGlobalConfig)?.aiEnabled ?? true;
 
   // Check if the admin audio transcription feature is enabled (admin-gated global feature)
   const audioTranscriptionEnabled =
@@ -168,7 +183,10 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     return (
       <Creator
         onBack={() => setView('manager')}
+        aiEnabled={aiEnabled}
+        isAdmin={isAdmin ?? false}
         audioTranscriptionEnabled={audioTranscriptionEnabled}
+        createTemplateSheet={createTemplateSheet}
         onSave={async (activity) => {
           try {
             await saveActivity(activity);

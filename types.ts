@@ -1287,6 +1287,7 @@ export interface GlobalVideoActivity extends VideoActivityMetadata {
 
 export interface VideoActivityGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+  aiEnabled?: boolean;
 }
 
 /**

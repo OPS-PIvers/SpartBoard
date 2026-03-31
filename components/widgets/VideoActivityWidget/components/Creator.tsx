@@ -1,614 +1,351 @@
 /**
- * Creator — YouTube URL input + AI question generation for Video Activity.
- * Teacher pastes a YouTube URL, sets question count, and generates an activity.
+ * Creator — Video Activity creation orchestrator.
+ * Supports Manual creation, CSV/Sheets Import, and AI Generation (admin-gated).
  */
 
 import React, { useState } from 'react';
 import {
   ArrowLeft,
+  Youtube,
+  Wand2,
+  FileSpreadsheet,
+  PlusCircle,
   Sparkles,
-  Link,
   Loader2,
   AlertCircle,
-  X,
-  PlayCircle,
-  Wand2,
 } from 'lucide-react';
 import { VideoActivityData, VideoActivityQuestion } from '@/types';
-import {
-  generateVideoActivity,
-  transcribeVideoWithGemini,
-  GeneratedVideoQuestion,
-} from '@/utils/ai';
-import { extractYouTubeId } from '@/utils/youtube';
-import { useAuth } from '@/context/useAuth';
+import { generateVideoActivity } from '@/utils/ai';
+import { Importer } from './Importer';
 
 interface CreatorProps {
   onBack: () => void;
   onSave: (activity: VideoActivityData) => Promise<void>;
-  /** Whether the admin-gated audio transcription feature is enabled. */
-  audioTranscriptionEnabled?: boolean;
+  aiEnabled: boolean; // From widget global settings
+  isAdmin: boolean;
+  audioTranscriptionEnabled: boolean;
+  createTemplateSheet: (title: string) => Promise<string>;
 }
 
-function formatTimestamp(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
+type Step = 'info' | 'source' | 'ai' | 'import';
 
 export const Creator: React.FC<CreatorProps> = ({
   onBack,
   onSave,
-  audioTranscriptionEnabled = false,
+  aiEnabled,
+  isAdmin,
+  createTemplateSheet,
 }) => {
-  const { isAdmin } = useAuth();
+  const [step, setStep] = useState<Step>('info');
   const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
   const [questionCount, setQuestionCount] = useState(5);
-  const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [captionError, setCaptionError] = useState<string | null>(null);
-  const [restrictedError, setRestrictedError] = useState<string | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<VideoActivityData | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const videoId = extractYouTubeId(url);
-  const isValidUrl = !!videoId;
+  // Allow AI if explicitly enabled OR if user is admin
+  const canUseAI = aiEnabled || isAdmin;
 
-  const clearErrors = () => {
-    setCaptionError(null);
-    setRestrictedError(null);
-    setGeneralError(null);
+  const handleNextFromInfo = () => {
+    if (!url.trim() || !title.trim()) {
+      setError('Title and YouTube URL are required.');
+      return;
+    }
+    setError(null);
+    setStep('source');
   };
 
-  const buildActivityFromGenerated = (
-    generated: { title: string; questions: GeneratedVideoQuestion[] },
-    sourceUrl: string
-  ): VideoActivityData => {
-    const now = Date.now();
-    const questions: VideoActivityQuestion[] = generated.questions.map((q) => {
-      const base = (q.incorrectAnswers ?? []).slice(0, 3);
-      const incorrectAnswers =
-        base.length === 3
-          ? base
-          : [...base, ...Array<string>(3 - base.length).fill('')];
-      return {
-        id: crypto.randomUUID(),
-        text: q.text,
-        type: 'MC' as const,
-        correctAnswer: q.correctAnswer ?? '',
-        incorrectAnswers,
-        timeLimit: q.timeLimit ?? 30,
-        timestamp: q.timestamp ?? 0,
-      };
-    });
-
-    return {
+  const handleManualCreate = async () => {
+    const activity: VideoActivityData = {
       id: crypto.randomUUID(),
-      title: generated.title,
-      youtubeUrl: sourceUrl,
-      questions,
-      createdAt: now,
-      updatedAt: now,
+      title: title.trim(),
+      youtubeUrl: url.trim(),
+      questions: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
+    await onSave(activity);
   };
 
-  const handleGenerate = async () => {
-    if (!isValidUrl) return;
-    clearErrors();
-    setGenerating(true);
-    setPreview(null);
-
+  const handleAIGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
     try {
-      const generated = await generateVideoActivity(url, questionCount);
-      setPreview(buildActivityFromGenerated(generated, url));
+      const result = await generateVideoActivity(url, questionCount);
+      const activity: VideoActivityData = {
+        id: crypto.randomUUID(),
+        title: title.trim() || result.title,
+        youtubeUrl: url.trim(),
+        questions: result.questions.map((q) => ({
+          id: crypto.randomUUID(),
+          timestamp: q.timestamp,
+          text: q.text,
+          type: 'MC',
+          correctAnswer: q.correctAnswer ?? '',
+          incorrectAnswers: q.incorrectAnswers ?? [],
+          timeLimit: q.timeLimit ?? 30,
+        })),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await onSave(activity);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Generation failed';
+      // Map 404/not-found or 429/resource-exhausted to a clearer message
       if (
-        msg.toLowerCase().includes('no captions') ||
         msg.toLowerCase().includes('not-found') ||
-        msg.toLowerCase().includes('caption')
+        msg.toLowerCase().includes('no captions') ||
+        msg.toLowerCase().includes('rate-limit') ||
+        msg.toLowerCase().includes('resource-exhausted')
       ) {
-        setCaptionError(msg);
-      } else if (
-        msg.toLowerCase().includes('private') ||
-        msg.toLowerCase().includes('restricted') ||
-        msg.toLowerCase().includes('unavailable')
-      ) {
-        setRestrictedError(
-          "This video is private or age-restricted and can't be used. Try a different video."
+        setError(
+          'YouTube captions are unavailable or the server is being rate-limited. Please try Manual Entry or Import instead.'
         );
       } else {
-        setGeneralError(msg);
+        setError(msg);
       }
     } finally {
-      setGenerating(false);
+      setIsGenerating(false);
     }
   };
 
-  const handleAudioFallback = async () => {
-    if (!isValidUrl) return;
-    clearErrors();
-    setGenerating(true);
-    setPreview(null);
-
-    try {
-      const generated = await transcribeVideoWithGemini(url, questionCount);
-      setPreview(buildActivityFromGenerated(generated, url));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Transcription failed';
-      setGeneralError(msg);
-    } finally {
-      setGenerating(false);
-    }
+  const handleImportData = async (questions: VideoActivityQuestion[]) => {
+    const activity: VideoActivityData = {
+      id: crypto.randomUUID(),
+      title: title.trim(),
+      youtubeUrl: url.trim(),
+      questions,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    await onSave(activity);
   };
 
-  const handleSave = async () => {
-    if (!preview) return;
-    setSaving(true);
-    try {
-      await onSave(preview);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // ─── Renderers ─────────────────────────────────────────────────────────────
+
+  if (step === 'import') {
+    return (
+      <Importer
+        onBack={() => setStep('source')}
+        onData={handleImportData}
+        createTemplateSheet={() =>
+          createTemplateSheet(title || 'Video Activity')
+        }
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full font-sans">
+    <div className="flex flex-col h-full font-sans bg-slate-50/50">
       {/* Header */}
       <div
-        className="flex items-center justify-between border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
+        className="flex items-center gap-3 border-b border-brand-blue-primary/10 bg-white"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
-        <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
-          <button
-            onClick={onBack}
-            className="text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-          >
-            <ArrowLeft
-              style={{
-                width: 'min(18px, 4.5cqmin)',
-                height: 'min(18px, 4.5cqmin)',
-              }}
-            />
-          </button>
-          <div
-            className="bg-brand-red-primary text-white flex items-center justify-center rounded-lg"
-            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
-          >
-            <PlayCircle
-              style={{
-                width: 'min(14px, 3.5cqmin)',
-                height: 'min(14px, 3.5cqmin)',
-              }}
-            />
-          </div>
-          <span
-            className="font-bold text-brand-blue-dark"
-            style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-          >
-            New Video Activity
-          </span>
-        </div>
+        <button
+          onClick={step === 'info' ? onBack : () => setStep('info')}
+          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <span
+          className="font-black text-brand-blue-dark uppercase tracking-tight"
+          style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+        >
+          {step === 'info' ? 'New Video Activity' : 'Question Source'}
+        </span>
       </div>
 
-      {/* Body */}
       <div
         className="flex-1 overflow-y-auto custom-scrollbar"
         style={{ padding: 'min(16px, 4cqmin)' }}
       >
-        <div className="space-y-4">
-          {/* URL input */}
-          <div>
-            <label
-              className="block font-semibold text-brand-blue-dark mb-1"
-              style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-            >
-              YouTube URL
-            </label>
-            <div className="relative flex items-center">
-              <Link
-                className="absolute left-3 text-slate-400 pointer-events-none"
-                style={{
-                  width: 'min(15px, 4cqmin)',
-                  height: 'min(15px, 4cqmin)',
-                }}
-              />
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  clearErrors();
-                  setPreview(null);
-                }}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-                style={{
-                  paddingLeft: 'min(36px, 9cqmin)',
-                  paddingRight: 'min(12px, 3cqmin)',
-                  paddingTop: 'min(8px, 2cqmin)',
-                  paddingBottom: 'min(8px, 2cqmin)',
-                  fontSize: 'min(13px, 4cqmin)',
-                }}
-              />
-              {url && (
-                <button
-                  onClick={() => {
-                    setUrl('');
-                    clearErrors();
-                    setPreview(null);
-                  }}
-                  className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
+        <div className="max-w-md mx-auto space-y-6">
+          {step === 'info' && (
+            <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                    Activity Title
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Introduction to Photosynthesis"
+                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-all shadow-sm"
+                    style={{ fontSize: 'min(14px, 4cqmin)' }}
                   />
-                </button>
-              )}
-            </div>
-            {videoId && (
-              <p
-                className="text-emerald-600 font-medium mt-1"
-                style={{ fontSize: 'min(11px, 3cqmin)' }}
-              >
-                ✓ Video ID: {videoId}
-              </p>
-            )}
-          </div>
-
-          {/* Question count */}
-          <div>
-            <label
-              className="block font-semibold text-brand-blue-dark mb-1"
-              style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-            >
-              Number of Questions
-            </label>
-            <div
-              className="flex items-center"
-              style={{ gap: 'min(8px, 2cqmin)' }}
-            >
-              {[3, 5, 8, 10].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setQuestionCount(n)}
-                  className={`font-bold rounded-xl border transition-all ${
-                    questionCount === n
-                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                      : 'bg-white text-brand-blue-primary border-brand-blue-primary/30 hover:border-brand-blue-primary'
-                  }`}
-                  style={{
-                    padding: 'min(6px, 1.5cqmin) min(14px, 3.5cqmin)',
-                    fontSize: 'min(13px, 4cqmin)',
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={questionCount}
-                onChange={(e) =>
-                  setQuestionCount(
-                    Math.min(20, Math.max(1, parseInt(e.target.value) || 5))
-                  )
-                }
-                className="w-16 text-center bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-                style={{
-                  padding: 'min(6px, 1.5cqmin)',
-                  fontSize: 'min(13px, 4cqmin)',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Error states */}
-          {captionError && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-              <div
-                className="flex items-start"
-                style={{
-                  padding: 'min(12px, 3cqmin)',
-                  gap: 'min(10px, 2.5cqmin)',
-                }}
-              >
-                <AlertCircle
-                  className="text-amber-600 shrink-0 mt-0.5"
-                  style={{
-                    width: 'min(16px, 4.5cqmin)',
-                    height: 'min(16px, 4.5cqmin)',
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="font-semibold text-amber-800"
-                    style={{ fontSize: 'min(13px, 4cqmin)' }}
-                  >
-                    No captions available
-                  </p>
-                  <p
-                    className="text-amber-700 mt-0.5"
-                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                  >
-                    This video doesn&apos;t have captions available. Try a
-                    different video
-                    {isAdmin && audioTranscriptionEnabled
-                      ? ', or use Gemini audio transcription below.'
-                      : isAdmin && !audioTranscriptionEnabled
-                        ? ', or enable Gemini audio transcription in Admin Settings → Global Settings.'
-                        : ', or ask your admin to enable Gemini audio transcription.'}
-                  </p>
                 </div>
-                <button
-                  onClick={() => setCaptionError(null)}
-                  className="text-amber-500 hover:text-amber-700 shrink-0"
-                >
-                  <X
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                </button>
-              </div>
-              {isAdmin && audioTranscriptionEnabled && (
-                <div className="border-t border-amber-200 bg-amber-100/60">
-                  <button
-                    onClick={handleAudioFallback}
-                    disabled={generating}
-                    className="w-full flex items-center justify-center font-bold text-amber-800 hover:text-amber-900 transition-colors disabled:opacity-50"
-                    style={{
-                      padding: 'min(10px, 2.5cqmin)',
-                      gap: 'min(6px, 1.5cqmin)',
-                      fontSize: 'min(12px, 3.5cqmin)',
-                    }}
-                  >
-                    {generating ? (
-                      <Loader2
-                        className="animate-spin"
-                        style={{
-                          width: 'min(14px, 3.5cqmin)',
-                          height: 'min(14px, 3.5cqmin)',
-                        }}
-                      />
-                    ) : (
-                      <Wand2
-                        style={{
-                          width: 'min(14px, 3.5cqmin)',
-                          height: 'min(14px, 3.5cqmin)',
-                        }}
-                      />
-                    )}
-                    Transcribe with Gemini (Admin feature)
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
-          {restrictedError && (
-            <div
-              className="flex items-start bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl"
-              style={{
-                padding: 'min(12px, 3cqmin)',
-                gap: 'min(10px, 2.5cqmin)',
-              }}
-            >
-              <AlertCircle
-                className="text-brand-red-primary shrink-0 mt-0.5"
-                style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <p
-                  className="font-semibold text-brand-red-dark"
-                  style={{ fontSize: 'min(13px, 4cqmin)' }}
-                >
-                  Video unavailable
-                </p>
-                <p
-                  className="text-brand-red-dark/80 mt-0.5"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                >
-                  {restrictedError}
-                </p>
-              </div>
-              <button
-                onClick={() => setRestrictedError(null)}
-                className="text-brand-red-primary hover:text-brand-red-dark shrink-0"
-              >
-                <X
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              </button>
-            </div>
-          )}
-
-          {generalError && (
-            <div
-              className="flex items-start bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl"
-              style={{
-                padding: 'min(12px, 3cqmin)',
-                gap: 'min(10px, 2.5cqmin)',
-              }}
-            >
-              <AlertCircle
-                className="text-brand-red-primary shrink-0 mt-0.5"
-                style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
-                }}
-              />
-              <p
-                className="text-brand-red-dark"
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-              >
-                {generalError}
-              </p>
-              <button
-                onClick={() => setGeneralError(null)}
-                className="text-brand-red-primary hover:text-brand-red-dark shrink-0"
-              >
-                <X
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              </button>
-            </div>
-          )}
-
-          {/* Generate button */}
-          {!preview && (
-            <button
-              onClick={handleGenerate}
-              disabled={!isValidUrl || generating}
-              className="w-full flex items-center justify-center font-bold bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                padding: 'min(12px, 3cqmin)',
-                fontSize: 'min(14px, 4.5cqmin)',
-              }}
-            >
-              {generating ? (
-                <>
-                  <Loader2
-                    className="animate-spin"
-                    style={{
-                      width: 'min(18px, 4.5cqmin)',
-                      height: 'min(18px, 4.5cqmin)',
-                    }}
-                  />
-                  Fetching captions &amp; generating questions…
-                </>
-              ) : (
-                <>
-                  <Sparkles
-                    style={{
-                      width: 'min(18px, 4.5cqmin)',
-                      height: 'min(18px, 4.5cqmin)',
-                    }}
-                  />
-                  Generate with AI
-                </>
-              )}
-            </button>
-          )}
-
-          {/* Preview of generated activity */}
-          {preview && (
-            <div className="space-y-3">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl">
-                <div
-                  className="flex items-center"
-                  style={{
-                    padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                    gap: 'min(8px, 2cqmin)',
-                  }}
-                >
-                  <Sparkles
-                    className="text-emerald-600"
-                    style={{
-                      width: 'min(16px, 4.5cqmin)',
-                      height: 'min(16px, 4.5cqmin)',
-                    }}
-                  />
-                  <div>
-                    <p
-                      className="font-bold text-emerald-800"
-                      style={{ fontSize: 'min(13px, 4cqmin)' }}
-                    >
-                      {preview.title}
-                    </p>
-                    <p
-                      className="text-emerald-600"
-                      style={{ fontSize: 'min(11px, 3cqmin)' }}
-                    >
-                      {preview.questions.length} questions generated
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Question timestamp list */}
-              <div className="space-y-2">
-                {preview.questions.map((q, i) => (
-                  <div
-                    key={q.id}
-                    className="flex items-start bg-white border border-slate-100 rounded-xl"
-                    style={{
-                      padding: 'min(10px, 2.5cqmin)',
-                      gap: 'min(10px, 2.5cqmin)',
-                    }}
-                  >
-                    <span
-                      className="bg-brand-blue-lighter text-brand-blue-primary font-black rounded-md shrink-0 text-center"
-                      style={{
-                        fontSize: 'min(10px, 3cqmin)',
-                        padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                        minWidth: 'min(24px, 6cqmin)',
-                      }}
-                    >
-                      {formatTimestamp(q.timestamp)}
-                    </span>
-                    <p
-                      className="text-slate-700 min-w-0"
-                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                    >
-                      {i + 1}. {q.text}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="flex" style={{ gap: 'min(8px, 2cqmin)' }}>
-                <button
-                  onClick={() => {
-                    setPreview(null);
-                    clearErrors();
-                  }}
-                  className="flex-1 font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                  style={{
-                    padding: 'min(10px, 2.5cqmin)',
-                    fontSize: 'min(13px, 4cqmin)',
-                  }}
-                >
-                  Regenerate
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center font-bold bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl transition-all active:scale-95 disabled:opacity-50"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(10px, 2.5cqmin)',
-                    fontSize: 'min(13px, 4cqmin)',
-                  }}
-                >
-                  {saving ? (
-                    <Loader2
-                      className="animate-spin"
-                      style={{
-                        width: 'min(14px, 3.5cqmin)',
-                        height: 'min(14px, 3.5cqmin)',
-                      }}
+                <div>
+                  <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                    YouTube URL
+                  </label>
+                  <div className="relative">
+                    <Youtube className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary transition-all shadow-sm"
+                      style={{ fontSize: 'min(13px, 3.5cqmin)' }}
                     />
-                  ) : null}
-                  Save to Library
-                </button>
+                  </div>
+                </div>
               </div>
+
+              {error && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleNextFromInfo}
+                className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl shadow-lg shadow-brand-blue-primary/20 transition-all active:scale-[0.98] uppercase tracking-widest"
+                style={{ fontSize: 'min(14px, 4cqmin)' }}
+              >
+                Next Step
+              </button>
+            </div>
+          )}
+
+          {step === 'source' && (
+            <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
+              <p className="text-center text-slate-500 text-xs font-medium mb-2">
+                How would you like to add questions to this video?
+              </p>
+
+              {/* AI Option */}
+              {canUseAI && (
+                <button
+                  onClick={() => setStep('ai')}
+                  className="group relative p-5 bg-white border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Sparkles className="w-12 h-12 text-indigo-600" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
+                      <Wand2 className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">
+                        Magic Creator
+                      </h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Generate questions automatically using AI captions.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {/* Import Option */}
+              <button
+                onClick={() => setStep('import')}
+                className="group relative p-5 bg-white border-2 border-slate-200 hover:border-emerald-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <FileSpreadsheet className="w-12 h-12 text-emerald-600" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+                    <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">
+                      Import from Sheets
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Paste CSV data from a Google Sheet or Gemini Gem.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Manual Option */}
+              <button
+                onClick={handleManualCreate}
+                className="group relative p-5 bg-white border-2 border-slate-200 hover:border-brand-blue-primary hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <PlusCircle className="w-12 h-12 text-brand-blue-primary" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-brand-blue-lighter/50 rounded-xl group-hover:bg-brand-blue-lighter transition-colors">
+                    <PlusCircle className="w-6 h-6 text-brand-blue-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">Manual Entry</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Start from scratch and add your own questions.
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {step === 'ai' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Wand2 className="w-5 h-5 text-indigo-600" />
+                  <span className="font-bold text-indigo-900 text-sm">
+                    AI Configuration
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs font-bold text-indigo-700/60 uppercase">
+                    <span>Target Question Count</span>
+                    <span>{questionCount}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={3}
+                    max={15}
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                    className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                </div>
+
+                <div className="text-xs text-indigo-600/70 italic leading-relaxed">
+                  Note: AI generation requires the YouTube video to have
+                  captions or transcripts enabled.
+                </div>
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-medium leading-relaxed">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleAIGenerate}
+                disabled={isGenerating}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 uppercase tracking-widest"
+                style={{ fontSize: 'min(14px, 4cqmin)' }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="animate-spin w-5 h-5" />
+                    Generating Activity...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Generate with Gemini
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>

@@ -546,4 +546,60 @@ export class QuizDriveService {
     const sheet = (await createRes.json()) as { spreadsheetUrl: string };
     return sheet.spreadsheetUrl;
   }
+
+  /**
+   * Create a template Google Sheet for Video Activity imports.
+   * Returns the URL of the newly created spreadsheet.
+   */
+  async createVideoActivityTemplate(title: string): Promise<string> {
+    const headers = [
+      'Timestamp (MM:SS)',
+      'Question Text',
+      'Correct Answer',
+      'Incorrect 1',
+      'Incorrect 2',
+      'Incorrect 3',
+      'Time Limit (seconds)',
+    ];
+
+    const exampleRow = ['01:30', 'What is 2+2?', '4', '1', '2', '3', '30'];
+
+    const allRows = [headers, exampleRow];
+
+    const createRes = await fetch(
+      'https://sheets.googleapis.com/v4/spreadsheets',
+      {
+        method: 'POST',
+        headers: this.jsonHeaders,
+        body: JSON.stringify({
+          properties: { title: `${title} Template` },
+          sheets: [
+            {
+              properties: { title: 'Video Activity Template' },
+              data: [
+                {
+                  startRow: 0,
+                  startColumn: 0,
+                  rowData: allRows.map((row) => ({
+                    values: row.map((cell) => ({
+                      userEnteredValue: { stringValue: cell },
+                    })),
+                  })),
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!createRes.ok) {
+      const err = await createRes.text();
+      console.error('Sheets create template error:', err);
+      throw new Error('Failed to create template spreadsheet');
+    }
+
+    const sheet = (await createRes.json()) as { spreadsheetUrl: string };
+    return sheet.spreadsheetUrl;
+  }
 }

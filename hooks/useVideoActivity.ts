@@ -37,6 +37,8 @@ export interface UseVideoActivityResult {
   loadActivityData: (driveFileId: string) => Promise<VideoActivityData>;
   /** Delete an activity from Drive and Firestore. */
   deleteActivity: (activityId: string, driveFileId: string) => Promise<void>;
+  /** Create a template Google Sheet for CSV import. */
+  createTemplateSheet: (title: string) => Promise<string>;
   /** Is a Drive service available? */
   isDriveConnected: boolean;
 }
@@ -157,6 +159,14 @@ export const useVideoActivity = (
     [userId, getDriveService]
   );
 
+  const createTemplateSheet = useCallback(
+    async (title: string): Promise<string> => {
+      const drive = getDriveService();
+      return drive.createVideoActivityTemplate(title);
+    },
+    [getDriveService]
+  );
+
   return {
     activities,
     loading,
@@ -164,6 +174,7 @@ export const useVideoActivity = (
     saveActivity,
     loadActivityData,
     deleteActivity,
+    createTemplateSheet,
     isDriveConnected: isConnected,
   };
 };

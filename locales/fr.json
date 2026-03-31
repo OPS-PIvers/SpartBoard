@@ -102,6 +102,22 @@
     "undo": "Annuler",
     "clearAll": "Tout effacer",
     "done": "Terminé",
+    "snapLayout": "Ajuster la mise en page",
+    "chooseLayout": "Choisir la mise en page",
+    "snapTo": "Ajuster à",
+    "layouts": {
+      "splitScreen": "Écran scindé",
+      "fourGrid": "Grille de quatre",
+      "sidebarLeft": "Barre latérale gauche",
+      "sidebarRight": "Barre latérale droite",
+      "threeColumns": "Trois colonnes",
+      "topBottom": "Haut/Bas",
+      "priorityLeft": "Priorité gauche",
+      "priorityRight": "Priorité droite",
+      "topUtilityBar": "Barre d'outils supérieure",
+      "sidebarUtility": "Barre latérale",
+      "doubleSidebarUtility": "Double barre latérale"
+    },
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?"
   },
   "login": {

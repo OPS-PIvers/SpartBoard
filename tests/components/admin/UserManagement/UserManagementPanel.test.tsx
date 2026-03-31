@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { UserManagementPanel } from '@/components/admin/UserManagement/UserManagementPanel';
 import { setDoc } from 'firebase/firestore';
 
@@ -46,6 +47,7 @@ describe('UserManagementPanel', () => {
   });
 
   it('parses, deduplicates, and lowercases emails on blur', async () => {
+    const user = userEvent.setup();
     render(<UserManagementPanel />);
 
     await waitFor(() => {
@@ -54,16 +56,19 @@ describe('UserManagementPanel', () => {
 
     const studentTextarea = screen.getByLabelText('Students Emails');
 
-    // Type mixed case, spaces, newlines, commas, and invalid emails
-    fireEvent.change(studentTextarea, {
-      target: {
-        value:
-          ' Test1@example.com , test1@EXAMPLE.COM \n invalid-email \n test2@example.com, , ',
-      },
+    // Ensure initial async role hydration settled.
+    await waitFor(() => {
+      expect(studentTextarea).toHaveValue('');
     });
 
+    // Type mixed case, spaces, newlines, commas, and invalid emails
+    await user.type(
+      studentTextarea,
+      ' Test1@example.com , test1@EXAMPLE.COM \n invalid-email \n test2@example.com, , '
+    );
+
     // Trigger blur to format
-    fireEvent.blur(studentTextarea);
+    await user.tab();
 
     // Give it a small delay for state to settle and the useEffect to sync back the parent's `emails` array.
     // The previous test issue indicated it was receiving empty values instead of the populated array.

@@ -80,6 +80,7 @@
     },
     "settings": {
       "googleDriveIntegration": "Google Drive Integration",
+      "remoteControl": "Remote Control",
       "googleDriveDescription": "Your boards and assets are automatically backed up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected & Synced",
       "disconnected": "Disconnected",
@@ -131,7 +132,10 @@
       "threeColumns": "Three Columns",
       "topBottom": "Top/Bottom",
       "priorityLeft": "Priority Left",
-      "priorityRight": "Priority Right"
+      "priorityRight": "Priority Right",
+      "topUtilityBar": "Top Utility Bar",
+      "sidebarUtility": "Sidebar",
+      "doubleSidebarUtility": "Double Sidebar"
     },
     "clearEntireBoard": "Are you sure you want to clear the entire board?"
   },

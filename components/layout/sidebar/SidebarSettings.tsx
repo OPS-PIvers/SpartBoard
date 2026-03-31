@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings,
@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Smartphone,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { Toggle } from '@/components/common/Toggle';
@@ -19,6 +20,75 @@ import { APP_NAME } from '@/config/constants';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
+
+interface CollapsibleSectionProps {
+  title: string;
+  icon?: React.ReactNode;
+  rightElement?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
+  title,
+  icon,
+  rightElement,
+  children,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false);
+  const contentId = useId();
+
+  const toggleExpanded = () => {
+    setIsExpanded((prev) => !prev);
+    setHasBeenExpanded(true);
+  };
+
+  return (
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={isExpanded}
+        aria-controls={contentId}
+        className="w-full flex items-center justify-between mb-1 px-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/50 focus:border-transparent rounded"
+      >
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
+            {title}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {rightElement}
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      <div
+        id={contentId}
+        aria-hidden={!isExpanded}
+        inert={!isExpanded}
+        className={`grid transition-all duration-200 ease-in-out ${
+          isExpanded
+            ? 'grid-rows-[1fr] opacity-100 visible'
+            : 'grid-rows-[0fr] opacity-0 invisible'
+        }`}
+        style={{
+          // Ensure that invisible elements don't block pointer events
+          pointerEvents: isExpanded ? 'auto' : 'none',
+        }}
+      >
+        <div className="overflow-hidden pt-2">
+          {hasBeenExpanded && children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface SidebarSettingsProps {
   isVisible: boolean;
@@ -70,14 +140,10 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
     >
       <div className="space-y-6">
         {/* Google Drive Connection Management */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center gap-2 mb-3 px-1">
-            <GoogleDriveIcon className="w-4 h-4" />
-            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-              {t('sidebar.settings.googleDriveIntegration')}
-            </label>
-          </div>
-
+        <CollapsibleSection
+          title={t('sidebar.settings.googleDriveIntegration')}
+          icon={<GoogleDriveIcon className="w-4 h-4" />}
+        >
           <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
             {t('sidebar.settings.googleDriveDescription', {
               appName: APP_NAME,
@@ -129,16 +195,13 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Language Selection */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center gap-2 mb-3 px-1">
-            <Languages className="w-4 h-4 text-slate-400" />
-            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-              {t('sidebar.settings.language')}
-            </label>
-          </div>
+        <CollapsibleSection
+          title={t('sidebar.settings.language')}
+          icon={<Languages className="w-4 h-4 text-slate-400" />}
+        >
           <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
             {t('sidebar.settings.languageDescription')}
           </p>
@@ -168,16 +231,13 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
               </button>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* My Building(s) */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center gap-2 mb-3 px-1">
-            <Building2 className="w-4 h-4 text-slate-400" />
-            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-              {t('sidebar.settings.myBuildings')}
-            </label>
-          </div>
+        <CollapsibleSection
+          title={t('sidebar.settings.myBuildings')}
+          icon={<Building2 className="w-4 h-4 text-slate-400" />}
+        >
           <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
             {t('sidebar.settings.myBuildingsDescription')}
           </p>
@@ -220,16 +280,13 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
               {t('sidebar.settings.noBuildingSelected')}
             </p>
           )}
-        </div>
+        </CollapsibleSection>
 
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center gap-2 mb-3 px-1">
-            <Settings className="w-4 h-4 text-slate-400" />
-            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-              {t('sidebar.settings.interfacePreferences')}
-            </label>
-          </div>
-
+        {/* Interface Preferences */}
+        <CollapsibleSection
+          title={t('sidebar.settings.interfacePreferences')}
+          icon={<Settings className="w-4 h-4 text-slate-400" />}
+        >
           <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
             <div className="flex flex-col gap-0.5">
               <span className="text-xxs font-bold text-slate-700 uppercase tracking-tight">
@@ -251,18 +308,14 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
               }
             />
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Remote Control */}
         {canAccessFeature('remote-control') && (
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <Smartphone className="w-4 h-4 text-slate-400" />
-              <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-                Remote Control
-              </label>
-            </div>
-
+          <CollapsibleSection
+            title={t('sidebar.settings.remoteControl')}
+            icon={<Smartphone className="w-4 h-4 text-slate-400" />}
+          >
             <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
               Control your board from your phone while you move around the
               classroom.
@@ -287,19 +340,18 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
                 Open Remote View
               </button>
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
-        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex justify-between items-center mb-3 px-1">
-            <label className="text-xxs font-bold text-slate-700 uppercase tracking-tight block">
-              {t('sidebar.settings.quickAccessWidgets')}
-            </label>
+        {/* Quick Access Widgets */}
+        <CollapsibleSection
+          title={t('sidebar.settings.quickAccessWidgets')}
+          rightElement={
             <span className="text-xxs font-bold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
-              {activeDashboard?.settings?.quickAccessWidgets?.length ?? 0}
-              /2
+              {activeDashboard?.settings?.quickAccessWidgets?.length ?? 0}/2
             </span>
-          </div>
+          }
+        >
           <p className="text-xxs text-slate-400 mb-4 px-1 leading-relaxed">
             {t('sidebar.settings.quickAccessDescription')}
           </p>
@@ -351,7 +403,7 @@ export const SidebarSettings: React.FC<SidebarSettingsProps> = ({
               );
             })}
           </div>
-        </div>
+        </CollapsibleSection>
 
         <div className="flex flex-col gap-2 pt-2">
           <button

@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/config/firebase';
+import { auth } from '@/config/firebase';
 import { BarChart, Users, Zap, LayoutGrid, AlertCircle } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
+
+interface EngagementCounts {
+  total: number;
+  monthly: number;
+  daily: number;
+}
 
 interface AnalyticsData {
   users: {
     total: number;
     monthly: number;
     daily: number;
-    data: {
-      id: string;
-      email: string;
-      lastLogin?: number;
-      buildings: string[];
-      domain: string;
-    }[];
+    domains: Record<string, EngagementCounts>;
+    buildings: Record<string, EngagementCounts>;
+    domainBuilding: Record<string, Record<string, EngagementCounts>>;
   };
   widgets: {
     totalInstances: Record<string, number>;
@@ -24,7 +25,12 @@ interface AnalyticsData {
   };
   api: {
     totalCalls: number;
-    callsPerUser: Record<string, number>;
+    activeUsers: number;
+    topUsers: {
+      uid: string;
+      count: number;
+      email: string;
+    }[];
     avgDailyCalls: number;
     avgDailyCallsPerUser: number;
   };
@@ -77,22 +83,33 @@ export const AnalyticsManager: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const getAnalyticsData = httpsCallable<void, AnalyticsData>(
-          functions,
-          'getAdminAnalytics'
-        );
+        const user = auth.currentUser;
+        if (!user) throw new Error('Not authenticated');
 
-        const result = await getAnalyticsData();
-        const dataPayload = result.data;
+        const token = await user.getIdToken();
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
+        const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
 
-        setData({
-          ...dataPayload,
-          users: {
-            ...dataPayload.users,
-            monthly: 0, // Calculated dynamically by the memo below
-            daily: 0,
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({}),
         });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as {
+            message?: string;
+            error?: string;
+          };
+          const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
+          throw new Error(msg);
+        }
+
+        const data = (await response.json()) as AnalyticsData;
+        setData(data);
       } catch (err: unknown) {
         console.error('Failed to load analytics', err);
         const errorMessage =
@@ -108,51 +125,51 @@ export const AnalyticsManager: React.FC = () => {
     void fetchAnalytics();
   }, []);
 
-  // Derived filtered users memoized to avoid expensive loops on every render
   const { filteredTotalUsers, filteredMonthly, filteredDaily } = useMemo(() => {
-    if (!data)
+    if (!data) {
       return { filteredTotalUsers: 0, filteredMonthly: 0, filteredDaily: 0 };
-
-    let users = data.users.data;
-    if (selectedDomain !== 'all') {
-      users = users.filter((u) => u.domain === selectedDomain);
-    }
-    if (selectedBuilding !== 'all') {
-      users = users.filter((u) => u.buildings.includes(selectedBuilding));
     }
 
-    let monthly = 0;
-    let daily = 0;
-    const now = Date.now();
-    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (selectedDomain === 'all' && selectedBuilding === 'all') {
+      return {
+        filteredTotalUsers: data.users.total,
+        filteredMonthly: data.users.monthly,
+        filteredDaily: data.users.daily,
+      };
+    }
 
-    users.forEach((u) => {
-      if (u.lastLogin) {
-        if (now - u.lastLogin <= thirtyDaysMs) monthly++;
-        if (now - u.lastLogin <= oneDayMs) daily++;
-      }
-    });
+    if (selectedDomain === 'all') {
+      const bucket = data.users.buildings[selectedBuilding];
+      return {
+        filteredTotalUsers: bucket?.total ?? 0,
+        filteredMonthly: bucket?.monthly ?? 0,
+        filteredDaily: bucket?.daily ?? 0,
+      };
+    }
 
+    if (selectedBuilding === 'all') {
+      const bucket = data.users.domains[selectedDomain];
+      return {
+        filteredTotalUsers: bucket?.total ?? 0,
+        filteredMonthly: bucket?.monthly ?? 0,
+        filteredDaily: bucket?.daily ?? 0,
+      };
+    }
+
+    const bucket =
+      data.users.domainBuilding[selectedDomain]?.[selectedBuilding];
     return {
-      filteredTotalUsers: users.length,
-      filteredMonthly: monthly,
-      filteredDaily: daily,
+      filteredTotalUsers: bucket?.total ?? 0,
+      filteredMonthly: bucket?.monthly ?? 0,
+      filteredDaily: bucket?.daily ?? 0,
     };
   }, [data, selectedDomain, selectedBuilding]);
 
-  // Extract unique domains for the filter
   const uniqueDomains = useMemo(() => {
     if (!data) return [];
-    return Array.from(new Set(data.users.data.map((u) => u.domain)))
-      .filter(Boolean)
-      .sort();
+    return Object.keys(data.users.domains).filter(Boolean).sort();
   }, [data]);
-
-  const userMap = useMemo(() => {
-    if (!data) return new Map<string, { email: string }>();
-    return new Map(data.users.data.map((u) => [u.id, u]));
-  }, [data]);
+  const hasNoBuildingUsers = Boolean(data?.users.buildings.none);
 
   if (loading) {
     return (
@@ -177,19 +194,14 @@ export const AnalyticsManager: React.FC = () => {
 
   if (!data) return null;
 
-  // Sort widgets by popularity
   const sortedWidgets = Object.entries(data.widgets.totalInstances)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 15); // Top 15
+    .slice(0, 15);
 
-  // Sorted API users
-  const topAiUsers = Object.entries(data.api.callsPerUser)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10);
+  const topAiUsers = data.api.topUsers.slice(0, 10);
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Overview Section */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -215,6 +227,9 @@ export const AnalyticsManager: React.FC = () => {
               className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue-primary"
             >
               <option value="all">All Buildings</option>
+              {hasNoBuildingUsers && (
+                <option value="none">No Building Assigned</option>
+              )}
               {BUILDINGS.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -246,7 +261,6 @@ export const AnalyticsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* API Usage Section */}
       <div>
         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-brand-purple" />
@@ -260,7 +274,7 @@ export const AnalyticsManager: React.FC = () => {
           />
           <StatCard
             title="Active AI Users"
-            value={Object.keys(data.api.callsPerUser).length}
+            value={data.api.activeUsers}
             icon={<Users className="w-6 h-6" />}
           />
           <StatCard
@@ -276,7 +290,6 @@ export const AnalyticsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Widget Usage Section */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
           <LayoutGrid className="w-5 h-5 text-brand-blue-primary" />
@@ -325,21 +338,20 @@ export const AnalyticsManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Top API Users List */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
           <Zap className="w-5 h-5 text-brand-blue-primary" />
           Top AI Users
         </h3>
         <div className="space-y-4">
-          {topAiUsers.map(([uid, count], index) => {
-            const user = userMap.get(uid);
-            const label = user ? user.email : `Unknown (${uid})`;
-            const maxCount = topAiUsers[0]?.[1] || 1;
+          {topAiUsers.map((user, index) => {
+            const label = user.email;
+            const maxCount = topAiUsers[0]?.count || 1;
+            const count = user.count;
             const percentage = Math.max(5, (count / maxCount) * 100);
 
             return (
-              <div key={uid} className="flex items-center gap-4">
+              <div key={user.uid} className="flex items-center gap-4">
                 <div className="w-8 text-center text-sm font-bold text-slate-400">
                   #{index + 1}
                 </div>

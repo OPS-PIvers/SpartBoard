@@ -61,7 +61,7 @@ if (isConfigured) {
     experimentalForceLongPolling: true,
   });
   storage = getStorage(app);
-  functions = getFunctions(app);
+  functions = getFunctions(app, 'us-central1');
   googleProvider = new GoogleAuthProvider();
   GOOGLE_OAUTH_SCOPES.forEach((scope) => googleProvider.addScope(scope));
 } else {

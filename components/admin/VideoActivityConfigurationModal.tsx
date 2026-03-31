@@ -8,7 +8,15 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { X, Trash2, Building2, Settings, Library, Video } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Building2,
+  Settings,
+  Library,
+  Video,
+  Sparkles,
+} from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
   GlobalVideoActivity,
@@ -19,6 +27,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { Toggle } from '@/components/common/Toggle';
 
 interface VideoActivityConfigurationModalProps {
   onClose: () => void;
@@ -223,6 +232,43 @@ export const VideoActivityConfigurationModal: React.FC<
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6 min-h-0">
           {view === 'settings' ? (
             <div className="max-w-2xl mx-auto space-y-6">
+              {/* AI Generation Settings */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800">
+                      AI Question Generation
+                    </h3>
+                    <p className="text-sm text-slate-500 font-medium">
+                      Control availability of Gemini-powered activity creation
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex-1 pr-4">
+                    <p className="font-bold text-slate-700 text-sm">
+                      Enable AI Mode
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Allows teachers to generate questions automatically using
+                      the Gemini API. This option will be hidden from non-admins
+                      if disabled.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={config.aiEnabled ?? true}
+                    onChange={(checked) =>
+                      onSave({ config: { ...config, aiEnabled: checked } })
+                    }
+                    size="md"
+                  />
+                </div>
+              </div>
+
               <DockDefaultsPanel
                 config={{ dockDefaults: config.dockDefaults ?? {} }}
                 onChange={(dockDefaults) =>

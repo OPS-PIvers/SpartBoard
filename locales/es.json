@@ -112,6 +112,22 @@
     "undo": "Deshacer",
     "clearAll": "Borrar Todo",
     "done": "Listo",
+    "snapLayout": "Ajustar Diseño",
+    "chooseLayout": "Elegir Diseño",
+    "snapTo": "Ajustar a",
+    "layouts": {
+      "splitScreen": "Pantalla Dividida",
+      "fourGrid": "Cuadrícula de Cuatro",
+      "sidebarLeft": "Barra Lateral Izquierda",
+      "sidebarRight": "Barra Lateral Derecha",
+      "threeColumns": "Tres Columnas",
+      "topBottom": "Arriba/Abajo",
+      "priorityLeft": "Prioridad Izquierda",
+      "priorityRight": "Prioridad Derecha",
+      "topUtilityBar": "Barra de Utilidades Superior",
+      "sidebarUtility": "Barra Lateral",
+      "doubleSidebarUtility": "Doble Barra Lateral"
+    },
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?"
   },
   "login": {

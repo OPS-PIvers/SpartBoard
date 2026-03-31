@@ -8,6 +8,9 @@ import {
   Layout,
   Grid3X3,
   Rows3,
+  PanelTop,
+  PanelLeft,
+  SquareSplitHorizontal,
 } from 'lucide-react';
 
 export interface SnapZone {
@@ -163,6 +166,36 @@ export const SNAP_LAYOUTS: SnapLayout[] = [
       { id: 'top-side', x: 0, y: 0, w: 0.5, h: 0.5 },
       { id: 'bottom-side', x: 0, y: 0.5, w: 0.5, h: 0.5 },
       { id: 'main', x: 0.5, y: 0, w: 0.5, h: 1 },
+    ],
+  },
+  {
+    id: 'top-utility-bar',
+    nameKey: 'topUtilityBar',
+    icon: <PanelTop className="w-5 h-5" />,
+    zones: [
+      { id: 'top-1', x: 0, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-2', x: 0.125, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-3', x: 0.25, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-4', x: 0.375, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-5', x: 0.5, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-6', x: 0.625, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-7', x: 0.75, y: 0, w: 0.125, h: 0.15 },
+      { id: 'top-8', x: 0.875, y: 0, w: 0.125, h: 0.15 },
+    ],
+  },
+  {
+    id: 'sidebar-utility',
+    nameKey: 'sidebarUtility',
+    icon: <PanelLeft className="w-5 h-5" />,
+    zones: [{ id: 'sidebar', x: 0, y: 0, w: 0.2, h: 1 }],
+  },
+  {
+    id: 'double-sidebar-utility',
+    nameKey: 'doubleSidebarUtility',
+    icon: <SquareSplitHorizontal className="w-5 h-5 rotate-90" />,
+    zones: [
+      { id: 'sidebar-top', x: 0, y: 0, w: 0.2, h: 0.5 },
+      { id: 'sidebar-bottom', x: 0, y: 0.5, w: 0.2, h: 0.5 },
     ],
   },
 ];

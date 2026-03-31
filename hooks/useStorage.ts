@@ -176,9 +176,17 @@ export const useStorage = () => {
     }
 
     // Drive-hosted URLs: attempt deletion via Drive API
+    // Parse the URL to check hostname exactly, preventing substring-spoofing attacks.
+    let filePathHostname = '';
+    try {
+      filePathHostname = new URL(filePath).hostname;
+    } catch {
+      // filePath is not a valid URL; leave hostname empty so checks below fail safely
+    }
     if (
-      filePath.startsWith('https://lh3.googleusercontent.com') ||
-      filePath.includes('drive.google.com')
+      filePathHostname === 'lh3.googleusercontent.com' ||
+      filePathHostname === 'drive.google.com' ||
+      filePathHostname.endsWith('.drive.google.com')
     ) {
       if (driveService) {
         try {

@@ -102,6 +102,22 @@
     "undo": "Rückgängig",
     "clearAll": "Alles löschen",
     "done": "Fertig",
+    "snapLayout": "Layout anpassen",
+    "chooseLayout": "Layout wählen",
+    "snapTo": "Anpassen an",
+    "layouts": {
+      "splitScreen": "Geteilter Bildschirm",
+      "fourGrid": "Vierer-Raster",
+      "sidebarLeft": "Seitenleiste links",
+      "sidebarRight": "Seitenleiste rechts",
+      "threeColumns": "Drei Spalten",
+      "topBottom": "Oben/Unten",
+      "priorityLeft": "Priorität links",
+      "priorityRight": "Priorität rechts",
+      "topUtilityBar": "Obere Hilfsleiste",
+      "sidebarUtility": "Seitenleiste",
+      "doubleSidebarUtility": "Doppelte Seitenleiste"
+    },
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?"
   },
   "login": {
