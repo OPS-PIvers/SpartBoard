@@ -1799,7 +1799,7 @@ interface EngagementCounts {
  * Bumps memory and timeout to handle unbounded collection reads
  * while a more scalable (paginated/aggregated) solution is developed.
  */
-export const getAdminAnalytics = functionsV1
+export const adminAnalytics = functionsV1
   .runWith({
     timeoutSeconds: 540,
     memory: '4GB',

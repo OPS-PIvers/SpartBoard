@@ -88,7 +88,7 @@ export const AnalyticsManager: React.FC = () => {
 
         const token = await user.getIdToken();
         const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
-        const url = `https://us-central1-${projectId}.cloudfunctions.net/getAdminAnalytics`;
+        const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
 
         const response = await fetch(url, {
           method: 'POST',
