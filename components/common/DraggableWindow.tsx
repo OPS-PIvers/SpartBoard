@@ -790,7 +790,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // TOOL MENU POSITIONING
   // useLayoutEffect runs synchronously after the DOM is mutated but before paint,
   // guaranteeing offsetHeight/offsetWidth are final when we read them.
-  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  // Initialized with visibility:hidden so there is never a flash of the toolbar
+  // at position (0,0) before the first layout measurement completes.
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
+    visibility: 'hidden',
+  });
 
   useLayoutEffect(() => {
     if (showTools && windowRef.current) {
@@ -805,6 +809,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             top: '24px',
             right: '24px',
             zIndex: Z_INDEX.toolMenu,
+            visibility: 'visible',
           });
           return;
         }
@@ -813,23 +818,38 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const menuHeight = menuEl.offsetHeight;
         const menuWidth = menuEl.offsetWidth;
 
+        // getBoundingClientRect() reflects mid-animation transforms on ancestor
+        // containers (e.g. the dashboard slide-in animation uses translateX(±100%)).
+        // When zoom === 1, widget.x/y ARE the true viewport coordinates, so if the
+        // measured rect deviates significantly from those values the widget surface
+        // is still animating. Use the authoritative widget coordinates as a fallback
+        // so the toolbar always appears at the widget's final resting position.
+        const ANIMATION_THRESHOLD = 10;
+        const isAnimating =
+          zoom === 1 && Math.abs(rect.left - widget.x) > ANIMATION_THRESHOLD;
+        const effectiveLeft = isAnimating ? widget.x : rect.left;
+        const effectiveTop = isAnimating ? widget.y : rect.top;
+        const effectiveWidth = isAnimating ? widget.w : rect.width;
+        const effectiveHeight = isAnimating ? widget.h : rect.height;
+        const effectiveBottom = effectiveTop + effectiveHeight;
+
         // Vertical: prefer above; flip below only when space above is tight AND
         // there is room below. If neither side fits, pick whichever has more space
         // and clamp to keep the toolbar on-screen.
-        const spaceAbove = rect.top;
-        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = effectiveTop;
+        const spaceBelow = window.innerHeight - effectiveBottom;
         const showBelow =
           spaceAbove < menuHeight + MARGIN && spaceBelow >= spaceAbove;
         const rawTopPos = showBelow
-          ? rect.bottom + MARGIN
-          : rect.top - menuHeight - MARGIN;
+          ? effectiveBottom + MARGIN
+          : effectiveTop - menuHeight - MARGIN;
         const clampedTop = Math.max(
           MARGIN,
           Math.min(rawTopPos, window.innerHeight - menuHeight - MARGIN)
         );
 
         // Horizontal: center on widget, clamp so toolbar never overflows viewport
-        const idealLeft = rect.left + rect.width / 2 - menuWidth / 2;
+        const idealLeft = effectiveLeft + effectiveWidth / 2 - menuWidth / 2;
         const clampedLeft = Math.max(
           MARGIN,
           Math.min(idealLeft, window.innerWidth - menuWidth - MARGIN)
@@ -840,15 +860,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           top: clampedTop,
           left: clampedLeft,
           zIndex: Z_INDEX.toolMenu,
+          visibility: 'visible',
         });
       };
 
       updatePosition();
       window.addEventListener('resize', updatePosition);
       return () => window.removeEventListener('resize', updatePosition);
+    } else {
+      // Reset to hidden when toolbar closes so next open starts invisible
+      setMenuStyle({ visibility: 'hidden' });
     }
     return undefined;
-  }, [showTools, widget.x, widget.y, widget.w, widget.h, isMaximized]);
+  }, [showTools, widget.x, widget.y, widget.w, widget.h, isMaximized, zoom]);
 
   useEffect(() => {
     const handleCustomKeyboard = (e: Event) => {
