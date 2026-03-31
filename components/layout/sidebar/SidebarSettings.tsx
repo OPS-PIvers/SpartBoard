@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Settings,
@@ -35,13 +35,15 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   children,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const contentId = useId();
 
   return (
     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
+        aria-controls={contentId}
         className="w-full flex items-center justify-between mb-1 px-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/50 focus:border-transparent rounded"
       >
         <div className="flex items-center gap-2">
@@ -61,11 +63,18 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       </button>
 
       <div
+        id={contentId}
+        aria-hidden={!isExpanded}
         className={`grid transition-all duration-200 ease-in-out ${
           isExpanded
-            ? 'grid-rows-[1fr] opacity-100'
-            : 'grid-rows-[0fr] opacity-0'
+            ? 'grid-rows-[1fr] opacity-100 visible'
+            : 'grid-rows-[0fr] opacity-0 invisible'
         }`}
+        style={{
+          // Ensure that invisible elements don't block pointer events
+          // or become focusable when collapsed
+          pointerEvents: isExpanded ? 'auto' : 'none',
+        }}
       >
         <div className="overflow-hidden pt-2">{children}</div>
       </div>
