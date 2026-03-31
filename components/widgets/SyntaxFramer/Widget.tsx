@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { SyntaxFramerConfig, SyntaxToken, WidgetComponentProps } from '@/types';
 import {
   DndContext,
@@ -156,19 +156,22 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const oldIndex = tokens.findIndex((t) => t.id === active.id);
-      const newIndex = tokens.findIndex((t) => t.id === over.id);
+      if (over && active.id !== over.id) {
+        const oldIndex = tokens.findIndex((t) => t.id === active.id);
+        const newIndex = tokens.findIndex((t) => t.id === over.id);
 
-      const newTokens = arrayMove(tokens, oldIndex, newIndex);
-      updateWidget(widget.id, {
-        config: { ...config, tokens: newTokens },
-      });
-    }
-  };
+        const newTokens = arrayMove(tokens, oldIndex, newIndex);
+        updateWidget(widget.id, {
+          config: { ...config, tokens: newTokens },
+        });
+      }
+    },
+    [tokens, updateWidget, widget.id, config]
+  );
 
   const handleMaskToggle = (id: string) => {
     const newTokens = tokens.map((t) =>
