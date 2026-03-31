@@ -36,6 +36,7 @@ import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
+import { GuidedLearningConfigurationPanel } from './GuidedLearningConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { NextUpConfigurationPanel } from './NextUpConfigurationPanel';
@@ -100,6 +101,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
     SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
   magic: MagicConfigurationPanel as unknown as BuildingConfigPanel,
   record: RecordConfigurationPanel as unknown as BuildingConfigPanel,
+  'guided-learning':
+    GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
