@@ -35,13 +35,19 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   children,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasBeenExpanded, setHasBeenExpanded] = useState(false);
   const contentId = useId();
+
+  const toggleExpanded = () => {
+    setIsExpanded((prev) => !prev);
+    setHasBeenExpanded(true);
+  };
 
   return (
     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
       <button
         type="button"
-        onClick={() => setIsExpanded((prev) => !prev)}
+        onClick={toggleExpanded}
         aria-expanded={isExpanded}
         aria-controls={contentId}
         className="w-full flex items-center justify-between mb-1 px-1 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/50 focus:border-transparent rounded"
@@ -65,6 +71,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       <div
         id={contentId}
         aria-hidden={!isExpanded}
+        inert={!isExpanded}
         className={`grid transition-all duration-200 ease-in-out ${
           isExpanded
             ? 'grid-rows-[1fr] opacity-100 visible'
@@ -72,11 +79,12 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         }`}
         style={{
           // Ensure that invisible elements don't block pointer events
-          // or become focusable when collapsed
           pointerEvents: isExpanded ? 'auto' : 'none',
         }}
       >
-        <div className="overflow-hidden pt-2">{children}</div>
+        <div className="overflow-hidden pt-2">
+          {hasBeenExpanded && children}
+        </div>
       </div>
     </div>
   );
