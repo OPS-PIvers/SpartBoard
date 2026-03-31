@@ -379,6 +379,30 @@ export const CatalystConfigurationModal: React.FC<
     setView('set-editor');
   };
 
+  const openNewSetEditor = () => {
+    revokePreview();
+    // Find the first missing slot from set-1 through set-4
+    const existingIds = new Set(sets.map((s) => s.id));
+    let newId = '';
+    for (let i = 1; i <= 4; i++) {
+      if (!existingIds.has(`set-${i}`)) {
+        newId = `set-${i}`;
+        break;
+      }
+    }
+    if (!newId) return;
+    setSetEditor({
+      id: newId,
+      title: '',
+      description: '',
+      imageUrl: '',
+      routines: [],
+      imageFile: null,
+      imagePreview: null,
+    });
+    setView('set-editor');
+  };
+
   const openRoutineEditor = (routine?: CatalystRoutine) => {
     revokePreview();
     if (routine) {
@@ -470,10 +494,21 @@ export const CatalystConfigurationModal: React.FC<
                   }
                 />
               )}
-              <p className="text-sm text-slate-500">
-                Catalyst allows up to 4 sets of routines. Select a set to edit
-                its title, image, and manage the routines inside it.
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-500">
+                  Catalyst allows up to 4 sets of routines. Select a set to edit
+                  its title, image, and manage the routines inside it.
+                </p>
+                {sets.length < 4 && (
+                  <button
+                    onClick={openNewSetEditor}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors shrink-0 ml-4"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Set
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {sets.map((set) => (
                   <button

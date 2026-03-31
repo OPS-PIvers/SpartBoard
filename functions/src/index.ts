@@ -7,7 +7,13 @@ import { GoogleGenAI, Content } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import cors from 'cors';
 
-const corsHandler = cors({ origin: true });
+const ALLOWED_ORIGINS = [
+  'https://spartboard.web.app',
+  'https://spartboard.firebaseapp.com',
+  /^https:\/\/spartboard--[\w-]+\.web\.app$/,
+  /^http:\/\/localhost(:\d+)?$/,
+];
+const corsHandler = cors({ origin: ALLOWED_ORIGINS });
 // Local mirror of youtube-transcript's TranscriptResponse to avoid depending on
 // an ESM-only package at the type level (dynamic import used at runtime instead).
 interface TranscriptResponse {
@@ -101,9 +107,14 @@ function parseTimedtextXml(xml: string): TranscriptResponse[] {
       ? Number.parseFloat(durationMatch[1])
       : 0;
 
-    const text = decodeHtmlEntities(rawText)
-      .replace(/<br\s*\/?>/gi, ' ')
-      .replace(/<[^>]+>/g, '')
+    // Loop stripping until stable to prevent partial-tag bypass (e.g. <scr<script>ipt>).
+    let stripped = rawText.replace(/<br\s*\/?>/gi, ' ');
+    let prev: string;
+    do {
+      prev = stripped;
+      stripped = prev.replace(/<[^>]+>/g, '');
+    } while (stripped !== prev);
+    const text = decodeHtmlEntities(stripped.replace(/[<>]/g, ''))
       .replace(/\s+/g, ' ')
       .trim();
 

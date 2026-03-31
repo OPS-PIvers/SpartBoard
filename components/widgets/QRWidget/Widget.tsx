@@ -15,7 +15,14 @@ import { useAuth } from '@/context/useAuth';
 const stripHtml = (html: string) => {
   if (typeof DOMParser === 'undefined') {
     // Basic fallback for SSR environments to remove HTML tags.
-    return html.replace(/<[^>]*>?/gm, '');
+    // Loop until stable to prevent partial-tag bypass (e.g. <scr<script>ipt>).
+    let result = html;
+    let prev: string;
+    do {
+      prev = result;
+      result = prev.replace(/<[^>]*>?/gm, '');
+    } while (result !== prev);
+    return result.replace(/[<>]/g, '');
   }
   const doc = new DOMParser().parseFromString(html, 'text/html');
   return doc.body.textContent || '';
