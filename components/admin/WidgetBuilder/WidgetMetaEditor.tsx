@@ -1,6 +1,11 @@
 import React from 'react';
-import { WidgetMeta, WIDGET_COLOR_PRESETS, WIDGET_ICON_PRESETS } from './types';
+import { WidgetMeta, WIDGET_COLOR_PRESETS } from './types';
 import { BUILDINGS } from '@/config/buildings';
+import {
+  CUSTOM_WIDGET_ICON_OPTIONS,
+  getCustomWidgetIcon,
+} from '@/config/customWidgetIcons';
+import { Puzzle } from 'lucide-react';
 
 interface WidgetMetaEditorProps {
   meta: WidgetMeta;
@@ -12,6 +17,23 @@ function slugify(value: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+function renderWidgetIcon(
+  iconKey: string,
+  className: string,
+  size: number
+): React.ReactNode {
+  const Icon = getCustomWidgetIcon(iconKey);
+  if (Icon) return React.createElement(Icon, { size, className });
+  if (iconKey.trim().length === 0) {
+    return React.createElement(Puzzle, { size, className });
+  }
+  return (
+    <span className={className} style={{ fontSize: size }} aria-hidden="true">
+      {iconKey}
+    </span>
+  );
 }
 
 export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
@@ -31,6 +53,10 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
       : [...meta.buildings, id];
     update({ buildings: next });
   };
+  const selectedIconOption = CUSTOM_WIDGET_ICON_OPTIONS.find(
+    (option) => option.key === meta.icon
+  );
+  const selectedIconLabel = selectedIconOption?.label ?? meta.icon;
 
   return (
     <div className="space-y-5">
@@ -39,7 +65,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           Widget Info
         </h3>
 
-        {/* Title */}
         <div className="space-y-1 mb-3">
           <label className="block text-xs text-slate-400">
             Widget Name <span className="text-red-400">*</span>
@@ -53,7 +78,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           />
         </div>
 
-        {/* Slug */}
         <div className="space-y-1 mb-3">
           <label className="block text-xs text-slate-400">
             Slug (auto-generated, must be unique)
@@ -67,7 +91,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           />
         </div>
 
-        {/* Description */}
         <div className="space-y-1 mb-3">
           <label className="block text-xs text-slate-400">Description</label>
           <textarea
@@ -80,54 +103,37 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         </div>
       </div>
 
-      {/* Icon */}
       <div>
-        <label className="block text-xs text-slate-400 mb-2">
-          Icon (emoji)
-        </label>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-3xl leading-none">{meta.icon}</span>
-          <input
-            type="text"
-            value={meta.icon}
-            onChange={(e) => {
-              const val = e.target.value;
-              let icon = '🧩';
-              if (val.length > 0) {
-                if (typeof Intl !== 'undefined' && Intl.Segmenter) {
-                  const segs = [...new Intl.Segmenter().segment(val)];
-                  if (segs.length > 0) icon = segs[segs.length - 1].segment;
-                } else {
-                  // Fallback: last Unicode code point (handles surrogate pairs)
-                  const codePoints = [...val];
-                  if (codePoints.length > 0)
-                    icon = codePoints[codePoints.length - 1];
-                }
-              }
-              update({ icon });
-            }}
-            className="w-16 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 text-center focus:outline-none focus:border-blue-500"
-          />
+        <label className="block text-xs text-slate-400 mb-2">Widget Icon</label>
+        <div className="flex items-center gap-3 mb-2 rounded-lg border border-slate-600 bg-slate-900 px-3 py-2">
+          {renderWidgetIcon(meta.icon, 'text-blue-300', 20)}
+          <span className="text-xs text-slate-300">{selectedIconLabel}</span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {WIDGET_ICON_PRESETS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => update({ icon: emoji })}
-              className={`text-lg leading-none p-1.5 rounded border transition-colors ${
-                meta.icon === emoji
-                  ? 'border-blue-500 bg-blue-900/30'
-                  : 'border-transparent hover:border-slate-500 hover:bg-slate-700'
-              }`}
-              title={emoji}
-            >
-              {emoji}
-            </button>
-          ))}
+        <p className="text-xs text-slate-500 mb-2">
+          Use a Lucide icon so your widget matches the rest of SPART.
+        </p>
+        <div className="grid grid-cols-4 gap-2">
+          {CUSTOM_WIDGET_ICON_OPTIONS.map((option) => {
+            const active = option.key === meta.icon;
+            return (
+              <button
+                key={option.key}
+                onClick={() => update({ icon: option.key })}
+                className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-[11px] transition-colors ${
+                  active
+                    ? 'border-blue-500 bg-blue-900/30 text-blue-200'
+                    : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                }`}
+                title={option.label}
+              >
+                {React.createElement(option.icon, { size: 16 })}
+                <span className="leading-none">{option.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Color */}
       <div>
         <label className="block text-xs text-slate-400 mb-2">
           Accent Color
@@ -148,7 +154,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         </div>
       </div>
 
-      {/* Default size */}
       <div>
         <label className="block text-xs text-slate-400 mb-2">
           Default Size (px)
@@ -183,7 +188,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         </div>
       </div>
 
-      {/* Access level */}
       <div>
         <label className="block text-xs text-slate-400 mb-2">
           Access Level
@@ -226,7 +230,6 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         )}
       </div>
 
-      {/* Buildings */}
       <div>
         <label className="block text-xs text-slate-400 mb-1">
           Available In (leave empty for all buildings)

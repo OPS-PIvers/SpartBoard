@@ -5,18 +5,13 @@ import {
   BLOCK_ACTIONS as BLOCK_ACTIONS_MAP,
   BlockEventDefinition,
 } from '@/components/widgets/CustomWidget/types';
-import { Link2, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Link2, Plus, Trash2, Sparkles } from 'lucide-react';
 
 interface ConnectionsTabProps {
   gridDefinition: CustomGridDefinition;
   onChange: (grid: CustomGridDefinition) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Derived event / action lists
-// ---------------------------------------------------------------------------
-
-// Deduplicate event definitions by base ID so each event appears once.
 const eventDefMap = new Map<string, BlockEventDefinition>();
 Object.values(BLOCK_EVENTS_MAP).forEach((defs) =>
   defs.forEach((d) => {
@@ -27,7 +22,6 @@ const ALL_EVENT_DEFS = Array.from(eventDefMap.values()).sort((a, b) =>
   a.id.localeCompare(b.id)
 );
 
-// Derive unique actions from the per-block-type map, plus widget-level actions.
 const allActionSet = new Set<string>();
 Object.values(BLOCK_ACTIONS_MAP).forEach((actions) =>
   actions.forEach((a) => allActionSet.add(a))
@@ -37,14 +31,12 @@ Object.values(BLOCK_ACTIONS_MAP).forEach((actions) =>
 );
 const BLOCK_ACTIONS = Array.from(allActionSet).sort() as BlockAction[];
 
-// Actions that need a string payload
 const PAYLOAD_ACTIONS: BlockAction[] = [
   'set-text',
   'set-image',
   'show-toast',
   'set-traffic',
 ];
-// Actions that need a numeric value
 const VALUE_ACTIONS: BlockAction[] = [
   'set-value',
   'increment',
@@ -53,15 +45,9 @@ const VALUE_ACTIONS: BlockAction[] = [
   'check-item',
 ];
 
-// ---------------------------------------------------------------------------
-// Form state shape
-// ---------------------------------------------------------------------------
-
 interface NewConnForm {
   sourceBlockId: string;
-  /** Base event id — for requiresNumber events this is the prefix only */
   eventBase: string;
-  /** Numeric threshold for parameterized events (e.g. on-counter-reach-N) */
   eventN: number;
   targetBlockId: string;
   action: BlockAction;
@@ -92,10 +78,6 @@ const selectCls =
 const inputCls =
   'w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500';
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
   gridDefinition,
   onChange,
@@ -104,7 +86,6 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<NewConnForm>(BLANK_FORM);
 
-  // Named blocks available for selection
   const namedBlocks = cells
     .filter((c) => c.block !== null)
     .map((c) => {
@@ -117,11 +98,8 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
     })
     .filter((b): b is { id: string; label: string } => b !== null);
 
-  // Does the selected event definition require a numeric threshold?
   const selectedEventDef = eventDefMap.get(form.eventBase);
   const eventRequiresN = selectedEventDef?.requiresNumber ?? false;
-
-  // Concrete event string saved into the connection
   const concreteEvent = eventRequiresN
     ? `${form.eventBase}-${form.eventN}`
     : form.eventBase;
@@ -169,12 +147,11 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-700 border-b border-slate-600">
         <div className="flex items-center gap-2">
           <Link2 size={14} className="text-blue-400" />
           <span className="text-xs font-semibold text-slate-200">
-            Connections
+            Interactive Rules
           </span>
           <span className="bg-slate-600 text-slate-300 text-xs rounded-full px-1.5 py-0.5">
             {connections.length}
@@ -185,28 +162,35 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
           className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
         >
           <Plus size={10} />
-          Add
+          New Rule
         </button>
       </div>
 
       <div className="flex-1 overflow-auto p-3 space-y-3">
+        <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
+          <p className="text-[11px] text-slate-400">
+            Think of this as: “
+            <span className="text-slate-200">When this happens</span>,{' '}
+            <span className="text-slate-200">do this</span>.”
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Example: “When Button A is clicked, increase Counter B by 1.”
+          </p>
+        </div>
+
         {namedBlocks.length < 2 && (
           <p className="text-xs text-slate-500 italic">
-            Add at least two blocks to the grid to create connections.
+            Add at least two blocks to the grid to create rules.
           </p>
         )}
 
-        {/* Add connection form */}
         {isAdding && namedBlocks.length >= 2 && (
           <div className="bg-slate-900 border border-blue-700 rounded-lg p-3 space-y-2">
-            <p className="text-xs font-semibold text-blue-400">
-              New Connection
-            </p>
+            <p className="text-xs font-semibold text-blue-400">Rule Builder</p>
 
-            {/* Source block */}
             <div className="space-y-1">
               <label className="block text-xs text-slate-400">
-                Source Block
+                1) When this block...
               </label>
               <select
                 value={form.sourceBlockId}
@@ -224,9 +208,10 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               </select>
             </div>
 
-            {/* Event + optional threshold number */}
             <div className="space-y-1">
-              <label className="block text-xs text-slate-400">Event</label>
+              <label className="block text-xs text-slate-400">
+                2) ...triggers this event
+              </label>
               <div className="flex gap-2">
                 <select
                   value={form.eventBase}
@@ -257,20 +242,11 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                   />
                 )}
               </div>
-              {eventRequiresN && (
-                <p className="text-xs text-slate-500">
-                  Fires as:{' '}
-                  <span className="font-mono text-amber-400">
-                    {concreteEvent}
-                  </span>
-                </p>
-              )}
             </div>
 
-            {/* Target block */}
             <div className="space-y-1">
               <label className="block text-xs text-slate-400">
-                Target Block
+                3) Affect this block
               </label>
               <select
                 value={form.targetBlockId}
@@ -290,9 +266,10 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               </select>
             </div>
 
-            {/* Action */}
             <div className="space-y-1">
-              <label className="block text-xs text-slate-400">Action</label>
+              <label className="block text-xs text-slate-400">
+                4) Then do this action
+              </label>
               <select
                 value={form.action}
                 onChange={(e) =>
@@ -311,15 +288,14 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               </select>
             </div>
 
-            {/* Action payload (string) — for set-text, set-image, show-toast, set-traffic */}
             {PAYLOAD_ACTIONS.includes(form.action) && (
               <div className="space-y-1">
                 <label className="block text-xs text-slate-400">
                   {form.action === 'set-traffic'
-                    ? 'Color (red / yellow / green)'
+                    ? 'Traffic color'
                     : form.action === 'show-toast'
                       ? 'Toast message'
-                      : 'Value'}
+                      : 'Text value'}
                 </label>
                 <input
                   type="text"
@@ -330,26 +306,32 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                   placeholder={
                     form.action === 'set-traffic'
                       ? 'red | yellow | green'
-                      : form.action === 'show-toast'
-                        ? 'Message to display'
-                        : 'Value...'
+                      : form.action === 'set-image'
+                        ? 'https://example.com/image.png'
+                        : form.action === 'show-toast'
+                          ? 'Message to display'
+                          : 'Text value'
                   }
+                  aria-label={`Action payload for ${form.action}`}
                   className={inputCls}
                 />
               </div>
             )}
 
-            {/* Action value (number) — for set-value, increment/decrement step, etc. */}
             {VALUE_ACTIONS.includes(form.action) && (
               <div className="space-y-1">
-                <label className="block text-xs text-slate-400">
+                <label
+                  htmlFor="action-value-input"
+                  className="block text-xs text-slate-400"
+                >
                   {form.action === 'increment' || form.action === 'decrement'
-                    ? 'Step (default 1)'
+                    ? 'Step value'
                     : form.action === 'check-item'
                       ? 'Item index'
-                      : 'Value'}
+                      : 'Numeric value'}
                 </label>
                 <input
+                  id="action-value-input"
                   type="number"
                   value={form.actionValue}
                   onChange={(e) =>
@@ -358,80 +340,76 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                       actionValue: Number(e.target.value),
                     }))
                   }
+                  aria-label={`Action value for ${form.action}`}
                   className={inputCls}
                 />
               </div>
             )}
 
-            {/* Optional guard condition */}
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.hasCondition}
+            <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.hasCondition}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, hasCondition: e.target.checked }))
+                }
+              />
+              Add optional condition
+            </label>
+
+            {form.hasCondition && (
+              <div className="mt-1 bg-slate-800 border border-slate-600 rounded p-2 space-y-1">
+                <select
+                  value={form.conditionWatchBlockId}
                   onChange={(e) =>
-                    setForm((p) => ({ ...p, hasCondition: e.target.checked }))
+                    setForm((p) => ({
+                      ...p,
+                      conditionWatchBlockId: e.target.value,
+                    }))
                   }
-                />
-                Add guard condition
-              </label>
-              {form.hasCondition && (
-                <div className="mt-1 bg-slate-800 border border-slate-600 rounded p-2 space-y-1">
-                  <p className="text-xs text-slate-500">
-                    Only fire if another block&apos;s value matches:
-                  </p>
+                  className={selectCls}
+                >
+                  <option value="">Watch block...</option>
+                  {namedBlocks.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-1">
                   <select
-                    value={form.conditionWatchBlockId}
+                    value={form.conditionOperator}
                     onChange={(e) =>
                       setForm((p) => ({
                         ...p,
-                        conditionWatchBlockId: e.target.value,
+                        conditionOperator: e.target.value as
+                          | 'gte'
+                          | 'lte'
+                          | 'eq'
+                          | 'neq',
                       }))
                     }
-                    className={selectCls}
+                    className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
                   >
-                    <option value="">Watch block...</option>
-                    {namedBlocks.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.label}
-                      </option>
-                    ))}
+                    <option value="gte">≥ (gte)</option>
+                    <option value="lte">≤ (lte)</option>
+                    <option value="eq">= (eq)</option>
+                    <option value="neq">≠ (neq)</option>
                   </select>
-                  <div className="flex gap-1">
-                    <select
-                      value={form.conditionOperator}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          conditionOperator: e.target.value as
-                            | 'gte'
-                            | 'lte'
-                            | 'eq'
-                            | 'neq',
-                        }))
-                      }
-                      className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="gte">≥ (gte)</option>
-                      <option value="lte">≤ (lte)</option>
-                      <option value="eq">= (eq)</option>
-                      <option value="neq">≠ (neq)</option>
-                    </select>
-                    <input
-                      type="number"
-                      value={form.conditionValue}
-                      onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          conditionValue: Number(e.target.value),
-                        }))
-                      }
-                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    value={form.conditionValue}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        conditionValue: Number(e.target.value),
+                      }))
+                    }
+                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-1">
               <button
@@ -439,7 +417,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 disabled={!form.sourceBlockId || !form.targetBlockId}
                 className="flex-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
               >
-                Add Connection
+                Save Rule
               </button>
               <button
                 onClick={() => {
@@ -454,11 +432,9 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
           </div>
         )}
 
-        {/* Existing connections */}
         {connections.length === 0 && !isAdding && (
           <p className="text-xs text-slate-500 italic">
-            No connections yet. Use the Add button to create IFTTT-style block
-            logic.
+            No rules yet. Start with “New Rule” to create interactions.
           </p>
         )}
 
@@ -468,42 +444,24 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
             className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2"
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-blue-300 truncate">
-                  {getBlockLabel(conn.sourceBlockId)}
-                </span>
-                <ArrowRight
-                  size={10}
-                  className="text-slate-500 flex-shrink-0"
-                />
-                <span className="text-emerald-300 truncate">
-                  {getBlockLabel(conn.targetBlockId)}
+              <div className="flex items-center gap-1 text-xs text-slate-200">
+                <Sparkles size={12} className="text-amber-400" />
+                <span className="truncate">
+                  When <b>{getBlockLabel(conn.sourceBlockId)}</b> triggers{' '}
+                  <b>{conn.event}</b>, then{' '}
+                  <b>{getBlockLabel(conn.targetBlockId)}</b> does{' '}
+                  <b>{conn.action}</b>
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                on{' '}
-                <span className="text-amber-400 font-mono">{conn.event}</span> →{' '}
-                <span className="text-purple-400 font-mono">{conn.action}</span>
-                {conn.actionPayload && (
-                  <span className="text-slate-400">
-                    {' '}
-                    ({conn.actionPayload})
-                  </span>
-                )}
-                {conn.actionValue !== undefined && (
-                  <span className="text-slate-400"> ({conn.actionValue})</span>
-                )}
-              </p>
+              {(conn.actionPayload != null || conn.actionValue != null) && (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Details: {conn.actionPayload ?? conn.actionValue}
+                </p>
+              )}
               {conn.condition && (
                 <p className="text-xs text-slate-600 mt-0.5">
-                  if{' '}
-                  <span className="font-mono text-slate-400">
-                    {getBlockLabel(conn.condition.watchBlockId)}
-                  </span>{' '}
-                  {conn.condition.operator}{' '}
-                  <span className="font-mono text-slate-400">
-                    {String(conn.condition.value)}
-                  </span>
+                  Only if {getBlockLabel(conn.condition.watchBlockId)}{' '}
+                  {conn.condition.operator} {String(conn.condition.value)}
                 </p>
               )}
             </div>

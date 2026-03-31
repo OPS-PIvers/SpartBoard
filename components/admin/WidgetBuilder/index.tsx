@@ -6,6 +6,10 @@ import {
   Check,
   Puzzle,
   Code2,
+  LayoutTemplate,
+  Blocks,
+  SlidersHorizontal,
+  Workflow,
 } from 'lucide-react';
 import { CustomWidgetDoc, CustomGridCell } from '@/types';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
@@ -25,6 +29,7 @@ import { CodeEditorPane, INITIAL_HTML_TEMPLATE } from './CodeEditorPane';
 import { WidgetMetaEditor } from './WidgetMetaEditor';
 import { SettingsDefEditor } from './SettingsDefEditor';
 import { PreviewPane } from './PreviewPane';
+import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,11 +52,24 @@ function initialCells(columns: number, rows: number): CustomGridCell[] {
   return cells;
 }
 
+function renderSelectedMetaIcon(iconKey: string): React.ReactNode {
+  const Icon = getCustomWidgetIcon(iconKey);
+  if (Icon) return <Icon size={28} className="text-blue-300" />;
+  if (iconKey.trim().length === 0) {
+    return <Puzzle size={28} className="text-blue-300" />;
+  }
+  return (
+    <span aria-hidden="true" className="text-2xl leading-none">
+      {iconKey}
+    </span>
+  );
+}
+
 const INITIAL_META: WidgetMeta = {
   title: '',
   slug: '',
   description: '',
-  icon: '🧩',
+  icon: 'Puzzle',
   color: 'bg-blue-500',
   defaultWidth: 400,
   defaultHeight: 300,
@@ -221,6 +239,9 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
 
   // Track selected cell for CellEditor
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [blockBuildStep, setBlockBuildStep] = useState<
+    'layout' | 'blocks' | 'details' | 'connections'
+  >('layout');
 
   // Reset builder state whenever the modal is opened or the widget being
   // edited changes (e.g. user closes and reopens with a different widget).
@@ -230,6 +251,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
     setSaving(false);
     setSaveMessage(null);
     setSelectedCellId(null);
+    setBlockBuildStep('layout');
   }, [isOpen, existingWidget]);
 
   const update = useCallback((updates: Partial<BuilderState>) => {
@@ -353,92 +375,162 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
 
           {/* STEP: Build */}
           {state.step === 'build' && state.mode === 'block' && (
-            <div className="flex h-full gap-0 overflow-hidden">
-              {/* Left: Block Palette — 20% */}
-              <div
-                className="flex-shrink-0 border-r border-slate-700 overflow-auto"
-                style={{ width: '18%' }}
-              >
-                <BlockPalette
-                  onSelectBlock={(blockType) => {
-                    if (selectedCellId) {
-                      // Find existing cell and drop block
-                      const cell = state.gridDefinition.cells.find(
-                        (c) => c.id === selectedCellId
+            <div className="h-full overflow-hidden p-4">
+              <div className="h-full rounded-xl border border-slate-700 bg-slate-900/60 overflow-hidden flex flex-col">
+                <div className="border-b border-slate-700 px-4 py-3 bg-slate-800/70">
+                  <p className="text-sm font-semibold text-white">
+                    Guided Block Builder
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Build your widget one step at a time. This flow is made for
+                    non-coders.
+                  </p>
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {[
+                      {
+                        key: 'layout',
+                        label: '1. Layout',
+                        icon: LayoutTemplate,
+                      },
+                      { key: 'blocks', label: '2. Blocks', icon: Blocks },
+                      {
+                        key: 'details',
+                        label: '3. Details',
+                        icon: SlidersHorizontal,
+                      },
+                      {
+                        key: 'connections',
+                        label: '4. Connect',
+                        icon: Workflow,
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const active = blockBuildStep === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() =>
+                            setBlockBuildStep(
+                              item.key as
+                                | 'layout'
+                                | 'blocks'
+                                | 'details'
+                                | 'connections'
+                            )
+                          }
+                          className={`flex items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs transition-colors ${
+                            active
+                              ? 'border-blue-500 bg-blue-900/40 text-blue-200'
+                              : 'border-slate-700 bg-slate-900/70 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                          }`}
+                        >
+                          <Icon size={13} />
+                          {item.label}
+                        </button>
                       );
-                      if (cell) {
-                        const newBlock = {
-                          id: crypto.randomUUID(),
-                          type: blockType,
-                          config: buildDefaultConfig(blockType) as never,
-                          style: {},
-                        };
-                        const newCells = state.gridDefinition.cells.map((c) =>
-                          c.id === selectedCellId
-                            ? { ...c, block: newBlock }
-                            : c
-                        );
-                        update({
-                          gridDefinition: {
-                            ...state.gridDefinition,
-                            cells: newCells,
-                          },
-                        });
-                      }
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Center: BuilderGrid + ConnectionsTab — 50% */}
-              <div
-                className="flex flex-col overflow-hidden"
-                style={{ width: '50%' }}
-              >
-                <div className="flex-1 overflow-auto p-3">
-                  <BuilderGrid
-                    gridDefinition={state.gridDefinition}
-                    onChange={(grid) => update({ gridDefinition: grid })}
-                    selectedCellId={selectedCellId}
-                    onSelectCell={setSelectedCellId}
-                  />
-                </div>
-                <div
-                  className="flex-shrink-0 border-t border-slate-700 overflow-auto"
-                  style={{ height: '35%' }}
-                >
-                  <div className="h-full p-3">
-                    <ConnectionsTab
-                      gridDefinition={state.gridDefinition}
-                      onChange={(grid) => update({ gridDefinition: grid })}
-                    />
+                    })}
                   </div>
                 </div>
-              </div>
 
-              {/* Right: CellEditor — 30% */}
-              <div
-                className="flex-shrink-0 border-l border-slate-700 p-3 overflow-auto"
-                style={{ width: '32%' }}
-              >
-                <CellEditor
-                  cell={selectedCell}
-                  onUpdateBlock={(cellId, block) => {
-                    const newCells = state.gridDefinition.cells.map((c) =>
-                      c.id === cellId ? { ...c, block } : c
-                    );
-                    update({
-                      gridDefinition: {
-                        ...state.gridDefinition,
-                        cells: newCells,
-                      },
-                    });
-                  }}
-                  onDropBlock={() => {
-                    // Handled via BlockPalette onSelectBlock
-                  }}
-                  onClose={() => setSelectedCellId(null)}
-                />
+                <div className="flex-1 min-h-0 grid grid-cols-12">
+                  <div className="col-span-8 p-3 overflow-auto border-r border-slate-700">
+                    <BuilderGrid
+                      gridDefinition={state.gridDefinition}
+                      onChange={(grid) => update({ gridDefinition: grid })}
+                      selectedCellId={selectedCellId}
+                      onSelectCell={setSelectedCellId}
+                    />
+                  </div>
+                  <div className="col-span-4 p-3 overflow-auto">
+                    {blockBuildStep === 'layout' && (
+                      <div className="space-y-3 text-sm">
+                        <h4 className="font-semibold text-white">
+                          Step 1: Set your layout
+                        </h4>
+                        <p className="text-slate-400 text-xs">
+                          Start simple: choose the number of rows and columns,
+                          then merge cells to create larger areas.
+                        </p>
+                        <ul className="text-xs text-slate-500 list-disc list-inside space-y-1">
+                          <li>Click + / - in the grid toolbar to resize.</li>
+                          <li>
+                            Shift+click cells, then Merge for big regions.
+                          </li>
+                          <li>
+                            Click a cell to prepare it for adding content.
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+
+                    {blockBuildStep === 'blocks' && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-white text-sm">
+                          Step 2: Choose what goes in each area
+                        </h4>
+                        <p className="text-slate-400 text-xs">
+                          Pick a cell first, then click a block below to place
+                          it.
+                        </p>
+                        <BlockPalette
+                          onSelectBlock={(blockType) => {
+                            if (!selectedCellId) return;
+                            const cell = state.gridDefinition.cells.find(
+                              (c) => c.id === selectedCellId
+                            );
+                            if (!cell) return;
+                            const newBlock = {
+                              id: crypto.randomUUID(),
+                              type: blockType,
+                              config: buildDefaultConfig(blockType) as never,
+                              style: {},
+                            };
+                            const newCells = state.gridDefinition.cells.map(
+                              (c) =>
+                                c.id === selectedCellId
+                                  ? { ...c, block: newBlock }
+                                  : c
+                            );
+                            update({
+                              gridDefinition: {
+                                ...state.gridDefinition,
+                                cells: newCells,
+                              },
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {blockBuildStep === 'details' && (
+                      <CellEditor
+                        cell={selectedCell}
+                        onUpdateBlock={(cellId, block) => {
+                          const newCells = state.gridDefinition.cells.map(
+                            (c) => (c.id === cellId ? { ...c, block } : c)
+                          );
+                          update({
+                            gridDefinition: {
+                              ...state.gridDefinition,
+                              cells: newCells,
+                            },
+                          });
+                        }}
+                        onDropBlock={() => {
+                          // Handled via BlockPalette onSelectBlock
+                        }}
+                        onClose={() => setSelectedCellId(null)}
+                      />
+                    )}
+
+                    {blockBuildStep === 'connections' && (
+                      <ConnectionsTab
+                        gridDefinition={state.gridDefinition}
+                        onChange={(grid) => update({ gridDefinition: grid })}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -483,8 +575,8 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
               <div className="max-w-5xl mx-auto flex flex-col gap-6 h-full">
                 {/* Summary header */}
                 <div className="flex items-center gap-4 bg-slate-800 rounded-xl border border-slate-700 px-5 py-4">
-                  <span className="text-4xl leading-none">
-                    {state.meta.icon}
+                  <span className="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center">
+                    {renderSelectedMetaIcon(state.meta.icon)}
                   </span>
                   <div>
                     <h3 className="text-lg font-bold text-white">

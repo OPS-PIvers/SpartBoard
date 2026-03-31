@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Puzzle,
 } from 'lucide-react';
+import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
 import { CustomWidgetDoc } from '@/types';
 import {
   DndContext,
@@ -265,25 +266,28 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   </p>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {customWidgets.map((w) => (
-                    <button
-                      key={w.id}
-                      onClick={() => {
-                        onAddCustomWidget?.(w.id);
-                        onClose();
-                      }}
-                      className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
-                    >
-                      <div
-                        className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}
+                  {customWidgets.map((w) => {
+                    const Icon = getCustomWidgetIcon(w.icon);
+                    return (
+                      <button
+                        key={w.id}
+                        onClick={() => {
+                          onAddCustomWidget?.(w.id);
+                          onClose();
+                        }}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
                       >
-                        {w.icon}
-                      </div>
-                      <span className="text-xs font-semibold text-slate-700 leading-tight line-clamp-2">
-                        {w.title}
-                      </span>
-                    </button>
-                  ))}
+                        <div
+                          className={`w-10 h-10 rounded-xl ${w.color} flex items-center justify-center text-xl text-white shadow-sm group-hover:scale-110 transition-transform`}
+                        >
+                          {Icon ? <Icon size={20} /> : w.icon}
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 leading-tight line-clamp-2">
+                          {w.title}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
