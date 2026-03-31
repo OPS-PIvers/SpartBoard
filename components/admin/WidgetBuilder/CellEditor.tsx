@@ -145,10 +145,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                   }
                   if (typeof val === 'boolean') {
                     return (
-                      <label
-                        key={key}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
+                      <div key={key} className="flex items-center gap-2">
                         <Toggle
                           checked={val}
                           onChange={(checked) => {
@@ -162,10 +159,37 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                             onUpdateBlock(cell.id, updated);
                           }}
                         />
-                        <span className="text-xs text-slate-300 capitalize">
+                        <span
+                          className="text-xs text-slate-300 capitalize cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              const updated: CustomBlockDefinition = {
+                                ...block,
+                                config: {
+                                  ...(block.config as Record<string, unknown>),
+                                  [key]: !val,
+                                },
+                              };
+                              onUpdateBlock(cell.id, updated);
+                            }
+                          }}
+                          onClick={() => {
+                            const updated: CustomBlockDefinition = {
+                              ...block,
+                              config: {
+                                ...(block.config as Record<string, unknown>),
+                                [key]: !val,
+                              },
+                            };
+                            onUpdateBlock(cell.id, updated);
+                          }}
+                        >
                           {key}
                         </span>
-                      </label>
+                      </div>
                     );
                   }
                   return null;

@@ -356,6 +356,14 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               />
               <span
                 className="text-xs text-slate-400 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setForm((p) => ({ ...p, hasCondition: !p.hasCondition }));
+                  }
+                }}
                 onClick={() =>
                   setForm((p) => ({ ...p, hasCondition: !p.hasCondition }))
                 }

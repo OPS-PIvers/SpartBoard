@@ -6,6 +6,7 @@ export interface ToggleProps {
   disabled?: boolean;
   className?: string;
   size?: 'xs' | 'sm' | 'md';
+  id?: string;
   /**
    * Tailwind class for the active background color.
    * Defaults to 'bg-brand-blue-primary'.
@@ -33,6 +34,7 @@ export const Toggle: React.FC<ToggleProps> = ({
   activeColor = 'bg-brand-blue-primary',
   showLabels = true,
   variant = 'standard',
+  id,
 }) => {
   const sizes = {
     xs: {
@@ -61,6 +63,7 @@ export const Toggle: React.FC<ToggleProps> = ({
 
   return (
     <button
+      id={id}
       type="button"
       role="switch"
       aria-checked={checked}

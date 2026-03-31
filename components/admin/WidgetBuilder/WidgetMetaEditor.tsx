@@ -247,6 +247,14 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               />
               <span
                 className="text-sm text-slate-300 cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleBuilding(building.id);
+                  }
+                }}
                 onClick={() => toggleBuilding(building.id)}
               >
                 {building.name}

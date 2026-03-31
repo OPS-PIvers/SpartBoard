@@ -79,6 +79,7 @@ export const SchemaDrivenConfigurationPanel: React.FC<
             {field.type === 'boolean' && (
               <div className="flex items-center">
                 <Toggle
+                  id={`sdcp-${key}`}
                   checked={!!value}
                   onChange={(checked) =>
                     onChange({ ...config, [key]: checked })
