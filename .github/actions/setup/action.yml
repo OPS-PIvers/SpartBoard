@@ -10,8 +10,23 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Get pnpm version
+      id: pnpm-version
+      shell: bash
+      run: |
+        PACKAGE_MANAGER_LINE=$(grep '"packageManager"' package.json)
+        if [[ "$PACKAGE_MANAGER_LINE" == *"pnpm@"* ]]; then
+          PNPM_VERSION=$(echo "$PACKAGE_MANAGER_LINE" | cut -d'"' -f4 | cut -d'@' -f2)
+          echo "version=$PNPM_VERSION" >> $GITHUB_OUTPUT
+        else
+          echo "::error::'packageManager' field in package.json does not specify 'pnpm@version'. This action expects pnpm." >&2
+          exit 1
+        fi
+
     - name: Install pnpm
       uses: pnpm/action-setup@v4
+      with:
+        version: ${{ steps.pnpm-version.outputs.version }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
