@@ -532,6 +532,8 @@ export interface BuildingTimeToolDefaults {
   buildingId: string;
   duration?: number; // in seconds
   timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
+  timerEndTriggerRandom?: boolean;
+  timerEndTriggerNextUp?: boolean;
 }
 
 export interface TimeToolGlobalConfig {

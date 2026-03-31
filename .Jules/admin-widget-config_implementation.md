@@ -614,3 +614,9 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
         -- None natively configurable. Settings are configured per-set inside the editor.
     - [Admin-Only Settings]
         -- dockDefaults: Per-building dock visibility.
+
+[x] TimeTool
+    - [Default User-Level Settings]
+        -- Exposes the TimeTool defaults, specifically including the Auto-Pick Random Student and Auto-Advance Next Up Queue boolean controls.
+    - [Admin-Only Settings]
+        -- None added currently.
