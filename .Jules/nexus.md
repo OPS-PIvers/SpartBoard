@@ -52,6 +52,8 @@ Nexus is the system that allows widgets to interact with each other, creating a 
 
 ## 2024-05-23 - [Roster to Queue] **Source:** Classes (Roster) **Destination:** NextUp **Value:** Allows teachers to instantly populate the NextUp queue with their active class roster.
 
+## 2024-05-24 - [Quiz to Scoreboard] **Source:** Quiz **Destination:** Scoreboard **Value:** Instantly converts completed quiz scores into a competitive scoreboard for post-quiz review.
+
 ## Planned Connections
 
 ## WILL NOT IMPLEMENT
