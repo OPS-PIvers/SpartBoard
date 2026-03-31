@@ -28,11 +28,14 @@ const RoleSection: React.FC<{
   onChange: (emails: string[]) => void;
 }> = ({ title, description, icon, emails, onChange }) => {
   const [inputText, setInputText] = useState(emails.join('\n'));
+  const [prevEmails, setPrevEmails] = useState(emails);
 
   // Sync prop changes back to local state if external updates happen
-  useEffect(() => {
+  // avoiding useEffect for deriving state to prevent extra re-renders
+  if (emails !== prevEmails) {
+    setPrevEmails(emails);
     setInputText(emails.join('\n'));
-  }, [emails]);
+  }
 
   const handleBlur = () => {
     const updatedEmails = inputText

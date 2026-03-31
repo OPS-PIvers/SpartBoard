@@ -342,10 +342,10 @@ export const DashboardView: React.FC = () => {
           // Disabled when the gesture starts on a widget to avoid interfering
           // with widget interactions.
           if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
-            setPanOffset((prev: { x: number; y: number }) => ({
-              x: prev.x + dx,
-              y: prev.y + dy,
-            }));
+            setPanOffset({
+              x: panOffset.x + dx,
+              y: panOffset.y + dy,
+            });
           }
           return;
         }

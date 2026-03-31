@@ -109,6 +109,8 @@ describe('Global Escape Interaction', () => {
     gradeFilter: 'all',
     zoom: 1,
     setZoom: vi.fn(),
+    panOffset: { x: 0, y: 0 },
+    setPanOffset: vi.fn(),
   };
 
   afterEach(() => {

@@ -176,6 +176,10 @@ const mockDashboard: DashboardContextValue = {
   setZoom: () => {
     // No-op
   },
+  panOffset: { x: 0, y: 0 },
+  setPanOffset: () => {
+    // No-op
+  },
   selectedWidgetId: null,
   setSelectedWidgetId: () => {
     // No-op
