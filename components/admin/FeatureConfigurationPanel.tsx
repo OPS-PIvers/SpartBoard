@@ -36,7 +36,7 @@ import { DiceConfigurationPanel } from './DiceConfigurationPanel';
 import { ScoreboardConfigurationPanel } from './ScoreboardConfigurationPanel';
 import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { TalkingToolConfigurationPanel } from './TalkingToolConfigurationPanel';
-import { GuidedLearningConfigurationPanel } from './GuidedLearningConfigurationPanel';
+import { GuidedLearningConfigurationPanel } from '@/components/admin/GuidedLearningConfigurationPanel';
 import { MaterialsConfigurationPanel } from './MaterialsConfigurationPanel';
 import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { NextUpConfigurationPanel } from './NextUpConfigurationPanel';
