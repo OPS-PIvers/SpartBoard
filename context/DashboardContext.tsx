@@ -317,16 +317,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (hasPersistedDockState) {
       try {
+        // Validate saved dock state before marking initialization complete.
+        // visibleTools/dockItems are already hydrated by their useState initializers.
         if (savedDockRaw !== null) {
-          setDockItems(JSON.parse(savedDockRaw) as DockItem[]);
+          JSON.parse(savedDockRaw);
         }
         if (savedVisibleToolsRaw !== null) {
-          setVisibleTools(
-            JSON.parse(savedVisibleToolsRaw) as (
-              | WidgetType
-              | InternalToolType
-            )[]
-          );
+          JSON.parse(savedVisibleToolsRaw);
         }
         setIsDockInitialized(true);
         localStorage.setItem('classroom_dock_initialized', 'true');
