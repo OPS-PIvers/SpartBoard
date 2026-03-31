@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { auth } from '@/config/firebase';
-import { BarChart, Users, Zap, LayoutGrid, AlertCircle } from 'lucide-react';
+import {
+  BarChart,
+  Users,
+  Zap,
+  LayoutGrid,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 
@@ -44,13 +51,18 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   {} as Record<string, string>
 );
 
+const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
+
+const formatRate = (value: number) =>
+  Number.isFinite(value) ? `${value.toFixed(1)}%` : '0.0%';
+
 const StatCard: React.FC<{
   title: string;
   value: string | number;
   icon: React.ReactNode;
   subtitle?: string;
 }> = ({ title, value, icon, subtitle }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+  <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
     <div className="flex justify-between items-start mb-4">
       <div className="p-3 bg-brand-blue-primary/10 rounded-xl text-brand-blue-primary">
         {icon}
@@ -77,51 +89,51 @@ export const AnalyticsManager: React.FC = () => {
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const user = auth.currentUser;
-        if (!user) throw new Error('Not authenticated');
+      const user = auth.currentUser;
+      if (!user) throw new Error('Not authenticated');
 
-        const token = await user.getIdToken();
-        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
-        const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
+      const token = await user.getIdToken();
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
+      const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({}),
-        });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
 
-        if (!response.ok) {
-          const body = (await response.json().catch(() => ({}))) as {
-            message?: string;
-            error?: string;
-          };
-          const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
-          throw new Error(msg);
-        }
-
-        const data = (await response.json()) as AnalyticsData;
-        setData(data);
-      } catch (err: unknown) {
-        console.error('Failed to load analytics', err);
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : 'An error occurred loading analytics data';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
+        throw new Error(msg);
       }
-    };
 
+      const nextData = (await response.json()) as AnalyticsData;
+      setData(nextData);
+    } catch (err: unknown) {
+      console.error('Failed to load analytics', err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'An error occurred loading analytics data';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     void fetchAnalytics();
   }, []);
 
@@ -170,6 +182,20 @@ export const AnalyticsManager: React.FC = () => {
     return Object.keys(data.users.domains).filter(Boolean).sort();
   }, [data]);
   const hasNoBuildingUsers = Boolean(data?.users.buildings.none);
+  const buildingOptions = useMemo(() => {
+    if (!data) return [];
+    const known = new Map(BUILDINGS.map((building) => [building.id, building]));
+    return Object.keys(data.users.buildings)
+      .filter((id) => id !== 'none')
+      .sort()
+      .map((id) => {
+        const building = known.get(id);
+        return {
+          id,
+          name: building?.name ?? `Unknown Building (${id})`,
+        };
+      });
+  }, [data]);
 
   if (loading) {
     return (
@@ -199,16 +225,24 @@ export const AnalyticsManager: React.FC = () => {
     .slice(0, 15);
 
   const topAiUsers = data.api.topUsers.slice(0, 10);
+  const monthlyEngagementRate =
+    filteredTotalUsers > 0 ? (filteredMonthly / filteredTotalUsers) * 100 : 0;
+  const dailyEngagementRate =
+    filteredTotalUsers > 0 ? (filteredDaily / filteredTotalUsers) * 100 : 0;
+  const safeAvgDailyPerUser =
+    data.api.activeUsers > 0
+      ? data.api.avgDailyCalls / data.api.activeUsers
+      : 0;
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-5 gap-4">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Users className="w-5 h-5 text-brand-blue-primary" />
             User Engagement
           </h3>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={selectedDomain}
               onChange={(e) => setSelectedDomain(e.target.value)}
@@ -230,38 +264,56 @@ export const AnalyticsManager: React.FC = () => {
               {hasNoBuildingUsers && (
                 <option value="none">No Building Assigned</option>
               )}
-              {BUILDINGS.map((b) => (
+              {buildingOptions.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => void fetchAnalytics()}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
             title="Total Users"
-            value={filteredTotalUsers}
+            value={formatNumber(filteredTotalUsers)}
             icon={<Users className="w-6 h-6" />}
             subtitle="Lifetime registered users"
           />
           <StatCard
             title="Monthly Active"
-            value={filteredMonthly}
+            value={formatNumber(filteredMonthly)}
             icon={<BarChart className="w-6 h-6" />}
-            subtitle="Users active in last 30 days"
+            subtitle={`${formatRate(monthlyEngagementRate)} engagement`}
           />
           <StatCard
             title="Daily Active"
-            value={filteredDaily}
+            value={formatNumber(filteredDaily)}
             icon={<Zap className="w-6 h-6" />}
-            subtitle="Users active in last 24 hours"
+            subtitle={`${formatRate(dailyEngagementRate)} engagement`}
+          />
+          <StatCard
+            title="Filter Scope"
+            value={
+              selectedDomain === 'all' && selectedBuilding === 'all'
+                ? 'Global'
+                : 'Filtered'
+            }
+            icon={<LayoutGrid className="w-6 h-6" />}
+            subtitle="Applies to the user cards above"
           />
         </div>
       </div>
 
-      <div>
+      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-brand-purple" />
           Gemini AI Usage
@@ -269,23 +321,24 @@ export const AnalyticsManager: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total API Calls"
-            value={data.api.totalCalls}
+            value={formatNumber(data.api.totalCalls)}
             icon={<Zap className="w-6 h-6" />}
           />
           <StatCard
             title="Active AI Users"
-            value={data.api.activeUsers}
+            value={formatNumber(data.api.activeUsers)}
             icon={<Users className="w-6 h-6" />}
           />
           <StatCard
             title="Avg Daily Calls"
-            value={data.api.avgDailyCalls}
+            value={formatNumber(data.api.avgDailyCalls)}
             icon={<BarChart className="w-6 h-6" />}
           />
           <StatCard
             title="Avg Daily Per User"
-            value={data.api.avgDailyCallsPerUser}
+            value={safeAvgDailyPerUser.toFixed(1)}
             icon={<Users className="w-6 h-6" />}
+            subtitle="Derived from avg daily calls / active AI users"
           />
         </div>
       </div>
@@ -298,9 +351,10 @@ export const AnalyticsManager: React.FC = () => {
         <div className="space-y-4">
           {sortedWidgets.map(([type, count], index) => {
             const label = WIDGET_LABELS[type] || type;
-            const maxCount = sortedWidgets[0]?.[1] || 1;
-            const percentage = Math.max(5, (count / maxCount) * 100);
             const activeCount = data.widgets.activeInstances[type] || 0;
+            const percentage = data.widgets.totalInstances[type]
+              ? (activeCount / data.widgets.totalInstances[type]) * 100
+              : 0;
 
             return (
               <div key={type} className="flex items-center gap-4">
@@ -313,13 +367,18 @@ export const AnalyticsManager: React.FC = () => {
                       {label}
                     </span>
                     <div className="flex gap-3">
-                      <span className="text-slate-500">{count} total</span>
+                      <span className="text-slate-500">
+                        {formatNumber(count)} total
+                      </span>
                       <span className="text-brand-blue-primary font-medium">
-                        {activeCount} active
+                        {formatNumber(activeCount)} active
+                      </span>
+                      <span className="text-slate-400">
+                        {formatRate(percentage)}
                       </span>
                     </div>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden w-full">
                     <div
                       className="h-full bg-brand-blue-primary rounded-full transition-all duration-1000"
                       style={{ width: `${percentage}%` }}
@@ -348,7 +407,7 @@ export const AnalyticsManager: React.FC = () => {
             const label = user.email;
             const maxCount = topAiUsers[0]?.count || 1;
             const count = user.count;
-            const percentage = Math.max(5, (count / maxCount) * 100);
+            const percentage = (count / maxCount) * 100;
 
             return (
               <div key={user.uid} className="flex items-center gap-4">
@@ -360,7 +419,9 @@ export const AnalyticsManager: React.FC = () => {
                     <span className="font-semibold text-slate-700">
                       {label}
                     </span>
-                    <span className="text-slate-500">{count} calls</span>
+                    <span className="text-slate-500">
+                      {formatNumber(count)} calls
+                    </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
