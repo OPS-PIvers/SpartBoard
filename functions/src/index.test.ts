@@ -2,18 +2,116 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 
-// Mock firebase-admin
-vi.mock('firebase-admin', () => ({
-  initializeApp: vi.fn(),
-  firestore: vi.fn(() => ({
-    collection: vi.fn(() => ({
-      doc: vi.fn(() => ({
-        get: vi.fn(),
+interface MockDocInput {
+  id: string;
+  data: Record<string, unknown>;
+}
+
+const mockFirestoreState = {
+  admins: new Set<string>(),
+  users: [] as MockDocInput[],
+  dashboards: [] as MockDocInput[],
+  aiUsage: [] as MockDocInput[],
+};
+
+const toDocSnapshot = (doc: MockDocInput) => ({
+  id: doc.id,
+  exists: true,
+  data: () => doc.data,
+});
+
+const toAsyncStream = (docs: MockDocInput[]) => ({
+  async *[Symbol.asyncIterator]() {
+    for (const doc of docs) {
+      await Promise.resolve();
+      yield toDocSnapshot(doc);
+    }
+  },
+});
+
+const mockFirestore = {
+  collection: vi.fn((name: string) => {
+    if (name === 'admins') {
+      return {
+        doc: vi.fn((id: string) => ({
+          get: vi.fn(() =>
+            Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+          ),
+        })),
+      };
+    }
+
+    if (name === 'users') {
+      return {
+        select: vi.fn(() => ({
+          stream: vi.fn(() => toAsyncStream(mockFirestoreState.users)),
+        })),
+        where: vi.fn(
+          (
+            _field: string,
+            _operator: string,
+            ids: string[] | readonly string[]
+          ) => ({
+            select: vi.fn(() => ({
+              get: vi.fn(() => {
+                const idSet = new Set(ids);
+                const matchedDocs = mockFirestoreState.users
+                  .filter((doc) => idSet.has(doc.id))
+                  .map((doc) => toDocSnapshot(doc));
+                return Promise.resolve({ docs: matchedDocs });
+              }),
+            })),
+          })
+        ),
+      };
+    }
+
+    if (name === 'ai_usage') {
+      return {
+        select: vi.fn(() => ({
+          stream: vi.fn(() => toAsyncStream(mockFirestoreState.aiUsage)),
+        })),
+      };
+    }
+
+    return {
+      select: vi.fn(() => ({
+        stream: vi.fn(() => toAsyncStream([])),
       })),
-    })),
-    runTransaction: vi.fn(),
-  })),
-}));
+    };
+  }),
+  collectionGroup: vi.fn((name: string) => {
+    if (name === 'dashboards') {
+      return {
+        select: vi.fn(() => ({
+          stream: vi.fn(() => toAsyncStream(mockFirestoreState.dashboards)),
+        })),
+      };
+    }
+
+    return {
+      select: vi.fn(() => ({
+        stream: vi.fn(() => toAsyncStream([])),
+      })),
+    };
+  }),
+  runTransaction: vi.fn(),
+};
+
+// Mock firebase-admin
+vi.mock('firebase-admin', () => {
+  const firestoreFn = vi.fn(() => mockFirestore);
+  Object.assign(firestoreFn, {
+    FieldPath: {
+      documentId: vi.fn(() => '__name__'),
+    },
+  });
+
+  return {
+    initializeApp: vi.fn(),
+    firestore: firestoreFn,
+  };
+});
 
 // Mock firebase-functions/v2
 vi.mock('firebase-functions/v2', () => ({
@@ -52,11 +150,19 @@ vi.mock('firebase-functions/v1', () => ({
 vi.mock('axios');
 
 // Import the function under test
-import { fetchWeatherProxy, checkUrlCompatibility } from './index';
+import {
+  fetchWeatherProxy,
+  checkUrlCompatibility,
+  getAdminAnalytics,
+} from './index';
 
 describe('fetchWeatherProxy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    mockFirestoreState.users = [];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [];
   });
 
   it('should throw unauthenticated error if no auth context', async () => {
@@ -156,6 +262,10 @@ describe('fetchWeatherProxy', () => {
 describe('checkUrlCompatibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    mockFirestoreState.users = [];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [];
   });
 
   it('should throw unauthenticated error if no auth context', async () => {
@@ -269,5 +379,152 @@ describe('checkUrlCompatibility', () => {
     expect(result.isEmbeddable).toBe(true);
     expect(result.uncertain).toBe(true);
     expect(result.error).toContain('Network error on head request');
+  });
+});
+
+describe('getAdminAnalytics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>(['admin@school.org']);
+    mockFirestoreState.users = [];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [];
+  });
+
+  it('aggregates users by domain and building, including no-building users', async () => {
+    const now = Date.now();
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher1@district.org',
+          lastLogin: now - 2 * 60 * 60 * 1000,
+          buildings: ['north', 'south'],
+        },
+      },
+      {
+        id: 'uid2',
+        data: {
+          email: 'teacher2@district.org',
+          lastLogin: now - 10 * 24 * 60 * 60 * 1000,
+          buildings: [],
+        },
+      },
+      {
+        id: 'uid3',
+        data: {
+          email: 'teacher3@other.org',
+          lastLogin: now - 45 * 24 * 60 * 60 * 1000,
+          buildings: ['north'],
+        },
+      },
+    ];
+
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-03-30', data: { count: 10 } },
+      { id: 'uid_missing_2026-03-30', data: { count: 7 } },
+      { id: 'uid2_smart-poll_2026-03-30', data: { count: 99 } },
+    ];
+
+    const handler = getAdminAnalytics as unknown as (
+      req: unknown,
+      context: { auth?: { token?: { email?: string } } }
+    ) => Promise<{
+      users: {
+        total: number;
+        monthly: number;
+        daily: number;
+        domains: Record<
+          string,
+          { total: number; monthly: number; daily: number }
+        >;
+        buildings: Record<
+          string,
+          { total: number; monthly: number; daily: number }
+        >;
+        domainBuilding: Record<
+          string,
+          Record<string, { total: number; monthly: number; daily: number }>
+        >;
+      };
+      api: {
+        totalCalls: number;
+        activeUsers: number;
+        topUsers: { uid: string; count: number; email: string }[];
+      };
+    }>;
+
+    const result = await handler(
+      {},
+      { auth: { token: { email: 'admin@school.org' } } }
+    );
+
+    expect(result.users.total).toBe(3);
+    expect(result.users.monthly).toBe(2);
+    expect(result.users.daily).toBe(1);
+    expect(result.users.domains['district.org']).toEqual({
+      total: 2,
+      monthly: 2,
+      daily: 1,
+    });
+    expect(result.users.buildings.north).toEqual({
+      total: 2,
+      monthly: 1,
+      daily: 1,
+    });
+    expect(result.users.buildings.none).toEqual({
+      total: 1,
+      monthly: 1,
+      daily: 0,
+    });
+    expect(result.users.domainBuilding['district.org'].none).toEqual({
+      total: 1,
+      monthly: 1,
+      daily: 0,
+    });
+    expect(result.api.totalCalls).toBe(17);
+  });
+
+  it('returns topUsers with resolved email and unknown fallback', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid_a',
+        data: {
+          email: 'known@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_a_2026-03-30', data: { count: 5 } },
+      { id: 'uid_b_2026-03-30', data: { count: 3 } },
+    ];
+
+    const handler = getAdminAnalytics as unknown as (
+      req: unknown,
+      context: { auth?: { token?: { email?: string } } }
+    ) => Promise<{
+      api: {
+        topUsers: { uid: string; count: number; email: string }[];
+      };
+    }>;
+
+    const result = await handler(
+      {},
+      { auth: { token: { email: 'admin@school.org' } } }
+    );
+
+    expect(result.api.topUsers[0]).toEqual({
+      uid: 'uid_a',
+      count: 5,
+      email: 'known@district.org',
+    });
+    expect(result.api.topUsers[1]).toEqual({
+      uid: 'uid_b',
+      count: 3,
+      email: 'Unknown (uid_b)',
+    });
   });
 });

@@ -96,15 +96,26 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
                   {def.label ?? def.key}
                 </label>
                 {def.type === 'boolean' ? (
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="flex items-center gap-2">
                     <Toggle
                       checked={Boolean(val)}
                       onChange={(checked) => handleChange(def.key, checked)}
                     />
-                    <span className="text-slate-400 text-xs">
+                    <span
+                      className="text-slate-400 text-xs cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleChange(def.key, !val);
+                        }
+                      }}
+                      onClick={() => handleChange(def.key, !val)}
+                    >
                       {val ? 'Enabled' : 'Disabled'}
                     </span>
-                  </label>
+                  </div>
                 ) : def.type === 'number' ? (
                   <input
                     type="number"
