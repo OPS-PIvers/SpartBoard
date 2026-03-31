@@ -13,21 +13,33 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
   const { selectedSoundIds = [] } = config;
 
   const { featurePermissions, selectedBuildings } = useAuth();
-  const buildingId = selectedBuildings[0] ?? BUILDINGS[0].id;
+  const buildingId = selectedBuildings.length > 0 ? selectedBuildings[0] : null;
 
   const globalConfig = useMemo(() => {
     const perm = featurePermissions.find((p) => p.widgetType === 'soundboard');
     return perm?.config as SoundboardGlobalConfig | undefined;
   }, [featurePermissions]);
 
-  const buildingDefaults = globalConfig?.buildingDefaults?.[buildingId];
+
 
   const visibleSounds = useMemo(() => {
-    const availableSounds = buildingDefaults?.availableSounds ?? [];
-    return availableSounds.filter((sound) =>
-      selectedSoundIds.includes(sound.id)
+    let availableSounds: SoundboardSound[] = [];
+
+    if (!buildingId) {
+      // If no building selected, aggregate all available sounds from all building defaults
+      const allDefaults = globalConfig?.buildingDefaults || {};
+      availableSounds = Object.values(allDefaults).flatMap(d => d.availableSounds || []);
+    } else {
+      availableSounds = globalConfig?.buildingDefaults?.[buildingId]?.availableSounds ?? [];
+    }
+
+    return availableSounds.filter(
+      (sound) =>
+        selectedSoundIds.includes(sound.id) &&
+        typeof sound.url === 'string' &&
+        sound.url.trim() !== ''
     );
-  }, [buildingDefaults, selectedSoundIds]);
+  }, [globalConfig, buildingId, selectedSoundIds]);
 
   const playSound = (url: string) => {
     const audio = new Audio(url);

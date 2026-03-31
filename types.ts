@@ -284,7 +284,6 @@ export interface SoundboardConfig {
 }
 
 export interface SoundboardBuildingConfig {
-  buildingId: string;
   availableSounds: SoundboardSound[]; // Sounds configured by admin for this building
 }
 

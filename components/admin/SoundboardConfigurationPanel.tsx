@@ -25,7 +25,6 @@ export const SoundboardConfigurationPanel: React.FC<
   const currentBuildingConfig: SoundboardBuildingConfig = buildingDefaults[
     selectedBuildingId
   ] ?? {
-    buildingId: selectedBuildingId,
     availableSounds: [],
   };
 

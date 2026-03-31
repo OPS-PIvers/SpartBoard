@@ -13,15 +13,21 @@ export const SoundboardSettings: React.FC<{ widget: WidgetData }> = ({
   const { selectedSoundIds = [] } = config;
 
   const { featurePermissions, selectedBuildings } = useAuth();
-  const buildingId = selectedBuildings[0] ?? BUILDINGS[0].id;
+  const buildingId = selectedBuildings.length > 0 ? selectedBuildings[0] : null;
 
   const globalConfig = useMemo(() => {
     const perm = featurePermissions.find((p) => p.widgetType === 'soundboard');
     return perm?.config as SoundboardGlobalConfig | undefined;
   }, [featurePermissions]);
 
-  const buildingDefaults = globalConfig?.buildingDefaults?.[buildingId];
-  const availableSounds = buildingDefaults?.availableSounds ?? [];
+  const availableSounds = useMemo(() => {
+    if (!buildingId) {
+      // Aggregate all sounds if no building is specifically selected
+      const allDefaults = globalConfig?.buildingDefaults || {};
+      return Object.values(allDefaults).flatMap(d => d.availableSounds || []);
+    }
+    return globalConfig?.buildingDefaults?.[buildingId]?.availableSounds ?? [];
+  }, [globalConfig, buildingId]);
 
   const handleToggleSound = (id: string, isSelected: boolean) => {
     let newSelection = [...selectedSoundIds];
