@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/config/firebase';
+import { auth } from '@/config/firebase';
 import { BarChart, Users, Zap, LayoutGrid, AlertCircle } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
@@ -84,13 +83,33 @@ export const AnalyticsManager: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const getAnalyticsData = httpsCallable<void, AnalyticsData>(
-          functions,
-          'getAdminAnalytics'
-        );
+        const user = auth.currentUser;
+        if (!user) throw new Error('Not authenticated');
 
-        const result = await getAnalyticsData();
-        setData(result.data);
+        const token = await user.getIdToken();
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
+        const url = `https://us-central1-${projectId}.cloudfunctions.net/getAdminAnalytics`;
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => ({}))) as {
+            message?: string;
+            error?: string;
+          };
+          const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
+          throw new Error(msg);
+        }
+
+        const data = (await response.json()) as AnalyticsData;
+        setData(data);
       } catch (err: unknown) {
         console.error('Failed to load analytics', err);
         const errorMessage =

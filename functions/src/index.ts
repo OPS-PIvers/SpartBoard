@@ -5,6 +5,9 @@ import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
+import cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 // Local mirror of youtube-transcript's TranscriptResponse to avoid depending on
 // an ESM-only package at the type level (dynamic import used at runtime instead).
 interface TranscriptResponse {
@@ -1792,7 +1795,8 @@ interface EngagementCounts {
 
 /**
  * Cloud Function to fetch administrative analytics.
- * Bumps memory to 1GB and timeout to 300s to handle unbounded collection reads
+ * Uses onRequest with explicit CORS to avoid preflight issues with onCall.
+ * Bumps memory and timeout to handle unbounded collection reads
  * while a more scalable (paginated/aggregated) solution is developed.
  */
 export const getAdminAnalytics = functionsV1
@@ -1800,283 +1804,306 @@ export const getAdminAnalytics = functionsV1
     timeoutSeconds: 540,
     memory: '4GB',
   })
-  .https.onCall(async (data, context) => {
-    console.log('[getAdminAnalytics] Function started');
+  .https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+      console.log('[getAdminAnalytics] Function started');
 
-    // 1. Verify caller is authenticated
-    if (!context.auth || !context.auth.token.email) {
-      console.error('[getAdminAnalytics] Unauthenticated access attempt');
-      throw new functionsV1.https.HttpsError(
-        'unauthenticated',
-        'User must be logged in.'
-      );
-    }
-
-    const email = context.auth.token.email.toLowerCase();
-    const db = admin.firestore();
-
-    // 2. Verify caller is an admin
-    console.log(`[getAdminAnalytics] Verifying admin status for: ${email}`);
-    const adminDoc = await db.collection('admins').doc(email).get();
-    if (!adminDoc.exists) {
-      console.error(
-        `[getAdminAnalytics] Unauthorized access: ${email} is not an admin`
-      );
-      throw new functionsV1.https.HttpsError(
-        'permission-denied',
-        'This function is restricted to administrators.'
-      );
-    }
-
-    try {
-      const now = Date.now();
-      console.log('[getAdminAnalytics] Fetching users...');
-
-      // 3. Fetch Users
-      // Using .stream() combined with .select() limits the memory footprint
-      // by streaming documents one-by-one with only the necessary fields
-      const usersStream = db
-        .collection('users')
-        .select('email', 'lastLogin', 'buildings')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      const usersByDomain: Record<string, EngagementCounts> = {};
-      const usersByBuilding: Record<string, EngagementCounts> = {};
-      const usersByDomainAndBuilding: Record<
-        string,
-        Record<string, EngagementCounts>
-      > = {};
-      const totalEngagement: EngagementCounts = {
-        total: 0,
-        monthly: 0,
-        daily: 0,
-      };
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      const oneDayMs = 24 * 60 * 60 * 1000;
-
-      const increment = (
-        bucket: Record<string, EngagementCounts>,
-        key: string,
-        isMonthlyActive: boolean,
-        isDailyActive: boolean
-      ) => {
-        if (!bucket[key]) {
-          bucket[key] = { total: 0, monthly: 0, daily: 0 };
-        }
-        bucket[key].total += 1;
-        if (isMonthlyActive) bucket[key].monthly += 1;
-        if (isDailyActive) bucket[key].daily += 1;
-      };
-
-      for await (const userDoc of usersStream) {
-        if (!userDoc.exists) continue;
-        const userData = userDoc.data();
-        const userEmail =
-          typeof userData.email === 'string' ? userData.email : '';
-        const domain = userEmail.includes('@')
-          ? userEmail.split('@')[1]
-          : 'unknown';
-
-        let buildings: string[] = [];
-        if (Array.isArray(userData.buildings)) {
-          buildings = userData.buildings.map(String);
-        }
-
-        const lastLogin =
-          typeof userData.lastLogin === 'number' ? userData.lastLogin : 0;
-        const isMonthlyActive =
-          lastLogin > 0 && now - lastLogin <= thirtyDaysMs;
-        const isDailyActive = lastLogin > 0 && now - lastLogin <= oneDayMs;
-
-        totalEngagement.total += 1;
-        if (isMonthlyActive) totalEngagement.monthly += 1;
-        if (isDailyActive) totalEngagement.daily += 1;
-
-        increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
-
-        if (buildings.length === 0) {
-          increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
-          if (!usersByDomainAndBuilding[domain]) {
-            usersByDomainAndBuilding[domain] = {};
-          }
-          increment(
-            usersByDomainAndBuilding[domain],
-            'none',
-            isMonthlyActive,
-            isDailyActive
-          );
-          continue;
-        }
-
-        for (const building of buildings) {
-          increment(usersByBuilding, building, isMonthlyActive, isDailyActive);
-          if (!usersByDomainAndBuilding[domain]) {
-            usersByDomainAndBuilding[domain] = {};
-          }
-          increment(
-            usersByDomainAndBuilding[domain],
-            building,
-            isMonthlyActive,
-            isDailyActive
-          );
-        }
+      // 1. Verify caller is authenticated via Bearer token
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        console.error('[getAdminAnalytics] Unauthenticated access attempt');
+        res.status(401).json({ error: 'unauthenticated' });
+        return;
       }
 
-      const totalUsers = totalEngagement.total;
-      console.log(`[getAdminAnalytics] Found ${totalUsers} user documents`);
+      let email: string;
+      try {
+        const idToken = authHeader.split('Bearer ')[1];
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        if (!decodedToken.email) {
+          res.status(401).json({ error: 'unauthenticated' });
+          return;
+        }
+        email = decodedToken.email.toLowerCase();
+      } catch {
+        res.status(401).json({ error: 'unauthenticated' });
+        return;
+      }
 
-      console.log(
-        '[getAdminAnalytics] Fetching dashboards via collectionGroup...'
-      );
-      // 4. Fetch Dashboards for Widget Stats
-      let totalDashboards = 0;
-      const totalWidgetCounts: Record<string, number> = {};
-      const activeWidgetCounts: Record<string, number> = {};
-      const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
+      const db = admin.firestore();
 
-      const dashboardsStream = db
-        .collectionGroup('dashboards')
-        .select('widgets', 'updatedAt')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+      // 2. Verify caller is an admin
+      console.log(`[getAdminAnalytics] Verifying admin status for: ${email}`);
+      const adminDoc = await db.collection('admins').doc(email).get();
+      if (!adminDoc.exists) {
+        console.error(
+          `[getAdminAnalytics] Unauthorized access: ${email} is not an admin`
+        );
+        res.status(403).json({ error: 'permission-denied' });
+        return;
+      }
 
-      for await (const dashDoc of dashboardsStream) {
-        if (!dashDoc.exists) continue;
-        totalDashboards++;
-        const dashData = dashDoc.data() as DashboardData;
-        const updatedAt =
-          typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
-        const isActive = updatedAt > activeThreshold;
+      try {
+        const now = Date.now();
+        console.log('[getAdminAnalytics] Fetching users...');
 
-        if (dashData.widgets && Array.isArray(dashData.widgets)) {
-          dashData.widgets.forEach((w: { type: string }) => {
-            if (w && w.type) {
-              totalWidgetCounts[w.type] = (totalWidgetCounts[w.type] || 0) + 1;
-              if (isActive) {
-                activeWidgetCounts[w.type] =
-                  (activeWidgetCounts[w.type] || 0) + 1;
+        // 3. Fetch Users
+        // Using .stream() combined with .select() limits the memory footprint
+        // by streaming documents one-by-one with only the necessary fields
+        const usersStream = db
+          .collection('users')
+          .select('email', 'lastLogin', 'buildings')
+          .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+
+        const usersByDomain: Record<string, EngagementCounts> = {};
+        const usersByBuilding: Record<string, EngagementCounts> = {};
+        const usersByDomainAndBuilding: Record<
+          string,
+          Record<string, EngagementCounts>
+        > = {};
+        const totalEngagement: EngagementCounts = {
+          total: 0,
+          monthly: 0,
+          daily: 0,
+        };
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        const increment = (
+          bucket: Record<string, EngagementCounts>,
+          key: string,
+          isMonthlyActive: boolean,
+          isDailyActive: boolean
+        ) => {
+          if (!bucket[key]) {
+            bucket[key] = { total: 0, monthly: 0, daily: 0 };
+          }
+          bucket[key].total += 1;
+          if (isMonthlyActive) bucket[key].monthly += 1;
+          if (isDailyActive) bucket[key].daily += 1;
+        };
+
+        for await (const userDoc of usersStream) {
+          if (!userDoc.exists) continue;
+          const userData = userDoc.data();
+          const userEmail =
+            typeof userData.email === 'string' ? userData.email : '';
+          const domain = userEmail.includes('@')
+            ? userEmail.split('@')[1]
+            : 'unknown';
+
+          let buildings: string[] = [];
+          if (Array.isArray(userData.buildings)) {
+            buildings = userData.buildings.map(String);
+          }
+
+          const lastLogin =
+            typeof userData.lastLogin === 'number' ? userData.lastLogin : 0;
+          const isMonthlyActive =
+            lastLogin > 0 && now - lastLogin <= thirtyDaysMs;
+          const isDailyActive = lastLogin > 0 && now - lastLogin <= oneDayMs;
+
+          totalEngagement.total += 1;
+          if (isMonthlyActive) totalEngagement.monthly += 1;
+          if (isDailyActive) totalEngagement.daily += 1;
+
+          increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
+
+          if (buildings.length === 0) {
+            increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
+            if (!usersByDomainAndBuilding[domain]) {
+              usersByDomainAndBuilding[domain] = {};
+            }
+            increment(
+              usersByDomainAndBuilding[domain],
+              'none',
+              isMonthlyActive,
+              isDailyActive
+            );
+            continue;
+          }
+
+          for (const building of buildings) {
+            increment(
+              usersByBuilding,
+              building,
+              isMonthlyActive,
+              isDailyActive
+            );
+            if (!usersByDomainAndBuilding[domain]) {
+              usersByDomainAndBuilding[domain] = {};
+            }
+            increment(
+              usersByDomainAndBuilding[domain],
+              building,
+              isMonthlyActive,
+              isDailyActive
+            );
+          }
+        }
+
+        const totalUsers = totalEngagement.total;
+        console.log(`[getAdminAnalytics] Found ${totalUsers} user documents`);
+
+        console.log(
+          '[getAdminAnalytics] Fetching dashboards via collectionGroup...'
+        );
+        // 4. Fetch Dashboards for Widget Stats
+        let totalDashboards = 0;
+        const totalWidgetCounts: Record<string, number> = {};
+        const activeWidgetCounts: Record<string, number> = {};
+        const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
+
+        const dashboardsStream = db
+          .collectionGroup('dashboards')
+          .select('widgets', 'updatedAt')
+          .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+
+        for await (const dashDoc of dashboardsStream) {
+          if (!dashDoc.exists) continue;
+          totalDashboards++;
+          const dashData = dashDoc.data() as DashboardData;
+          const updatedAt =
+            typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
+          const isActive = updatedAt > activeThreshold;
+
+          if (dashData.widgets && Array.isArray(dashData.widgets)) {
+            dashData.widgets.forEach((w: { type: string }) => {
+              if (w && w.type) {
+                totalWidgetCounts[w.type] =
+                  (totalWidgetCounts[w.type] || 0) + 1;
+                if (isActive) {
+                  activeWidgetCounts[w.type] =
+                    (activeWidgetCounts[w.type] || 0) + 1;
+                }
               }
+            });
+          }
+        }
+
+        console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
+
+        console.log('[getAdminAnalytics] Fetching AI usage...');
+        // 5. Fetch AI Usage
+        let totalAiUsageRecords = 0;
+        let totalAiCalls = 0;
+        const callsPerUser: Record<string, number> = {};
+        const dailyCallCounts: Record<string, number> = {};
+
+        const GEMINI_SPECIFIC_FEATURES = [
+          'smart-poll',
+          'embed-mini-app',
+          'video-activity-audio-transcription',
+        ];
+
+        const aiUsageStream = db
+          .collection('ai_usage')
+          .select('count')
+          .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+
+        for await (const usageDoc of aiUsageStream) {
+          if (!usageDoc.exists) continue;
+          totalAiUsageRecords++;
+          const idParts = usageDoc.id.split('_');
+          if (idParts.length < 2) continue;
+
+          const datePart = idParts[idParts.length - 1];
+          const secondToLast = idParts[idParts.length - 2];
+          const isSpecificFeature =
+            GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
+
+          // Exclude the feature ID and date to get the original UID
+          const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
+          const uid = uidParts.join('_');
+
+          if (!uid || !datePart) continue;
+
+          const usageData = usageDoc.data();
+          const count =
+            typeof usageData.count === 'number' ? usageData.count : 0;
+
+          // ONLY count the "overall" records for total analytics to avoid double counting
+          // (Specific feature records are for enforcement, overall records track everything)
+          if (!isSpecificFeature) {
+            totalAiCalls += count;
+            callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
+            dailyCallCounts[datePart] =
+              (dailyCallCounts[datePart] ?? 0) + count;
+          }
+        }
+
+        console.log(
+          `[getAdminAnalytics] Found ${totalAiUsageRecords} AI usage records`
+        );
+
+        const uniqueDays = Object.keys(dailyCallCounts).length || 1;
+        const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
+        const activeAiUsers = Object.keys(callsPerUser).length || 1;
+        const avgDailyCallsPerUser =
+          Math.round((avgDailyCalls / activeAiUsers) * 10) / 10;
+        const topUserUids = Object.entries(callsPerUser)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 25)
+          .map(([uid]) => uid);
+        const topUserEmails: Record<string, string> = {};
+
+        for (let i = 0; i < topUserUids.length; i += 10) {
+          const uidChunk = topUserUids.slice(i, i + 10);
+          if (uidChunk.length === 0) continue;
+
+          const usersSnapshot = await db
+            .collection('users')
+            .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
+            .select('email')
+            .get();
+
+          usersSnapshot.docs.forEach((doc) => {
+            const userData = doc.data();
+            if (
+              typeof userData.email === 'string' &&
+              userData.email.length > 0
+            ) {
+              topUserEmails[doc.id] = userData.email;
             }
           });
         }
-      }
 
-      console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
+        const topUsers = Object.entries(callsPerUser)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 25)
+          .map(([uid, count]) => ({
+            uid,
+            count,
+            email: topUserEmails[uid] ?? `Unknown (${uid})`,
+          }));
 
-      console.log('[getAdminAnalytics] Fetching AI usage...');
-      // 5. Fetch AI Usage
-      let totalAiUsageRecords = 0;
-      let totalAiCalls = 0;
-      const callsPerUser: Record<string, number> = {};
-      const dailyCallCounts: Record<string, number> = {};
-
-      const GEMINI_SPECIFIC_FEATURES = [
-        'smart-poll',
-        'embed-mini-app',
-        'video-activity-audio-transcription',
-      ];
-
-      const aiUsageStream = db
-        .collection('ai_usage')
-        .select('count')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      for await (const usageDoc of aiUsageStream) {
-        if (!usageDoc.exists) continue;
-        totalAiUsageRecords++;
-        const idParts = usageDoc.id.split('_');
-        if (idParts.length < 2) continue;
-
-        const datePart = idParts[idParts.length - 1];
-        const secondToLast = idParts[idParts.length - 2];
-        const isSpecificFeature =
-          GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
-
-        // Exclude the feature ID and date to get the original UID
-        const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
-        const uid = uidParts.join('_');
-
-        if (!uid || !datePart) continue;
-
-        const usageData = usageDoc.data();
-        const count = typeof usageData.count === 'number' ? usageData.count : 0;
-
-        // ONLY count the "overall" records for total analytics to avoid double counting
-        // (Specific feature records are for enforcement, overall records track everything)
-        if (!isSpecificFeature) {
-          totalAiCalls += count;
-          callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-          dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
-        }
-      }
-
-      console.log(
-        `[getAdminAnalytics] Found ${totalAiUsageRecords} AI usage records`
-      );
-
-      const uniqueDays = Object.keys(dailyCallCounts).length || 1;
-      const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
-      const activeAiUsers = Object.keys(callsPerUser).length || 1;
-      const avgDailyCallsPerUser =
-        Math.round((avgDailyCalls / activeAiUsers) * 10) / 10;
-      const topUserUids = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid]) => uid);
-      const topUserEmails: Record<string, string> = {};
-
-      for (let i = 0; i < topUserUids.length; i += 10) {
-        const uidChunk = topUserUids.slice(i, i + 10);
-        if (uidChunk.length === 0) continue;
-
-        const usersSnapshot = await db
-          .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-          .select('email')
-          .get();
-
-        usersSnapshot.docs.forEach((doc) => {
-          const userData = doc.data();
-          if (typeof userData.email === 'string' && userData.email.length > 0) {
-            topUserEmails[doc.id] = userData.email;
-          }
+        console.log('[getAdminAnalytics] Analysis complete, returning results');
+        res.json({
+          users: {
+            ...totalEngagement,
+            domains: usersByDomain,
+            buildings: usersByBuilding,
+            domainBuilding: usersByDomainAndBuilding,
+          },
+          widgets: {
+            totalInstances: totalWidgetCounts,
+            activeInstances: activeWidgetCounts,
+          },
+          api: {
+            totalCalls: totalAiCalls,
+            activeUsers: Object.keys(callsPerUser).length,
+            topUsers,
+            avgDailyCalls,
+            avgDailyCallsPerUser,
+          },
         });
+      } catch (err: unknown) {
+        console.error('[getAdminAnalytics] Error fetching analytics:', err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'An internal error occurred fetching analytics.';
+        res.status(500).json({ error: 'internal', message: errorMessage });
       }
-
-      const topUsers = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid, count]) => ({
-          uid,
-          count,
-          email: topUserEmails[uid] ?? `Unknown (${uid})`,
-        }));
-
-      console.log('[getAdminAnalytics] Analysis complete, returning results');
-      return {
-        users: {
-          ...totalEngagement,
-          domains: usersByDomain,
-          buildings: usersByBuilding,
-          domainBuilding: usersByDomainAndBuilding,
-        },
-        widgets: {
-          totalInstances: totalWidgetCounts,
-          activeInstances: activeWidgetCounts,
-        },
-        api: {
-          totalCalls: totalAiCalls,
-          activeUsers: Object.keys(callsPerUser).length,
-          topUsers,
-          avgDailyCalls,
-          avgDailyCallsPerUser,
-        },
-      };
-    } catch (err: unknown) {
-      console.error('[getAdminAnalytics] Error fetching analytics:', err);
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'An internal error occurred fetching analytics.';
-      throw new functionsV1.https.HttpsError('internal', errorMessage);
-    }
+    });
   });
