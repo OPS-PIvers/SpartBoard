@@ -949,6 +949,8 @@ export interface CatalystRoutine {
   id: string;
   title: string;
   icon?: string;
+  buttonColor?: string;
+  iconColor?: string;
   imageUrl?: string;
   description?: string;
   widgets: Omit<WidgetData, 'id'>[];

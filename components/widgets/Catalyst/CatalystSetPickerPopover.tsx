@@ -1,17 +1,20 @@
-import React, { useRef, RefObject } from 'react';
+import React, { useMemo, useRef, RefObject, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageOff } from 'lucide-react';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { GlassCard } from '@/components/common/GlassCard';
 import { GlobalStyle } from '@/types';
-import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
+import {
+  isSafeIconUrl,
+  renderCatalystIcon,
+} from '@/components/widgets/Catalyst/catalystHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 
 interface Props {
   anchorRect: DOMRect;
   globalStyle: GlobalStyle;
-  onSelectSet: (setId: string) => void;
+  onSelectRoutine: (setId: string, routineId: string) => void;
   onClose: () => void;
   buttonRef?: RefObject<HTMLElement | null>;
 }
@@ -19,17 +22,22 @@ interface Props {
 export const CatalystSetPickerPopover: React.FC<Props> = ({
   anchorRect,
   globalStyle,
-  onSelectSet,
+  onSelectRoutine,
   onClose,
   buttonRef,
 }) => {
   const { sets, loading } = useCatalystSets();
   const menuRef = useRef<HTMLDivElement>(null);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
 
   useClickOutside(menuRef, onClose, buttonRef ? [buttonRef] : []);
 
   const bottom = window.innerHeight - anchorRect.top + 10;
   const left = anchorRect.left + anchorRect.width / 2;
+  const selectedSet = useMemo(
+    () => sets.find((set) => set.id === selectedSetId) ?? null,
+    [selectedSetId, sets]
+  );
 
   return createPortal(
     <GlassCard
@@ -51,6 +59,29 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
       </div>
 
       <div className="p-2 overflow-x-auto">
+        {selectedSet && selectedSet.routines.length > 0 && (
+          <div className="mb-2 px-1">
+            <div className="mb-1 text-xxs font-black uppercase tracking-wider text-slate-500">
+              {selectedSet.title || 'Set'} Routines
+            </div>
+            <div className="flex items-center gap-1.5">
+              {selectedSet.routines.map((routine) => (
+                <button
+                  key={routine.id}
+                  onClick={() => onSelectRoutine(selectedSet.id, routine.id)}
+                  className="w-8 h-8 rounded-lg border border-slate-200 shadow-sm hover:scale-105 transition-all flex items-center justify-center"
+                  style={{
+                    backgroundColor: routine.buttonColor?.trim() ?? '#eef2ff',
+                    color: routine.iconColor?.trim() ?? '#4338ca',
+                  }}
+                  title={routine.title}
+                >
+                  {renderCatalystIcon(routine.icon ?? 'Zap', 16)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center w-64 h-20 text-slate-500 text-xs">
             Loading…
@@ -63,7 +94,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
           <div
             className="grid"
             style={{
-              gridTemplateColumns: `repeat(${sets.length}, 120px)`,
+              gridTemplateColumns: `repeat(${sets.length}, 144px)`,
               gap: '8px',
             }}
           >
@@ -71,18 +102,18 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
               <button
                 key={set.id}
                 onClick={() => {
-                  onSelectSet(set.id);
+                  setSelectedSetId(set.id);
                 }}
                 disabled={set.routines.length === 0 && !set.title}
                 className="relative rounded-xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.04] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                style={{ width: 120, height: 160 }}
+                style={{ width: 144, height: 188 }}
               >
                 {set.imageUrl && isSafeIconUrl(set.imageUrl) ? (
                   <>
                     <img
                       src={set.imageUrl}
                       alt={set.title}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain bg-slate-100"
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

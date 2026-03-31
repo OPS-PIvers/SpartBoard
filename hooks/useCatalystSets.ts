@@ -121,12 +121,14 @@ export function useCatalystSets() {
   const executeRoutine = useCallback(
     (
       routine: CatalystRoutine,
-      cleanSlate: boolean,
       addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void,
-      deleteAllWidgets: () => void
+      options?: {
+        cleanSlate?: boolean;
+        deleteAllWidgets?: () => void;
+      }
     ) => {
-      if (cleanSlate) {
-        deleteAllWidgets();
+      if (options?.cleanSlate) {
+        options.deleteAllWidgets?.();
       }
 
       routine.widgets.forEach((widget) => {

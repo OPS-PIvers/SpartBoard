@@ -65,6 +65,7 @@ import { FolderItem } from './dock/FolderItem';
 import { QuickAccessButton } from './dock/QuickAccessButton';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useCatalystSets } from '@/hooks/useCatalystSets';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -97,6 +98,7 @@ export const Dock: React.FC = () => {
     featurePermissions,
   } = useAuth();
   const { driveService } = useGoogleDrive();
+  const { sets: catalystSets, executeRoutine } = useCatalystSets();
   const { customWidgets } = useCustomWidgets();
 
   const publishedCustomWidgets = useMemo(
@@ -595,8 +597,11 @@ export const Dock: React.FC = () => {
           anchorRect={catalystAnchorRect}
           globalStyle={globalStyle}
           buttonRef={catalystButtonRef}
-          onSelectSet={(setId) => {
-            addWidget('catalyst', { config: { initialSetId: setId } });
+          onSelectRoutine={(setId, routineId) => {
+            const set = catalystSets.find((item) => item.id === setId);
+            const routine = set?.routines.find((item) => item.id === routineId);
+            if (!routine) return;
+            executeRoutine(routine, addWidget);
             setShowCatalystPicker(false);
           }}
           onClose={() => setShowCatalystPicker(false)}

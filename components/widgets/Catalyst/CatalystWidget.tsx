@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { CatalystConfig, WidgetData } from '@/types';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
-import { isSafeIconUrl } from './catalystHelpers';
+import { isSafeIconUrl, renderCatalystIcon } from './catalystHelpers';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Zap, ImageOff, ChevronLeft } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -16,7 +16,7 @@ import { CatalystSettings } from './CatalystSettings';
 export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { addWidget, deleteAllWidgets } = useDashboard();
+  const { addWidget } = useDashboard();
   const { sets, loading, executeRoutine } = useCatalystSets();
   const [activeSetId, setActiveSetId] = useState<string | null>(
     (widget.config as CatalystConfig | undefined)?.initialSetId ?? null
@@ -34,7 +34,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
       void ctx.resume();
     }
 
-    executeRoutine(routine, true, addWidget, deleteAllWidgets);
+    executeRoutine(routine, addWidget);
 
     playCleanUp();
     void confetti({
@@ -143,6 +143,26 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                           }}
                         />
                       </div>
+                    </div>
+                  )}
+
+                  {routine.icon && (
+                    <div
+                      className="absolute top-2 left-2 z-10 rounded-full flex items-center justify-center shadow-sm"
+                      style={{
+                        width: 'min(24px, 8cqmin)',
+                        height: 'min(24px, 8cqmin)',
+                        backgroundColor:
+                          routine.buttonColor?.trim() ??
+                          'rgba(255,255,255,0.9)',
+                        color: routine.iconColor?.trim() ?? '#4338ca',
+                      }}
+                    >
+                      {renderCatalystIcon(
+                        routine.icon,
+                        'min(16px, 5cqmin)',
+                        ''
+                      )}
                     </div>
                   )}
 

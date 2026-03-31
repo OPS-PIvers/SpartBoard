@@ -11,7 +11,9 @@ import {
   Upload,
   Camera,
   Layers,
+  Search,
 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import {
   collection,
   onSnapshot,
@@ -75,6 +77,9 @@ interface RoutineEditorState {
   id: string | null;
   title: string;
   description: string;
+  icon: string;
+  buttonColor: string;
+  iconColor: string;
   imageUrl: string;
   widgets: Omit<WidgetData, 'id'>[];
   imageFile: File | null;
@@ -85,6 +90,9 @@ const EMPTY_ROUTINE_EDITOR: RoutineEditorState = {
   id: null,
   title: '',
   description: '',
+  icon: 'Zap',
+  buttonColor: '#eef2ff',
+  iconColor: '#4338ca',
   imageUrl: '',
   widgets: [],
   imageFile: null,
@@ -109,6 +117,18 @@ export const CatalystConfigurationModal: React.FC<
   const [setEditor, setSetEditor] = useState<SetEditorState | null>(null);
   const [routineEditor, setRoutineEditor] =
     useState<RoutineEditorState>(EMPTY_ROUTINE_EDITOR);
+  const [iconSearch, setIconSearch] = useState('');
+  const lucideIconNames = React.useMemo(() => {
+    const ignoredKeys = new Set(['createLucideIcon', 'Icon']);
+    return Object.keys(LucideIcons)
+      .filter((name) => /^[A-Z]/.test(name) && !ignoredKeys.has(name))
+      .sort((a, b) => a.localeCompare(b));
+  }, []);
+  const filteredIconNames = React.useMemo(() => {
+    const query = iconSearch.trim().toLowerCase();
+    if (query.length === 0) return lucideIconNames;
+    return lucideIconNames.filter((name) => name.toLowerCase().includes(query));
+  }, [iconSearch, lucideIconNames]);
 
   const [message, setMessage] = useState<{
     type: 'success' | 'error';
@@ -317,6 +337,9 @@ export const CatalystConfigurationModal: React.FC<
           id: routineId,
           title: routineEditor.title.trim(),
           description: routineEditor.description.trim(),
+          icon: routineEditor.icon,
+          buttonColor: routineEditor.buttonColor,
+          iconColor: routineEditor.iconColor,
           imageUrl: finalImageUrl.length > 0 ? finalImageUrl : undefined,
           widgets: routineEditor.widgets,
           createdAt: routineEditor.id
@@ -410,6 +433,9 @@ export const CatalystConfigurationModal: React.FC<
         id: routine.id,
         title: routine.title,
         description: routine.description ?? '',
+        icon: routine.icon ?? 'Zap',
+        buttonColor: routine.buttonColor ?? '#eef2ff',
+        iconColor: routine.iconColor ?? '#4338ca',
         imageUrl: routine.imageUrl ?? '',
         widgets: routine.widgets,
         imageFile: null,
@@ -418,6 +444,7 @@ export const CatalystConfigurationModal: React.FC<
     } else {
       setRoutineEditor(EMPTY_ROUTINE_EDITOR);
     }
+    setIconSearch('');
     setView('routine-editor');
   };
 
@@ -667,6 +694,28 @@ export const CatalystConfigurationModal: React.FC<
                         <div className="font-bold text-slate-700 text-sm truncate">
                           {routine.title}
                         </div>
+                        <div
+                          className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center"
+                          style={{
+                            backgroundColor:
+                              routine.buttonColor?.trim() ?? '#eef2ff',
+                            color: routine.iconColor?.trim() ?? '#4338ca',
+                          }}
+                        >
+                          {(() => {
+                            const IconComp = (
+                              LucideIcons as unknown as Record<
+                                string,
+                                React.ElementType
+                              >
+                            )[routine.icon ?? 'Zap'];
+                            return IconComp ? (
+                              <IconComp size={14} />
+                            ) : (
+                              <Zap size={14} />
+                            );
+                          })()}
+                        </div>
                         <div className="text-xs text-slate-500">
                           {routine.widgets.length} widget(s)
                         </div>
@@ -727,6 +776,84 @@ export const CatalystConfigurationModal: React.FC<
                       placeholder="Brief description..."
                       className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none h-20"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                      Routine Icon
+                    </label>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={iconSearch}
+                          onChange={(e) => setIconSearch(e.target.value)}
+                          placeholder="Search icon names..."
+                          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        />
+                      </div>
+                      <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
+                        {filteredIconNames.slice(0, 100).map((name) => {
+                          const IconComp = (
+                            LucideIcons as unknown as Record<
+                              string,
+                              React.ElementType
+                            >
+                          )[name];
+                          if (!IconComp) return null;
+                          const isSelected = routineEditor.icon === name;
+                          return (
+                            <button
+                              key={name}
+                              onClick={() =>
+                                setRoutineEditor((prev) => ({
+                                  ...prev,
+                                  icon: name,
+                                }))
+                              }
+                              title={name}
+                              className={`w-8 h-8 rounded-lg border transition-colors flex items-center justify-center ${
+                                isSelected
+                                  ? 'border-indigo-500 ring-2 ring-indigo-200'
+                                  : 'border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <IconComp size={14} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="text-xs font-bold text-slate-600">
+                          Button Color
+                          <input
+                            type="color"
+                            value={routineEditor.buttonColor}
+                            onChange={(e) =>
+                              setRoutineEditor((prev) => ({
+                                ...prev,
+                                buttonColor: e.target.value,
+                              }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
+                          />
+                        </label>
+                        <label className="text-xs font-bold text-slate-600">
+                          Icon Color
+                          <input
+                            type="color"
+                            value={routineEditor.iconColor}
+                            onChange={(e) =>
+                              setRoutineEditor((prev) => ({
+                                ...prev,
+                                iconColor: e.target.value,
+                              }))
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-slate-300 bg-white cursor-pointer"
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
