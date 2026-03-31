@@ -19,6 +19,13 @@ interface TimedtextJson3Event {
   segs?: Array<{ utf8?: string }>;
 }
 
+interface TimedtextTrack {
+  lang: string;
+  kind?: 'asr';
+  name?: string;
+  vssId?: string;
+}
+
 function decodeHtmlEntities(input: string): string {
   const namedEntities: Record<string, string> = {
     amp: '&',
@@ -98,6 +105,31 @@ function parseTimedtextXml(xml: string): TranscriptResponse[] {
   }
 
   return parsed;
+}
+
+function parseTimedtextTrackList(xml: string): TimedtextTrack[] {
+  const trackNodes = xml.matchAll(/<track\b([^>]*)\/?>(?:<\/track>)?/g);
+  const tracks: TimedtextTrack[] = [];
+
+  for (const node of trackNodes) {
+    const attrs = node[1] ?? '';
+    const langMatch = attrs.match(/\blang_code=["']([^"']+)["']/);
+
+    if (!langMatch?.[1]) continue;
+
+    const kindMatch = attrs.match(/\bkind=["']([^"']+)["']/);
+    const nameMatch = attrs.match(/\bname=["']([^"']*)["']/);
+    const vssIdMatch = attrs.match(/\bvss_id=["']([^"']+)["']/);
+
+    tracks.push({
+      lang: decodeHtmlEntities(langMatch[1]),
+      kind: kindMatch?.[1] === 'asr' ? 'asr' : undefined,
+      name: nameMatch?.[1] ? decodeHtmlEntities(nameMatch[1]) : undefined,
+      vssId: vssIdMatch?.[1] ? decodeHtmlEntities(vssIdMatch[1]) : undefined,
+    });
+  }
+
+  return tracks;
 }
 
 admin.initializeApp();
@@ -944,15 +976,47 @@ export const generateVideoActivity = functionsV1
       let transcriptItems: TranscriptResponse[] = [];
       try {
         // Fetch captions directly from timedtext (no Data API key dependency).
-        // Try common language/kind combinations in preference order.
-        const captionCandidates: Array<{ lang: string; kind?: 'asr' }> = [
-          { lang: 'en' },
-          { lang: 'en', kind: 'asr' },
-          { lang: 'en-US' },
-          { lang: 'en-US', kind: 'asr' },
-          { lang: 'en-GB' },
-          { lang: 'en-GB', kind: 'asr' },
+        // First, discover available tracks so we can support non-English videos
+        // (or videos where only one specific transcript track is published).
+        const trackListResp = await axios.get<string>(
+          'https://www.youtube.com/api/timedtext',
+          {
+            params: {
+              type: 'list',
+              v: videoId,
+            },
+            timeout: 10000,
+            responseType: 'text',
+          }
+        );
+
+        const discoveredTracks = parseTimedtextTrackList(trackListResp.data);
+
+        const englishTracks = discoveredTracks.filter((track) =>
+          track.lang.toLowerCase().startsWith('en')
+        );
+        const nonEnglishTracks = discoveredTracks.filter(
+          (track) => !track.lang.toLowerCase().startsWith('en')
+        );
+
+        // Prefer English when available, then fall back to any available track.
+        const captionCandidates: TimedtextTrack[] = [
+          ...englishTracks,
+          ...nonEnglishTracks,
         ];
+
+        // Legacy fallback in case the track list endpoint is empty but direct
+        // language requests still work.
+        if (captionCandidates.length === 0) {
+          captionCandidates.push(
+            { lang: 'en' },
+            { lang: 'en', kind: 'asr' },
+            { lang: 'en-US' },
+            { lang: 'en-US', kind: 'asr' },
+            { lang: 'en-GB' },
+            { lang: 'en-GB', kind: 'asr' }
+          );
+        }
 
         for (const candidate of captionCandidates) {
           try {
@@ -965,6 +1029,8 @@ export const generateVideoActivity = functionsV1
                   v: videoId,
                   lang: candidate.lang,
                   fmt: 'json3',
+                  ...(candidate.name ? { name: candidate.name } : {}),
+                  ...(candidate.vssId ? { vss_id: candidate.vssId } : {}),
                   ...(candidate.kind ? { kind: candidate.kind } : {}),
                 },
                 timeout: 10000,
@@ -1008,6 +1074,8 @@ export const generateVideoActivity = functionsV1
                 params: {
                   v: videoId,
                   lang: candidate.lang,
+                  ...(candidate.name ? { name: candidate.name } : {}),
+                  ...(candidate.vssId ? { vss_id: candidate.vssId } : {}),
                   ...(candidate.kind ? { kind: candidate.kind } : {}),
                 },
                 timeout: 10000,
