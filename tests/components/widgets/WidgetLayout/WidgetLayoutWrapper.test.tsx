@@ -2,19 +2,13 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout/WidgetLayoutWrapper';
-import { WidgetData } from '@/types';
+import { WidgetData, WidgetComponentProps } from '@/types';
 
 // Mock the entire WidgetRegistry to control WIDGET_COMPONENTS and simulate different types
 vi.mock('@/components/widgets/WidgetRegistry', () => {
   return {
     WIDGET_COMPONENTS: {
-      text: (props: {
-        widget: { id: string; w: number; h: number };
-        scale?: number;
-        isStudentView?: boolean;
-        studentPin?: string;
-        isSpotlighted?: boolean;
-      }) => (
+      text: (props: WidgetComponentProps) => (
         <div data-testid="text-widget">
           Text Widget Data: {props.widget.id}
           <br />
@@ -96,9 +90,9 @@ describe('WidgetLayoutWrapper', () => {
   });
 
   it('renders fallback for unregistered widget component', () => {
-    const unknownWidget = {
+    const unknownWidget: WidgetData = {
       ...baseWidget,
-      type: 'unknown_type' as unknown as 'text',
+      type: 'clock',
     };
 
     render(<WidgetLayoutWrapper widget={unknownWidget} w={300} h={150} />);
