@@ -3,6 +3,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { Toggle } from '@/components/common/Toggle';
 
 interface TimeToolConfigurationPanelProps {
   config: TimeToolGlobalConfig;
@@ -160,11 +161,10 @@ export const TimeToolConfigurationPanel: React.FC<
           </p>
         </div>
         <div className="flex items-center">
-          <input
-            type="checkbox"
+          <Toggle
             checked={currentBuildingConfig.timerEndTriggerRandom ?? false}
-            onChange={(e) =>
-              handleUpdateBuilding({ timerEndTriggerRandom: e.target.checked })
+            onChange={(checked) =>
+              handleUpdateBuilding({ timerEndTriggerRandom: checked })
             }
           />
         </div>
@@ -180,11 +180,10 @@ export const TimeToolConfigurationPanel: React.FC<
           </p>
         </div>
         <div className="flex items-center">
-          <input
-            type="checkbox"
+          <Toggle
             checked={currentBuildingConfig.timerEndTriggerNextUp ?? false}
-            onChange={(e) =>
-              handleUpdateBuilding({ timerEndTriggerNextUp: e.target.checked })
+            onChange={(checked) =>
+              handleUpdateBuilding({ timerEndTriggerNextUp: checked })
             }
           />
         </div>

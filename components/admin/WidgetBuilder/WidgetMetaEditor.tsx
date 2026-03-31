@@ -6,6 +6,7 @@ import {
   getCustomWidgetIcon,
 } from '@/config/customWidgetIcons';
 import { Puzzle } from 'lucide-react';
+import { Toggle } from '@/components/common/Toggle';
 
 interface WidgetMetaEditorProps {
   meta: WidgetMeta;
@@ -236,18 +237,21 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         </label>
         <div className="space-y-1 max-h-36 overflow-y-auto">
           {BUILDINGS.map((building) => (
-            <label
+            <div
               key={building.id}
-              className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 px-2 py-1 rounded"
+              className="flex items-center gap-2 hover:bg-slate-700 px-2 py-1 rounded"
             >
-              <input
-                type="checkbox"
+              <Toggle
                 checked={meta.buildings.includes(building.id)}
                 onChange={() => toggleBuilding(building.id)}
-                className="accent-blue-500"
               />
-              <span className="text-sm text-slate-300">{building.name}</span>
-            </label>
+              <span
+                className="text-sm text-slate-300 cursor-pointer"
+                onClick={() => toggleBuilding(building.id)}
+              >
+                {building.name}
+              </span>
+            </div>
           ))}
         </div>
       </div>

@@ -10,6 +10,7 @@ import {
 } from '@/components/widgets/CustomWidget/types';
 import { Trash2, X } from 'lucide-react';
 import { buildDefaultConfig } from './blockDefaults';
+import { Toggle } from '@/components/common/Toggle';
 
 interface CellEditorProps {
   cell: CustomGridCell | null;
@@ -144,30 +145,27 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                   }
                   if (typeof val === 'boolean') {
                     return (
-                      <div key={key} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id={`config-${key}`}
+                      <label
+                        key={key}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Toggle
                           checked={val}
-                          onChange={(e) => {
+                          onChange={(checked) => {
                             const updated: CustomBlockDefinition = {
                               ...block,
                               config: {
                                 ...(block.config as Record<string, unknown>),
-                                [key]: e.target.checked,
+                                [key]: checked,
                               },
                             };
                             onUpdateBlock(cell.id, updated);
                           }}
-                          className="accent-blue-500"
                         />
-                        <label
-                          htmlFor={`config-${key}`}
-                          className="text-xs text-slate-300 capitalize"
-                        >
+                        <span className="text-xs text-slate-300 capitalize">
                           {key}
-                        </label>
-                      </div>
+                        </span>
+                      </label>
                     );
                   }
                   return null;

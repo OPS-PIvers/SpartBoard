@@ -6,6 +6,7 @@ import {
   BlockEventDefinition,
 } from '@/components/widgets/CustomWidget/types';
 import { Link2, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Toggle } from '@/components/common/Toggle';
 
 interface ConnectionsTabProps {
   gridDefinition: CustomGridDefinition;
@@ -346,16 +347,22 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               </div>
             )}
 
-            <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="flex items-center gap-2">
+              <Toggle
                 checked={form.hasCondition}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, hasCondition: e.target.checked }))
+                onChange={(checked) =>
+                  setForm((p) => ({ ...p, hasCondition: checked }))
                 }
               />
-              Add optional condition
-            </label>
+              <span
+                className="text-xs text-slate-400 cursor-pointer"
+                onClick={() =>
+                  setForm((p) => ({ ...p, hasCondition: !p.hasCondition }))
+                }
+              >
+                Add optional condition
+              </span>
+            </div>
 
             {form.hasCondition && (
               <div className="mt-1 bg-slate-800 border border-slate-600 rounded p-2 space-y-1">

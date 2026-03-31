@@ -1,4 +1,5 @@
 import React from 'react';
+import { Toggle } from '@/components/common/Toggle';
 
 export interface ConfigSchemaField {
   type: 'string' | 'number' | 'boolean' | 'stringArray';
@@ -76,15 +77,14 @@ export const SchemaDrivenConfigurationPanel: React.FC<
             )}
 
             {field.type === 'boolean' && (
-              <input
-                type="checkbox"
-                id={`sdcp-${key}`}
-                checked={!!value}
-                onChange={(e) =>
-                  onChange({ ...config, [key]: e.target.checked })
-                }
-                className="accent-brand-blue-primary"
-              />
+              <div className="flex items-center">
+                <Toggle
+                  checked={!!value}
+                  onChange={(checked) =>
+                    onChange({ ...config, [key]: checked })
+                  }
+                />
+              </div>
             )}
 
             {field.type === 'stringArray' && (

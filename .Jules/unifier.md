@@ -191,3 +191,8 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Identified hardcoded font sizes (`text-[11px]`) and generic z-indices (`z-50`) across components (`Calendar/Settings.tsx`, `GuidedLearningAIGenerator.tsx`, `VideoActivityConfigurationModal.tsx`, `StarterPackConfigurationModal.tsx`) bypassing the design system's tokens.
 **Fix:** Refactored instances to use the closest standard Tailwind utility class (`text-xxs`) and specific z-index tokens (`z-widget-internal-overlay`, `z-toast`, `z-popover`) to enforce consistency.
+
+## 2026-04-03 - Standardized Toggle Checkboxes
+
+**Drift:** Multiple widgets and admin panels used hardcoded `label` + `input[type="checkbox"]` patterns for toggles, bypassing the centralized `<Toggle>` component and resulting in inconsistent styling and focus states.
+**Fix:** Refactored instances across `CustomWidget/Settings`, `WidgetBuilder/CellEditor`, `WidgetBuilder/ConnectionsTab`, `WidgetBuilder/WidgetMetaEditor`, `SchemaDrivenConfigurationPanel`, and `TimeToolConfigurationPanel` to use the `components/common/Toggle.tsx` component, ensuring a unified UI for binary switches.

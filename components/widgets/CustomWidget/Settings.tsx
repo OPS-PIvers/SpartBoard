@@ -13,6 +13,7 @@ import {
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
+import { Toggle } from '@/components/common/Toggle';
 
 function buildDefaults(
   defs: CustomWidgetSettingDef[],
@@ -96,11 +97,9 @@ export const CustomWidgetSettings: React.FC<SettingsProps> = ({ widget }) => {
                 </label>
                 {def.type === 'boolean' ? (
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
+                    <Toggle
                       checked={Boolean(val)}
-                      onChange={(e) => handleChange(def.key, e.target.checked)}
-                      className="w-4 h-4 accent-blue-500"
+                      onChange={(checked) => handleChange(def.key, checked)}
                     />
                     <span className="text-slate-400 text-xs">
                       {val ? 'Enabled' : 'Disabled'}
