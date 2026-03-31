@@ -1,4 +1,5 @@
 import {
+  Volume2,
   Clock,
   Timer,
   PlayCircle,
@@ -46,6 +47,12 @@ import { ToolMetadata } from '../types';
 import { RecordIcon } from '../components/layout/dock/RecordIcon';
 
 export const TOOLS: ToolMetadata[] = [
+  {
+    type: 'soundboard',
+    icon: Volume2,
+    label: 'Soundboard',
+    color: 'bg-indigo-500',
+  },
   { type: 'clock', icon: Clock, label: 'Clock', color: 'bg-blue-500' },
   { type: 'time-tool', icon: Timer, label: 'Timer', color: 'bg-red-500' },
   {

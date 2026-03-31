@@ -1,4 +1,5 @@
 import {
+  SoundboardConfig,
   WidgetData,
   WidgetType,
   SpecialistScheduleConfig,
@@ -8,6 +9,13 @@ import {
 import { STICKY_NOTE_COLORS } from './colors';
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
+  soundboard: {
+    w: 320,
+    h: 280,
+    config: {
+      selectedSoundIds: [],
+    } satisfies SoundboardConfig,
+  },
   clock: { w: 280, h: 140, config: { format24: true, showSeconds: true } },
   'time-tool': {
     w: 420,

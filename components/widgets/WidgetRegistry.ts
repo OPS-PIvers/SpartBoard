@@ -49,6 +49,10 @@ const MiniAppSettings = lazyNamed(
 );
 
 export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
+  soundboard: lazyNamed(
+    () => import('./SoundboardWidget/Widget'),
+    'SoundboardWidget'
+  ),
   clock: lazyNamed(() => import('./ClockWidget/Widget'), 'ClockWidget'),
   'time-tool': lazyNamed(
     () => import('./TimeTool/TimeToolWidget'),
@@ -174,6 +178,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
+  soundboard: lazyNamed(
+    () => import('./SoundboardWidget/Settings'),
+    'SoundboardSettings'
+  ),
   clock: lazyNamed(() => import('./ClockWidget/Settings'), 'ClockSettings'),
   text: lazyNamed(() => import('./TextWidget'), 'TextSettings'),
   checklist: lazyNamed(() => import('./Checklist'), 'ChecklistSettings'),
@@ -387,6 +395,13 @@ export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
  *  - sticker   – Decorative overlay; fixed size, no DraggableWindow wrapper.
  */
 export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
+  soundboard: {
+    baseWidth: 320,
+    baseHeight: 280,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
   clock: {
     baseWidth: 280,
     baseHeight: 140,
