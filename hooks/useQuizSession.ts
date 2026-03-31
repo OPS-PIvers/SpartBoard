@@ -398,15 +398,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
 
-  // Optimistic local counter state to ensure UI updates immediately
+  // Optimistic local counter state to ensure UI updates immediately.
+  // warningCountRef mirrors the state so reportTabSwitch can return the
+  // updated value synchronously (React functional updaters run on the next
+  // render, not immediately, so reading newCount from the setter is always 0).
   const [warningCount, setWarningCount] = useState(0);
+  const warningCountRef = useRef(0);
 
   // Sync optimistic state with server truth, but never decrement locally
   useEffect(() => {
     if (myResponse?.tabSwitchWarnings !== undefined) {
-      setWarningCount((prev) =>
-        Math.max(prev, myResponse.tabSwitchWarnings ?? 0)
-      );
+      const serverCount = myResponse.tabSwitchWarnings ?? 0;
+      const next = Math.max(warningCountRef.current, serverCount);
+      warningCountRef.current = next;
+      setWarningCount(next);
     }
   }, [myResponse?.tabSwitchWarnings]);
 
@@ -480,6 +485,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
         teacherUidRef.current = sessionDoc.id;
         studentUidRef.current = studentUid;
+        // Reset warning count before activating snapshot listeners so a
+        // late-arriving snapshot from a previous session can't race with
+        // the finally-block reset and leave the counter stuck at 0.
+        warningCountRef.current = 0;
+        setWarningCount(0);
         setTeacherUidState(sessionDoc.id);
         setStudentUidState(studentUid);
 
@@ -516,7 +526,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setError(msg);
         throw err;
       } finally {
-        setWarningCount(0);
         setLoading(false);
       }
     },
@@ -594,12 +603,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       tabSwitchWarnings: increment(1),
     });
 
-    // Update local state immediately
-    let newCount = 0;
-    setWarningCount((prev) => {
-      newCount = prev + 1;
-      return newCount;
-    });
+    // Base the new count on whichever is higher: our local ref or the latest
+    // server value (via myResponseRef). This guards against the case where the
+    // sync effect hasn't fired yet (e.g., rapid blur before first snapshot),
+    // which would cause warningCountRef to under-count and return too low a
+    // value, preventing the auto-submit threshold from triggering.
+    const baseCount = Math.max(
+      warningCountRef.current,
+      myResponseRef.current?.tabSwitchWarnings ?? 0
+    );
+    const newCount = baseCount + 1;
+    warningCountRef.current = newCount;
+    setWarningCount(newCount);
     return newCount;
   }, []);
 

@@ -327,17 +327,8 @@ const ActiveQuiz: React.FC<{
       }
     };
 
-    // When the window regains focus, we want to make sure we're ready to catch the next blur
-    const handleFocus = () => {
-      // If the cheat warning is NOT showing, ensure our ref is false
-      if (!showCheatWarning) {
-        isWarningShowingRef.current = false;
-      }
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     // Initial check just in case they started the quiz in a background tab
     void handleVisibilityChange();
@@ -345,14 +336,12 @@ const ActiveQuiz: React.FC<{
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
     };
   }, [
     session.status,
     reportTabSwitch,
     onComplete,
     handleAutoSubmit,
-    showCheatWarning,
     myResponse?.status,
   ]);
 
