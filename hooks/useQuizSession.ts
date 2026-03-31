@@ -398,15 +398,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
 
-  // Optimistic local counter state to ensure UI updates immediately
+  // Optimistic local counter state to ensure UI updates immediately.
+  // warningCountRef mirrors the state so reportTabSwitch can return the
+  // updated value synchronously (React functional updaters run on the next
+  // render, not immediately, so reading newCount from the setter is always 0).
   const [warningCount, setWarningCount] = useState(0);
+  const warningCountRef = useRef(0);
 
   // Sync optimistic state with server truth, but never decrement locally
   useEffect(() => {
     if (myResponse?.tabSwitchWarnings !== undefined) {
-      setWarningCount((prev) =>
-        Math.max(prev, myResponse.tabSwitchWarnings ?? 0)
-      );
+      const serverCount = myResponse.tabSwitchWarnings ?? 0;
+      const next = Math.max(warningCountRef.current, serverCount);
+      warningCountRef.current = next;
+      setWarningCount(next);
     }
   }, [myResponse?.tabSwitchWarnings]);
 
@@ -516,6 +521,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setError(msg);
         throw err;
       } finally {
+        warningCountRef.current = 0;
         setWarningCount(0);
         setLoading(false);
       }
@@ -594,12 +600,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       tabSwitchWarnings: increment(1),
     });
 
-    // Update local state immediately
-    let newCount = 0;
-    setWarningCount((prev) => {
-      newCount = prev + 1;
-      return newCount;
-    });
+    // Increment the ref synchronously so the return value is correct.
+    // (React functional updaters run during the next render, so reading
+    // newCount out of setWarningCount would always be 0.)
+    const newCount = warningCountRef.current + 1;
+    warningCountRef.current = newCount;
+    setWarningCount(newCount);
     return newCount;
   }, []);
 

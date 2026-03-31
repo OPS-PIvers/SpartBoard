@@ -278,6 +278,11 @@ const ActiveQuiz: React.FC<{
 
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
+  // Ref mirror so handleFocus always reads the current value without being
+  // listed as a useEffect dependency (which would re-register listeners on
+  // every warning show/hide and call void handleVisibilityChange() each time).
+  const showCheatWarningRef = useRef<boolean>(false);
+  showCheatWarningRef.current = showCheatWarning;
 
   const handleAutoSubmit = useCallback(async () => {
     await showAlert(
@@ -330,7 +335,7 @@ const ActiveQuiz: React.FC<{
     // When the window regains focus, we want to make sure we're ready to catch the next blur
     const handleFocus = () => {
       // If the cheat warning is NOT showing, ensure our ref is false
-      if (!showCheatWarning) {
+      if (!showCheatWarningRef.current) {
         isWarningShowingRef.current = false;
       }
     };
@@ -352,7 +357,6 @@ const ActiveQuiz: React.FC<{
     reportTabSwitch,
     onComplete,
     handleAutoSubmit,
-    showCheatWarning,
     myResponse?.status,
   ]);
 
