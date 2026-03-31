@@ -70,7 +70,11 @@ export const RemoteScheduleControl: React.FC<RemoteScheduleControlProps> = ({
     }
   };
 
-  const doneCount = items.filter((i) => i.done).length;
+  // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
+  const doneCount = useMemo(
+    () => items.reduce((acc, i) => acc + (i.done ? 1 : 0), 0),
+    [items]
+  );
 
   return (
     <div className="flex flex-col h-full">
