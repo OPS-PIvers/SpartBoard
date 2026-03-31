@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { WidgetData, SoundboardConfig, SoundboardGlobalConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { BUILDINGS } from '@/config/buildings';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Volume2 } from 'lucide-react';
@@ -12,7 +13,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
   const { selectedSoundIds = [] } = config;
 
   const { featurePermissions, selectedBuildings } = useAuth();
-  const buildingId = selectedBuildings[0] ?? 'schumann-elementary';
+  const buildingId = selectedBuildings[0] ?? BUILDINGS[0].id;
 
   const globalConfig = useMemo(() => {
     const perm = featurePermissions.find((p) => p.widgetType === 'soundboard');

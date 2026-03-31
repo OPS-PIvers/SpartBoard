@@ -46,7 +46,7 @@ export const SoundboardConfigurationPanel: React.FC<
 
   const addSound = () => {
     const newSound: SoundboardSound = {
-      id: `sound-${Date.now()}`,
+      id: crypto.randomUUID(),
       label: 'New Sound',
       url: '',
       color: '#6366f1',
