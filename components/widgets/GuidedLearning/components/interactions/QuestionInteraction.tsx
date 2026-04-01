@@ -85,7 +85,7 @@ export const QuestionInteraction: React.FC<Props> = ({
       style={{ padding: 'min(12px, 3cqmin)' }}
     >
       <div
-        className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl max-h-full overflow-hidden"
+        className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl max-h-full overflow-y-auto"
         style={{
           maxWidth: 'min(420px, 90cqw)',
           padding: 'min(14px, 3.5cqmin)',
