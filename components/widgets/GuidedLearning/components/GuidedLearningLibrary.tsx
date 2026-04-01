@@ -138,14 +138,14 @@ const SetCard: React.FC<SetCardProps> = ({
       >
         <h3
           className="font-bold text-white truncate"
-          style={{ fontSize: 'clamp(12px, 4cqmin, 14px)' }}
+          style={{ fontSize: 'clamp(12px, 4cqmin, 22px)' }}
         >
           {title}
         </h3>
         <span
           className={`shrink-0 font-black uppercase tracking-widest rounded-md ${MODE_COLORS[mode]}`}
           style={{
-            fontSize: 'clamp(10px, 2.2cqmin, 11px)',
+            fontSize: 'clamp(10px, 2.2cqmin, 13px)',
             padding: 'min(1px, 0.2cqmin) min(6px, 1.5cqmin)',
           }}
         >
@@ -160,7 +160,7 @@ const SetCard: React.FC<SetCardProps> = ({
           className="flex items-center text-slate-400 font-medium"
           style={{
             gap: 'min(4px, 1cqmin)',
-            fontSize: 'clamp(10px, 3cqmin, 11px)',
+            fontSize: 'clamp(10px, 3cqmin, 16px)',
           }}
         >
           {isBuilding && (
@@ -170,8 +170,8 @@ const SetCard: React.FC<SetCardProps> = ({
             >
               <Building2
                 style={{
-                  width: 'min(11px, 3cqmin)',
-                  height: 'min(11px, 3cqmin)',
+                  width: 'clamp(11px, 3cqmin, 18px)',
+                  height: 'clamp(11px, 3cqmin, 18px)',
                 }}
               />
               Building
@@ -184,7 +184,7 @@ const SetCard: React.FC<SetCardProps> = ({
         {description && (
           <span
             className="text-slate-500 truncate italic hidden sm:inline"
-            style={{ fontSize: 'clamp(10px, 3cqmin, 11px)' }}
+            style={{ fontSize: 'clamp(10px, 3cqmin, 16px)' }}
           >
             — {description}
           </span>
@@ -200,12 +200,15 @@ const SetCard: React.FC<SetCardProps> = ({
         style={{
           gap: 'min(4px, 1cqmin)',
           padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-          fontSize: 'clamp(10px, 3cqmin, 11px)',
+          fontSize: 'clamp(10px, 3cqmin, 16px)',
         }}
         title="Play (display to class)"
       >
         <Play
-          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          style={{
+            width: 'clamp(12px, 3cqmin, 18px)',
+            height: 'clamp(12px, 3cqmin, 18px)',
+          }}
         />
         <span className="hidden sm:inline">Play</span>
       </button>
@@ -216,12 +219,15 @@ const SetCard: React.FC<SetCardProps> = ({
         style={{
           gap: 'min(4px, 1cqmin)',
           padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-          fontSize: 'clamp(10px, 3cqmin, 11px)',
+          fontSize: 'clamp(10px, 3cqmin, 16px)',
         }}
         title="Assign (copy student link)"
       >
         <Link2
-          style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+          style={{
+            width: 'clamp(12px, 3cqmin, 18px)',
+            height: 'clamp(12px, 3cqmin, 18px)',
+          }}
         />
         <span className="hidden sm:inline">Assign</span>
       </button>
@@ -233,12 +239,15 @@ const SetCard: React.FC<SetCardProps> = ({
           style={{
             gap: 'min(4px, 1cqmin)',
             padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-            fontSize: 'clamp(10px, 3cqmin, 11px)',
+            fontSize: 'clamp(10px, 3cqmin, 16px)',
           }}
           title="View results"
         >
           <BarChart2
-            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
+            style={{
+              width: 'clamp(12px, 3cqmin, 18px)',
+              height: 'clamp(12px, 3cqmin, 18px)',
+            }}
           />
           <span className="hidden sm:inline">Results</span>
         </button>
@@ -257,8 +266,8 @@ const SetCard: React.FC<SetCardProps> = ({
             >
               <Pencil
                 style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
+                  width: 'clamp(14px, 3.5cqmin, 22px)',
+                  height: 'clamp(14px, 3.5cqmin, 22px)',
                 }}
               />
             </button>
@@ -271,8 +280,8 @@ const SetCard: React.FC<SetCardProps> = ({
             >
               <Trash2
                 style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
+                  width: 'clamp(14px, 3.5cqmin, 22px)',
+                  height: 'clamp(14px, 3.5cqmin, 22px)',
                 }}
               />
             </button>
@@ -344,13 +353,13 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
             className={`rounded-md transition-colors font-bold uppercase tracking-tight ${tab === 'my' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
             style={{
               padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-              fontSize: 'clamp(10px, 2.5cqmin, 11px)',
+              fontSize: 'clamp(10px, 2.5cqmin, 15px)',
             }}
           >
             <User
               style={{
-                width: 'min(11px, 2.8cqmin)',
-                height: 'min(11px, 2.8cqmin)',
+                width: 'clamp(11px, 2.8cqmin, 18px)',
+                height: 'clamp(11px, 2.8cqmin, 18px)',
                 marginRight: 'min(4px, 1cqmin)',
               }}
               className="inline"
@@ -362,13 +371,13 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
             className={`rounded-md transition-colors font-bold uppercase tracking-tight ${tab === 'building' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
             style={{
               padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-              fontSize: 'clamp(10px, 2.5cqmin, 11px)',
+              fontSize: 'clamp(10px, 2.5cqmin, 15px)',
             }}
           >
             <Building2
               style={{
-                width: 'min(11px, 2.8cqmin)',
-                height: 'min(11px, 2.8cqmin)',
+                width: 'clamp(11px, 2.8cqmin, 18px)',
+                height: 'clamp(11px, 2.8cqmin, 18px)',
                 marginRight: 'min(4px, 1cqmin)',
               }}
               className="inline"
@@ -385,7 +394,7 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
               style={{
                 padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
                 gap: 'min(4px, 1cqmin)',
-                fontSize: 'clamp(10px, 2.5cqmin, 11px)',
+                fontSize: 'clamp(10px, 2.5cqmin, 15px)',
               }}
             >
               <Wand2
@@ -403,7 +412,7 @@ export const GuidedLearningLibrary: React.FC<GuidedLearningLibraryProps> = ({
             style={{
               padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
               gap: 'min(4px, 1cqmin)',
-              fontSize: 'clamp(10px, 2.5cqmin, 11px)',
+              fontSize: 'clamp(10px, 2.5cqmin, 15px)',
             }}
           >
             <Plus

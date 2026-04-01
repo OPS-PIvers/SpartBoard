@@ -237,8 +237,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <WidgetLayout
       padding="p-0"
+      contentClassName="flex-1 min-h-0"
       content={
-        <div className="h-full">
+        <div className="h-full w-full">
           {config.view === 'library' && (
             <GuidedLearningLibrary
               widget={widget}

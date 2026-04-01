@@ -65,7 +65,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           {step.label ?? interactionLabel}{' '}
           <span
             className="text-slate-500 font-normal"
-            style={{ fontSize: 'min(11px, 3cqmin)' }}
+            style={{ fontSize: 'clamp(11px, 3cqmin, 16px)' }}
           >
             ({step.xPct.toFixed(0)}%, {step.yPct.toFixed(0)}%)
           </span>
@@ -73,7 +73,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
         <span
           className="text-slate-500 bg-slate-700 rounded font-black uppercase tracking-tighter"
           style={{
-            fontSize: 'min(9px, 2.2cqmin)',
+            fontSize: 'clamp(9px, 2.2cqmin, 12px)',
             padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
           }}
         >
@@ -103,7 +103,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Label (optional)
             </label>
@@ -115,7 +115,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
               style={{
                 padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(12px, 3.2cqmin)',
+                fontSize: 'clamp(12px, 3.2cqmin, 16px)',
               }}
             />
           </div>
@@ -124,7 +124,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Interaction Type
             </label>
@@ -139,7 +139,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
               style={{
                 padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(12px, 3.2cqmin)',
+                fontSize: 'clamp(12px, 3.2cqmin, 16px)',
               }}
             >
               {INTERACTION_TYPES.map((t) => (
@@ -156,7 +156,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label
                 className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
               >
                 Text Content
               </label>
@@ -168,7 +168,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
                 style={{
                   padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(12px, 3.2cqmin)',
+                  fontSize: 'clamp(12px, 3.2cqmin, 16px)',
                 }}
               />
             </div>
@@ -179,7 +179,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label
                 className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
               >
                 Audio URL
               </label>
@@ -191,13 +191,13 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(12px, 3.2cqmin)',
+                  fontSize: 'clamp(12px, 3.2cqmin, 16px)',
                 }}
               />
               <p
                 className="text-slate-500 font-medium"
                 style={{
-                  fontSize: 'min(10px, 2.5cqmin)',
+                  fontSize: 'clamp(10px, 2.5cqmin, 14px)',
                   marginTop: 'min(4px, 1cqmin)',
                 }}
               >
@@ -211,7 +211,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label
                 className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
               >
                 Video URL
               </label>
@@ -223,7 +223,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'min(12px, 3.2cqmin)',
+                  fontSize: 'clamp(12px, 3.2cqmin, 16px)',
                 }}
               />
             </div>
@@ -234,7 +234,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label
                 className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
               >
                 Zoom Level: {step.panZoomScale ?? 2.5}×
               </label>
@@ -257,7 +257,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label
                 className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-                style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
               >
                 Spotlight Radius: {step.spotlightRadius ?? 25}%
               </label>
@@ -284,7 +284,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Auto-advance after (seconds, 0 = manual)
             </label>
@@ -300,7 +300,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               style={{
                 width: 'min(80px, 20cqmin)',
                 padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(12px, 3.2cqmin)',
+                fontSize: 'clamp(12px, 3.2cqmin, 16px)',
               }}
             />
           </div>
@@ -488,7 +488,7 @@ const MCEditor: React.FC<{
       {!q.correctAnswer && (
         <p
           className="text-amber-400 font-bold"
-          style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+          style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
         >
           Select the correct answer using the radio button.
         </p>
@@ -537,7 +537,7 @@ const MatchingEditor: React.FC<{
           />
           <span
             className="text-slate-500 font-bold"
-            style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+            style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
           >
             →
           </span>
@@ -612,7 +612,7 @@ const SortingEditor: React.FC<{
             className="text-slate-500 font-mono font-bold text-center"
             style={{
               width: 'min(20px, 5cqmin)',
-              fontSize: 'min(10px, 2.5cqmin)',
+              fontSize: 'clamp(10px, 2.5cqmin, 14px)',
             }}
           >
             {idx + 1}.

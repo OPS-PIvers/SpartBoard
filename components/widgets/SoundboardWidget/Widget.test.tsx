@@ -154,4 +154,63 @@ describe('SoundboardWidget', () => {
 
     expect(mockPlay).toHaveBeenCalled();
   });
+
+  it('includes library sounds when enabled by admin', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      selectedBuildings: ['school-1'],
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          enabled: true,
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [],
+                enabledLibrarySoundIds: ['lib-tada'],
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
+
+    const libWidget = {
+      ...defaultWidget,
+      config: { selectedSoundIds: ['lib-tada'] },
+    };
+
+    render(<SoundboardWidget widget={libWidget as unknown as WidgetData} />);
+
+    expect(screen.getByText('Ta-Da')).toBeInTheDocument();
+  });
+
+  it('excludes library sounds when NOT enabled by admin', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      selectedBuildings: ['school-1'],
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          enabled: true,
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [],
+                enabledLibrarySoundIds: [], // Empty
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
+
+    const libWidget = {
+      ...defaultWidget,
+      config: { selectedSoundIds: ['lib-tada'] },
+    };
+
+    render(<SoundboardWidget widget={libWidget as unknown as WidgetData} />);
+
+    expect(screen.queryByText('Ta-Da')).not.toBeInTheDocument();
+    expect(screen.getByText('No Sounds Selected')).toBeInTheDocument();
+  });
 });

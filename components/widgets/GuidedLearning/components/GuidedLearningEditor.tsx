@@ -210,7 +210,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           style={{
             gap: 'min(6px, 1.5cqmin)',
             padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-            fontSize: 'min(11px, 3cqmin)',
+            fontSize: 'clamp(11px, 3cqmin, 16px)',
           }}
         >
           {saving || uploading ? (
@@ -239,7 +239,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Title *
             </label>
@@ -260,7 +260,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Description (optional)
             </label>
@@ -281,7 +281,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Mode
             </label>
@@ -302,13 +302,13 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 >
                   <div
                     className="text-white font-bold mb-0.5"
-                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                    style={{ fontSize: 'clamp(11px, 3cqmin, 16px)' }}
                   >
                     {opt.label}
                   </div>
                   <div
                     className="text-slate-400 leading-tight"
-                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+                    style={{ fontSize: 'clamp(9px, 2.2cqmin, 12px)' }}
                   >
                     {opt.desc}
                   </div>
@@ -321,7 +321,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
           <div>
             <label
               className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
             >
               Base Image *
             </label>
@@ -330,13 +330,14 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 ref={imageContainerRef}
                 className={`relative rounded-lg overflow-hidden bg-slate-800 ${addingStep ? 'cursor-crosshair' : ''}`}
                 onClick={handleImageClick}
+                data-no-drag={addingStep ? 'true' : undefined}
               >
                 <img
                   ref={imageRef}
                   src={imageUrl}
                   alt="Base"
                   className="w-full object-contain"
-                  style={{ maxHeight: 'min(200px, 50cqh)' }}
+                  style={{ maxHeight: 'min(600px, 50cqh)' }}
                   draggable={false}
                   onLoad={measureImage}
                 />
@@ -382,7 +383,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                       className="text-indigo-200 font-bold bg-indigo-900/70 rounded-lg shadow-xl"
                       style={{
                         padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
-                        fontSize: 'min(12px, 3cqmin)',
+                        fontSize: 'clamp(12px, 3cqmin, 16px)',
                       }}
                     >
                       Click to place hotspot
@@ -409,7 +410,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                     />
                     <p
                       className="text-slate-400 font-medium"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      style={{ fontSize: 'clamp(12px, 3cqmin, 16px)' }}
                     >
                       Uploading…
                     </p>
@@ -434,7 +435,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                         style={{
                           gap: 'min(6px, 1.5cqmin)',
                           padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                          fontSize: 'min(11px, 3cqmin)',
+                          fontSize: 'clamp(11px, 3cqmin, 16px)',
                         }}
                       >
                         <Upload
@@ -451,7 +452,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                         style={{
                           gap: 'min(6px, 1.5cqmin)',
                           padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                          fontSize: 'min(11px, 3cqmin)',
+                          fontSize: 'clamp(11px, 3cqmin, 16px)',
                         }}
                       >
                         <Clipboard
@@ -513,7 +514,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
               >
                 <label
                   className="text-slate-400 font-bold uppercase tracking-wider"
-                  style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                  style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
                 >
                   Steps ({steps.length})
                 </label>
@@ -527,7 +528,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                   style={{
                     gap: 'min(4px, 1cqmin)',
                     padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'min(11px, 3cqmin)',
+                    fontSize: 'clamp(11px, 3cqmin, 16px)',
                   }}
                 >
                   <Plus
@@ -563,7 +564,7 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                     className="text-slate-500 font-medium text-center"
                     style={{
                       padding: 'min(16px, 4cqmin) 0',
-                      fontSize: 'min(11px, 3cqmin)',
+                      fontSize: 'clamp(11px, 3cqmin, 16px)',
                     }}
                   >
                     Click &quot;Add Step&quot; then click the image to place a

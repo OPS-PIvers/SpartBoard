@@ -285,6 +285,7 @@ export interface SoundboardConfig {
 
 export interface SoundboardBuildingConfig {
   availableSounds: SoundboardSound[]; // Sounds configured by admin for this building
+  enabledLibrarySoundIds?: string[]; // IDs from the standard library
 }
 
 export interface SoundboardGlobalConfig {
