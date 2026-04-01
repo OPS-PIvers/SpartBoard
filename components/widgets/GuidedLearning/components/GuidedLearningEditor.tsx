@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload,
   ImageIcon,
@@ -80,15 +80,47 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   const measureImage = useCallback(() => {
     if (!imageRef.current || !imageContainerRef.current) return;
-    const imgRect = imageRef.current.getBoundingClientRect();
+    const imageEl = imageRef.current;
     const contRect = imageContainerRef.current.getBoundingClientRect();
+    const naturalWidth = imageEl.naturalWidth;
+    const naturalHeight = imageEl.naturalHeight;
+    if (
+      contRect.width === 0 ||
+      contRect.height === 0 ||
+      naturalWidth === 0 ||
+      naturalHeight === 0
+    ) {
+      return;
+    }
+
+    const imageAspect = naturalWidth / naturalHeight;
+    const containerAspect = contRect.width / contRect.height;
+
+    const width =
+      imageAspect > containerAspect
+        ? contRect.width
+        : contRect.height * imageAspect;
+    const height =
+      imageAspect > containerAspect
+        ? contRect.width / imageAspect
+        : contRect.height;
+
     setImgBounds({
-      offsetLeft: imgRect.left - contRect.left,
-      offsetTop: imgRect.top - contRect.top,
-      width: imgRect.width,
-      height: imgRect.height,
+      offsetLeft: (contRect.width - width) / 2,
+      offsetTop: (contRect.height - height) / 2,
+      width,
+      height,
     });
   }, []);
+
+  useEffect(() => {
+    if (!imageContainerRef.current) return;
+    const ro = new ResizeObserver(() => {
+      measureImage();
+    });
+    ro.observe(imageContainerRef.current);
+    return () => ro.disconnect();
+  }, [measureImage]);
 
   // Handle file upload
   const handleImageUpload = async (file: File) => {
@@ -133,15 +165,29 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   // Click on image to add a step
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!addingStep || !imageRef.current) return;
-    const rect = imageRef.current.getBoundingClientRect();
+    if (!addingStep || !imageContainerRef.current || !imgBounds) return;
+    const containerRect = imageContainerRef.current.getBoundingClientRect();
+    const left = containerRect.left + imgBounds.offsetLeft;
+    const top = containerRect.top + imgBounds.offsetTop;
+    const right = left + imgBounds.width;
+    const bottom = top + imgBounds.height;
+
+    if (
+      e.clientX < left ||
+      e.clientX > right ||
+      e.clientY < top ||
+      e.clientY > bottom
+    ) {
+      return;
+    }
+
     const xPct = Math.max(
       2,
-      Math.min(98, ((e.clientX - rect.left) / rect.width) * 100)
+      Math.min(98, ((e.clientX - left) / imgBounds.width) * 100)
     );
     const yPct = Math.max(
       2,
-      Math.min(98, ((e.clientY - rect.top) / rect.height) * 100)
+      Math.min(98, ((e.clientY - top) / imgBounds.height) * 100)
     );
 
     const newStep: GuidedLearningStep = {
@@ -331,13 +377,13 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                 className={`relative rounded-lg overflow-hidden bg-slate-800 ${addingStep ? 'cursor-crosshair' : ''}`}
                 onClick={handleImageClick}
                 data-no-drag={addingStep ? 'true' : undefined}
+                style={{ height: 'min(600px, 50cqh)' }}
               >
                 <img
                   ref={imageRef}
                   src={imageUrl}
                   alt="Base"
-                  className="w-full object-contain"
-                  style={{ maxHeight: 'min(600px, 50cqh)' }}
+                  className="w-full h-full object-contain"
                   draggable={false}
                   onLoad={measureImage}
                 />
@@ -378,7 +424,19 @@ export const GuidedLearningEditor: React.FC<Props> = ({
                   </div>
                 ))}
                 {addingStep && (
-                  <div className="absolute inset-0 bg-indigo-500/10 border-2 border-indigo-400 border-dashed rounded-lg flex items-center justify-center pointer-events-none">
+                  <div
+                    className="absolute bg-indigo-500/10 border-2 border-indigo-400 border-dashed rounded-lg flex items-center justify-center pointer-events-none"
+                    style={
+                      imgBounds
+                        ? {
+                            left: imgBounds.offsetLeft,
+                            top: imgBounds.offsetTop,
+                            width: imgBounds.width,
+                            height: imgBounds.height,
+                          }
+                        : { inset: 0 }
+                    }
+                  >
                     <span
                       className="text-indigo-200 font-bold bg-indigo-900/70 rounded-lg shadow-xl"
                       style={{

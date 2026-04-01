@@ -71,14 +71,34 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const measureImg = useCallback(() => {
     if (!imgRef.current || !containerRef.current) return;
-    const imgRect = imgRef.current.getBoundingClientRect();
+    const imageEl = imgRef.current;
     const contRect = containerRef.current.getBoundingClientRect();
-    if (contRect.width === 0 || contRect.height === 0) return;
+    const naturalWidth = imageEl.naturalWidth;
+    const naturalHeight = imageEl.naturalHeight;
+    if (
+      contRect.width === 0 ||
+      contRect.height === 0 ||
+      naturalWidth === 0 ||
+      naturalHeight === 0
+    )
+      return;
+
+    const imageAspect = naturalWidth / naturalHeight;
+    const containerAspect = contRect.width / contRect.height;
+    const drawWidth =
+      imageAspect > containerAspect
+        ? contRect.width
+        : contRect.height * imageAspect;
+    const drawHeight =
+      imageAspect > containerAspect
+        ? contRect.width / imageAspect
+        : contRect.height;
+
     setImgOffset({
-      left: ((imgRect.left - contRect.left) / contRect.width) * 100,
-      top: ((imgRect.top - contRect.top) / contRect.height) * 100,
-      scaleX: imgRect.width / contRect.width,
-      scaleY: imgRect.height / contRect.height,
+      left: ((contRect.width - drawWidth) / 2 / contRect.width) * 100,
+      top: ((contRect.height - drawHeight) / 2 / contRect.height) * 100,
+      scaleX: drawWidth / contRect.width,
+      scaleY: drawHeight / contRect.height,
     });
   }, []);
 
