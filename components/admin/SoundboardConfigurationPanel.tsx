@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { Plus, Trash2, Play, CheckCircle2, Music } from 'lucide-react';
 import { SOUND_LIBRARY } from '@/config/soundLibrary';
+import { extractGoogleFileId } from '@/utils/urlHelpers';
 
 interface SoundboardConfigurationPanelProps {
   config: SoundboardGlobalConfig;
@@ -22,6 +23,56 @@ export const SoundboardConfigurationPanel: React.FC<
     BUILDINGS[0].id
   );
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [playbackErrors, setPlaybackErrors] = useState<Record<string, string>>(
+    {}
+  );
+
+  const validateAudioUrl = (rawUrl: string) => {
+    const trimmedUrl = rawUrl.trim();
+    if (!trimmedUrl) {
+      return {
+        normalizedUrl: '',
+        isValidUrl: false,
+        isGoogleDriveUrl: false,
+        driveFileId: null as string | null,
+        canTest: false,
+        urlError: 'Enter a valid audio URL.',
+      };
+    }
+
+    const withProtocol = /^https?:\/\//i.test(trimmedUrl)
+      ? trimmedUrl
+      : `https://${trimmedUrl}`;
+
+    try {
+      const parsedUrl = new URL(withProtocol);
+      const isGoogleDriveUrl = parsedUrl.hostname.includes('drive.google.com');
+      const driveFileId = isGoogleDriveUrl
+        ? extractGoogleFileId(withProtocol)
+        : null;
+      const hasDriveIdIssue = isGoogleDriveUrl && !driveFileId;
+
+      return {
+        normalizedUrl: withProtocol,
+        isValidUrl: true,
+        isGoogleDriveUrl,
+        driveFileId,
+        canTest: !hasDriveIdIssue,
+        urlError: hasDriveIdIssue
+          ? 'Google Drive link must include a file ID.'
+          : null,
+      };
+    } catch {
+      return {
+        normalizedUrl: '',
+        isValidUrl: false,
+        isGoogleDriveUrl: false,
+        driveFileId: null as string | null,
+        canTest: false,
+        urlError: 'Enter a valid audio URL.',
+      };
+    }
+  };
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: SoundboardBuildingConfig = buildingDefaults[
@@ -44,14 +95,31 @@ export const SoundboardConfigurationPanel: React.FC<
     });
   };
 
-  const testSound = (id: string, url: string) => {
-    if (!url) return;
+  const testSound = async (id: string, url: string) => {
+    const validation = validateAudioUrl(url);
+    if (!validation.canTest) {
+      setPlaybackErrors((prev) => ({
+        ...prev,
+        [id]: validation.urlError ?? 'Enter a valid audio URL.',
+      }));
+      return;
+    }
+
+    setPlaybackErrors((prev) => ({ ...prev, [id]: '' }));
     setPlayingId(id);
-    const audio = new Audio(url);
-    void audio.play().finally(() => {
+    const audio = new Audio(validation.normalizedUrl);
+
+    try {
+      await audio.play();
       // Small timeout to show the "playing" state
       setTimeout(() => setPlayingId(null), 1000);
-    });
+    } catch {
+      setPlayingId(null);
+      setPlaybackErrors((prev) => ({
+        ...prev,
+        [id]: 'Playback failed. Check the URL and file sharing permissions.',
+      }));
+    }
   };
 
   const sounds = currentBuildingConfig.availableSounds ?? [];
@@ -148,7 +216,7 @@ export const SoundboardConfigurationPanel: React.FC<
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      testSound(libSound.id, libSound.url);
+                      void testSound(libSound.id, libSound.url);
                     }}
                     className={`p-1 rounded-md transition-colors ${
                       isPlaying
@@ -198,6 +266,11 @@ export const SoundboardConfigurationPanel: React.FC<
           <div className="space-y-3">
             {sounds.map((sound, index) => {
               const isPlaying = playingId === sound.id;
+              const validation = validateAudioUrl(sound.url);
+              const showUrlError =
+                sound.url.trim().length > 0 && !validation.canTest;
+              const playbackError = playbackErrors[sound.id];
+
               return (
                 <div
                   key={sound.id}
@@ -251,15 +324,21 @@ export const SoundboardConfigurationPanel: React.FC<
                         <input
                           type="url"
                           value={sound.url}
-                          onChange={(e) =>
-                            updateSound(index, { url: e.target.value })
-                          }
-                          className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none"
+                          onChange={(e) => {
+                            setPlaybackErrors((prev) => ({
+                              ...prev,
+                              [sound.id]: '',
+                            }));
+                            updateSound(index, { url: e.target.value });
+                          }}
+                          className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none ${
+                            showUrlError ? 'border-red-300' : 'border-slate-200'
+                          }`}
                           placeholder="https://example.com/sound.mp3"
                         />
                         <button
-                          onClick={() => testSound(sound.id, sound.url)}
-                          disabled={!sound.url}
+                          onClick={() => void testSound(sound.id, sound.url)}
+                          disabled={!validation.canTest}
                           className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
                             isPlaying
                               ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
@@ -276,6 +355,22 @@ export const SoundboardConfigurationPanel: React.FC<
                           </span>
                         </button>
                       </div>
+                      {validation.isGoogleDriveUrl && (
+                        <p className="mt-1 text-xxs text-slate-500">
+                          File must be shared publicly or with your domain to
+                          play for all users.
+                        </p>
+                      )}
+                      {showUrlError && (
+                        <p className="mt-1 text-xxs text-red-500">
+                          {validation.urlError}
+                        </p>
+                      )}
+                      {playbackError && (
+                        <p className="mt-1 text-xxs text-red-500">
+                          {playbackError}
+                        </p>
+                      )}
                     </div>
                   </div>
 
