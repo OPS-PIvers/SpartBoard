@@ -51,7 +51,8 @@ export type WidgetType =
   | 'video-activity'
   | 'guided-learning'
   | 'custom-widget'
-  | 'soundboard';
+  | 'soundboard'
+  | 'activity-wall';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -340,6 +341,38 @@ export interface PollGlobalConfig {
 export interface PollConfig {
   question: string;
   options: PollOption[];
+}
+
+export type ActivityWallMode = 'text' | 'photo';
+export type ActivityWallIdentificationMode =
+  | 'anonymous'
+  | 'name'
+  | 'pin'
+  | 'name-pin';
+
+export interface ActivityWallSubmission {
+  id: string;
+  content: string;
+  submittedAt: number;
+  status: 'approved' | 'pending';
+  participantLabel?: string;
+}
+
+export interface ActivityWallActivity {
+  id: string;
+  title: string;
+  prompt: string;
+  mode: ActivityWallMode;
+  moderationEnabled: boolean;
+  identificationMode: ActivityWallIdentificationMode;
+  submissions: ActivityWallSubmission[];
+  startedAt: number | null;
+}
+
+export interface ActivityWallConfig {
+  activities?: ActivityWallActivity[];
+  activeActivityId?: string | null;
+  draftActivity?: ActivityWallActivity;
 }
 
 export interface WebcamConfig {
@@ -1943,7 +1976,8 @@ export type WidgetConfig =
   | VideoActivityConfig
   | GuidedLearningConfig
   | CustomWidgetConfig
-  | SoundboardConfig;
+  | SoundboardConfig
+  | ActivityWallConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'soundboard'
@@ -2052,7 +2086,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'soundboard'
                                                                                                         ? GuidedLearningConfig
                                                                                                         : T extends 'custom-widget'
                                                                                                           ? CustomWidgetConfig
-                                                                                                          : never;
+                                                                                                          : T extends 'activity-wall'
+                                                                                                            ? ActivityWallConfig
+                                                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

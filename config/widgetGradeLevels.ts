@@ -54,6 +54,7 @@ export const WIDGET_GRADE_LEVELS: Record<
 
   // Academic Tools
   poll: ['6-8', '9-12'],
+  'activity-wall': ALL_GRADE_LEVELS,
   scoreboard: ALL_GRADE_LEVELS,
   embed: ['6-8', '9-12'],
 

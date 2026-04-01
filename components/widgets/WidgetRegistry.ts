@@ -173,6 +173,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./CustomWidget/Widget'),
     'CustomWidgetWidget'
   ),
+  'activity-wall': lazyNamed(
+    () => import('./ActivityWall/Widget'),
+    'ActivityWallWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -297,6 +301,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./CustomWidget/Settings'),
     'CustomWidgetSettings'
   ),
+  'activity-wall': lazyNamed(
+    () => import('./ActivityWall/Settings'),
+    'ActivityWallSettings'
+  ),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -361,6 +369,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'starter-pack': lazyNamed(
     () => import('./StarterPack/Settings'),
     'StarterPackAppearanceSettings'
+  ),
+  'activity-wall': lazyNamed(
+    () => import('./ActivityWall/Settings'),
+    'ActivityWallAppearanceSettings'
   ),
 };
 
@@ -501,6 +513,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   poll: {
     baseWidth: 300,
     baseHeight: 250,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'activity-wall': {
+    baseWidth: 520,
+    baseHeight: 420,
     canSpread: true,
     skipScaling: true,
     padding: 0,
