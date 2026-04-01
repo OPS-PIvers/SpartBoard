@@ -581,7 +581,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                     {GEMINI_FEATURES.includes(feature.id) && (
                       <div className="flex items-center gap-3 ml-4 px-4 py-1.5 bg-purple-50 rounded-lg border border-purple-100">
                         <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-tight leading-none mb-0.5">
+                          <span className="text-xxs font-bold text-purple-700 uppercase tracking-tight leading-none mb-0.5">
                             Limit
                           </span>
                           <Toggle
@@ -604,7 +604,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                         <div className="w-px h-6 bg-purple-200" />
 
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] font-bold text-purple-700 uppercase tracking-tight leading-none">
+                          <span className="text-xxs font-bold text-purple-700 uppercase tracking-tight leading-none">
                             Daily Max
                           </span>
                           <input
@@ -847,7 +847,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                         Daily Usage Limit
                       </label>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-purple-400 uppercase">
+                        <span className="text-xxs font-bold text-purple-400 uppercase">
                           {((permission.config?.dailyLimitEnabled as boolean) ??
                           true)
                             ? 'Enabled'
