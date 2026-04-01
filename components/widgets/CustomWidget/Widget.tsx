@@ -199,13 +199,14 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
         bs.timerRemaining === 0 &&
         !bs.timerRunning
       ) {
-        for (const conn of activeGrid.connections.filter(
-          (c) => c.sourceBlockId === blockId && c.event === 'on-timer-end'
-        )) {
-          if (!conditionPasses(conn.condition, state)) continue;
-          if (conn.action === 'play-sound') playBeep();
-          if (conn.action === 'show-toast' && conn.actionPayload)
-            addToast(conn.actionPayload, 'info');
+        // ⚡ Bolt Optimization: Use direct if condition instead of filter() to prevent intermediate array allocations
+        for (const conn of activeGrid.connections) {
+          if (conn.sourceBlockId === blockId && conn.event === 'on-timer-end') {
+            if (!conditionPasses(conn.condition, state)) continue;
+            if (conn.action === 'play-sound') playBeep();
+            if (conn.action === 'show-toast' && conn.actionPayload)
+              addToast(conn.actionPayload, 'info');
+          }
         }
       }
     }
@@ -216,13 +217,14 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
     lastEventRef.current = [];
     for (const ev of queuedEvents) {
       if (ev.type !== 'BLOCK_EVENT') continue;
-      for (const conn of activeGrid.connections.filter(
-        (c) => c.sourceBlockId === ev.sourceId && c.event === ev.event
-      )) {
-        if (!conditionPasses(conn.condition, state)) continue;
-        if (conn.action === 'play-sound') playBeep();
-        if (conn.action === 'show-toast' && conn.actionPayload)
-          addToast(conn.actionPayload, 'info');
+      // ⚡ Bolt Optimization: Use direct if condition instead of filter() to prevent intermediate array allocations
+      for (const conn of activeGrid.connections) {
+        if (conn.sourceBlockId === ev.sourceId && conn.event === ev.event) {
+          if (!conditionPasses(conn.condition, state)) continue;
+          if (conn.action === 'play-sound') playBeep();
+          if (conn.action === 'show-toast' && conn.actionPayload)
+            addToast(conn.actionPayload, 'info');
+        }
       }
     }
   }, [state, activeGrid, addToast]);
