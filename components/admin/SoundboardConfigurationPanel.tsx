@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { Plus, Trash2, Play, CheckCircle2, Music } from 'lucide-react';
 import { SOUND_LIBRARY } from '@/config/soundLibrary';
-import { extractGoogleFileId } from '@/utils/urlHelpers';
+import { ensureProtocol, extractGoogleFileId } from '@/utils/urlHelpers';
 
 interface SoundboardConfigurationPanelProps {
   config: SoundboardGlobalConfig;
@@ -26,6 +26,8 @@ export const SoundboardConfigurationPanel: React.FC<
   const [playbackErrors, setPlaybackErrors] = useState<Record<string, string>>(
     {}
   );
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackResetTimeoutRef = useRef<number | null>(null);
 
   const validateAudioUrl = (rawUrl: string) => {
     const trimmedUrl = rawUrl.trim();
@@ -40,13 +42,13 @@ export const SoundboardConfigurationPanel: React.FC<
       };
     }
 
-    const withProtocol = /^https?:\/\//i.test(trimmedUrl)
-      ? trimmedUrl
-      : `https://${trimmedUrl}`;
+    const withProtocol = ensureProtocol(trimmedUrl);
 
     try {
       const parsedUrl = new URL(withProtocol);
-      const isGoogleDriveUrl = parsedUrl.hostname.includes('drive.google.com');
+      const isGoogleDriveUrl =
+        parsedUrl.hostname === 'drive.google.com' ||
+        parsedUrl.hostname === 'docs.google.com';
       const driveFileId = isGoogleDriveUrl
         ? extractGoogleFileId(withProtocol)
         : null;
@@ -73,6 +75,21 @@ export const SoundboardConfigurationPanel: React.FC<
       };
     }
   };
+
+  const clearPlaybackResetTimeout = () => {
+    if (playbackResetTimeoutRef.current !== null) {
+      window.clearTimeout(playbackResetTimeoutRef.current);
+      playbackResetTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearPlaybackResetTimeout();
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, []);
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: SoundboardBuildingConfig = buildingDefaults[
@@ -105,16 +122,29 @@ export const SoundboardConfigurationPanel: React.FC<
       return;
     }
 
+    clearPlaybackResetTimeout();
+    audioRef.current?.pause();
+
     setPlaybackErrors((prev) => ({ ...prev, [id]: '' }));
     setPlayingId(id);
+
     const audio = new Audio(validation.normalizedUrl);
+    audioRef.current = audio;
 
     try {
       await audio.play();
-      // Small timeout to show the "playing" state
-      setTimeout(() => setPlayingId(null), 1000);
+      playbackResetTimeoutRef.current = window.setTimeout(() => {
+        setPlayingId((current) => (current === id ? null : current));
+        if (audioRef.current === audio) {
+          audioRef.current = null;
+        }
+        playbackResetTimeoutRef.current = null;
+      }, 1000);
     } catch {
-      setPlayingId(null);
+      if (audioRef.current === audio) {
+        audioRef.current = null;
+      }
+      setPlayingId((current) => (current === id ? null : current));
       setPlaybackErrors((prev) => ({
         ...prev,
         [id]: 'Playback failed. Check the URL and file sharing permissions.',
