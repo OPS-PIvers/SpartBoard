@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Camera, Loader2, Send } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, Send, X } from 'lucide-react';
 import { ActivityWallIdentificationMode, ActivityWallMode } from '@/types';
-import { db, auth } from '@/config/firebase';
+import { db, auth, storage } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { doc, collection, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 type ActivityPayload = {
   id: string;
@@ -93,6 +94,8 @@ export const ActivityWallStudentApp: React.FC = () => {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [response, setResponse] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -112,21 +115,51 @@ export const ActivityWallStudentApp: React.FC = () => {
     payload.identificationMode === 'pin' ||
     payload.identificationMode === 'name-pin';
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setSelectedFile(file);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  };
+
+  const clearPhoto = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requiresName && !name.trim()) return;
     if (requiresPin && !pin.trim()) return;
-    if (!response.trim()) return;
+    if (payload.mode === 'text' && !response.trim()) return;
+    if (payload.mode === 'photo' && !selectedFile) return;
 
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      // Sign in anonymously so Firestore security rules allow the write.
+      // Sign in anonymously so Firestore/Storage security rules allow the write.
       await signInAnonymously(auth);
 
       const sessionId = `${payload.teacherUid}_${payload.id}`;
       const submissionId = crypto.randomUUID();
+
+      let content: string;
+      if (payload.mode === 'photo' && selectedFile) {
+        // Upload photo to Firebase Storage under the teacher's session path.
+        // Student photos are stored at activity_wall_photos/{sessionId}/{submissionId}
+        // and are publicly readable via the generated download URL.
+        const storageRef = ref(
+          storage,
+          `activity_wall_photos/${sessionId}/${submissionId}`
+        );
+        const snapshot = await uploadBytes(storageRef, selectedFile);
+        content = await getDownloadURL(snapshot.ref);
+      } else {
+        content = response.trim();
+      }
+
       const submissionDoc = doc(
         collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
         submissionId
@@ -135,7 +168,7 @@ export const ActivityWallStudentApp: React.FC = () => {
       await setDoc(submissionDoc, {
         id: submissionId,
         activityId: payload.id,
-        content: response.trim(),
+        content,
         submittedAt: Date.now(),
         participantLabel: buildParticipantLabel(
           payload.identificationMode,
@@ -195,12 +228,57 @@ export const ActivityWallStudentApp: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl"
                 />
               ) : (
-                <input
-                  value={response}
-                  onChange={(event) => setResponse(event.target.value)}
-                  placeholder="Paste photo URL or image file link"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                />
+                /* Photo mode: file picker with preview */
+                <div className="space-y-2">
+                  <label className="block cursor-pointer">
+                    <div
+                      className={`flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-colors ${
+                        selectedFile
+                          ? 'border-emerald-400 bg-emerald-50'
+                          : 'border-slate-300 hover:border-brand-blue-primary'
+                      }`}
+                    >
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Preview"
+                          className="max-h-48 w-full object-contain rounded-lg"
+                        />
+                      ) : (
+                        <>
+                          <div className="flex gap-3 text-slate-400">
+                            <Camera className="w-8 h-8" />
+                            <ImagePlus className="w-8 h-8" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-semibold text-brand-blue-primary">
+                              Take or select a photo
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              Tap to use your camera or photo library
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                  {selectedFile && (
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      Remove photo
+                    </button>
+                  )}
+                </div>
               )}
 
               {submitError && (
@@ -211,7 +289,11 @@ export const ActivityWallStudentApp: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={
+                  submitting ||
+                  (payload.mode === 'photo' && !selectedFile) ||
+                  (payload.mode === 'text' && !response.trim())
+                }
                 className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {submitting ? (
@@ -221,7 +303,11 @@ export const ActivityWallStudentApp: React.FC = () => {
                 ) : (
                   <Camera className="w-4 h-4" />
                 )}
-                {submitting ? 'Submitting…' : 'Submit response'}
+                {submitting
+                  ? payload.mode === 'photo'
+                    ? 'Uploading…'
+                    : 'Submitting…'
+                  : 'Submit response'}
               </button>
             </form>
           ) : (

@@ -1,18 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Copy,
-  ImagePlus,
-  MessageSquare,
-  Play,
-  QrCode,
-  SquareUser,
-} from 'lucide-react';
-import {
-  WidgetData,
-  ActivityWallConfig,
-  ActivityWallActivity,
-  ActivityWallSubmission,
-} from '@/types';
+import React, { useEffect, useMemo } from 'react';
+import { Copy, MessageSquare, QrCode } from 'lucide-react';
+import { WidgetData, ActivityWallConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -154,14 +142,13 @@ const buildWordCloud = (
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addWidget, addToast } = useDashboard();
+  const { addWidget, addToast } = useDashboard();
   const { user } = useAuth();
   const config = widget.config as ActivityWallConfig;
   const activities = config.activities ?? [];
   const activeActivity =
     activities.find((activity) => activity.id === config.activeActivityId) ??
     null;
-  const [draftResponse, setDraftResponse] = useState('');
   // Raw Firestore submissions — status is applied during render based on moderationEnabled.
   const [firestoreState, setFirestoreState] = useState<{
     sessionId: string | null;
@@ -220,35 +207,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     if (!activeActivity || !user) return '';
     return buildPublicActivityLink(activeActivity, user.uid);
   }, [activeActivity, user]);
-
-  const updateConfig = (updates: Partial<ActivityWallConfig>) => {
-    updateWidget(widget.id, { config: { ...config, ...updates } });
-  };
-
-  const appendResponse = () => {
-    if (!activeActivity || !draftResponse.trim()) return;
-    const next: ActivityWallActivity[] = activities.map((activity) => {
-      if (activity.id !== activeActivity.id) return activity;
-
-      const submission: ActivityWallSubmission = {
-        id: crypto.randomUUID(),
-        content: draftResponse.trim(),
-        submittedAt: Date.now(),
-        status: activity.moderationEnabled ? 'pending' : 'approved',
-        participantLabel: 'Demo Student',
-      };
-
-      return {
-        ...activity,
-        submissions: [...(activity.submissions ?? []), submission].slice(
-          -MAX_STORED_SUBMISSIONS
-        ),
-      };
-    });
-
-    updateConfig({ activities: next });
-    setDraftResponse('');
-  };
 
   // Combine demo submissions (stored in config) with live Firestore submissions.
   const allSubmissions = useMemo(() => {
@@ -352,6 +310,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           className="h-full w-full bg-white flex flex-col"
           style={{ gap: 'min(8px, 2cqmin)', padding: 'min(10px, 2.4cqmin)' }}
         >
+          {/* Header: title, prompt, mode badge, and pending count */}
           <div
             className="flex items-start justify-between"
             style={{ gap: 'min(8px, 2cqmin)' }}
@@ -371,13 +330,27 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               </p>
             </div>
             <div
-              className="shrink-0 px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
-              style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+              className="shrink-0 flex items-center"
+              style={{ gap: 'min(5px, 1.3cqmin)' }}
             >
-              {activeActivity.mode === 'text' ? 'Text' : 'Photo'}
+              {moderationCounts.pending > 0 && (
+                <div
+                  className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"
+                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                >
+                  {moderationCounts.pending} pending
+                </div>
+              )}
+              <div
+                className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
+                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+              >
+                {activeActivity.mode === 'text' ? 'Text' : 'Photo'}
+              </div>
             </div>
           </div>
 
+          {/* Share buttons */}
           <div
             className="grid grid-cols-2"
             style={{ gap: 'min(6px, 1.8cqmin)' }}
@@ -420,96 +393,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             </button>
           </div>
 
-          <div
-            className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200"
-            style={{ padding: 'min(8px, 2cqmin)' }}
-          >
-            <div
-              className="flex items-center text-slate-700"
-              style={{
-                gap: 'min(6px, 1.8cqmin)',
-                fontSize: 'min(10px, 3.5cqmin)',
-              }}
-            >
-              <SquareUser
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-              ID: {activeActivity.identificationMode}
-            </div>
-            <div
-              className="font-semibold text-amber-700"
-              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
-            >
-              Pending: {moderationCounts.pending}
-            </div>
-          </div>
-
-          <div
-            className="rounded-xl border border-dashed border-slate-300"
-            style={{ padding: 'min(8px, 2cqmin)' }}
-          >
-            <div
-              className="flex items-center"
-              style={{ gap: 'min(6px, 1.8cqmin)' }}
-            >
-              {activeActivity.mode === 'text' ? (
-                <MessageSquare
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                  className="text-slate-500"
-                />
-              ) : (
-                <ImagePlus
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                  className="text-slate-500"
-                />
-              )}
-              <input
-                value={draftResponse}
-                onChange={(event) => setDraftResponse(event.target.value)}
-                placeholder={
-                  activeActivity.mode === 'text'
-                    ? 'Add a demo text response...'
-                    : 'Paste demo photo URL...'
-                }
-                className="flex-1 bg-transparent text-slate-700 focus:outline-none"
-                style={{ fontSize: 'min(11px, 3.6cqmin)' }}
-              />
-              <button
-                type="button"
-                onClick={appendResponse}
-                className="rounded-lg bg-slate-800 text-white"
-                style={{ padding: 'min(6px, 1.7cqmin)' }}
-                title="Add sample response"
-              >
-                <Play
-                  style={{
-                    width: 'min(12px, 3.5cqmin)',
-                    height: 'min(12px, 3.5cqmin)',
-                  }}
-                />
-              </button>
-            </div>
-          </div>
-
+          {/* Submissions display */}
           <div
             className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-slate-50"
             style={{ padding: 'min(8px, 2cqmin)' }}
           >
             {visibleSubmissions.length === 0 ? (
               <div
-                className="h-full flex items-center justify-center text-slate-500 text-center"
-                style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
+                style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
-                Responses will appear here after participants submit.
+                <MessageSquare
+                  style={{
+                    width: 'min(24px, 7cqmin)',
+                    height: 'min(24px, 7cqmin)',
+                  }}
+                  className="opacity-40"
+                />
+                <span style={{ fontSize: 'min(11px, 3.8cqmin)' }}>
+                  Responses will appear here after participants submit.
+                </span>
               </div>
             ) : activeActivity.mode === 'text' ? (
               /* Word cloud: words sized by frequency */
@@ -529,7 +432,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                 ))}
               </div>
             ) : (
-              /* Photo mode: card grid */
+              /* Photo mode: thumbnail grid */
               <div
                 className="grid grid-cols-2"
                 style={{ gap: 'min(6px, 1.8cqmin)' }}
@@ -537,26 +440,43 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                 {visibleSubmissions.map((submission) => (
                   <div
                     key={submission.id}
-                    className="rounded-lg bg-white border border-slate-200"
-                    style={{ padding: 'min(6px, 1.7cqmin)' }}
+                    className="rounded-lg bg-white border border-slate-200 overflow-hidden"
                   >
                     {isSafeHttpUrl(submission.content) ? (
                       <a
                         href={submission.content}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-brand-blue-primary underline break-all"
-                        style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                        className="block"
                       >
-                        Open photo
+                        <img
+                          src={submission.content}
+                          alt={submission.participantLabel ?? 'Photo'}
+                          className="w-full object-cover"
+                          style={{ aspectRatio: '4/3' }}
+                        />
+                        {submission.participantLabel && (
+                          <p
+                            className="text-slate-600 truncate"
+                            style={{
+                              fontSize: 'min(9px, 3cqmin)',
+                              padding: 'min(3px, 0.8cqmin) min(6px, 1.5cqmin)',
+                            }}
+                          >
+                            {submission.participantLabel}
+                          </p>
+                        )}
                       </a>
                     ) : (
-                      <p
-                        className="text-red-600 break-words"
-                        style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                      <div
+                        className="flex items-center justify-center text-red-400"
+                        style={{
+                          aspectRatio: '4/3',
+                          fontSize: 'min(9px, 3cqmin)',
+                        }}
                       >
-                        Invalid photo URL
-                      </p>
+                        Invalid photo
+                      </div>
                     )}
                   </div>
                 ))}
