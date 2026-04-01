@@ -29,7 +29,15 @@ export const ActivityWallSettings: React.FC<{ widget: WidgetData }> = ({
   const [settingsActivityId, setSettingsActivityId] = useState<string | null>(
     null
   );
+  // draftDemo is scoped to the currently open settings panel. Clear it whenever
+  // the panel switches so text typed for one activity can't be accidentally added
+  // to a different activity.
   const [draftDemo, setDraftDemo] = useState('');
+
+  const openActivitySettings = (id: string | null) => {
+    setSettingsActivityId(id);
+    setDraftDemo('');
+  };
 
   const updateConfig = (updates: Partial<ActivityWallConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
@@ -119,7 +127,7 @@ export const ActivityWallSettings: React.FC<{ widget: WidgetData }> = ({
           }
         : {}),
     });
-    if (settingsActivityId === activityId) setSettingsActivityId(null);
+    if (settingsActivityId === activityId) openActivitySettings(null);
   };
 
   const addDemoResponse = (activity: ActivityWallActivity) => {
@@ -339,7 +347,7 @@ export const ActivityWallSettings: React.FC<{ widget: WidgetData }> = ({
                   <button
                     type="button"
                     onClick={() =>
-                      setSettingsActivityId(
+                      openActivitySettings(
                         settingsActivityId === activity.id ? null : activity.id
                       )
                     }

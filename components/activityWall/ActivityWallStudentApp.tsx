@@ -143,12 +143,29 @@ export const ActivityWallStudentApp: React.FC = () => {
     if (payload.mode === 'text' && !response.trim()) return;
     if (payload.mode === 'photo' && !selectedFile) return;
 
+    // Client-side file validation before attempting the upload.
+    if (payload.mode === 'photo' && selectedFile) {
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setSubmitError(
+          'Photo must be smaller than 10 MB. Please choose a smaller image.'
+        );
+        return;
+      }
+      if (!selectedFile.type.startsWith('image/')) {
+        setSubmitError('Please select a valid image file.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
     try {
       // Sign in anonymously so Firestore/Storage security rules allow the write.
-      await signInAnonymously(auth);
+      // Skip if already signed in to avoid unnecessary auth churn.
+      if (!auth.currentUser) {
+        await signInAnonymously(auth);
+      }
 
       const sessionId = `${payload.teacherUid}_${payload.id}`;
       const submissionId = crypto.randomUUID();

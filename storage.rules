@@ -97,20 +97,25 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Activity Wall Photos — students upload once (create only); teachers read via
-    // download URLs (which embed an auth token, bypassing these rules for <img> display).
+    // Activity Wall Photos — students upload once (create only); teachers view via
+    // download URLs that include an unguessable download token managed by Firebase
+    // Storage (not a Firebase Auth token). These token-based URLs are not subject to
+    // these rules, so <img> display works without SDK read permission.
     // SDK-level read/list is limited to the owning teacher and admins.
     match /activity_wall_photos/{sessionId}/{fileName} {
       // Only the teacher who owns the session (sessionId prefix = their uid) or an admin
-      // can list/download via the SDK. Photo display in the widget uses download URLs
-      // with embedded tokens which are not subject to these rules.
+      // can list/download via the SDK.
       allow read: if request.auth != null &&
         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
-      // Any authenticated user (including anonymous students) may upload a new image.
-      // Updates and deletes are not permitted.
+      // Any authenticated user (including anonymous students) may upload a new image,
+      // but only if the target session exists in Firestore (guards against DoS uploads
+      // to guessed sessionIds). Updates and deletes are not permitted.
       allow create: if request.auth != null &&
         request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*');
+        request.resource.contentType.matches('image/.*') &&
+        firestore.exists(
+          /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+        );
     }
 
     // Default deny for everything else
