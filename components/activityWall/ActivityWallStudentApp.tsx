@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Camera, Send } from 'lucide-react';
+import { Camera, Loader2, Send } from 'lucide-react';
 import { ActivityWallIdentificationMode, ActivityWallMode } from '@/types';
+import { db, auth } from '@/config/firebase';
+import { signInAnonymously } from 'firebase/auth';
+import { doc, collection, setDoc } from 'firebase/firestore';
 
 type ActivityPayload = {
   id: string;
@@ -8,6 +11,7 @@ type ActivityPayload = {
   prompt: string;
   mode: ActivityWallMode;
   identificationMode: ActivityWallIdentificationMode;
+  teacherUid: string;
 };
 
 const isActivityPayload = (value: unknown): value is ActivityPayload => {
@@ -21,12 +25,14 @@ const isActivityPayload = (value: unknown): value is ActivityPayload => {
     prompt?: unknown;
     mode?: unknown;
     identificationMode?: unknown;
+    teacherUid?: unknown;
   };
 
   return (
     typeof payload.id === 'string' &&
     typeof payload.title === 'string' &&
     typeof payload.prompt === 'string' &&
+    typeof payload.teacherUid === 'string' &&
     (payload.mode === 'text' || payload.mode === 'photo') &&
     (payload.identificationMode === 'anonymous' ||
       payload.identificationMode === 'name' ||
@@ -68,6 +74,17 @@ const parsePayload = (): ActivityPayload | null => {
   }
 };
 
+const buildParticipantLabel = (
+  identificationMode: ActivityWallIdentificationMode,
+  name: string,
+  pin: string
+): string => {
+  if (identificationMode === 'name') return name || 'Student';
+  if (identificationMode === 'pin') return `PIN: ${pin}`;
+  if (identificationMode === 'name-pin') return `${name} (${pin})`;
+  return 'Anonymous';
+};
+
 export const ActivityWallStudentApp: React.FC = () => {
   const payload = useMemo(() => parsePayload(), []);
   const activityIdFromPath = window.location.pathname
@@ -77,6 +94,8 @@ export const ActivityWallStudentApp: React.FC = () => {
   const [pin, setPin] = useState('');
   const [response, setResponse] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!payload || !activityIdFromPath || payload.id !== activityIdFromPath) {
     return (
@@ -93,13 +112,46 @@ export const ActivityWallStudentApp: React.FC = () => {
     payload.identificationMode === 'pin' ||
     payload.identificationMode === 'name-pin';
 
-  const onSubmit = (event: React.FormEvent) => {
+  const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requiresName && !name.trim()) return;
     if (requiresPin && !pin.trim()) return;
     if (!response.trim()) return;
 
-    setSubmitted(true);
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Sign in anonymously so Firestore security rules allow the write.
+      await signInAnonymously(auth);
+
+      const sessionId = `${payload.teacherUid}_${payload.id}`;
+      const submissionId = crypto.randomUUID();
+      const submissionDoc = doc(
+        collection(db, 'activity_wall_sessions', sessionId, 'submissions'),
+        submissionId
+      );
+
+      await setDoc(submissionDoc, {
+        id: submissionId,
+        activityId: payload.id,
+        content: response.trim(),
+        submittedAt: Date.now(),
+        participantLabel: buildParticipantLabel(
+          payload.identificationMode,
+          name.trim(),
+          pin.trim()
+        ),
+      });
+
+      setSubmitted(true);
+    } catch {
+      setSubmitError(
+        'Could not submit your response. Please check your connection and try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -115,57 +167,66 @@ export const ActivityWallStudentApp: React.FC = () => {
         <div className="p-5 space-y-4">
           <p className="text-slate-700 font-medium">{payload.prompt}</p>
 
-          <form className="space-y-3" onSubmit={onSubmit}>
-            {requiresName && (
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Your name"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-              />
-            )}
-            {requiresPin && (
-              <input
-                value={pin}
-                onChange={(event) => setPin(event.target.value)}
-                placeholder="PIN"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-              />
-            )}
-
-            {payload.mode === 'text' ? (
-              <textarea
-                value={response}
-                onChange={(event) => setResponse(event.target.value)}
-                rows={4}
-                placeholder="Type your response"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-              />
-            ) : (
-              <input
-                value={response}
-                onChange={(event) => setResponse(event.target.value)}
-                placeholder="Paste photo URL or image file link"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-              />
-            )}
-
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2"
-            >
-              {payload.mode === 'text' ? (
-                <Send className="w-4 h-4" />
-              ) : (
-                <Camera className="w-4 h-4" />
+          {!submitted ? (
+            <form className="space-y-3" onSubmit={onSubmit}>
+              {requiresName && (
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                />
               )}
-              Submit response
-            </button>
-          </form>
+              {requiresPin && (
+                <input
+                  value={pin}
+                  onChange={(event) => setPin(event.target.value)}
+                  placeholder="PIN"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                />
+              )}
 
-          {submitted && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-emerald-700 text-sm">
-              Submitted! Your teacher will see this shortly.
+              {payload.mode === 'text' ? (
+                <textarea
+                  value={response}
+                  onChange={(event) => setResponse(event.target.value)}
+                  rows={4}
+                  placeholder="Type your response"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                />
+              ) : (
+                <input
+                  value={response}
+                  onChange={(event) => setResponse(event.target.value)}
+                  placeholder="Paste photo URL or image file link"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                />
+              )}
+
+              {submitError && (
+                <p className="text-sm text-red-600 font-medium">
+                  {submitError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : payload.mode === 'text' ? (
+                  <Send className="w-4 h-4" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+                {submitting ? 'Submitting…' : 'Submit response'}
+              </button>
+            </form>
+          ) : (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 text-sm font-medium text-center">
+              Your response has been submitted!
             </div>
           )}
         </div>

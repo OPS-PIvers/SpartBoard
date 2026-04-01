@@ -1,15 +1,17 @@
 import React from 'react';
-import { WidgetData, MaterialsConfig } from '@/types';
+import { WidgetData, MaterialsConfig, MaterialsGlobalConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { MATERIAL_ITEMS } from './constants';
+import { getMaterialsCatalog } from './constants';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Type, Palette, Edit3 } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
+import { useAuth } from '@/context/useAuth';
 
 export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
+  const { featurePermissions, selectedBuildings } = useAuth();
   const config = widget.config as MaterialsConfig;
   const {
     selectedItems = [],
@@ -18,6 +20,23 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     titleFont = 'global',
     titleColor = '#2d3f89',
   } = config;
+  const permission = featurePermissions.find(
+    (item) => item.widgetType === 'materials'
+  );
+  const materialsConfig = permission?.config as Partial<MaterialsGlobalConfig>;
+  const buildingAssignedIds =
+    selectedBuildings.length > 0
+      ? materialsConfig.buildingDefaults?.[selectedBuildings[0]]?.selectedItems
+      : undefined;
+  const materialsCatalog = React.useMemo(() => {
+    const fullCatalog = getMaterialsCatalog(materialsConfig);
+    if (!buildingAssignedIds || buildingAssignedIds.length === 0) {
+      return fullCatalog;
+    }
+
+    const allowedIds = new Set(buildingAssignedIds);
+    return fullCatalog.filter((material) => allowedIds.has(material.id));
+  }, [buildingAssignedIds, materialsConfig]);
 
   const selectedSet = React.useMemo(
     () => new Set(selectedItems),
@@ -45,7 +64,8 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const isAllSelected = selectedSet.size === MATERIAL_ITEMS.length;
+  const isAllSelected =
+    materialsCatalog.length > 0 && selectedSet.size === materialsCatalog.length;
 
   const toggleAll = () => {
     if (isAllSelected) {
@@ -56,7 +76,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
       updateWidget(widget.id, {
         config: {
           ...config,
-          selectedItems: MATERIAL_ITEMS.map((i) => i.id),
+          selectedItems: materialsCatalog.map((i) => i.id),
         },
       });
     }
@@ -154,7 +174,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
-          {MATERIAL_ITEMS.map((item) => {
+          {materialsCatalog.map((item) => {
             const isSelected = selectedSet.has(item.id);
             return (
               <button
@@ -177,7 +197,7 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
                     <div className="w-1.5 h-1.5 bg-white rounded-full" />
                   )}
                 </div>
-                <item.icon
+                <item.iconComponent
                   className={`w-4 h-4 flex-shrink-0 ${
                     isSelected ? 'text-blue-600' : 'text-slate-400'
                   }`}

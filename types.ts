@@ -711,7 +711,16 @@ export interface BuildingMaterialsDefaults {
   selectedItems?: string[]; // IDs of materials selected by default
 }
 
+export interface MaterialDefinition {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  textColor?: string;
+}
+
 export interface MaterialsGlobalConfig {
+  customMaterials?: MaterialDefinition[];
   buildingDefaults: Record<string, BuildingMaterialsDefaults>;
 }
 

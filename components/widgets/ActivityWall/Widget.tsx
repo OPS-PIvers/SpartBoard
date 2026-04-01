@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Copy,
   ImagePlus,
-  Link as LinkIcon,
   MessageSquare,
   Play,
   QrCode,
@@ -15,15 +14,22 @@ import {
   ActivityWallSubmission,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { db } from '@/config/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
-const encodeActivityData = (activity: ActivityWallActivity): string => {
+const encodeActivityData = (
+  activity: ActivityWallActivity,
+  teacherUid: string
+): string => {
   const payload = JSON.stringify({
     id: activity.id,
     title: activity.title,
     prompt: activity.prompt,
     mode: activity.mode,
     identificationMode: activity.identificationMode,
+    teacherUid,
   });
   const bytes = new TextEncoder().encode(payload);
   let binary = '';
@@ -33,9 +39,11 @@ const encodeActivityData = (activity: ActivityWallActivity): string => {
   return encodeURIComponent(btoa(binary));
 };
 
-const buildPublicActivityLink = (activity: ActivityWallActivity): string => {
-  const encoded = encodeActivityData(activity);
-
+const buildPublicActivityLink = (
+  activity: ActivityWallActivity,
+  teacherUid: string
+): string => {
+  const encoded = encodeActivityData(activity, teacherUid);
   return `${window.location.origin}/activity-wall/${activity.id}?data=${encoded}`;
 };
 
@@ -50,36 +58,168 @@ const isSafeHttpUrl = (url: string): boolean => {
   }
 };
 
-const QRPreview: React.FC<{ url: string }> = ({ url }) => {
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
-  return (
-    <img
-      src={qrUrl}
-      alt="Activity QR code"
-      className="rounded-xl border border-slate-200 bg-white"
-      style={{
-        width: 'min(140px, 42cqmin)',
-        height: 'min(140px, 42cqmin)',
-      }}
-    />
-  );
+/** Stable color from word string so it doesn't flicker on re-render. */
+const wordColor = (word: string): string => {
+  let hash = 0;
+  for (let i = 0; i < word.length; i++) {
+    hash = word.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return `hsl(${Math.abs(hash) % 360}, 65%, 38%)`;
+};
+
+const STOP_WORDS = new Set([
+  'a',
+  'an',
+  'the',
+  'is',
+  'it',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'of',
+  'and',
+  'or',
+  'but',
+  'not',
+  'with',
+  'be',
+  'was',
+  'are',
+  'were',
+  'by',
+  'from',
+  'as',
+  'i',
+  'my',
+  'we',
+  'our',
+  'you',
+  'your',
+  'he',
+  'she',
+  'they',
+  'their',
+  'its',
+  'this',
+  'that',
+  'do',
+  'did',
+  'so',
+  'if',
+  'up',
+  'out',
+  'no',
+  'can',
+  'has',
+  'have',
+  'had',
+  'will',
+  'just',
+  'me',
+  'am',
+  'been',
+]);
+
+interface WordWeight {
+  word: string;
+  count: number;
+  weight: number;
+}
+
+const buildWordCloud = (
+  submissions: ActivityWallSubmission[]
+): WordWeight[] => {
+  const counts: Record<string, number> = {};
+  for (const sub of submissions) {
+    const words = sub.content.toLowerCase().match(/\b[a-z']{2,}\b/g) ?? [];
+    for (const word of words) {
+      if (!STOP_WORDS.has(word)) {
+        counts[word] = (counts[word] ?? 0) + 1;
+      }
+    }
+  }
+  const entries = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 60);
+  const maxCount = entries[0]?.[1] ?? 1;
+  return entries.map(([word, count]) => ({
+    word,
+    count,
+    weight: count / maxCount,
+  }));
 };
 
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addWidget, addToast } = useDashboard();
+  const { user } = useAuth();
   const config = widget.config as ActivityWallConfig;
   const activities = config.activities ?? [];
   const activeActivity =
     activities.find((activity) => activity.id === config.activeActivityId) ??
     null;
   const [draftResponse, setDraftResponse] = useState('');
+  // Raw Firestore submissions — status is applied during render based on moderationEnabled.
+  const [firestoreState, setFirestoreState] = useState<{
+    sessionId: string | null;
+    submissions: {
+      id: string;
+      content: string;
+      submittedAt: number;
+      participantLabel?: string;
+    }[];
+  }>({
+    sessionId: null,
+    submissions: [],
+  });
+  const activeSessionId =
+    activeActivity && user ? `${user.uid}_${activeActivity.id}` : null;
+
+  // Subscribe to real-time student submissions from Firestore.
+  useEffect(() => {
+    if (!activeActivity || !user) return;
+
+    const sessionId = `${user.uid}_${activeActivity.id}`;
+    const submissionsRef = collection(
+      db,
+      'activity_wall_sessions',
+      sessionId,
+      'submissions'
+    );
+
+    const unsubscribe = onSnapshot(submissionsRef, (snap) => {
+      setFirestoreState({
+        sessionId,
+        submissions: snap.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: data.id as string,
+            content: data.content as string,
+            submittedAt: data.submittedAt as number,
+            participantLabel: data.participantLabel as string | undefined,
+          };
+        }),
+      });
+    });
+
+    return unsubscribe;
+  }, [activeActivity?.id, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const firestoreRaw = useMemo(
+    () =>
+      firestoreState.sessionId === activeSessionId
+        ? firestoreState.submissions
+        : [],
+    [activeSessionId, firestoreState]
+  );
 
   const participantUrl = useMemo(() => {
-    if (!activeActivity) return '';
-    return buildPublicActivityLink(activeActivity);
-  }, [activeActivity]);
+    if (!activeActivity || !user) return '';
+    return buildPublicActivityLink(activeActivity, user.uid);
+  }, [activeActivity, user]);
 
   const updateConfig = (updates: Partial<ActivityWallConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
@@ -110,16 +250,34 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     setDraftResponse('');
   };
 
+  // Combine demo submissions (stored in config) with live Firestore submissions.
+  const allSubmissions = useMemo(() => {
+    const demoSubs = activeActivity?.submissions ?? [];
+    const combined = [...demoSubs];
+    const existingIds = new Set(demoSubs.map((s) => s.id));
+    const modEnabled = activeActivity?.moderationEnabled ?? false;
+    for (const fs of firestoreRaw) {
+      if (!existingIds.has(fs.id)) {
+        combined.push({
+          ...fs,
+          status: modEnabled ? 'pending' : 'approved',
+        });
+      }
+    }
+    return combined;
+  }, [
+    activeActivity?.submissions,
+    activeActivity?.moderationEnabled,
+    firestoreRaw,
+  ]);
+
   const moderationCounts = useMemo(() => {
-    if (!activeActivity) return { approved: 0, pending: 0 };
-    const approved = (activeActivity.submissions ?? []).filter(
+    const approved = allSubmissions.filter(
       (s) => s.status === 'approved'
     ).length;
-    const pending = (activeActivity.submissions ?? []).filter(
-      (s) => s.status === 'pending'
-    ).length;
+    const pending = allSubmissions.filter((s) => s.status === 'pending').length;
     return { approved, pending };
-  }, [activeActivity]);
+  }, [allSubmissions]);
 
   const spawnQrWidget = () => {
     if (!participantUrl) return;
@@ -179,9 +337,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  const visibleSubmissions = (activeActivity.submissions ?? []).filter(
+  const visibleSubmissions = allSubmissions.filter(
     (s) => s.status === 'approved'
   );
+
+  const wordCloudData =
+    activeActivity.mode === 'text' ? buildWordCloud(visibleSubmissions) : [];
 
   return (
     <WidgetLayout
@@ -350,7 +511,25 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 Responses will appear here after participants submit.
               </div>
+            ) : activeActivity.mode === 'text' ? (
+              /* Word cloud: words sized by frequency */
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-1">
+                {wordCloudData.map(({ word, weight }) => (
+                  <span
+                    key={word}
+                    className="font-bold leading-tight"
+                    style={{
+                      fontSize: `min(${Math.round(11 + weight * 22)}px, ${(3.5 + weight * 8).toFixed(1)}cqmin)`,
+                      color: wordColor(word),
+                      opacity: 0.45 + weight * 0.55,
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
+              </div>
             ) : (
+              /* Photo mode: card grid */
               <div
                 className="grid grid-cols-2"
                 style={{ gap: 'min(6px, 1.8cqmin)' }}
@@ -361,64 +540,28 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                     className="rounded-lg bg-white border border-slate-200"
                     style={{ padding: 'min(6px, 1.7cqmin)' }}
                   >
-                    {activeActivity.mode === 'text' ? (
-                      <p
-                        className="text-slate-800 break-words"
-                        style={{ fontSize: 'min(11px, 3.7cqmin)' }}
+                    {isSafeHttpUrl(submission.content) ? (
+                      <a
+                        href={submission.content}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-brand-blue-primary underline break-all"
+                        style={{ fontSize: 'min(10px, 3.4cqmin)' }}
                       >
-                        {submission.content}
-                      </p>
+                        Open photo
+                      </a>
                     ) : (
-                      <>
-                        {isSafeHttpUrl(submission.content) ? (
-                          <a
-                            href={submission.content}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-brand-blue-primary underline break-all"
-                            style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                          >
-                            Open photo
-                          </a>
-                        ) : (
-                          <p
-                            className="text-red-600 break-words"
-                            style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                          >
-                            Invalid photo URL
-                          </p>
-                        )}
-                      </>
+                      <p
+                        className="text-red-600 break-words"
+                        style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                      >
+                        Invalid photo URL
+                      </p>
                     )}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            <QRPreview url={participantUrl} />
-            <div
-              className="min-w-0 text-slate-500"
-              style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-            >
-              <p
-                className="font-semibold text-slate-700 flex items-center"
-                style={{ gap: 'min(4px, 1.2cqmin)' }}
-              >
-                <LinkIcon
-                  style={{
-                    width: 'min(12px, 3.6cqmin)',
-                    height: 'min(12px, 3.6cqmin)',
-                  }}
-                />
-                Public activity link
-              </p>
-              <p className="break-all">{participantUrl}</p>
-            </div>
           </div>
         </div>
       }

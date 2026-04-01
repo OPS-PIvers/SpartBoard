@@ -430,6 +430,28 @@ service cloud.firestore {
       }
     }
 
+    // Activity Wall Sessions — Teacher owns it (UID prefix in sessionId), students submit entries
+    // sessionId is formatted as {teacherUid}_{activityId}
+    match /activity_wall_sessions/{sessionId} {
+      // Teacher can read/write the session document itself
+      allow read, write: if request.auth != null &&
+                         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+
+      match /submissions/{submissionId} {
+        // Any authenticated user (including anonymous) can create a submission
+        allow create: if request.auth != null &&
+          request.resource.data.id is string &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 2000 &&
+          request.resource.data.submittedAt is int;
+        // Only teacher and admins can read or delete submissions
+        allow read, delete: if request.auth != null &&
+                            (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        allow update: if false;
+      }
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

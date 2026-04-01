@@ -3,12 +3,14 @@ import {
   MaterialsConfig,
   DEFAULT_GLOBAL_STYLE,
   WidgetComponentProps,
+  MaterialsGlobalConfig,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { Package } from 'lucide-react';
-import { MATERIAL_ITEMS } from './constants';
+import { getMaterialMap } from './constants';
 import { MaterialsSettings } from './Settings';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useAuth } from '@/context/useAuth';
 
 export { MaterialsSettings };
 
@@ -16,9 +18,17 @@ import { WidgetLayout } from '../WidgetLayout';
 
 export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const { updateWidget, activeDashboard, selectedWidgetId } = useDashboard();
+  const { featurePermissions } = useAuth();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as MaterialsConfig;
   const isFocused = selectedWidgetId === widget.id;
+  const permission = featurePermissions.find(
+    (item) => item.widgetType === 'materials'
+  );
+  const materialMap = React.useMemo(
+    () => getMaterialMap(permission?.config as Partial<MaterialsGlobalConfig>),
+    [permission?.config]
+  );
 
   const {
     selectedItems = [],
@@ -28,10 +38,6 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     titleColor = '#2d3f89', // brand-blue
   } = config;
 
-  const selectedSet = React.useMemo(
-    () => new Set(selectedItems),
-    [selectedItems]
-  );
   const activeSet = React.useMemo(() => new Set(activeItems), [activeItems]);
 
   const toggleActive = (id: string) => {
@@ -51,14 +57,20 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
   // gridItems: Items to display in the main grid (only active items)
   const gridItems = React.useMemo(
-    () => MATERIAL_ITEMS.filter((item) => activeSet.has(item.id)),
-    [activeSet]
+    () =>
+      activeItems
+        .map((id) => materialMap.get(id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [activeItems, materialMap]
   );
 
   // selectionItems: All available items from settings (shown at bottom when focused)
   const selectionItems = React.useMemo(
-    () => MATERIAL_ITEMS.filter((item) => selectedSet.has(item.id)),
-    [selectedSet]
+    () =>
+      selectedItems
+        .map((id) => materialMap.get(id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [materialMap, selectedItems]
   );
 
   const numItems = gridItems.length;
@@ -142,14 +154,12 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                       containerType: 'size',
                       gap: 'min(8px, 4cqmin)',
                       padding: 'min(12px, 5cqmin)',
+                      backgroundColor: item.color,
+                      color: item.textColor,
                     }}
-                    className={`flex flex-col items-center justify-center rounded-2xl border-2 transition-all duration-300 ${
-                      item.color
-                    } ${
-                      item.textColor ?? 'text-white'
-                    } border-transparent shadow-lg scale-[1.02] z-10`}
+                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-transparent shadow-lg scale-[1.02] z-10 transition-all duration-300"
                   >
-                    <item.icon
+                    <item.iconComponent
                       className="scale-110"
                       style={{
                         width: 'min(80px, 45cqmin)',
@@ -205,7 +215,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                       gap: '2px',
                     }}
                   >
-                    <item.icon
+                    <item.iconComponent
                       style={{
                         width: 'max(20px, min(28px, 8cqmin))',
                         height: 'max(20px, min(28px, 8cqmin))',
