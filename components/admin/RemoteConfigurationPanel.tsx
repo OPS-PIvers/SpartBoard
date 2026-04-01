@@ -8,7 +8,11 @@ interface RemoteConfigurationPanelProps {
 
 export const RemoteConfigurationPanel: React.FC<
   RemoteConfigurationPanelProps
-> = () => {
+> = ({ config, onChange }) => {
+  // Prevent unused variable linting errors while keeping signature consistent
+  void config;
+  void onChange;
+
   return (
     <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-3xl bg-white">
       <p className="text-sm font-bold text-slate-500 mb-2">

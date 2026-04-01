@@ -1267,7 +1267,6 @@ export const FeatureConfigurationPanel: React.FC<
         'lunchCount',
         'miniApp',
         'quiz',
-        'remote',
         'stickers',
         'talking-tool',
         'weather',
