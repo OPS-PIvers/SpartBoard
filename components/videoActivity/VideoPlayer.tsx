@@ -59,6 +59,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const rafRef = useRef<number | null>(null);
   const lastPollRef = useRef<number>(0);
   const triggeredRef = useRef<Set<string>>(new Set());
+  const lastSeekNonceRef = useRef<number | null>(null);
 
   // Derive the max time the student may seek to
   const maxAllowedTime = React.useMemo(() => {
@@ -240,12 +241,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     if (!seekRequest || !playerRef.current) return;
+    if (lastSeekNonceRef.current === seekRequest.nonce) return;
+
+    lastSeekNonceRef.current = seekRequest.nonce;
     triggeredRef.current.clear();
     playerRef.current.seekTo(Math.max(0, seekRequest.time), true);
-    if (!questionVisible) {
+
+    // Only auto-resume if a question overlay is not currently visible.
+    if (!questionVisibleRef.current) {
       playerRef.current.playVideo();
     }
-  }, [seekRequest, questionVisible]);
+  }, [seekRequest]);
 
   return (
     <div className="relative w-full h-full bg-black">
