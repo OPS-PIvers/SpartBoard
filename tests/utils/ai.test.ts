@@ -3,21 +3,50 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { httpsCallable } from 'firebase/functions';
 import {
+  extractTextWithGemini,
+  generateDashboardLayout,
   generateMiniAppCode,
   generatePoll,
-  generateDashboardLayout,
   generateQuiz,
-  extractTextWithGemini,
+  generateVideoActivity,
+  transcribeVideoWithGemini,
 } from '@/utils/ai';
 
 // Mock Firebase Functions
 vi.mock('firebase/functions', () => {
   return {
     getFunctions: vi.fn(),
-    httpsCallable: vi.fn().mockImplementation((_functions, _name) => {
+    httpsCallable: vi.fn().mockImplementation((_functions, name, _options) => {
       return async (data: any) => {
+        if (
+          name === 'generateVideoActivity' ||
+          name === 'transcribeVideoWithGemini'
+        ) {
+          if (data.url.includes('timeout')) {
+            throw Object.assign(new Error('deadline exceeded'), {
+              code: 'deadline-exceeded',
+            });
+          }
+
+          if (data.url.includes('invalid-response')) {
+            return { data: {} };
+          }
+
+          return {
+            data: {
+              title: 'Video Activity',
+              questions: [
+                {
+                  text: 'Question 1',
+                  timestamp: 12,
+                },
+              ],
+            },
+          };
+        }
         if (
           (data.prompt && data.prompt.includes('FAIL')) ||
           (data.image && data.image.includes('FAIL'))
@@ -238,6 +267,38 @@ describe('extractTextWithGemini', () => {
   it('throws error on invalid response format', async () => {
     await expect(extractTextWithGemini('invalid-response')).rejects.toThrow(
       'Invalid response format from AI'
+    );
+  });
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('video activity callables', () => {
+  it('passes the extended timeout to generateVideoActivity', async () => {
+    await generateVideoActivity('https://youtube.com/watch?v=abc12345678', 3);
+
+    expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith(
+      {},
+      'generateVideoActivity',
+      { timeout: 300_000 }
+    );
+  });
+
+  it('maps deadline-exceeded to the friendly video activity error', async () => {
+    await expect(
+      generateVideoActivity('https://youtube.com/watch?v=timeout', 3)
+    ).rejects.toThrow(
+      'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
+    );
+  });
+
+  it('maps deadline-exceeded to the friendly transcription error', async () => {
+    await expect(
+      transcribeVideoWithGemini('https://youtube.com/watch?v=timeout', 3)
+    ).rejects.toThrow(
+      'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
     );
   });
 });

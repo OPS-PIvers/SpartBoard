@@ -63,6 +63,18 @@ export interface GeneratedVideoActivity {
 
 const VIDEO_ACTIVITY_CALL_TIMEOUT_MS = 300_000;
 
+const VIDEO_ACTIVITY_TIMEOUT_ERROR =
+  'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.';
+
+const isFunctionsDeadlineExceededError = (
+  error: unknown
+): error is { code: string } =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  typeof error.code === 'string' &&
+  error.code === 'deadline-exceeded';
+
 /**
  * Generic helper to call the AI function and handle errors
  */
@@ -271,15 +283,8 @@ export async function generateVideoActivity(
     return result.data;
   } catch (error) {
     console.error('Video Activity Generation Error:', error);
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'functions/deadline-exceeded'
-    ) {
-      throw new Error(
-        'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
-      );
+    if (isFunctionsDeadlineExceededError(error)) {
+      throw new Error(VIDEO_ACTIVITY_TIMEOUT_ERROR);
     }
 
     if (error instanceof Error) {
@@ -326,6 +331,9 @@ export async function transcribeVideoWithGemini(
     return result.data;
   } catch (error) {
     console.error('Audio Transcription Error:', error);
+    if (isFunctionsDeadlineExceededError(error)) {
+      throw new Error(VIDEO_ACTIVITY_TIMEOUT_ERROR);
+    }
     if (error instanceof Error) {
       throw error;
     }
