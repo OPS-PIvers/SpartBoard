@@ -61,6 +61,8 @@ export interface GeneratedVideoActivity {
   questions: GeneratedVideoQuestion[];
 }
 
+const VIDEO_ACTIVITY_CALL_TIMEOUT_MS = 300_000;
+
 /**
  * Generic helper to call the AI function and handle errors
  */
@@ -250,7 +252,9 @@ export async function generateVideoActivity(
     const fn = httpsCallable<
       { url: string; questionCount: number },
       GeneratedVideoActivity
-    >(functions, 'generateVideoActivity');
+    >(functions, 'generateVideoActivity', {
+      timeout: VIDEO_ACTIVITY_CALL_TIMEOUT_MS,
+    });
 
     const result = await fn({ url, questionCount });
 
@@ -267,6 +271,17 @@ export async function generateVideoActivity(
     return result.data;
   } catch (error) {
     console.error('Video Activity Generation Error:', error);
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'functions/deadline-exceeded'
+    ) {
+      throw new Error(
+        'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
+      );
+    }
+
     if (error instanceof Error) {
       throw error;
     }
@@ -294,7 +309,9 @@ export async function transcribeVideoWithGemini(
     const fn = httpsCallable<
       { url: string; questionCount: number },
       GeneratedVideoActivity
-    >(functions, 'transcribeVideoWithGemini');
+    >(functions, 'transcribeVideoWithGemini', {
+      timeout: VIDEO_ACTIVITY_CALL_TIMEOUT_MS,
+    });
 
     const result = await fn({ url, questionCount });
 
