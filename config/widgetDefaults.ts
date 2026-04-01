@@ -82,6 +82,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       ],
     },
   },
+  'activity-wall': {
+    w: 520,
+    h: 420,
+    config: {
+      activities: [],
+      activeActivityId: null,
+    },
+  },
   webcam: {
     w: 400,
     h: 300,

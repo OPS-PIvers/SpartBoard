@@ -42,6 +42,7 @@ import { MathToolsConfigurationPanel } from './MathToolsConfigurationPanel';
 import { NextUpConfigurationPanel } from './NextUpConfigurationPanel';
 import { CarRiderConfigurationPanel } from './CarRiderConfigurationPanel';
 import { PollConfigurationPanel } from './PollConfigurationPanel';
+import { ActivityWallConfigurationPanel } from './ActivityWallConfigurationPanel';
 import { QRConfigurationPanel } from './QRConfigurationPanel';
 import { EmbedConfigurationPanel } from './EmbedConfigurationPanel';
 import { BreathingConfigurationPanel } from './BreathingConfigurationPanel';
@@ -84,6 +85,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   nextUp: NextUpConfigurationPanel as unknown as BuildingConfigPanel,
   'car-rider-pro': CarRiderConfigurationPanel as unknown as BuildingConfigPanel,
   poll: PollConfigurationPanel as unknown as BuildingConfigPanel,
+  'activity-wall':
+    ActivityWallConfigurationPanel as unknown as BuildingConfigPanel,
   qr: QRConfigurationPanel as unknown as BuildingConfigPanel,
   embed: EmbedConfigurationPanel as unknown as BuildingConfigPanel,
   breathing: BreathingConfigurationPanel as unknown as BuildingConfigPanel,

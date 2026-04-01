@@ -44,6 +44,11 @@ const VideoActivityStudentApp = lazy(() =>
     (module) => ({ default: module.VideoActivityStudentApp })
   )
 );
+const ActivityWallStudentApp = lazy(() =>
+  import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
+    default: module.ActivityWallStudentApp,
+  }))
+);
 const GuidedLearningStudentApp = lazy(() =>
   import('./components/guidedLearning/GuidedLearningStudentApp').then(
     (module) => ({ default: module.GuidedLearningStudentApp })
@@ -158,6 +163,8 @@ const App: React.FC = () => {
     pathname === '/remote' || pathname.startsWith('/remote/');
   const isVideoActivityRoute =
     pathname === '/activity' || pathname.startsWith('/activity/');
+  const isActivityWallRoute =
+    pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
 
   // Video Activity student route — anonymous entry, no teacher auth needed
   if (isVideoActivityRoute) {
@@ -165,6 +172,17 @@ const App: React.FC = () => {
       <DialogProvider>
         <Suspense fallback={<FullPageLoader />}>
           <VideoActivityStudentApp />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  if (isActivityWallRoute) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <ActivityWallStudentApp />
         </Suspense>
         <DialogContainer />
       </DialogProvider>
