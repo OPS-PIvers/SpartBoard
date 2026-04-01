@@ -20,8 +20,6 @@ const mockDashboardContext: Partial<DashboardContextValue> = {
   activeRosterId: null,
   addToast: vi.fn(),
   zoom: 1,
-  panOffset: { x: 0, y: 0 },
-  setPanOffset: vi.fn(),
 };
 
 describe('SeatingChartWidget', () => {

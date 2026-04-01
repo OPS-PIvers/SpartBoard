@@ -95,8 +95,6 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
-      panOffset: { x: 0, y: 0 },
-      setPanOffset: vi.fn(),
     });
   });
 
@@ -139,8 +137,6 @@ describe('DashboardView Gestures & Navigation', () => {
       toasts: [],
       zoom: 1,
       setZoom: vi.fn(),
-      panOffset: { x: 0, y: 0 },
-      setPanOffset: vi.fn(),
     });
 
     render(<DashboardView />);
@@ -158,8 +154,6 @@ describe('DashboardView Gestures & Navigation', () => {
       toasts: [],
       zoom: 1,
       setZoom: vi.fn(),
-      panOffset: { x: 0, y: 0 },
-      setPanOffset: vi.fn(),
     });
 
     render(<DashboardView />);
@@ -181,8 +175,6 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
-      panOffset: { x: 0, y: 0 },
-      setPanOffset: vi.fn(),
     });
 
     const { unmount } = render(<DashboardView />);
@@ -204,8 +196,6 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
-      panOffset: { x: 0, y: 0 },
-      setPanOffset: vi.fn(),
     });
 
     render(<DashboardView />);

@@ -63,8 +63,6 @@ const mockWidget: WidgetData = {
 const defaultContext: Partial<DashboardContextValue> = {
   updateWidget: mockUpdateWidget,
   zoom: 1,
-  panOffset: { x: 0, y: 0 },
-  setPanOffset: vi.fn(),
   activeDashboard: {
     id: 'dashboard-1',
     name: 'Test Dashboard',

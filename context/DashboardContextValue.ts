@@ -1,4 +1,4 @@
-import { createContext, Dispatch, SetStateAction } from 'react';
+import { createContext } from 'react';
 import {
   WidgetData,
   WidgetType,
@@ -70,8 +70,6 @@ export interface DashboardContextValue {
   // Zoom system
   zoom: number;
   setZoom: (zoom: number) => void;
-  panOffset: { x: number; y: number };
-  setPanOffset: Dispatch<SetStateAction<{ x: number; y: number }>>;
 
   // Selection system
   selectedWidgetId: string | null;

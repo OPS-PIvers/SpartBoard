@@ -130,9 +130,15 @@ export const DashboardView: React.FC = () => {
     updateDashboardSettings,
     zoom,
     setZoom,
-    panOffset = { x: 0, y: 0 },
-    setPanOffset,
   } = useDashboard();
+
+  const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+
+  // Notify DraggableWindow tool-menu positioning without triggering re-renders
+  // on every context consumer — panOffset intentionally lives outside context.
+  React.useEffect(() => {
+    window.dispatchEvent(new CustomEvent('board-pan'));
+  }, [panOffset]);
   const { uploadAndRegisterPdf } = useStorage();
 
   const [isCheatSheetOpen, setIsCheatSheetOpen] = React.useState(false);
@@ -520,13 +526,13 @@ export const DashboardView: React.FC = () => {
     if (currentIndex !== -1) {
       setPrevIndex(currentIndex);
     }
-  }, [activeDashboard?.id, currentIndex, setZoom, setPanOffset]);
+  }, [activeDashboard?.id, currentIndex, setZoom]);
 
   React.useEffect(() => {
     if (zoom === 1) {
       setPanOffset({ x: 0, y: 0 });
     }
-  }, [zoom, setPanOffset]);
+  }, [zoom]);
 
   // Keyboard Navigation
   React.useEffect(() => {
