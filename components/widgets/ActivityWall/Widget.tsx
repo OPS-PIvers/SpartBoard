@@ -25,7 +25,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
-import { deleteObject, ref as storageRef } from 'firebase/storage';
+import { deleteObject, getBlob, ref as storageRef } from 'firebase/storage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 
 const encodeActivityData = (
@@ -172,11 +172,12 @@ interface LiveSubmission {
   id: string;
   content: string;
   submittedAt: number;
+  status?: 'approved' | 'pending';
   participantLabel?: string;
   storagePath?: string;
   archiveStatus?: ActivityWallArchiveStatus;
   driveFileId?: string;
-  archiveError?: string | null;
+  archiveError?: string;
   archivedAt?: number;
 }
 
@@ -222,6 +223,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     submissions: [],
   });
   const syncingSubmissionIdsRef = useRef<Set<string>>(new Set());
+  const isArchivingRef = useRef(false);
   const activeSessionId =
     activeActivity && user ? `${user.uid}_${activeActivity.id}` : null;
 
@@ -263,13 +265,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             id: data.id as string,
             content: data.content as string,
             submittedAt: data.submittedAt as number,
+            status: data.status as 'approved' | 'pending' | undefined,
             participantLabel: data.participantLabel as string | undefined,
             storagePath: data.storagePath as string | undefined,
             archiveStatus: data.archiveStatus as
               | ActivityWallArchiveStatus
               | undefined,
             driveFileId: data.driveFileId as string | undefined,
-            archiveError: data.archiveError as string | null | undefined,
+            archiveError: data.archiveError as string | undefined,
             archivedAt: data.archivedAt as number | undefined,
           };
         }),
@@ -304,6 +307,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         submission.id
       );
       syncingSubmissionIdsRef.current.add(submission.id);
+      isArchivingRef.current = true;
 
       try {
         if (!submission.storagePath) {
@@ -311,17 +315,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         }
 
         await updateDoc(submissionRef, {
+          status: submission.status ?? 'approved',
           archiveStatus: 'syncing',
           archiveError: deleteField(),
         });
 
-        const response = await fetch(submission.content);
-        if (!response.ok) {
-          throw new Error(
-            `Failed to download submitted photo (${response.status})`
-          );
-        }
-        const blob = await response.blob();
+        const blob = await getBlob(storageRef(storage, submission.storagePath));
 
         const driveFile = await driveService.uploadFile(
           blob,
@@ -335,6 +334,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
         await updateDoc(submissionRef, {
           content: driveUrl,
+          status: submission.status ?? 'approved',
           archiveStatus: 'archived',
           driveFileId: driveFile.id,
           archivedAt: Date.now(),
@@ -354,6 +354,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         console.error('[ActivityWall] Photo archive failed:', error);
         try {
           await updateDoc(submissionRef, {
+            status: submission.status ?? 'approved',
             archiveStatus: 'failed',
             archiveError: buildArchiveError(error),
           });
@@ -365,6 +366,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         }
       } finally {
         syncingSubmissionIdsRef.current.delete(submission.id);
+        isArchivingRef.current = false;
       }
     },
     [activeActivity, activeSessionId, driveService]
@@ -375,20 +377,23 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       !activeActivity ||
       activeActivity.mode !== 'photo' ||
       !activeSessionId ||
-      !driveService
+      !driveService ||
+      isArchivingRef.current
     ) {
       return;
     }
 
-    for (const submission of firestoreRaw) {
+    const nextSubmission = firestoreRaw.find((submission) => {
       const status = getArchiveStatus(submission);
-      if (
+      return (
         submission.storagePath &&
-        (status === 'firebase' || status === 'failed') &&
+        status === 'firebase' &&
         !syncingSubmissionIdsRef.current.has(submission.id)
-      ) {
-        void archivePhotoSubmission(submission);
-      }
+      );
+    });
+
+    if (nextSubmission) {
+      void archivePhotoSubmission(nextSubmission);
     }
   }, [
     activeActivity,
@@ -398,25 +403,35 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     firestoreRaw,
   ]);
 
+  const retryFailedArchives = useCallback(async () => {
+    if (!driveService || isArchivingRef.current) return;
+
+    const failedSubmissions = firestoreRaw.filter(
+      (submission) =>
+        submission.storagePath &&
+        getArchiveStatus(submission) === 'failed' &&
+        !syncingSubmissionIdsRef.current.has(submission.id)
+    );
+
+    for (const submission of failedSubmissions) {
+      await archivePhotoSubmission(submission);
+    }
+  }, [archivePhotoSubmission, driveService, firestoreRaw]);
+
   const allSubmissions = useMemo(() => {
     const demoSubs = activeActivity?.submissions ?? [];
     const combined = [...demoSubs];
     const existingIds = new Set(demoSubs.map((s) => s.id));
-    const modEnabled = activeActivity?.moderationEnabled ?? false;
     for (const fs of firestoreRaw) {
       if (!existingIds.has(fs.id)) {
         combined.push({
           ...fs,
-          status: modEnabled ? 'pending' : 'approved',
+          status: fs.status ?? 'approved',
         });
       }
     }
     return combined;
-  }, [
-    activeActivity?.submissions,
-    activeActivity?.moderationEnabled,
-    firestoreRaw,
-  ]);
+  }, [activeActivity?.submissions, firestoreRaw]);
 
   const moderationCounts = useMemo(() => {
     // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
@@ -616,7 +631,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               className={`rounded-xl border px-3 py-2 font-semibold ${syncBanner.className}`}
               style={{ fontSize: 'min(10px, 3.4cqmin)' }}
             >
-              {syncBanner.text}
+              <div className="flex items-center justify-between gap-2">
+                <span>{syncBanner.text}</span>
+                {isDriveConnected && photoSyncCounts.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => void retryFailedArchives()}
+                    className="shrink-0 rounded-full bg-white/80 px-2 py-1 font-black text-amber-800"
+                    style={{ fontSize: 'min(9px, 3cqmin)' }}
+                  >
+                    Retry failed syncs
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

@@ -365,7 +365,7 @@ export interface ActivityWallSubmission {
   storagePath?: string;
   archiveStatus?: ActivityWallArchiveStatus;
   driveFileId?: string;
-  archiveError?: string | null;
+  archiveError?: string;
   archivedAt?: number;
 }
 

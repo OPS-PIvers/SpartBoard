@@ -188,6 +188,7 @@ export const ActivityWallStudentApp: React.FC = () => {
         activityId: payload.id,
         content,
         submittedAt: Date.now(),
+        status: 'approved',
         participantLabel: buildParticipantLabel(
           payload.identificationMode,
           name.trim(),
