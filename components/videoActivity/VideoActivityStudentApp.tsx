@@ -331,8 +331,8 @@ const JoinAndPlay: React.FC = () => {
           className="px-4 md:px-6 py-4 md:py-6 flex-1"
           style={{ minHeight: 0 }}
         >
-          <div className="w-full max-w-5xl mx-auto rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
-            <div className="aspect-video w-full relative">
+          <div className="w-full h-full max-w-5xl mx-auto flex items-center justify-center">
+            <div className="relative aspect-video h-full w-auto max-w-full rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
               <VideoPlayer
                 youtubeUrl={session?.youtubeUrl ?? ''}
                 questions={sortedQuestions}

@@ -81,7 +81,7 @@ export const QuestionInteraction: React.FC<Props> = ({
 
   return (
     <div
-      className="w-full h-full flex items-center justify-center overflow-hidden"
+      className="w-full h-full flex items-center justify-center overflow-y-auto custom-scrollbar"
       style={{ padding: 'min(12px, 3cqmin)' }}
     >
       <div

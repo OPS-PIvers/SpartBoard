@@ -181,7 +181,10 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
         />
         <button
           onClick={handleComplete}
-          className="absolute right-3 bottom-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          style={{
+            bottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
+          }}
         >
           I&apos;m Done
         </button>
