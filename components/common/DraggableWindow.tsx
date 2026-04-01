@@ -876,7 +876,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       setMenuStyle({ position: 'fixed', visibility: 'hidden' });
     }
     return undefined;
-  }, [showTools, widget.x, widget.y, widget.w, widget.h, isMaximized, zoom]);
+  }, [
+    showTools,
+    widget.x,
+    widget.y,
+    widget.w,
+    widget.h,
+    widget.flipped,
+    widget.customTitle,
+    isMaximized,
+    zoom,
+    isEditingTitle,
+    title,
+  ]);
 
   // Reposition the tool menu on board pan without subscribing to panOffset in
   // context (which would cause every widget to re-render on every pan frame).
