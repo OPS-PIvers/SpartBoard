@@ -620,3 +620,9 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
         -- Exposes the TimeTool defaults, specifically including the Auto-Pick Random Student and Auto-Advance Next Up Queue boolean controls.
     - [Admin-Only Settings]
         -- None added currently.
+
+[x] Remote
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.

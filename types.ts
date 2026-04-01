@@ -2804,3 +2804,7 @@ export interface CustomWidgetConfig {
   /** Admin-configured settings values (keyed by CustomWidgetSettingDef.key) */
   adminSettings?: Record<string, string | number | boolean>;
 }
+
+export interface RemoteGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
+}
