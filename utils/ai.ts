@@ -234,13 +234,13 @@ export async function generateQuiz(prompt: string): Promise<GeneratedQuiz> {
 }
 
 /**
- * Generates timestamped multiple-choice questions from a YouTube video's
- * captions using the dedicated `generateVideoActivity` Cloud Function.
+ * Generates timestamped multiple-choice questions from a YouTube video using
+ * Gemini's multimodal video understanding.
  *
  * @param url - Full YouTube video URL.
  * @param questionCount - Desired number of questions (clamped 1–20 server-side).
  * @returns Generated activity title and questions with timestamps.
- * @throws Error if the video has no captions, is private/restricted, or generation fails.
+ * @throws Error if the video is private/restricted or generation fails.
  */
 export async function generateVideoActivity(
   url: string,

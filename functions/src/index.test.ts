@@ -110,6 +110,9 @@ vi.mock('firebase-admin', () => {
   return {
     initializeApp: vi.fn(),
     firestore: firestoreFn,
+    auth: vi.fn(() => ({
+      verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
+    })),
   };
 });
 
@@ -135,8 +138,10 @@ vi.mock('firebase-functions/v2', () => ({
 // Mock firebase-functions/v1
 vi.mock('firebase-functions/v1', () => ({
   runWith: vi.fn().mockReturnThis(),
+  region: vi.fn().mockReturnThis(),
   https: {
     onCall: vi.fn().mockImplementation((handler: unknown) => handler),
+    onRequest: vi.fn().mockImplementation((handler: unknown) => handler),
     HttpsError: class extends Error {
       constructor(code: string, message: string) {
         super(message);
@@ -153,8 +158,6 @@ vi.mock('axios');
 import {
   fetchWeatherProxy,
   checkUrlCompatibility,
-  parseTimedtextTrackList,
-  buildTimedtextCandidates,
   adminAnalytics,
 } from './index';
 
@@ -384,59 +387,6 @@ describe('checkUrlCompatibility', () => {
   });
 });
 
-describe('timedtext track helpers', () => {
-  it('parses timedtext type=list XML and decodes entity values', () => {
-    const xml = `<transcript_list>
-      <track id="0" name="English &amp; Auto" vss_id=".en" lang_code="en" lang_original="English"/>
-      <track id="1" name="Espa&#241;ol" vss_id=".es" lang_code="es" kind="asr"/>
-    </transcript_list>`;
-
-    expect(parseTimedtextTrackList(xml)).toEqual([
-      { lang: 'en', name: 'English & Auto', vssId: '.en' },
-      { lang: 'es', kind: 'asr', name: 'Español', vssId: '.es' },
-    ]);
-  });
-
-  it('builds prioritized deduped candidates and caps result size', () => {
-    const discoveredTracks = [
-      { lang: 'es', vssId: '.es' },
-      { lang: 'en', vssId: '.en' },
-      { lang: 'en', vssId: '.en' }, // duplicate
-      { lang: 'fr', vssId: '.fr' },
-      { lang: 'en-US', kind: 'asr' as const, vssId: 'a.en-US' },
-      { lang: 'de', vssId: '.de' },
-      { lang: 'pt', vssId: '.pt' },
-      { lang: 'it', vssId: '.it' },
-      { lang: 'ja', vssId: '.ja' },
-      { lang: 'ko', vssId: '.ko' },
-      { lang: 'ru', vssId: '.ru' },
-      { lang: 'zh', vssId: '.zh' },
-      { lang: 'ar', vssId: '.ar' },
-      { lang: 'nl', vssId: '.nl' },
-    ];
-
-    const result = buildTimedtextCandidates(discoveredTracks);
-
-    expect(result).toHaveLength(8);
-    expect(result[0]?.lang).toBe('en');
-    expect(result[1]?.lang).toBe('en-US');
-    expect(result.map((track) => track.vssId)).toContain('.es');
-    expect(result.map((track) => track.vssId)).not.toContain('.ar');
-    expect(result.map((track) => track.vssId)).not.toContain('.nl');
-  });
-
-  it('falls back to legacy candidates when discovery is empty', () => {
-    expect(buildTimedtextCandidates([])).toEqual([
-      { lang: 'en' },
-      { lang: 'en', kind: 'asr' },
-      { lang: 'en-US' },
-      { lang: 'en-US', kind: 'asr' },
-      { lang: 'en-GB' },
-      { lang: 'en-GB', kind: 'asr' },
-    ]);
-  });
-});
-
 describe('adminAnalytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -481,63 +431,57 @@ describe('adminAnalytics', () => {
       { id: 'uid2_smart-poll_2026-03-30', data: { count: 99 } },
     ];
 
-    const handler = adminAnalytics as unknown as (
-      req: unknown,
-      context: { auth?: { token?: { email?: string } } }
-    ) => Promise<{
-      users: {
-        total: number;
-        monthly: number;
-        daily: number;
-        domains: Record<
-          string,
-          { total: number; monthly: number; daily: number }
-        >;
-        buildings: Record<
-          string,
-          { total: number; monthly: number; daily: number }
-        >;
-        domainBuilding: Record<
-          string,
-          Record<string, { total: number; monthly: number; daily: number }>
-        >;
-      };
-      api: {
-        totalCalls: number;
-        activeUsers: number;
-        topUsers: { uid: string; count: number; email: string }[];
-      };
-    }>;
+    const handler = adminAnalytics;
 
-    const result = await handler(
-      {},
-      { auth: { token: { email: 'admin@school.org' } } }
-    );
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+    const resPromise = new Promise<any>((resolve) => {
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockImplementation((data) => {
+          resolve(data);
+          return data;
+        }),
+        setHeader: vi.fn().mockReturnThis(),
+        getHeader: vi.fn().mockReturnValue(''),
+      };
 
-    expect(result.users.total).toBe(3);
-    expect(result.users.monthly).toBe(2);
-    expect(result.users.daily).toBe(1);
-    expect(result.users.domains['district.org']).toEqual({
+      const mockReq = {
+        headers: {
+          origin: 'http://localhost',
+          authorization: 'Bearer mock-token',
+        },
+      };
+
+      (handler as any)(mockReq, mockRes);
+    });
+
+    const capturedData = await resPromise;
+
+    expect(capturedData.users.total).toBe(3);
+    expect(capturedData.users.monthly).toBe(2);
+    expect(capturedData.users.daily).toBe(1);
+    expect(capturedData.users.domains['district.org']).toEqual({
       total: 2,
       monthly: 2,
       daily: 1,
     });
-    expect(result.users.buildings.north).toEqual({
+    expect(capturedData.users.buildings.north).toEqual({
       total: 2,
       monthly: 1,
       daily: 1,
     });
-    expect(result.users.buildings.none).toEqual({
+    expect(capturedData.users.buildings.none).toEqual({
       total: 1,
       monthly: 1,
       daily: 0,
     });
-    expect(result.users.domainBuilding['district.org'].none).toEqual({
+    expect(capturedData.users.domainBuilding['district.org'].none).toEqual({
       total: 1,
       monthly: 1,
       daily: 0,
     });
-    expect(result.api.totalCalls).toBe(17);
+    expect(capturedData.api.totalCalls).toBe(17);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
   it('returns topUsers with resolved email and unknown fallback', async () => {
@@ -557,29 +501,42 @@ describe('adminAnalytics', () => {
       { id: 'uid_b_2026-03-30', data: { count: 3 } },
     ];
 
-    const handler = adminAnalytics as unknown as (
-      req: unknown,
-      context: { auth?: { token?: { email?: string } } }
-    ) => Promise<{
-      api: {
-        topUsers: { uid: string; count: number; email: string }[];
+    const handler = adminAnalytics;
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+    const resPromise = new Promise<any>((resolve) => {
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockImplementation((data) => {
+          resolve(data);
+          return data;
+        }),
+        setHeader: vi.fn().mockReturnThis(),
+        getHeader: vi.fn().mockReturnValue(''),
       };
-    }>;
 
-    const result = await handler(
-      {},
-      { auth: { token: { email: 'admin@school.org' } } }
-    );
+      const mockReq = {
+        headers: {
+          origin: 'http://localhost',
+          authorization: 'Bearer mock-token',
+        },
+      };
 
-    expect(result.api.topUsers[0]).toEqual({
+      (handler as any)(mockReq, mockRes);
+    });
+
+    const capturedData = await resPromise;
+
+    expect(capturedData.api.topUsers[0]).toEqual({
       uid: 'uid_a',
       count: 5,
       email: 'known@district.org',
     });
-    expect(result.api.topUsers[1]).toEqual({
+    expect(capturedData.api.topUsers[1]).toEqual({
       uid: 'uid_b',
       count: 3,
       email: 'Unknown (uid_b)',
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 });

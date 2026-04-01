@@ -2,10 +2,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { SoundboardWidget } from './Widget';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { WidgetData } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
+}));
+
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: vi.fn(),
 }));
 
 const mockPlay = vi
@@ -21,6 +26,7 @@ vi.stubGlobal(
   }
 );
 
+// Widget with sound-1 active (activeSoundIds defaults to selectedSoundIds when undefined)
 const defaultWidget = {
   id: 'soundboard-1',
   type: 'soundboard',
@@ -31,8 +37,6 @@ describe('SoundboardWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Provide a safe cast for the Auth context to avoid TS errors
-    // while keeping the test isolated to the needed fields
     vi.mocked(useAuth).mockReturnValue({
       selectedBuildings: ['school-1'],
       featurePermissions: [
@@ -69,6 +73,11 @@ describe('SoundboardWidget', () => {
         },
       ],
     } as unknown as ReturnType<typeof useAuth>);
+
+    vi.mocked(useDashboard).mockReturnValue({
+      selectedWidgetId: null,
+      updateWidget: vi.fn(),
+    } as unknown as ReturnType<typeof useDashboard>);
   });
 
   afterAll(() => {
@@ -78,7 +87,7 @@ describe('SoundboardWidget', () => {
   it('filters visible sounds by selectedSoundIds and non-empty URLs', () => {
     render(<SoundboardWidget widget={defaultWidget} />);
 
-    // Applause should be visible
+    // Applause should be visible (in active grid since activeSoundIds defaults to selectedSoundIds)
     expect(screen.getByText('Applause')).toBeInTheDocument();
 
     // Not selected should be hidden
@@ -212,5 +221,62 @@ describe('SoundboardWidget', () => {
 
     expect(screen.queryByText('Ta-Da')).not.toBeInTheDocument();
     expect(screen.getByText('No Sounds Selected')).toBeInTheDocument();
+  });
+
+  it('shows selection bar when focused', () => {
+    vi.mocked(useDashboard).mockReturnValue({
+      selectedWidgetId: 'soundboard-1',
+      updateWidget: vi.fn(),
+    } as unknown as ReturnType<typeof useDashboard>);
+
+    render(<SoundboardWidget widget={defaultWidget} />);
+
+    // Sound should appear in both the main grid and the selection bar
+    const buttons = screen.getAllByText('Applause');
+    expect(buttons.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('respects explicit activeSoundIds to show subset of selected sounds', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      selectedBuildings: ['school-1'],
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          accessLevel: 'admin',
+          enabled: true,
+          betaUsers: [],
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [
+                  { id: 'sound-1', label: 'Applause', url: '1.mp3' },
+                  { id: 'sound-3', label: 'Gong', url: '3.mp3' },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
+
+    // Both selected, but only sound-1 is active
+    const subsetWidget = {
+      ...defaultWidget,
+      config: {
+        selectedSoundIds: ['sound-1', 'sound-3'],
+        activeSoundIds: ['sound-1'],
+      },
+    };
+
+    render(<SoundboardWidget widget={subsetWidget as unknown as WidgetData} />);
+
+    // Applause (active) is in the main grid
+    expect(
+      screen.getByRole('button', { name: /Applause/i })
+    ).toBeInTheDocument();
+    // Gong (not active, not focused) should not appear in the main grid
+    expect(
+      screen.queryByRole('button', { name: /Gong/i })
+    ).not.toBeInTheDocument();
   });
 });

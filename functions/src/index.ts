@@ -14,178 +14,6 @@ const ALLOWED_ORIGINS = [
   /^http:\/\/localhost(:\d+)?$/,
 ];
 const corsHandler = cors({ origin: ALLOWED_ORIGINS });
-// Local mirror of youtube-transcript's TranscriptResponse to avoid depending on
-// an ESM-only package at the type level (dynamic import used at runtime instead).
-interface TranscriptResponse {
-  text: string;
-  duration: number;
-  offset: number;
-}
-
-interface TimedtextJson3Event {
-  tStartMs?: number;
-  dDurationMs?: number;
-  segs?: Array<{ utf8?: string }>;
-}
-
-interface TimedtextTrack {
-  lang: string;
-  kind?: 'asr';
-  name?: string;
-  vssId?: string;
-}
-
-const LEGACY_TIMEDTEXT_CANDIDATES: TimedtextTrack[] = [
-  { lang: 'en' },
-  { lang: 'en', kind: 'asr' },
-  { lang: 'en-US' },
-  { lang: 'en-US', kind: 'asr' },
-  { lang: 'en-GB' },
-  { lang: 'en-GB', kind: 'asr' },
-];
-
-const MAX_TIMEDTEXT_TRACK_CANDIDATES = 8;
-const TIMEDTEXT_REQUEST_TIMEOUT_MS = 5000;
-const TIMEDTEXT_TOTAL_BUDGET_MS = 30000;
-
-function decodeHtmlEntities(input: string): string {
-  const namedEntities: Record<string, string> = {
-    amp: '&',
-    lt: '<',
-    gt: '>',
-    quot: '"',
-    apos: "'",
-    nbsp: ' ',
-  };
-
-  return input.replace(
-    /&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g,
-    (match: string, entity: string) => {
-      if (entity.startsWith('#x') || entity.startsWith('#X')) {
-        const code = Number.parseInt(entity.slice(2), 16);
-        return Number.isNaN(code) ? match : String.fromCodePoint(code);
-      }
-
-      if (entity.startsWith('#')) {
-        const code = Number.parseInt(entity.slice(1), 10);
-        return Number.isNaN(code) ? match : String.fromCodePoint(code);
-      }
-
-      return namedEntities[entity] ?? match;
-    }
-  );
-}
-
-function parseTimedtextJson3(
-  events: TimedtextJson3Event[]
-): TranscriptResponse[] {
-  return events
-    .filter((event) => event.segs && event.segs.length > 0)
-    .map((event) => ({
-      text: (event.segs ?? [])
-        .map((segment) => segment.utf8 ?? '')
-        .join('')
-        .trim(),
-      offset: event.tStartMs ?? 0,
-      duration: event.dDurationMs ?? 0,
-    }))
-    .filter((item) => item.text.length > 0 && item.text !== '\n');
-}
-
-function parseTimedtextXml(xml: string): TranscriptResponse[] {
-  const textNodes = xml.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g);
-  const parsed: TranscriptResponse[] = [];
-
-  for (const node of textNodes) {
-    const attrs = node[1] ?? '';
-    const rawText = node[2] ?? '';
-
-    const startMatch = attrs.match(/\bstart=["']([^"']+)["']/);
-    const durationMatch = attrs.match(/\bdur=["']([^"']+)["']/);
-    const startSeconds = startMatch ? Number.parseFloat(startMatch[1]) : 0;
-    const durationSeconds = durationMatch
-      ? Number.parseFloat(durationMatch[1])
-      : 0;
-
-    // Loop stripping until stable to prevent partial-tag bypass (e.g. <scr<script>ipt>).
-    let stripped = rawText.replace(/<br\s*\/?>/gi, ' ');
-    let prev: string;
-    do {
-      prev = stripped;
-      stripped = prev.replace(/<[^>]+>/g, '');
-    } while (stripped !== prev);
-    const text = decodeHtmlEntities(stripped.replace(/[<>]/g, ''))
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!text) continue;
-
-    parsed.push({
-      text,
-      offset: Number.isFinite(startSeconds)
-        ? Math.round(startSeconds * 1000)
-        : 0,
-      duration: Number.isFinite(durationSeconds)
-        ? Math.round(durationSeconds * 1000)
-        : 0,
-    });
-  }
-
-  return parsed;
-}
-
-export function parseTimedtextTrackList(xml: string): TimedtextTrack[] {
-  const trackNodes = xml.matchAll(/<track\b([^>]*)\/?>(?:<\/track>)?/g);
-  const tracks: TimedtextTrack[] = [];
-
-  for (const node of trackNodes) {
-    const attrs = node[1] ?? '';
-    const langMatch = attrs.match(/\blang_code=["']([^"']+)["']/);
-
-    if (!langMatch?.[1]) continue;
-
-    const kindMatch = attrs.match(/\bkind=["']([^"']+)["']/);
-    const nameMatch = attrs.match(/\bname=["']([^"']*)["']/);
-    const vssIdMatch = attrs.match(/\bvss_id=["']([^"']+)["']/);
-
-    tracks.push({
-      lang: decodeHtmlEntities(langMatch[1]),
-      kind: kindMatch?.[1] === 'asr' ? 'asr' : undefined,
-      name: nameMatch?.[1] ? decodeHtmlEntities(nameMatch[1]) : undefined,
-      vssId: vssIdMatch?.[1] ? decodeHtmlEntities(vssIdMatch[1]) : undefined,
-    });
-  }
-
-  return tracks;
-}
-
-export function buildTimedtextCandidates(
-  discoveredTracks: TimedtextTrack[]
-): TimedtextTrack[] {
-  const dedupeKey = (track: TimedtextTrack): string =>
-    `${track.lang}|${track.kind ?? ''}|${track.name ?? ''}|${track.vssId ?? ''}`;
-
-  const uniqueTracks = Array.from(
-    new Map(discoveredTracks.map((track) => [dedupeKey(track), track])).values()
-  );
-
-  const englishTracks = uniqueTracks.filter((track) =>
-    track.lang.toLowerCase().startsWith('en')
-  );
-  const nonEnglishTracks = uniqueTracks.filter(
-    (track) => !track.lang.toLowerCase().startsWith('en')
-  );
-
-  const prioritizedTracks = [...englishTracks, ...nonEnglishTracks].slice(
-    0,
-    MAX_TIMEDTEXT_TRACK_CANDIDATES
-  );
-
-  return prioritizedTracks.length > 0
-    ? prioritizedTracks
-    : [...LEGACY_TIMEDTEXT_CANDIDATES];
-}
-
 admin.initializeApp();
 
 interface ClassLinkUser {
@@ -972,15 +800,15 @@ interface GeneratedVideoActivity {
 }
 
 /**
- * Fetches YouTube captions and uses Gemini to generate timestamped
- * multiple-choice questions for the Video Activity widget.
+ * Uses Gemini's multimodal video understanding to analyze a YouTube video
+ * and generate timestamped multiple-choice questions.
  */
 export const generateVideoActivity = functionsV1
   .region('us-central1')
   .runWith({
     secrets: ['GEMINI_API_KEY'],
-    memory: '512MB',
-    timeoutSeconds: 120,
+    memory: '1GB',
+    timeoutSeconds: 300,
   })
   .https.onCall(
     async (
@@ -1027,183 +855,6 @@ export const generateVideoActivity = functionsV1
           'Could not extract a video ID from the provided URL. Please paste a valid YouTube link.'
         );
       }
-
-      let transcriptItems: TranscriptResponse[] = [];
-      try {
-        // Fetch captions directly from timedtext (no Data API key dependency).
-        const captionFetchStartMs = Date.now();
-        let captionCandidates: TimedtextTrack[] = [
-          ...LEGACY_TIMEDTEXT_CANDIDATES,
-        ];
-        try {
-          // First, discover available tracks so we can support non-English
-          // videos (or videos where only one specific transcript track is
-          // published).
-          const trackListResp = await axios.get<string>(
-            'https://www.youtube.com/api/timedtext',
-            {
-              params: {
-                type: 'list',
-                v: videoId,
-              },
-              timeout: TIMEDTEXT_REQUEST_TIMEOUT_MS,
-              responseType: 'text',
-            }
-          );
-
-          const discoveredTracks = parseTimedtextTrackList(trackListResp.data);
-          captionCandidates = buildTimedtextCandidates(discoveredTracks);
-        } catch (trackListErr: unknown) {
-          if (
-            axios.isAxiosError(trackListErr) &&
-            trackListErr.response?.status === 429
-          ) {
-            throw new functionsV1.https.HttpsError(
-              'resource-exhausted',
-              'YouTube is temporarily rate-limiting caption requests from our server. Please try Manual Entry or CSV Import instead.'
-            );
-          }
-          const msg =
-            trackListErr instanceof Error
-              ? trackListErr.message
-              : String(trackListErr);
-          console.warn(
-            `[generateVideoActivity] Timedtext track discovery failed for ${videoId}; falling back to legacy candidates:`,
-            msg
-          );
-        }
-
-        for (const candidate of captionCandidates) {
-          if (Date.now() - captionFetchStartMs >= TIMEDTEXT_TOTAL_BUDGET_MS) {
-            console.warn(
-              `[generateVideoActivity] Timedtext retrieval budget exceeded for ${videoId}; stopping caption attempts early.`
-            );
-            break;
-          }
-          try {
-            // Fetch as text so we can inspect the body regardless of content-type.
-            // YouTube sometimes returns XML even when fmt=json3 is requested.
-            const timedtextResp = await axios.get<string>(
-              'https://www.youtube.com/api/timedtext',
-              {
-                params: {
-                  v: videoId,
-                  lang: candidate.lang,
-                  fmt: 'json3',
-                  ...(candidate.name ? { name: candidate.name } : {}),
-                  ...(candidate.vssId ? { vss_id: candidate.vssId } : {}),
-                  ...(candidate.kind ? { kind: candidate.kind } : {}),
-                },
-                timeout: TIMEDTEXT_REQUEST_TIMEOUT_MS,
-                responseType: 'text',
-              }
-            );
-
-            const rawBody = timedtextResp.data ?? '';
-
-            // Try JSON3 first
-            if (rawBody.trimStart().startsWith('{')) {
-              let parsed: { events?: TimedtextJson3Event[] } = {};
-              try {
-                parsed = JSON.parse(rawBody) as {
-                  events?: TimedtextJson3Event[];
-                };
-              } catch {
-                // not valid JSON3 — fall through to XML
-              }
-              const json3Parsed = parseTimedtextJson3(parsed.events ?? []);
-              if (json3Parsed.length > 0) {
-                transcriptItems = json3Parsed;
-                break;
-              }
-            }
-
-            // If the response body looks like XML, parse it directly without
-            // issuing a second HTTP request.
-            if (rawBody.trimStart().startsWith('<')) {
-              const xmlParsed = parseTimedtextXml(rawBody);
-              if (xmlParsed.length > 0) {
-                transcriptItems = xmlParsed;
-                break;
-              }
-            }
-
-            // As a last resort, fetch without fmt=json3 to get XML explicitly.
-            if (Date.now() - captionFetchStartMs >= TIMEDTEXT_TOTAL_BUDGET_MS) {
-              console.warn(
-                `[generateVideoActivity] Timedtext retrieval budget reached before XML fallback for ${videoId}; skipping remaining attempts.`
-              );
-              break;
-            }
-            const xmlResp = await axios.get<string>(
-              'https://www.youtube.com/api/timedtext',
-              {
-                params: {
-                  v: videoId,
-                  lang: candidate.lang,
-                  ...(candidate.name ? { name: candidate.name } : {}),
-                  ...(candidate.vssId ? { vss_id: candidate.vssId } : {}),
-                  ...(candidate.kind ? { kind: candidate.kind } : {}),
-                },
-                timeout: TIMEDTEXT_REQUEST_TIMEOUT_MS,
-                responseType: 'text',
-              }
-            );
-
-            const xmlParsed = parseTimedtextXml(xmlResp.data);
-            if (xmlParsed.length > 0) {
-              transcriptItems = xmlParsed;
-              break;
-            }
-          } catch (candidateErr: unknown) {
-            if (
-              axios.isAxiosError(candidateErr) &&
-              candidateErr.response?.status === 429
-            ) {
-              throw new functionsV1.https.HttpsError(
-                'resource-exhausted',
-                'YouTube is temporarily rate-limiting caption requests from our server. Please try Manual Entry or CSV Import instead.'
-              );
-            }
-            const msg =
-              candidateErr instanceof Error
-                ? candidateErr.message
-                : String(candidateErr);
-            console.warn(
-              `[generateVideoActivity] Timedtext fetch failed for ${candidate.lang}${candidate.kind ? ` (${candidate.kind})` : ''}:`,
-              msg
-            );
-          }
-        }
-      } catch (err: unknown) {
-        if (err instanceof functionsV1.https.HttpsError) throw err;
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(
-          `[generateVideoActivity] Transcript fetch failed for ${videoId}:`,
-          msg
-        );
-        throw new functionsV1.https.HttpsError(
-          'not-found',
-          'No captions are available for this video or they could not be retrieved. Try a different video, or use Manual Entry / CSV Import instead.'
-        );
-      }
-
-      if (transcriptItems.length === 0) {
-        throw new functionsV1.https.HttpsError(
-          'not-found',
-          'No captions are available for this video or they could not be retrieved. Try a different video, or use Manual Entry / CSV Import instead.'
-        );
-      }
-
-      // Build structured transcript text (timestamp + text per segment)
-      const transcriptText = transcriptItems
-        .map((item) => {
-          const secs = Math.floor((item.offset ?? 0) / 1000);
-          const mm = String(Math.floor(secs / 60)).padStart(2, '0');
-          const ss = String(secs % 60).padStart(2, '0');
-          return `[${mm}:${ss}] ${item.text.trim()}`;
-        })
-        .join('\n');
 
       const db = admin.firestore();
 
@@ -1283,13 +934,11 @@ export const generateVideoActivity = functionsV1
       const ai = new GoogleGenAI({ apiKey });
 
       const systemPrompt = `You are an expert teacher creating a video comprehension activity.
-You will be given a timed transcript of a YouTube video.
-Generate exactly ${count} multiple-choice questions that check understanding of key concepts.
+Watch the provided YouTube video and generate exactly ${count} multiple-choice questions that check understanding of key concepts.
 
 CRITICAL RULES:
-1. Each question's "timestamp" field MUST be the exact second (as an integer) when the answer appears in the transcript.
-   Convert "[MM:SS]" to total seconds: e.g. "[02:15]" → 135.
-1b. The question should be asked AFTER students have heard the explanation, so choose a timestamp near the END of the relevant explanation chunk (not the beginning).
+1. Each question's "timestamp" field MUST be an integer representing the exact second from the start of the video when the answer is discussed.
+1b. The question should be asked AFTER students have heard the explanation, so choose a timestamp near the END of the relevant explanation segment (not the beginning).
 2. Questions must be in ascending timestamp order.
 3. Each question must have exactly 3 plausible but clearly incorrect answers.
 4. Only use "MC" (Multiple Choice) type.
@@ -1310,19 +959,23 @@ Return JSON in this exact format:
   ]
 }`;
 
-      const userPrompt = `Timed transcript:\n\n${transcriptText}`;
-
-      const contents: Content[] = [
-        {
-          role: 'user',
-          parts: [{ text: systemPrompt + '\n\n' + userPrompt }],
-        },
-      ];
-
       try {
         const result = await ai.models.generateContent({
           model: 'gemini-3.1-flash-lite-preview',
-          contents,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: systemPrompt },
+                {
+                  fileData: {
+                    fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+                    mimeType: 'video/mp4',
+                  },
+                },
+              ],
+            },
+          ],
           config: { responseMimeType: 'application/json' },
         });
 

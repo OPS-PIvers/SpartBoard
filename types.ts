@@ -275,12 +275,14 @@ export interface DiceConfig {
 export interface SoundboardSound {
   id: string;
   label: string;
-  url: string; // The sound URL
+  url: string; // The sound URL (may be empty for synthesized sounds)
   color?: string; // Optional custom color for the button
+  synthesized?: boolean; // If true, use Web Audio API synthesis instead of URL
 }
 
 export interface SoundboardConfig {
-  selectedSoundIds: string[]; // IDs of the sounds selected to be visible
+  selectedSoundIds: string[]; // IDs of sounds available in the pool (from settings)
+  activeSoundIds?: string[]; // IDs currently shown as big buttons; defaults to selectedSoundIds
 }
 
 export interface SoundboardBuildingConfig {

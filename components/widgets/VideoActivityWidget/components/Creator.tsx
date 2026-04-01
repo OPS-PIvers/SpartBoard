@@ -90,20 +90,7 @@ export const Creator: React.FC<CreatorProps> = ({
       };
       await onSave(activity);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Generation failed';
-      // Map 404/not-found or 429/resource-exhausted to a clearer message
-      if (
-        msg.toLowerCase().includes('not-found') ||
-        msg.toLowerCase().includes('no captions') ||
-        msg.toLowerCase().includes('rate-limit') ||
-        msg.toLowerCase().includes('resource-exhausted')
-      ) {
-        setError(
-          'YouTube captions are unavailable or the server is being rate-limited. Please try Manual Entry or Import instead.'
-        );
-      } else {
-        setError(msg);
-      }
+      setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setIsGenerating(false);
     }
@@ -237,7 +224,8 @@ export const Creator: React.FC<CreatorProps> = ({
                         Magic Creator
                       </h4>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Generate questions automatically using AI captions.
+                        Generate questions automatically using Gemini&apos;s
+                        video understanding.
                       </p>
                     </div>
                   </div>
@@ -316,8 +304,8 @@ export const Creator: React.FC<CreatorProps> = ({
                 </div>
 
                 <div className="text-xs text-indigo-600/70 italic leading-relaxed">
-                  Note: AI generation requires the YouTube video to have
-                  captions or transcripts enabled.
+                  Note: AI generation uses Gemini&apos;s video understanding to
+                  analyze the content and generate questions.
                 </div>
               </div>
 

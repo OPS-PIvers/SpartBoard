@@ -14,6 +14,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 280,
     config: {
       selectedSoundIds: [],
+      activeSoundIds: [],
     } satisfies SoundboardConfig,
   },
   clock: { w: 280, h: 140, config: { format24: true, showSeconds: true } },
