@@ -282,7 +282,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         ? set.steps.find((s) => s.id === activeStep.id)
         : null;
       return (
-        <div className="absolute inset-0 z-30 pointer-events-auto overflow-y-auto">
+        <div className="absolute inset-0 z-30 pointer-events-auto overflow-hidden">
           <QuestionInteraction
             step={activeStep}
             onAnswer={(answer, isCorrect) =>

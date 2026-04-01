@@ -170,8 +170,8 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="flex-1 relative">
+    <div className="h-screen h-dvh overflow-hidden bg-slate-950">
+      <div className="h-full relative">
         <GuidedLearningPlayer
           set={
             setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
@@ -179,11 +179,12 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
           onAnswer={handleAnswer}
           teacherMode={false}
         />
-      </div>
-      <div className="p-3 bg-slate-900 border-t border-white/10 flex justify-end">
         <button
           onClick={handleComplete}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium"
+          className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          style={{
+            bottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)',
+          }}
         >
           I&apos;m Done
         </button>

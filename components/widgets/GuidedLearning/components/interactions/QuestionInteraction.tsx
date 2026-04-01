@@ -82,11 +82,14 @@ export const QuestionInteraction: React.FC<Props> = ({
   return (
     <div
       className="w-full h-full flex items-center justify-center overflow-y-auto custom-scrollbar"
-      style={{ padding: 'min(16px, 4cqmin)' }}
+      style={{ padding: 'min(12px, 3cqmin)' }}
     >
       <div
-        className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl"
-        style={{ maxWidth: 'min(420px, 90cqw)', padding: 'min(20px, 5cqmin)' }}
+        className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl max-h-full overflow-y-auto"
+        style={{
+          maxWidth: 'min(420px, 90cqw)',
+          padding: 'min(14px, 3.5cqmin)',
+        }}
       >
         <p
           className="text-white font-bold mb-4 leading-snug"

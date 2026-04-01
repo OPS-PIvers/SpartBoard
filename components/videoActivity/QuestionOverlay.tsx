@@ -1,5 +1,5 @@
 /**
- * QuestionOverlay — active question card shown below the video player.
+ * QuestionOverlay — active question card shown over the video player.
  */
 
 import React, { useState } from 'react';
@@ -61,107 +61,105 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   };
 
   return (
-    <div className="w-full bg-white border-t border-slate-200 p-4 md:p-5">
-      <div className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="bg-brand-blue-primary rounded-t-2xl px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <Clock className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-wider">
-              {formatTimestamp(question.timestamp)}
-            </span>
-          </div>
-          <span className="text-white/60 text-xs font-medium">
-            Question {questionIndex} of {totalQuestions}
+    <div className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-2xl overflow-hidden bg-white max-h-full overflow-y-auto">
+      {/* Header */}
+      <div className="bg-brand-blue-primary rounded-t-2xl px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-white">
+          <Clock className="w-4 h-4" />
+          <span className="text-xs font-bold uppercase tracking-wider">
+            {formatTimestamp(question.timestamp)}
           </span>
         </div>
-
-        {/* Question */}
-        <div className="px-5 pt-5 pb-3">
-          <p className="text-base font-semibold text-slate-800 leading-snug">
-            {question.text}
-          </p>
-        </div>
-
-        {/* Options */}
-        <div className="px-5 pb-5 grid gap-2.5">
-          {options.map((option, i) => {
-            let style =
-              'border-2 border-slate-200 bg-white hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 text-slate-700';
-
-            if (submitted) {
-              if (option === question.correctAnswer) {
-                style =
-                  'border-2 border-emerald-500 bg-emerald-50 text-emerald-800 font-bold';
-              } else if (
-                option === selected &&
-                option !== question.correctAnswer
-              ) {
-                style =
-                  'border-2 border-brand-red-primary bg-brand-red-lighter/30 text-brand-red-dark';
-              } else {
-                style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
-              }
-            } else if (selected === option) {
-              style =
-                'border-2 border-brand-blue-primary bg-brand-blue-lighter/40 text-brand-blue-dark font-semibold';
-            }
-
-            return (
-              <button
-                key={`${i}-${option}`}
-                disabled={submitted}
-                onClick={() => setSelected(option)}
-                className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
-              >
-                <span className="shrink-0 w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <span className="flex-1">{option}</span>
-                {submitted && option === question.correctAnswer && (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                )}
-                {submitted &&
-                  option === selected &&
-                  option !== question.correctAnswer && (
-                    <XCircle className="w-4 h-4 text-brand-red-primary shrink-0" />
-                  )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Submit */}
-        {!submitted && (
-          <div className="px-5 pb-5">
-            <button
-              onClick={handleSubmit}
-              disabled={!selected}
-              className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 shadow-sm"
-            >
-              Submit Answer
-            </button>
-          </div>
-        )}
-
-        {submitted && (
-          <div className="px-5 pb-5">
-            <div
-              className={`text-center text-sm font-bold py-2 rounded-xl ${
-                selected === question.correctAnswer
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-brand-red-lighter/40 text-brand-red-dark'
-              }`}
-            >
-              {selected === question.correctAnswer
-                ? '✓ Correct! Resuming video…'
-                : requireCorrectAnswer
-                  ? '✗ Incorrect. Rewinding section…'
-                  : '✗ Incorrect. Resuming video…'}
-            </div>
-          </div>
-        )}
+        <span className="text-white/60 text-xs font-medium">
+          Question {questionIndex} of {totalQuestions}
+        </span>
       </div>
+
+      {/* Question */}
+      <div className="px-5 pt-5 pb-3">
+        <p className="text-base font-semibold text-slate-800 leading-snug">
+          {question.text}
+        </p>
+      </div>
+
+      {/* Options */}
+      <div className="px-5 pb-5 grid gap-2.5">
+        {options.map((option, i) => {
+          let style =
+            'border-2 border-slate-200 bg-white hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 text-slate-700';
+
+          if (submitted) {
+            if (option === question.correctAnswer) {
+              style =
+                'border-2 border-emerald-500 bg-emerald-50 text-emerald-800 font-bold';
+            } else if (
+              option === selected &&
+              option !== question.correctAnswer
+            ) {
+              style =
+                'border-2 border-brand-red-primary bg-brand-red-lighter/30 text-brand-red-dark';
+            } else {
+              style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
+            }
+          } else if (selected === option) {
+            style =
+              'border-2 border-brand-blue-primary bg-brand-blue-lighter/40 text-brand-blue-dark font-semibold';
+          }
+
+          return (
+            <button
+              key={`${i}-${option}`}
+              disabled={submitted}
+              onClick={() => setSelected(option)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
+            >
+              <span className="shrink-0 w-6 h-6 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <span className="flex-1">{option}</span>
+              {submitted && option === question.correctAnswer && (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              )}
+              {submitted &&
+                option === selected &&
+                option !== question.correctAnswer && (
+                  <XCircle className="w-4 h-4 text-brand-red-primary shrink-0" />
+                )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Submit */}
+      {!submitted && (
+        <div className="px-5 pb-5">
+          <button
+            onClick={handleSubmit}
+            disabled={!selected}
+            className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 shadow-sm"
+          >
+            Submit Answer
+          </button>
+        </div>
+      )}
+
+      {submitted && (
+        <div className="px-5 pb-5">
+          <div
+            className={`text-center text-sm font-bold py-2 rounded-xl ${
+              selected === question.correctAnswer
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-brand-red-lighter/40 text-brand-red-dark'
+            }`}
+          >
+            {selected === question.correctAnswer
+              ? '✓ Correct! Resuming video…'
+              : requireCorrectAnswer
+                ? '✗ Incorrect. Rewinding section…'
+                : '✗ Incorrect. Resuming video…'}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

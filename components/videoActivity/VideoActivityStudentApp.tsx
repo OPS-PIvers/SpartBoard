@@ -311,7 +311,7 @@ const JoinAndPlay: React.FC = () => {
   const totalQuestions = sortedQuestions.length;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="h-screen h-dvh overflow-hidden bg-slate-950 flex flex-col">
       {/* Top bar */}
       <div className="bg-slate-900 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -327,9 +327,12 @@ const JoinAndPlay: React.FC = () => {
 
       {/* Video area */}
       <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
-        <div className="px-4 md:px-6 pt-4 md:pt-6">
-          <div className="w-full max-w-5xl mx-auto rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
-            <div className="aspect-video w-full">
+        <div
+          className="px-4 md:px-6 py-4 md:py-6 flex-1"
+          style={{ minHeight: 0 }}
+        >
+          <div className="w-full h-full max-w-5xl mx-auto flex items-center justify-center">
+            <div className="relative aspect-video h-full w-auto max-w-full rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
               <VideoPlayer
                 youtubeUrl={session?.youtubeUrl ?? ''}
                 questions={sortedQuestions}
@@ -341,27 +344,34 @@ const JoinAndPlay: React.FC = () => {
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
               />
+
+              {activeQuestion && (
+                <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[1px] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+                  <QuestionOverlay
+                    key={activeQuestion.id}
+                    question={activeQuestion}
+                    onAnswer={handleAnswer}
+                    questionIndex={
+                      sortedQuestions.findIndex(
+                        (q) => q.id === activeQuestion.id
+                      ) + 1
+                    }
+                    totalQuestions={totalQuestions}
+                    requireCorrectAnswer={
+                      session?.settings?.requireCorrectAnswer ?? true
+                    }
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {activeQuestion ? (
-          <QuestionOverlay
-            question={activeQuestion}
-            onAnswer={handleAnswer}
-            questionIndex={
-              sortedQuestions.findIndex((q) => q.id === activeQuestion.id) + 1
-            }
-            totalQuestions={totalQuestions}
-            requireCorrectAnswer={
-              session?.settings?.requireCorrectAnswer ?? true
-            }
-          />
-        ) : (
+        {!activeQuestion && (
           <div className="w-full px-4 md:px-6 pb-4 md:pb-6 pt-3">
             <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300">
               {totalQuestions > 0
-                ? 'Watch the video. Questions will appear below as you reach each section.'
+                ? 'Watch the video. Questions will appear on top of the video at each checkpoint.'
                 : 'Watch the video to complete this activity.'}
             </div>
           </div>
