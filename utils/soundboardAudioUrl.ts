@@ -1,4 +1,5 @@
 const DRIVE_HOST = 'drive.google.com';
+const DOCS_HOST = 'docs.google.com';
 
 const toCanonicalDrivePlaybackUrl = (fileId: string): string =>
   `https://${DRIVE_HOST}/uc?id=${fileId}&export=download`;
@@ -14,7 +15,7 @@ export const normalizeSoundboardAudioUrl = (url: string): string => {
     return trimmedUrl;
   }
 
-  if (parsedUrl.hostname !== DRIVE_HOST) {
+  if (parsedUrl.hostname !== DRIVE_HOST && parsedUrl.hostname !== DOCS_HOST) {
     return trimmedUrl;
   }
 

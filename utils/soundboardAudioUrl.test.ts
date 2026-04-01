@@ -21,6 +21,14 @@ describe('normalizeSoundboardAudioUrl', () => {
     ).toBe(canonicalUrl);
   });
 
+  it('converts docs.google.com file links to the canonical playback URL', () => {
+    expect(
+      normalizeSoundboardAudioUrl(
+        `https://docs.google.com/file/d/${fileId}/view?usp=drive_link`
+      )
+    ).toBe(canonicalUrl);
+  });
+
   it('adds export=download for uc?id=<id> links that are missing it', () => {
     expect(
       normalizeSoundboardAudioUrl(`https://drive.google.com/uc?id=${fileId}`)
