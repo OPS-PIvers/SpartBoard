@@ -19,14 +19,12 @@ export function useCatalystSets() {
 
   useEffect(() => {
     if (isAuthBypass) {
-      setTimeout(() => {
-        setSets([]);
-        setLoading(false);
-      }, 0);
+      setSets([]);
+      setLoading(false);
       return;
     }
 
-    setTimeout(() => setLoading(true), 0);
+    setLoading(true);
 
     const ref = collection(
       db,
