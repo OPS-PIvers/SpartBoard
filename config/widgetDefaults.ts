@@ -5,6 +5,7 @@ import {
   SpecialistScheduleConfig,
   GraphicOrganizerConfig,
   RevealGridConfig,
+  QRConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 
@@ -69,7 +70,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: { sensitivity: 1, visual: 'thermometer' },
   },
   drawing: { w: 400, h: 350, config: { mode: 'window', paths: [] } },
-  qr: { w: 200, h: 250, config: {} },
+  qr: { w: 200, h: 250, config: { showUrl: false } satisfies QRConfig },
   embed: { w: 480, h: 350, config: { url: '' } },
   poll: {
     w: 300,

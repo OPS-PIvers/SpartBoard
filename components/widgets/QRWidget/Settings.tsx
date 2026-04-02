@@ -30,6 +30,30 @@ export const QRSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         />
       </div>
 
+      <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="space-y-1">
+          <div className="text-xs font-black uppercase tracking-wider text-slate-700">
+            Show URL
+          </div>
+          <div className="text-xs text-slate-500">
+            Display the destination link beneath the QR code.
+          </div>
+        </div>
+        <Toggle
+          checked={config.showUrl ?? false}
+          onChange={(checked: boolean) =>
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                showUrl: checked,
+              } as QRConfig,
+            })
+          }
+          size="sm"
+          showLabels={false}
+        />
+      </div>
+
       <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-3">
         <div className="flex items-center gap-2 text-indigo-900">
           <Link className="w-4 h-4" />

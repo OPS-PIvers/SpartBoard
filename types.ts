@@ -313,6 +313,7 @@ export interface DrawingConfig {
 
 export interface QRConfig {
   url?: string;
+  showUrl?: boolean;
   syncWithTextWidget?: boolean;
   qrColor?: string;
   qrBgColor?: string;

@@ -6,8 +6,7 @@ import {
   Play,
   Pencil,
   Trash2,
-  Cast,
-  Radio,
+  Link2,
   Copy,
   Check,
 } from 'lucide-react';
@@ -20,7 +19,7 @@ interface SortableItemProps {
   onDelete: (id: string) => void;
   isLive?: boolean;
   onToggleLive?: (app: MiniAppItem) => void;
-  onCopyLink?: (code: string) => void;
+  onCopyLink?: (code: string) => Promise<boolean>;
   sessionCode?: string;
 }
 
@@ -37,11 +36,13 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
   }) => {
     const [copied, setCopied] = useState(false);
 
-    const handleCopy = () => {
+    const handleCopy = async () => {
       if (sessionCode && onCopyLink) {
-        onCopyLink(sessionCode);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        const didCopy = await onCopyLink(sessionCode);
+        if (didCopy) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
       }
     };
     const {
@@ -88,7 +89,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
         <div
           className={`rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
             isLive
-              ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-100'
+              ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
               : 'bg-indigo-50 text-indigo-600 border-indigo-100'
           }`}
           style={{
@@ -97,7 +98,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
             fontSize: 'min(12px, 3cqmin)',
           }}
         >
-          {isLive ? <Radio className="animate-pulse w-5 h-5" /> : 'HTML'}
+          {isLive ? <Link2 className="w-5 h-5" /> : 'HTML'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -116,7 +117,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
                   {sessionCode}
                 </span>
                 <button
-                  onClick={handleCopy}
+                  onClick={() => void handleCopy()}
                   className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
                   title="Copy Assignment Link"
                 >
@@ -143,8 +144,8 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
             onClick={() => onToggleLive?.(app)}
             className={`rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest ${
               isLive
-                ? 'bg-red-500 text-white shadow-lg shadow-red-100 animate-pulse'
-                : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                ? 'bg-red-500 text-white shadow-lg shadow-red-100'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
             }`}
             style={{
               padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -152,14 +153,14 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
             }}
             title={isLive ? 'End Assignment' : 'Assign (copy student link)'}
           >
-            <Cast
+            <Link2
               style={{
                 width: 'min(14px, 3.5cqmin)',
                 height: 'min(14px, 3.5cqmin)',
               }}
             />
             <span className="hidden sm:inline">
-              {isLive ? 'ASSIGNED' : 'ASSIGN'}
+              {isLive ? 'Assigned' : 'Assign'}
             </span>
           </button>
 

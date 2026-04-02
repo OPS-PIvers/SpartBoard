@@ -72,7 +72,7 @@ export interface UseLiveSessionResult {
     widgetType: WidgetType,
     config?: WidgetConfig,
     background?: string
-  ) => Promise<void>;
+  ) => Promise<LiveSession>;
   updateSessionConfig: (config: WidgetConfig) => Promise<void>;
   updateSessionBackground: (background: string) => Promise<void>;
   endSession: () => Promise<void>;
@@ -335,7 +335,9 @@ export const useLiveSession = (
       config?: WidgetConfig,
       background?: string
     ) => {
-      if (!userId) return;
+      if (!userId) {
+        throw new Error('Not authenticated');
+      }
 
       // Clear existing students for a fresh start
       const studentsRef = collection(
@@ -370,6 +372,8 @@ export const useLiveSession = (
         console.error('Failed to start session:', err);
         throw err;
       });
+
+      return newSession;
     },
     [userId]
   );

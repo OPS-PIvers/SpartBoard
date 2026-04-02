@@ -15,8 +15,7 @@ import {
   Globe,
   Save,
   X,
-  Cast,
-  Radio,
+  Link2,
   Copy,
   Check,
 } from 'lucide-react';
@@ -133,12 +132,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const handleCopyLink = (code: string) => {
+  const handleCopyLink = async (code: string) => {
     const url = `${window.location.origin}/join?code=${code}`;
-    void navigator.clipboard.writeText(url).then(() => {
+    try {
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+      addToast('Assignment link copied to clipboard!', 'success');
+      return true;
+    } catch (error) {
+      console.error('Failed to copy assignment link:', error);
+      addToast(
+        'Assignment created, but the link could not be copied.',
+        'error'
+      );
+      return false;
+    }
   };
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -179,16 +188,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           });
         }
 
-        await startSession(
+        const newSession = await startSession(
           widget.id,
           widget.type,
           app ? { ...config, activeApp: app } : widget.config,
           activeDashboard?.background
         );
-        addToast(
-          'Assignment link copied and app assigned to students!',
-          'success'
-        );
+
+        const didCopy = await handleCopyLink(newSession.code);
+        if (!didCopy) {
+          addToast(`Assignment code: ${newSession.code}`, 'info');
+        }
       }
     } catch (error) {
       console.error('Failed to toggle live session:', error);
@@ -463,8 +473,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     onClick={() => void handleToggleLive()}
                     className={`flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg ${
                       isLive
-                        ? 'bg-red-500 text-white shadow-lg animate-pulse'
-                        : 'bg-white/90 backdrop-blur-sm hover:bg-white text-slate-600 border border-slate-200/50 shadow-sm'
+                        ? 'bg-red-500 text-white shadow-lg'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
                     }`}
                     style={{
                       padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
@@ -474,7 +484,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       isLive ? 'End Assignment' : 'Assign (copy student link)'
                     }
                   >
-                    <Cast
+                    <Link2
                       style={{
                         width: 'min(12px, 3cqmin)',
                         height: 'min(12px, 3cqmin)',
@@ -491,17 +501,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         className="flex items-center gap-1.5 bg-indigo-900/40 backdrop-blur-md text-white px-2 py-1 rounded-lg border border-white/20 font-mono tracking-wider font-black"
                         style={{ fontSize: 'min(12px, 3cqmin)' }}
                       >
-                        <Radio
+                        <Link2
                           style={{
                             width: 'min(10px, 2.5cqmin)',
                             height: 'min(10px, 2.5cqmin)',
                           }}
-                          className="animate-pulse"
                         />
                         {session.code}
                       </div>
                       <button
-                        onClick={() => handleCopyLink(session.code)}
+                        onClick={() => void handleCopyLink(session.code)}
                         className="p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-lg transition-all border border-white/10 shadow-sm"
                         title="Copy Assignment Link"
                       >

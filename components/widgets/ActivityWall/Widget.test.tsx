@@ -26,7 +26,19 @@ const {
   mockGetDownloadURL,
   mockStorageRef,
 } = vi.hoisted(() => ({
-  mockAddWidget: vi.fn(),
+  mockAddWidget: vi.fn<
+    (
+      type: string,
+      widget: {
+        w: number;
+        h: number;
+        config: {
+          url?: string;
+          showUrl?: boolean;
+        };
+      }
+    ) => void
+  >(),
   mockAddToast: vi.fn(),
   mockUpdateWidget: vi.fn(),
   mockSetDoc: vi.fn(),
@@ -406,5 +418,27 @@ describe('ActivityWallWidget', () => {
         })
       );
     });
+  });
+
+  it('spawns QR widgets with the participant URL hidden by default', async () => {
+    render(<ActivityWallWidget widget={baseWidget} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pop-out QR' }));
+
+    expect(mockAddWidget).toHaveBeenCalled();
+    const [widgetType, widgetConfig] = mockAddWidget.mock.calls.at(-1) ?? [];
+
+    expect(widgetType).toBe('qr');
+    expect(widgetConfig).toMatchObject({
+      w: 200,
+      h: 250,
+      config: {
+        showUrl: false,
+      },
+    });
+    expect(widgetConfig?.config.url).toContain(
+      '/activity-wall/activity-1?data='
+    );
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TextWidget, TextSettings, TextAppearanceSettings } from './index';
 import { WidgetData, TextConfig } from '@/types';
@@ -9,16 +9,33 @@ import { useDashboard } from '@/context/useDashboard';
 const mockUpdateWidget = vi.fn();
 const mockDashboardContext = {
   updateWidget: mockUpdateWidget,
+  selectedWidgetId: null,
+  activeDashboard: {
+    globalStyle: { fontFamily: 'sans' },
+  },
 };
 
+// Mock useDialog
+const mockShowPrompt = vi.fn();
+
 vi.mock('@/context/useDashboard');
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showPrompt: mockShowPrompt,
+  }),
+}));
 
 describe('TextWidget', () => {
+  let execCommandMock: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
       mockDashboardContext
     );
+    // Mock document.execCommand
+    execCommandMock = vi.fn();
+    document.execCommand = execCommandMock;
   });
 
   const mockConfig: TextConfig = {
@@ -42,6 +59,45 @@ describe('TextWidget', () => {
   it('renders content correctly', () => {
     render(<TextWidget widget={mockWidget} />);
     expect(screen.getByText('Hello World')).toBeInTheDocument();
+  });
+
+  it('shows toolbar when selected', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      selectedWidgetId: 'test-widget',
+    });
+    render(<TextWidget widget={mockWidget} />);
+    expect(screen.getByTitle('Bold')).toBeInTheDocument();
+  });
+
+  it('hides toolbar when not selected', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      selectedWidgetId: 'other-widget',
+    });
+    render(<TextWidget widget={mockWidget} />);
+    expect(screen.queryByTitle('Bold')).not.toBeInTheDocument();
+  });
+
+  it('triggers hyperlink prompt on Control+K', async () => {
+    mockShowPrompt.mockResolvedValue('https://test.com');
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]');
+
+    expect(editableDiv).not.toBeNull();
+    if (editableDiv) {
+      fireEvent.keyDown(editableDiv, { key: 'k', ctrlKey: true });
+      await waitFor(() => {
+        expect(mockShowPrompt).toHaveBeenCalled();
+        expect(execCommandMock).toHaveBeenCalledWith(
+          'createLink',
+          false,
+          'https://test.com'
+        );
+      });
+    }
   });
 
   it('applies background color', () => {

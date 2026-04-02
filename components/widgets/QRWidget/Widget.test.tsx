@@ -74,7 +74,7 @@ describe('QRWidget', () => {
       'src',
       expect.stringContaining(encodeURIComponent('https://example.com'))
     );
-    expect(screen.getByText('https://example.com')).toBeInTheDocument();
+    expect(screen.queryByText('https://example.com')).not.toBeInTheDocument();
   });
 
   it('renders with fallback URL when config.url is missing', () => {
@@ -89,7 +89,7 @@ describe('QRWidget', () => {
       'src',
       expect.stringContaining(encodeURIComponent(fallbackUrl))
     );
-    expect(screen.getByText(fallbackUrl)).toBeInTheDocument();
+    expect(screen.queryByText(fallbackUrl)).not.toBeInTheDocument();
   });
 
   it('renders with custom URL', () => {
@@ -102,6 +102,14 @@ describe('QRWidget', () => {
       'src',
       expect.stringContaining(encodeURIComponent(url))
     );
+    expect(screen.queryByText(url)).not.toBeInTheDocument();
+  });
+
+  it('shows the URL when showUrl is enabled', () => {
+    const url = 'https://vitest.dev';
+    const widget = createMockWidget({ url, showUrl: true });
+    render(<QRWidget widget={widget} />);
+
     expect(screen.getByText(url)).toBeInTheDocument();
   });
 
@@ -140,7 +148,7 @@ describe('QRWidget', () => {
       'src',
       expect.stringContaining('bgcolor=abcdef')
     );
-    expect(screen.getByText('https://school.edu')).toBeInTheDocument();
+    expect(screen.queryByText('https://school.edu')).not.toBeInTheDocument();
   });
 
   it('falls back to default colors for invalid hex codes in admin config', () => {
@@ -264,11 +272,23 @@ describe('QRSettings', () => {
     const widget = createMockWidget({ syncWithTextWidget: false });
     render(<QRSettings widget={widget} />);
 
-    const toggle = screen.getByRole('switch');
-    fireEvent.click(toggle);
+    const toggles = screen.getAllByRole('switch');
+    fireEvent.click(toggles[1]);
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget-id', {
       config: expect.objectContaining({ syncWithTextWidget: true }) as unknown,
+    });
+  });
+
+  it('toggles show URL setting', () => {
+    const widget = createMockWidget({ showUrl: false });
+    render(<QRSettings widget={widget} />);
+
+    const toggles = screen.getAllByRole('switch');
+    fireEvent.click(toggles[0]);
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget-id', {
+      config: expect.objectContaining({ showUrl: true }) as unknown,
     });
   });
 

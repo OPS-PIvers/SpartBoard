@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, BookDown, Cast, Radio, Copy, Check } from 'lucide-react';
+import { Play, BookDown, Link2, Copy, Check } from 'lucide-react';
 import { GlobalMiniAppItem, MiniAppItem } from '@/types';
 
 interface GlobalAppRowProps {
@@ -9,7 +9,7 @@ interface GlobalAppRowProps {
   isSaving: boolean;
   isLive?: boolean;
   onToggleLive?: (app: MiniAppItem) => void;
-  onCopyLink?: (code: string) => void;
+  onCopyLink?: (code: string) => Promise<boolean>;
   sessionCode?: string;
 }
 
@@ -25,11 +25,13 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (sessionCode && onCopyLink) {
-      onCopyLink(sessionCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      const didCopy = await onCopyLink(sessionCode);
+      if (didCopy) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     }
   };
 
@@ -41,7 +43,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
       <div
         className={`rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
           isLive
-            ? 'bg-violet-600 text-white border-violet-500 shadow-lg shadow-violet-100'
+            ? 'bg-violet-100 text-violet-700 border-violet-200'
             : 'bg-violet-50 text-violet-600 border-violet-100 font-black'
         }`}
         style={{
@@ -50,7 +52,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           fontSize: 'min(10px, 2.5cqmin)',
         }}
       >
-        {isLive ? <Radio className="animate-pulse w-4 h-4" /> : 'HTML'}
+        {isLive ? <Link2 className="w-4 h-4" /> : 'HTML'}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -69,7 +71,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
                 {sessionCode}
               </span>
               <button
-                onClick={handleCopy}
+                onClick={() => void handleCopy()}
                 className="p-1 text-slate-400 hover:text-violet-600 transition-colors"
                 title="Copy Assignment Link"
               >
@@ -94,8 +96,8 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           onClick={() => onToggleLive?.(app)}
           className={`rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest ${
             isLive
-              ? 'bg-red-500 text-white shadow-lg shadow-red-100 animate-pulse'
-              : 'bg-violet-50 text-violet-600 hover:bg-violet-100'
+              ? 'bg-red-500 text-white shadow-lg shadow-red-100'
+              : 'bg-violet-600 hover:bg-violet-500 text-white shadow-sm'
           }`}
           style={{
             padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -103,14 +105,14 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           }}
           title={isLive ? 'End Assignment' : 'Assign (copy student link)'}
         >
-          <Cast
+          <Link2
             style={{
               width: 'min(14px, 3.5cqmin)',
               height: 'min(14px, 3.5cqmin)',
             }}
           />
           <span className="hidden sm:inline">
-            {isLive ? 'ASSIGNED' : 'ASSIGN'}
+            {isLive ? 'Assigned' : 'Assign'}
           </span>
         </button>
 

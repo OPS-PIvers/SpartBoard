@@ -157,26 +157,28 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </div>
       }
       footer={
-        <div
-          style={{
-            paddingLeft: 'min(12px, 2.5cqmin)',
-            paddingRight: 'min(12px, 2.5cqmin)',
-            paddingBottom: 'min(12px, 2.5cqmin)',
-          }}
-        >
+        config.showUrl ? (
           <div
-            className="font-mono text-slate-400 break-all text-center max-w-full overflow-hidden bg-slate-50/50 rounded-lg border border-slate-100/50"
             style={{
-              fontSize: 'min(14px, 4cqmin)',
-              paddingTop: 'min(6px, 1.5cqmin)',
-              paddingBottom: 'min(6px, 1.5cqmin)',
               paddingLeft: 'min(12px, 2.5cqmin)',
               paddingRight: 'min(12px, 2.5cqmin)',
+              paddingBottom: 'min(12px, 2.5cqmin)',
             }}
           >
-            {url}
+            <div
+              className="font-mono text-slate-400 break-all text-center max-w-full overflow-hidden bg-slate-50/50 rounded-lg border border-slate-100/50"
+              style={{
+                fontSize: 'min(14px, 4cqmin)',
+                paddingTop: 'min(6px, 1.5cqmin)',
+                paddingBottom: 'min(6px, 1.5cqmin)',
+                paddingLeft: 'min(12px, 2.5cqmin)',
+                paddingRight: 'min(12px, 2.5cqmin)',
+              }}
+            >
+              {url}
+            </div>
           </div>
-        </div>
+        ) : undefined
       }
     />
   );

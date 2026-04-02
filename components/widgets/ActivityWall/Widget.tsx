@@ -751,6 +751,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       h: 250,
       config: {
         url: participantUrl,
+        showUrl: false,
       },
     });
     addToast(
