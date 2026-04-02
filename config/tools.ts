@@ -49,6 +49,12 @@ import { RecordIcon } from '../components/layout/dock/RecordIcon';
 
 export const TOOLS: ToolMetadata[] = [
   {
+    type: 'url',
+    icon: Globe,
+    label: 'Links',
+    color: 'bg-emerald-500',
+  },
+  {
     type: 'soundboard',
     icon: Volume2,
     label: 'Soundboard',
