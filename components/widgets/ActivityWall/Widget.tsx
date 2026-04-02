@@ -5,7 +5,18 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Copy, MessageSquare, QrCode } from 'lucide-react';
+import {
+  Copy,
+  ImagePlus,
+  LibraryBig,
+  MessageSquare,
+  Pencil,
+  Play,
+  Plus,
+  QrCode,
+  SquareUser,
+  Trash2,
+} from 'lucide-react';
 import {
   WidgetData,
   ActivityWallArchiveStatus,
@@ -99,7 +110,6 @@ const buildArchiveError = (error: unknown): string => {
   return message.slice(0, 180);
 };
 
-/** Stable color from word string so it doesn't flicker on re-render. */
 const wordColor = (word: string): string => {
   let hash = 0;
   for (let i = 0; i < word.length; i++) {
@@ -205,10 +215,23 @@ const buildWordCloud = (
   }));
 };
 
+const buildBlankActivity = (): ActivityWallActivity => ({
+  id: crypto.randomUUID(),
+  title: '',
+  prompt: '',
+  mode: 'text',
+  moderationEnabled: false,
+  identificationMode: 'anonymous',
+  submissions: [],
+  startedAt: null,
+});
+
+const MAX_STORED_SUBMISSIONS = 200;
+
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { addWidget, addToast } = useDashboard();
+  const { updateWidget, addWidget, addToast } = useDashboard();
   const { user } = useAuth();
   const { driveService, isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
@@ -216,6 +239,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const activeActivity =
     activities.find((activity) => activity.id === config.activeActivityId) ??
     null;
+
+  const [draftResponse, setDraftResponse] = useState('');
+  const [editorDraft, setEditorDraft] = useState<ActivityWallActivity | null>(
+    null
+  );
+  const [showLiveView, setShowLiveView] = useState(false);
+
   const [firestoreState, setFirestoreState] = useState<{
     sessionId: string | null;
     submissions: LiveSubmission[];
@@ -295,6 +325,51 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     if (!activeActivity || !user) return '';
     return buildPublicActivityLink(activeActivity, user.uid);
   }, [activeActivity, user]);
+
+  const updateConfig = (updates: Partial<ActivityWallConfig>) => {
+    updateWidget(widget.id, { config: { ...config, ...updates } });
+  };
+
+  const saveEditorDraft = () => {
+    if (!editorDraft) return;
+    const title = editorDraft.title.trim();
+    const prompt = editorDraft.prompt.trim();
+    if (!title || !prompt) return;
+
+    const nextActivity: ActivityWallActivity = {
+      ...editorDraft,
+      title,
+      prompt,
+      startedAt: editorDraft.startedAt ?? Date.now(),
+    };
+
+    const exists = activities.some((a) => a.id === nextActivity.id);
+    const nextActivities = exists
+      ? activities.map((a) => (a.id === nextActivity.id ? nextActivity : a))
+      : [...activities, nextActivity];
+
+    updateConfig({
+      activities: nextActivities,
+      activeActivityId: nextActivity.id,
+    });
+    setEditorDraft(null);
+    setShowLiveView(true);
+    addToast(exists ? 'Activity updated.' : 'Activity created.', 'success');
+  };
+
+  const deleteActivity = (activityId: string) => {
+    const nextActivities = activities.filter((a) => a.id !== activityId);
+    updateConfig({
+      activities: nextActivities,
+      activeActivityId:
+        config.activeActivityId === activityId
+          ? (nextActivities[0]?.id ?? null)
+          : config.activeActivityId,
+    });
+    if (editorDraft?.id === activityId) setEditorDraft(null);
+    setShowLiveView(false);
+    addToast('Activity removed.', 'info');
+  };
 
   const archivePhotoSubmission = useCallback(
     async (submission: LiveSubmission) => {
@@ -419,6 +494,31 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [archivePhotoSubmission, driveService, firestoreRaw]);
 
+  const appendResponse = () => {
+    if (!activeActivity || !draftResponse.trim()) return;
+    const next: ActivityWallActivity[] = activities.map((activity) => {
+      if (activity.id !== activeActivity.id) return activity;
+
+      const submission: ActivityWallSubmission = {
+        id: crypto.randomUUID(),
+        content: draftResponse.trim(),
+        submittedAt: Date.now(),
+        status: activity.moderationEnabled ? 'pending' : 'approved',
+        participantLabel: 'Demo Student',
+      };
+
+      return {
+        ...activity,
+        submissions: [...(activity.submissions ?? []), submission].slice(
+          -MAX_STORED_SUBMISSIONS
+        ),
+      };
+    });
+
+    updateConfig({ activities: next });
+    setDraftResponse('');
+  };
+
   const allSubmissions = useMemo(() => {
     const demoSubs = activeActivity?.submissions ?? [];
     const combined = [...demoSubs];
@@ -540,33 +640,324 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  if (!activeActivity) {
+  if (editorDraft) {
     return (
       <WidgetLayout
+        padding="p-0"
         content={
-          <div
-            className="h-full w-full flex flex-col items-center justify-center text-center bg-slate-50"
-            style={{ gap: 'min(10px, 2.5cqmin)', padding: 'min(12px, 3cqmin)' }}
-          >
-            <MessageSquare
-              style={{
-                width: 'min(50px, 18cqmin)',
-                height: 'min(50px, 18cqmin)',
-              }}
-              className="text-brand-blue-primary"
-            />
-            <p
-              className="font-black text-slate-800"
-              style={{ fontSize: 'min(18px, 7cqmin)' }}
+          <div className="h-full w-full bg-white flex flex-col overflow-hidden">
+            <div
+              className="flex items-center justify-between border-b border-slate-200"
+              style={{ padding: 'min(10px, 2.8cqmin)' }}
             >
-              Create an activity
-            </p>
-            <p
-              className="text-slate-500 font-medium"
-              style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+              <h2
+                className="font-black uppercase tracking-wide text-slate-800"
+                style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+              >
+                {activities.some((a) => a.id === editorDraft.id)
+                  ? 'Edit activity'
+                  : 'Create activity'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditorDraft(null)}
+                className="rounded-lg border border-slate-300 text-slate-700 font-semibold"
+                style={{
+                  padding: 'min(6px, 1.8cqmin) min(8px, 2.4cqmin)',
+                  fontSize: 'min(10px, 3.2cqmin)',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div
+              className="flex-1 min-h-0 overflow-auto"
+              style={{ padding: 'min(10px, 2.8cqmin)' }}
             >
-              Flip this widget to set up your first text or photo wall.
-            </p>
+              <div className="space-y-3">
+                <label className="block">
+                  <span
+                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
+                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                  >
+                    Activity title
+                  </span>
+                  <input
+                    value={editorDraft.title}
+                    onChange={(event) =>
+                      setEditorDraft({
+                        ...editorDraft,
+                        title: event.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    placeholder="Warm-up word cloud"
+                  />
+                </label>
+
+                <label className="block">
+                  <span
+                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
+                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                  >
+                    Prompt / directions
+                  </span>
+                  <textarea
+                    value={editorDraft.prompt}
+                    onChange={(event) =>
+                      setEditorDraft({
+                        ...editorDraft,
+                        prompt: event.target.value,
+                      })
+                    }
+                    rows={3}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    placeholder="How are you feeling about today's lesson?"
+                  />
+                </label>
+
+                <div>
+                  <p
+                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
+                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                  >
+                    Activity type
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['text', 'photo'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setEditorDraft({ ...editorDraft, mode })}
+                        className={`rounded-xl border px-3 py-2 font-semibold ${
+                          editorDraft.mode === mode
+                            ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                        style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                      >
+                        {mode === 'text'
+                          ? 'Text (Word Cloud)'
+                          : 'Photo (Padlet)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                  <span
+                    className="font-semibold text-slate-700"
+                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                  >
+                    Require moderation
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={editorDraft.moderationEnabled}
+                    onChange={(event) =>
+                      setEditorDraft({
+                        ...editorDraft,
+                        moderationEnabled: event.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 accent-brand-blue-primary"
+                  />
+                </label>
+
+                <label className="block">
+                  <span
+                    className="block font-black uppercase tracking-wider text-slate-600 mb-1"
+                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                  >
+                    Participant identification
+                  </span>
+                  <select
+                    value={editorDraft.identificationMode}
+                    onChange={(event) =>
+                      setEditorDraft({
+                        ...editorDraft,
+                        identificationMode: event.target
+                          .value as ActivityWallActivity['identificationMode'],
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                    style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                  >
+                    <option value="anonymous">Anonymous</option>
+                    <option value="name">Name</option>
+                    <option value="pin">PIN</option>
+                    <option value="name-pin">Name &amp; PIN</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div
+              className="border-t border-slate-200"
+              style={{ padding: 'min(10px, 2.8cqmin)' }}
+            >
+              <button
+                type="button"
+                onClick={saveEditorDraft}
+                className="w-full rounded-xl bg-emerald-600 text-white font-black uppercase tracking-wider"
+                style={{
+                  padding: 'min(8px, 2.2cqmin)',
+                  fontSize: 'min(11px, 3.5cqmin)',
+                }}
+              >
+                Save activity
+              </button>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
+  if (!showLiveView || !activeActivity) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div className="h-full w-full bg-white flex flex-col overflow-hidden">
+            <div
+              className="flex items-center justify-between border-b border-slate-200"
+              style={{ padding: 'min(10px, 2.8cqmin)' }}
+            >
+              <div>
+                <h2
+                  className="font-black uppercase tracking-wide text-slate-800"
+                  style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                >
+                  Activity Library
+                </h2>
+                <p
+                  className="text-slate-500 font-semibold uppercase tracking-wider"
+                  style={{ fontSize: 'min(9px, 2.8cqmin)' }}
+                >
+                  {activities.length} activit
+                  {activities.length === 1 ? 'y' : 'ies'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditorDraft(buildBlankActivity());
+                  setShowLiveView(false);
+                }}
+                className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
+                style={{
+                  padding: 'min(7px, 2cqmin) min(10px, 2.8cqmin)',
+                  gap: 'min(4px, 1.4cqmin)',
+                  fontSize: 'min(10px, 3.2cqmin)',
+                }}
+                title="Create activity"
+              >
+                <Plus
+                  style={{
+                    width: 'min(12px, 3.7cqmin)',
+                    height: 'min(12px, 3.7cqmin)',
+                  }}
+                />
+                New
+              </button>
+            </div>
+
+            <div
+              className="flex-1 min-h-0 overflow-auto"
+              style={{ padding: 'min(10px, 2.8cqmin)' }}
+            >
+              {activities.length === 0 ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center bg-slate-50 rounded-xl border border-slate-200">
+                  <LibraryBig
+                    className="text-brand-blue-primary"
+                    style={{
+                      width: 'min(40px, 14cqmin)',
+                      height: 'min(40px, 14cqmin)',
+                    }}
+                  />
+                  <p className="font-black text-slate-800 mt-2">
+                    No activities yet
+                  </p>
+                  <p
+                    className="text-slate-500 font-medium"
+                    style={{ fontSize: 'min(11px, 3.6cqmin)' }}
+                  >
+                    Create your first activity to launch a wall.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {activities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50"
+                      style={{ padding: 'min(8px, 2.2cqmin)' }}
+                    >
+                      <p className="font-bold text-slate-900 truncate">
+                        {activity.title}
+                      </p>
+                      <p
+                        className="text-slate-600 line-clamp-1"
+                        style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                      >
+                        {activity.prompt}
+                      </p>
+                      <div
+                        className="grid grid-cols-3 mt-2"
+                        style={{ gap: 'min(6px, 1.7cqmin)' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateConfig({ activeActivityId: activity.id });
+                            setShowLiveView(true);
+                          }}
+                          className="rounded-lg bg-emerald-600 text-white font-bold"
+                          style={{
+                            padding: 'min(6px, 1.6cqmin)',
+                            fontSize: 'min(10px, 3.1cqmin)',
+                          }}
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditorDraft(activity)}
+                          className="rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center"
+                          style={{ gap: 'min(4px, 1.1cqmin)' }}
+                        >
+                          <Pencil
+                            style={{
+                              width: 'min(11px, 3.2cqmin)',
+                              height: 'min(11px, 3.2cqmin)',
+                            }}
+                          />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteActivity(activity.id)}
+                          className="rounded-lg bg-rose-600 text-white font-bold flex items-center justify-center"
+                          style={{ gap: 'min(4px, 1.1cqmin)' }}
+                        >
+                          <Trash2
+                            style={{
+                              width: 'min(11px, 3.2cqmin)',
+                              height: 'min(11px, 3.2cqmin)',
+                            }}
+                          />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         }
       />
@@ -608,8 +999,17 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
             <div
               className="shrink-0 flex items-center"
-              style={{ gap: 'min(5px, 1.3cqmin)' }}
+              style={{ gap: 'min(6px, 1.8cqmin)' }}
             >
+              <button
+                type="button"
+                onClick={() => setShowLiveView(false)}
+                className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
+                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                title="Back to activity library"
+              >
+                Library
+              </button>
               {moderationCounts.pending > 0 && (
                 <div
                   className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"
@@ -694,6 +1094,59 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-slate-50"
             style={{ padding: 'min(8px, 2cqmin)' }}
           >
+            <div
+              className="rounded-xl border border-dashed border-slate-300 mb-2"
+              style={{ padding: 'min(8px, 2cqmin)' }}
+            >
+              <div
+                className="flex items-center"
+                style={{ gap: 'min(6px, 1.8cqmin)' }}
+              >
+                {activeActivity.mode === 'text' ? (
+                  <MessageSquare
+                    style={{
+                      width: 'min(14px, 4cqmin)',
+                      height: 'min(14px, 4cqmin)',
+                    }}
+                    className="text-slate-500"
+                  />
+                ) : (
+                  <ImagePlus
+                    style={{
+                      width: 'min(14px, 4cqmin)',
+                      height: 'min(14px, 4cqmin)',
+                    }}
+                    className="text-slate-500"
+                  />
+                )}
+                <input
+                  value={draftResponse}
+                  onChange={(event) => setDraftResponse(event.target.value)}
+                  placeholder={
+                    activeActivity.mode === 'text'
+                      ? 'Add a demo text response...'
+                      : 'Paste demo photo URL...'
+                  }
+                  className="flex-1 bg-transparent text-slate-700 focus:outline-none"
+                  style={{ fontSize: 'min(11px, 3.6cqmin)' }}
+                />
+                <button
+                  type="button"
+                  onClick={appendResponse}
+                  className="rounded-lg bg-slate-800 text-white"
+                  style={{ padding: 'min(6px, 1.7cqmin)' }}
+                  title="Add sample response"
+                >
+                  <Play
+                    style={{
+                      width: 'min(12px, 3.5cqmin)',
+                      height: 'min(12px, 3.5cqmin)',
+                    }}
+                  />
+                </button>
+              </div>
+            </div>
+
             {visibleSubmissions.length === 0 ? (
               <div
                 className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
