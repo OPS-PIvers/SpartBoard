@@ -363,16 +363,22 @@ const ActiveQuiz: React.FC<{
       )
     : sessionAnswered;
 
+  const initialTimeLimit = currentQuestion?.timeLimit ?? 0;
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fibAnswer, setFibAnswer] = useState('');
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [prevQuestionId, setPrevQuestionId] = useState<string | undefined>();
+
+  const [submitted, setSubmitted] = useState(alreadyAnswered);
+  const [timeLeft, setTimeLeft] = useState<number | null>(
+    initialTimeLimit > 0 && !alreadyAnswered ? initialTimeLimit : null
+  );
+  const [prevQuestionId, setPrevQuestionId] = useState<string | undefined>(
+    currentQuestion?.id
+  );
   const [prevAlreadyAnswered, setPrevAlreadyAnswered] =
     useState<boolean>(alreadyAnswered);
 
-  // Derived state: reset state on new question or when alreadyAnswered state arrives
+  // Derived state: reset local UI state on new question or when global alreadyAnswered state arrives
   if (
     currentQuestion?.id !== prevQuestionId ||
     alreadyAnswered !== prevAlreadyAnswered
