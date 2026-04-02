@@ -33,7 +33,7 @@ Use this rule consistently across widgets:
 
 - **Window shell owns background transparency**.
 - Widget internals should default to `bg-transparent` at the root content layer.
-- If a visual surface is needed for readability, use a **non-full-screen panel** or **subtle alpha layer** (`bg-*/10`–`bg-*/40`) that still respects transparency.
+- If a visual surface is needed for readability, use a **non-full-screen panel** or **subtle alpha layer** (for example, `bg-black/20` or `bg-white/30`; the `/NN` suffix controls alpha) that still respects transparency.
 - Keep accessibility contrast acceptable by applying local surfaces to text/cards only (not full canvas unless required by feature semantics).
 
 ---
@@ -44,7 +44,7 @@ Use this rule consistently across widgets:
 
 - Introduce a shared utility/class pattern for widget roots:
   - `h-full w-full bg-transparent`
-  - optional `supports-[backdrop-filter]:backdrop-blur-[...]` for readability only where needed.
+  - optional `supports-[backdrop-filter]:backdrop-blur-sm` for readability only where needed.
 - Document pattern in a short comment near `WidgetLayout` usage conventions.
 
 ### Phase 2 — Widget-by-widget remediation
