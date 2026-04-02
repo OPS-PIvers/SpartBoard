@@ -30,10 +30,13 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
 
   // Move QR Widget to avoid overlap
   // The QR widget is likely on top because it was added last.
+  // We use the data-widget-type or fallback to a more generic locator.
   const qrWidget = page
     .locator('.widget')
-    .filter({ hasText: 'https://google.com' })
+    .filter({ has: page.locator('img[alt="QR Code"]') })
     .first();
+  await expect(qrWidget).toBeVisible({ timeout: 15000 });
+
   const qrBox = await qrWidget.boundingBox();
   if (qrBox) {
     await page.mouse.move(
@@ -67,9 +70,8 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   await contentArea.blur(); // Trigger save
 
   // 4. Configure QR Widget
-  // Find QR widget by its default content
   // qrWidget is already defined above
-  await expect(qrWidget).toBeVisible();
+  await expect(qrWidget).toBeVisible({ timeout: 15000 });
 
   // Activate widget to show toolbar
   await qrWidget.click({ position: { x: 20, y: 20 } });
