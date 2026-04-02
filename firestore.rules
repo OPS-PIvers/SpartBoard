@@ -433,9 +433,13 @@ service cloud.firestore {
     // Activity Wall Sessions — Teacher owns it (UID prefix in sessionId), students submit entries
     // sessionId is formatted as {teacherUid}_{activityId}
     match /activity_wall_sessions/{sessionId} {
-      // Teacher can read/write the session document itself
-      allow read, write: if request.auth != null &&
-                         (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      // Any authenticated user can read the session metadata from a valid share link.
+      allow read: if request.auth != null;
+      // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
+      allow create, update: if request.auth != null &&
+                            request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+                            (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      allow delete: if false;
 
       match /submissions/{submissionId} {
         // Any authenticated user (including anonymous) can create a submission.

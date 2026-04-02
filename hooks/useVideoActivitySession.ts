@@ -36,6 +36,39 @@ import {
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
 
+const normalizeSession = (
+  sessionId: string,
+  data: Partial<VideoActivitySession>
+): VideoActivitySession => {
+  const activityTitle = data.activityTitle ?? 'Video Activity';
+  const createdAt = data.createdAt ?? Date.now();
+
+  return {
+    id: sessionId,
+    activityId: data.activityId ?? '',
+    activityTitle,
+    assignmentName:
+      data.assignmentName && data.assignmentName.trim().length > 0
+        ? data.assignmentName
+        : `${activityTitle} ${new Date(createdAt).toLocaleString()}`,
+    teacherUid: data.teacherUid ?? '',
+    youtubeUrl: data.youtubeUrl ?? '',
+    questions: data.questions ?? [],
+    settings: {
+      autoPlay: data.settings?.autoPlay ?? false,
+      requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,
+      allowSkipping: data.settings?.allowSkipping ?? false,
+    },
+    status: data.status === 'ended' ? 'ended' : 'active',
+    allowedPins: data.allowedPins ?? [],
+    createdAt,
+    ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
+    ...(typeof data.expiresAt === 'number'
+      ? { expiresAt: data.expiresAt }
+      : {}),
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Teacher hook
 // ---------------------------------------------------------------------------
@@ -136,8 +169,8 @@ export const useVideoActivitySessionTeacher =
           (snap) => {
             setSessions(
               snap.docs.map((sessionDoc) => {
-                const data = sessionDoc.data() as VideoActivitySession;
-                return { ...data, id: sessionDoc.id };
+                const data = sessionDoc.data() as Partial<VideoActivitySession>;
+                return normalizeSession(sessionDoc.id, data);
               })
             );
             setSessionsLoading(false);

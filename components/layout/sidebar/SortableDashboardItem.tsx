@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
   GripVertical,
   Star,
@@ -14,6 +13,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Dashboard } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { useAuth } from '@/context/useAuth';
+import { Modal } from '@/components/common/Modal';
 
 interface SortableDashboardItemProps {
   db: Dashboard;
@@ -192,53 +192,41 @@ export const SortableDashboardItem = React.memo(
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
-              {showDeleteModal &&
-                createPortal(
-                  <div
-                    className="fixed inset-0 z-popover flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteModal(false);
-                    }}
-                  >
-                    <div
-                      className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <h4 className="text-base font-semibold text-slate-900 mb-2">
-                        Delete board
-                      </h4>
-                      <p className="text-sm text-slate-600 mb-4">
-                        Are you sure you want to delete “{db.name}”? This action
-                        cannot be undone.
-                      </p>
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteModal(false);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="px-4 py-2 text-sm font-medium text-white bg-brand-red-primary hover:bg-brand-red-dark rounded-lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteModal(false);
-                            onDelete(db.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+              {showDeleteModal && (
+                <Modal
+                  isOpen={showDeleteModal}
+                  onClose={() => setShowDeleteModal(false)}
+                  title="Delete board"
+                  zIndex="z-popover"
+                  maxWidth="max-w-sm"
+                  footer={
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                        onClick={() => setShowDeleteModal(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="px-4 py-2 text-sm font-medium text-white bg-brand-red-primary hover:bg-brand-red-dark rounded-lg"
+                        onClick={() => {
+                          setShowDeleteModal(false);
+                          onDelete(db.id);
+                        }}
+                      >
+                        Delete
+                      </button>
                     </div>
-                  </div>,
-                  document.body
-                )}
+                  }
+                >
+                  <p className="text-sm text-slate-600">
+                    Are you sure you want to delete “{db.name}”? This action
+                    cannot be undone.
+                  </p>
+                </Modal>
+              )}
             </div>
           </div>
         </div>

@@ -256,13 +256,19 @@ export const ActivityWallStudentApp: React.FC = () => {
               )}
 
               {payload.mode === 'text' ? (
-                <textarea
-                  value={response}
-                  onChange={(event) => setResponse(event.target.value)}
-                  rows={4}
-                  placeholder="Type your response"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                />
+                <div className="space-y-1">
+                  <textarea
+                    value={response}
+                    onChange={(event) => setResponse(event.target.value)}
+                    rows={4}
+                    placeholder="Type your response"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                    maxLength={5000}
+                  />
+                  <p className="text-right text-xs text-slate-400">
+                    {response.length}/5000
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <label className="block cursor-pointer">
