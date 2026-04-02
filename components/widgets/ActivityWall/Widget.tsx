@@ -272,11 +272,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   ]);
 
   const moderationCounts = useMemo(() => {
-    const approved = allSubmissions.filter(
-      (s) => s.status === 'approved'
-    ).length;
-    const pending = allSubmissions.filter((s) => s.status === 'pending').length;
-    return { approved, pending };
+    // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
+    return allSubmissions.reduce(
+      (acc, s) => {
+        if (s.status === 'approved') acc.approved++;
+        else if (s.status === 'pending') acc.pending++;
+        return acc;
+      },
+      { approved: 0, pending: 0 }
+    );
   }, [allSubmissions]);
 
   const spawnQrWidget = () => {
