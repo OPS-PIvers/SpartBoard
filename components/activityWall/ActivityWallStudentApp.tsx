@@ -78,6 +78,11 @@ const parsePayload = (): ActivityPayload | null => {
   }
 };
 
+const getSafePreviewUrl = (value: string | null): string | null => {
+  if (!value) return null;
+  return value.startsWith('blob:') ? value : null;
+};
+
 const buildParticipantLabel = (
   identificationMode: ActivityWallIdentificationMode,
   name: string,
@@ -115,6 +120,8 @@ export const ActivityWallStudentApp: React.FC = () => {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
+
+  const safePreviewUrl = getSafePreviewUrl(previewUrl);
 
   if (!payload || !activityIdFromPath || payload.id !== activityIdFromPath) {
     return (
@@ -266,9 +273,9 @@ export const ActivityWallStudentApp: React.FC = () => {
                           : 'border-slate-300 hover:border-brand-blue-primary'
                       }`}
                     >
-                      {previewUrl ? (
+                      {safePreviewUrl ? (
                         <img
-                          src={previewUrl}
+                          src={safePreviewUrl}
                           alt="Preview"
                           className="max-h-48 w-full object-contain rounded-lg"
                         />

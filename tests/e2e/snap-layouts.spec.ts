@@ -15,7 +15,7 @@ test('Snap Layouts verification', async ({ page }) => {
 
   await test.step('Add Note widget and position it', async () => {
     const noteButton = page.locator('button[data-tool-id="text"]');
-    const openToolsButton = page.locator('button[aria-label="Open Tools"]');
+    const openToolsButton = page.getByTitle('Open Tools');
 
     // Ensure dock is expanded to see tool icons
     if (await openToolsButton.isVisible()) {
@@ -99,7 +99,12 @@ test('Snap Layouts verification', async ({ page }) => {
     const boxCurrent = await widget.boundingBox();
     if (!boxCurrent) throw new Error('Widget bounding box not found');
 
-    await page.mouse.move(boxCurrent.x + 50, boxCurrent.y + 10);
+    // Start from the widget's invisible left grab zone so the drag is not
+    // blocked by the Note widget's editable content area.
+    await page.mouse.move(
+      boxCurrent.x - 5,
+      boxCurrent.y + boxCurrent.height / 2
+    );
     await page.mouse.down();
     await page.mouse.move(1275, 300, { steps: 10 });
 

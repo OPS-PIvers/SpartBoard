@@ -28,12 +28,12 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   // Close dock by clicking outside
   await page.mouse.click(0, 0);
 
-  // Move QR Widget to avoid overlap
-  // The QR widget is likely on top because it was added last.
+  // Move QR Widget to avoid overlap.
+  // Locate it by its QR image instead of URL text since showUrl is off by default.
   const qrWidget = page
-    .locator('.widget')
-    .filter({ hasText: 'https://google.com' })
+    .locator('.widget', { has: page.getByAltText('QR Code') })
     .first();
+  await expect(qrWidget).toBeVisible();
   const qrBox = await qrWidget.boundingBox();
   if (qrBox) {
     await page.mouse.move(
@@ -99,11 +99,16 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
   });
 
   // Locate the switch associated with the text
-  const syncToggle = page.getByRole('switch').first();
+  const toggles = page.getByRole('switch');
+  const showUrlToggle = toggles.first();
+  const syncToggle = toggles.nth(1);
 
   // Click the checkbox (toggle)
   await syncToggle.click({ force: true });
   await expect(syncToggle).toBeChecked();
+
+  await showUrlToggle.click({ force: true });
+  await expect(showUrlToggle).toBeChecked();
 
   // 6. Verify Sync
   // Input should be disabled

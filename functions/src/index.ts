@@ -106,7 +106,10 @@ const getOrCreateDriveFolder = async (
   folderName: string,
   parentId?: string
 ): Promise<string> => {
-  let query = `name = '${folderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const escapedFolderName = folderName
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+  let query = `name = '${escapedFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   if (parentId) {
     query += ` and '${parentId}' in parents`;
   }
