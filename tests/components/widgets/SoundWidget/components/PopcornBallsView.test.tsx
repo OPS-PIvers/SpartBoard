@@ -1,12 +1,13 @@
 import { render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PopcornBallsView } from '../../../../../components/widgets/SoundWidget/components/PopcornBallsView';
+import { PopcornBallsView } from '@/components/widgets/SoundWidget/components/PopcornBallsView';
 import React from 'react';
 
 describe('PopcornBallsView', () => {
   let originalRequestAnimationFrame: typeof requestAnimationFrame;
   let originalCancelAnimationFrame: typeof cancelAnimationFrame;
   let originalGetContext: typeof HTMLCanvasElement.prototype.getContext;
+  let frames: Map<number, NodeJS.Timeout>;
 
   beforeEach(() => {
     originalRequestAnimationFrame = window.requestAnimationFrame;
@@ -14,17 +15,28 @@ describe('PopcornBallsView', () => {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     originalGetContext = HTMLCanvasElement.prototype.getContext;
 
+    frames = new Map<number, NodeJS.Timeout>();
     let mockId = 0;
-    window.requestAnimationFrame = vi
-      .fn()
-      .mockImplementation((cb: FrameRequestCallback) => {
-        mockId++;
-        // Instead of calling it synchronously (which causes an infinite loop since render calls requestAnimationFrame again)
-        // We simulate an async frame call.
-        setTimeout(() => cb(performance.now()), 0);
-        return mockId;
-      });
-    window.cancelAnimationFrame = vi.fn();
+
+    window.requestAnimationFrame = vi.fn((cb: FrameRequestCallback) => {
+      const id = ++mockId;
+      frames.set(
+        id,
+        setTimeout(() => {
+          frames.delete(id);
+          cb(performance.now());
+        }, 0)
+      );
+      return id;
+    });
+
+    window.cancelAnimationFrame = vi.fn((id: number) => {
+      const timeoutId = frames.get(id);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        frames.delete(id);
+      }
+    });
 
     // Mock canvas getContext
     HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
