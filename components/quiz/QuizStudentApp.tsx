@@ -372,6 +372,12 @@ const ActiveQuiz: React.FC<{
   const [prevAlreadyAnswered, setPrevAlreadyAnswered] =
     useState<boolean>(alreadyAnswered);
 
+  // Track latest answers without re-triggering effects
+  const latestAnswersRef = useRef({ selectedAnswer, fibAnswer });
+  useEffect(() => {
+    latestAnswersRef.current = { selectedAnswer, fibAnswer };
+  }, [selectedAnswer, fibAnswer]);
+
   // Derived state: reset state on new question or when alreadyAnswered state arrives
   if (
     currentQuestion?.id !== prevQuestionId ||
@@ -386,30 +392,59 @@ const ActiveQuiz: React.FC<{
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   }
 
+  const handleSubmit = useCallback(
+    async (answer: string) => {
+      if (submitting || submitted) return;
+      setSubmitting(true);
+      setSelectedAnswer(answer);
+      await onAnswer(currentQuestion?.id ?? '', answer);
+      setSubmitted(true);
+      setSubmitting(false);
+
+      // Auto-complete if on last question
+      if (
+        currentIndex >= session.totalQuestions - 1 &&
+        myResponse?.status !== 'completed'
+      ) {
+        await onComplete();
+      }
+    },
+    [
+      submitting,
+      submitted,
+      currentQuestion?.id,
+      onAnswer,
+      currentIndex,
+      session.totalQuestions,
+      myResponse?.status,
+      onComplete,
+    ]
+  );
+
   // Countdown
   useEffect(() => {
     if (timeLeft === null || submitted) return;
+
+    // Timer expired
     if (timeLeft <= 0) {
-      // Auto-submit empty answer when time runs out
       if (currentQuestion && !submitted) {
-        setTimeout(() => setSubmitted(true), 0);
-        void onAnswer(currentQuestion.id, selectedAnswer ?? fibAnswer ?? '');
+        const { selectedAnswer: currentSelected, fibAnswer: currentFib } =
+          latestAnswersRef.current;
+        // Wrapping this in a microtask or setTimeout breaks the synchronous
+        // effect cycle while still resolving correctly for the auto-submit action
+        setTimeout(() => {
+          void handleSubmit(currentSelected ?? currentFib ?? '');
+        }, 0);
       }
       return;
     }
-    const id = setInterval(
-      () => setTimeLeft((t) => (t !== null ? t - 1 : null)),
-      1000
-    );
+
+    const id = setInterval(() => {
+      setTimeLeft((t) => (t !== null ? t - 1 : null));
+    }, 1000);
+
     return () => clearInterval(id);
-  }, [
-    timeLeft,
-    submitted,
-    currentQuestion,
-    selectedAnswer,
-    fibAnswer,
-    onAnswer,
-  ]);
+  }, [timeLeft, submitted, currentQuestion, handleSubmit]);
 
   if (!currentQuestion) {
     return (
@@ -418,23 +453,6 @@ const ActiveQuiz: React.FC<{
       </div>
     );
   }
-
-  const handleSubmit = async (answer: string) => {
-    if (submitting || submitted) return;
-    setSubmitting(true);
-    setSelectedAnswer(answer);
-    await onAnswer(currentQuestion.id, answer);
-    setSubmitted(true);
-    setSubmitting(false);
-
-    // Auto-complete if on last question
-    if (
-      currentIndex >= session.totalQuestions - 1 &&
-      myResponse?.status !== 'completed'
-    ) {
-      await onComplete();
-    }
-  };
 
   const handleNext = () => {
     if (isStudentPaced && localIndex < session.totalQuestions - 1) {
