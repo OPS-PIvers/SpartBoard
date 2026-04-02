@@ -1,16 +1,11 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ActivityWallSettings } from './Settings';
+import { describe, expect, it } from 'vitest';
+import {
+  ActivityWallAppearanceSettings,
+  ActivityWallSettings,
+} from './Settings';
 import { WidgetData } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
-
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-
-const mockUpdateWidget = vi.fn();
 
 describe('ActivityWallSettings', () => {
   const widget: WidgetData = {
@@ -24,68 +19,30 @@ describe('ActivityWallSettings', () => {
     flipped: false,
     config: {
       activeActivityId: 'activity-1',
-      draftActivity: {
-        id: 'draft-1',
-        title: '',
-        prompt: '',
-        mode: 'text',
-        moderationEnabled: false,
-        identificationMode: 'anonymous',
-        submissions: [],
-        startedAt: null,
-      },
-      activities: [
-        {
-          id: 'activity-1',
-          title: 'Warm Up',
-          prompt: 'Share one idea',
-          mode: 'text',
-          moderationEnabled: true,
-          identificationMode: 'anonymous',
-          submissions: [],
-          startedAt: 123,
-        },
-      ],
+      activities: [],
     },
   } as WidgetData;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue(
-      '22222222-2222-2222-2222-222222222222'
-    );
-    vi.mocked(useDashboard).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-    } as unknown as ReturnType<typeof useDashboard>);
-  });
-
-  it('stores demo responses as approved even when moderation is enabled', async () => {
-    const user = userEvent.setup();
+  it('explains that activity management moved into the widget body', () => {
     render(<ActivityWallSettings widget={widget} />);
 
-    await user.click(screen.getByTitle(/activity settings/i));
-    await user.type(
-      screen.getByPlaceholderText(/add demo text/i),
-      'Teacher sample'
-    );
-    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(
+      screen.getByText(/activity management moved to the front of this widget/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /use the activity library in the widget body to create, view, edit, and delete activities/i
+      )
+    ).toBeInTheDocument();
+  });
 
-    expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
-      config: expect.objectContaining({
-        activities: [
-          expect.objectContaining({
-            id: 'activity-1',
-            submissions: [
-              expect.objectContaining({
-                id: '22222222-2222-2222-2222-222222222222',
-                content: 'Teacher sample',
-                participantLabel: 'Demo Student',
-                status: 'approved',
-              }),
-            ],
-          }),
-        ],
-      }) as unknown,
-    });
+  it('shows the appearance settings guidance', () => {
+    render(<ActivityWallAppearanceSettings widget={widget} />);
+
+    expect(
+      screen.getByText(
+        /this widget uses the standard window appearance controls/i
+      )
+    ).toBeInTheDocument();
   });
 });
