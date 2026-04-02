@@ -119,7 +119,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               <button
                 key={option.key}
                 onClick={() => update({ icon: option.key })}
-                className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-[11px] transition-colors ${
+                className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs transition-colors ${
                   active
                     ? 'border-blue-500 bg-blue-900/30 text-blue-200'
                     : 'border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500 hover:text-slate-200'

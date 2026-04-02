@@ -97,6 +97,30 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Activity Wall Photos — students upload once (create only); teachers view via
+    // download URLs that include an unguessable download token managed by Firebase
+    // Storage (not a Firebase Auth token). These token-based URLs are not subject to
+    // these rules, so <img> display works without SDK read permission.
+    // SDK-level read/list is limited to the owning teacher and admins.
+    match /activity_wall_photos/{sessionId}/{fileName} {
+      // Only the teacher who owns the session (sessionId prefix = their uid) or an admin
+      // can list/download via the SDK.
+      allow read: if request.auth != null &&
+        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+      // Any authenticated user (including anonymous students) may upload a new image,
+      // but only if the target session exists in Firestore (guards against DoS uploads
+      // to guessed sessionIds).
+      allow create: if request.auth != null &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*') &&
+        firestore.exists(
+          /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+        );
+      // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
+      allow delete: if request.auth != null &&
+        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;

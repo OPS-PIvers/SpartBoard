@@ -350,12 +350,23 @@ export type ActivityWallIdentificationMode =
   | 'pin'
   | 'name-pin';
 
+export type ActivityWallArchiveStatus =
+  | 'firebase'
+  | 'syncing'
+  | 'archived'
+  | 'failed';
+
 export interface ActivityWallSubmission {
   id: string;
   content: string;
   submittedAt: number;
   status: 'approved' | 'pending';
   participantLabel?: string;
+  storagePath?: string;
+  archiveStatus?: ActivityWallArchiveStatus;
+  driveFileId?: string;
+  archiveError?: string;
+  archivedAt?: number;
 }
 
 export interface ActivityWallActivity {
@@ -367,6 +378,17 @@ export interface ActivityWallActivity {
   identificationMode: ActivityWallIdentificationMode;
   submissions: ActivityWallSubmission[];
   startedAt: number | null;
+}
+
+export interface ActivityWallBuildingConfig {
+  defaultMode?: ActivityWallMode;
+  defaultIdentificationMode?: ActivityWallIdentificationMode;
+  defaultModerationEnabled?: boolean;
+}
+
+export interface ActivityWallGlobalConfig {
+  buildingDefaults?: Record<string, ActivityWallBuildingConfig>;
+  dockDefaults?: Record<string, boolean>;
 }
 
 export interface ActivityWallConfig {
@@ -2854,4 +2876,8 @@ export interface CustomWidgetConfig {
   customWidgetId: string;
   /** Admin-configured settings values (keyed by CustomWidgetSettingDef.key) */
   adminSettings?: Record<string, string | number | boolean>;
+}
+
+export interface RemoteGlobalConfig {
+  dockDefaults?: Record<string, boolean>;
 }

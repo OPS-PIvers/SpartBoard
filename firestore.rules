@@ -438,17 +438,39 @@ service cloud.firestore {
                          (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
 
       match /submissions/{submissionId} {
-        // Any authenticated user (including anonymous) can create a submission
+        // Any authenticated user (including anonymous) can create a submission.
+        // Photo submissions may include Firebase storage metadata for later Drive archiving.
         allow create: if request.auth != null &&
+          exists(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)) &&
           request.resource.data.id is string &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&
-          request.resource.data.content.size() <= 2000 &&
-          request.resource.data.submittedAt is int;
-        // Only teacher and admins can read or delete submissions
+          request.resource.data.content.size() <= 5000 &&
+          request.resource.data.submittedAt is int &&
+          request.resource.data.status in ['approved', 'pending'] &&
+          (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
+          (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
+          (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus == 'firebase') &&
+          !('driveFileId' in request.resource.data) &&
+          !('archiveError' in request.resource.data) &&
+          !('archivedAt' in request.resource.data);
+        // Only teacher and admins can read or delete submissions.
         allow read, delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
-        allow update: if false;
+        allow update: if request.auth != null &&
+                            (isAdmin() || sessionId.matches(request.auth.uid + '_.*')) &&
+                            request.resource.data.id is string &&
+                            request.resource.data.content is string &&
+                            request.resource.data.content.size() > 0 &&
+                            request.resource.data.content.size() <= 5000 &&
+                            request.resource.data.submittedAt is int &&
+                            request.resource.data.status in ['approved', 'pending'] &&
+                            (!('participantLabel' in request.resource.data) || request.resource.data.participantLabel is string) &&
+                            (!('storagePath' in request.resource.data) || request.resource.data.storagePath is string) &&
+                            (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed']) &&
+                            (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
+                            (!('archiveError' in request.resource.data) || request.resource.data.archiveError is string) &&
+                            (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int);
       }
     }
 

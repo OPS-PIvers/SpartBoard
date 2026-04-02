@@ -168,12 +168,12 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
 
       <div className="flex-1 overflow-auto p-3 space-y-3">
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 p-2.5">
-          <p className="text-[11px] text-slate-400">
+          <p className="text-xs text-slate-400">
             Think of this as: “
             <span className="text-slate-200">When this happens</span>,{' '}
             <span className="text-slate-200">do this</span>.”
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Example: “When Button A is clicked, increase Counter B by 1.”
           </p>
         </div>

@@ -620,3 +620,18 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
         -- Exposes the TimeTool defaults, specifically including the Auto-Pick Random Student and Auto-Advance Next Up Queue boolean controls.
     - [Admin-Only Settings]
         -- None added currently.
+
+[x] Remote
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Activity Wall — Type: `activity-wall` | Label: "Activity Wall"
+Config: `components/admin/ActivityWallConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- defaultMode: The default activity mode (Text vs Photo)
+        -- defaultModerationEnabled: Whether moderation is required by default
+        -- defaultIdentificationMode: How participants are identified by default
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.
