@@ -195,4 +195,4 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 ## 2026-04-01 - Standardize Final Micro-Typography
 
 **Drift:** Identified remaining "snowflake" micro-typography hardcoded font sizes (`text-[10px]` and `text-[11px]`) in `components/admin/GlobalPermissionsManager.tsx`, `components/admin/WidgetBuilder/ConnectionsTab.tsx`, and `components/admin/WidgetBuilder/WidgetMetaEditor.tsx`.
-**Fix:** Refactored instances to use the closest standard Tailwind utility classes from the centralized design system (`text-[10px]` to `text-xxs`, `text-[11px]` to `text-xs`).
+**Fix:** Refactored instances to use the closest standard Tailwind utility classes from the centralized design system (`text-[10px]` to `text-xxs`, `text-[11px]` to `text-xs`) and normalized associated font weight and tracking to align with micro-typography guidelines.
