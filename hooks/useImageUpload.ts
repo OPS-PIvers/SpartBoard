@@ -21,7 +21,8 @@ export function useImageUpload(options?: {
       file: File,
       processOptions?: { skipProcessing?: boolean }
     ): Promise<string | null> => {
-      if (!file.type.startsWith('image/') || (!user && !uploadFn)) return null;
+      if (!file || !file.type.startsWith('image/') || (!user && !uploadFn))
+        return null;
 
       setProcessing(true);
       try {

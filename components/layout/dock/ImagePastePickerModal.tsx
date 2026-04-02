@@ -3,6 +3,7 @@ import { ImageIcon, Wand2, X } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
+import { Z_INDEX } from '@/config/zIndex';
 
 interface ImagePastePickerModalProps {
   onSelect: (type: 'sticker' | 'full-image') => void;
@@ -16,7 +17,12 @@ export const ImagePastePickerModal: React.FC<ImagePastePickerModalProps> = ({
   globalStyle,
 }) => {
   return (
-    <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      variant="bare"
+      zIndex="z-critical"
+    >
       <GlassCard
         globalStyle={globalStyle}
         className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"

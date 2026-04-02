@@ -604,6 +604,7 @@ export const Dock: React.FC = () => {
           onClose={() => setImagePastePending(null)}
           onSelect={async (type) => {
             const file = imagePastePending;
+            if (!file) return;
             setImagePastePending(null);
 
             addToast('Processing image...', 'info');
