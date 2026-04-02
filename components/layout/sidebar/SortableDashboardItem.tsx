@@ -194,7 +194,13 @@ export const SortableDashboardItem = React.memo(
               </button>
               {showDeleteModal &&
                 createPortal(
-                  <div className="fixed inset-0 z-popover flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+                  <div
+                    className="fixed inset-0 z-popover flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteModal(false);
+                    }}
+                  >
                     <div
                       className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
                       onClick={(e) => e.stopPropagation()}
