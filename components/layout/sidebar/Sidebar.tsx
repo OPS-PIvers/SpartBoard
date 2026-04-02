@@ -93,6 +93,7 @@ export const Sidebar: React.FC = () => {
   const [isBoardSwitcherExpanded, setIsBoardSwitcherExpanded] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const checkScroll = () => {
     if (scrollContainerRef.current) {
@@ -113,11 +114,32 @@ export const Sidebar: React.FC = () => {
     return undefined;
   }, [isBoardSwitcherExpanded, dashboards]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        isBoardSwitcherExpanded &&
+        toolbarRef.current &&
+        !toolbarRef.current.contains(event.target as Node)
+      ) {
+        setIsBoardSwitcherExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isBoardSwitcherExpanded]);
+
   const [showAdminSettings, setShowAdminSettings] = useState(false);
 
   return (
     <>
       <GlassCard
+        ref={toolbarRef}
         globalStyle={activeDashboard?.globalStyle}
         data-screenshot="exclude"
         className="fixed z-dock flex items-center gap-2 p-2 rounded-full transition-all"
