@@ -275,8 +275,8 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
     return allSubmissions.reduce(
       (acc, s) => {
-        if (s.status === 'approved') acc.approved++;
-        else if (s.status === 'pending') acc.pending++;
+        if (s.status === 'approved') return { ...acc, approved: acc.approved + 1 };
+        if (s.status === 'pending') return { ...acc, pending: acc.pending + 1 };
         return acc;
       },
       { approved: 0, pending: 0 }
