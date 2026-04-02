@@ -38,6 +38,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [prevIndex, setPrevIndex] = useState(currentIndex);
 
   const question = quiz.questions[currentIndex];
 
@@ -48,10 +49,11 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
     setTimeLeft(tl > 0 ? tl : null);
   }, [question]);
 
-  // Reset state when question changes
-  useEffect(() => {
-    setTimeout(reset, 0);
-  }, [currentIndex, reset]);
+  // Derived state pattern: Reset state when question changes
+  if (currentIndex !== prevIndex) {
+    setPrevIndex(currentIndex);
+    reset();
+  }
 
   // Countdown timer
   useEffect(() => {
