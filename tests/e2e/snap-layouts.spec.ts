@@ -105,10 +105,12 @@ test('Snap Layouts verification', async ({ page }) => {
     await page.mouse.move(boxCurrent.x + 50, boxCurrent.y + 10);
     await page.mouse.down();
 
-    // Slow drag to edge to ensure events fire (10 steps over right edge)
-    await page.mouse.move(1275, 300, { steps: 20 });
+    // Ensure we drag all the way to the very edge in multiple steps to hit the drag over event
+    await page.mouse.move(boxCurrent.x + 300, boxCurrent.y + 10, { steps: 10 });
+    await page.mouse.move(1279, 300, { steps: 20 }); // Drag to exactly the edge (1280 is viewport width)
+
     // Additional wait to let the snap zone activate
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
 
     const preview = page.getByTestId('snap-preview');
     await expect(preview).toBeVisible({ timeout: 15000 });

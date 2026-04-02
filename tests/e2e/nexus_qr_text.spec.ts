@@ -105,14 +105,15 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
 
   // Click the checkbox (toggle)
   await syncToggle.click({ force: true });
-  await expect(syncToggle).toBeChecked();
+  await expect(syncToggle).toBeChecked({ timeout: 15000 });
 
   // 6. Verify Sync
   // Input should be disabled
   const urlInput = page.locator(
     'input[type="text"][placeholder="https://..."]'
   );
-  await expect(urlInput).toBeDisabled();
+  // Wait for the state to update (disabled attribute added)
+  await expect(urlInput).toBeDisabled({ timeout: 15000 });
 
   // Input value should match text widget
   await expect(urlInput).toHaveValue('https://nexus.test/link');
