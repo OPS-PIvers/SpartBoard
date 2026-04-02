@@ -118,6 +118,6 @@
 
 ## 2026-04-02 - Refactored useEffect prop-sync anti-pattern
 
-**Weed:** Using `useEffect` to synchronize external component props (`firstNames`, `lastNames`) and React `useRef` variables to local state during render.
-**Root Cause:** Component grew over time and developers defaulted to using `useEffect` for lifecycle events, missing the modern React "Derived State" pattern for syncing props, which leads to unnecessary double-renders. Additionally, mutating refs directly in the render body violates strict pure rendering rules in newer React versions.
-**Plan:** Removed the prop-syncing `useEffect` hooks in `components/widgets/random/RandomSettings.tsx`. Implemented the derived state pattern using `prevProps` stored in `useState`, updating local state synchronously inside an `if` block during the render phase. Fixed `react-hooks/refs` violations by wrapping `useRef` mutations correctly in `useEffect`.
+**Weed:** Using `useEffect` to mirror external component props (`firstNames`, `lastNames`) into local state after commit, causing an avoidable extra render. There was also a separate concern around keeping `useRef` writes out of the render body.
+**Root Cause:** Component grew over time and developers defaulted to `useEffect` for prop-to-state synchronization instead of using React's derived state pattern when state must immediately reflect changed props. That post-commit syncing introduced unnecessary double-renders. Separately, writing to refs in render violates React's pure rendering expectations in newer versions.
+**Plan:** Removed the prop-syncing `useEffect` hooks in `components/widgets/random/RandomSettings.tsx`. Implemented the derived state pattern using `prevProps` stored in `useState`, updating local state synchronously inside an `if` block during render so prop changes are handled without the extra effect-driven render. Kept ref mutations out of the render body by performing them in `useEffect` where needed.
