@@ -17,30 +17,38 @@ export function useImageUpload(options?: {
   const uploading = storageUploading || processing;
 
   const processAndUploadImage = useCallback(
-    async (file: File): Promise<string | null> => {
-      if (!file.type.startsWith('image/') || (!user && !uploadFn)) return null;
+    async (
+      file: File,
+      processOptions?: { skipProcessing?: boolean }
+    ): Promise<string | null> => {
+      if (!file || !file.type.startsWith('image/') || (!user && !uploadFn))
+        return null;
 
       setProcessing(true);
       try {
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        let processedFile = file;
 
-        // Remove background and trim whitespace
-        const noBg = await removeBackground(dataUrl);
-        const trimmed = await trimImageWhitespace(noBg);
+        if (!processOptions?.skipProcessing) {
+          const reader = new FileReader();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
 
-        // Convert back to Blob for upload
-        const response = await fetch(trimmed);
-        const blob = await response.blob();
-        const processedFile = new File(
-          [blob],
-          file.name.replace(/\.[^/.]+$/, '') + '.png',
-          { type: 'image/png' }
-        );
+          // Remove background and trim whitespace
+          const noBg = await removeBackground(dataUrl);
+          const trimmed = await trimImageWhitespace(noBg);
+
+          // Convert back to Blob for upload
+          const response = await fetch(trimmed);
+          const blob = await response.blob();
+          processedFile = new File(
+            [blob],
+            file.name.replace(/\.[^/.]+$/, '') + '.png',
+            { type: 'image/png' }
+          );
+        }
 
         const url = uploadFn
           ? await uploadFn(processedFile)
@@ -50,7 +58,7 @@ export function useImageUpload(options?: {
 
         return url;
       } catch (err) {
-        console.error('Failed to process/upload sticker:', err);
+        console.error('Failed to process/upload image:', err);
         return null;
       } finally {
         setProcessing(false);
