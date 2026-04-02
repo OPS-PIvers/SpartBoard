@@ -115,3 +115,9 @@
 **Weed:** `ScheduleWidget.tsx` was over 900 lines long, containing multiple internal components (`CountdownDisplay`, `ScheduleRow`) and numerous helper functions, acting as a "God Component" for the scheduling logic.
 **Root Cause:** "God Component" pattern where the feature was built out incrementally over time, mixing UI, time parsing, formatting, and complex layout logic into a single file without separating concerns.
 **Plan:** Extracted the utility functions (`parseScheduleTime`, `formatCountdown`, `hexToRgba`, etc.) into `components/widgets/Schedule/utils.ts`. Extracted the internal sub-components (`ScheduleRow`, `CountdownDisplay`) into `components/widgets/Schedule/components/ScheduleRow.tsx`. Kept the main orchestration logic in `ScheduleWidget.tsx`.
+
+## 2026-04-02 - Refactored useEffect prop-sync anti-pattern
+
+**Weed:** Using `useEffect` to mirror external component props (`firstNames`, `lastNames`) into local state after commit, causing an avoidable extra render. There was also a separate concern around keeping `useRef` writes out of the render body.
+**Root Cause:** Component grew over time and developers defaulted to `useEffect` for prop-to-state synchronization instead of using React's derived state pattern when state must immediately reflect changed props. That post-commit syncing introduced unnecessary double-renders. Separately, writing to refs in render violates React's pure rendering expectations in newer versions.
+**Plan:** Removed the prop-syncing `useEffect` hooks in `components/widgets/random/RandomSettings.tsx`. Implemented the derived state pattern using `prevProps` stored in `useState`, updating local state synchronously inside an `if` block during render so prop changes are handled without the extra effect-driven render. Kept ref mutations out of the render body by performing them in `useEffect` where needed.

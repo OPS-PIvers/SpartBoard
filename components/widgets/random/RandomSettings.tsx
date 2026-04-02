@@ -68,26 +68,34 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
+  const [prevFirstNames, setPrevFirstNames] = useState(firstNames);
+  const [prevLastNames, setPrevLastNames] = useState(lastNames);
+
   const firstNamesTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastNamesTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep refs current so debounced callbacks always read the latest values
   const configRef = useRef(config);
   const updateWidgetRef = useRef(updateWidget);
+
+  // Note: These need to be updated in useEffect or event handlers to avoid react-hooks/refs errors
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
   useEffect(() => {
     updateWidgetRef.current = updateWidget;
   }, [updateWidget]);
 
   // Sync local inputs when the external value changes (e.g. roster import)
-  useEffect(() => {
+  if (firstNames !== prevFirstNames) {
+    setPrevFirstNames(firstNames);
     setLocalFirstNames(firstNames);
-  }, [firstNames]);
-  useEffect(() => {
+  }
+  if (lastNames !== prevLastNames) {
+    setPrevLastNames(lastNames);
     setLocalLastNames(lastNames);
-  }, [lastNames]);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
