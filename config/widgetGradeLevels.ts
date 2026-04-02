@@ -29,6 +29,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   WidgetType | InternalToolType,
   GradeLevel[]
 > = {
+  url: ALL_GRADE_LEVELS,
   soundboard: ALL_GRADE_LEVELS,
   // Clock & Time Tools
   clock: ALL_GRADE_LEVELS,

@@ -49,6 +49,7 @@ const MiniAppSettings = lazyNamed(
 );
 
 export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
+  url: lazyNamed(() => import('./UrlWidget/Widget'), 'UrlWidget'),
   soundboard: lazyNamed(
     () => import('./SoundboardWidget/Widget'),
     'SoundboardWidget'
@@ -182,6 +183,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
+  url: lazyNamed(() => import('./UrlWidget/Settings'), 'UrlWidgetSettings'),
   soundboard: lazyNamed(
     () => import('./SoundboardWidget/Settings'),
     'SoundboardSettings'
@@ -407,6 +409,13 @@ export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
  *  - sticker   – Decorative overlay; fixed size, no DraggableWindow wrapper.
  */
 export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
+  url: {
+    baseWidth: 320,
+    baseHeight: 280,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
   soundboard: {
     baseWidth: 320,
     baseHeight: 280,
