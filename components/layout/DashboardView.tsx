@@ -128,6 +128,7 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
+    updateDashboard,
     zoom,
     setZoom,
   } = useDashboard();
@@ -175,6 +176,11 @@ export const DashboardView: React.FC = () => {
   // WIDGET POSITION RESCUE
   // Refs keep values fresh inside stable callbacks without re-registering
   // the resize listener on every widget move/resize (per CLAUDE.md ref pattern).
+
+  // Tracks which dashboard IDs have already been scaled this session to prevent
+  // re-scaling on every render cycle.
+  const scaledDashboardIdsRef = React.useRef(new Set<string>());
+
   const rescueWidgetsRef = React.useRef(activeDashboard?.widgets);
   rescueWidgetsRef.current = activeDashboard?.widgets;
   const updateWidgetRef = React.useRef(updateWidget);
@@ -227,6 +233,49 @@ export const DashboardView: React.FC = () => {
       window.removeEventListener('resize', onResize);
     };
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
+
+  // PROPORTIONAL LAYOUT SCALING
+  // Runs once per dashboard per session when the viewport differs meaningfully
+  // from the viewport stored at last save. Declared after rescueWidgets so that
+  // when both fire on the same activeDashboard?.id change, scaling runs last and
+  // its updateWidget calls take final precedence over rescue's pre-scale clamping.
+  React.useEffect(() => {
+    if (!activeDashboard) return;
+    const {
+      id,
+      viewportWidth: savedW,
+      viewportHeight: savedH,
+      widgets,
+    } = activeDashboard;
+
+    if (scaledDashboardIdsRef.current.has(id)) return;
+    scaledDashboardIdsRef.current.add(id);
+
+    if (!savedW || !savedH || !widgets.length) return;
+
+    const currentW = window.innerWidth;
+    const currentH = window.innerHeight;
+
+    const diffX = Math.abs(currentW - savedW) / savedW;
+    const diffY = Math.abs(currentH - savedH) / savedH;
+    if (diffX < 0.05 && diffY < 0.05) return; // Same screen (~5% tolerance)
+
+    const scaleX = currentW / savedW;
+    const scaleY = currentH / savedH;
+
+    widgets.forEach(({ id: widgetId, x, y, w, h }) => {
+      updateWidget(widgetId, {
+        x: Math.round(x * scaleX),
+        y: Math.round(y * scaleY),
+        w: Math.max(100, Math.round(w * scaleX)),
+        h: Math.max(60, Math.round(h * scaleY)),
+      });
+    });
+
+    updateDashboard({ viewportWidth: currentW, viewportHeight: currentH });
+    addToast('Layout scaled to fit this screen', 'info');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
+  }, [activeDashboard?.id]);
 
   const { canAccessFeature } = useAuth();
 

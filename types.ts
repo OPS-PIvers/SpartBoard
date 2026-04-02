@@ -2291,6 +2291,10 @@ export interface Dashboard {
   settings?: DashboardSettings;
   libraryOrder?: (WidgetType | InternalToolType)[];
   updatedAt?: number;
+  /** Viewport width (px) when the dashboard was last saved. Used for proportional layout scaling on load. */
+  viewportWidth?: number;
+  /** Viewport height (px) when the dashboard was last saved. Used for proportional layout scaling on load. */
+  viewportHeight?: number;
 }
 
 export interface Toast {

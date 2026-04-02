@@ -1093,7 +1093,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard(active)
+      saveDashboard({
+        ...active,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      })
         .then(() => {
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
