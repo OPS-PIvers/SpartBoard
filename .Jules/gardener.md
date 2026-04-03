@@ -121,3 +121,9 @@
 **Weed:** Using `useEffect` to mirror external component props (`firstNames`, `lastNames`) into local state after commit, causing an avoidable extra render. There was also a separate concern around keeping `useRef` writes out of the render body.
 **Root Cause:** Component grew over time and developers defaulted to `useEffect` for prop-to-state synchronization instead of using React's derived state pattern when state must immediately reflect changed props. That post-commit syncing introduced unnecessary double-renders. Separately, writing to refs in render violates React's pure rendering expectations in newer versions.
 **Plan:** Removed the prop-syncing `useEffect` hooks in `components/widgets/random/RandomSettings.tsx`. Implemented the derived state pattern using `prevProps` stored in `useState`, updating local state synchronously inside an `if` block during render so prop changes are handled without the extra effect-driven render. Kept ref mutations out of the render body by performing them in `useEffect` where needed.
+
+## 2025-02-18 - Refactor useEffect prop synchronization
+
+**Weed:** Using `useEffect` to synchronize `diceCount` with the local `values` array in `DiceWidget`.
+**Root Cause:** The `useEffect` hook causes an avoidable, post-commit extra render when adjusting state to match props.
+**Plan:** Replaced the `useEffect` block with the derived state pattern (`if (diceCount !== prevDiceCount)`) to conditionally update the state synchronously during the render phase. Also refactored the array initialization to use `Array.from` for better readability.

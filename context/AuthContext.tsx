@@ -193,7 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [setupCompleted, setSetupCompletedState] = useState(isAuthBypass);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
-  const rootSyncedRef = useRef(false);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
   const isRefreshingRef = useRef(false);
@@ -664,13 +663,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           { selectedBuildings: buildings },
           { merge: true }
         );
-        if (myToken === writeTokenRef.current) {
-          await setDoc(
-            doc(db, 'users', user.uid),
-            { buildings },
-            { merge: true }
-          );
-        }
       } catch (error) {
         // Only log if this is still the latest write (not superseded by a newer one)
         if (myToken === writeTokenRef.current) {
@@ -751,37 +743,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user]
   );
-
-  // Reset root sync ref when user changes
-  useEffect(() => {
-    rootSyncedRef.current = false;
-  }, [user?.uid]);
-
-  // Sync basic user info to the root 'users' collection for admin analytics
-  useEffect(() => {
-    if (!user || isAuthBypass || !profileLoaded) return;
-
-    const syncRootDoc = async () => {
-      if (rootSyncedRef.current) return;
-      rootSyncedRef.current = true;
-      try {
-        await setDoc(
-          doc(db, 'users', user.uid),
-          {
-            email: user.email,
-            lastLogin: Date.now(),
-            buildings: selectedBuildings,
-          },
-          { merge: true }
-        );
-      } catch (error: unknown) {
-        rootSyncedRef.current = false;
-        console.error('Error syncing user root document:', error);
-      }
-    };
-
-    void syncRootDoc();
-  }, [user, selectedBuildings, profileLoaded]);
 
   const userGradeLevels = useMemo<GradeLevel[]>(
     () => getBuildingGradeLevels(selectedBuildings),
