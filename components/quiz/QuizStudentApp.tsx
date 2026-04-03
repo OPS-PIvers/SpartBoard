@@ -398,12 +398,14 @@ const ActiveQuiz: React.FC<{
   const fibAnswerRef = useRef(fibAnswer);
   const onAnswerRef = useRef(onAnswer);
 
-  useEffect(() => {
-    currentQuestionRef.current = currentQuestion;
-    selectedAnswerRef.current = selectedAnswer;
-    fibAnswerRef.current = fibAnswer;
-    onAnswerRef.current = onAnswer;
-  });
+  // eslint-disable-next-line react-hooks/refs
+  currentQuestionRef.current = currentQuestion;
+  // eslint-disable-next-line react-hooks/refs
+  selectedAnswerRef.current = selectedAnswer;
+  // eslint-disable-next-line react-hooks/refs
+  fibAnswerRef.current = fibAnswer;
+  // eslint-disable-next-line react-hooks/refs
+  onAnswerRef.current = onAnswer;
 
   // Countdown
   useEffect(() => {
@@ -411,7 +413,6 @@ const ActiveQuiz: React.FC<{
     if (timeLeft <= 0) {
       // Auto-submit empty answer when time runs out
       if (currentQuestionRef.current && !submitted) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSubmitted(true);
         void onAnswerRef.current(
           currentQuestionRef.current.id,
