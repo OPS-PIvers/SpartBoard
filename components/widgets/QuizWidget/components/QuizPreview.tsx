@@ -55,14 +55,14 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
     reset();
   }
 
+  // Derived state pattern: End countdown
+  if (timeLeft !== null && timeLeft <= 0 && !showAnswer) {
+    setShowAnswer(true);
+  }
+
   // Countdown timer
   useEffect(() => {
-    if (timeLeft === null || showAnswer) return;
-    if (timeLeft <= 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowAnswer(true);
-      return;
-    }
+    if (timeLeft === null || showAnswer || timeLeft <= 0) return;
     const id = setInterval(
       () => setTimeLeft((t) => (t !== null ? t - 1 : null)),
       1000
