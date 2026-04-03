@@ -13,6 +13,7 @@ import {
   generateQuiz,
   generateVideoActivity,
   transcribeVideoWithGemini,
+  generateGuidedLearning,
 } from '@/utils/ai';
 
 // Mock Firebase Functions
@@ -21,6 +22,32 @@ vi.mock('firebase/functions', () => {
     getFunctions: vi.fn(),
     httpsCallable: vi.fn().mockImplementation((_functions, name, _options) => {
       return async (data: any) => {
+        if (name === 'generateGuidedLearning') {
+          if (data.prompt && data.prompt.includes('invalid-response')) {
+            return { data: {} };
+          }
+          if (data.prompt && data.prompt.includes('FAIL')) {
+            throw new Error('Simulated API Failure');
+          }
+          if (data.prompt && data.prompt.includes('no-steps')) {
+            return { data: { suggestedTitle: 'Title', steps: [] } };
+          }
+          return {
+            data: {
+              suggestedTitle: 'Learning Module',
+              suggestedMode: 'guided',
+              steps: [
+                {
+                  id: 'step-1',
+                  xPct: 50,
+                  yPct: 50,
+                  interactionType: 'tooltip',
+                  text: 'Step 1',
+                },
+              ],
+            },
+          };
+        }
         if (
           name === 'generateVideoActivity' ||
           name === 'transcribeVideoWithGemini'
@@ -268,6 +295,40 @@ describe('extractTextWithGemini', () => {
     await expect(extractTextWithGemini('invalid-response')).rejects.toThrow(
       'Invalid response format from AI'
     );
+  });
+});
+
+describe('generateGuidedLearning', () => {
+  it('generates guided learning successfully', async () => {
+    const result = await generateGuidedLearning(
+      'base64',
+      'image/jpeg',
+      'prompt'
+    );
+    expect(result.suggestedTitle).toBe('Learning Module');
+    expect(result.suggestedMode).toBe('guided');
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0].interactionType).toBe('tooltip');
+  });
+
+  it('throws formatted error on failure', async () => {
+    await expect(
+      generateGuidedLearning('base64', 'image/jpeg', 'FAIL')
+    ).rejects.toThrow(
+      'Failed to generate guided learning experience. Please try again.'
+    );
+  });
+
+  it('throws error on invalid response format', async () => {
+    await expect(
+      generateGuidedLearning('base64', 'image/jpeg', 'invalid-response')
+    ).rejects.toThrow('Invalid response format from AI');
+  });
+
+  it('throws error when no valid steps are returned', async () => {
+    await expect(
+      generateGuidedLearning('base64', 'image/jpeg', 'no-steps')
+    ).rejects.toThrow('Invalid response format from AI');
   });
 });
 
