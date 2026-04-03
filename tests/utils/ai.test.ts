@@ -32,6 +32,14 @@ vi.mock('firebase/functions', () => {
           if (data.prompt && data.prompt.includes('no-steps')) {
             return { data: { suggestedTitle: 'Title', steps: [] } };
           }
+          if (data.prompt && data.prompt.includes('invalid-steps')) {
+            return {
+              data: {
+                suggestedTitle: 'Title',
+                steps: [{ invalidKey: 'invalidValue' }],
+              },
+            };
+          }
           return {
             data: {
               suggestedTitle: 'Learning Module',
@@ -329,6 +337,12 @@ describe('generateGuidedLearning', () => {
     await expect(
       generateGuidedLearning('base64', 'image/jpeg', 'no-steps')
     ).rejects.toThrow('Invalid response format from AI');
+  });
+
+  it('throws error when AI returns no valid guided learning steps', async () => {
+    await expect(
+      generateGuidedLearning('base64', 'image/jpeg', 'invalid-steps')
+    ).rejects.toThrow('AI returned no valid guided learning steps');
   });
 });
 

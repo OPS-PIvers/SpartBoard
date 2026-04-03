@@ -462,7 +462,10 @@ export async function generateGuidedLearning(
   } catch (error) {
     console.error('Guided Learning Generation Error:', error);
     if (error instanceof Error) {
-      if (error.message.includes('Invalid response format from AI')) {
+      if (
+        error.message.includes('Invalid response format from AI') ||
+        error.message.includes('AI returned no valid guided learning steps')
+      ) {
         throw error;
       }
     }
