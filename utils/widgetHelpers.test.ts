@@ -17,7 +17,7 @@ import {
   CatalystInstructionConfig,
   CatalystVisualConfig,
   QuizConfig,
-} from '../types';
+} from '@/types';
 
 describe('widgetHelpers', () => {
   describe('isWidgetLayout', () => {
@@ -98,44 +98,18 @@ describe('widgetHelpers', () => {
       expect(getTitle(widget)).toBe('Notebook Viewer');
     });
 
-    it('returns "Selector" for random widget', () => {
-      const widget = { type: 'random' } as WidgetData;
-      expect(getTitle(widget)).toBe('Selector');
-    });
-
-    it('returns "Expectations" for expectations widget', () => {
-      const widget = { type: 'expectations' } as WidgetData;
-      expect(getTitle(widget)).toBe('Expectations');
-    });
-
-    it('returns "Class Events" for calendar widget', () => {
-      const widget = { type: 'calendar' } as WidgetData;
-      expect(getTitle(widget)).toBe('Class Events');
-    });
-
-    it('returns "Lunch Orders" for lunchCount widget', () => {
-      const widget = { type: 'lunchCount' } as WidgetData;
-      expect(getTitle(widget)).toBe('Lunch Orders');
-    });
-
-    it('returns "Class Roster" for classes widget', () => {
-      const widget = { type: 'classes' } as WidgetData;
-      expect(getTitle(widget)).toBe('Class Roster');
-    });
-
-    it('returns "Sticker" for sticker widget', () => {
-      const widget = { type: 'sticker' } as WidgetData;
-      expect(getTitle(widget)).toBe('Sticker');
-    });
-
-    it('returns "Seating Chart" for seating-chart widget', () => {
-      const widget = { type: 'seating-chart' } as WidgetData;
-      expect(getTitle(widget)).toBe('Seating Chart');
-    });
-
-    it('returns "Talking Tool" for talking-tool widget', () => {
-      const widget = { type: 'talking-tool' } as WidgetData;
-      expect(getTitle(widget)).toBe('Talking Tool');
+    it.each([
+      ['random', 'Selector'],
+      ['expectations', 'Expectations'],
+      ['calendar', 'Class Events'],
+      ['lunchCount', 'Lunch Orders'],
+      ['classes', 'Class Roster'],
+      ['sticker', 'Sticker'],
+      ['seating-chart', 'Seating Chart'],
+      ['talking-tool', 'Talking Tool'],
+    ])('returns "%s" for %s widget', (type, expectedTitle) => {
+      const widget = { type } as WidgetData;
+      expect(getTitle(widget)).toBe(expectedTitle);
     });
 
     it('returns correct title for catalyst-instruction widget', () => {
@@ -232,20 +206,18 @@ describe('widgetHelpers', () => {
     });
 
     it('returns an empty object when default config is missing or undefined', async () => {
-      // Import the default widget defaults and the helper
-      const { WIDGET_DEFAULTS } = await import('../config/widgetDefaults');
+      const { WIDGET_DEFAULTS } = await import('@/config/widgetDefaults');
       const { getDefaultWidgetConfig: localGetDefaultWidgetConfig } =
-        await import('./widgetHelpers');
+        await import('@/utils/widgetHelpers');
 
       const originalClock = WIDGET_DEFAULTS['clock'];
-
-      WIDGET_DEFAULTS['clock'] = { w: 100, h: 100 };
-
-      const config = localGetDefaultWidgetConfig('clock');
-      expect(config).toEqual({});
-
-      // Restore
-      WIDGET_DEFAULTS['clock'] = originalClock;
+      try {
+        WIDGET_DEFAULTS['clock'] = { w: 100, h: 100 };
+        const config = localGetDefaultWidgetConfig('clock');
+        expect(config).toEqual({});
+      } finally {
+        WIDGET_DEFAULTS['clock'] = originalClock;
+      }
     });
 
     it('returns empty object for traffic', () => {
