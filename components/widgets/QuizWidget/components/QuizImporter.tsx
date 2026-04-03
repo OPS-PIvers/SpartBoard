@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, GeneratedQuestion } from '@/utils/ai';
+import { useAuth } from '@/context/useAuth';
 
 interface QuizImporterProps {
   onBack: () => void;
@@ -31,6 +32,7 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
   importFromSheet,
   importFromCSV,
 }) => {
+  const { canAccessFeature } = useAuth();
   const [sheetUrl, setSheetUrl] = useState('');
   const [title, setTitle] = useState('');
   const [parsedQuiz, setParsedQuiz] = useState<QuizData | null>(null);
@@ -282,34 +284,38 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
               </label>
 
               <div className="grid grid-cols-1 gap-3">
-                {/* Gemini Generator Button */}
-                <button
-                  onClick={() => setShowGeminiPrompt(true)}
-                  disabled={loading}
-                  className="w-full py-4 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border-2 border-dashed border-indigo-500/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
-                >
-                  <Sparkles className="w-6 h-6 text-indigo-500 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-indigo-600 text-xs">
-                    Generate with AI
-                  </span>
-                  <p
-                    className="text-indigo-400"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    Magic Quiz Creator
-                  </p>
-                </button>
+                {canAccessFeature('gemini-functions') && (
+                  <>
+                    {/* Gemini Generator Button */}
+                    <button
+                      onClick={() => setShowGeminiPrompt(true)}
+                      disabled={loading}
+                      className="w-full py-4 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border-2 border-dashed border-indigo-500/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+                    >
+                      <Sparkles className="w-6 h-6 text-indigo-500 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-indigo-600 text-xs">
+                        Generate with AI
+                      </span>
+                      <p
+                        className="text-indigo-400"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        Magic Quiz Creator
+                      </p>
+                    </button>
 
-                <div className="relative py-1 flex items-center">
-                  <div className="flex-grow border-t border-brand-blue-primary/10"></div>
-                  <span
-                    className="flex-shrink mx-3 font-black text-brand-blue-primary/30 uppercase tracking-widest"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    OR
-                  </span>
-                  <div className="flex-grow border-t border-brand-blue-primary/10"></div>
-                </div>
+                    <div className="relative py-1 flex items-center">
+                      <div className="flex-grow border-t border-brand-blue-primary/10"></div>
+                      <span
+                        className="flex-shrink mx-3 font-black text-brand-blue-primary/30 uppercase tracking-widest"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        OR
+                      </span>
+                      <div className="flex-grow border-t border-brand-blue-primary/10"></div>
+                    </div>
+                  </>
+                )}
 
                 {/* CSV Upload */}
                 <button

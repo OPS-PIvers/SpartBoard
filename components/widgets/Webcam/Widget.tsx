@@ -20,19 +20,19 @@ import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
 import Tesseract from 'tesseract.js';
 import { WidgetLayout } from '../WidgetLayout';
-import { CapturedItem, WebcamGlobalConfig } from './types';
+import { CapturedItem } from './types';
 
 export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   widget: _widget,
 }) => {
-  const { featurePermissions } = useAuth();
+  const { featurePermissions, canAccessFeature } = useAuth();
   const { addWidget, addToast, updateWidget } = useDashboard();
   const { showAlert, showConfirm } = useDialog();
   const webcamPermission = featurePermissions.find(
     (p) => p.widgetType === 'webcam'
   );
-  const config = (webcamPermission?.config ?? {}) as WebcamGlobalConfig;
-  const ocrMode = config.ocrMode ?? 'standard';
+  const config = webcamPermission?.config ?? {};
+  const ocrMode = (config.ocrMode as 'standard' | 'gemini') ?? 'standard';
   const widgetConfig = (_widget.config || {}) as WebcamConfig;
 
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -162,7 +162,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       let text = '';
-      if (ocrMode === 'gemini') {
+      if (ocrMode === 'gemini' && canAccessFeature('gemini-functions')) {
         text = await extractTextWithGemini(dataUrl);
       } else {
         const result = await Tesseract.recognize(dataUrl, 'eng');
@@ -192,6 +192,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     widgetConfig.isRemoteMode,
     widgetConfig.remoteCaptureDataUrl,
     performSendToNotes,
+    canAccessFeature,
   ]);
 
   const handleCopy = useCallback(() => {

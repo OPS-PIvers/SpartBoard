@@ -555,8 +555,9 @@ export interface GlobalWeatherData {
   source?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface WebcamGlobalConfig {
-  ocrMode?: 'standard' | 'gemini';
+  // Config properties will go here if added in the future
 }
 
 export interface BuildingScheduleDefaults {

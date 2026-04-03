@@ -4,6 +4,9 @@ import { QuizImporter } from './QuizImporter';
 import { generateQuiz } from '@/utils/ai';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
+import { useAuth } from '@/context/useAuth';
+
+vi.mock('@/context/useAuth');
 
 // Mock generateQuiz
 vi.mock('@/utils/ai', () => ({
@@ -18,6 +21,9 @@ describe('QuizImporter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useAuth).mockReturnValue({
+      canAccessFeature: vi.fn().mockReturnValue(true),
+    } as unknown as ReturnType<typeof useAuth>);
   });
 
   it('renders "Generate with AI" button', () => {
