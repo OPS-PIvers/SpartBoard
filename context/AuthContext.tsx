@@ -665,11 +665,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           { selectedBuildings: buildings },
           { merge: true }
         );
-        await setDoc(
-          doc(db, 'users', user.uid),
-          { buildings },
-          { merge: true }
-        );
+        if (myToken === writeTokenRef.current) {
+          await setDoc(
+            doc(db, 'users', user.uid),
+            { buildings },
+            { merge: true }
+          );
+        }
       } catch (error) {
         // Only log if this is still the latest write (not superseded by a newer one)
         if (myToken === writeTokenRef.current) {
