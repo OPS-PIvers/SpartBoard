@@ -392,14 +392,31 @@ const ActiveQuiz: React.FC<{
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   }
 
+  // Keep refs for volatile state used in countdown timer
+  const currentQuestionRef = useRef(currentQuestion);
+  const selectedAnswerRef = useRef(selectedAnswer);
+  const fibAnswerRef = useRef(fibAnswer);
+  const onAnswerRef = useRef(onAnswer);
+
+  useEffect(() => {
+    currentQuestionRef.current = currentQuestion;
+    selectedAnswerRef.current = selectedAnswer;
+    fibAnswerRef.current = fibAnswer;
+    onAnswerRef.current = onAnswer;
+  });
+
   // Countdown
   useEffect(() => {
     if (timeLeft === null || submitted) return;
     if (timeLeft <= 0) {
       // Auto-submit empty answer when time runs out
-      if (currentQuestion && !submitted) {
-        setTimeout(() => setSubmitted(true), 0);
-        void onAnswer(currentQuestion.id, selectedAnswer ?? fibAnswer ?? '');
+      if (currentQuestionRef.current && !submitted) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSubmitted(true);
+        void onAnswerRef.current(
+          currentQuestionRef.current.id,
+          selectedAnswerRef.current ?? fibAnswerRef.current ?? ''
+        );
       }
       return;
     }
@@ -408,14 +425,7 @@ const ActiveQuiz: React.FC<{
       1000
     );
     return () => clearInterval(id);
-  }, [
-    timeLeft,
-    submitted,
-    currentQuestion,
-    selectedAnswer,
-    fibAnswer,
-    onAnswer,
-  ]);
+  }, [timeLeft, submitted]);
 
   if (!currentQuestion) {
     return (
