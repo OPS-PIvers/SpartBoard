@@ -57,6 +57,7 @@ import { SeatingChartConfigurationPanel } from './SeatingChartConfigurationPanel
 import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
 import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
+import { UrlConfigurationPanel } from './UrlConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -69,7 +70,7 @@ type BuildingConfigPanel = React.ComponentType<{
 // Map from widget/tool type to its building-defaults configuration panel.
 // Catalyst is excluded here because it requires additional props.
 const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
-  url: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
+  url: UrlConfigurationPanel as unknown as BuildingConfigPanel,
   soundboard: SoundboardConfigurationPanel as unknown as BuildingConfigPanel,
   schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
   clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,

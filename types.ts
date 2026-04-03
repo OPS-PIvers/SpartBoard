@@ -216,6 +216,21 @@ export interface RoutineStep {
 
 // Widget-specific config types
 
+export interface BuildingUrlDefaults {
+  buildingId: string;
+  urls?: {
+    id: string;
+    url: string;
+    title?: string;
+    color?: string;
+  }[];
+}
+
+export interface UrlGlobalConfig {
+  buildingDefaults?: Record<string, BuildingUrlDefaults>;
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface UrlWidgetConfig {
   urls: {
     id: string;
