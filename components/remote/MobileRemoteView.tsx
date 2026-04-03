@@ -21,7 +21,7 @@
  *     can pull in any board changes made on the desktop.
  */
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
@@ -83,6 +83,11 @@ export const MobileRemoteView: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Tracks widget IDs with in-flight remote writes so Firestore echo snapshots
+  // don't revert them before the write has settled.
+  const pendingWidgetIds = useRef<Set<string>>(new Set());
+  const pendingSettingsWrite = useRef(false);
+
   // Seed local snapshot when activeDashboard first becomes available.
   // We do this in the render phase to avoid "cascading renders" from useEffect.
   // React allows setting state during render as long as it's guarded to prevent loops.
@@ -94,10 +99,33 @@ export const MobileRemoteView: React.FC = () => {
     );
   }
 
-  // Manual sync — pull latest state from context (which reflects Firestore).
+  // Auto-sync from the desktop when activeDashboard changes (new Firestore snapshot).
+  // Widgets with pending remote writes are kept at their local version to avoid
+  // Firestore echo reversions; all other widgets receive the latest desktop state.
+  useEffect(() => {
+    if (!activeDashboard || !isInitialized) return;
+    setLocalWidgets((prev) => {
+      if (!prev) return [...activeDashboard.widgets];
+      return activeDashboard.widgets.map((fw) => {
+        if (pendingWidgetIds.current.has(fw.id)) {
+          return prev.find((w) => w.id === fw.id) ?? fw;
+        }
+        return fw;
+      });
+    });
+    if (!pendingSettingsWrite.current) {
+      setLocalSettings(
+        activeDashboard.settings ? { ...activeDashboard.settings } : undefined
+      );
+    }
+  }, [activeDashboard, isInitialized]);
+
+  // Manual sync — pull latest state from context and clear any pending write guards.
   const handleSync = useCallback(() => {
     if (!activeDashboard) return;
     setSyncing(true);
+    pendingWidgetIds.current.clear();
+    pendingSettingsWrite.current = false;
     setLocalWidgets([...activeDashboard.widgets]);
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
@@ -106,8 +134,11 @@ export const MobileRemoteView: React.FC = () => {
   }, [activeDashboard]);
 
   // Write-through updateWidget: update local snapshot AND write to Firestore.
+  // Marks the widget as pending so the Firestore echo doesn't revert the change.
   const handleUpdateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
+      pendingWidgetIds.current.add(id);
+      setTimeout(() => pendingWidgetIds.current.delete(id), 5000);
       setLocalWidgets((prev) => {
         if (!prev) return prev;
         return prev.map((w) => {
@@ -127,8 +158,13 @@ export const MobileRemoteView: React.FC = () => {
   );
 
   // Write-through updateDashboardSettings: update local snapshot AND write to Firestore.
+  // Guards against Firestore echo overwriting in-flight settings changes.
   const handleUpdateDashboardSettings = useCallback(
     (updates: Partial<DashboardSettings>) => {
+      pendingSettingsWrite.current = true;
+      setTimeout(() => {
+        pendingSettingsWrite.current = false;
+      }, 5000);
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
       ctxUpdateDashboardSettings(updates);
     },
