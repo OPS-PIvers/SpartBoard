@@ -21,7 +21,7 @@
  *     can pull in any board changes made on the desktop.
  */
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
@@ -81,33 +81,112 @@ export const MobileRemoteView: React.FC = () => {
     DashboardSettings | undefined
   >(undefined);
   const [syncing, setSyncing] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [initializedDashboardId, setInitializedDashboardId] = useState<
+    string | null
+  >(null);
+
+  // Tracks per-widget timer IDs for in-flight remote writes.
+  // Using a Map (id → timerId) ensures a rapid second write to the same widget
+  // cancels the first timer before starting a new one, preventing early removal.
+  const pendingWidgetTimers = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
+  // Single resettable timer for in-flight settings writes.
+  const pendingSettingsTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  // Board ID requested via URL query param (e.g. /remote?boardId=<id>).
+  // If present, we switch to that board as soon as dashboards have loaded.
+  const [targetBoardId] = useState(() =>
+    new URLSearchParams(window.location.search).get('boardId')
+  );
+  const hasTargetedBoard = useRef(false);
+
+  const clearPendingWriteGuards = useCallback(() => {
+    pendingWidgetTimers.current.forEach((timer) => clearTimeout(timer));
+    pendingWidgetTimers.current.clear();
+    if (pendingSettingsTimer.current !== null) {
+      clearTimeout(pendingSettingsTimer.current);
+      pendingSettingsTimer.current = null;
+    }
+  }, []);
+
+  // Clear all pending timers on unmount to prevent stale state updates.
+  useEffect(() => clearPendingWriteGuards, [clearPendingWriteGuards]);
+
+  // Switch to the board specified in the URL, once dashboards are available.
+  useEffect(() => {
+    if (!targetBoardId || hasTargetedBoard.current || dashboards.length === 0)
+      return;
+    if (activeDashboard?.id === targetBoardId) {
+      hasTargetedBoard.current = true;
+      return;
+    }
+    const target = dashboards.find((d) => d.id === targetBoardId);
+    if (!target) return; // ID not found — fall back to default board
+    hasTargetedBoard.current = true;
+    loadDashboard(targetBoardId);
+  }, [dashboards, activeDashboard, targetBoardId, loadDashboard]);
 
   // Seed local snapshot when activeDashboard first becomes available.
   // We do this in the render phase to avoid "cascading renders" from useEffect.
   // React allows setting state during render as long as it's guarded to prevent loops.
-  if (activeDashboard && !isInitialized) {
-    setIsInitialized(true);
+  if (activeDashboard && initializedDashboardId !== activeDashboard.id) {
+    setInitializedDashboardId(activeDashboard.id);
     setLocalWidgets([...activeDashboard.widgets]);
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
     );
   }
 
-  // Manual sync — pull latest state from context (which reflects Firestore).
+  // Auto-sync from the desktop when activeDashboard changes (new Firestore snapshot).
+  // Widgets with pending remote writes are kept at their local version to avoid
+  // Firestore echo reversions; all other widgets receive the latest desktop state.
+  useEffect(() => {
+    if (!activeDashboard || initializedDashboardId !== activeDashboard.id) {
+      return;
+    }
+    setLocalWidgets((prev) => {
+      if (!prev) return [...activeDashboard.widgets];
+      const prevMap = new Map(prev.map((w) => [w.id, w]));
+      return activeDashboard.widgets.map((fw) => {
+        if (pendingWidgetTimers.current.has(fw.id)) {
+          return prevMap.get(fw.id) ?? fw;
+        }
+        return fw;
+      });
+    });
+    if (pendingSettingsTimer.current === null) {
+      setLocalSettings(
+        activeDashboard.settings ? { ...activeDashboard.settings } : undefined
+      );
+    }
+  }, [activeDashboard, initializedDashboardId]);
+
+  // Manual sync — pull latest state from context and clear any pending write guards.
   const handleSync = useCallback(() => {
     if (!activeDashboard) return;
     setSyncing(true);
+    clearPendingWriteGuards();
     setLocalWidgets([...activeDashboard.widgets]);
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
     );
     setTimeout(() => setSyncing(false), 600);
-  }, [activeDashboard]);
+  }, [activeDashboard, clearPendingWriteGuards]);
 
   // Write-through updateWidget: update local snapshot AND write to Firestore.
+  // Cancels any existing timer for this widget before starting a fresh one so
+  // rapid successive writes don't clear the guard prematurely.
   const handleUpdateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
+      const existing = pendingWidgetTimers.current.get(id);
+      if (existing !== undefined) clearTimeout(existing);
+      pendingWidgetTimers.current.set(
+        id,
+        setTimeout(() => pendingWidgetTimers.current.delete(id), 5000)
+      );
       setLocalWidgets((prev) => {
         if (!prev) return prev;
         return prev.map((w) => {
@@ -127,8 +206,16 @@ export const MobileRemoteView: React.FC = () => {
   );
 
   // Write-through updateDashboardSettings: update local snapshot AND write to Firestore.
+  // Cancels any existing settings timer before starting a fresh one so rapid
+  // successive settings writes don't clear the guard prematurely.
   const handleUpdateDashboardSettings = useCallback(
     (updates: Partial<DashboardSettings>) => {
+      if (pendingSettingsTimer.current !== null) {
+        clearTimeout(pendingSettingsTimer.current);
+      }
+      pendingSettingsTimer.current = setTimeout(() => {
+        pendingSettingsTimer.current = null;
+      }, 5000);
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
       ctxUpdateDashboardSettings(updates);
     },
@@ -139,7 +226,7 @@ export const MobileRemoteView: React.FC = () => {
   // seeds fresh state from the context.
   const handleLoadDashboard = useCallback(
     (id: string) => {
-      setIsInitialized(false);
+      setInitializedDashboardId(null);
       setLocalWidgets(null);
       setLocalSettings(undefined);
       loadDashboard(id);

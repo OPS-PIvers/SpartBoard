@@ -4,17 +4,25 @@ import { db, isAuthBypass } from '../config/firebase';
 import { FeaturePermission, WidgetType, InternalToolType } from '../types';
 
 export const useFeaturePermissions = () => {
-  const [loading] = useState(!isAuthBypass);
+  const [loading, setLoading] = useState(false);
 
   const getPermission = useCallback(
     async (widgetType: WidgetType | InternalToolType) => {
-      if (isAuthBypass) return null;
-      const docRef = doc(db, 'feature_permissions', widgetType);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        return snap.data() as FeaturePermission;
+      if (isAuthBypass) {
+        setLoading(false);
+        return null;
       }
-      return null;
+      setLoading(true);
+      try {
+        const docRef = doc(db, 'feature_permissions', widgetType);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          return snap.data() as FeaturePermission;
+        }
+        return null;
+      } finally {
+        setLoading(false);
+      }
     },
     []
   );
@@ -25,18 +33,33 @@ export const useFeaturePermissions = () => {
       callback: (perm: FeaturePermission | null) => void
     ) => {
       if (isAuthBypass) {
+        setLoading(false);
         callback(null);
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         return () => {};
       }
+
+      setLoading(true);
       const docRef = doc(db, 'feature_permissions', widgetType);
-      return onSnapshot(docRef, (snap) => {
-        if (snap.exists()) {
-          callback(snap.data() as FeaturePermission);
-        } else {
+      return onSnapshot(
+        docRef,
+        (snap) => {
+          setLoading(false);
+          if (snap.exists()) {
+            callback(snap.data() as FeaturePermission);
+          } else {
+            callback(null);
+          }
+        },
+        (error) => {
+          console.error(
+            `Error subscribing to feature permission "${widgetType}":`,
+            error
+          );
+          setLoading(false);
           callback(null);
         }
-      });
+      );
     },
     []
   );

@@ -15,6 +15,7 @@ describe('FormattingToolbar', () => {
   const mockEditorRef = {
     current: document.createElement('div'),
   } as React.RefObject<HTMLDivElement>;
+  const mockVerticalAlignChange = vi.fn();
   let execCommandMock: ReturnType<
     typeof vi.fn<
       (commandId: string, showUI?: boolean, value?: string) => boolean
@@ -31,7 +32,13 @@ describe('FormattingToolbar', () => {
   });
 
   it('renders all main formatting buttons', () => {
-    render(<FormattingToolbar editorRef={mockEditorRef} />);
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
     expect(screen.getByTitle('Bold')).toBeInTheDocument();
     expect(screen.getByTitle('Italic')).toBeInTheDocument();
     expect(screen.getByTitle('Underline')).toBeInTheDocument();
@@ -43,17 +50,32 @@ describe('FormattingToolbar', () => {
     expect(screen.getByTitle('Decrease Indent')).toBeInTheDocument();
     expect(screen.getByTitle('Increase Indent')).toBeInTheDocument();
     expect(screen.getByTitle('Hyperlink (Ctrl+K)')).toBeInTheDocument();
+    expect(screen.getByTitle('Align Top')).toBeInTheDocument();
+    expect(screen.getByTitle('Align Middle')).toBeInTheDocument();
+    expect(screen.getByTitle('Align Bottom')).toBeInTheDocument();
   });
 
   it('calls execCommand when bold button is clicked', () => {
-    render(<FormattingToolbar editorRef={mockEditorRef} />);
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
     const boldButton = screen.getByTitle('Bold');
     fireEvent.click(boldButton);
     expect(execCommandMock).toHaveBeenCalledWith('bold', false, '');
   });
 
   it('opens font family menu and selects a font', () => {
-    render(<FormattingToolbar editorRef={mockEditorRef} />);
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
     const fontButton = screen.getByTitle('Font Family');
     fireEvent.click(fontButton);
     const modernFont = screen.getByText('Modern');
@@ -67,7 +89,13 @@ describe('FormattingToolbar', () => {
   });
 
   it('opens font size menu and selects a size', () => {
-    render(<FormattingToolbar editorRef={mockEditorRef} />);
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
     const sizeButton = screen.getByTitle('Font Size');
     fireEvent.click(sizeButton);
     const largeSize = screen.getByText('Large');
@@ -78,7 +106,13 @@ describe('FormattingToolbar', () => {
 
   it('calls showPrompt when link button is clicked', async () => {
     mockShowPrompt.mockResolvedValue('https://google.com');
-    render(<FormattingToolbar editorRef={mockEditorRef} />);
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
     const linkButton = screen.getByTitle('Hyperlink (Ctrl+K)');
 
     // Use mousedown to prevent default
@@ -93,5 +127,19 @@ describe('FormattingToolbar', () => {
         'https://google.com'
       );
     });
+  });
+
+  it('updates vertical alignment from toolbar buttons', () => {
+    render(
+      <FormattingToolbar
+        editorRef={mockEditorRef}
+        verticalAlign="top"
+        onVerticalAlignChange={mockVerticalAlignChange}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Align Bottom'));
+
+    expect(mockVerticalAlignChange).toHaveBeenCalledWith('bottom');
   });
 });

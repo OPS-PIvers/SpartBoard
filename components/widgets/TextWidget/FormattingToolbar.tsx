@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bold,
   Italic,
@@ -6,6 +7,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
   List,
   ListOrdered,
   Indent,
@@ -23,6 +27,8 @@ import { useDialog } from '@/context/useDialog';
 
 interface FormattingToolbarProps {
   editorRef: React.RefObject<HTMLDivElement | null>;
+  verticalAlign: 'top' | 'center' | 'bottom';
+  onVerticalAlignChange: (value: 'top' | 'center' | 'bottom') => void;
 }
 
 const FONT_SIZES = [
@@ -40,41 +46,126 @@ const MenuButton: React.FC<{
   onClick: (e: React.MouseEvent) => void;
   isOpen: boolean;
   children: React.ReactNode;
-}> = ({ icon, label, onClick, isOpen, children }) => (
-  <div className="relative">
-    <button
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(e);
-      }}
-      className={`flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 transition-colors ${isOpen ? 'bg-slate-100' : ''}`}
-      title={label}
-    >
-      {icon}
-      <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
-    </button>
-    {isOpen && (
-      <div
-        className="absolute top-full left-0 mt-1 p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-dropdown min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
-        onClick={(e) => e.stopPropagation()}
+}> = ({ icon, label, onClick, isOpen, children }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
+    top: 0,
+    left: 0,
+  });
+
+  useLayoutEffect(() => {
+    if (!isOpen || !buttonRef.current) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+
+      setMenuStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick(e);
+        }}
+        className={`flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 transition-colors ${isOpen ? 'bg-slate-100' : ''}`}
+        title={label}
       >
-        {children}
-      </div>
-    )}
-  </div>
-);
+        {icon}
+        <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+      </button>
+      {isOpen &&
+        createPortal(
+          <div
+            className="p-1 bg-white border border-slate-200 rounded-lg shadow-xl z-dropdown min-w-[120px] animate-in fade-in zoom-in-95 duration-100"
+            style={menuStyle}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
 
 export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   editorRef,
+  verticalAlign,
+  onVerticalAlignChange,
 }) => {
   const { showPrompt } = useDialog();
   const [showFontMenu, setShowFontMenu] = useState(false);
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const savedRangeRef = useRef<Range | null>(null);
+
+  useEffect(() => {
+    const captureSelection = () => {
+      const editor = editorRef.current;
+      const selection = window.getSelection();
+      if (!editor || !selection || selection.rangeCount === 0) {
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const container =
+        range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+          ? range.commonAncestorContainer.parentNode
+          : range.commonAncestorContainer;
+
+      if (container instanceof Node && editor.contains(container)) {
+        savedRangeRef.current = range.cloneRange();
+      }
+    };
+
+    document.addEventListener('selectionchange', captureSelection);
+    return () => {
+      document.removeEventListener('selectionchange', captureSelection);
+    };
+  }, [editorRef]);
+
+  const restoreSelection = () => {
+    const selection = window.getSelection();
+    const editor = editorRef.current;
+    if (!selection || !editor) {
+      return;
+    }
+
+    editor.focus();
+
+    if (savedRangeRef.current) {
+      selection.removeAllRanges();
+      selection.addRange(savedRangeRef.current);
+    }
+  };
 
   const exec = (command: string, value: string = '') => {
+    restoreSelection();
     document.execCommand('styleWithCSS', false, 'true');
     document.execCommand(command, false, value);
     editorRef.current?.focus();
@@ -123,6 +214,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           {FONTS.map((f) => (
             <button
               key={f.id}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 // Map Tailwind font classes to approximate font-family names for execCommand
                 const fontFamilyMap: Record<string, string> = {
@@ -167,6 +259,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           {FONT_SIZES.map((s) => (
             <button
               key={s.value}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 exec('fontSize', s.value);
                 setShowSizeMenu(false);
@@ -226,6 +319,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           {FONT_COLORS.map((c) => (
             <button
               key={c}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 exec('foreColor', c);
                 setShowColorMenu(false);
@@ -252,6 +346,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       >
         <div className="grid grid-cols-4 gap-1 p-1">
           <button
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               exec('hiliteColor', 'transparent');
               setShowHighlightMenu(false);
@@ -264,6 +359,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           {PASTEL_PALETTE.map((c) => (
             <button
               key={c}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 exec('hiliteColor', c);
                 setShowHighlightMenu(false);
@@ -299,6 +395,33 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         icon={<AlignRight className="w-3.5 h-3.5" />}
         label="Align Right"
         onClick={() => exec('justifyRight')}
+        size="sm"
+        variant="ghost"
+        onMouseDown={(e) => e.preventDefault()}
+      />
+      <IconButton
+        icon={<AlignVerticalJustifyStart className="w-3.5 h-3.5" />}
+        label="Align Top"
+        onClick={() => onVerticalAlignChange('top')}
+        active={verticalAlign === 'top'}
+        size="sm"
+        variant="ghost"
+        onMouseDown={(e) => e.preventDefault()}
+      />
+      <IconButton
+        icon={<AlignVerticalJustifyCenter className="w-3.5 h-3.5" />}
+        label="Align Middle"
+        onClick={() => onVerticalAlignChange('center')}
+        active={verticalAlign === 'center'}
+        size="sm"
+        variant="ghost"
+        onMouseDown={(e) => e.preventDefault()}
+      />
+      <IconButton
+        icon={<AlignVerticalJustifyEnd className="w-3.5 h-3.5" />}
+        label="Align Bottom"
+        onClick={() => onVerticalAlignChange('bottom')}
+        active={verticalAlign === 'bottom'}
         size="sm"
         variant="ghost"
         onMouseDown={(e) => e.preventDefault()}

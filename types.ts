@@ -259,6 +259,7 @@ export interface TextConfig {
   fontSize: number;
   fontFamily?: string;
   fontColor?: string;
+  verticalAlign?: 'top' | 'center' | 'bottom';
 }
 
 export interface ChecklistConfig {
