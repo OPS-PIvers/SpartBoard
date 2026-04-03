@@ -56,8 +56,6 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const current = new Date(start);
-
     // First, collect all valid days
     const validDays = [];
     const current = new Date(start);
