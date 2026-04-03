@@ -17,6 +17,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       ? config.lastRoll
       : new Array<number>(diceCount).fill(1)
   );
+  const [prevDiceCount, setPrevDiceCount] = useState(diceCount);
   const [isRolling, setIsRolling] = useState(false);
   // Ref so the remote-sync effect can read the current isRolling without
   // listing it as a dependency (avoids overwriting locally-rolled values
@@ -75,16 +76,13 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }, 100);
   };
 
-  useEffect(() => {
-    // Reset values if count changes in settings
-    if (values.length !== diceCount) {
-      setValues(
-        new Array(diceCount)
-          .fill(1)
-          .map(() => Math.floor(Math.random() * 6) + 1)
-      );
-    }
-  }, [diceCount, values.length]);
+  // Derived state pattern: Reset values if count changes in settings
+  if (diceCount !== prevDiceCount) {
+    setPrevDiceCount(diceCount);
+    setValues(
+      new Array(diceCount).fill(1).map(() => Math.floor(Math.random() * 6) + 1)
+    );
+  }
 
   return (
     <WidgetLayout
