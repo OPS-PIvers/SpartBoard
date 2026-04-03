@@ -76,11 +76,11 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }, 100);
   };
 
-  // Derived state pattern: Reset values if count changes in settings
-  if (diceCount !== prevDiceCount) {
-    setPrevDiceCount(diceCount);
+  // Derived state pattern: Reset values if count changes in settings or values arrays goes out of sync
+  if (diceCount !== prevDiceCount || values.length !== diceCount) {
+    if (diceCount !== prevDiceCount) setPrevDiceCount(diceCount);
     setValues(
-      new Array(diceCount).fill(1).map(() => Math.floor(Math.random() * 6) + 1)
+      Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1)
     );
   }
 

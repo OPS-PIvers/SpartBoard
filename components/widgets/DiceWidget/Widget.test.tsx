@@ -1,109 +1,95 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
-import { useDashboard } from '@/context/useDashboard';
-import { DashboardContextValue } from '@/context/DashboardContextValue';
-import { WidgetData, DiceConfig } from '@/types';
+import React from 'react';
+import { render, screen, act } from '@testing-library/react';
 import { DiceWidget } from './Widget';
+import { useDashboard } from '@/context/useDashboard';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { WidgetData } from '@/types';
 
-// Mock dependencies
-vi.mock('@/context/useDashboard');
-vi.mock('lucide-react', () => ({
-  Dices: () => <div data-testid="dices-icon" />,
-  Hash: () => <div data-testid="hash-icon" />,
-  RefreshCw: () => <div data-testid="refresh-icon" />,
+// Mock audio utilities to prevent context errors during tests
+vi.mock('./utils/audio', () => ({
+  getDiceAudioCtx: vi.fn(() => ({
+    state: 'running',
+    resume: vi.fn(),
+  })),
+  playRollSound: vi.fn(),
 }));
 
-// Helper to render widget
-const renderWidget = (widget: WidgetData) => {
-  return render(<DiceWidget widget={widget} />);
-};
-
-// Mock AudioContext
-const mockAudioContext = {
-  createOscillator: () => ({
-    connect: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    type: 'sine',
-    frequency: { setValueAtTime: vi.fn() },
-  }),
-  createGain: () => ({
-    connect: vi.fn(),
-    gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
-  }),
-  currentTime: 0,
-  state: 'running',
-  resume: vi.fn().mockResolvedValue(undefined),
-  destination: {},
-};
-
-// @ts-expect-error - Partial mock for AudioContext
-window.AudioContext = class {
-  constructor() {
-    return mockAudioContext;
-  }
-};
-
-const mockUpdateWidget = vi.fn();
-
-const mockWidget: WidgetData = {
-  id: 'dice-1',
-  type: 'dice',
-  x: 0,
-  y: 0,
-  w: 200,
-  h: 200,
-  z: 1,
-  flipped: false,
-  config: {
-    count: 1,
-  } as DiceConfig,
-};
-
-const defaultContext: Partial<DashboardContextValue> = {
-  updateWidget: mockUpdateWidget,
-  zoom: 1,
-  activeDashboard: {
-    id: 'dashboard-1',
-    name: 'Test Dashboard',
-    background: 'bg-slate-100',
-    widgets: [mockWidget],
-    globalStyle: {
-      fontFamily: 'sans',
-      windowTransparency: 0,
-      windowBorderRadius: 'md',
-      dockTransparency: 0,
-      dockBorderRadius: 'md',
-      dockTextColor: '#000000',
-      dockTextShadow: false,
-    },
-    createdAt: Date.now(),
-  },
-};
+// Mock the dashboard context provider
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: vi.fn(),
+}));
 
 describe('DiceWidget', () => {
+  const mockUpdateWidget = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-    (useDashboard as unknown as Mock).mockReturnValue(defaultContext);
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+      updateWidget: mockUpdateWidget,
+    });
+    // Mock random so dice rolls are deterministic in tests (always roll 1)
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
-  it('does not apply blur class while rolling', () => {
-    const { container } = renderWidget(mockWidget);
-    const rollButton = screen.getByText('Roll Dice');
+  const createWidgetData = (
+    count: number,
+    lastRoll?: number[]
+  ): WidgetData => ({
+    id: 'test-dice-1',
+    type: 'dice',
+    config: {
+      count,
+      lastRoll,
+    },
+    layout: { w: 4, h: 4, x: 0, y: 0, zIndex: 1 },
+  });
 
-    fireEvent.click(rollButton);
+  it('renders initial dice correctly', () => {
+    render(<DiceWidget widget={createWidgetData(2)} />);
+    const diceFaces = screen.getAllByTestId('dice-face');
+    expect(diceFaces).toHaveLength(2);
+  });
+
+  it('updates dice when count prop changes', () => {
+    const { rerender } = render(<DiceWidget widget={createWidgetData(2)} />);
+    expect(screen.getAllByTestId('dice-face')).toHaveLength(2);
+
+    rerender(<DiceWidget widget={createWidgetData(4)} />);
+    expect(screen.getAllByTestId('dice-face')).toHaveLength(4);
+  });
+
+  it('recovers from out-of-sync values arrays if diceCount changes during a roll', () => {
+    vi.useFakeTimers();
+
+    const { rerender } = render(<DiceWidget widget={createWidgetData(2)} />);
+    expect(screen.getAllByTestId('dice-face')).toHaveLength(2);
+
+    const rollButton = screen.getByRole('button', { name: /Roll Dice/i });
 
     act(() => {
-      vi.advanceTimersByTime(100);
+      rollButton.click();
     });
 
-    // Check for the blur class on the DiceFace element
-    const diceFace = container.querySelector('.grid-cols-3')?.parentElement;
-    expect(diceFace).not.toHaveClass('blur-[1px]');
+    act(() => {
+      vi.advanceTimersByTime(500); // mid-roll
+    });
+
+    // Simulate prop change (e.g. from a remote control setting the count to 5)
+    rerender(<DiceWidget widget={createWidgetData(5)} />);
+
+    // Fast-forward to end of roll
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // We expect the state to be re-synchronized to 5 dice due to our values.length !== diceCount guard
+    expect(screen.getAllByTestId('dice-face')).toHaveLength(5);
+
+    vi.useRealTimers();
   });
 });

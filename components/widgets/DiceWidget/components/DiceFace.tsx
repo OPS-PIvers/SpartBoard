@@ -16,6 +16,7 @@ export const DiceFace: React.FC<{
 
   return (
     <div
+      data-testid="dice-face"
       className={`
                   relative bg-white rounded-[20%] shadow-lg border-2 border-slate-200
                   flex items-center justify-center
