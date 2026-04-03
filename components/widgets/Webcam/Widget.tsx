@@ -28,6 +28,9 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   const { canAccessFeature } = useAuth();
   const { addWidget, addToast, updateWidget } = useDashboard();
   const { showAlert, showConfirm } = useDialog();
+  const ocrMode: 'standard' | 'gemini' = canAccessFeature('gemini-functions')
+    ? 'gemini'
+    : 'standard';
   const widgetConfig = (_widget.config || {}) as WebcamConfig;
 
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -157,7 +160,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       let text = '';
-      if (canAccessFeature('gemini-functions')) {
+      if (ocrMode === 'gemini') {
         text = await extractTextWithGemini(dataUrl);
       } else {
         const result = await Tesseract.recognize(dataUrl, 'eng');
@@ -181,12 +184,12 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [
     isMirrored,
+    ocrMode,
     showAlert,
     widgetConfig.autoSendToNotes,
     widgetConfig.isRemoteMode,
     widgetConfig.remoteCaptureDataUrl,
     performSendToNotes,
-    canAccessFeature,
   ]);
 
   const handleCopy = useCallback(() => {
