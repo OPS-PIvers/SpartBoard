@@ -121,7 +121,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     window.addEventListener('pointerup', onPointerUp);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -146,13 +146,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      void showConfirm('Are you sure you want to clear the entire board?', {
-        title: 'Clear Board',
-        variant: 'danger',
-        confirmLabel: 'Clear All',
-      }).then((confirmed) => {
-        if (confirmed) deleteAllWidgets();
-      });
+      const confirmed = await showConfirm(
+        'Are you sure you want to clear the entire board?',
+        {
+          title: 'Clear Board',
+          variant: 'danger',
+          confirmLabel: 'Clear All',
+        }
+      );
+      if (confirmed) deleteAllWidgets();
       return;
     }
   };
