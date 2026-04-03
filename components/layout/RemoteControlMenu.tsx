@@ -16,9 +16,11 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
   const [copied, setCopied] = useState(false);
 
   const enabled = activeDashboard?.settings?.remoteControlEnabled ?? true;
-  const remoteUrl = activeDashboard
-    ? `${window.location.origin}/remote?boardId=${activeDashboard.id}`
-    : `${window.location.origin}/remote`;
+  const remoteUrlObject = new URL('/remote', window.location.origin);
+  if (activeDashboard) {
+    remoteUrlObject.searchParams.set('boardId', activeDashboard.id);
+  }
+  const remoteUrl = remoteUrlObject.toString();
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
     remoteUrl
   )}`;

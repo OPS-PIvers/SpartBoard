@@ -83,10 +83,16 @@ export const MobileRemoteView: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Tracks widget IDs with in-flight remote writes so Firestore echo snapshots
-  // don't revert them before the write has settled.
-  const pendingWidgetIds = useRef<Set<string>>(new Set());
-  const pendingSettingsWrite = useRef(false);
+  // Tracks per-widget timer IDs for in-flight remote writes.
+  // Using a Map (id → timerId) ensures a rapid second write to the same widget
+  // cancels the first timer before starting a new one, preventing early removal.
+  const pendingWidgetTimers = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
+  // Single resettable timer for in-flight settings writes.
+  const pendingSettingsTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Board ID requested via URL query param (e.g. /remote?boardId=<id>).
   // If present, we switch to that board as soon as dashboards have loaded.
@@ -94,6 +100,16 @@ export const MobileRemoteView: React.FC = () => {
     new URLSearchParams(window.location.search).get('boardId')
   ).current;
   const hasTargetedBoard = useRef(false);
+
+  // Clear all pending timers on unmount to prevent stale state updates.
+  useEffect(() => {
+    return () => {
+      pendingWidgetTimers.current.forEach((timer) => clearTimeout(timer));
+      if (pendingSettingsTimer.current !== null) {
+        clearTimeout(pendingSettingsTimer.current);
+      }
+    };
+  }, []);
 
   // Switch to the board specified in the URL, once dashboards are available.
   useEffect(() => {
@@ -130,14 +146,15 @@ export const MobileRemoteView: React.FC = () => {
     if (!activeDashboard || !isInitialized) return;
     setLocalWidgets((prev) => {
       if (!prev) return [...activeDashboard.widgets];
+      const prevMap = new Map(prev.map((w) => [w.id, w]));
       return activeDashboard.widgets.map((fw) => {
-        if (pendingWidgetIds.current.has(fw.id)) {
-          return prev.find((w) => w.id === fw.id) ?? fw;
+        if (pendingWidgetTimers.current.has(fw.id)) {
+          return prevMap.get(fw.id) ?? fw;
         }
         return fw;
       });
     });
-    if (!pendingSettingsWrite.current) {
+    if (pendingSettingsTimer.current === null) {
       setLocalSettings(
         activeDashboard.settings ? { ...activeDashboard.settings } : undefined
       );
@@ -148,8 +165,12 @@ export const MobileRemoteView: React.FC = () => {
   const handleSync = useCallback(() => {
     if (!activeDashboard) return;
     setSyncing(true);
-    pendingWidgetIds.current.clear();
-    pendingSettingsWrite.current = false;
+    pendingWidgetTimers.current.forEach((timer) => clearTimeout(timer));
+    pendingWidgetTimers.current.clear();
+    if (pendingSettingsTimer.current !== null) {
+      clearTimeout(pendingSettingsTimer.current);
+      pendingSettingsTimer.current = null;
+    }
     setLocalWidgets([...activeDashboard.widgets]);
     setLocalSettings(
       activeDashboard.settings ? { ...activeDashboard.settings } : undefined
@@ -158,11 +179,16 @@ export const MobileRemoteView: React.FC = () => {
   }, [activeDashboard]);
 
   // Write-through updateWidget: update local snapshot AND write to Firestore.
-  // Marks the widget as pending so the Firestore echo doesn't revert the change.
+  // Cancels any existing timer for this widget before starting a fresh one so
+  // rapid successive writes don't clear the guard prematurely.
   const handleUpdateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
-      pendingWidgetIds.current.add(id);
-      setTimeout(() => pendingWidgetIds.current.delete(id), 5000);
+      const existing = pendingWidgetTimers.current.get(id);
+      if (existing !== undefined) clearTimeout(existing);
+      pendingWidgetTimers.current.set(
+        id,
+        setTimeout(() => pendingWidgetTimers.current.delete(id), 5000)
+      );
       setLocalWidgets((prev) => {
         if (!prev) return prev;
         return prev.map((w) => {
@@ -182,12 +208,15 @@ export const MobileRemoteView: React.FC = () => {
   );
 
   // Write-through updateDashboardSettings: update local snapshot AND write to Firestore.
-  // Guards against Firestore echo overwriting in-flight settings changes.
+  // Cancels any existing settings timer before starting a fresh one so rapid
+  // successive settings writes don't clear the guard prematurely.
   const handleUpdateDashboardSettings = useCallback(
     (updates: Partial<DashboardSettings>) => {
-      pendingSettingsWrite.current = true;
-      setTimeout(() => {
-        pendingSettingsWrite.current = false;
+      if (pendingSettingsTimer.current !== null) {
+        clearTimeout(pendingSettingsTimer.current);
+      }
+      pendingSettingsTimer.current = setTimeout(() => {
+        pendingSettingsTimer.current = null;
       }, 5000);
       setLocalSettings((prev) => ({ ...(prev ?? {}), ...updates }));
       ctxUpdateDashboardSettings(updates);
