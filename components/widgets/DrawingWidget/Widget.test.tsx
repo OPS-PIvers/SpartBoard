@@ -45,7 +45,10 @@ describe('DrawingWidget', () => {
       updateWidget: mockUpdateWidget,
       activeDashboard: { background: 'bg-slate-900' },
     });
-    (useAuth as Mock).mockReturnValue({ user: { uid: 'user1' } });
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn(() => true),
+    });
     (useLiveSession as Mock).mockReturnValue({
       session: null,
       startSession: vi.fn(),

@@ -25,5 +25,5 @@
 
 ## 2025-03-31 - Array Filter Allocations in Render Loop
 
-**Learning:** Using `array.filter(...).length` inside a render loop or an un-guarded block forces the allocation of a temporary array object just to extract a single count integer. For large arrays or frequently re-rendered components (especially in high-frequency components like live monitors), this contributes to garbage collection overhead and potential UI micro-stutters.
-**Action:** When only the count of matching items is needed, calculate it in a single pass using `.reduce()` (or a `for` loop) inside a `useMemo` block instead of `.filter(...).length` without instantiating new intermediate arrays in memory.
+**Learning:** Using `array.filter(...).length` inside a render loop or an un-guarded block forces the allocation of a temporary array object just to extract a single count integer. For large arrays or frequently re-rendered components, this contributes to garbage collection overhead and potential UI micro-stutters.
+**Action:** When only the count of matching items is needed, calculate it in a single pass using `.reduce()` (or a `for` loop) inside a `useMemo` block instead of `.filter(...).length`.

@@ -29,7 +29,7 @@ export const DrawingWidget: React.FC<{
   scale?: number;
 }> = ({ widget, isStudentView = false, scale = 1 }) => {
   const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { session, startSession, endSession } = useLiveSession(
     user?.uid,
     'teacher'
@@ -402,20 +402,22 @@ export const DrawingWidget: React.FC<{
             title="Save to Cloud"
             icon={<CloudUpload className="w-4 h-4" />}
           />
-          <Button
-            onClick={() => void handleSendToText()}
-            disabled={isCapturing || isExtracting}
-            variant="ghost"
-            size="icon"
-            title="Extract Text (AI)"
-            icon={
-              isExtracting ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Type className="w-4 h-4" />
-              )
-            }
-          />
+          {canAccessFeature('gemini-functions') && (
+            <Button
+              onClick={() => void handleSendToText()}
+              disabled={isCapturing || isExtracting}
+              variant="ghost"
+              size="icon"
+              title="Extract Text (AI)"
+              icon={
+                isExtracting ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Type className="w-4 h-4" />
+                )
+              }
+            />
+          )}
           <div className="h-6 w-px bg-slate-200 mx-1" />
         </>
       )}

@@ -31,11 +31,10 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
  */
 function getResponseScore(r: QuizResponse, questions: QuizQuestion[]): number {
   if (questions.length === 0) return 0;
-  // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
-  const correct = r.answers.reduce((count, a) => {
+  const correct = r.answers.filter((a) => {
     const q = questions.find((qn) => qn.id === a.questionId);
-    return count + (q && gradeAnswer(q, a.answer) ? 1 : 0);
-  }, 0);
+    return q ? gradeAnswer(q, a.answer) : false;
+  }).length;
   return Math.round((correct / questions.length) * 100);
 }
 
@@ -421,11 +420,9 @@ const OverviewTab: React.FC<{
         </div>
         <div className="space-y-4">
           {buckets.map((b) => {
-            // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
-            const count = completedScores.reduce(
-              (acc, s) => acc + (s >= b.min && s <= b.max ? 1 : 0),
-              0
-            );
+            const count = completedScores.filter(
+              (s) => s >= b.min && s <= b.max
+            ).length;
             const pct =
               completed.length > 0
                 ? Math.round((count / completed.length) * 100)
@@ -591,15 +588,11 @@ const StudentsTab: React.FC<{
         return scoreB - scoreA;
       })
       .map((r) => {
-        // ⚡ Bolt Optimization: Compute 'correct' once instead of re-running the O(Q) question lookup via `getResponseScore`
-        const correct = r.answers.reduce((count, a) => {
+        const score = getResponseScore(r, questions);
+        const correct = r.answers.filter((a) => {
           const q = questions.find((qn) => qn.id === a.questionId);
-          return count + (q && gradeAnswer(q, a.answer) ? 1 : 0);
-        }, 0);
-        const score =
-          questions.length === 0
-            ? 0
-            : Math.round((correct / questions.length) * 100);
+          return q ? gradeAnswer(q, a.answer) : false;
+        }).length;
         const warnings = r.tabSwitchWarnings ?? 0;
 
         return (
