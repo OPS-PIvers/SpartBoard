@@ -1,10 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { WidgetLayoutWrapper } from '../../../../components/widgets/WidgetLayout/WidgetLayoutWrapper';
+import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout/WidgetLayoutWrapper';
 
 // Mock the registry
-vi.mock('../../../../components/widgets/WidgetRegistry', () => ({
+vi.mock('@/components/widgets/WidgetRegistry', () => ({
   WIDGET_COMPONENTS: {
     text: () => <div data-testid="mock-text-widget">Text Widget</div>,
   },
@@ -38,7 +38,7 @@ describe('WidgetLayoutWrapper', () => {
       <WidgetLayoutWrapper
         widget={{
           id: 'test-2',
-          type: 'clock' as 'text', // Intentional missing type based on memory directives
+          type: 'clock', // Intentional missing type in the mock registry
           x: 0,
           y: 0,
           w: 200,
