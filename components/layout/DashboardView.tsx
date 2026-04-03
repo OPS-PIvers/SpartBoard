@@ -302,6 +302,7 @@ export const DashboardView: React.FC = () => {
   const dashboardRef = React.useRef<HTMLDivElement>(null);
   // Cached per-gesture: did the touch start inside a scrollable widget?
   const touchStartInScrollable = React.useRef(false);
+  const suppressCurrentGesture = React.useRef(false);
 
   // Prevent iOS Safari viewport bounce on the board background.
   // Strategy:
@@ -342,6 +343,10 @@ export const DashboardView: React.FC = () => {
 
     const onTouchMove = (e: TouchEvent) => {
       if (!e.cancelable) return;
+      if (document.body.classList.contains('is-dragging-widget')) {
+        e.preventDefault();
+        return;
+      }
       // Multi-touch gestures (2-finger swipe, etc.) must always be
       // intercepted so our custom handlers aren't bypassed by the browser.
       if (e.touches.length > 1) {
@@ -383,9 +388,23 @@ export const DashboardView: React.FC = () => {
       }) => {
         // Update peak finger count — touches has already dropped to 0 by the
         // time `last` fires, so we capture the high-water mark here instead.
-        if (first) gestureFingerCount.current = touches;
-        else if (touches > gestureFingerCount.current) {
+        if (first) {
           gestureFingerCount.current = touches;
+          suppressCurrentGesture.current = false;
+        } else if (touches > gestureFingerCount.current) {
+          gestureFingerCount.current = touches;
+        }
+
+        if (document.body.classList.contains('is-dragging-widget')) {
+          suppressCurrentGesture.current = true;
+        }
+
+        if (suppressCurrentGesture.current) {
+          if (last) {
+            gestureFingerCount.current = 0;
+            suppressCurrentGesture.current = false;
+          }
+          return;
         }
 
         const widgetEl = (event.target as HTMLElement).closest<HTMLElement>(

@@ -6,6 +6,25 @@ import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { Dashboard } from '@/types';
 
+type DashboardGestureHandlers = {
+  onDrag?: (state: {
+    first: boolean;
+    last: boolean;
+    swipe: [number, number?];
+    direction: [number, number?];
+    delta: [number, number];
+    movement: [number, number];
+    touches: number;
+    initial: [number, number?];
+    event: Event;
+  }) => void;
+};
+
+const { mockUseGesture, gestureState } = vi.hoisted(() => ({
+  mockUseGesture: vi.fn(),
+  gestureState: { handlers: {} as DashboardGestureHandlers },
+}));
+
 // Mock context
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
@@ -17,6 +36,10 @@ vi.mock('@/context/useAuth', () => ({
 
 vi.mock('@/hooks/useLiveSession', () => ({
   useLiveSession: vi.fn(),
+}));
+
+vi.mock('@use-gesture/react', () => ({
+  useGesture: mockUseGesture,
 }));
 
 // Mock child components
@@ -62,6 +85,10 @@ describe('DashboardView Gestures & Navigation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    gestureState.handlers = {};
+    mockUseGesture.mockImplementation((handlers: DashboardGestureHandlers) => {
+      gestureState.handlers = handlers;
+    });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
@@ -404,5 +431,84 @@ describe('DashboardView Gestures & Navigation', () => {
         }),
       })
     );
+  });
+
+  it('ignores swipe gestures that occur while a widget drag is active', () => {
+    const mockUpdateWidget = vi.fn();
+    const mockMinimizeAllWidgets = vi.fn();
+
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: {
+        ...mockDashboards[1],
+        widgets: [
+          {
+            id: 'widget-1',
+            type: 'clock',
+            maximized: false,
+          },
+        ],
+      },
+      dashboards: mockDashboards,
+      toasts: [],
+      addWidget: mockAddWidget,
+      loadDashboard: mockLoadDashboard,
+      removeToast: vi.fn(),
+      updateWidget: mockUpdateWidget,
+      removeWidget: vi.fn(),
+      duplicateWidget: vi.fn(),
+      bringToFront: vi.fn(),
+      addToast: vi.fn(),
+      minimizeAllWidgets: mockMinimizeAllWidgets,
+      restoreAllWidgets: vi.fn(),
+      deleteAllWidgets: vi.fn(),
+      setSelectedWidgetId: vi.fn(),
+      updateDashboardSettings: vi.fn(),
+      updateDashboard: vi.fn(),
+      zoom: 1,
+      setZoom: vi.fn(),
+    });
+
+    render(<DashboardView />);
+    mockUpdateWidget.mockClear();
+    mockMinimizeAllWidgets.mockClear();
+    mockLoadDashboard.mockClear();
+    const widget = document.createElement('div');
+    widget.className = 'widget';
+    widget.dataset.widgetId = 'widget-1';
+
+    document.body.classList.add('is-dragging-widget');
+    gestureState.handlers.onDrag?.({
+      first: true,
+      last: false,
+      swipe: [0, 0],
+      direction: [0, 1],
+      delta: [0, 20],
+      movement: [0, 20],
+      touches: 2,
+      initial: [100, 100],
+      event: new PointerEvent('pointermove', { bubbles: true }),
+    });
+    document.body.classList.remove('is-dragging-widget');
+
+    const gestureEndEvent = new PointerEvent('pointerup', { bubbles: true });
+    Object.defineProperty(gestureEndEvent, 'target', {
+      value: widget,
+    });
+
+    gestureState.handlers.onDrag?.({
+      first: false,
+      last: true,
+      swipe: [0, 0],
+      direction: [0, 1],
+      delta: [0, 60],
+      movement: [0, 120],
+      touches: 0,
+      initial: [100, 100],
+      event: gestureEndEvent,
+    });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockMinimizeAllWidgets).not.toHaveBeenCalled();
+    expect(mockLoadDashboard).not.toHaveBeenCalled();
   });
 });
