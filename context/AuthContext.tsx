@@ -641,7 +641,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         if (!isCancelled) {
           console.error('Error loading user profile:', error);
-          setSelectedBuildingsState([]);
         }
         if (!isCancelled) setProfileLoaded(true);
       }
