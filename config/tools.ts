@@ -253,4 +253,10 @@ export const TOOLS: ToolMetadata[] = [
     minWidth: 480,
     minHeight: 380,
   },
+  {
+    type: 'countdown',
+    icon: CalendarDays,
+    label: 'Countdown',
+    color: 'bg-orange-500',
+  },
 ];

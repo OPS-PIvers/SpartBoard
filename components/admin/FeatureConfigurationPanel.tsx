@@ -109,6 +109,11 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   'guided-learning':
     GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
   remote: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
+  countdown: () => (
+    <div className="p-4 text-sm text-slate-500">
+      No building-level configuration available for this widget.
+    </div>
+  ),
 };
 
 interface FeatureConfigurationPanelProps {

@@ -38,6 +38,7 @@ export type WidgetType =
   | 'mathTool'
   | 'nextUp'
   | 'onboarding'
+  | 'countdown'
   | 'car-rider-pro'
   | 'music'
   | 'specialist-schedule'
@@ -1501,6 +1502,15 @@ export interface StarterPackGlobalConfig {
 
 export type StarterPackConfig = Record<string, never>;
 
+export interface CountdownConfig {
+  title: string;
+  startDate: string; // ISO date string
+  eventDate: string; // ISO date string
+  includeWeekends: boolean;
+  countToday: boolean;
+  viewMode: 'number' | 'grid';
+}
+
 export interface OnboardingConfig {
   completedTasks: string[];
 }
@@ -2026,6 +2036,7 @@ export type WidgetConfig =
   | MathToolConfig
   | NextUpConfig
   | OnboardingConfig
+  | CountdownConfig
   | CarRiderProConfig
   | MusicConfig
   | SpecialistScheduleConfig
@@ -2125,35 +2136,37 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                 ? NextUpConfig
                                                                                 : T extends 'onboarding'
                                                                                   ? OnboardingConfig
-                                                                                  : T extends 'car-rider-pro'
-                                                                                    ? CarRiderProConfig
-                                                                                    : T extends 'music'
-                                                                                      ? MusicConfig
-                                                                                      : T extends 'specialist-schedule'
-                                                                                        ? SpecialistScheduleConfig
-                                                                                        : T extends 'graphic-organizer'
-                                                                                          ? GraphicOrganizerConfig
-                                                                                          : T extends 'concept-web'
-                                                                                            ? ConceptWebConfig
-                                                                                            : T extends 'reveal-grid'
-                                                                                              ? RevealGridConfig
-                                                                                              : T extends 'numberLine'
-                                                                                                ? NumberLineConfig
-                                                                                                : T extends 'syntax-framer'
-                                                                                                  ? SyntaxFramerConfig
-                                                                                                  : T extends 'hotspot-image'
-                                                                                                    ? HotspotImageConfig
-                                                                                                    : T extends 'starter-pack'
-                                                                                                      ? StarterPackConfig
-                                                                                                      : T extends 'video-activity'
-                                                                                                        ? VideoActivityConfig
-                                                                                                        : T extends 'guided-learning'
-                                                                                                          ? GuidedLearningConfig
-                                                                                                          : T extends 'custom-widget'
-                                                                                                            ? CustomWidgetConfig
-                                                                                                            : T extends 'activity-wall'
-                                                                                                              ? ActivityWallConfig
-                                                                                                              : never;
+                                                                                  : T extends 'countdown'
+                                                                                    ? CountdownConfig
+                                                                                    : T extends 'car-rider-pro'
+                                                                                      ? CarRiderProConfig
+                                                                                      : T extends 'music'
+                                                                                        ? MusicConfig
+                                                                                        : T extends 'specialist-schedule'
+                                                                                          ? SpecialistScheduleConfig
+                                                                                          : T extends 'graphic-organizer'
+                                                                                            ? GraphicOrganizerConfig
+                                                                                            : T extends 'concept-web'
+                                                                                              ? ConceptWebConfig
+                                                                                              : T extends 'reveal-grid'
+                                                                                                ? RevealGridConfig
+                                                                                                : T extends 'numberLine'
+                                                                                                  ? NumberLineConfig
+                                                                                                  : T extends 'syntax-framer'
+                                                                                                    ? SyntaxFramerConfig
+                                                                                                    : T extends 'hotspot-image'
+                                                                                                      ? HotspotImageConfig
+                                                                                                      : T extends 'starter-pack'
+                                                                                                        ? StarterPackConfig
+                                                                                                        : T extends 'video-activity'
+                                                                                                          ? VideoActivityConfig
+                                                                                                          : T extends 'guided-learning'
+                                                                                                            ? GuidedLearningConfig
+                                                                                                            : T extends 'custom-widget'
+                                                                                                              ? CustomWidgetConfig
+                                                                                                              : T extends 'activity-wall'
+                                                                                                                ? ActivityWallConfig
+                                                                                                                : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
