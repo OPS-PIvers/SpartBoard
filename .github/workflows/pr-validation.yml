@@ -65,7 +65,7 @@ jobs:
         run: pnpm run test:e2e
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
-          VITE_AUTH_BYPASS: "true"
+          VITE_AUTH_BYPASS: 'true'
 
       - name: Upload Playwright Report
         if: failure()

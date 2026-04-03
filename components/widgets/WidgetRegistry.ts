@@ -128,6 +128,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   nextUp: lazyNamed(() => import('./NextUp/Widget'), 'NextUpWidget'),
   onboarding: lazyNamed(() => import('./Onboarding'), 'OnboardingWidget'),
+  countdown: lazyNamed(() => import('./Countdown/Widget'), 'CountdownWidget'),
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicWidget'),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Widget'),
@@ -258,6 +259,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
+  countdown: lazyNamed(
+    () => import('./Countdown/Settings'),
+    'CountdownSettings'
+  ),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
@@ -681,6 +686,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   onboarding: {
     baseWidth: 380,
     baseHeight: 440,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  countdown: {
+    baseWidth: 300,
+    baseHeight: 250,
     canSpread: true,
     skipScaling: true,
     padding: 0,

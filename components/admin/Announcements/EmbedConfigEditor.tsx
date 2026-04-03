@@ -43,13 +43,12 @@ export const EmbedConfigEditor: React.FC<{
   }, []);
 
   // Keep rawUrl in sync when config.url changes from the parent (e.g. on edit open)
-  const prevConfigUrl = useRef(config.url);
-  useEffect(() => {
-    if (config.url !== prevConfigUrl.current) {
-      prevConfigUrl.current = config.url;
-      setRawUrl(config.url ?? '');
-    }
-  }, [config.url]);
+  // avoiding useEffect for deriving state to prevent extra re-renders.
+  const [prevConfigUrl, setPrevConfigUrl] = useState(config.url);
+  if (config.url !== prevConfigUrl) {
+    setPrevConfigUrl(config.url);
+    setRawUrl(config.url ?? '');
+  }
 
   const embedUrl = convertToEmbedUrl(rawUrl);
   const wasConverted = rawUrl.trim() !== '' && embedUrl !== rawUrl.trim();

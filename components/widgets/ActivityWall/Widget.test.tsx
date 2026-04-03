@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallWidget } from './Widget';
@@ -15,6 +15,7 @@ const {
   mockUpdateWidget,
   mockSetDoc,
   mockUpdateDoc,
+  mockDeleteDoc,
   mockOnSnapshot,
   mockCollection,
   mockDoc,
@@ -43,6 +44,7 @@ const {
   mockUpdateWidget: vi.fn(),
   mockSetDoc: vi.fn(),
   mockUpdateDoc: vi.fn(),
+  mockDeleteDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
   mockCollection: vi.fn(),
   mockDoc: vi.fn(),
@@ -98,6 +100,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
   updateDoc: mockUpdateDoc,
+  deleteDoc: mockDeleteDoc,
   deleteField: vi.fn(() => '__delete__'),
 }));
 
@@ -138,6 +141,7 @@ describe('ActivityWallWidget', () => {
     mockDoc.mockReturnValue('session-doc');
     mockSetDoc.mockResolvedValue(undefined);
     mockUpdateDoc.mockResolvedValue(undefined);
+    mockDeleteDoc.mockResolvedValue(undefined);
     mockRefreshGoogleToken.mockResolvedValue('refreshed-google-access-token');
     mockStorageRef.mockImplementation((_storage, path: string) => ({
       fullPath: path,
@@ -246,9 +250,23 @@ describe('ActivityWallWidget', () => {
     await userEvent.click(screen.getByRole('button', { name: 'View' }));
 
     const image = await screen.findByRole('img', { name: 'Student Photo' });
+    Object.defineProperty(image, 'naturalWidth', {
+      configurable: true,
+      value: 1400,
+    });
+    Object.defineProperty(image, 'naturalHeight', {
+      configurable: true,
+      value: 700,
+    });
+    fireEvent.load(image);
 
     expect(image).not.toHaveStyle({ aspectRatio: '4/3' });
     expect(image).toHaveClass('block', 'w-full', 'h-auto');
+    await waitFor(() => {
+      expect(image.closest('div.rounded-lg')).toHaveStyle({
+        gridColumn: 'span 1',
+      });
+    });
   });
 
   it('resolves Firebase preview URLs for approved photo submissions that only store a storage path', async () => {
@@ -299,6 +317,105 @@ describe('ActivityWallWidget', () => {
     expect(
       await screen.findByRole('img', { name: 'Firebase Photo' })
     ).toHaveAttribute('src', 'https://firebase.example/teacher-preview.jpg');
+    expect(
+      screen.queryByLabelText(/drive sync failed/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows only a small failure badge when Drive sync fails', async () => {
+    snapshotDocs = [
+      {
+        id: 'submission-photo-failed-badge',
+        content: 'https://example.com/photo.jpg',
+        submittedAt: 791,
+        status: 'approved',
+        participantLabel: 'Unsynced Photo',
+        archiveStatus: 'failed',
+        archiveError: 'Drive sync failed.',
+      },
+    ];
+
+    const photoWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        activeActivityId: 'activity-photo-failed-badge',
+        activities: [
+          {
+            id: 'activity-photo-failed-badge',
+            title: 'Snapshot',
+            prompt: 'Share a photo',
+            mode: 'photo',
+            moderationEnabled: true,
+            identificationMode: 'anonymous',
+            submissions: [],
+            startedAt: Date.now(),
+          },
+        ],
+      },
+    } as WidgetData;
+
+    render(<ActivityWallWidget widget={photoWidget} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    expect(
+      await screen.findByRole('img', { name: 'Unsynced Photo' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/drive sync failed/i)).toBeInTheDocument();
+    expect(screen.queryByText('Syncing')).not.toBeInTheDocument();
+    expect(screen.queryByText('Drive')).not.toBeInTheDocument();
+  });
+
+  it('reveals submission actions on tap and can delete a submission', async () => {
+    snapshotDocs = [
+      {
+        id: 'submission-photo-delete',
+        content: 'https://example.com/delete-me.jpg',
+        submittedAt: 900,
+        status: 'approved',
+        participantLabel: 'Delete Me',
+      },
+    ];
+
+    const photoWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        activeActivityId: 'activity-photo-delete',
+        activities: [
+          {
+            id: 'activity-photo-delete',
+            title: 'Snapshot',
+            prompt: 'Share a photo',
+            mode: 'photo',
+            moderationEnabled: true,
+            identificationMode: 'anonymous',
+            submissions: [],
+            startedAt: Date.now(),
+          },
+        ],
+      },
+    } as WidgetData;
+
+    render(<ActivityWallWidget widget={photoWidget} />);
+    await userEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    await userEvent.click(
+      await screen.findByRole('img', { name: 'Delete Me' })
+    );
+    expect(
+      screen.getByRole('button', { name: /open fullscreen preview/i })
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: /delete submission/i })
+    );
+
+    await waitFor(() => {
+      expect(mockDeleteDoc).toHaveBeenCalled();
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'Submission removed.',
+        'success'
+      );
+    });
   });
 
   it('archives photos through the callable backend flow instead of browser storage reads', async () => {

@@ -87,6 +87,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   mathTool: [],
   nextUp: ALL_GRADE_LEVELS,
   onboarding: ALL_GRADE_LEVELS,
+  countdown: ALL_GRADE_LEVELS,
   music: ALL_GRADE_LEVELS,
   'car-rider-pro': ALL_GRADE_LEVELS,
   'specialist-schedule': ['k-2', '3-5', '6-8'],

@@ -635,3 +635,10 @@ Config: `components/admin/ActivityWallConfigurationPanel.tsx` _(dedicated panel 
         -- defaultIdentificationMode: How participants are identified by default
     - [Admin-Only Settings]
         -- dockDefaults: Per-building dock visibility.
+
+[x] Links / URL — Type: `url` | Label: "Links"
+Config: `components/admin/UrlConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- urls: Default list of active links pre-populated on creation.
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.
