@@ -56,7 +56,12 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
   }
 
   // Derived state pattern: End countdown
-  if (timeLeft !== null && timeLeft <= 0 && !showAnswer) {
+  if (
+    currentIndex === prevIndex &&
+    timeLeft !== null &&
+    timeLeft <= 0 &&
+    !showAnswer
+  ) {
     setShowAnswer(true);
   }
 
