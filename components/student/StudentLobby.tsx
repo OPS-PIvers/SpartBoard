@@ -12,7 +12,13 @@ export const StudentLobby: React.FC<StudentLobbyProps> = ({
   isLoading,
   error,
 }) => {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('code') ?? '';
+    }
+    return '';
+  });
   const [pin, setPin] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {

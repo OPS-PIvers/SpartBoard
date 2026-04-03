@@ -310,6 +310,23 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             resultsSessionId: sessionId,
           } as VideoActivityConfig,
         });
+
+        const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          void navigator.clipboard
+            .writeText(url)
+            .then(() =>
+              addToast('Assignment link copied to clipboard!', 'success')
+            )
+            .catch(() =>
+              addToast(
+                'Assignment created, but link could not be copied.',
+                'info'
+              )
+            );
+        } else {
+          addToast('Assignment created, but link could not be copied.', 'info');
+        }
         return sessionId;
       }}
       onDelete={async (meta) => {
