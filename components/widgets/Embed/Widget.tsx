@@ -239,7 +239,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative group/embed-content">
           {((displayMode === 'url' && url.trim()) ||
             (displayMode === 'code' && html.trim())) && (
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
               <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
                 <button
                   onClick={handleZoomOut}
