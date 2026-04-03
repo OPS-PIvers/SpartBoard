@@ -128,7 +128,8 @@
       "sidebarUtility": "Barra Lateral",
       "doubleSidebarUtility": "Doble Barra Lateral"
     },
-    "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?"
+    "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
+    "clearBoardTitle": "Borrar Tablero"
   },
   "login": {
     "signInToAccess": "Inicia sesión para acceder a tus tableros",

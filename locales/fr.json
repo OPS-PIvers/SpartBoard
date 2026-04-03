@@ -11,7 +11,8 @@
     "none": "Aucun",
     "loading": "Chargement...",
     "saving": "Enregistrement...",
-    "upload": "Télécharger"
+    "upload": "Télécharger",
+    "clearAll": "Tout effacer"
   },
   "sidebar": {
     "header": {
@@ -118,7 +119,8 @@
       "sidebarUtility": "Barre latérale",
       "doubleSidebarUtility": "Double barre latérale"
     },
-    "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?"
+    "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
+    "clearBoardTitle": "Effacer le Tableau"
   },
   "login": {
     "signInToAccess": "Connectez-vous pour accéder à vos tableaux",

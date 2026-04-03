@@ -438,7 +438,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       return;
     }
 
-    // Alt + Delete: Clear all widgets
+    // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -447,7 +447,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         {
           title: t('widgetWindow.clearBoardTitle'),
           variant: 'danger',
-          confirmLabel: t('common.clearAll'),
+          confirmLabel: t('widgetWindow.clearAll'),
         }
       );
       if (confirmed) deleteAllWidgets();

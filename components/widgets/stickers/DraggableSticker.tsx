@@ -144,7 +144,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
-    // Alt + Delete: Clear all widgets
+    // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();

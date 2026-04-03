@@ -11,7 +11,8 @@
     "none": "Keine",
     "loading": "Laden...",
     "saving": "Speichern...",
-    "upload": "Hochladen"
+    "upload": "Hochladen",
+    "clearAll": "Alles löschen"
   },
   "sidebar": {
     "header": {
@@ -118,7 +119,8 @@
       "sidebarUtility": "Seitenleiste",
       "doubleSidebarUtility": "Doppelte Seitenleiste"
     },
-    "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?"
+    "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
+    "clearBoardTitle": "Tafel löschen"
   },
   "login": {
     "signInToAccess": "Melde dich an, um auf deine Tafeln zuzugreifen",
