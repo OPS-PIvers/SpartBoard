@@ -318,16 +318,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             } as QuizConfig,
           });
 
-          try {
-            const url = `${window.location.origin}/join?code=${code}`;
-            await navigator.clipboard.writeText(url);
-            addToast('Assignment link copied to clipboard!', 'success');
-          } catch (_err) {
-            addToast(
-              'Assignment created, but link could not be copied.',
-              'error'
+          const url = `${window.location.origin}/join?code=${code}`;
+          navigator.clipboard
+            .writeText(url)
+            .then(() =>
+              addToast('Assignment link copied to clipboard!', 'success')
+            )
+            .catch(() =>
+              addToast(
+                'Assignment created, but link could not be copied.',
+                'info'
+              )
             );
-          }
         } catch (err) {
           addToast(
             err instanceof Error ? err.message : 'Failed to start session',
