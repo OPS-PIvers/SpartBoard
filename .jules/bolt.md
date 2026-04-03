@@ -27,3 +27,4 @@
 
 **Learning:** Using `array.filter(...).length` inside a render loop or an un-guarded block forces the allocation of a temporary array object just to extract a single count integer. For large arrays or frequently re-rendered components, this contributes to garbage collection overhead and potential UI micro-stutters.
 **Action:** When only the count of matching items is needed, calculate it in a single pass using `.reduce()` (or a `for` loop) inside a `useMemo` block instead of `.filter(...).length`.
+## 2023-10-27 - [Intermediate Array Allocations] **Learning:** Creating intermediate arrays via `.filter(...).length` during render functions triggers excess garbage collection and degrades React render performance, especially in high-frequency components like live monitors. **Action:** Refactored instances to use a single-pass `.reduce(...)` to directly calculate the needed counts without instantiating new intermediate arrays in memory.

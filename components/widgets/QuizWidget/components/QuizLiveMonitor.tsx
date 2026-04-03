@@ -642,10 +642,11 @@ const StudentRow: React.FC<{
   const currentTheme = themes[response.status];
   const warnings = response.tabSwitchWarnings ?? 0;
 
-  const correctCount = response.answers.filter((a) => {
+  // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
+  const correctCount = response.answers.reduce((count, a) => {
     const q = questions.find((qn) => qn.id === a.questionId);
-    return q ? gradeAnswer(q, a.answer) : false;
-  }).length;
+    return count + (q && gradeAnswer(q, a.answer) ? 1 : 0);
+  }, 0);
 
   return (
     <div

@@ -82,9 +82,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
 
     const qStats = qSteps.map((step) => {
       const stepAnswers = answersByStep.get(step.id) ?? [];
-      const correct = stepAnswers.filter((a) =>
-        isAnswerCorrect(step, a.answer)
-      ).length;
+      // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
+      const correct = stepAnswers.reduce(
+        (count, a) => count + (isAnswerCorrect(step, a.answer) ? 1 : 0),
+        0
+      );
       const pct =
         stepAnswers.length > 0
           ? Math.round((correct / stepAnswers.length) * 100)
