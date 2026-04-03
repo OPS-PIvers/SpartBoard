@@ -96,8 +96,16 @@ const getArchiveStatus = (
 
 const DRIVE_IMAGE_PROBE_TIMEOUT_MS = 5000;
 const STALE_ARCHIVE_SYNC_TIMEOUT_MS = 30000;
-const isLikelyVideoUrl = (url: string): boolean =>
-  /\.(mp4|webm|ogg|mov)$/i.test(url);
+const VIDEO_EXTENSION_REGEX = /\.(mp4|webm|ogg|mov)$/i;
+const VIDEO_URL_REGEX = /\.(mp4|webm|ogg|mov)(?:[?#]|$)/i;
+const isLikelyVideoUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return VIDEO_EXTENSION_REGEX.test(parsed.pathname);
+  } catch {
+    return VIDEO_URL_REGEX.test(url);
+  }
+};
 
 const probeImageAvailability = async (url: string): Promise<boolean> => {
   return await new Promise<boolean>((resolve) => {
@@ -289,6 +297,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   });
   const syncingSubmissionIdsRef = useRef<Set<string>>(new Set());
   const isArchivingRef = useRef(false);
+  const isRetryingFailedArchivesRef = useRef(false);
   const activeSessionId =
     activeActivity && user ? `${user.uid}_${activeActivity.id}` : null;
 
@@ -307,17 +316,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     const node = submissionsGridNode;
     if (!node) return;
+    const observedNode = node.parentElement;
+    if (!observedNode) return;
 
-    const update = () => {
-      setSubmissionsGridSize({
-        width: node.clientWidth,
-        height: node.clientHeight,
+    const updateSize = (width: number, height: number) => {
+      setSubmissionsGridSize((previous) => {
+        if (previous.width === width && previous.height === height) {
+          return previous;
+        }
+        return { width, height };
       });
     };
 
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
+    const initialRect = observedNode.getBoundingClientRect();
+    updateSize(initialRect.width, initialRect.height);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      updateSize(entry.contentRect.width, entry.contentRect.height);
+    });
+    observer.observe(observedNode);
     return () => observer.disconnect();
   }, [submissionsGridNode]);
 
@@ -388,6 +406,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     if (!activeSessionId) {
       setFirebasePhotoUrls({});
+      setPhotoAspectRatios({});
       return;
     }
 
@@ -673,7 +692,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       );
       return;
     }
-    if (isArchivingRef.current) {
+    if (isArchivingRef.current || isRetryingFailedArchivesRef.current) {
       addToast('Photo sync retry already in progress.', 'info');
       return;
     }
@@ -695,8 +714,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       'info'
     );
 
-    for (const submission of failedSubmissions) {
-      await archivePhotoSubmission(submission);
+    isRetryingFailedArchivesRef.current = true;
+    try {
+      for (const submission of failedSubmissions) {
+        await archivePhotoSubmission(submission);
+      }
+    } finally {
+      isRetryingFailedArchivesRef.current = false;
     }
   }, [addToast, archivePhotoSubmission, firestoreRaw, isDriveConnected]);
 
@@ -714,6 +738,21 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     }
     return combined;
   }, [activeActivity?.submissions, firestoreRaw]);
+
+  useEffect(() => {
+    const activeSubmissionIds = new Set(
+      allSubmissions.map((submission) => submission.id)
+    );
+    setPhotoAspectRatios((previous) => {
+      const nextEntries = Object.entries(previous).filter(([submissionId]) =>
+        activeSubmissionIds.has(submissionId)
+      );
+      if (nextEntries.length === Object.keys(previous).length) {
+        return previous;
+      }
+      return Object.fromEntries(nextEntries);
+    });
+  }, [allSubmissions]);
 
   const moderationCounts = useMemo(() => {
     // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
@@ -1544,6 +1583,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                           )
                         }
                         onKeyDown={(event) => {
+                          if (event.currentTarget !== event.target) return;
                           if (event.key !== 'Enter' && event.key !== ' ')
                             return;
                           event.preventDefault();
