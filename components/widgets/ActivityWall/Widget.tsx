@@ -7,11 +7,10 @@ import React, {
 } from 'react';
 import {
   Copy,
-  ImagePlus,
+  Expand,
   LibraryBig,
   MessageSquare,
   Pencil,
-  Play,
   Plus,
   QrCode,
   Trash2,
@@ -30,14 +29,20 @@ import { db, functions, storage } from '@/config/firebase';
 import {
   collection,
   deleteField,
+  deleteDoc,
   doc,
   onSnapshot,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDownloadURL, ref as storageRef } from 'firebase/storage';
+import {
+  deleteObject,
+  getDownloadURL,
+  ref as storageRef,
+} from 'firebase/storage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { Modal } from '@/components/common/Modal';
 
 const encodeActivityData = (
   activity: ActivityWallActivity,
@@ -91,6 +96,8 @@ const getArchiveStatus = (
 
 const DRIVE_IMAGE_PROBE_TIMEOUT_MS = 5000;
 const STALE_ARCHIVE_SYNC_TIMEOUT_MS = 30000;
+const isLikelyVideoUrl = (url: string): boolean =>
+  /\.(mp4|webm|ogg|mov)$/i.test(url);
 
 const probeImageAvailability = async (url: string): Promise<boolean> => {
   return await new Promise<boolean>((resolve) => {
@@ -236,8 +243,6 @@ const buildBlankActivity = (): ActivityWallActivity => ({
   startedAt: null,
 });
 
-const MAX_STORED_SUBMISSIONS = 200;
-
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -245,19 +250,35 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
-  const activities = config.activities ?? [];
+  const activities = useMemo(
+    () => config.activities ?? [],
+    [config.activities]
+  );
   const activeActivity =
     activities.find((activity) => activity.id === config.activeActivityId) ??
     null;
 
-  const [draftResponse, setDraftResponse] = useState('');
   const [editorDraft, setEditorDraft] = useState<ActivityWallActivity | null>(
     null
   );
   const [showLiveView, setShowLiveView] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<
+    string | null
+  >(null);
+  const [fullscreenSubmission, setFullscreenSubmission] =
+    useState<ActivityWallSubmission | null>(null);
   const [firebasePhotoUrls, setFirebasePhotoUrls] = useState<
     Record<string, string>
   >({});
+  const [photoAspectRatios, setPhotoAspectRatios] = useState<
+    Record<string, number>
+  >({});
+  const [submissionsGridNode, setSubmissionsGridNode] =
+    useState<HTMLDivElement | null>(null);
+  const [submissionsGridSize, setSubmissionsGridSize] = useState({
+    width: 0,
+    height: 0,
+  });
 
   const [firestoreState, setFirestoreState] = useState<{
     sessionId: string | null;
@@ -270,6 +291,35 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const isArchivingRef = useRef(false);
   const activeSessionId =
     activeActivity && user ? `${user.uid}_${activeActivity.id}` : null;
+
+  const handlePhotoLoad = useCallback(
+    (submissionId: string, width: number, height: number) => {
+      if (width <= 0 || height <= 0) return;
+      const ratio = width / height;
+      setPhotoAspectRatios((prev) => {
+        if (prev[submissionId] === ratio) return prev;
+        return { ...prev, [submissionId]: ratio };
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const node = submissionsGridNode;
+    if (!node) return;
+
+    const update = () => {
+      setSubmissionsGridSize({
+        width: node.clientWidth,
+        height: node.clientHeight,
+      });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [submissionsGridNode]);
 
   useEffect(() => {
     if (!activeActivity || !user || !activeSessionId) return;
@@ -408,9 +458,16 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     return buildPublicActivityLink(activeActivity, user.uid);
   }, [activeActivity, user]);
 
-  const updateConfig = (updates: Partial<ActivityWallConfig>) => {
-    updateWidget(widget.id, { config: { ...config, ...updates } });
-  };
+  const updateConfig = useCallback(
+    (updates: Partial<ActivityWallConfig>) => {
+      const nextConfig = {
+        ...(widget.config as ActivityWallConfig),
+        ...updates,
+      };
+      updateWidget(widget.id, { config: nextConfig });
+    },
+    [updateWidget, widget.config, widget.id]
+  );
 
   const saveEditorDraft = () => {
     if (!editorDraft) return;
@@ -609,7 +666,17 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   }, [activeActivity, activeSessionId, firestoreRaw, isDriveConnected]);
 
   const retryFailedArchives = useCallback(async () => {
-    if (!isDriveConnected || isArchivingRef.current) return;
+    if (!isDriveConnected) {
+      addToast(
+        'Reconnect Google Drive before retrying failed photo syncs.',
+        'error'
+      );
+      return;
+    }
+    if (isArchivingRef.current) {
+      addToast('Photo sync retry already in progress.', 'info');
+      return;
+    }
 
     const failedSubmissions = firestoreRaw.filter(
       (submission) =>
@@ -618,35 +685,20 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         !syncingSubmissionIdsRef.current.has(submission.id)
     );
 
+    if (failedSubmissions.length === 0) {
+      addToast('No failed photo syncs were found to retry.', 'info');
+      return;
+    }
+
+    addToast(
+      `Retrying ${failedSubmissions.length} failed photo sync${failedSubmissions.length === 1 ? '' : 's'}...`,
+      'info'
+    );
+
     for (const submission of failedSubmissions) {
       await archivePhotoSubmission(submission);
     }
-  }, [archivePhotoSubmission, firestoreRaw, isDriveConnected]);
-
-  const appendResponse = () => {
-    if (!activeActivity || !draftResponse.trim()) return;
-    const next: ActivityWallActivity[] = activities.map((activity) => {
-      if (activity.id !== activeActivity.id) return activity;
-
-      const submission: ActivityWallSubmission = {
-        id: crypto.randomUUID(),
-        content: draftResponse.trim(),
-        submittedAt: Date.now(),
-        status: activity.moderationEnabled ? 'pending' : 'approved',
-        participantLabel: 'Demo Student',
-      };
-
-      return {
-        ...activity,
-        submissions: [...(activity.submissions ?? []), submission].slice(
-          -MAX_STORED_SUBMISSIONS
-        ),
-      };
-    });
-
-    updateConfig({ activities: next });
-    setDraftResponse('');
-  };
+  }, [addToast, archivePhotoSubmission, firestoreRaw, isDriveConnected]);
 
   const allSubmissions = useMemo(() => {
     const demoSubs = activeActivity?.submissions ?? [];
@@ -769,6 +821,76 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Could not copy link. Please copy manually.', 'error');
     }
   };
+
+  const deleteSubmission = useCallback(
+    async (submission: ActivityWallSubmission) => {
+      if (!activeActivity) return;
+
+      try {
+        let removedFromFirestore = false;
+        if (
+          activeSessionId &&
+          firestoreRaw.some((fs) => fs.id === submission.id)
+        ) {
+          await deleteDoc(
+            doc(
+              db,
+              'activity_wall_sessions',
+              activeSessionId,
+              'submissions',
+              submission.id
+            )
+          );
+          removedFromFirestore = true;
+        }
+        if (submission.storagePath) {
+          await deleteObject(storageRef(storage, submission.storagePath)).catch(
+            (error) => {
+              console.warn(
+                '[ActivityWall] Storage cleanup failed for submission:',
+                error
+              );
+            }
+          );
+        }
+
+        const nextActivities = activities.map((activity) => {
+          if (activity.id !== activeActivity.id) return activity;
+          return {
+            ...activity,
+            submissions: (activity.submissions ?? []).filter(
+              (item) => item.id !== submission.id
+            ),
+          };
+        });
+        updateConfig({ activities: nextActivities });
+
+        setSelectedSubmissionId((prev) =>
+          prev === submission.id ? null : prev
+        );
+        setFullscreenSubmission((prev) =>
+          prev?.id === submission.id ? null : prev
+        );
+        addToast(
+          removedFromFirestore
+            ? 'Submission removed.'
+            : 'Local submission removed.',
+          'success'
+        );
+      } catch (error) {
+        console.error('[ActivityWall] Failed to delete submission:', error);
+        addToast('Failed to remove submission.', 'error');
+      }
+    },
+    [
+      activeActivity,
+      activeSessionId,
+      activities,
+      addToast,
+      firestoreRaw,
+      updateConfig,
+    ]
+  );
 
   if (editorDraft) {
     return (
@@ -1097,320 +1219,483 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const visibleSubmissions = allSubmissions.filter(
     (s) => s.status === 'approved'
   );
+  const photoGridLayout = (() => {
+    const count = visibleSubmissions.length;
+    const width = submissionsGridSize.width;
+    const height = submissionsGridSize.height;
+    if (count === 0 || width <= 0 || height <= 0) {
+      return { columns: 2, rowHeight: 180 };
+    }
+
+    const minTileWidth = 140;
+    const maxTileWidth = 360;
+    const minTileHeight = 120;
+    const preferredTileWidth = 220;
+    const maxColumns = Math.min(count, 8);
+
+    let bestColumns = 1;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (let columns = 1; columns <= maxColumns; columns += 1) {
+      const rows = Math.ceil(count / columns);
+      const tileWidth = width / columns;
+      const tileHeight = height / rows;
+      if (tileWidth < minTileWidth) continue;
+
+      const widthPenalty =
+        tileWidth > maxTileWidth ? (tileWidth - maxTileWidth) * 0.8 : 0;
+      const sizeDistance =
+        Math.abs(tileWidth - preferredTileWidth) +
+        Math.abs(tileHeight - preferredTileWidth * 0.72);
+      const fillScore = tileHeight * rows;
+      const score = fillScore - sizeDistance - widthPenalty;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestColumns = columns;
+      }
+    }
+
+    const fallbackColumns = Math.max(
+      1,
+      Math.min(maxColumns, Math.round(width / preferredTileWidth))
+    );
+    const columns =
+      bestScore === Number.NEGATIVE_INFINITY ? fallbackColumns : bestColumns;
+    const rows = Math.ceil(count / columns);
+    const rawRowHeight = height / rows;
+    const maxTileHeight = count <= 6 ? height : 320;
+
+    return {
+      columns,
+      rowHeight: Math.max(minTileHeight, Math.min(maxTileHeight, rawRowHeight)),
+    };
+  })();
 
   const wordCloudData =
     activeActivity.mode === 'text' ? buildWordCloud(visibleSubmissions) : [];
+  const fullscreenMediaUrl = fullscreenSubmission
+    ? isSafeHttpUrl(fullscreenSubmission.content)
+      ? fullscreenSubmission.content
+      : fullscreenSubmission.storagePath
+        ? (firebasePhotoUrls[fullscreenSubmission.storagePath] ?? null)
+        : (firebasePhotoUrls[fullscreenSubmission.content] ?? null)
+    : null;
 
   return (
-    <WidgetLayout
-      padding="p-0"
-      content={
-        <div
-          className="h-full w-full bg-white flex flex-col"
-          style={{ gap: 'min(8px, 2cqmin)', padding: 'min(10px, 2.4cqmin)' }}
-        >
+    <>
+      <WidgetLayout
+        padding="p-0"
+        content={
           <div
-            className="flex items-start justify-between"
-            style={{ gap: 'min(8px, 2cqmin)' }}
+            className="h-full w-full bg-white flex flex-col"
+            style={{ gap: 'min(8px, 2cqmin)', padding: 'min(10px, 2.4cqmin)' }}
           >
-            <div className="min-w-0">
-              <p
-                className="font-black text-slate-900 truncate"
-                style={{ fontSize: 'min(16px, 6cqmin)' }}
-              >
-                {activeActivity.title}
-              </p>
-              <p
-                className="text-slate-600 line-clamp-2"
-                style={{ fontSize: 'min(12px, 4.4cqmin)' }}
-              >
-                {activeActivity.prompt}
-              </p>
-            </div>
             <div
-              className="shrink-0 flex items-center"
+              className="flex items-start justify-between"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              <div className="min-w-0">
+                <p
+                  className="font-black text-slate-900 truncate"
+                  style={{ fontSize: 'min(16px, 6cqmin)' }}
+                >
+                  {activeActivity.title}
+                </p>
+                <p
+                  className="text-slate-600 line-clamp-2"
+                  style={{ fontSize: 'min(12px, 4.4cqmin)' }}
+                >
+                  {activeActivity.prompt}
+                </p>
+              </div>
+              <div
+                className="shrink-0 flex items-center"
+                style={{ gap: 'min(6px, 1.8cqmin)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowLiveView(false)}
+                  className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
+                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                  title="Back to activity library"
+                >
+                  Library
+                </button>
+                {moderationCounts.pending > 0 && (
+                  <div
+                    className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"
+                    style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                  >
+                    {moderationCounts.pending} pending
+                  </div>
+                )}
+                <div
+                  className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
+                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+                >
+                  {activeActivity.mode === 'text' ? 'Text' : 'Photo'}
+                </div>
+              </div>
+            </div>
+
+            {syncBanner && (
+              <div
+                className={`rounded-xl border px-3 py-2 font-semibold ${syncBanner.className}`}
+                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span>{syncBanner.text}</span>
+                  {isDriveConnected && photoSyncCounts.failed > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => void retryFailedArchives()}
+                      className="shrink-0 rounded-full bg-white/80 px-2 py-1 font-black text-amber-800"
+                      style={{ fontSize: 'min(9px, 3cqmin)' }}
+                    >
+                      Retry failed syncs
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div
+              className="grid grid-cols-2"
               style={{ gap: 'min(6px, 1.8cqmin)' }}
             >
               <button
                 type="button"
-                onClick={() => setShowLiveView(false)}
-                className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
-                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                title="Back to activity library"
-              >
-                Library
-              </button>
-              {moderationCounts.pending > 0 && (
-                <div
-                  className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-bold"
-                  style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-                >
-                  {moderationCounts.pending} pending
-                </div>
-              )}
-              <div
-                className="px-2 py-1 rounded-full bg-slate-100 text-slate-700 font-bold"
-                style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-              >
-                {activeActivity.mode === 'text' ? 'Text' : 'Photo'}
-              </div>
-            </div>
-          </div>
-
-          {syncBanner && (
-            <div
-              className={`rounded-xl border px-3 py-2 font-semibold ${syncBanner.className}`}
-              style={{ fontSize: 'min(10px, 3.4cqmin)' }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span>{syncBanner.text}</span>
-                {isDriveConnected && photoSyncCounts.failed > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => void retryFailedArchives()}
-                    className="shrink-0 rounded-full bg-white/80 px-2 py-1 font-black text-amber-800"
-                    style={{ fontSize: 'min(9px, 3cqmin)' }}
-                  >
-                    Retry failed syncs
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div
-            className="grid grid-cols-2"
-            style={{ gap: 'min(6px, 1.8cqmin)' }}
-          >
-            <button
-              type="button"
-              onClick={copyLink}
-              className="rounded-xl bg-brand-blue-primary text-white font-bold flex items-center justify-center"
-              style={{
-                gap: 'min(6px, 1.8cqmin)',
-                padding: 'min(8px, 2cqmin)',
-                fontSize: 'min(11px, 3.8cqmin)',
-              }}
-            >
-              <Copy
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-              Copy link
-            </button>
-            <button
-              type="button"
-              onClick={spawnQrWidget}
-              className="rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center"
-              style={{
-                gap: 'min(6px, 1.8cqmin)',
-                padding: 'min(8px, 2cqmin)',
-                fontSize: 'min(11px, 3.8cqmin)',
-              }}
-            >
-              <QrCode
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-              Pop-out QR
-            </button>
-          </div>
-
-          <div
-            className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-slate-50"
-            style={{ padding: 'min(8px, 2cqmin)' }}
-          >
-            <div
-              className="rounded-xl border border-dashed border-slate-300 mb-2"
-              style={{ padding: 'min(8px, 2cqmin)' }}
-            >
-              <div
-                className="flex items-center"
-                style={{ gap: 'min(6px, 1.8cqmin)' }}
-              >
-                {activeActivity.mode === 'text' ? (
-                  <MessageSquare
-                    style={{
-                      width: 'min(14px, 4cqmin)',
-                      height: 'min(14px, 4cqmin)',
-                    }}
-                    className="text-slate-500"
-                  />
-                ) : (
-                  <ImagePlus
-                    style={{
-                      width: 'min(14px, 4cqmin)',
-                      height: 'min(14px, 4cqmin)',
-                    }}
-                    className="text-slate-500"
-                  />
-                )}
-                <input
-                  value={draftResponse}
-                  onChange={(event) => setDraftResponse(event.target.value)}
-                  placeholder={
-                    activeActivity.mode === 'text'
-                      ? 'Add a demo text response...'
-                      : 'Paste demo photo URL...'
-                  }
-                  className="flex-1 bg-transparent text-slate-700 focus:outline-none"
-                  style={{ fontSize: 'min(11px, 3.6cqmin)' }}
-                />
-                <button
-                  type="button"
-                  onClick={appendResponse}
-                  className="rounded-lg bg-slate-800 text-white"
-                  style={{ padding: 'min(6px, 1.7cqmin)' }}
-                  title="Add sample response"
-                >
-                  <Play
-                    style={{
-                      width: 'min(12px, 3.5cqmin)',
-                      height: 'min(12px, 3.5cqmin)',
-                    }}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {visibleSubmissions.length === 0 ? (
-              <div
-                className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
-                <MessageSquare
-                  style={{
-                    width: 'min(24px, 7cqmin)',
-                    height: 'min(24px, 7cqmin)',
-                  }}
-                  className="opacity-40"
-                />
-                <span style={{ fontSize: 'min(11px, 3.8cqmin)' }}>
-                  Responses will appear here after participants submit.
-                </span>
-              </div>
-            ) : activeActivity.mode === 'text' ? (
-              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-1">
-                {wordCloudData.map(({ word, weight }) => (
-                  <span
-                    key={word}
-                    className="font-bold leading-tight"
-                    style={{
-                      fontSize: `min(${Math.round(11 + weight * 22)}px, ${(3.5 + weight * 8).toFixed(1)}cqmin)`,
-                      color: wordColor(word),
-                      opacity: 0.45 + weight * 0.55,
-                    }}
-                  >
-                    {word}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="grid"
+                onClick={copyLink}
+                className="rounded-xl bg-brand-blue-primary text-white font-bold flex items-center justify-center"
                 style={{
                   gap: 'min(6px, 1.8cqmin)',
-                  gridTemplateColumns:
-                    'repeat(auto-fill, minmax(min(120px, 45%), 1fr))',
+                  padding: 'min(8px, 2cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
                 }}
               >
-                {visibleSubmissions.map((submission) => {
-                  const archiveStatus = getArchiveStatus(submission);
-                  const displayUrl = isSafeHttpUrl(submission.content)
-                    ? submission.content
-                    : submission.storagePath
-                      ? firebasePhotoUrls[submission.storagePath]
-                      : undefined;
+                <Copy
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                Copy link
+              </button>
+              <button
+                type="button"
+                onClick={spawnQrWidget}
+                className="rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center"
+                style={{
+                  gap: 'min(6px, 1.8cqmin)',
+                  padding: 'min(8px, 2cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
+                }}
+              >
+                <QrCode
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                Pop-out QR
+              </button>
+            </div>
 
-                  return (
-                    <div
-                      key={submission.id}
-                      className="rounded-lg bg-white border border-slate-200 overflow-hidden"
-                    >
-                      {displayUrl ? (
-                        <a
-                          href={displayUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block"
-                        >
-                          <div className="relative">
-                            <img
-                              src={displayUrl}
-                              alt={submission.participantLabel ?? 'Photo'}
-                              className="block w-full h-auto"
-                            />
-                            {archiveStatus && (
-                              <span
-                                className={`absolute right-2 top-2 rounded-full px-2 py-1 font-bold ${
-                                  archiveStatus === 'archived'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : archiveStatus === 'syncing'
-                                      ? 'bg-sky-100 text-sky-700'
-                                      : archiveStatus === 'failed'
-                                        ? 'bg-amber-100 text-amber-700'
-                                        : 'bg-slate-900/75 text-white'
-                                }`}
-                                style={{ fontSize: 'min(8px, 2.7cqmin)' }}
-                              >
-                                {archiveStatus === 'archived'
-                                  ? 'Drive'
-                                  : archiveStatus === 'syncing'
-                                    ? 'Syncing'
-                                    : archiveStatus === 'failed'
-                                      ? 'Retry'
-                                      : 'Firebase'}
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            className="text-slate-600"
-                            style={{
-                              padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
-                            }}
+            <div
+              className="flex-1 min-h-0 overflow-auto rounded-xl border border-slate-200 bg-slate-50"
+              style={{ padding: 'min(8px, 2cqmin)' }}
+            >
+              {visibleSubmissions.length === 0 ? (
+                <div
+                  className="h-full flex flex-col items-center justify-center text-slate-500 text-center"
+                  style={{ gap: 'min(6px, 1.5cqmin)' }}
+                >
+                  <MessageSquare
+                    style={{
+                      width: 'min(24px, 7cqmin)',
+                      height: 'min(24px, 7cqmin)',
+                    }}
+                    className="opacity-40"
+                  />
+                  <span style={{ fontSize: 'min(11px, 3.8cqmin)' }}>
+                    Responses will appear here after participants submit.
+                  </span>
+                </div>
+              ) : activeActivity.mode === 'text' ? (
+                <div
+                  className="flex flex-col"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
+                  <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 p-1">
+                    {wordCloudData.map(({ word, weight }) => (
+                      <span
+                        key={word}
+                        className="font-bold leading-tight"
+                        style={{
+                          fontSize: `min(${Math.round(11 + weight * 22)}px, ${(3.5 + weight * 8).toFixed(1)}cqmin)`,
+                          color: wordColor(word),
+                          opacity: 0.45 + weight * 0.55,
+                        }}
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    {visibleSubmissions.map((submission) => (
+                      <button
+                        key={submission.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedSubmissionId((prev) =>
+                            prev === submission.id ? null : submission.id
+                          )
+                        }
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p
+                            className="truncate text-slate-700"
+                            style={{ fontSize: 'min(10px, 3.2cqmin)' }}
                           >
-                            {submission.participantLabel && (
-                              <p
-                                className="truncate"
-                                style={{ fontSize: 'min(9px, 3cqmin)' }}
+                            {submission.content}
+                          </p>
+                          {selectedSubmissionId === submission.id && (
+                            <span
+                              className="inline-flex items-center gap-1"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="rounded-full bg-slate-100 p-1 text-slate-700"
+                                title="Open fullscreen preview"
+                                aria-label="Open fullscreen preview"
+                                onClick={() =>
+                                  setFullscreenSubmission(submission)
+                                }
                               >
-                                {submission.participantLabel}
-                              </p>
-                            )}
-                            {archiveStatus === 'failed' &&
-                              submission.archiveError && (
-                                <p
-                                  className="text-amber-700 line-clamp-2"
-                                  style={{ fontSize: 'min(8px, 2.7cqmin)' }}
+                                <Expand
+                                  style={{
+                                    width: 'min(10px, 3cqmin)',
+                                    height: 'min(10px, 3cqmin)',
+                                  }}
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full bg-rose-50 p-1 text-rose-700"
+                                title="Delete submission"
+                                aria-label="Delete submission"
+                                onClick={() =>
+                                  void deleteSubmission(submission)
+                                }
+                              >
+                                <Trash2
+                                  style={{
+                                    width: 'min(10px, 3cqmin)',
+                                    height: 'min(10px, 3cqmin)',
+                                  }}
+                                />
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  ref={setSubmissionsGridNode}
+                  className="grid"
+                  style={{
+                    gap: 'min(6px, 1.8cqmin)',
+                    gridTemplateColumns: `repeat(${photoGridLayout.columns}, minmax(0, 1fr))`,
+                    gridAutoRows: `${photoGridLayout.rowHeight}px`,
+                    gridAutoFlow: 'dense',
+                    alignContent: 'stretch',
+                    minHeight: '100%',
+                  }}
+                >
+                  {visibleSubmissions.map((submission) => {
+                    const archiveStatus = getArchiveStatus(submission);
+                    const photoAspectRatio = photoAspectRatios[submission.id];
+                    const isLandscape = (photoAspectRatio ?? 1) > 1.15;
+                    const canSpanWide = photoGridLayout.columns >= 4;
+                    const displayUrl = isSafeHttpUrl(submission.content)
+                      ? submission.content
+                      : submission.storagePath
+                        ? firebasePhotoUrls[submission.storagePath]
+                        : undefined;
+
+                    return (
+                      <div
+                        key={submission.id}
+                        className="rounded-lg bg-white border border-slate-200 overflow-hidden"
+                        style={{
+                          gridColumn: `span ${isLandscape && canSpanWide ? 2 : 1}`,
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          setSelectedSubmissionId((prev) =>
+                            prev === submission.id ? null : submission.id
+                          )
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter' && event.key !== ' ')
+                            return;
+                          event.preventDefault();
+                          setSelectedSubmissionId((prev) =>
+                            prev === submission.id ? null : submission.id
+                          );
+                        }}
+                      >
+                        {displayUrl ? (
+                          <div className="block">
+                            <div className="relative">
+                              <img
+                                src={displayUrl}
+                                alt={submission.participantLabel ?? 'Photo'}
+                                className="block w-full h-auto"
+                                onLoad={(event) =>
+                                  handlePhotoLoad(
+                                    submission.id,
+                                    event.currentTarget.naturalWidth,
+                                    event.currentTarget.naturalHeight
+                                  )
+                                }
+                              />
+                              {selectedSubmissionId === submission.id && (
+                                <div
+                                  className="absolute left-2 top-2 flex items-center gap-1"
+                                  onClick={(event) => event.stopPropagation()}
                                 >
-                                  {submission.archiveError}
+                                  <button
+                                    type="button"
+                                    className="rounded-full bg-white/95 p-1 text-slate-700 shadow"
+                                    title="Open fullscreen preview"
+                                    aria-label="Open fullscreen preview"
+                                    onClick={() =>
+                                      setFullscreenSubmission(submission)
+                                    }
+                                  >
+                                    <Expand
+                                      style={{
+                                        width: 'min(10px, 3cqmin)',
+                                        height: 'min(10px, 3cqmin)',
+                                      }}
+                                    />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded-full bg-white/95 p-1 text-rose-700 shadow"
+                                    title="Delete submission"
+                                    aria-label="Delete submission"
+                                    onClick={() =>
+                                      void deleteSubmission(submission)
+                                    }
+                                  >
+                                    <Trash2
+                                      style={{
+                                        width: 'min(10px, 3cqmin)',
+                                        height: 'min(10px, 3cqmin)',
+                                      }}
+                                    />
+                                  </button>
+                                </div>
+                              )}
+                              {archiveStatus === 'failed' && (
+                                <span
+                                  title="Drive sync failed"
+                                  aria-label="Drive sync failed"
+                                  className="absolute right-2 top-2 flex items-center justify-center rounded-full bg-rose-600 font-black text-white"
+                                  style={{
+                                    width: 'min(14px, 4.2cqmin)',
+                                    height: 'min(14px, 4.2cqmin)',
+                                    fontSize: 'min(10px, 3cqmin)',
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  ×
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="text-slate-600"
+                              style={{
+                                padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
+                              }}
+                            >
+                              {submission.participantLabel && (
+                                <p
+                                  className="truncate"
+                                  style={{ fontSize: 'min(9px, 3cqmin)' }}
+                                >
+                                  {submission.participantLabel}
                                 </p>
                               )}
+                              {archiveStatus === 'failed' &&
+                                submission.archiveError && (
+                                  <p
+                                    className="text-amber-700 line-clamp-2"
+                                    style={{ fontSize: 'min(8px, 2.7cqmin)' }}
+                                  >
+                                    {submission.archiveError}
+                                  </p>
+                                )}
+                            </div>
                           </div>
-                        </a>
-                      ) : (
-                        <div
-                          className="flex items-center justify-center text-red-400"
-                          style={{
-                            aspectRatio: '4/3',
-                            fontSize: 'min(9px, 3cqmin)',
-                          }}
-                        >
-                          Photo still syncing
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        ) : (
+                          <div
+                            className="flex items-center justify-center text-red-400"
+                            style={{
+                              aspectRatio: '4/3',
+                              fontSize: 'min(9px, 3cqmin)',
+                            }}
+                          >
+                            Photo still syncing
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        }
+      />
+      <Modal
+        isOpen={!!fullscreenSubmission}
+        onClose={() => setFullscreenSubmission(null)}
+        variant="bare"
+        maxWidth="max-w-5xl"
+        ariaLabel="Submission preview"
+      >
+        {fullscreenSubmission && (
+          <div className="rounded-2xl bg-slate-950/95 p-4 text-white">
+            {fullscreenMediaUrl && isLikelyVideoUrl(fullscreenMediaUrl) ? (
+              <video
+                src={fullscreenMediaUrl}
+                controls
+                className="max-h-[75vh] w-full rounded-xl"
+              />
+            ) : fullscreenMediaUrl ? (
+              <img
+                src={fullscreenMediaUrl}
+                alt={fullscreenSubmission.participantLabel ?? 'Submission'}
+                className="max-h-[75vh] w-full object-contain rounded-xl"
+              />
+            ) : (
+              <div className="max-h-[75vh] overflow-auto whitespace-pre-wrap rounded-xl bg-white/10 p-4 text-base">
+                {fullscreenSubmission.content}
               </div>
             )}
           </div>
-        </div>
-      }
-    />
+        )}
+      </Modal>
+    </>
   );
 };
