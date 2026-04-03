@@ -61,7 +61,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
     if (!newUrl.trim()) return;
 
     let formattedUrl = newUrl.trim();
-    if (!/^https?:\/\//i.test(formattedUrl)) {
+    if (!/^[a-z]+:\/\//i.test(formattedUrl)) {
       formattedUrl = 'https://' + formattedUrl;
     }
 
@@ -120,6 +120,11 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
               type="text"
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newUrl.trim()) {
+                  addUrl();
+                }
+              }}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
               placeholder="e.g. google.com"
             />
