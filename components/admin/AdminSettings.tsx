@@ -26,13 +26,48 @@ interface AdminSettingsProps {
 }
 
 const TABS = [
-  { id: 'features', label: 'Feature Permissions', icon: Shield },
-  { id: 'global', label: 'Global Settings', icon: Zap },
-  { id: 'backgrounds', label: 'Background Manager', icon: ImageIcon },
-  { id: 'announcements', label: 'Announcements', icon: Bell },
-  { id: 'users', label: 'User Management', icon: Users },
-  { id: 'analytics', label: 'Analytics', icon: BarChart },
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate },
+  {
+    id: 'features',
+    label: 'Feature Permissions',
+    icon: Shield,
+    component: FeaturePermissionsManager,
+  },
+  {
+    id: 'global',
+    label: 'Global Settings',
+    icon: Zap,
+    component: GlobalPermissionsManager,
+  },
+  {
+    id: 'backgrounds',
+    label: 'Background Manager',
+    icon: ImageIcon,
+    component: BackgroundManager,
+  },
+  {
+    id: 'announcements',
+    label: 'Announcements',
+    icon: Bell,
+    component: AnnouncementsManager,
+  },
+  {
+    id: 'users',
+    label: 'User Management',
+    icon: Users,
+    component: UserManagementPanel,
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: BarChart,
+    component: AnalyticsManager,
+  },
+  {
+    id: 'templates',
+    label: 'Templates',
+    icon: LayoutTemplate,
+    component: DashboardTemplatesManager,
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -119,7 +154,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               <ChevronLeft className="w-6 h-6 md:w-5 md:h-5" />
             </button>
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              {showMobileMenu || <div className="md:hidden" />}
               <Settings className="w-5 h-5 md:w-4 md:h-4 text-white/70 shrink-0 hidden md:block" />
               <h2
                 id="admin-settings-title"
@@ -141,7 +175,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 isActive={activeTab === tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  setShowMobileMenu(false);
                 }}
                 icon={<tab.icon className="w-4 h-4" />}
                 label={tab.label}
@@ -182,87 +215,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           <div
             className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 h-full`}
           >
-            {activeTab === 'features' && (
-              <div
-                id="panel-features"
-                role="tabpanel"
-                aria-labelledby="tab-features"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <div className="mb-4">
-                  <p className="text-slate-600 text-sm">
-                    Control individual widget availability and access levels.
-                  </p>
-                </div>
-                <FeaturePermissionsManager />
-              </div>
-            )}
-
-            {activeTab === 'global' && (
-              <div
-                id="panel-global"
-                role="tabpanel"
-                aria-labelledby="tab-global"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <GlobalPermissionsManager />
-              </div>
-            )}
-
-            {activeTab === 'backgrounds' && (
-              <div
-                id="panel-backgrounds"
-                role="tabpanel"
-                aria-labelledby="tab-backgrounds"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <BackgroundManager />
-              </div>
-            )}
-
-            {activeTab === 'announcements' && (
-              <div
-                id="panel-announcements"
-                role="tabpanel"
-                aria-labelledby="tab-announcements"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <AnnouncementsManager />
-              </div>
-            )}
-
-            {activeTab === 'users' && (
-              <div
-                id="panel-users"
-                role="tabpanel"
-                aria-labelledby="tab-users"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <UserManagementPanel />
-              </div>
-            )}
-
-            {activeTab === 'analytics' && (
-              <div
-                id="panel-analytics"
-                role="tabpanel"
-                aria-labelledby="tab-analytics"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <AnalyticsManager />
-              </div>
-            )}
-
-            {activeTab === 'templates' && (
-              <div
-                id="panel-templates"
-                role="tabpanel"
-                aria-labelledby="tab-templates"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                <DashboardTemplatesManager />
-              </div>
-            )}
+            {TABS.map((tab) => {
+              const TabComponent = tab.component;
+              return (
+                activeTab === tab.id && (
+                  <div
+                    key={tab.id}
+                    id={'panel-' + tab.id}
+                    role="tabpanel"
+                    aria-labelledby={'tab-' + tab.id}
+                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
+                  >
+                    {tab.id === 'features' && (
+                      <div className="mb-4">
+                        <p className="text-slate-600 text-sm">
+                          Control individual widget availability and access
+                          levels.
+                        </p>
+                      </div>
+                    )}
+                    <TabComponent />
+                  </div>
+                )
+              );
+            })}
           </div>
         </div>
       </div>
