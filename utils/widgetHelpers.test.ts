@@ -292,7 +292,7 @@ describe('widgetHelpers', () => {
           z: 1,
           isLocked: false,
           flipped: false,
-          config: { content: 'test', html: '<p>test</p>' },
+          config: { content: 'test', bgColor: '#fff', fontSize: 16 },
         },
         {
           id: 'w2',
@@ -304,9 +304,9 @@ describe('widgetHelpers', () => {
           z: 2,
           isLocked: false,
           flipped: false,
-          config: {},
+          config: { format24: false, showSeconds: false },
         },
-      ] as WidgetData[];
+      ];
 
       const snapshot = createBoardSnapshot(widgets);
 
@@ -329,12 +329,14 @@ describe('widgetHelpers', () => {
       // Verify config is cloned, not referenced
       expect(snapshot[0].config).toEqual({
         content: 'test',
-        html: '<p>test</p>',
+        bgColor: '#fff',
+        fontSize: 16,
       });
       (snapshot[0].config as { content: string }).content = 'updated';
       expect(widgets[0].config).toEqual({
         content: 'test',
-        html: '<p>test</p>',
+        bgColor: '#fff',
+        fontSize: 16,
       }); // original unchanged
     });
   });
