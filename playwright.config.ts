@@ -35,6 +35,7 @@ export default defineConfig({
       VITE_FIREBASE_STORAGE_BUCKET: 'dummy',
       VITE_FIREBASE_MESSAGING_SENDER_ID: 'dummy',
       VITE_FIREBASE_APP_ID: 'dummy',
+      VITE_GOOGLE_CLIENT_ID: 'dummy',
       VITE_AUTH_BYPASS: 'true',
     },
   },
