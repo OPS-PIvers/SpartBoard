@@ -29,7 +29,7 @@ import {
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
-import { extractYouTubeId } from '@/utils/url';
+import { extractYouTubeId } from '@/utils/youtube';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 

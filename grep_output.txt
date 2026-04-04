@@ -1,0 +1,27 @@
+./components/widgets/GuidedLearning/components/interactions/VideoInteraction.tsx:11:function extractYouTubeId(url: string): string | null {
+./components/widgets/GuidedLearning/components/interactions/VideoInteraction.tsx:25:  const youtubeId = extractYouTubeId(url);
+./components/widgets/MusicWidget/Widget.tsx:11:  extractYouTubeId,
+./components/widgets/MusicWidget/Widget.tsx:100:  const youtubeId = activeStation ? extractYouTubeId(activeStation.url) : null;
+./components/widgets/MusicWidget/utils.ts:9:  extractYouTubeId,
+./components/videoActivity/VideoPlayer.test.tsx:11:  extractYouTubeId: (url: string) => mockExtractYouTubeId(url),
+./components/videoActivity/VideoPlayer.tsx:18:  extractYouTubeId,
+./components/videoActivity/VideoPlayer.tsx:170:    const videoId = extractYouTubeId(youtubeUrl);
+./components/admin/MusicManager.tsx:24:import { extractYouTubeId } from '../widgets/MusicWidget/utils';
+./components/admin/MusicManager.tsx:241:              const videoId = extractYouTubeId(station.url);
+./components/admin/MusicManager.tsx:298:    const videoId = extractYouTubeId(url);
+./components/admin/MusicManager.tsx:429:                    {extractYouTubeId(editForm.url ?? '') && (
+./components/admin/BackgroundManager/GridPresetCard.tsx:5:import { extractYouTubeId } from '@/utils/url';
+./components/admin/BackgroundManager/GridPresetCard.tsx:29:  const isVideo = Boolean(extractYouTubeId(preset.url));
+./components/admin/BackgroundManager/ListPresetRow.tsx:14:import { extractYouTubeId } from '@/utils/url';
+./components/admin/BackgroundManager/ListPresetRow.tsx:38:  const isVideo = Boolean(extractYouTubeId(preset.url));
+./components/admin/BackgroundManager/index.tsx:28:import { extractYouTubeId } from '@/utils/url';
+./components/admin/BackgroundManager/index.tsx:338:    const videoId = extractYouTubeId(youtubeUrl.trim());
+./components/admin/BackgroundManager/index.tsx:519:        const isVideo = Boolean(extractYouTubeId(preset.url));
+./components/layout/DashboardView.tsx:32:import { extractYouTubeId } from '@/utils/url';
+./components/layout/DashboardView.tsx:884:      activeDashboard ? extractYouTubeId(activeDashboard.background) : null,
+./components/layout/sidebar/SidebarBackgrounds.tsx:6:import { extractYouTubeId } from '@/utils/url';
+./components/layout/sidebar/SidebarBackgrounds.tsx:82:        if (extractYouTubeId(bg.id)) {
+./hooks/useMusicStations.ts:6:import { extractYouTubeId } from '@/utils/url';
+./hooks/useMusicStations.ts:25:              const videoId = extractYouTubeId(station.url);
+./utils/url.ts:5:export const extractYouTubeId = (url: string): string | null => {
+./utils/youtube.ts:36:export const extractYouTubeId = (url: string): string | null => {

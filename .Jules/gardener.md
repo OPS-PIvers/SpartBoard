@@ -127,3 +127,7 @@
 **Weed:** Using `useEffect` to synchronize `diceCount` with the local `values` array in `DiceWidget`.
 **Root Cause:** The `useEffect` hook causes an avoidable, post-commit extra render when adjusting state to match props.
 **Plan:** Replaced the `useEffect` block with the derived state pattern (`if (diceCount !== prevDiceCount)`) to conditionally update the state synchronously during the render phase. Also refactored the array initialization to use `Array.from` for better readability.
+## 2024-05-18 - Consolidate extractYouTubeId
+**Weed:** Duplicated utility function `extractYouTubeId` defined in multiple places (utils/url.ts, utils/youtube.ts, and inline in VideoInteraction.tsx).
+**Root Cause:** Codebase evolution likely led to multiple developers needing the same utility and creating it locally or in separate utility files.
+**Plan:** Consolidated all definitions into the canonical `utils/youtube.ts` and updated all import references across the codebase to point to this single source of truth.
