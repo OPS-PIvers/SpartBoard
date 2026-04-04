@@ -204,19 +204,24 @@ export const CountdownConfigurationPanel: React.FC<
                       type="date"
                       value={
                         event.date
-                          ? new Date(event.date).toISOString().split('T')[0]
+                          ? (() => {
+                              const d = new Date(event.date);
+                              const year = d.getFullYear();
+                              const month = String(d.getMonth() + 1).padStart(
+                                2,
+                                '0'
+                              );
+                              const day = String(d.getDate()).padStart(2, '0');
+                              return `${year}-${month}-${day}`;
+                            })()
                           : ''
                       }
                       onChange={(e) => {
                         if (!e.target.value) return;
-                        const date = new Date(e.target.value);
-                        // Store as noon local time to avoid timezone shifts
-                        const localDate = new Date(
-                          date.getFullYear(),
-                          date.getMonth(),
-                          date.getDate(),
-                          12
-                        );
+                        const [year, month, day] = e.target.value
+                          .split('-')
+                          .map(Number);
+                        const localDate = new Date(year, month - 1, day, 12);
                         const newEvents = [...(currentDefaults.events ?? [])];
                         newEvents[index] = {
                           ...event,

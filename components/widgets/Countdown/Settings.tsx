@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, CountdownConfig } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { WidgetData, CountdownConfig, CountdownGlobalConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { CalendarDays } from 'lucide-react';
 
 export const CountdownSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
+  const { featurePermissions, selectedBuildings } = useAuth();
   const config = widget.config as CountdownConfig;
 
   const update = (updates: Partial<CountdownConfig>) => {
@@ -63,8 +66,61 @@ export const CountdownSettings: React.FC<{ widget: WidgetData }> = ({
     );
   };
 
+  const globalConfig = useMemo(() => {
+    const perm = featurePermissions.find((p) => p.widgetType === 'countdown');
+    return perm?.config as CountdownGlobalConfig | undefined;
+  }, [featurePermissions]);
+
+  const buildingId = selectedBuildings[0];
+  const buildingConfig = buildingId
+    ? globalConfig?.buildingDefaults?.[buildingId]
+    : undefined;
+  const preDefinedEvents = buildingConfig?.events ?? [];
+
   return (
     <div className="p-4 space-y-4">
+      {preDefinedEvents.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+          <label className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider flex items-center gap-1">
+            <CalendarDays className="w-3.5 h-3.5 text-brand-blue-primary" />
+            Import Pre-defined Event
+          </label>
+          <select
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none bg-white text-slate-700"
+            onChange={(e) => {
+              if (!e.target.value) return;
+              const selectedEvent = preDefinedEvents.find(
+                (ev) => ev.id === e.target.value
+              );
+              if (selectedEvent) {
+                update({
+                  title: selectedEvent.title,
+                  eventDate: selectedEvent.date,
+                });
+              }
+              // Reset selection to allow re-importing the same event later if needed
+              e.target.value = '';
+            }}
+            defaultValue=""
+          >
+            <option value="" disabled>
+              Select an event...
+            </option>
+            {preDefinedEvents.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.title} (
+                {new Date(ev.date).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                )
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div>
         <label className="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">
           Event Title
