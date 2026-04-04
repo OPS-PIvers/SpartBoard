@@ -1924,6 +1924,10 @@ export const adminAnalytics = functionsV1
         let totalDashboards = 0;
         const totalWidgetCounts: Record<string, number> = {};
         const activeWidgetCounts: Record<string, number> = {};
+        // Bounded at MAX_WIDGET_USER_TRACK UIDs per type: memory is
+        // O(widget_types × limit) instead of O(widget_types × all_users).
+        // count = Set.size is exact up to the cap; above the cap it means "≥ cap".
+        const MAX_WIDGET_USER_TRACK = 100;
         const widgetToUserUids: Record<string, Set<string>> = {};
         const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -1956,7 +1960,14 @@ export const adminAnalytics = functionsV1
                   if (!widgetToUserUids[w.type]) {
                     widgetToUserUids[w.type] = new Set<string>();
                   }
-                  widgetToUserUids[w.type].add(ownerUid);
+                  const uidSet = widgetToUserUids[w.type];
+                  // Only grow the Set while under the cap (or if already present)
+                  if (
+                    uidSet.size < MAX_WIDGET_USER_TRACK ||
+                    uidSet.has(ownerUid)
+                  ) {
+                    uidSet.add(ownerUid);
+                  }
                 }
               }
             });
