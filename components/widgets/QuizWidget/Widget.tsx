@@ -303,7 +303,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const data = await loadQuiz(meta);
         if (data) setView('preview');
       }}
-      onGoLive={async (meta, mode) => {
+      onAssign={async (meta, mode) => {
         const data = await loadQuiz(meta);
         if (!data) return;
         try {
@@ -317,6 +317,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               activeLiveSessionCode: code,
             } as QuizConfig,
           });
+          const url = `${window.location.origin}/quiz?code=${code}`;
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            void navigator.clipboard
+              .writeText(url)
+              .then(() =>
+                addToast('Assignment link copied to clipboard!', 'success')
+              )
+              .catch(() =>
+                addToast(
+                  'Assignment created, but link could not be copied.',
+                  'info'
+                )
+              );
+          } else {
+            addToast(
+              'Assignment created, but link could not be copied.',
+              'info'
+            );
+          }
         } catch (err) {
           addToast(
             err instanceof Error ? err.message : 'Failed to start session',

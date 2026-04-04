@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '@/context/useDashboard';
+import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Settings } from 'lucide-react';
@@ -58,7 +59,7 @@ const SortableToken: React.FC<SortableTokenProps> = ({
   const style: React.CSSProperties & Record<string, unknown> = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 1,
+    zIndex: isDragging ? Z_INDEX.itemDragging : 1,
     opacity: isDragging ? 0.8 : 1,
     flex: 'var(--char-count) 1 auto',
     containerType: 'size',

@@ -907,3 +907,21 @@ See [LINTING_SETUP.md](LINTING_SETUP.md) for complete linting documentation.
 
 **Last Updated**: 2025-12-22
 **Version**: 1.1.0
+
+## Widget Appearance Standard (Visual System)
+
+All agents must follow the shared widget appearance model when building or updating configurable widgets:
+
+- Use shared settings primitives in widget style tabs:
+  - `components/common/TypographySettings.tsx`
+  - `components/common/TextSizePresetSettings.tsx`
+  - `components/common/SurfaceColorSettings.tsx`
+- Prefer these config fields for visual controls:
+  - `fontFamily`
+  - `fontColor`
+  - `textSizePreset` (`small` | `medium` | `large` | `x-large`)
+  - `cardColor`
+  - `cardOpacity`
+- Keep universal transparency in the global settings shell; do not duplicate full-widget transparency controls inside widget-specific style tabs.
+- Ensure front-face widgets actually consume settings values (no dead controls).
+- Default widget roots should remain visually transparent; only add localized readability surfaces where content legibility requires it.

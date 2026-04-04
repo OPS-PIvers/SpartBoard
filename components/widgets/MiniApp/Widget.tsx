@@ -18,6 +18,10 @@ import {
   Link2,
   Copy,
   Check,
+  BarChart3,
+  Loader2,
+  CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 import { generateMiniAppCode } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
@@ -37,7 +41,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useAuth } from '@/context/useAuth';
-import { useLiveSession } from '@/hooks/useLiveSession';
+import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
 import {
   collection,
   doc,
@@ -49,9 +53,172 @@ import { db } from '@/config/firebase';
 import { SortableItem } from './components/SortableItem';
 import { GlobalAppRow } from './components/GlobalAppRow';
 import { MiniAppEditor } from './components/MiniAppEditor';
+import { AssignmentsModal } from './components/AssignmentsModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
 import { useDialog } from '@/context/useDialog';
+
+// --- ASSIGN MODAL ---
+interface MiniAppAssignModalProps {
+  appTitle: string;
+  assignmentName: string;
+  onNameChange: (name: string) => void;
+  isCreating: boolean;
+  createdSessionId: string | null;
+  error: string | null;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
+  appTitle,
+  assignmentName,
+  onNameChange,
+  isCreating,
+  createdSessionId,
+  error,
+  onConfirm,
+  onClose,
+}) => {
+  const link = createdSessionId
+    ? `${window.location.origin}/miniapp/${createdSessionId}`
+    : null;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!link) return;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div
+          className={`p-4 flex items-center justify-between ${createdSessionId ? 'bg-emerald-600' : 'bg-brand-blue-primary'}`}
+        >
+          <div className="flex items-center gap-2 text-white">
+            {createdSessionId ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              <Link2 className="w-5 h-5" />
+            )}
+            <span className="font-black uppercase tracking-tight">
+              {createdSessionId ? 'Assignment Created' : 'Assign'}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/60 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {createdSessionId && link ? (
+            /* Post-creation: show link */
+            <>
+              <div className="text-center">
+                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+                  {assignmentName}
+                </p>
+              </div>
+              <p className="text-slate-600 text-sm text-center">
+                Share this link with your students. They&apos;ll interact with
+                the app immediately.
+              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 break-all text-xs text-slate-700 font-mono">
+                {link}
+              </div>
+              <div className="grid gap-2">
+                <button
+                  onClick={() => void handleCopy()}
+                  className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy Link
+                    </>
+                  )}
+                </button>
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors py-3 text-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open in New Tab
+                </a>
+              </div>
+            </>
+          ) : (
+            /* Pre-creation: name input */
+            <>
+              <div className="text-center">
+                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+                  {appTitle}
+                </p>
+                <p
+                  className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
+                  style={{ fontSize: 'clamp(10px, 3cqmin, 12px)' }}
+                >
+                  Create Assignment Link
+                </p>
+              </div>
+              <p className="text-slate-600 text-sm text-center">
+                Name this assignment, then share the generated link with
+                students.
+              </p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <label
+                  htmlFor="miniapp-assignment-name"
+                  className="block text-sm font-bold text-slate-700 mb-1.5"
+                >
+                  Assignment Name
+                </label>
+                <input
+                  id="miniapp-assignment-name"
+                  type="text"
+                  value={assignmentName}
+                  onChange={(e) => onNameChange(e.target.value)}
+                  placeholder="1st period"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-brand-red-primary text-center font-medium">
+                  {error}
+                </p>
+              )}
+              <button
+                onClick={onConfirm}
+                disabled={isCreating || assignmentName.trim().length === 0}
+                className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
+              >
+                {isCreating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Link2 className="w-4 h-4" />
+                )}
+                {isCreating ? 'Creating…' : 'Create Assignment Link'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- MAIN WIDGET COMPONENT ---
 export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
@@ -59,18 +226,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   isStudentView,
   studentPin,
 }) => {
-  const { updateWidget, addToast, activeDashboard } = useDashboard();
+  const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
-  const activeAppId = activeApp?.id;
 
-  const { session, startSession, endSession } = useLiveSession(
-    user?.uid,
-    'teacher'
-  );
-  const isLive = session?.isActive && session?.activeWidgetId === widget.id;
+  const {
+    createSession,
+    sessions,
+    sessionsLoading,
+    subscribeToAppSessions,
+    unsubscribeFromAppSessions,
+    renameSession,
+    endSession,
+  } = useMiniAppSessionTeacher();
 
   const { library, globalLibrary } = useMiniAppSync(addToast);
   const { globalConfig } = useMiniAppGlobalConfig();
@@ -130,23 +300,83 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  const handleCopyLink = async (code: string) => {
-    const url = `${window.location.origin}/join?code=${code}`;
+  // Assign flow state
+  const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
+  const [assignmentName, setAssignmentName] = useState('');
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignmentsForApp, setAssignmentsForApp] =
+    useState<MiniAppItem | null>(null);
+
+  const buildDefaultAssignmentName = (appTitle: string) => {
+    const formatted = new Date().toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    return `${appTitle} — ${formatted}`;
+  };
+
+  const handleOpenAssign = (app: MiniAppItem) => {
+    setAssigningApp(app);
+    setAssignmentName(buildDefaultAssignmentName(app.title));
+    setCreatedSessionId(null);
+    setAssignError(null);
+  };
+
+  const handleOpenAssignments = (app: MiniAppItem) => {
+    setAssignmentsForApp(app);
+  };
+
+  const handleCloseAssignments = () => {
+    setAssignmentsForApp(null);
+  };
+
+  // Subscribe to sessions for whichever app the teacher is managing
+  const targetAppId = assignmentsForApp?.id ?? activeApp?.id;
+  useEffect(() => {
+    if (!user?.uid || !targetAppId) {
+      unsubscribeFromAppSessions();
+      return;
+    }
+    subscribeToAppSessions(targetAppId, user.uid);
+    return () => unsubscribeFromAppSessions();
+  }, [
+    targetAppId,
+    user?.uid,
+    subscribeToAppSessions,
+    unsubscribeFromAppSessions,
+  ]);
+
+  const handleConfirmAssign = async () => {
+    if (!user || !assigningApp) return;
+    setIsCreatingSession(true);
+    setAssignError(null);
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      addToast('Assignment link copied to clipboard!', 'success');
-      return true;
-    } catch (error) {
-      console.error('Failed to copy assignment link:', error);
-      addToast(
-        'Assignment created, but the link could not be copied.',
-        'error'
+      const sessionId = await createSession(
+        assigningApp,
+        user.uid,
+        assignmentName,
+        globalConfig?.submissionUrl,
+        config.collectResults ? (config.googleSheetId ?? undefined) : undefined
       );
-      return false;
+      setCreatedSessionId(sessionId);
+      const url = `${window.location.origin}/miniapp/${sessionId}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        addToast('Assignment link copied to clipboard!', 'success');
+      } catch {
+        addToast(`Assignment created! URL: ${url}`, 'info');
+      }
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : 'Failed to create assignment.'
+      );
+    } finally {
+      setIsCreatingSession(false);
     }
   };
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -175,36 +405,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   );
 
   // --- HANDLERS ---
-
-  const handleToggleLive = async (app?: MiniAppItem) => {
-    try {
-      if (isLive) {
-        await endSession();
-      } else {
-        // If an app was clicked directly from the list, run it first
-        if (app && activeApp?.id !== app.id) {
-          updateWidget(widget.id, {
-            config: { ...config, activeApp: app },
-          });
-        }
-
-        const newSession = await startSession(
-          widget.id,
-          widget.type,
-          app ? { ...config, activeApp: app } : widget.config,
-          activeDashboard?.background
-        );
-
-        const didCopy = await handleCopyLink(newSession.code);
-        if (!didCopy) {
-          addToast(`Assignment code: ${newSession.code}`, 'info');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to toggle live session:', error);
-      addToast('Failed to assign app.', 'error');
-    }
-  };
 
   const handleRun = (app: MiniAppItem) => {
     updateWidget(widget.id, {
@@ -467,22 +667,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           <div className="w-full h-full flex flex-col relative overflow-hidden group/miniapp">
             {!isStudentView && (
               <>
-                {/* Left Actions: Live Status */}
+                {/* Left Actions: Assign controls */}
                 <div className="absolute top-2 left-2 z-10 flex items-center gap-2 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
                   <button
-                    onClick={() => void handleToggleLive()}
-                    className={`flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg ${
-                      isLive
-                        ? 'bg-red-500 text-white shadow-lg'
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
-                    }`}
+                    onClick={() => handleOpenAssign(activeApp)}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm"
                     style={{
                       padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
                       fontSize: 'min(10px, 2.5cqmin)',
                     }}
-                    title={
-                      isLive ? 'End Assignment' : 'Assign (copy student link)'
-                    }
+                    title="Assign (copy student link)"
                   >
                     <Link2
                       style={{
@@ -490,38 +684,25 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                         height: 'min(12px, 3cqmin)',
                       }}
                     />
-                    <span className="hidden sm:inline">
-                      {isLive ? 'Assigned' : 'Assign'}
-                    </span>
+                    <span className="hidden sm:inline">Assign</span>
                   </button>
-
-                  {isLive && session?.code && (
-                    <>
-                      <div
-                        className="flex items-center gap-1.5 bg-indigo-900/40 backdrop-blur-md text-white px-2 py-1 rounded-lg border border-white/20 font-mono tracking-wider font-black"
-                        style={{ fontSize: 'min(12px, 3cqmin)' }}
-                      >
-                        <Link2
-                          style={{
-                            width: 'min(10px, 2.5cqmin)',
-                            height: 'min(10px, 2.5cqmin)',
-                          }}
-                        />
-                        {session.code}
-                      </div>
-                      <button
-                        onClick={() => void handleCopyLink(session.code)}
-                        className="p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-lg transition-all border border-white/10 shadow-sm"
-                        title="Copy Assignment Link"
-                      >
-                        {copied ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => handleOpenAssignments(activeApp)}
+                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm border border-slate-200/50"
+                    style={{
+                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                      fontSize: 'min(10px, 2.5cqmin)',
+                    }}
+                    title="View assignments"
+                  >
+                    <BarChart3
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                    <span className="hidden sm:inline">Assignments</span>
+                  </button>
                 </div>
 
                 {/* Right Actions: App Controls */}
@@ -566,13 +747,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   )}
                   <button
                     onClick={handleCloseActive}
-                    className={`${
-                      isLive
-                        ? 'bg-white/20 hover:bg-white/30 text-white'
-                        : 'bg-white/90 hover:bg-white text-slate-700'
-                    } backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border ${
-                      isLive ? 'border-white/10' : 'border-slate-200/50'
-                    } font-black transition-all`}
+                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
                     style={{
                       padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
                       fontSize: 'min(10px, 2.5cqmin)',
@@ -634,6 +809,34 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   </button>
                 </div>
               </div>
+            )}
+            {/* Assign modal */}
+            {!isStudentView && assigningApp && (
+              <MiniAppAssignModal
+                appTitle={assigningApp.title}
+                assignmentName={assignmentName}
+                onNameChange={setAssignmentName}
+                isCreating={isCreatingSession}
+                createdSessionId={createdSessionId}
+                error={assignError}
+                onConfirm={() => void handleConfirmAssign()}
+                onClose={() => {
+                  setAssigningApp(null);
+                  setCreatedSessionId(null);
+                  setAssignError(null);
+                }}
+              />
+            )}
+            {/* Assignments modal */}
+            {!isStudentView && assignmentsForApp && (
+              <AssignmentsModal
+                appTitle={assignmentsForApp.title}
+                sessions={sessions}
+                loading={sessionsLoading}
+                onClose={handleCloseAssignments}
+                onRenameSession={renameSession}
+                onEndSession={endSession}
+              />
             )}
           </div>
         }
@@ -763,194 +966,220 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         </div>
       }
       content={
-        <div
-          className="flex-1 w-full h-full overflow-y-auto bg-transparent custom-scrollbar flex flex-col"
-          style={{
-            padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
-            gap: 'min(8px, 2cqmin)',
-          }}
-        >
-          {activeTab === 'personal' ? (
-            <>
-              {/* Personal library sub-header links */}
-              <div
-                className="flex items-center"
-                style={{
-                  gap: 'min(12px, 3cqmin)',
-                  marginBottom: 'min(4px, 1cqmin)',
-                }}
-              >
-                <button
-                  onClick={handleExport}
-                  className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
+        <div className="relative flex-1 w-full h-full flex flex-col min-h-0">
+          <div
+            className="flex-1 w-full h-full overflow-y-auto bg-transparent custom-scrollbar flex flex-col"
+            style={{
+              padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
+              gap: 'min(8px, 2cqmin)',
+            }}
+          >
+            {activeTab === 'personal' ? (
+              <>
+                {/* Personal library sub-header links */}
+                <div
+                  className="flex items-center"
                   style={{
-                    fontSize: 'min(10px, 2.5cqmin)',
-                    gap: 'min(4px, 1cqmin)',
+                    gap: 'min(12px, 3cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
                   }}
                 >
-                  <Download
+                  <button
+                    onClick={handleExport}
+                    className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
                     style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
+                      fontSize: 'min(10px, 2.5cqmin)',
+                      gap: 'min(4px, 1cqmin)',
                     }}
-                  />
-                  Export
-                </button>
-                <span
-                  className="text-slate-200 font-bold"
-                  style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-                >
-                  •
-                </span>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
-                  style={{
-                    fontSize: 'min(10px, 2.5cqmin)',
-                    gap: 'min(4px, 1cqmin)',
-                  }}
-                >
-                  <Upload
+                  >
+                    <Download
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                    Export
+                  </button>
+                  <span
+                    className="text-slate-200 font-bold"
+                    style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                  >
+                    •
+                  </span>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
                     style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
+                      fontSize: 'min(10px, 2.5cqmin)',
+                      gap: 'min(4px, 1cqmin)',
                     }}
+                  >
+                    <Upload
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                    Import
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImport}
+                    accept=".json"
+                    className="hidden"
                   />
-                  Import
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImport}
-                  accept=".json"
-                  className="hidden"
-                />
-              </div>
+                </div>
 
-              {library.length === 0 ? (
-                <div
-                  className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
-                  style={{
-                    gap: 'min(16px, 3.5cqmin)',
-                    paddingTop: 'min(32px, 7cqmin)',
-                    paddingBottom: 'min(32px, 7cqmin)',
-                  }}
-                >
+                {library.length === 0 ? (
                   <div
-                    className="bg-white rounded-3xl border border-slate-200 shadow-sm"
-                    style={{ padding: 'min(20px, 4cqmin)' }}
+                    className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
+                    style={{
+                      gap: 'min(16px, 3.5cqmin)',
+                      paddingTop: 'min(32px, 7cqmin)',
+                      paddingBottom: 'min(32px, 7cqmin)',
+                    }}
                   >
-                    <Box
-                      className="stroke-slate-300"
-                      style={{
-                        width: 'min(40px, 10cqmin)',
-                        height: 'min(40px, 10cqmin)',
-                      }}
-                    />
-                  </div>
-                  <div className="text-center">
-                    <p
-                      className="font-black uppercase tracking-widest"
-                      style={{
-                        fontSize: 'min(14px, 3.5cqmin)',
-                        marginBottom: 'min(4px, 1cqmin)',
-                      }}
+                    <div
+                      className="bg-white rounded-3xl border border-slate-200 shadow-sm"
+                      style={{ padding: 'min(20px, 4cqmin)' }}
                     >
-                      No apps saved yet
-                    </p>
-                    <p
-                      className="font-bold uppercase tracking-tighter"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
-                    >
-                      Import a file or create your first mini-app.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={library.map((item) => item.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {library.map((app) => (
-                      <SortableItem
-                        key={app.id}
-                        app={app}
-                        onRun={handleRun}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        isLive={isLive && activeAppId === app.id}
-                        onToggleLive={handleToggleLive}
-                        onCopyLink={handleCopyLink}
-                        sessionCode={session?.code}
+                      <Box
+                        className="stroke-slate-300"
+                        style={{
+                          width: 'min(40px, 10cqmin)',
+                          height: 'min(40px, 10cqmin)',
+                        }}
                       />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              )}
-            </>
-          ) : (
-            /* Global library tab */
-            <>
-              {globalLibrary.length === 0 ? (
-                <div
-                  className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
-                  style={{
-                    gap: 'min(16px, 3.5cqmin)',
-                    paddingTop: 'min(32px, 7cqmin)',
-                    paddingBottom: 'min(32px, 7cqmin)',
-                  }}
-                >
-                  <div
-                    className="bg-white rounded-3xl border border-slate-200 shadow-sm"
-                    style={{ padding: 'min(20px, 4cqmin)' }}
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className="font-black uppercase tracking-widest"
+                        style={{
+                          fontSize: 'min(14px, 3.5cqmin)',
+                          marginBottom: 'min(4px, 1cqmin)',
+                        }}
+                      >
+                        No apps saved yet
+                      </p>
+                      <p
+                        className="font-bold uppercase tracking-tighter"
+                        style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      >
+                        Import a file or create your first mini-app.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
                   >
-                    <Globe
-                      className="stroke-slate-300"
-                      style={{
-                        width: 'min(40px, 10cqmin)',
-                        height: 'min(40px, 10cqmin)',
-                      }}
+                    <SortableContext
+                      items={library.map((item) => item.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {library.map((app) => (
+                        <SortableItem
+                          key={app.id}
+                          app={app}
+                          onRun={handleRun}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          onAssign={handleOpenAssign}
+                          onShowAssignments={handleOpenAssignments}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </>
+            ) : (
+              /* Global library tab */
+              <>
+                {globalLibrary.length === 0 ? (
+                  <div
+                    className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
+                    style={{
+                      gap: 'min(16px, 3.5cqmin)',
+                      paddingTop: 'min(32px, 7cqmin)',
+                      paddingBottom: 'min(32px, 7cqmin)',
+                    }}
+                  >
+                    <div
+                      className="bg-white rounded-3xl border border-slate-200 shadow-sm"
+                      style={{ padding: 'min(20px, 4cqmin)' }}
+                    >
+                      <Globe
+                        className="stroke-slate-300"
+                        style={{
+                          width: 'min(40px, 10cqmin)',
+                          height: 'min(40px, 10cqmin)',
+                        }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className="font-black uppercase tracking-widest"
+                        style={{
+                          fontSize: 'min(14px, 3.5cqmin)',
+                          marginBottom: 'min(4px, 1cqmin)',
+                        }}
+                      >
+                        No shared apps yet
+                      </p>
+                      <p
+                        className="font-bold uppercase tracking-tighter"
+                        style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      >
+                        Your admin has not published any apps yet.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  globalLibrary.map((app) => (
+                    <GlobalAppRow
+                      key={app.id}
+                      app={app}
+                      onRun={handleRun}
+                      onSaveToLibrary={handleSaveToLibrary}
+                      isSaving={savingGlobalId === app.id}
+                      onAssign={handleOpenAssign}
+                      onShowAssignments={handleOpenAssignments}
                     />
-                  </div>
-                  <div className="text-center">
-                    <p
-                      className="font-black uppercase tracking-widest"
-                      style={{
-                        fontSize: 'min(14px, 3.5cqmin)',
-                        marginBottom: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      No shared apps yet
-                    </p>
-                    <p
-                      className="font-bold uppercase tracking-tighter"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
-                    >
-                      Your admin has not published any apps yet.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                globalLibrary.map((app) => (
-                  <GlobalAppRow
-                    key={app.id}
-                    app={app}
-                    onRun={handleRun}
-                    onSaveToLibrary={handleSaveToLibrary}
-                    isSaving={savingGlobalId === app.id}
-                    isLive={isLive && activeAppId === app.id}
-                    onToggleLive={handleToggleLive}
-                    onCopyLink={handleCopyLink}
-                    sessionCode={session?.code}
-                  />
-                ))
-              )}
-            </>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+          {/* Assign modal */}
+          {!isStudentView && assigningApp && (
+            <MiniAppAssignModal
+              appTitle={assigningApp.title}
+              assignmentName={assignmentName}
+              onNameChange={setAssignmentName}
+              isCreating={isCreatingSession}
+              createdSessionId={createdSessionId}
+              error={assignError}
+              onConfirm={() => void handleConfirmAssign()}
+              onClose={() => {
+                setAssigningApp(null);
+                setCreatedSessionId(null);
+                setAssignError(null);
+              }}
+            />
+          )}
+          {/* Assignments modal */}
+          {!isStudentView && assignmentsForApp && (
+            <AssignmentsModal
+              appTitle={assignmentsForApp.title}
+              sessions={sessions}
+              loading={sessionsLoading}
+              onClose={handleCloseAssignments}
+              onRenameSession={renameSession}
+              onEndSession={endSession}
+            />
           )}
         </div>
       }

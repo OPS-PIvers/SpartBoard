@@ -11,7 +11,7 @@ import {
   extractYouTubeId,
   buildSpotifyEmbedUrl,
   YTPlayer,
-} from './utils';
+} from '@/utils/youtube';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button

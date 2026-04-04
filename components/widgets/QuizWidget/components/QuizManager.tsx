@@ -1,6 +1,6 @@
 /**
  * QuizManager — teacher's quiz library view.
- * Lists all saved quizzes with actions: Preview, Edit, Go Live, Results, Delete.
+ * Lists all saved quizzes with actions: Preview, Edit, Assign, Results, Delete.
  */
 
 import React, { useState } from 'react';
@@ -29,7 +29,7 @@ interface QuizManagerProps {
   onImport: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
-  onGoLive: (quiz: QuizMetadata, mode: QuizSessionMode) => void;
+  onAssign: (quiz: QuizMetadata, mode: QuizSessionMode) => void;
   onResume: () => void;
   onEndSession: () => Promise<void>;
   onResults: (quiz: QuizMetadata) => void;
@@ -45,7 +45,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onImport,
   onEdit,
   onPreview,
-  onGoLive,
+  onAssign,
   onResume,
   onEndSession,
   onResults,
@@ -85,7 +85,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <div className="flex items-center gap-2 text-white">
                 <Play className="w-5 h-5 fill-current" />
                 <span className="font-black uppercase tracking-tight">
-                  Go Live
+                  Assign
                 </span>
               </div>
               <button
@@ -115,7 +115,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Teacher-paced"
                   desc="You control when to move to the next question."
                   onClick={() => {
-                    onGoLive(selectedForLive, 'teacher');
+                    onAssign(selectedForLive, 'teacher');
                     setSelectedForLive(null);
                   }}
                 />
@@ -124,7 +124,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Auto-progress"
                   desc="Moves automatically once everyone has answered."
                   onClick={() => {
-                    onGoLive(selectedForLive, 'auto');
+                    onAssign(selectedForLive, 'auto');
                     setSelectedForLive(null);
                   }}
                 />
@@ -133,7 +133,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Self-paced"
                   desc="Students move through questions at their own speed."
                   onClick={() => {
-                    onGoLive(selectedForLive, 'student');
+                    onAssign(selectedForLive, 'student');
                     setSelectedForLive(null);
                   }}
                 />
@@ -499,7 +499,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                               height: 'min(14px, 4cqmin)',
                             }}
                           />
-                          GO LIVE
+                          ASSIGN
                         </button>
                       )}
                     </div>

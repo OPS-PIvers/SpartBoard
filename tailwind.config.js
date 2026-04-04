@@ -64,6 +64,7 @@ export default {
         decorator: Z_INDEX.decorator.toString(),
         content: Z_INDEX.content.toString(),
         controls: Z_INDEX.controls.toString(),
+        'item-dragging': Z_INDEX.itemDragging.toString(),
         widget: Z_INDEX.widget.toString(),
         'widget-drag': Z_INDEX.widgetDrag.toString(),
         maximized: Z_INDEX.maximized.toString(),

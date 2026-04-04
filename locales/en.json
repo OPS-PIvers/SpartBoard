@@ -137,7 +137,8 @@
       "sidebarUtility": "Sidebar",
       "doubleSidebarUtility": "Double Sidebar"
     },
-    "clearEntireBoard": "Are you sure you want to clear the entire board?"
+    "clearEntireBoard": "Are you sure you want to clear the entire board?",
+    "clearBoardTitle": "Clear Board"
   },
   "login": {
     "signInToAccess": "Sign in to access your boards",

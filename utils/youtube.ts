@@ -35,7 +35,7 @@ export const loadYouTubeApi = (callback: () => void): void => {
 /** Extracts the 11-character video ID from any YouTube URL format. */
 export const extractYouTubeId = (url: string): string | null => {
   const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([A-Za-z0-9_-]{11})/
   );
   return m ? m[1] : null;
 };

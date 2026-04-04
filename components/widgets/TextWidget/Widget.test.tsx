@@ -78,6 +78,21 @@ describe('TextWidget', () => {
     expect(screen.getByTitle('Bold')).toBeInTheDocument();
   });
 
+  it('updates vertical alignment from the toolbar', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      selectedWidgetId: 'test-widget',
+    });
+
+    render(<TextWidget widget={mockWidget} />);
+
+    fireEvent.click(screen.getByTitle('Align Bottom'));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
+      config: { ...mockConfig, verticalAlign: 'bottom' },
+    });
+  });
+
   it('hides toolbar when not selected', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,
@@ -117,11 +132,27 @@ describe('TextWidget', () => {
 
   it('applies font size', () => {
     const { container } = render(<TextWidget widget={mockWidget} />);
-    const contentDiv = container.querySelector('.relative.z-10') as HTMLElement;
+    const contentDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
     // JSDOM does not support container units (cqw/cqh) and will strip them from the style attribute.
     // We verify that the style object is being passed by checking for lineHeight which is supported.
     const styleAttr = contentDiv.getAttribute('style') ?? '';
     expect(styleAttr).toContain('line-height: 1.5');
+  });
+
+  it('applies centered vertical alignment to the editor layout', () => {
+    const centeredWidget: WidgetData = {
+      ...mockWidget,
+      config: { ...mockConfig, verticalAlign: 'center' },
+    };
+
+    const { container } = render(<TextWidget widget={centeredWidget} />);
+    const alignmentWrapper = container.querySelector(
+      '.min-h-full.w-full.flex.flex-col'
+    ) as HTMLElement;
+
+    expect(alignmentWrapper).toHaveStyle({ justifyContent: 'center' });
   });
 
   it('updates content on blur', () => {
@@ -350,6 +381,15 @@ describe('TextSettings', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
       config: { ...mockConfig, fontSize: 24 },
+    });
+  });
+
+  it('changes vertical alignment in appearance settings', () => {
+    render(<TextAppearanceSettings widget={mockWidget} />);
+    fireEvent.click(screen.getByRole('button', { name: /bottom/i }));
+
+    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
+      config: { ...mockConfig, verticalAlign: 'bottom' },
     });
   });
 });

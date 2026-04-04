@@ -6,6 +6,7 @@ import {
   waitFor,
   fireEvent,
   cleanup,
+  act,
 } from '@testing-library/react';
 import {
   describe,
@@ -491,7 +492,9 @@ describe('DraggableWindow', () => {
     ) => void; // the handler is the 2nd arg
 
     // Call it manually
-    clickOutsideCallback(new MouseEvent('mousedown'));
+    act(() => {
+      clickOutsideCallback(new MouseEvent('mousedown'));
+    });
 
     // Check if updateWidget was called with the new title
     expect(mockUpdateWidget).toHaveBeenCalledWith(

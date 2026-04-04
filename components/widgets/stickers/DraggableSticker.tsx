@@ -11,6 +11,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
+import { useTranslation } from 'react-i18next';
 
 interface DraggableStickerProps {
   widget: WidgetData;
@@ -21,6 +22,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
   widget,
   children,
 }) => {
+  const { t } = useTranslation();
   const {
     updateWidget,
     removeWidget,
@@ -121,7 +123,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     window.addEventListener('pointerup', onPointerUp);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -142,17 +144,16 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       return;
     }
 
-    // Alt + Delete: Clear all widgets
+    // Alt + Delete or Alt + Backspace: Clear all widgets
     if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      void showConfirm('Are you sure you want to clear the entire board?', {
-        title: 'Clear Board',
+      const confirmed = await showConfirm(t('widgetWindow.clearEntireBoard'), {
+        title: t('widgetWindow.clearBoardTitle'),
         variant: 'danger',
-        confirmLabel: 'Clear All',
-      }).then((confirmed) => {
-        if (confirmed) deleteAllWidgets();
+        confirmLabel: t('common.clearAll'),
       });
+      if (confirmed) deleteAllWidgets();
       return;
     }
   };

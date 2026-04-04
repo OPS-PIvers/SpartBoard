@@ -1,16 +1,31 @@
 export const FONTS = [
-  { id: 'global', label: 'Inherit', icon: 'G' },
-  { id: 'font-mono', label: 'Digital', icon: '01' },
-  { id: 'font-sans', label: 'Modern', icon: 'Aa' },
-  { id: 'font-handwritten', label: 'School', icon: '✏️' },
-];
+  { id: 'global', label: 'Inherit', icon: 'G', className: '' },
+  { id: 'font-sans', label: 'Modern', icon: 'Aa', className: 'font-sans' },
+  { id: 'font-serif', label: 'Serif', icon: 'Ag', className: 'font-serif' },
+  { id: 'font-mono', label: 'Digital', icon: '01', className: 'font-mono' },
+  {
+    id: 'font-handwritten',
+    label: 'School',
+    icon: '✏️',
+    className: 'font-handwritten',
+  },
+  { id: 'font-comic', label: 'Comic', icon: '☺', className: 'font-comic' },
+  {
+    id: 'font-rounded',
+    label: 'Rounded',
+    icon: '◯',
+    className: 'font-rounded',
+  },
+  { id: 'font-fun', label: 'Fun', icon: '★', className: 'font-fun' },
+] as const;
 
 export const FONT_COLORS = [
-  '#334155', // slate-700 (default)
-  '#1e293b', // slate-800
-  '#000000', // pure black
-  '#2d3f89', // brand-blue
-  '#ad2122', // brand-red
-  '#166534', // green-800
-  '#1e40af', // blue-800
-];
+  '#334155',
+  '#1e293b',
+  '#000000',
+  '#ffffff',
+  '#2d3f89',
+  '#ad2122',
+  '#166534',
+  '#1e40af',
+] as const;

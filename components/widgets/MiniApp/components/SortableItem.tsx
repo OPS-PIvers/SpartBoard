@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -7,44 +7,22 @@ import {
   Pencil,
   Trash2,
   Link2,
-  Copy,
-  Check,
+  BarChart3,
 } from 'lucide-react';
 import { MiniAppItem } from '@/types';
+import { Z_INDEX } from '@/config/zIndex';
 
 interface SortableItemProps {
   app: MiniAppItem;
   onRun: (app: MiniAppItem) => void;
   onEdit: (app: MiniAppItem) => void;
   onDelete: (id: string) => void;
-  isLive?: boolean;
-  onToggleLive?: (app: MiniAppItem) => void;
-  onCopyLink?: (code: string) => Promise<boolean>;
-  sessionCode?: string;
+  onAssign: (app: MiniAppItem) => void;
+  onShowAssignments: (app: MiniAppItem) => void;
 }
 
 export const SortableItem: React.FC<SortableItemProps> = React.memo(
-  ({
-    app,
-    onRun,
-    onEdit,
-    onDelete,
-    isLive = false,
-    onToggleLive,
-    onCopyLink,
-    sessionCode,
-  }) => {
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = async () => {
-      if (sessionCode && onCopyLink) {
-        const didCopy = await onCopyLink(sessionCode);
-        if (didCopy) {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        }
-      }
-    };
+  ({ app, onRun, onEdit, onDelete, onAssign, onShowAssignments }) => {
     const {
       attributes,
       listeners,
@@ -57,7 +35,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      zIndex: isDragging ? 10 : 'auto',
+      zIndex: isDragging ? Z_INDEX.itemDragging : 'auto',
       opacity: isDragging ? 0.5 : 1,
     };
 
@@ -87,49 +65,22 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
 
         {/* Icon & Title */}
         <div
-          className={`rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
-            isLive
-              ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
-              : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-          }`}
+          className="rounded-lg flex items-center justify-center shrink-0 border bg-indigo-50 text-indigo-600 border-indigo-100"
           style={{
             width: 'min(40px, 10cqmin)',
             height: 'min(40px, 10cqmin)',
             fontSize: 'min(12px, 3cqmin)',
           }}
         >
-          {isLive ? <Link2 className="w-5 h-5" /> : 'HTML'}
+          HTML
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4
-              className="text-slate-700 font-bold truncate"
-              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-            >
-              {app.title}
-            </h4>
-            {isLive && sessionCode && (
-              <div className="flex items-center gap-1">
-                <span
-                  className="bg-indigo-100 text-indigo-700 font-mono font-black px-1.5 py-0.5 rounded text-xxs tracking-wider border border-indigo-200 animate-in fade-in"
-                  title="Assignment Code"
-                >
-                  {sessionCode}
-                </span>
-                <button
-                  onClick={() => void handleCopy()}
-                  className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                  title="Copy Assignment Link"
-                >
-                  {copied ? (
-                    <Check className="w-3 h-3 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-3 h-3" />
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
+          <h4
+            className="text-slate-700 font-bold truncate"
+            style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+          >
+            {app.title}
+          </h4>
           <div
             className="text-slate-500 font-mono"
             style={{ fontSize: 'min(10px, 2.5cqmin)' }}
@@ -141,17 +92,13 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
         {/* Actions */}
         <div className="flex items-center" style={{ gap: 'min(4px, 1cqmin)' }}>
           <button
-            onClick={() => onToggleLive?.(app)}
-            className={`rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest ${
-              isLive
-                ? 'bg-red-500 text-white shadow-lg shadow-red-100'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
-            }`}
+            onClick={() => onAssign(app)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest shadow-sm"
             style={{
               padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
               fontSize: 'min(10px, 2.5cqmin)',
             }}
-            title={isLive ? 'End Assignment' : 'Assign (copy student link)'}
+            title="Assign (copy student link)"
           >
             <Link2
               style={{
@@ -159,9 +106,22 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
                 height: 'min(14px, 3.5cqmin)',
               }}
             />
-            <span className="hidden sm:inline">
-              {isLive ? 'Assigned' : 'Assign'}
-            </span>
+            <span className="hidden sm:inline">Assign</span>
+          </button>
+
+          <button
+            onClick={() => onShowAssignments(app)}
+            className="text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors"
+            style={{ padding: 'min(8px, 2cqmin)' }}
+            title="View assignments"
+            aria-label="View assignments"
+          >
+            <BarChart3
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />
           </button>
 
           <button

@@ -755,16 +755,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   }, [allSubmissions]);
 
   const moderationCounts = useMemo(() => {
-    // ⚡ Bolt Optimization: Use reduce instead of filter().length to avoid creating intermediate arrays on each render
-    return allSubmissions.reduce(
-      (acc, s) => {
-        if (s.status === 'approved')
-          return { ...acc, approved: acc.approved + 1 };
-        if (s.status === 'pending') return { ...acc, pending: acc.pending + 1 };
-        return acc;
-      },
-      { approved: 0, pending: 0 }
-    );
+    // ⚡ Bolt Optimization: Use a single pass loop instead of array.reduce with object spreading
+    // to avoid excessive garbage collection overhead from intermediate object allocations.
+    let approved = 0;
+    let pending = 0;
+    for (const s of allSubmissions) {
+      if (s.status === 'approved') approved++;
+      else if (s.status === 'pending') pending++;
+    }
+    return { approved, pending };
   }, [allSubmissions]);
 
   const photoSyncCounts = useMemo(() => {

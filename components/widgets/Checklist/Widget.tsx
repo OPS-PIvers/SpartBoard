@@ -5,6 +5,7 @@ import { ListPlus, Users } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -25,7 +26,10 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     cardColor = '#ffffff',
     cardOpacity = 1,
     fontColor = '#334155',
+    textSizePreset,
   } = config;
+
+  const sm = resolveTextPresetMultiplier(textSizePreset, scaleMultiplier);
 
   const getFontClass = () => {
     if (fontFamily === 'global') return `font-${globalStyle.fontFamily}`;
@@ -135,7 +139,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   // Cards have container-type: size and fill equal fractions of the widget height.
   // Height is always the smaller dimension, so we scale relative to cqh (card height).
   // Horizontal spacing uses cqw so it stays proportional to card width.
-  const sm = scaleMultiplier;
   const fontCqh = (14 * sm).toFixed(1);
   const iconCqh = (30 * sm).toFixed(1);
   const padVCqh = (10 * sm).toFixed(1);

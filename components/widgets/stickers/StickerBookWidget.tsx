@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   Upload,
   Trash2,
@@ -74,7 +75,7 @@ const SortableSticker: React.FC<{
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 'auto',
+    zIndex: isDragging ? Z_INDEX.itemDragging : 'auto',
   };
 
   return (
@@ -88,7 +89,7 @@ const SortableSticker: React.FC<{
         onDragStart(e, sticker.url);
       }}
       onClick={() => onStickerClick(sticker.url)}
-      className={`group relative aspect-square flex items-center justify-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-blue-200 cursor-pointer ${isDragging ? 'opacity-50 ring-2 ring-blue-500 z-10' : ''}`}
+      className={`group relative aspect-square flex items-center justify-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-blue-200 cursor-pointer ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
       title={t('widgets.stickers.dragOrClick')}
     >
       {/* Drag handle for reorganizing */}

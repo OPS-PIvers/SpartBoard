@@ -4,6 +4,7 @@ import {
   getTitle,
   getDefaultWidgetConfig,
   isWidgetLayout,
+  createBoardSnapshot,
 } from './widgetHelpers';
 import {
   WidgetData,
@@ -13,7 +14,10 @@ import {
   FeaturePermission,
   WidgetLayout,
   WidgetOutput,
-} from '../types';
+  CatalystInstructionConfig,
+  CatalystVisualConfig,
+  QuizConfig,
+} from '@/types';
 
 describe('widgetHelpers', () => {
   describe('isWidgetLayout', () => {
@@ -94,6 +98,72 @@ describe('widgetHelpers', () => {
       expect(getTitle(widget)).toBe('Notebook Viewer');
     });
 
+    it.each([
+      { type: 'random', expectedTitle: 'Selector' },
+      { type: 'expectations', expectedTitle: 'Expectations' },
+      { type: 'calendar', expectedTitle: 'Class Events' },
+      { type: 'lunchCount', expectedTitle: 'Lunch Orders' },
+      { type: 'classes', expectedTitle: 'Class Roster' },
+      { type: 'sticker', expectedTitle: 'Sticker' },
+      { type: 'seating-chart', expectedTitle: 'Seating Chart' },
+      { type: 'talking-tool', expectedTitle: 'Talking Tool' },
+    ])(
+      'returns "$expectedTitle" for $type widget',
+      ({ type, expectedTitle }) => {
+        const widget = { type } as WidgetData;
+        expect(getTitle(widget)).toBe(expectedTitle);
+      }
+    );
+
+    it('returns correct title for catalyst-instruction widget', () => {
+      const widget1 = {
+        type: 'catalyst-instruction',
+        config: { title: 'My Guide' } as CatalystInstructionConfig,
+      } as WidgetData;
+      expect(getTitle(widget1)).toBe('Guide: My Guide');
+
+      const widget2 = {
+        type: 'catalyst-instruction',
+        config: {} as CatalystInstructionConfig,
+      } as WidgetData;
+      expect(getTitle(widget2)).toBe('Guide: Instruction Guide');
+    });
+
+    it('returns correct title for catalyst-visual widget', () => {
+      const widget1 = {
+        type: 'catalyst-visual',
+        config: { title: 'My Anchor' } as CatalystVisualConfig,
+      } as WidgetData;
+      expect(getTitle(widget1)).toBe('My Anchor');
+
+      const widget2 = {
+        type: 'catalyst-visual',
+        config: {} as CatalystVisualConfig,
+      } as WidgetData;
+      expect(getTitle(widget2)).toBe('Visual Anchor');
+    });
+
+    it('returns correct title for quiz widget', () => {
+      const widget1 = {
+        type: 'quiz',
+        config: { selectedQuizTitle: 'Math 101' } as QuizConfig,
+      } as WidgetData;
+      expect(getTitle(widget1)).toBe('Quiz: Math 101');
+
+      const widget2 = { type: 'quiz', config: {} as QuizConfig } as WidgetData;
+      expect(getTitle(widget2)).toBe('Quiz');
+    });
+
+    it('returns "Starter Pack" for starter-pack widget', () => {
+      const widget = { type: 'starter-pack' } as WidgetData;
+      expect(getTitle(widget)).toBe('Starter Pack');
+    });
+
+    it('returns "Timer" for time-tool widget', () => {
+      const widget = { type: 'time-tool' } as WidgetData;
+      expect(getTitle(widget)).toBe('Timer');
+    });
+
     it('returns capitalized type for other widgets', () => {
       const widget = { type: 'clock' } as WidgetData;
       expect(getTitle(widget)).toBe('Clock');
@@ -136,6 +206,21 @@ describe('widgetHelpers', () => {
         completedNames: [],
         scaleMultiplier: 1,
       });
+    });
+
+    it('returns an empty object when default config is missing or undefined', async () => {
+      const { WIDGET_DEFAULTS } = await import('@/config/widgetDefaults');
+      const { getDefaultWidgetConfig: localGetDefaultWidgetConfig } =
+        await import('@/utils/widgetHelpers');
+
+      const originalClock = WIDGET_DEFAULTS['clock'];
+      try {
+        WIDGET_DEFAULTS['clock'] = { w: 100, h: 100 };
+        const config = localGetDefaultWidgetConfig('clock');
+        expect(config).toEqual({});
+      } finally {
+        WIDGET_DEFAULTS['clock'] = originalClock;
+      }
     });
 
     it('returns empty object for traffic', () => {
@@ -189,6 +274,32 @@ describe('widgetHelpers', () => {
         expect(config).toBeDefined();
         expect(typeof config).toBe('object');
       });
+    });
+  });
+
+  describe('createBoardSnapshot', () => {
+    it('creates a board snapshot by omitting ids and cloning configs', () => {
+      const widgets: WidgetData[] = [
+        {
+          id: 'widget-1',
+          type: 'text',
+          x: 0,
+          y: 0,
+          w: 2,
+          h: 2,
+          config: { content: 'hello' },
+        } as unknown as WidgetData,
+      ];
+
+      const snapshot = createBoardSnapshot(widgets);
+
+      expect(snapshot).toHaveLength(1);
+      expect(snapshot[0]).not.toHaveProperty('id');
+      expect(snapshot[0].type).toBe('text');
+      expect(snapshot[0].config).toEqual({ content: 'hello' });
+
+      // Ensure config is deeply cloned
+      expect(snapshot[0].config).not.toBe(widgets[0].config);
     });
   });
 });

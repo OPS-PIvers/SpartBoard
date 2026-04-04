@@ -49,6 +49,11 @@ const ActivityWallStudentApp = lazy(() =>
     default: module.ActivityWallStudentApp,
   }))
 );
+const MiniAppStudentApp = lazy(() =>
+  import('./components/miniApp/MiniAppStudentApp').then((module) => ({
+    default: module.MiniAppStudentApp,
+  }))
+);
 const GuidedLearningStudentApp = lazy(() =>
   import('./components/guidedLearning/GuidedLearningStudentApp').then(
     (module) => ({ default: module.GuidedLearningStudentApp })
@@ -155,6 +160,7 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   // Simple routing for Student View
   const pathname = window.location.pathname;
+  const isMiniAppRoute = pathname.startsWith('/miniapp/');
   const isStudentRoute = pathname === '/join' || pathname.startsWith('/join/');
   const isQuizRoute = pathname === '/quiz' || pathname.startsWith('/quiz/');
   const isNextUpRoute =
@@ -165,6 +171,18 @@ const App: React.FC = () => {
     pathname === '/activity' || pathname.startsWith('/activity/');
   const isActivityWallRoute =
     pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
+
+  // MiniApp student route — anonymous entry, no teacher auth needed
+  if (isMiniAppRoute) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <MiniAppStudentApp />
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
 
   // Video Activity student route — anonymous entry, no teacher auth needed
   if (isVideoActivityRoute) {

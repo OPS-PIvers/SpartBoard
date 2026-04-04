@@ -214,3 +214,21 @@ To manage costs and prevent abuse, AI features have the following usage limits:
 - **Strict Linting Policy:** Do not commit or push any code that introduces ESLint warnings or errors. Ensure that `pnpm run validate` succeeds before doing a final push or creating a PR.
 - **Widget Scaling (Clock):** Perfectly satisfied with the Clock widget's scaling (fill-first logic with `min(75cqh, 25cqw)`). Do not change.
 - **Widget Scaling (Weather):** Perfectly satisfied with the Weather widget's scaling (refined fill-first logic with cqh/cqw constraints and specific padding). Maintain as is.
+
+## Widget Appearance Standard (Visual System)
+
+All agents must follow the shared widget appearance model when building or updating configurable widgets:
+
+- Use shared settings primitives in widget style tabs:
+  - `components/common/TypographySettings.tsx`
+  - `components/common/TextSizePresetSettings.tsx`
+  - `components/common/SurfaceColorSettings.tsx`
+- Prefer these config fields for visual controls:
+  - `fontFamily`
+  - `fontColor`
+  - `textSizePreset` (`small` | `medium` | `large` | `x-large`)
+  - `cardColor`
+  - `cardOpacity`
+- Keep universal transparency in the global settings shell; do not duplicate full-widget transparency controls inside widget-specific style tabs.
+- Ensure front-face widgets actually consume settings values (no dead controls).
+- Default widget roots should remain visually transparent; only add localized readability surfaces where content legibility requires it.

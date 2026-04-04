@@ -8,9 +8,11 @@ import {
   TextConfig,
 } from '@/types';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
-import { ListPlus, Type, RefreshCw, BookOpen, Palette } from 'lucide-react';
+import { ListPlus, Type, RefreshCw, BookOpen } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
-import { FONTS, PALETTE, FONT_COLORS } from './constants';
+import { TypographySettings } from '@/components/common/TypographySettings';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 
 export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -314,158 +316,34 @@ export const ChecklistAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as ChecklistConfig;
-  const {
-    scaleMultiplier = 1,
-    fontFamily = 'global',
-    cardColor = '#ffffff',
-    cardOpacity = 1,
-    fontColor = '#334155',
-  } = config;
 
   return (
     <div className="space-y-6">
-      <div>
-        <SettingsLabel icon={Type}>Text Scale</SettingsLabel>
-        <div className="flex items-center gap-4 px-2">
-          <input
-            type="range"
-            min="0.5"
-            max="2.0"
-            step="0.1"
-            value={scaleMultiplier}
-            onChange={(e) =>
-              updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  scaleMultiplier: parseFloat(e.target.value),
-                },
-              })
-            }
-            className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-          />
-          <span className="w-10 text-center font-mono text-slate-700 text-xs">
-            {scaleMultiplier}x
-          </span>
-        </div>
-      </div>
-
-      {/* Typography */}
-      <div>
-        <SettingsLabel icon={Type}>Typography</SettingsLabel>
-        <div className="grid grid-cols-4 gap-2">
-          {FONTS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontFamily: f.id } as ChecklistConfig,
-                })
-              }
-              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                fontFamily === f.id || (!fontFamily && f.id === 'global')
-                  ? 'border-indigo-500 bg-indigo-50'
-                  : 'border-slate-100 hover:border-slate-200'
-              }`}
-            >
-              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
-              <span className="text-xxxs uppercase text-slate-600 font-bold">
-                {f.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Font Color */}
-      <div>
-        <SettingsLabel icon={Palette}>Font Color</SettingsLabel>
-        <div className="flex flex-wrap gap-2 px-1">
-          {FONT_COLORS.map((color) => (
-            <button
-              key={color}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontColor: color } as ChecklistConfig,
-                })
-              }
-              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
-                fontColor === color
-                  ? 'border-slate-800 scale-110 shadow-sm'
-                  : 'border-transparent'
-              }`}
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Card Style */}
-      <div>
-        <SettingsLabel icon={Palette}>Card Style</SettingsLabel>
-        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
-          {/* Card Color */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                Card Color
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                {cardColor}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {PALETTE.map((color) => (
-                <button
-                  key={color}
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        cardColor: color,
-                      } as ChecklistConfig,
-                    })
-                  }
-                  className={`w-6 h-6 rounded-md border transition-all hover:scale-110 ${
-                    cardColor === color
-                      ? 'border-indigo-500 ring-2 ring-indigo-200'
-                      : 'border-slate-200'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Card Opacity */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                Opacity
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums font-bold">
-                {Math.round(cardOpacity * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={cardOpacity}
-              onChange={(e) =>
-                updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    cardOpacity: parseFloat(e.target.value),
-                  } as ChecklistConfig,
-                })
-              }
-              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-        </div>
-      </div>
+      <TextSizePresetSettings
+        config={config}
+        writeScaleMultiplier
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ChecklistConfig,
+          })
+        }
+      />
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ChecklistConfig,
+          })
+        }
+      />
+      <SurfaceColorSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ChecklistConfig,
+          })
+        }
+      />
     </div>
   );
 };

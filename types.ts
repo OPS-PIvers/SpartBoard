@@ -253,12 +253,16 @@ export interface TrafficConfig {
   active?: string;
 }
 
+export type TextSizePreset = 'small' | 'medium' | 'large' | 'x-large';
+
 export interface TextConfig {
   content: string;
   bgColor: string;
   fontSize: number;
   fontFamily?: string;
   fontColor?: string;
+  textSizePreset?: TextSizePreset;
+  verticalAlign?: 'top' | 'center' | 'bottom';
 }
 
 export interface ChecklistConfig {
@@ -270,9 +274,10 @@ export interface ChecklistConfig {
   lastNames?: string;
   completedNames?: string[]; // Tracks IDs or Names checked in roster mode
   fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
-  fontColor?: string;
 }
 
 export interface RandomGroup {
@@ -571,8 +576,9 @@ export interface GlobalWeatherData {
   source?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface WebcamGlobalConfig {
-  ocrMode?: 'standard' | 'gemini';
+  // Config properties will go here if added in the future
 }
 
 export interface BuildingScheduleDefaults {
@@ -807,6 +813,8 @@ export interface ScheduleConfig {
   isBuildingSyncEnabled?: boolean;
   lastSyncedBuildingId?: string;
   fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
   autoProgress?: boolean;
   /**
    * When true, the widget automatically scrolls to keep the active time slot
@@ -828,6 +836,8 @@ export interface CalendarConfig {
   /** Individual Google Calendar IDs added by the user */
   personalCalendarIds?: string[];
   fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
   /** Card background color as a hex string, e.g. '#ffffff'. Default: '#ffffff'. */
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
@@ -939,6 +949,26 @@ export interface MiniAppConfig {
 export interface MiniAppGlobalConfig {
   submissionUrl: string;
   botEmail: string;
+}
+
+/**
+ * A persistent assignment session for a MiniApp.
+ * Lives in the `/mini_app_sessions/{sessionId}` Firestore collection.
+ * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
+ */
+export interface MiniAppSession {
+  id: string;
+  appId: string;
+  appTitle: string;
+  appHtml: string;
+  teacherUid: string;
+  assignmentName: string;
+  status: 'active' | 'ended';
+  createdAt: number;
+  endedAt?: number;
+  // Optional result collection via Apps Script
+  submissionUrl?: string;
+  googleSheetId?: string;
 }
 
 export interface PdfItem {
@@ -1612,6 +1642,8 @@ export interface SpecialistScheduleConfig {
   /** Items that repeat every day or on specific days of the week */
   recurringItems?: SpecialistScheduleRecurringItem[];
   fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
 }

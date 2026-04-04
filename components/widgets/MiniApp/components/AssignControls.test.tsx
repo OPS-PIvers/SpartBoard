@@ -19,42 +19,33 @@ const globalMiniApp: GlobalMiniAppItem = {
 };
 
 describe('Mini App assign controls', () => {
-  it('shows assign copy for personal library items before a session starts', () => {
+  it('shows assign button for personal library items', () => {
     render(
       <SortableItem
         app={miniApp}
         onRun={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
-        onToggleLive={vi.fn()}
+        onAssign={vi.fn()}
+        onShowAssignments={vi.fn()}
       />
     );
 
-    expect(screen.getByRole('button', { name: /assign/i })).toHaveAttribute(
-      'title',
-      'Assign (copy student link)'
-    );
+    expect(screen.getByTitle('Assign (copy student link)')).toBeInTheDocument();
   });
 
-  it('shows assigned state and assignment link affordances for global items', () => {
+  it('shows assign button for global library items', () => {
     render(
       <GlobalAppRow
         app={globalMiniApp}
         onRun={vi.fn()}
         onSaveToLibrary={vi.fn()}
         isSaving={false}
-        isLive
-        onToggleLive={vi.fn()}
-        onCopyLink={vi.fn()}
-        sessionCode="ABCD"
+        onAssign={vi.fn()}
+        onShowAssignments={vi.fn()}
       />
     );
 
-    expect(screen.getByRole('button', { name: /assigned/i })).toHaveAttribute(
-      'title',
-      'End Assignment'
-    );
-    expect(screen.getByTitle('Assignment Code')).toBeInTheDocument();
-    expect(screen.getByTitle('Copy Assignment Link')).toBeInTheDocument();
+    expect(screen.getByTitle('Assign (copy student link)')).toBeInTheDocument();
   });
 });

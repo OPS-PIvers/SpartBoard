@@ -378,6 +378,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
+    match /mini_app_sessions/{sessionId} {
+      // Any authenticated user (including anonymous) can read session documents
+      allow read: if request.auth != null;
+      // Only authenticated (non-anonymous) teachers can create sessions they own
+      allow create: if request.auth != null &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.resource.data.teacherUid == request.auth.uid;
+      // Teachers can rename or end their own sessions (assignmentName, status, endedAt only)
+      allow update: if request.auth != null &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        resource.data.teacherUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['assignmentName', 'status', 'endedAt']) &&
+        request.resource.data.status in ['active', 'ended'];
+      allow delete: if false;
+    }
+
     // AI Usage Tracking — read-only for users; all writes go through Cloud Functions (Admin SDK)
     // The Cloud Function uses db.runTransaction() via the Admin SDK, which bypasses these rules.
     // Client-side write access is intentionally removed to prevent users from resetting their

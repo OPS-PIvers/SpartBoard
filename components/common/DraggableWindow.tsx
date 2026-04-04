@@ -252,6 +252,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const windowRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const snapMenuRef = useRef<HTMLDivElement>(null);
+  const snapButtonRef = useRef<HTMLButtonElement>(null);
   const dragDistanceRef = useRef(0);
 
   const saveTitle = useCallback(() => {
@@ -392,7 +393,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     [handleSnapToZone]
   );
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
     // Stop propagation if we're in an input to prevent global shortcuts
     const target = e.target as HTMLElement;
     const isInput =
@@ -438,17 +439,19 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       return;
     }
 
-    // Alt + Delete: Clear all widgets
-    if (e.key === 'Delete' && e.altKey) {
+    // Alt + Delete or Alt + Backspace: Clear all widgets
+    if ((e.key === 'Delete' || e.key === 'Backspace') && e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      void showConfirmDialog(t('widgetWindow.clearEntireBoard'), {
-        title: 'Clear Board',
-        variant: 'danger',
-        confirmLabel: 'Clear All',
-      }).then((confirmed) => {
-        if (confirmed) deleteAllWidgets();
-      });
+      const confirmed = await showConfirmDialog(
+        t('widgetWindow.clearEntireBoard'),
+        {
+          title: t('widgetWindow.clearBoardTitle'),
+          variant: 'danger',
+          confirmLabel: t('widgetWindow.clearAll'),
+        }
+      );
+      if (confirmed) deleteAllWidgets();
       return;
     }
 
@@ -851,6 +854,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // inside document.body and offsetWidth equals the full viewport width, which
   // makes the centering formula produce a wildly negative idealLeft value that
   // gets clamped to the left margin on every first/re-selection.
+  const [snapMenuStyle, setSnapMenuStyle] = useState<React.CSSProperties>({
+    position: 'fixed',
+    visibility: 'hidden',
+  });
+
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({
     position: 'fixed',
     visibility: 'hidden',
@@ -945,6 +953,75 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     isEditingTitle,
     title,
   ]);
+
+  const updateSnapMenuPositionRef = useRef<(() => void) | null>(null);
+
+  useLayoutEffect(() => {
+    if (showSnapMenu && snapButtonRef.current) {
+      const updatePosition = () => {
+        const buttonRect = snapButtonRef.current?.getBoundingClientRect();
+        const menuEl = snapMenuRef.current;
+        if (!buttonRect || !menuEl) return;
+
+        const MARGIN = 8;
+        const menuHeight = menuEl.offsetHeight;
+        const menuWidth = menuEl.offsetWidth;
+
+        // Ideal position: Centered below the button
+        const idealTop = buttonRect.bottom + 8; // 8px gap
+        const idealLeft =
+          buttonRect.left + buttonRect.width / 2 - menuWidth / 2;
+
+        // Vertical boundary checks
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const spaceAbove = buttonRect.top;
+
+        let clampedTop = idealTop;
+        // If it doesn't fit below, and there's more room above, flip it above
+        if (spaceBelow < menuHeight + MARGIN && spaceAbove > spaceBelow) {
+          clampedTop = buttonRect.top - menuHeight - 8;
+        }
+
+        // Clamp vertically to viewport
+        clampedTop = Math.max(
+          MARGIN,
+          Math.min(clampedTop, window.innerHeight - menuHeight - MARGIN)
+        );
+
+        // Clamp horizontally to viewport
+        const clampedLeft = Math.max(
+          MARGIN,
+          Math.min(idealLeft, window.innerWidth - menuWidth - MARGIN)
+        );
+
+        setSnapMenuStyle({
+          position: 'fixed',
+          top: clampedTop,
+          left: clampedLeft,
+
+          visibility: 'visible',
+        });
+      };
+
+      updateSnapMenuPositionRef.current = updatePosition;
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      return () => {
+        updateSnapMenuPositionRef.current = null;
+        window.removeEventListener('resize', updatePosition);
+      };
+    } else {
+      setSnapMenuStyle({ position: 'fixed', visibility: 'hidden' });
+    }
+    return undefined;
+  }, [showSnapMenu]);
+
+  useEffect(() => {
+    if (!showSnapMenu) return;
+    const handlePan = () => updateSnapMenuPositionRef.current?.();
+    window.addEventListener('board-pan', handlePan);
+    return () => window.removeEventListener('board-pan', handlePan);
+  }, [showSnapMenu]);
 
   // Reposition the tool menu on board pan without subscribing to panOffset in
   // context (which would cause every widget to re-render on every pan frame).
@@ -1590,15 +1667,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 {/* NEW: Snap Layouts Button & Popover */}
                 <div className="relative flex items-center">
                   <IconButton
-                    ref={(el) => {
-                      if (el) {
-                        const rect = el.getBoundingClientRect();
-                        const menuX = rect.left + rect.width / 2;
-                        const menuY = rect.top;
-                        el.dataset.menuX = menuX.toString();
-                        el.dataset.menuY = menuY.toString();
-                      }
-                    }}
+                    ref={snapButtonRef}
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowSnapMenu(!showSnapMenu);
@@ -1616,12 +1685,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       <div
                         ref={snapMenuRef}
                         className="fixed z-modal p-3 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl w-72 animate-in slide-in-from-top-2 fade-in duration-200"
-                        style={{
-                          // Position below the button, centered horizontally
-                          top: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-y') ?? 0) + 40}px`,
-                          left: `${Number(document.querySelector(`[aria-label="${t('widgetWindow.snapLayout')}"]`)?.getAttribute('data-menu-x') ?? 0)}px`,
-                          transform: 'translateX(-50%)',
-                        }}
+                        style={snapMenuStyle}
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                       >

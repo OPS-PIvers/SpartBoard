@@ -10,6 +10,16 @@ description: Use this skill whenever building a new widget for the SPART Board o
 Every new widget touches **8 locations**. Missing any one causes TypeScript
 errors, broken dock entries, invisible gear buttons, or scaling failures.
 
+Before shipping the widget, also verify the front-face component follows the
+transparency ownership rule:
+
+- the widget window shell owns overall transparency,
+- the first full-size widget content layer defaults to `bg-transparent`,
+- any readability background is localized to cards, chips, panels, control
+  bars, or the actual media/canvas stage,
+- never add a full-size opaque inner shell that visually replaces the widget
+  window background.
+
 | # | File | What to add |
 |---|------|-------------|
 | 1 | `types.ts` | `WidgetType` union member, config interface, `WidgetConfig` union, `ConfigForWidget` branch |
@@ -131,7 +141,7 @@ export const YourWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className="h-full w-full flex flex-col items-center justify-center"
+          className="h-full w-full bg-transparent flex flex-col items-center justify-center"
           style={{ gap: 'min(12px, 2.5cqmin)' }}
         >
           {/* PRIMARY CONTENT — use large cqmin values */}
@@ -155,6 +165,54 @@ export const YourWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
 };
 ```
+
+### Transparency Rules For Widget.tsx
+
+Treat these as hard requirements for new widgets:
+
+- `DraggableWindow` owns widget transparency. Your widget should not recreate a
+  second full-window background inside `Widget.tsx`.
+- The first full-size container inside `WidgetLayout` should normally be
+  `bg-transparent`.
+- Do not use `contentClassName` on `WidgetLayout` to apply a widget-wide opaque
+  background such as `bg-white`, `bg-slate-50`, `bg-slate-900`, `bg-slate-950`,
+  or `bg-black`.
+- Do not add `w-full h-full ... bg-*` wrappers unless the background is
+  intentionally transparent or translucently localized to the actual stage.
+- Loading, empty, and error states must follow the same rule. A loading screen
+  with `bg-slate-50` across the full widget is still a transparency bug.
+
+Preferred pattern:
+
+```tsx
+<WidgetLayout
+  padding="p-0"
+  content={
+    <div className="h-full w-full bg-transparent flex flex-col">
+      <div className="rounded-2xl bg-white/75 backdrop-blur-sm border border-slate-200/70">
+        Localized readable surface
+      </div>
+    </div>
+  }
+/>
+```
+
+Avoid:
+
+```tsx
+<WidgetLayout
+  padding="p-0"
+  content={
+    <div className="h-full w-full bg-white rounded-3xl">
+      ...
+    </div>
+  }
+/>
+```
+
+If a widget truly needs a stage surface, constrain it to the actual canvas,
+image frame, or media area and prefer translucent treatment first. Full-widget
+opaque fills should be rare and explicitly justified.
 
 ### Settings.tsx — Template
 ```tsx
@@ -412,6 +470,9 @@ import { WidgetData } from '../../types';
 | Hand-rolling empty states | Inconsistent design across widgets | Use `ScaledEmptyState` |
 | Mixing `cqw`/`cqh` instead of `cqmin` | Scaling breaks when widget is non-square | Always use `cqmin` |
 | `skipScaling: false` on new widgets | Widget uses legacy CSS-transform, scales inconsistently | Set `skipScaling: true` |
+| Full-size root like `w-full h-full bg-white` in `Widget.tsx` | Widget transparency slider appears broken because inner content masks the window shell | Make the root `bg-transparent` and move readability treatment to localized surfaces |
+| Opaque `contentClassName` on `WidgetLayout` | Reintroduces a full-widget shell even if content is otherwise correct | Keep `contentClassName` structurally neutral; put backgrounds on smaller child surfaces |
+| Loading/empty/error state uses full-bleed opaque fill | Transparency works in the default view but breaks in edge states | Apply the same transparent-root rule to all widget states |
 
 ---
 
@@ -451,3 +512,4 @@ gold standard for each pattern:
 | Building-defaults consumption | `components/widgets/SpecialistSchedule/Widget.tsx` |
 | Settings + Appearance split | `components/widgets/ClockWidget/Settings.tsx` |
 | Good empty state usage | `components/widgets/QRWidget/Widget.tsx` |
+| Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx` |

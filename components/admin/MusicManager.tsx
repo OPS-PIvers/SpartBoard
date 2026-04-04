@@ -21,7 +21,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '../common/Button';
 import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
-import { extractYouTubeId } from '../widgets/MusicWidget/utils';
+import { extractYouTubeId } from '@/utils/youtube';
 
 // ---------------------------------------------------------------------------
 // Validation helpers

@@ -2,9 +2,15 @@ import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, TextConfig } from '@/types';
 import { sanitizeHtml } from '@/utils/security';
+import {
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+} from 'lucide-react';
 
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { TEXT_WIDGET_COLORS, TEXT_WIDGET_TEMPLATES } from './constants';
 
 export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -65,8 +71,20 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
 
+      <TextSizePresetSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              ...updates,
+            } as TextConfig,
+          })
+        }
+      />
+
       <div>
-        <SettingsLabel>Font Size</SettingsLabel>
+        <SettingsLabel>Font Size (Fine Tune)</SettingsLabel>
         <div className="flex items-center gap-4">
           <input
             type="range"
@@ -82,10 +100,54 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               })
             }
             className="flex-1 accent-blue-600"
+            aria-label="Font size slider"
           />
           <span className="w-8 text-center font-mono text-slate-700 text-xs">
             {config.fontSize}
           </span>
+        </div>
+      </div>
+
+      <div>
+        <SettingsLabel>Vertical Alignment</SettingsLabel>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {
+              value: 'top',
+              label: 'Top',
+              icon: AlignVerticalJustifyStart,
+            },
+            {
+              value: 'center',
+              label: 'Middle',
+              icon: AlignVerticalJustifyCenter,
+            },
+            {
+              value: 'bottom',
+              label: 'Bottom',
+              icon: AlignVerticalJustifyEnd,
+            },
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    verticalAlign: option.value as TextConfig['verticalAlign'],
+                  } as TextConfig,
+                })
+              }
+              className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                (config.verticalAlign ?? 'top') === option.value
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <option.icon className="h-3.5 w-3.5" />
+              {option.label}
+            </button>
+          ))}
         </div>
       </div>
 

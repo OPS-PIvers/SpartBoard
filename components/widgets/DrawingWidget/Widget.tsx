@@ -29,7 +29,7 @@ export const DrawingWidget: React.FC<{
   scale?: number;
 }> = ({ widget, isStudentView = false, scale = 1 }) => {
   const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { session, startSession, endSession } = useLiveSession(
     user?.uid,
     'teacher'
@@ -42,12 +42,28 @@ export const DrawingWidget: React.FC<{
       if (isLive) {
         await endSession();
       } else {
-        await startSession(
+        const newSession = await startSession(
           widget.id,
           widget.type,
           widget.config,
           activeDashboard?.background
         );
+        const url = `${window.location.origin}/join?code=${newSession.code}`;
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          void navigator.clipboard
+            .writeText(url)
+            .then(() =>
+              addToast('Assignment link copied to clipboard!', 'success')
+            )
+            .catch(() =>
+              addToast(
+                'Assignment created, but link could not be copied.',
+                'info'
+              )
+            );
+        } else {
+          addToast('Assignment created, but link could not be copied.', 'info');
+        }
       }
     } catch (error) {
       console.error('Failed to toggle live session:', error);
@@ -383,7 +399,7 @@ export const DrawingWidget: React.FC<{
             variant={isLive ? 'danger' : 'ghost'}
             size="icon"
             className={isLive ? 'animate-pulse' : ''}
-            title={isLive ? 'End Live Session' : 'Go Live'}
+            title={isLive ? 'End Assignment' : 'Assign (copy student link)'}
             icon={<Cast className="w-4 h-4" />}
           />
           <Button
@@ -402,20 +418,22 @@ export const DrawingWidget: React.FC<{
             title="Save to Cloud"
             icon={<CloudUpload className="w-4 h-4" />}
           />
-          <Button
-            onClick={() => void handleSendToText()}
-            disabled={isCapturing || isExtracting}
-            variant="ghost"
-            size="icon"
-            title="Extract Text (AI)"
-            icon={
-              isExtracting ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Type className="w-4 h-4" />
-              )
-            }
-          />
+          {canAccessFeature('gemini-functions') && (
+            <Button
+              onClick={() => void handleSendToText()}
+              disabled={isCapturing || isExtracting}
+              variant="ghost"
+              size="icon"
+              title="Extract Text (AI)"
+              icon={
+                isExtracting ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Type className="w-4 h-4" />
+                )
+              }
+            />
+          )}
           <div className="h-6 w-px bg-slate-200 mx-1" />
         </>
       )}
