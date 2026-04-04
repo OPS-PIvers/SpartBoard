@@ -14,6 +14,7 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { GAP_STYLE, hexToRgba } from './constants';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
 const parseTimeSeconds = (t: string | undefined): number => {
@@ -219,14 +220,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const bgColor = hexToRgba(cardColor, cardOpacity);
-  const textScale =
-    textSizePreset === 'small'
-      ? 0.85
-      : textSizePreset === 'large'
-        ? 1.2
-        : textSizePreset === 'x-large'
-          ? 1.4
-          : 1;
+  const textScale = resolveTextPresetMultiplier(textSizePreset, 1);
 
   if (isBlocked) {
     return (

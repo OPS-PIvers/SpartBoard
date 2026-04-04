@@ -1,11 +1,12 @@
+import { FONT_COLORS } from '@/config/fonts';
+import type { TextSizePreset } from '@/types';
+
 export const TEXT_SIZE_PRESETS = [
   { id: 'small', label: 'Small', multiplier: 0.85 },
   { id: 'medium', label: 'Medium', multiplier: 1 },
   { id: 'large', label: 'Large', multiplier: 1.2 },
   { id: 'x-large', label: 'X-Large', multiplier: 1.4 },
 ] as const;
-
-export type TextSizePreset = (typeof TEXT_SIZE_PRESETS)[number]['id'];
 
 export const SURFACE_COLOR_PRESETS = [
   '#ffffff',
@@ -18,16 +19,7 @@ export const SURFACE_COLOR_PRESETS = [
   '#e9d5ff',
 ] as const;
 
-export const TEXT_COLOR_PRESETS = [
-  '#334155',
-  '#1e293b',
-  '#000000',
-  '#ffffff',
-  '#2d3f89',
-  '#ad2122',
-  '#166534',
-  '#1e40af',
-] as const;
+export const TEXT_COLOR_PRESETS = FONT_COLORS;
 
 export const resolveTextPresetMultiplier = (
   textSizePreset?: TextSizePreset,

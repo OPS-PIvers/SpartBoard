@@ -12,6 +12,7 @@ import {
 import { Calendar, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 const parseTime = (t: string | undefined): number => {
@@ -94,14 +95,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     recurringItems = [],
   } = config;
 
-  const textScale =
-    textSizePreset === 'small'
-      ? 0.85
-      : textSizePreset === 'large'
-        ? 1.2
-        : textSizePreset === 'x-large'
-          ? 1.4
-          : 1;
+  const textScale = resolveTextPresetMultiplier(textSizePreset, 1);
 
   const [now, setNow] = useState(new Date());
 
@@ -261,17 +255,19 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               />
               <span
-                className="font-black text-slate-800"
+                className="font-black"
                 style={{
                   fontSize: `min(${Math.round(18 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
+                  color: fontColor,
                 }}
               >
                 {currentDayLabel}
                 {specialistClass && (
                   <span
-                    className="ml-2 text-slate-400 font-bold"
+                    className="ml-2 font-bold"
                     style={{
                       fontSize: `min(${Math.round(14 * textScale)}px, ${(3.5 * textScale).toFixed(2)}cqmin)`,
+                      color: fontColor,
                     }}
                   >
                     ({specialistClass})
@@ -280,9 +276,10 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               </span>
             </div>
             <div
-              className="text-slate-400 font-bold"
+              className="font-bold"
               style={{
                 fontSize: `min(${Math.round(12 * textScale)}px, ${(3 * textScale).toFixed(2)}cqmin)`,
+                color: fontColor,
               }}
             >
               {now.toLocaleDateString(undefined, {
@@ -352,9 +349,10 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span
-                      className={`font-black leading-none ${isPast ? 'text-slate-400' : 'text-teal-600'}`}
+                      className={`font-black leading-none ${isPast ? 'text-slate-400' : ''}`}
                       style={{
                         fontSize: `min(${Math.round(14 * textScale)}px, ${(3.5 * textScale).toFixed(2)}cqmin)`,
+                        color: isPast ? undefined : fontColor,
                       }}
                     >
                       {formatTime(item.startTime, format24)}

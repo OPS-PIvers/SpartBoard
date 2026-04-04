@@ -253,13 +253,15 @@ export interface TrafficConfig {
   active?: string;
 }
 
+export type TextSizePreset = 'small' | 'medium' | 'large' | 'x-large';
+
 export interface TextConfig {
   content: string;
   bgColor: string;
   fontSize: number;
   fontFamily?: string;
   fontColor?: string;
-  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  textSizePreset?: TextSizePreset;
   verticalAlign?: 'top' | 'center' | 'bottom';
 }
 
@@ -273,7 +275,7 @@ export interface ChecklistConfig {
   completedNames?: string[]; // Tracks IDs or Names checked in roster mode
   fontFamily?: string;
   fontColor?: string;
-  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
 }
@@ -812,7 +814,7 @@ export interface ScheduleConfig {
   lastSyncedBuildingId?: string;
   fontFamily?: string;
   fontColor?: string;
-  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  textSizePreset?: TextSizePreset;
   autoProgress?: boolean;
   /**
    * When true, the widget automatically scrolls to keep the active time slot
@@ -835,7 +837,7 @@ export interface CalendarConfig {
   personalCalendarIds?: string[];
   fontFamily?: string;
   fontColor?: string;
-  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  textSizePreset?: TextSizePreset;
   /** Card background color as a hex string, e.g. '#ffffff'. Default: '#ffffff'. */
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
@@ -1641,7 +1643,7 @@ export interface SpecialistScheduleConfig {
   recurringItems?: SpecialistScheduleRecurringItem[];
   fontFamily?: string;
   fontColor?: string;
-  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
 }

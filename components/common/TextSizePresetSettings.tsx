@@ -1,38 +1,44 @@
 import React from 'react';
 import { Type } from 'lucide-react';
-import { WidgetConfig } from '@/types';
 import { SettingsLabel } from './SettingsLabel';
-import {
-  TEXT_SIZE_PRESETS,
-  TextSizePreset,
-  resolveTextPresetMultiplier,
-  presetFromScale,
-} from '@/config/widgetAppearance';
+import { TEXT_SIZE_PRESETS } from '@/config/widgetAppearance';
+import type { TextSizePreset } from '@/types';
 
-interface TextSizePresetSettingsProps<T extends WidgetConfig> {
-  config: T;
-  updateConfig: (updates: Partial<T>) => void;
+interface PresetConfig {
+  textSizePreset?: TextSizePreset;
+  scaleMultiplier?: number;
+}
+
+interface TextSizePresetSettingsProps {
+  config: PresetConfig;
+  updateConfig: (updates: Partial<PresetConfig>) => void;
   fallbackScale?: number;
   writeScaleMultiplier?: boolean;
 }
 
-export const TextSizePresetSettings = <
-  T extends WidgetConfig & {
-    textSizePreset?: TextSizePreset;
-    scaleMultiplier?: number;
-  },
->({
+const scaleToPreset = (scale: number): TextSizePreset => {
+  if (scale <= 0.92) return 'small';
+  if (scale >= 1.32) return 'x-large';
+  if (scale >= 1.1) return 'large';
+  return 'medium';
+};
+
+export const TextSizePresetSettings: React.FC<TextSizePresetSettingsProps> = ({
   config,
   updateConfig,
   fallbackScale = 1,
   writeScaleMultiplier = false,
-}: TextSizePresetSettingsProps<T>) => {
-  const selectedPreset =
-    config.textSizePreset ??
-    presetFromScale(
-      config.scaleMultiplier ??
-        resolveTextPresetMultiplier(undefined, fallbackScale)
-    );
+}) => {
+  const presetCandidate = config.textSizePreset;
+  const scaleCandidate = config.scaleMultiplier;
+
+  const selectedPreset: TextSizePreset =
+    presetCandidate ??
+    (typeof scaleCandidate === 'number'
+      ? scaleToPreset(scaleCandidate)
+      : fallbackScale !== 1
+        ? scaleToPreset(fallbackScale)
+        : 'medium');
 
   return (
     <div>
@@ -40,6 +46,7 @@ export const TextSizePresetSettings = <
       <div className="grid grid-cols-2 gap-2">
         {TEXT_SIZE_PRESETS.map((preset) => (
           <button
+            type="button"
             key={preset.id}
             onClick={() =>
               updateConfig({
@@ -47,7 +54,7 @@ export const TextSizePresetSettings = <
                 ...(writeScaleMultiplier
                   ? { scaleMultiplier: preset.multiplier }
                   : {}),
-              } as Partial<T>)
+              })
             }
             className={`rounded-lg border px-3 py-2 text-xs font-bold uppercase tracking-wide ${
               selectedPreset === preset.id
