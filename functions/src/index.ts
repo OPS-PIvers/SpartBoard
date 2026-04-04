@@ -1967,17 +1967,17 @@ export const adminAnalytics = functionsV1
 
         // Resolve widget UIDs to emails (cap at 200 unique UIDs total)
         const allWidgetUids = new Set<string>();
-        for (const uids of Object.values(widgetToUserUids)) {
+        outer: for (const uids of Object.values(widgetToUserUids)) {
           for (const uid of uids) {
-            if (allWidgetUids.size >= 200) break;
+            if (allWidgetUids.size >= 200) break outer;
             allWidgetUids.add(uid);
           }
         }
 
         const widgetUserEmails: Record<string, string> = {};
         const allWidgetUidArray = Array.from(allWidgetUids);
-        for (let i = 0; i < allWidgetUidArray.length; i += 10) {
-          const uidChunk = allWidgetUidArray.slice(i, i + 10);
+        for (let i = 0; i < allWidgetUidArray.length; i += 30) {
+          const uidChunk = allWidgetUidArray.slice(i, i + 30);
           if (uidChunk.length === 0) continue;
           const snapshot = await db
             .collection('users')

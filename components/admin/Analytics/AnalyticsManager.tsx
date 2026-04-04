@@ -497,6 +497,24 @@ const SortHeader: React.FC<{
   </th>
 );
 
+type SortableRow = { name: string } & Record<string, number | string>;
+
+function sortRows<T extends SortableRow>(
+  rows: T[],
+  { key, dir }: { key: SortKey; dir: 'asc' | 'desc' }
+): T[] {
+  return [...rows].sort((a, b) => {
+    const av = key === 'name' ? a.name : a[key];
+    const bv = key === 'name' ? b.name : b[key];
+    if (typeof av === 'string' && typeof bv === 'string') {
+      return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    return dir === 'asc'
+      ? (av as number) - (bv as number)
+      : (bv as number) - (av as number);
+  });
+}
+
 const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const [domainSort, setDomainSort] = useState<{
     key: SortKey;
@@ -507,46 +525,36 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
     dir: 'asc' | 'desc';
   }>({ key: 'total', dir: 'desc' });
 
-  const domainRows = useMemo(() => {
-    const rows = Object.entries(data.users.domains).map(([domain, counts]) => ({
-      name: domain,
-      ...counts,
-      monthlyRate: counts.total > 0 ? (counts.monthly / counts.total) * 100 : 0,
-    }));
-    const { key, dir } = domainSort;
-    return [...rows].sort((a, b) => {
-      const av = key === 'name' ? a.name : a[key];
-      const bv = key === 'name' ? b.name : b[key];
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return dir === 'asc'
-        ? (av as number) - (bv as number)
-        : (bv as number) - (av as number);
-    });
-  }, [data.users.domains, domainSort]);
+  const domainRows = useMemo(
+    () =>
+      sortRows(
+        Object.entries(data.users.domains).map(([domain, counts]) => ({
+          name: domain,
+          ...counts,
+          monthlyRate:
+            counts.total > 0 ? (counts.monthly / counts.total) * 100 : 0,
+        })),
+        domainSort
+      ),
+    [data.users.domains, domainSort]
+  );
 
-  const buildingRows = useMemo(() => {
-    const rows = Object.entries(data.users.buildings).map(([id, counts]) => ({
-      name:
-        id === 'none'
-          ? 'No Building Assigned'
-          : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`),
-      ...counts,
-      monthlyRate: counts.total > 0 ? (counts.monthly / counts.total) * 100 : 0,
-    }));
-    const { key, dir } = buildingSort;
-    return [...rows].sort((a, b) => {
-      const av = key === 'name' ? a.name : a[key];
-      const bv = key === 'name' ? b.name : b[key];
-      if (typeof av === 'string' && typeof bv === 'string') {
-        return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      }
-      return dir === 'asc'
-        ? (av as number) - (bv as number)
-        : (bv as number) - (av as number);
-    });
-  }, [data.users.buildings, buildingSort]);
+  const buildingRows = useMemo(
+    () =>
+      sortRows(
+        Object.entries(data.users.buildings).map(([id, counts]) => ({
+          name:
+            id === 'none'
+              ? 'No Building Assigned'
+              : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`),
+          ...counts,
+          monthlyRate:
+            counts.total > 0 ? (counts.monthly / counts.total) * 100 : 0,
+        })),
+        buildingSort
+      ),
+    [data.users.buildings, buildingSort]
+  );
 
   const toggleDomainSort = (key: SortKey) => {
     setDomainSort((prev) =>
