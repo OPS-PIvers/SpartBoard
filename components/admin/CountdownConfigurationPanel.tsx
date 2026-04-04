@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CountdownBuildingConfig } from '@/types';
+import { CountdownBuildingConfig, CountdownGlobalConfig } from '@/types';
 import { BUILDINGS } from '@/config/buildings';
 import { Toggle } from '@/components/common/Toggle';
 import { Plus, Trash2, CalendarIcon } from 'lucide-react';
@@ -15,7 +15,7 @@ export const CountdownConfigurationPanel: React.FC<
   const [activeTab, setActiveTab] = useState(BUILDINGS[0].id);
 
   const buildingDefaults =
-    (config.buildingDefaults as Record<string, CountdownBuildingConfig>) || {};
+    (config as CountdownGlobalConfig).buildingDefaults ?? {};
   const currentDefaults = buildingDefaults[activeTab] || {};
 
   const handleUpdate = (updates: Partial<CountdownBuildingConfig>) => {
@@ -163,7 +163,15 @@ export const CountdownConfigurationPanel: React.FC<
                   {
                     id: crypto.randomUUID(),
                     title: '',
-                    date: new Date().toISOString(),
+                    date: (() => {
+                      const now = new Date();
+                      return new Date(
+                        now.getFullYear(),
+                        now.getMonth(),
+                        now.getDate(),
+                        12
+                      ).toISOString();
+                    })(),
                   },
                 ],
               });
@@ -204,16 +212,7 @@ export const CountdownConfigurationPanel: React.FC<
                       type="date"
                       value={
                         event.date
-                          ? (() => {
-                              const d = new Date(event.date);
-                              const year = d.getFullYear();
-                              const month = String(d.getMonth() + 1).padStart(
-                                2,
-                                '0'
-                              );
-                              const day = String(d.getDate()).padStart(2, '0');
-                              return `${year}-${month}-${day}`;
-                            })()
+                          ? new Date(event.date).toLocaleDateString('en-CA')
                           : ''
                       }
                       onChange={(e) => {
