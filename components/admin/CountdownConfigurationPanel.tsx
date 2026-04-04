@@ -212,7 +212,16 @@ export const CountdownConfigurationPanel: React.FC<
                       type="date"
                       value={
                         event.date
-                          ? new Date(event.date).toLocaleDateString('en-CA')
+                          ? (() => {
+                              const d = new Date(event.date);
+                              const year = d.getFullYear();
+                              const month = String(d.getMonth() + 1).padStart(
+                                2,
+                                '0'
+                              );
+                              const day = String(d.getDate()).padStart(2, '0');
+                              return `${year}-${month}-${day}`;
+                            })()
                           : ''
                       }
                       onChange={(e) => {

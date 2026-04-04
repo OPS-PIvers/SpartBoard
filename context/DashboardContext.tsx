@@ -2228,6 +2228,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             out.classLinkEnabled = raw.classLinkEnabled;
           }
           break;
+        case 'countdown':
+          if (typeof raw.title === 'string') {
+            out.title = raw.title;
+          }
+          if (typeof raw.viewMode === 'string') {
+            if (raw.viewMode === 'number' || raw.viewMode === 'grid') {
+              out.viewMode = raw.viewMode;
+            }
+          }
+          if (typeof raw.includeWeekends === 'boolean') {
+            out.includeWeekends = raw.includeWeekends;
+          }
+          if (typeof raw.countToday === 'boolean') {
+            out.countToday = raw.countToday;
+          }
+          break;
         default:
           break;
       }
