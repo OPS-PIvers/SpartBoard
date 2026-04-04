@@ -176,6 +176,16 @@ describe('widgetHelpers', () => {
       expect(getTitle(widget)).toBe('Starter Pack');
     });
 
+    it('returns "Class Events" for calendar widget', () => {
+      const widget = { type: 'calendar' } as WidgetData;
+      expect(getTitle(widget)).toBe('Class Events');
+    });
+
+    it('returns "Timer" for time-tool widget', () => {
+      const widget = { type: 'time-tool' } as WidgetData;
+      expect(getTitle(widget)).toBe('Timer');
+    });
+
     it('handles empty or null customTitle by falling back to type-based title', () => {
       const widget1 = { customTitle: '', type: 'clock' } as WidgetData;
       const widget2 = {
