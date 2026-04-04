@@ -1551,7 +1551,7 @@ export interface CountdownConfig {
 export interface CountdownEvent {
   id: string;
   title: string;
-  date: string; // ISO date string
+  date: string; // ISO datetime string (for example, from toISOString())
 }
 
 export interface CountdownBuildingConfig {

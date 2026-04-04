@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { CountdownBuildingConfig } from '../../types';
-import { BUILDINGS } from '../../config/buildings';
-import { Toggle } from '../common/Toggle';
+import { CountdownBuildingConfig } from '@/types';
+import { BUILDINGS } from '@/config/buildings';
+import { Toggle } from '@/components/common/Toggle';
 import { Plus, Trash2, CalendarIcon } from 'lucide-react';
 
 interface CountdownConfigurationPanelProps {

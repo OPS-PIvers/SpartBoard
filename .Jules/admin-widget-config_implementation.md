@@ -649,5 +649,6 @@ Config: `components/admin/UrlConfigurationPanel.tsx` _(dedicated panel via `BUIL
         -- viewMode: Default View Mode (number or grid)
         -- includeWeekends: Whether weekends are included by default
         -- countToday: Whether today is counted by default
+        -- events: Default pre-defined list of countdown events available on creation
     - [Admin-Only Settings]
         -- dockDefaults: Per-building dock visibility.
