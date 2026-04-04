@@ -199,10 +199,5 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 ## 2026-04-04 - Standardize Dragging Z-Index
 
-**Drift:** Various components were hardcoding , , or during drag operations (e.g., ), ignoring the centralized registry and creating inconsistent stacking.
+**Drift:** Various components were hardcoding `zIndex: 10`, `zIndex: 50`, or `zIndex: 100` during drag operations (e.g., `isDragging ? 10 : 'auto'`), ignoring the centralized registry and creating inconsistent stacking.
 **Fix:** Created a new standard token `Z_INDEX.itemDragging = 50` in `config/zIndex.ts`, exported it to `tailwind.config.js` as `item-dragging`, and updated all sortable items to use this semantic token.
-
-## 2026-04-04 - Standardize Dragging Z-Index
-
-**Drift:** Various components were hardcoding zIndex: 10, zIndex: 50, or zIndex: 100 during drag operations, ignoring the centralized registry and creating inconsistent stacking.
-**Fix:** Created a new standard token Z_INDEX.itemDragging = 50 in config/zIndex.ts, exported it to tailwind.config.js as item-dragging, and updated all sortable items to use this semantic token.
