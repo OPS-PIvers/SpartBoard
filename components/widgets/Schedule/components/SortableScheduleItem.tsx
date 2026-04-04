@@ -4,6 +4,7 @@ import { GripVertical, Trash2, Timer, Link, CheckCircle2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { getTodayStr } from '@/components/widgets/Schedule/utils';
+import { Z_INDEX } from '@/config/zIndex';
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -47,7 +48,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      zIndex: isDragging ? 50 : undefined,
+      zIndex: isDragging ? Z_INDEX.itemDragging : undefined,
     };
 
     const hasLinked = (item.linkedWidgets ?? []).length > 0;

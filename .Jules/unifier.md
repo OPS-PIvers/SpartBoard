@@ -196,3 +196,9 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Identified remaining "snowflake" micro-typography hardcoded font sizes (`text-[10px]` and `text-[11px]`) in `components/admin/GlobalPermissionsManager.tsx`, `components/admin/WidgetBuilder/ConnectionsTab.tsx`, and `components/admin/WidgetBuilder/WidgetMetaEditor.tsx`.
 **Fix:** Refactored instances to use the closest standard Tailwind utility classes from the centralized design system (`text-[10px]` to `text-xxs`, `text-[11px]` to `text-xs`) and normalized associated font weight and tracking to align with micro-typography guidelines.
+## 2026-04-04 - Standardize Dragging Z-Index
+**Drift:** Various components were hardcoding , , or  during drag operations (e.g., ), ignoring the centralized registry and creating inconsistent stacking.
+**Fix:** Created a new standard token `Z_INDEX.itemDragging = 50` in `config/zIndex.ts`, exported it to `tailwind.config.js` as `item-dragging`, and updated all sortable items to use this semantic token.
+## 2026-04-04 - Standardize Dragging Z-Index
+**Drift:** Various components were hardcoding zIndex: 10, zIndex: 50, or zIndex: 100 during drag operations, ignoring the centralized registry and creating inconsistent stacking.
+**Fix:** Created a new standard token Z_INDEX.itemDragging = 50 in config/zIndex.ts, exported it to tailwind.config.js as item-dragging, and updated all sortable items to use this semantic token.

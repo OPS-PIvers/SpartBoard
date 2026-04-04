@@ -19,6 +19,7 @@ import {
   LayoutGrid,
   ArrowUpDown,
 } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   DndContext,
   closestCenter,
@@ -88,7 +89,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      zIndex: isDragging ? 50 : undefined,
+      zIndex: isDragging ? Z_INDEX.itemDragging : undefined,
     };
 
     return (

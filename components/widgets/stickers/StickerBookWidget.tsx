@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Z_INDEX } from '@/config/zIndex';
 import {
   Upload,
   Trash2,
@@ -74,7 +75,7 @@ const SortableSticker: React.FC<{
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 'auto',
+    zIndex: isDragging ? Z_INDEX.itemDragging : 'auto',
   };
 
   return (

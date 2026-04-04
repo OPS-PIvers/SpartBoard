@@ -10,6 +10,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { MiniAppItem } from '@/types';
+import { Z_INDEX } from '@/config/zIndex';
 
 interface SortableItemProps {
   app: MiniAppItem;
@@ -34,7 +35,7 @@ export const SortableItem: React.FC<SortableItemProps> = React.memo(
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
-      zIndex: isDragging ? 10 : 'auto',
+      zIndex: isDragging ? Z_INDEX.itemDragging : 'auto',
       opacity: isDragging ? 0.5 : 1,
     };
 
