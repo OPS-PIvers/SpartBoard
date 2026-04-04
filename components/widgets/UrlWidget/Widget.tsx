@@ -2,9 +2,11 @@ import React, { useMemo } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { Globe, ExternalLink } from 'lucide-react';
+import { Globe, ExternalLink, QrCode } from 'lucide-react';
+import { useDashboard } from '@/context/useDashboard';
 
 export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+  const { addWidget } = useDashboard();
   const config = widget.config as UrlWidgetConfig;
   const urls = config.urls ?? [];
   const getDisplayLabel = (title?: string, url?: string) => {
@@ -53,26 +55,59 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }}
             >
               {urls.map((urlItem) => (
-                <button
-                  type="button"
+                <div
                   key={urlItem.id}
-                  onClick={() =>
-                    window.open(urlItem.url, '_blank', 'noopener,noreferrer')
-                  }
-                  className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
+                  className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
                   style={{ backgroundColor: urlItem.color ?? '#10b981' }}
                 >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors" />
-                  <ExternalLink
-                    className="text-white drop-shadow-sm"
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+
+                  <div
+                    className="flex items-center justify-center z-10"
                     style={{
-                      width: 'min(48px, 15cqmin)',
-                      height: 'min(48px, 15cqmin)',
                       marginBottom: 'min(6px, 1.5cqmin)',
+                      gap: 'min(16px, 3cqmin)',
                     }}
-                  />
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          urlItem.url,
+                          '_blank',
+                          'noopener,noreferrer'
+                        )
+                      }
+                      className="transition-transform active:scale-90 hover:scale-110 focus:outline-none"
+                      title="Open in new tab"
+                    >
+                      <ExternalLink
+                        className="text-white drop-shadow-sm"
+                        style={{
+                          width: 'min(40px, 12cqmin)',
+                          height: 'min(40px, 12cqmin)',
+                        }}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addWidget('qr', { config: { url: urlItem.url } })
+                      }
+                      className="transition-transform active:scale-90 hover:scale-110 focus:outline-none"
+                      title="Create QR Code"
+                    >
+                      <QrCode
+                        className="text-white drop-shadow-sm"
+                        style={{
+                          width: 'min(40px, 12cqmin)',
+                          height: 'min(40px, 12cqmin)',
+                        }}
+                      />
+                    </button>
+                  </div>
                   <span
-                    className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full"
+                    className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10"
                     style={{
                       fontSize: 'min(18px, 6cqmin)',
                       padding: '0 min(8px, 1.5cqmin)',
@@ -80,7 +115,7 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   >
                     {getDisplayLabel(urlItem.title, urlItem.url)}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           </div>
