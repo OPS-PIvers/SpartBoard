@@ -16,6 +16,21 @@ import {
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+} from 'recharts';
 
 interface EngagementCounts {
   total: number;
@@ -35,6 +50,7 @@ interface AnalyticsData {
   widgets: {
     totalInstances: Record<string, number>;
     activeInstances: Record<string, number>;
+    usersByType: Record<string, string[]>;
   };
   api: {
     totalCalls: number;
@@ -100,6 +116,10 @@ export const AnalyticsManager: React.FC = () => {
   // Filters
   const [selectedDomain, setSelectedDomain] = useState<string>('all');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'widgets' | 'ai' | 'users'
+  >('overview');
+  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -208,11 +228,14 @@ export const AnalyticsManager: React.FC = () => {
     };
   }, [data, selectedDomain, selectedBuilding]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const uniqueDomains = useMemo(() => {
     if (!data) return [];
     return Object.keys(data.users.domains).filter(Boolean).sort();
   }, [data]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hasNoBuildingUsers = Boolean(data?.users.buildings.none);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const buildingOptions = useMemo(() => {
     if (!data) return [];
     return Object.keys(data.users.buildings)
@@ -266,212 +289,545 @@ export const AnalyticsManager: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-5 gap-4">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Users className="w-5 h-5 text-brand-blue-primary" />
-            User Engagement
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <select
-              value={selectedDomain}
-              onChange={(e) => setSelectedDomain(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            >
-              <option value="all">All Domains</option>
-              {uniqueDomains.map((d: string) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            >
-              <option value="all">All Buildings</option>
-              {hasNoBuildingUsers && (
-                <option value="none">No Building Assigned</option>
+      {' '}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800">
+            Platform Analytics
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Real-time usage and engagement metrics
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <select
+            value={selectedDomain}
+            onChange={(e) => setSelectedDomain(e.target.value)}
+            className="flex-1 md:flex-none px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue-primary/20 transition-all"
+          >
+            <option value="all">All Domains</option>
+            {Object.keys(data.users.domains).map((domain) => (
+              <option key={domain} value={domain}>
+                {domain}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedBuilding}
+            onChange={(e) => setSelectedBuilding(e.target.value)}
+            disabled={selectedDomain === 'all'}
+            className="flex-1 md:flex-none px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="all">All Buildings</option>
+            {selectedDomain !== 'all' &&
+              Object.keys(data.users.domainBuilding[selectedDomain] || {}).map(
+                (buildingId) => (
+                  <option key={buildingId} value={buildingId}>
+                    {KNOWN_BUILDINGS.get(buildingId) || buildingId}
+                  </option>
+                )
               )}
-              {buildingOptions.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void fetchAnalytics()}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
-              />
-              Refresh
-            </button>
+          </select>
+
+          <button
+            onClick={() => void fetchAnalytics()}
+            className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-primary/10 rounded-lg transition-colors"
+            title="Refresh Analytics"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      {/* Tabs */}
+      <div className="flex space-x-2 border-b border-slate-200 mb-6 pb-2 overflow-x-auto">
+        {(['overview', 'widgets', 'ai', 'users'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-t-lg font-semibold transition-colors whitespace-nowrap ${
+              activeTab === tab
+                ? 'text-brand-blue-primary border-b-2 border-brand-blue-primary bg-slate-50'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() +
+              tab.slice(1).replace('Ai', 'AI Usage')}
+          </button>
+        ))}
+      </div>
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Total Users"
+              value={formatNumber(filteredTotalUsers)}
+              icon={<Users className="w-6 h-6" />}
+              subtitle="Lifetime registered users"
+            />
+            <StatCard
+              title="Monthly Active"
+              value={formatNumber(filteredMonthly)}
+              icon={<BarChart className="w-6 h-6" />}
+              subtitle={`${formatRate(monthlyEngagementRate)} engagement`}
+            />
+            <StatCard
+              title="Daily Active"
+              value={formatNumber(filteredDaily)}
+              icon={<Zap className="w-6 h-6" />}
+              subtitle={`${formatRate(dailyEngagementRate)} engagement`}
+            />
+
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+              <h4 className="text-sm font-semibold text-slate-500 mb-2 w-full text-left">
+                Engagement Rate
+              </h4>
+              <div className="w-full h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="60%"
+                    outerRadius="100%"
+                    barSize={10}
+                    data={[
+                      {
+                        name: 'MAU',
+                        uv: monthlyEngagementRate,
+                        fill: '#14b8a6',
+                      },
+                    ]}
+                    startAngle={90}
+                    endAngle={-270}
+                  >
+                    <RadialBar
+                      background
+                      clockWise
+                      dataKey="uv"
+                      cornerRadius={10}
+                    />
+                    <text
+                      x="50%"
+                      y="50%"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="text-xl font-bold fill-slate-800"
+                    >
+                      {formatRate(monthlyEngagementRate)}
+                    </text>
+                  </RadialBarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <LayoutGrid className="w-5 h-5 text-brand-blue-primary" />
+              Domain Distribution
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={Object.entries(data.users.domains).map(
+                      ([domain, counts]) => ({
+                        name: domain,
+                        value: counts.total,
+                      })
+                    )}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      `${name} (${(percent * 100).toFixed(0)}%)`
+                    }
+                  >
+                    {Object.keys(data.users.domains).map((entry, index) => {
+                      const COLORS = [
+                        '#2d3f89',
+                        '#14b8a6',
+                        '#f59e0b',
+                        '#ef4444',
+                        '#8b5cf6',
+                        '#ec4899',
+                        '#10b981',
+                        '#3b82f6',
+                      ];
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      );
+                    })}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => [formatNumber(value), 'Users']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Users"
-            value={formatNumber(filteredTotalUsers)}
-            icon={<Users className="w-6 h-6" />}
-            subtitle="Lifetime registered users"
-          />
-          <StatCard
-            title="Monthly Active"
-            value={formatNumber(filteredMonthly)}
-            icon={<BarChart className="w-6 h-6" />}
-            subtitle={`${formatRate(monthlyEngagementRate)} engagement`}
-          />
-          <StatCard
-            title="Daily Active"
-            value={formatNumber(filteredDaily)}
-            icon={<Zap className="w-6 h-6" />}
-            subtitle={`${formatRate(dailyEngagementRate)} engagement`}
-          />
-          <StatCard
-            title="Filter Scope"
-            value={
-              selectedDomain === 'all' && selectedBuilding === 'all'
-                ? 'Global'
-                : 'Filtered'
-            }
-            icon={<LayoutGrid className="w-6 h-6" />}
-            subtitle="Applies to the user cards above"
-          />
-        </div>
-      </div>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6">
-        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-brand-purple" />
-          Gemini AI Usage
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total API Calls"
-            value={formatNumber(data.api.totalCalls)}
-            icon={<Zap className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Active AI Users"
-            value={formatNumber(data.api.activeUsers)}
-            icon={<Users className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Avg Daily Calls"
-            value={formatNumber(data.api.avgDailyCalls)}
-            icon={<BarChart className="w-6 h-6" />}
-          />
-          <StatCard
-            title="Avg Daily Per User"
-            value={safeAvgDailyPerUser.toFixed(1)}
-            icon={<Users className="w-6 h-6" />}
-            subtitle="Derived from avg daily calls / active AI users"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <LayoutGrid className="w-5 h-5 text-brand-blue-primary" />
-          Top Widgets
-        </h3>
-        <div className="space-y-4">
-          {sortedWidgets.map(([type, count], index) => {
-            const label = WIDGET_LABELS[type] || type;
-            const activeCount = data.widgets.activeInstances[type] || 0;
-            const percentage = count > 0 ? (activeCount / count) * 100 : 0;
-
-            return (
-              <div key={type} className="flex items-center gap-4">
-                <div className="w-8 text-center text-sm font-bold text-slate-400">
-                  #{index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-slate-700">
-                      {label}
-                    </span>
-                    <div className="flex gap-3">
-                      <span className="text-slate-500">
-                        {formatNumber(count)} total
-                      </span>
-                      <span className="text-brand-blue-primary font-medium">
-                        {formatNumber(activeCount)} active
-                      </span>
-                      <span className="text-slate-400">
-                        {formatRate(percentage)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden w-full">
-                    <div
-                      className="h-full bg-brand-blue-primary rounded-full transition-all duration-1000"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {sortedWidgets.length === 0 && (
-            <div className="text-center py-8 text-slate-500">
-              No widget data available yet.
+      )}
+      {activeTab === 'widgets' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <LayoutGrid className="w-5 h-5 text-brand-blue-primary" />
+              Widget Usage Summary
+            </h3>
+            <div className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={sortedWidgets.map(([type, count]) => ({
+                    name: WIDGET_LABELS[type] || type,
+                    total: count,
+                    active: data.widgets.activeInstances[type] || 0,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={120}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      formatNumber(value),
+                      typeof name === 'string'
+                        ? name.charAt(0).toUpperCase() + name.slice(1)
+                        : name,
+                    ]}
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="total"
+                    fill="#2d3f89"
+                    name="Total Instances"
+                    radius={[0, 4, 4, 0]}
+                  />
+                  <Bar
+                    dataKey="active"
+                    fill="#14b8a6"
+                    name="Active Instances"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </RechartsBarChart>
+              </ResponsiveContainer>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-brand-blue-primary" />
-          Top AI Users
-        </h3>
-        <div className="space-y-4">
-          {topAiUsers.map((user, index) => {
-            const label = user.email;
-            const maxCount = topAiUsers[0]?.count || 1;
-            const count = user.count;
-            const percentage = (count / maxCount) * 100;
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 overflow-hidden">
+            <h3 className="text-lg font-bold text-slate-800 mb-6">
+              Widget Details
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Rank
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Widget
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Total
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Active
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Active %
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Users
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedWidgets.map(([type, count], index) => {
+                    const activeCount = data.widgets.activeInstances[type] || 0;
+                    const percentage =
+                      count > 0 ? (activeCount / count) * 100 : 0;
+                    const isExpanded = expandedWidget === type;
+                    const widgetUsers = data.widgets.usersByType?.[type] || [];
 
-            return (
-              <div key={user.uid} className="flex items-center gap-4">
-                <div className="w-8 text-center text-sm font-bold text-slate-400">
-                  #{index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-slate-700">
-                      {label}
-                    </span>
-                    <span className="text-slate-500">
-                      {formatNumber(count)} calls
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-brand-purple rounded-full transition-all duration-1000"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {topAiUsers.length === 0 && (
-            <div className="text-center py-8 text-slate-500">
-              No API usage data available yet.
+                    return (
+                      <React.Fragment key={type}>
+                        <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="p-3 text-sm text-slate-500 font-medium">
+                            #{index + 1}
+                          </td>
+                          <td className="p-3 text-sm font-semibold text-slate-800">
+                            {WIDGET_LABELS[type] || type}
+                          </td>
+                          <td className="p-3 text-sm text-slate-600">
+                            {formatNumber(count)}
+                          </td>
+                          <td className="p-3 text-sm text-brand-blue-primary font-medium">
+                            {formatNumber(activeCount)}
+                          </td>
+                          <td className="p-3 text-sm text-slate-500">
+                            {formatRate(percentage)}
+                          </td>
+                          <td className="p-3 text-sm">
+                            <button
+                              onClick={() =>
+                                setExpandedWidget(isExpanded ? null : type)
+                              }
+                              className="text-brand-purple hover:underline flex items-center gap-1"
+                            >
+                              {widgetUsers.length} Users{' '}
+                              {isExpanded ? '▼' : '▶'}
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <td colSpan={6} className="p-4">
+                              <div className="text-xs text-slate-600 max-h-40 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {widgetUsers.length > 0 ? (
+                                  widgetUsers.map((email, i) => (
+                                    <div
+                                      key={i}
+                                      className="truncate bg-white p-1 rounded border border-slate-200"
+                                      title={email}
+                                    >
+                                      {email}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-slate-400 italic">
+                                    No users found.
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+      {activeTab === 'ai' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Total API Calls"
+              value={formatNumber(data.api.totalCalls)}
+              icon={<Zap className="w-6 h-6" />}
+            />
+            <StatCard
+              title="Active AI Users"
+              value={formatNumber(data.api.activeUsers)}
+              icon={<Users className="w-6 h-6" />}
+            />
+            <StatCard
+              title="Avg Daily Calls"
+              value={formatNumber(data.api.avgDailyCalls)}
+              icon={<BarChart className="w-6 h-6" />}
+            />
+            <StatCard
+              title="Avg Daily Per User"
+              value={safeAvgDailyPerUser.toFixed(1)}
+              icon={<Users className="w-6 h-6" />}
+              subtitle="Derived from avg daily calls / active AI users"
+            />
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-brand-blue-primary" />
+              Top AI Users
+            </h3>
+            <div className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart
+                  data={topAiUsers.map((u) => ({
+                    email: u.email,
+                    count: u.count,
+                    shortEmail: u.email.split('@')[0],
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 60, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="shortEmail"
+                    type="category"
+                    width={100}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    formatter={(value) => [formatNumber(value), 'API Calls']}
+                    labelFormatter={(label: string, payload: unknown[]) =>
+                      (payload[0] as { payload?: { email?: string } })?.payload
+                        ?.email ?? label
+                    }
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: 'none',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="#8b5cf6"
+                    name="Calls"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6">
+              Domain Breakdown
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Domain
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Total
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Monthly Active
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Daily Active
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      MAU %
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      DAU %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(data.users.domains)
+                    .sort(([, a], [, b]) => b.total - a.total)
+                    .map(([domain, counts]) => (
+                      <tr
+                        key={domain}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="p-3 text-sm font-semibold text-slate-800">
+                          {domain === 'all' ? 'All Domains' : domain}
+                        </td>
+                        <td className="p-3 text-sm text-slate-600">
+                          {formatNumber(counts.total)}
+                        </td>
+                        <td className="p-3 text-sm text-brand-blue-primary font-medium">
+                          {formatNumber(counts.monthly)}
+                        </td>
+                        <td className="p-3 text-sm text-brand-purple font-medium">
+                          {formatNumber(counts.daily)}
+                        </td>
+                        <td className="p-3 text-sm text-slate-500">
+                          {formatRate(
+                            counts.total > 0
+                              ? (counts.monthly / counts.total) * 100
+                              : 0
+                          )}
+                        </td>
+                        <td className="p-3 text-sm text-slate-500">
+                          {formatRate(
+                            counts.total > 0
+                              ? (counts.daily / counts.total) * 100
+                              : 0
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6">
+              Building Breakdown
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Building Name
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Total
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Monthly Active
+                    </th>
+                    <th className="p-3 font-semibold text-slate-600 text-sm">
+                      Daily Active
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(data.users.buildings)
+                    .sort(([, a], [, b]) => b.total - a.total)
+                    .map(([buildingId, counts]) => (
+                      <tr
+                        key={buildingId}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="p-3 text-sm font-semibold text-slate-800">
+                          {buildingId === 'unknown'
+                            ? 'No building assigned'
+                            : KNOWN_BUILDINGS.get(buildingId) || buildingId}
+                        </td>
+                        <td className="p-3 text-sm text-slate-600">
+                          {formatNumber(counts.total)}
+                        </td>
+                        <td className="p-3 text-sm text-brand-blue-primary font-medium">
+                          {formatNumber(counts.monthly)}
+                        </td>
+                        <td className="p-3 text-sm text-brand-purple font-medium">
+                          {formatNumber(counts.daily)}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+export default AnalyticsManager;

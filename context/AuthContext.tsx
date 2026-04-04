@@ -193,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [setupCompleted, setSetupCompletedState] = useState(isAuthBypass);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
+  const rootDocSyncedRef = useRef(false);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
   const isRefreshingRef = useRef(false);
@@ -397,6 +398,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (now > expiryTime) {
         // Already expired — clear state
         setGoogleAccessToken(null);
+        rootDocSyncedRef.current = false;
         localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
         localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
       } else if (now > expiryTime - GOOGLE_TOKEN_REFRESH_THRESHOLD_MS) {
@@ -651,6 +653,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user]);
 
+  // Sync root user document for analytics (reads email, lastLogin, buildings)
+  useEffect(() => {
+    if (!user || isAuthBypass || !profileLoaded) return;
+    if (rootDocSyncedRef.current) return;
+    rootDocSyncedRef.current = true;
+
+    void setDoc(
+      doc(db, 'users', user.uid),
+      {
+        email: user.email ?? '',
+        lastLogin: Date.now(),
+        buildings: selectedBuildingsState,
+      },
+      { merge: true }
+    ).catch((err: unknown) => {
+      console.error('Error syncing user root document:', err);
+    });
+  }, [user, profileLoaded, selectedBuildingsState]);
+
   const setSelectedBuildings = useCallback(
     async (buildings: string[]) => {
       setSelectedBuildingsState(buildings);
@@ -663,6 +684,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           { selectedBuildings: buildings },
           { merge: true }
         );
+      if (!isAuthBypass && user) {
+        void setDoc(
+          doc(db, 'users', user.uid),
+          { buildings: buildings },
+          { merge: true }
+        ).catch((err: unknown) => console.error('Error updating root buildings:', err));
+      }
       } catch (error) {
         // Only log if this is still the latest write (not superseded by a newer one)
         if (myToken === writeTokenRef.current) {
