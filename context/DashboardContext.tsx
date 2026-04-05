@@ -785,22 +785,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                       version: keepLocalConfig ? lw.version : sw.version,
                       config: keepLocalConfig ? lw.config : sw.config,
                       ...(keepLocalLayout
-                        ? LAYOUT_FIELDS.reduce(
-                            (acc, field) => ({
-                              ...acc,
-                              [field]: lw[field as keyof WidgetData],
-                            }),
-                            {}
-                          )
+                        ? (() => {
+                            const acc: Partial<WidgetData> = {};
+                            for (const field of LAYOUT_FIELDS) {
+                              const k = field as keyof WidgetData;
+                              acc[k] = lw[k] as never;
+                            }
+                            return acc;
+                          })()
                         : {}),
                       ...(keepLocalStyle
-                        ? STYLE_FIELDS.reduce(
-                            (acc, field) => ({
-                              ...acc,
-                              [field]: lw[field as keyof WidgetData],
-                            }),
-                            {}
-                          )
+                        ? (() => {
+                            const acc: Partial<WidgetData> = {};
+                            for (const field of STYLE_FIELDS) {
+                              const k = field as keyof WidgetData;
+                              acc[k] = lw[k] as never;
+                            }
+                            return acc;
+                          })()
                         : {}),
                     };
                   }
@@ -853,22 +855,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     version: keepLocalConfig ? saved.version : sw.version,
                     config: keepLocalConfig ? saved.config : sw.config,
                     ...(keepLocalLayout
-                      ? LAYOUT_FIELDS.reduce(
-                          (acc, field) => ({
-                            ...acc,
-                            [field]: saved[field as keyof WidgetData],
-                          }),
-                          {}
-                        )
+                      ? (() => {
+                          const acc: Partial<WidgetData> = {};
+                          for (const field of LAYOUT_FIELDS) {
+                            const k = field as keyof WidgetData;
+                            acc[k] = saved[k] as never;
+                          }
+                          return acc;
+                        })()
                       : {}),
                     ...(keepLocalStyle
-                      ? STYLE_FIELDS.reduce(
-                          (acc, field) => ({
-                            ...acc,
-                            [field]: saved[field as keyof WidgetData],
-                          }),
-                          {}
-                        )
+                      ? (() => {
+                          const acc: Partial<WidgetData> = {};
+                          for (const field of STYLE_FIELDS) {
+                            const k = field as keyof WidgetData;
+                            acc[k] = saved[k] as never;
+                          }
+                          return acc;
+                        })()
                       : {}),
                   };
                 }

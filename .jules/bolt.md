@@ -27,3 +27,7 @@
 
 **Learning:** Using `array.filter(...).length` inside a render loop or an un-guarded block forces the allocation of a temporary array object just to extract a single count integer. For large arrays or frequently re-rendered components, this contributes to garbage collection overhead and potential UI micro-stutters.
 **Action:** When only the count of matching items is needed, calculate it in a single pass using `.reduce()` (or a `for` loop) inside a `useMemo` block instead of `.filter(...).length`.
+
+## 2024-05-24 - DashboardContext Sync Mapping Optimization
+**Learning:** Object spread syntax (`...acc`) inside an array `.reduce()` method is heavily used in React contexts but causes severe performance bottlenecks when iterating large arrays, as it dynamically allocates a new object on every single iteration in $O(M^2)$ time. In `context/DashboardContext.tsx` this happened per-widget upon receiving server snapshots.
+**Action:** Replace `array.reduce((acc, x) => ({ ...acc, [x.key]: x.val }), {})` patterns with IIFEs containing a fast `for...of` loop mutating a single local object, ensuring $O(M)$ time complexity and avoiding huge garbage collection spikes during high-frequency sync events.
