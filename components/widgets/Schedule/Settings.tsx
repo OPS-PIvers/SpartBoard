@@ -13,11 +13,9 @@ import {
   CalendarConfig,
 } from '@/types';
 import {
-  Type,
   CheckCircle2,
   Plus,
   Trash2,
-  Palette,
   Settings2,
   LayoutGrid,
   CalendarDays,
@@ -42,6 +40,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Toggle } from '@/components/common/Toggle';
+import { TypographySettings } from '@/components/common/TypographySettings';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
 
@@ -53,13 +54,6 @@ const DAYS = [
   { id: 4, label: 'Th', fullName: 'Thursday' },
   { id: 5, label: 'F', fullName: 'Friday' },
   { id: 6, label: 'Sa', fullName: 'Saturday' },
-];
-
-const FONTS = [
-  { id: 'global', label: 'Inherit', icon: 'G' },
-  { id: 'font-mono', label: 'Digital', icon: '01' },
-  { id: 'font-sans', label: 'Modern', icon: 'Aa' },
-  { id: 'font-handwritten', label: 'School', icon: '✏️' },
 ];
 
 /** Parses "HH:MM" → minutes since midnight, or Infinity for items without times (pushed to end). */
@@ -780,101 +774,33 @@ export const ScheduleAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as ScheduleConfig;
-  const {
-    fontFamily = 'global',
-    cardColor = '#ffffff',
-    cardOpacity = 1,
-  } = config;
 
   return (
     <div className="space-y-6">
-      {/* Typography */}
-      <div>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Type className="w-3 h-3" /> Typography
-        </label>
-        <div className="grid grid-cols-4 gap-2">
-          {FONTS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontFamily: f.id } as ScheduleConfig,
-                })
-              }
-              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                fontFamily === f.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-100 hover:border-slate-200'
-              }`}
-            >
-              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
-              <span className="text-xxxs uppercase text-slate-600 font-bold">
-                {f.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Card Style */}
-      <div>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Palette className="w-3 h-3" /> Card Style
-        </label>
-        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                Card Color
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                {cardColor}
-              </span>
-            </div>
-            <input
-              type="color"
-              value={cardColor}
-              onChange={(e) =>
-                updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    cardColor: e.target.value,
-                  } as ScheduleConfig,
-                })
-              }
-              className="w-full h-8 rounded cursor-pointer border border-slate-200"
-            />
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                Opacity
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums font-bold">
-                {Math.round(cardOpacity * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={cardOpacity}
-              onChange={(e) =>
-                updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    cardOpacity: parseFloat(e.target.value),
-                  } as ScheduleConfig,
-                })
-              }
-              className="w-full accent-blue-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-            />
-          </div>
-        </div>
-      </div>
+      <TextSizePresetSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ScheduleConfig,
+          })
+        }
+      />
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ScheduleConfig,
+          })
+        }
+      />
+      <SurfaceColorSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as ScheduleConfig,
+          })
+        }
+      />
     </div>
   );
 };

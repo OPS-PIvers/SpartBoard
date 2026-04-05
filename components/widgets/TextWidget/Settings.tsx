@@ -10,6 +10,7 @@ import {
 
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { TEXT_WIDGET_COLORS, TEXT_WIDGET_TEMPLATES } from './constants';
 
 export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -70,8 +71,20 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
 
+      <TextSizePresetSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              ...updates,
+            } as TextConfig,
+          })
+        }
+      />
+
       <div>
-        <SettingsLabel>Font Size</SettingsLabel>
+        <SettingsLabel>Font Size (Fine Tune)</SettingsLabel>
         <div className="flex items-center gap-4">
           <input
             type="range"
@@ -87,6 +100,7 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               })
             }
             className="flex-1 accent-blue-600"
+            aria-label="Font size slider"
           />
           <span className="w-8 text-center font-mono text-slate-700 text-xs">
             {config.fontSize}

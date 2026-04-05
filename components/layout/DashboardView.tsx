@@ -29,7 +29,7 @@ import {
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
-import { extractYouTubeId } from '@/utils/url';
+import { extractYouTubeId } from '@/utils/youtube';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -596,11 +596,10 @@ export const DashboardView: React.FC = () => {
     }
   }, [activeDashboard?.id, currentIndex, setZoom]);
 
-  React.useEffect(() => {
-    if (zoom === 1) {
-      setPanOffset({ x: 0, y: 0 });
-    }
-  }, [zoom]);
+  // Reset panOffset during render when zoom is 1 to avoid useEffect and extra re-renders
+  if (zoom === 1 && (panOffset.x !== 0 || panOffset.y !== 0)) {
+    setPanOffset({ x: 0, y: 0 });
+  }
 
   // Keyboard Navigation
   React.useEffect(() => {

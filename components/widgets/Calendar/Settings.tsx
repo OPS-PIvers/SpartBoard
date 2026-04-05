@@ -9,14 +9,15 @@ import {
   HelpCircle,
   ExternalLink,
   ShieldCheck,
-  Type,
-  Palette,
 } from 'lucide-react';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Toggle } from '@/components/common/Toggle';
-import { FONTS, extractCalendarId } from './constants';
+import { extractCalendarId } from './constants';
+import { TypographySettings } from '@/components/common/TypographySettings';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 
 export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -366,101 +367,30 @@ export const CalendarAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-6">
-      {/* Typography */}
-      <section>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Type className="w-3 h-3" /> Typography
-        </label>
-        <div className="grid grid-cols-4 gap-2">
-          {FONTS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, fontFamily: f.id } as CalendarConfig,
-                })
-              }
-              className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                config.fontFamily === f.id ||
-                (!config.fontFamily && f.id === 'global')
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-100 hover:border-slate-200'
-              }`}
-            >
-              <span className={`text-sm ${f.id} text-slate-900`}>{f.icon}</span>
-              <span className="text-xxxs uppercase text-slate-600">
-                {f.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Card Style */}
-      <section>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Palette className="w-3 h-3" /> Card Style
-        </label>
-        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700">
-                Card Color
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-mono">
-                  {config.cardColor ?? '#ffffff'}
-                </span>
-                <input
-                  type="color"
-                  value={config.cardColor ?? '#ffffff'}
-                  onChange={(e) =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        cardColor: e.target.value,
-                      } as CalendarConfig,
-                    })
-                  }
-                  className="w-8 h-8 rounded cursor-pointer border border-slate-200 p-0.5"
-                  aria-label="Card color"
-                  title="Choose card background color"
-                />
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-slate-700">
-                Card Opacity
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums">
-                {Math.round((config.cardOpacity ?? 1) * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={config.cardOpacity ?? 1}
-              onChange={(e) =>
-                updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    cardOpacity: parseFloat(e.target.value),
-                  } as CalendarConfig,
-                })
-              }
-              aria-label="Card opacity"
-              className="w-full accent-blue-500"
-            />
-            <p className="text-xs text-slate-400 mt-1">
-              Set to 0% for fully transparent cards.
-            </p>
-          </div>
-        </div>
-      </section>
+      <TextSizePresetSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as CalendarConfig,
+          })
+        }
+      />
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as CalendarConfig,
+          })
+        }
+      />
+      <SurfaceColorSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as CalendarConfig,
+          })
+        }
+      />
     </div>
   );
 };

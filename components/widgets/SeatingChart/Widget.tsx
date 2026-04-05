@@ -87,6 +87,14 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   const [localTemplateColumns, setLocalTemplateColumns] = useState(
     String(templateColumns)
   );
+  const [prevTemplateColumns, setPrevTemplateColumns] =
+    useState(templateColumns);
+
+  // Keep local input in sync when templateColumns changes from outside
+  if (templateColumns !== prevTemplateColumns) {
+    setPrevTemplateColumns(templateColumns);
+    setLocalTemplateColumns(String(templateColumns));
+  }
 
   // Ensures the legacy name→id migration runs at most once per widget mount,
   // preventing re-runs triggered by the state update from updateWidget itself.
@@ -112,11 +120,6 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       }
     };
   }, []);
-
-  // Keep local input in sync when templateColumns changes from outside
-  useEffect(() => {
-    setLocalTemplateColumns(String(templateColumns));
-  }, [templateColumns]);
 
   // Roster logic
   const activeRoster = useMemo(

@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Puzzle,
 } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
 import { CustomWidgetDoc } from '@/types';
 import {
@@ -80,7 +81,7 @@ const SortableLibraryTool = React.memo(
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging ? 0.5 : 1,
-      zIndex: isDragging ? 100 : 1,
+      zIndex: isDragging ? Z_INDEX.itemDragging : 1,
     };
 
     return (

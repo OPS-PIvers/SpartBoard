@@ -23,10 +23,10 @@ const TeamNameInput: React.FC<{
   const [prevValue, setPrevValue] = React.useState(value);
   const debouncedValue = useDebounce(localValue, 500);
 
-  // Sync with prop changes (e.g. undo/redo)
+  // Sync with prop changes (e.g. undo/redo) using derived state
   if (value !== prevValue) {
-    setLocalValue(value);
     setPrevValue(value);
+    setLocalValue(value);
   }
 
   // Sync debounced value to parent

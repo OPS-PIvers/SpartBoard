@@ -5,6 +5,8 @@ import axios from 'axios';
 interface MockDocInput {
   id: string;
   data: Record<string, unknown>;
+  /** Optional: populates ref.parent.parent.id for dashboard snapshots */
+  ownerUid?: string;
 }
 
 const mockFirestoreState = {
@@ -18,6 +20,11 @@ const toDocSnapshot = (doc: MockDocInput) => ({
   id: doc.id,
   exists: true,
   data: () => doc.data,
+  ref: {
+    parent: {
+      parent: doc.ownerUid != null ? { id: doc.ownerUid } : null,
+    },
+  },
 });
 
 const toAsyncStream = (docs: MockDocInput[]) => ({
@@ -537,6 +544,140 @@ describe('adminAnalytics', () => {
       count: 3,
       email: 'Unknown (uid_b)',
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+  });
+
+  it('returns usersByType with correct count and resolved emails', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid_alice',
+        data: {
+          email: 'alice@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+      {
+        id: 'uid_bob',
+        data: {
+          email: 'bob@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    // alice has both clock and timer; bob has only clock
+    // alice appears on two dashboards — should be counted once per widget
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-alice-1',
+        ownerUid: 'uid_alice',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [{ type: 'clock' }, { type: 'timer' }],
+        },
+      },
+      {
+        id: 'dash-alice-2',
+        ownerUid: 'uid_alice',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [{ type: 'clock' }],
+        },
+      },
+      {
+        id: 'dash-bob-1',
+        ownerUid: 'uid_bob',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [{ type: 'clock' }],
+        },
+      },
+    ];
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+    const resPromise = new Promise<any>((resolve) => {
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockImplementation((data) => {
+          resolve(data);
+          return data;
+        }),
+        setHeader: vi.fn().mockReturnThis(),
+        getHeader: vi.fn().mockReturnValue(''),
+      };
+      const mockReq = {
+        headers: {
+          origin: 'http://localhost',
+          authorization: 'Bearer mock-token',
+        },
+      };
+      (adminAnalytics as any)(mockReq, mockRes);
+    });
+
+    const capturedData = await resPromise;
+
+    // clock: 2 distinct users (alice counted once despite 2 dashboards)
+    expect(capturedData.widgets.usersByType.clock.count).toBe(2);
+    expect(capturedData.widgets.usersByType.clock.emails).toHaveLength(2);
+    expect(capturedData.widgets.usersByType.clock.emails).toContain(
+      'alice@district.org'
+    );
+    expect(capturedData.widgets.usersByType.clock.emails).toContain(
+      'bob@district.org'
+    );
+
+    // timer: only alice
+    expect(capturedData.widgets.usersByType.timer.count).toBe(1);
+    expect(capturedData.widgets.usersByType.timer.emails).toEqual([
+      'alice@district.org',
+    ]);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+  });
+
+  it('caps usersByType emails at 20 and reports accurate count up to 100', async () => {
+    // Create 25 distinct users all with the same widget
+    const users: MockDocInput[] = Array.from({ length: 25 }, (_, i) => ({
+      id: `uid_${i}`,
+      data: {
+        email: `user${i}@district.org`,
+        lastLogin: Date.now(),
+        buildings: [],
+      },
+    }));
+    mockFirestoreState.users = users;
+    mockFirestoreState.dashboards = users.map((u) => ({
+      id: `dash-${u.id}`,
+      ownerUid: u.id,
+      data: { updatedAt: Date.now(), widgets: [{ type: 'clock' }] },
+    }));
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+    const resPromise = new Promise<any>((resolve) => {
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockImplementation((data) => {
+          resolve(data);
+          return data;
+        }),
+        setHeader: vi.fn().mockReturnThis(),
+        getHeader: vi.fn().mockReturnValue(''),
+      };
+      const mockReq = {
+        headers: {
+          origin: 'http://localhost',
+          authorization: 'Bearer mock-token',
+        },
+      };
+      (adminAnalytics as any)(mockReq, mockRes);
+    });
+
+    const capturedData = await resPromise;
+
+    // All 25 distinct users tracked (well within the 100-cap)
+    expect(capturedData.widgets.usersByType.clock.count).toBe(25);
+    // Emails preview capped at 20
+    expect(capturedData.widgets.usersByType.clock.emails).toHaveLength(20);
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 });

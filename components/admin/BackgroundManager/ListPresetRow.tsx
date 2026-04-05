@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { BUILDINGS } from '@/config/buildings';
-import { extractYouTubeId } from '@/utils/url';
+import { extractYouTubeId } from '@/utils/youtube';
 import { PresetCardProps } from './types';
 import { AccessLevel } from '@/types';
 

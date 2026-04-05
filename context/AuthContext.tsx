@@ -196,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Prevents concurrent proactive token refresh calls from the checkToken interval
   const isRefreshingRef = useRef(false);
+  // Prevents duplicate root-doc syncs within the same session
+  const rootDocSyncedRef = useRef(false);
 
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
@@ -651,6 +653,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user]);
 
+  // Sync the root users/{uid} document so the admin analytics Cloud Function can
+  // read email, lastLogin, and buildings without querying subcollections.
+  useEffect(() => {
+    if (!user || isAuthBypass || !profileLoaded) return;
+    if (rootDocSyncedRef.current) return;
+    rootDocSyncedRef.current = true;
+
+    void setDoc(
+      doc(db, 'users', user.uid),
+      {
+        email: user.email ?? '',
+        lastLogin: Date.now(),
+        buildings: selectedBuildings,
+      },
+      { merge: true }
+    ).catch((err: unknown) => {
+      console.error('Error syncing user root document:', err);
+      // Reset so the next render can retry
+      rootDocSyncedRef.current = false;
+    });
+  }, [user, profileLoaded, selectedBuildings]);
+
   const setSelectedBuildings = useCallback(
     async (buildings: string[]) => {
       setSelectedBuildingsState(buildings);
@@ -662,6 +686,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
           { selectedBuildings: buildings },
           { merge: true }
+        );
+        // Keep root doc buildings in sync for admin analytics
+        void setDoc(
+          doc(db, 'users', user.uid),
+          { buildings },
+          { merge: true }
+        ).catch((err: unknown) =>
+          console.error('Error updating root doc buildings:', err)
         );
       } catch (error) {
         // Only log if this is still the latest write (not superseded by a newer one)
@@ -757,6 +789,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(user);
       if (!user) {
         setGoogleAccessToken(null);
+        rootDocSyncedRef.current = false;
       }
       setLoading(false);
     });

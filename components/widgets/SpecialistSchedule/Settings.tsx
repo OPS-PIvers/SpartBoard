@@ -14,20 +14,14 @@ import {
   Plus,
   Trash2,
   X,
-  Type,
-  Palette,
   Save,
   Calendar,
   Repeat,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-
-const FONTS = [
-  { id: 'global', label: 'Inherit', icon: 'G' },
-  { id: 'font-mono', label: 'Digital', icon: '01' },
-  { id: 'font-sans', label: 'Modern', icon: 'Aa' },
-  { id: 'font-handwritten', label: 'School', icon: '✏️' },
-];
+import { TypographySettings } from '@/components/common/TypographySettings';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 
 const RECURRING_DEFAULTS = [
   { task: '🍴 Lunch', startTime: '11:00', endTime: '11:30' },
@@ -75,13 +69,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     specialistOptions = [],
   } = buildingConfig;
 
-  const {
-    cycleDays = [],
-    fontFamily = 'global',
-    cardColor = '#ffffff',
-    cardOpacity = 1,
-    recurringItems = [],
-  } = config;
+  const { cycleDays = [], recurringItems = [] } = config;
 
   const [activeTab, setActiveTab] = useState<
     'general' | 'schedules' | 'recurring'
@@ -252,90 +240,39 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
       {activeTab === 'general' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <section className="space-y-3">
-            <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Type className="w-3 h-3" /> Typography
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {FONTS.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        fontFamily: f.id,
-                      } as SpecialistScheduleConfig,
-                    })
-                  }
-                  className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                    fontFamily === f.id
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-slate-100 hover:border-slate-200'
-                  }`}
-                >
-                  <span className={`text-sm ${f.id} text-slate-900`}>
-                    {f.icon}
-                  </span>
-                  <span className="text-xxxs uppercase text-slate-600">
-                    {f.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Palette className="w-3 h-3" /> Card Style
-            </label>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">
-                  Card Color
-                </span>
-                <input
-                  type="color"
-                  value={cardColor}
-                  onChange={(e) =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        cardColor: e.target.value,
-                      } as SpecialistScheduleConfig,
-                    })
-                  }
-                  className="w-8 h-8 rounded cursor-pointer border border-slate-200 p-0.5"
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">
-                    Opacity
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {Math.round(cardOpacity * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={cardOpacity}
-                  onChange={(e) =>
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        cardOpacity: parseFloat(e.target.value),
-                      } as SpecialistScheduleConfig,
-                    })
-                  }
-                  className="w-full accent-teal-600"
-                />
-              </div>
-            </div>
-          </section>
+          <TextSizePresetSettings
+            config={config}
+            updateConfig={(updates) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  ...updates,
+                } as SpecialistScheduleConfig,
+              })
+            }
+          />
+          <TypographySettings
+            config={config}
+            updateConfig={(updates) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  ...updates,
+                } as SpecialistScheduleConfig,
+              })
+            }
+          />
+          <SurfaceColorSettings
+            config={config}
+            updateConfig={(updates) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  ...updates,
+                } as SpecialistScheduleConfig,
+              })
+            }
+          />
         </div>
       )}
 

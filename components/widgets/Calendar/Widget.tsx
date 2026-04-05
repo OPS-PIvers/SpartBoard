@@ -14,6 +14,7 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { GAP_STYLE, hexToRgba } from './constants';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
 const parseTimeSeconds = (t: string | undefined): number => {
@@ -51,6 +52,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
 
   const {
     fontFamily = 'global',
+    fontColor = '#334155',
+    textSizePreset,
     cardOpacity = 1,
     cardColor = '#ffffff',
   } = config;
@@ -217,6 +220,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const bgColor = hexToRgba(cardColor, cardOpacity);
+  const textScale = resolveTextPresetMultiplier(textSizePreset, 1);
 
   if (isBlocked) {
     return (
@@ -302,10 +306,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                       <span
                         className="font-black uppercase tracking-widest shrink-0"
                         style={{
-                          fontSize: 'min(20px, 4.5cqmin)',
-                          color: isToday
-                            ? 'rgb(99, 102, 241)'
-                            : 'rgb(148, 163, 184)',
+                          fontSize: `min(${Math.round(20 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
+                          color: isToday ? 'rgb(99, 102, 241)' : fontColor,
                         }}
                       >
                         {isToday ? 'Today' : event.date}
@@ -313,7 +315,9 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                       {event.time && (
                         <span
                           className="font-medium text-slate-400 min-w-0 truncate"
-                          style={{ fontSize: 'min(20px, 4.5cqmin)' }}
+                          style={{
+                            fontSize: `min(${Math.round(20 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
+                          }}
                         >
                           · {event.time}
                         </span>
@@ -337,8 +341,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                     <span
                       className="font-black truncate leading-tight"
                       style={{
-                        fontSize: 'min(32px, 9cqmin)',
-                        color: isToday ? 'rgb(55, 65, 81)' : 'rgb(71, 85, 105)',
+                        fontSize: `min(${Math.round(32 * textScale)}px, ${(9 * textScale).toFixed(2)}cqmin)`,
+                        color: isToday ? 'rgb(55, 65, 81)' : fontColor,
                       }}
                     >
                       {event.title}

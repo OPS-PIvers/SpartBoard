@@ -559,21 +559,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load dashboards on mount and subscribe to changes
   useEffect(() => {
     if (!user) {
-      const timer = setTimeout(() => setLoading(false), 0);
-      return () => clearTimeout(timer);
+      setLoading(false);
+      return;
     }
 
-    const timer = setTimeout(() => setLoading(true), 0);
+    setLoading(true);
 
     // Real-time subscription to Firestore
     const unsubscribe = subscribeToDashboards(
       (updatedDashboards, hasPendingWrites) => {
-        // Cancel the loading timer — in bypass mode the mock store fires the
-        // callback synchronously (before the 0ms timer fires), so without this
-        // the timer would override setLoading(false) and lock the UI on the
-        // full-page loader indefinitely. Safe to call after the timer has fired.
-        clearTimeout(timer);
-
         // Sort dashboards: default first, then by order, then by createdAt
         const sortedDashboards = [...updatedDashboards].sort((a, b) => {
           if (a.isDefault && !b.isDefault) return -1;
@@ -989,7 +983,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     return () => {
-      clearTimeout(timer);
       unsubscribe();
     };
   }, [user, subscribeToDashboards, migrated, saveDashboard]);

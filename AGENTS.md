@@ -206,3 +206,21 @@ When a Playwright selector fails, follow this order before asking a human:
       - Reset all state on prop change: `<Inner key={id} />` (React resets state on key change)
       - Adjust partial state on prop change: compare `prevProp !== prop` during render, call setter
         immediately — React re-renders and stops on the next pass when they match.
+
+## Widget Appearance Standard (Visual System)
+
+All agents must follow the shared widget appearance model when building or updating configurable widgets:
+
+- Use shared settings primitives in widget style tabs:
+  - `components/common/TypographySettings.tsx`
+  - `components/common/TextSizePresetSettings.tsx`
+  - `components/common/SurfaceColorSettings.tsx`
+- Prefer these config fields for visual controls:
+  - `fontFamily`
+  - `fontColor`
+  - `textSizePreset` (`small` | `medium` | `large` | `x-large`)
+  - `cardColor`
+  - `cardOpacity`
+- Keep universal transparency in the global settings shell; do not duplicate full-widget transparency controls inside widget-specific style tabs.
+- Ensure front-face widgets actually consume settings values (no dead controls).
+- Default widget roots should remain visually transparent; only add localized readability surfaces where content legibility requires it.

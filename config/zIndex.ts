@@ -10,6 +10,7 @@ export const Z_INDEX = {
   decorator: 10,
   content: 20,
   controls: 30,
+  itemDragging: 50, // Generic item being dragged (e.g. list items, sortables)
 
   // Widget internal layers
   stickerControl: 50, // Sticker controls (above sticker content)

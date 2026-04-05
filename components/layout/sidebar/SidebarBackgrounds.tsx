@@ -3,7 +3,7 @@ import { Upload, Loader2, Grid, Image as ImageIcon, Video } from 'lucide-react';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
-import { extractYouTubeId } from '@/utils/url';
+import { extractYouTubeId } from '@/utils/youtube';
 import { BACKGROUND_CATEGORY_ORDER } from '@/utils/backgroundCategories';
 
 interface ThumbnailButtonProps {

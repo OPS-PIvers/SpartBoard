@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, TextConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { STICKY_NOTE_COLORS } from '@/config/colors';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { sanitizeHtml } from '@/utils/security';
 import { getFontClass } from '@/utils/styles';
 import { useDialog } from '@/context/useDialog';
@@ -27,7 +28,12 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     fontFamily = 'global',
     fontColor = '#334155',
     verticalAlign = 'top',
+    textSizePreset,
   } = config;
+
+  const resolvedFontSize = Math.round(
+    fontSize * resolveTextPresetMultiplier(textSizePreset, 1)
+  );
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
   const isSelected = selectedWidgetId === widget.id;
@@ -166,7 +172,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{
                   padding: 'min(16px, 3.5cqmin)',
                   color: fontColor,
-                  fontSize: `min(${fontSize}px, ${fontSize * 0.5}cqmin)`,
+                  fontSize: `min(${resolvedFontSize}px, ${resolvedFontSize * 0.5}cqmin)`,
                   lineHeight: 1.5,
                 }}
                 data-placeholder={PLACEHOLDER_TEXT}

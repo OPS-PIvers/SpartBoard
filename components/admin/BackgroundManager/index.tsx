@@ -25,7 +25,7 @@ import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { DriveFile } from '@/utils/googleDriveService';
-import { extractYouTubeId } from '@/utils/url';
+import { extractYouTubeId } from '@/utils/youtube';
 import { BUILDINGS } from '@/config/buildings';
 import {
   Upload,

@@ -1,18 +1,12 @@
 import React, { useRef } from 'react';
 import { X } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
+import { extractYouTubeId } from '@/utils/youtube';
 
 interface Props {
   step: GuidedLearningPublicStep;
   onClose: () => void;
   onEnded?: () => void;
-}
-
-function extractYouTubeId(url: string): string | null {
-  const match = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/
-  );
-  return match ? match[1] : null;
 }
 
 export const VideoInteraction: React.FC<Props> = ({
