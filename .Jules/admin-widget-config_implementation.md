@@ -112,6 +112,20 @@ Config: `components/admin/ChecklistConfigurationPanel.tsx` _(dedicated panel via
 
 ---
 
+[x] Countdown — Type: `countdown` | Label: "Countdown"
+Config: `components/admin/CountdownConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- title: Default Event Title
+        -- startDate: Default Start Date
+        -- eventDate: Default Event Date
+        -- viewMode: Default View Mode (number or grid)
+        -- includeWeekends: Default boolean for including weekends
+        -- countToday: Default boolean for counting today
+    - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.
+
+---
+
 [x] Classes — Type: `classes` | Label: "Class"
 Config: `components/admin/ClassesConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
 

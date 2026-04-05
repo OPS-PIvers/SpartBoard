@@ -1556,6 +1556,21 @@ export interface CountdownConfig {
   viewMode: 'number' | 'grid';
 }
 
+export interface BuildingCountdownDefaults {
+  buildingId: string;
+  title?: string;
+  startDate?: string;
+  eventDate?: string;
+  includeWeekends?: boolean;
+  countToday?: boolean;
+  viewMode?: 'number' | 'grid';
+}
+
+export interface CountdownGlobalConfig {
+  buildingDefaults?: Record<string, BuildingCountdownDefaults>;
+  dockDefaults?: Record<string, boolean>;
+}
+
 export interface OnboardingConfig {
   completedTasks: string[];
 }

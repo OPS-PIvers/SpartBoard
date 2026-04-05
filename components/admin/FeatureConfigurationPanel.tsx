@@ -57,6 +57,7 @@ import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
 import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
+import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -109,11 +110,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   'guided-learning':
     GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
   remote: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
-  countdown: () => (
-    <div className="p-4 text-sm text-slate-500">
-      No building-level configuration available for this widget.
-    </div>
-  ),
+  countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
