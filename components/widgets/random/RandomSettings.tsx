@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig } from '@/types';
+import { useDataReceiver } from '@/hooks/useDataBroadcaster';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
@@ -18,6 +19,7 @@ import {
   VolumeX,
   Clock,
   RefreshCw,
+  ListPlus,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -25,7 +27,7 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard, rosters, activeRosterId } =
+  const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
 
@@ -55,6 +57,43 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       },
     });
   }, [activeRoster, config, updateWidget, widget.id]);
+
+  const latestChecklistData = useRef<string[]>([]);
+  useDataReceiver('checklist-unchecked', (payload) => {
+    if (payload.dataType === 'names-list' && Array.isArray(payload.data)) {
+      latestChecklistData.current = payload.data as string[];
+    }
+  });
+
+  const importFromChecklist = React.useCallback(() => {
+    const importedNames = latestChecklistData.current;
+
+    if (!importedNames || importedNames.length === 0) {
+      addToast(
+        'No unchecked items/students found in Checklist or no active Checklist.',
+        'info'
+      );
+      return;
+    }
+
+    const newFirstNames = importedNames.join('\n');
+
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        rosterMode: 'custom',
+        firstNames: newFirstNames,
+        lastNames: '',
+        lastResult: null,
+        remainingStudents: [],
+      },
+    });
+
+    addToast(
+      `Imported ${importedNames.length} items from Checklist!`,
+      'success'
+    );
+  }, [addToast, config, updateWidget, widget.id]);
   const {
     firstNames = '',
     lastNames = '',
@@ -220,6 +259,23 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             ⚠️ Timer widget required for automation.
           </div>
         )}
+
+      {/* Nexus Connection: Import from Checklist */}
+      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2 text-emerald-900">
+          <ListPlus className="w-4 h-4" />
+          <span className="text-xs font-black uppercase tracking-wider">
+            Import from Checklist
+          </span>
+        </div>
+        <button
+          onClick={importFromChecklist}
+          aria-label="Sync Checklist"
+          className="bg-white text-emerald-600 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase shadow-sm border border-emerald-100 hover:bg-emerald-50 transition-colors flex items-center gap-1"
+        >
+          <RefreshCw className="w-3 h-3" /> Sync
+        </button>
+      </div>
 
       <div>
         <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">

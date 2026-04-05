@@ -6,6 +6,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { useDataBroadcaster } from '@/hooks/useDataBroadcaster';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -135,6 +136,24 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   }, [updateWidget]);
 
   const hasContent = mode === 'manual' ? items.length > 0 : students.length > 0;
+
+  // Broadcast unchecked items for other widgets (like Randomizer) to pick up
+  const uncheckedItems = useMemo(() => {
+    if (mode === 'manual') {
+      return items.filter((item) => !item.completed).map((item) => item.text);
+    } else {
+      return students
+        .filter((s) => !completedNames.includes(s.id))
+        .map((s) => s.label);
+    }
+  }, [mode, items, students, completedNames]);
+
+  useDataBroadcaster('checklist-unchecked', {
+    sourceId: widget.id,
+    sourceType: 'checklist',
+    dataType: 'names-list',
+    data: uncheckedItems,
+  });
 
   // Cards have container-type: size and fill equal fractions of the widget height.
   // Height is always the smaller dimension, so we scale relative to cqh (card height).
