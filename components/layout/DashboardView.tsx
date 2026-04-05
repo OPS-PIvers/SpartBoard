@@ -596,13 +596,9 @@ export const DashboardView: React.FC = () => {
     }
   }, [activeDashboard?.id, currentIndex, setZoom]);
 
-  // Avoid useEffect to reset panOffset based on zoom, preventing extra re-renders
-  const [prevZoom, setPrevZoom] = React.useState(zoom);
-  if (zoom !== prevZoom) {
-    setPrevZoom(zoom);
-    if (zoom === 1 && (panOffset.x !== 0 || panOffset.y !== 0)) {
-      setPanOffset({ x: 0, y: 0 });
-    }
+  // Reset panOffset during render when zoom is 1 to avoid useEffect and extra re-renders
+  if (zoom === 1 && (panOffset.x !== 0 || panOffset.y !== 0)) {
+    setPanOffset({ x: 0, y: 0 });
   }
 
   // Keyboard Navigation
