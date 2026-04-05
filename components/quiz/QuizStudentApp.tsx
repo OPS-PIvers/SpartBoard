@@ -367,6 +367,7 @@ const ActiveQuiz: React.FC<{
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fibAnswer, setFibAnswer] = useState('');
+  const [structuredAnswer, setStructuredAnswer] = useState('');
 
   const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -412,14 +413,16 @@ const ActiveQuiz: React.FC<{
   const currentQuestionRef = useRef(currentQuestion);
   const selectedAnswerRef = useRef(selectedAnswer);
   const fibAnswerRef = useRef(fibAnswer);
+  const structuredAnswerRef = useRef(structuredAnswer);
   const onAnswerRef = useRef(onAnswer);
 
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
     selectedAnswerRef.current = selectedAnswer;
     fibAnswerRef.current = fibAnswer;
+    structuredAnswerRef.current = structuredAnswer;
     onAnswerRef.current = onAnswer;
-  }, [currentQuestion, selectedAnswer, fibAnswer, onAnswer]);
+  }, [currentQuestion, selectedAnswer, fibAnswer, structuredAnswer, onAnswer]);
 
   // Countdown
   useEffect(() => {
@@ -672,6 +675,7 @@ const ActiveQuiz: React.FC<{
             question={currentQuestion}
             submitted={submitted}
             onSubmit={(answer) => void handleSubmit(answer)}
+            onChange={(answer) => setStructuredAnswer(answer)}
             submitting={submitting}
             isStudentPaced={isStudentPaced}
             isLastQuestion={currentIndex >= session.totalQuestions - 1}
@@ -689,6 +693,7 @@ const StructuredQuestionInput: React.FC<{
   question: QuizPublicQuestion;
   submitted: boolean;
   onSubmit: (answer: string) => void;
+  onChange?: (answer: string) => void;
   submitting: boolean;
   isStudentPaced: boolean;
   isLastQuestion: boolean;
@@ -697,6 +702,7 @@ const StructuredQuestionInput: React.FC<{
   question,
   submitted,
   onSubmit,
+  onChange,
   submitting,
   isStudentPaced,
   isLastQuestion,
@@ -705,18 +711,43 @@ const StructuredQuestionInput: React.FC<{
   const isMatching = question.type === 'Matching';
 
   // Items come from the pre-computed public question fields — no correctAnswer needed
-  const leftItems: string[] = isMatching
-    ? (question.matchingLeft ?? [])
-    : (question.orderingItems ?? []);
+  const leftItems: string[] = React.useMemo(
+    () =>
+      isMatching
+        ? (question.matchingLeft ?? [])
+        : (question.orderingItems ?? []),
+    [isMatching, question.matchingLeft, question.orderingItems]
+  );
 
-  const rightItemsShuffled: string[] = isMatching
-    ? (question.matchingRight ?? [])
-    : [];
+  const rightItemsShuffled: string[] = React.useMemo(
+    () => (isMatching ? (question.matchingRight ?? []) : []),
+    [isMatching, question.matchingRight]
+  );
 
+  // Adjust state if leftItems change
+  const [prevLeftItems, setPrevLeftItems] = useState(leftItems);
   const [matchings, setMatchings] = useState<Record<string, string>>(() =>
     Object.fromEntries(leftItems.map((l: string) => [l, '']))
   );
   const [order, setOrder] = useState<string[]>(() => [...leftItems]);
+
+  if (leftItems !== prevLeftItems) {
+    setPrevLeftItems(leftItems);
+    setMatchings(Object.fromEntries(leftItems.map((l: string) => [l, ''])));
+    setOrder([...leftItems]);
+  }
+
+  useEffect(() => {
+    let answer = '';
+    if (isMatching) {
+      answer = leftItems
+        .map((l: string) => `${l}:${matchings[l] || ''}`)
+        .join('|');
+    } else {
+      answer = order.join('|');
+    }
+    onChange?.(answer);
+  }, [matchings, order, isMatching, leftItems, onChange]);
 
   const canSubmit = isMatching
     ? Object.values(matchings).every((v: string) => !!v)

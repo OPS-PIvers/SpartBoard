@@ -1,9 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useSyncExternalStore } from 'react';
 
 interface WindowSize {
   width: number;
   height: number;
 }
+
+const emptySize: WindowSize = { width: 0, height: 0 };
+
+function subscribe(callback: () => void) {
+  if (typeof window === 'undefined') {
+    return () => undefined;
+  }
+  window.addEventListener('resize', callback);
+  return () => window.removeEventListener('resize', callback);
+}
+
+function getSnapshot() {
+  if (typeof window === 'undefined') {
+    return emptySize;
+  }
+  // Returning a new object on every call breaks useSyncExternalStore caching,
+  // so we need to memoize the object based on width/height.
+  return windowSizeCache.getSnapshot();
+}
+
+const windowSizeCache = {
+  currentSize: emptySize,
+  getSnapshot() {
+    if (typeof window === 'undefined') return emptySize;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (this.currentSize.width !== w || this.currentSize.height !== h) {
+      this.currentSize = { width: w, height: h };
+    }
+    return this.currentSize;
+  },
+};
 
 /**
  * Hook that returns the current window dimensions.
@@ -12,56 +44,9 @@ interface WindowSize {
  *                  to resizes (e.g. when not maximized).
  */
 export const useWindowSize = (enabled: boolean = true): WindowSize => {
-  const [windowSize, setWindowSize] = useState<WindowSize>(() => ({
-    width: typeof window !== 'undefined' ? window.innerWidth : 0,
-    height: typeof window !== 'undefined' ? window.innerHeight : 0,
-  }));
-  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  // useSyncExternalStore requires a stable subscribe function.
+  // We can pass a dummy subscribe function when disabled.
+  const activeSubscribe = enabled ? subscribe : () => () => undefined;
 
-  // "Adjusting state during rendering" pattern: if enabled changes, or on initial render,
-  // we check if dimensions have drifted while disabled/unmounted.
-  if (enabled && typeof window !== 'undefined') {
-    if (
-      windowSize.width !== window.innerWidth ||
-      windowSize.height !== window.innerHeight
-    ) {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
-  }
-
-  // We still need to track prevEnabled to ensure we don't infinitely re-render
-  // if dimensions drift continuously, but actually the equality check above is sufficient
-  // because if windowSize already matches window.inner*, it won't set state again.
-  if (enabled !== prevEnabled) {
-    setPrevEnabled(enabled);
-  }
-
-  const handleResize = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    setWindowSize((prev) => {
-      // Optimization: skip state update if dimensions haven't actually changed
-      if (
-        prev.width === window.innerWidth &&
-        prev.height === window.innerHeight
-      ) {
-        return prev;
-      }
-      return {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      };
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return;
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [enabled, handleResize]);
-
-  return windowSize;
+  return useSyncExternalStore(activeSubscribe, getSnapshot, () => emptySize);
 };
