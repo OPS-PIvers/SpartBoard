@@ -5,8 +5,27 @@ interface WindowSize {
   height: number;
 }
 
+const INITIAL_SIZE: WindowSize = { width: 0, height: 0 };
+let cachedSnapshot: WindowSize = INITIAL_SIZE;
+
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-const emptySubscribe = () => () => {};
+const noop = () => {};
+
+const getSnapshot = (): WindowSize => {
+  if (typeof window === 'undefined') {
+    return INITIAL_SIZE;
+  }
+
+  const { innerWidth: width, innerHeight: height } = window;
+
+  if (cachedSnapshot.width !== width || cachedSnapshot.height !== height) {
+    cachedSnapshot = { width, height };
+  }
+
+  return cachedSnapshot;
+};
+
+const getServerSnapshot = () => INITIAL_SIZE;
 
 /**
  * Hook that returns the current window dimensions.
@@ -18,7 +37,7 @@ export const useWindowSize = (enabled: boolean = true): WindowSize => {
   const subscribe = useCallback(
     (callback: () => void) => {
       if (!enabled || typeof window === 'undefined') {
-        return emptySubscribe();
+        return noop;
       }
       window.addEventListener('resize', callback);
       return () => window.removeEventListener('resize', callback);
@@ -26,35 +45,5 @@ export const useWindowSize = (enabled: boolean = true): WindowSize => {
     [enabled]
   );
 
-  // For getServerSnapshot, we provide a stable empty result for SSR
-  const getServerSnapshot = useCallback((): WindowSize => {
-    return { width: 0, height: 0 };
-  }, []);
-
-  // React requires the snapshot to be referentially stable if the values haven't changed.
-  // We can't return a new object every time getSnapshot is called unless the size actually changed.
-  // We'll wrap getSnapshot to cache the result based on innerWidth/innerHeight.
-  // However, useSyncExternalStore internally calls getSnapshot and expects it to return the same reference
-  // if nothing changed. Since window.innerWidth/innerHeight might be the same but we create a new object,
-  // we need a module-level or stable cache for the snapshot.
-
-  return useSyncExternalStore(subscribe, getSnapshotWrapper, getServerSnapshot);
-};
-
-let cachedSnapshot: WindowSize | null = null;
-const getSnapshotWrapper = (): WindowSize => {
-  if (typeof window === 'undefined') {
-    return { width: 0, height: 0 };
-  }
-  const currentWidth = window.innerWidth;
-  const currentHeight = window.innerHeight;
-
-  if (
-    !cachedSnapshot ||
-    cachedSnapshot.width !== currentWidth ||
-    cachedSnapshot.height !== currentHeight
-  ) {
-    cachedSnapshot = { width: currentWidth, height: currentHeight };
-  }
-  return cachedSnapshot;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 };
