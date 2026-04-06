@@ -2,6 +2,8 @@ import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, CountdownConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const CountdownSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -159,6 +161,22 @@ export const CountdownSettings: React.FC<{ widget: WidgetData }> = ({
           />
         </div>
       </div>
+    </div>
+  );
+};
+
+export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as CountdownConfig;
+  const updateConfig = (updates: Partial<CountdownConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
+
+  return (
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );
 };

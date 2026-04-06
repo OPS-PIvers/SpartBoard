@@ -113,7 +113,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
   const visibleTools = getVisibleTools(activeSection.toolTypes);
 
   const header = (
-    <div className="flex flex-col bg-gradient-to-r from-purple-50 to-indigo-50 shrink-0 border-b border-slate-200">
+    <div className="flex flex-col shrink-0 border-b border-slate-200">
       <div
         className="flex items-center gap-2"
         style={{ padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)' }}
@@ -187,7 +187,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       padding="p-0"
       header={header}
-      contentClassName="flex-1 min-h-0 flex flex-col bg-white"
+      contentClassName="flex-1 min-h-0 flex flex-col"
       content={
         <div
           className="flex-1 overflow-y-auto custom-scrollbar"

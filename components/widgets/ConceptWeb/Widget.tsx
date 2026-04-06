@@ -7,7 +7,7 @@ import {
   ConceptEdge,
 } from '@/types';
 import { Trash2 } from 'lucide-react';
-import { getFontClass } from '@/utils/styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 
 export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
@@ -44,6 +44,8 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   // Default dimensions
   const DEFAULT_WIDTH = config.defaultNodeWidth ?? 15;
   const DEFAULT_HEIGHT = config.defaultNodeHeight ?? 15;
+  const cardColor = config.cardColor ?? '#ffffff';
+  const cardOpacity = config.cardOpacity ?? 1;
 
   const handleAddNode = () => {
     if (isStudentView) return;
@@ -312,7 +314,8 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden bg-slate-50 rounded-xl select-none ${fontClassName}`}
+      className={`relative w-full h-full overflow-hidden rounded-xl select-none ${fontClassName}`}
+      style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
       {!isStudentView && (
         <button

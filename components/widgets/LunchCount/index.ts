@@ -1,2 +1,2 @@
 export { LunchCountWidget } from './Widget';
-export { LunchCountSettings } from './Settings';
+export { LunchCountSettings, LunchCountAppearanceSettings } from './Settings';

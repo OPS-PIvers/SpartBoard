@@ -935,7 +935,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="h-full w-full bg-white flex flex-col overflow-hidden">
+          <div className="h-full w-full flex flex-col overflow-hidden">
             <div
               className="flex items-center justify-between border-b border-slate-200"
               style={{ padding: 'min(10px, 2.8cqmin)' }}
@@ -1112,7 +1112,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="h-full w-full bg-white flex flex-col overflow-hidden">
+          <div className="h-full w-full flex flex-col overflow-hidden">
             <div
               className="flex items-center justify-between border-b border-slate-200"
               style={{ padding: 'min(10px, 2.8cqmin)' }}
@@ -1326,7 +1326,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         content={
           <div
-            className="h-full w-full bg-white flex flex-col"
+            className="h-full w-full flex flex-col"
             style={{ gap: 'min(8px, 2cqmin)', padding: 'min(10px, 2.4cqmin)' }}
           >
             <div

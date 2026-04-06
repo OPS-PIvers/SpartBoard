@@ -312,6 +312,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./ActivityWall/Settings'),
     'ActivityWallSettings'
   ),
+  'talking-tool': lazyNamed(
+    () => import('./TalkingTool'),
+    'TalkingToolSettings'
+  ),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -380,6 +384,34 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),
     'ActivityWallAppearanceSettings'
+  ),
+  countdown: lazyNamed(
+    () => import('./Countdown/Settings'),
+    'CountdownAppearanceSettings'
+  ),
+  mathTools: lazyNamed(
+    () => import('./MathTools'),
+    'MathToolsAppearanceSettings'
+  ),
+  'talking-tool': lazyNamed(
+    () => import('./TalkingTool'),
+    'TalkingToolAppearanceSettings'
+  ),
+  numberLine: lazyNamed(
+    () => import('./NumberLine/Settings'),
+    'NumberLineAppearanceSettings'
+  ),
+  lunchCount: lazyNamed(
+    () => import('./LunchCount'),
+    'LunchCountAppearanceSettings'
+  ),
+  smartNotebook: lazyNamed(
+    () => import('./SmartNotebook'),
+    'SmartNotebookAppearanceSettings'
+  ),
+  stickers: lazyNamed(
+    () => import('./stickers/StickerBookSettings'),
+    'StickerBookAppearanceSettings'
   ),
 };
 

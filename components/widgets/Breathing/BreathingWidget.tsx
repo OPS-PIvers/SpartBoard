@@ -36,7 +36,7 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="flex flex-col items-center justify-center w-full h-full relative overflow-hidden bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center justify-center w-full h-full relative overflow-hidden">
           {/* Main Visual Area */}
           <div className="flex-1 flex items-center justify-center w-full relative min-h-0">
             <BreathingVisuals
@@ -65,7 +65,7 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           {/* Controls */}
-          <div className="shrink-0 p-4 w-full flex justify-center gap-4 bg-white/50 dark:bg-black/20 backdrop-blur-sm z-20">
+          <div className="shrink-0 p-4 w-full flex justify-center gap-4 backdrop-blur-sm z-20">
             <button
               onClick={toggleActive}
               className={`flex items-center justify-center rounded-2xl transition-all shadow-md active:scale-95 ${

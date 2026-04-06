@@ -3,6 +3,8 @@ import { WidgetData, LunchCountConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 import { School, Users, Clock, GraduationCap } from 'lucide-react';
 
 const SCHOOL_OPTIONS = [
@@ -298,6 +300,22 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+export const LunchCountAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as LunchCountConfig;
+  const updateConfig = (updates: Partial<LunchCountConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
+
+  return (
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );
 };

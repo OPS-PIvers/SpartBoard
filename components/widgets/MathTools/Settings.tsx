@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { WidgetData, MathToolsConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { CSS_PPI } from '@/components/widgets/math-tools/mathToolUtils';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const MathToolsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -75,6 +77,22 @@ export const MathToolsSettings: React.FC<{ widget: WidgetData }> = ({
           Tools.
         </p>
       </div>
+    </div>
+  );
+};
+
+export const MathToolsAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as MathToolsConfig;
+  const updateConfig = (updates: Partial<MathToolsConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
+
+  return (
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
+import { hexToRgba } from '@/utils/styles';
 
 interface CountdownDay {
   date: Date;
@@ -26,8 +27,17 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as CountdownConfig;
 
-  const { title, startDate, eventDate, includeWeekends, countToday, viewMode } =
-    config;
+  const {
+    title,
+    startDate,
+    eventDate,
+    includeWeekends,
+    countToday,
+    viewMode,
+    cardColor = '#ffffff',
+    cardOpacity = 1,
+    fontColor = '#1e293b',
+  } = config;
 
   const calculatedDays = useMemo(() => {
     const start = normalizeDate(new Date(startDate));
@@ -115,22 +125,28 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       padding="p-0"
       content={
         <div
-          className="flex flex-col items-center justify-center w-full h-full overflow-hidden bg-white rounded-3xl"
-          style={{ containerType: 'size', padding: 'min(16px, 4cqmin)' }}
+          className="flex flex-col items-center justify-center w-full h-full overflow-hidden rounded-3xl"
+          style={{
+            containerType: 'size',
+            padding: 'min(16px, 4cqmin)',
+            backgroundColor: hexToRgba(cardColor, cardOpacity),
+          }}
         >
           {viewMode === 'number' ? (
             <div className="flex flex-col items-center justify-center text-center w-full">
               <div
-                className="font-bold text-slate-800 leading-none"
-                style={{ fontSize: 'min(120px, 40cqmin)' }}
+                className="font-bold leading-none"
+                style={{ fontSize: 'min(120px, 40cqmin)', color: fontColor }}
               >
                 {calculatedDays}
               </div>
               <div
-                className="font-medium text-slate-500"
+                className="font-medium"
                 style={{
                   fontSize: 'min(24px, 8cqmin)',
                   marginTop: 'min(8px, 2cqmin)',
+                  color: fontColor,
+                  opacity: 0.6,
                 }}
               >
                 day{calculatedDays !== 1 ? 's' : ''} until
@@ -174,11 +190,18 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                                       ? 'border-slate-200 bg-slate-50'
                                       : item.isToday
                                         ? 'border-brand-blue-primary bg-brand-blue-50'
-                                        : 'border-slate-200 bg-white'
+                                        : 'border-slate-200'
                                 }`}
                       style={{
                         width: 'min(48px, 15cqmin)',
                         height: 'min(48px, 15cqmin)',
+                        backgroundColor: item.isEvent
+                          ? undefined
+                          : item.isPast
+                            ? undefined
+                            : item.isToday
+                              ? undefined
+                              : hexToRgba(cardColor, cardOpacity),
                       }}
                     >
                       {item.isPast && !item.isEvent && (

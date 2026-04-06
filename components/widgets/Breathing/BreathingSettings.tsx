@@ -3,6 +3,8 @@ import { BreathingConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 import { Palette, Activity, Eye } from 'lucide-react';
 
 export const BreathingSettings: React.FC<{ widget: WidgetData }> = ({
@@ -114,6 +116,23 @@ export const BreathingAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
         </div>
       </div>
+
+      <SurfaceColorSettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as BreathingConfig,
+          })
+        }
+      />
+      <TypographySettings
+        config={config}
+        updateConfig={(updates) =>
+          updateWidget(widget.id, {
+            config: { ...config, ...updates } as BreathingConfig,
+          })
+        }
+      />
     </div>
   );
 };

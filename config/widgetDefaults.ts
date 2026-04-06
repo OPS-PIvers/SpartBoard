@@ -96,6 +96,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       activities: [],
       activeActivityId: null,
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   webcam: {
@@ -154,6 +156,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       assignments: {},
       recipient: '',
       rosterMode: 'class',
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   classes: {
@@ -189,7 +193,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   stickers: {
     w: 600,
     h: 500,
-    config: { uploadedUrls: [] },
+    config: { uploadedUrls: [], cardColor: '#ffffff', cardOpacity: 1 },
   },
   sticker: {
     w: 200,
@@ -226,7 +230,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   smartNotebook: {
     w: 600,
     h: 500,
-    config: { activeNotebookId: null },
+    config: { activeNotebookId: null, cardColor: '#ffffff', cardOpacity: 1 },
   },
   recessGear: {
     w: 250,
@@ -252,7 +256,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   'talking-tool': {
     w: 500,
     h: 450,
-    config: {},
+    config: { cardColor: '#ffffff', cardOpacity: 1 },
   },
   breathing: {
     w: 400,
@@ -261,12 +265,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       pattern: '4-4-4-4',
       visual: 'circle',
       color: '#3b82f6',
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   mathTools: {
     w: 420,
     h: 500,
-    config: {},
+    config: { cardColor: '#ffffff', cardOpacity: 1 },
   },
   mathTool: {
     w: 480,
@@ -307,6 +313,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         includeWeekends: true,
         countToday: true,
         viewMode: 'number',
+        cardColor: '#ffffff',
+        cardOpacity: 1,
       } satisfies import('@/types').CountdownConfig;
     },
   },
@@ -346,6 +354,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       templateType: 'frayer',
       nodes: {},
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     } as GraphicOrganizerConfig,
   },
   'reveal-grid': {
@@ -387,6 +397,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       markers: [],
       jumps: [],
       showArrows: true,
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   'concept-web': {
@@ -395,6 +407,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       nodes: [],
       edges: [],
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     },
   },
   'syntax-framer': {

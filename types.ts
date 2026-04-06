@@ -429,6 +429,10 @@ export interface ActivityWallConfig {
   activities?: ActivityWallActivity[];
   activeActivityId?: string | null;
   draftActivity?: ActivityWallActivity;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export interface WebcamConfig {
@@ -872,6 +876,10 @@ export interface LunchCountConfig {
   lunchTimeMinute?: string;
   /** Selected grade level (K, 1, 2, MAC for Schumann; 3, 4, 5 for Intermediate) */
   gradeLevel?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export interface BuildingClassesDefaults {
@@ -994,6 +1002,10 @@ export interface BreathingConfig {
   pattern: '4-4-4-4' | '4-7-8' | '5-5';
   visual: 'circle' | 'lotus' | 'wave';
   color: string;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 // --- MATH TOOLS TYPES ---
@@ -1031,6 +1043,10 @@ export interface MathToolsGlobalConfig {
 export interface MathToolsConfig {
   /** DPI calibration override stored locally; admin may override at building level */
   dpiCalibration?: number;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 /** Number line display mode */
@@ -1148,6 +1164,10 @@ export interface StickerBookConfig {
   uploadedUrls?: string[];
   favorites?: string[];
   stickerOrder?: string[];
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export interface GlobalSticker {
@@ -1203,6 +1223,10 @@ export interface NotebookItem {
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export interface BuildingSmartNotebookDefaults {
@@ -1491,7 +1515,12 @@ export interface VideoActivityResponse {
   score: number | null;
 }
 
-export type TalkingToolConfig = Record<string, never>;
+export interface TalkingToolConfig {
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
+}
 
 export interface NextUpQueueItem {
   id: string;
@@ -1554,6 +1583,10 @@ export interface CountdownConfig {
   includeWeekends: boolean;
   countToday: boolean;
   viewMode: 'number' | 'grid';
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export interface BuildingCountdownDefaults {
@@ -1617,6 +1650,10 @@ export interface NumberLineConfig {
   markers: NumberLineMarker[];
   jumps: NumberLineJump[];
   showArrows: boolean;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontFamily?: GlobalFontFamily;
+  fontColor?: string;
 }
 
 export type BuildingNumberLineDefaults = Pick<
@@ -1753,6 +1790,9 @@ export interface GraphicOrganizerConfig {
   templateType: GraphicOrganizerLayoutType | GraphicOrganizerTemplateId;
   nodes: Record<string, OrganizerNode>;
   fontFamily?: GlobalFontFamily;
+  cardColor?: string;
+  cardOpacity?: number;
+  fontColor?: string;
 }
 export interface CarRiderProConfig {
   iframeUrl?: string;
@@ -1815,6 +1855,9 @@ export interface ConceptWebConfig {
   fontFamily?: GlobalFontFamily;
   defaultNodeWidth?: number; // Width as a percentage of container
   defaultNodeHeight?: number; // Height as a percentage of container
+  cardColor?: string;
+  cardOpacity?: number;
+  fontColor?: string;
 }
 
 export interface BuildingConceptWebDefaults {

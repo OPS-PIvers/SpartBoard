@@ -320,43 +320,6 @@ export const Sidebar: React.FC = () => {
                         defaultValue: activeSection.replace('-', ' '),
                       })}
                 </span>
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <div
-                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-500 ${
-                      isSaving
-                        ? 'bg-amber-50 text-amber-600 animate-pulse'
-                        : 'bg-emerald-50 text-emerald-600'
-                    }`}
-                    title={
-                      isSaving
-                        ? t('sidebar.header.savingToCloud')
-                        : t('sidebar.header.allChangesSaved')
-                    }
-                  >
-                    {isSaving ? (
-                      <Cloud className="w-3 h-3 animate-bounce" />
-                    ) : (
-                      <CloudCheck className="w-3 h-3" />
-                    )}
-                    <span className="text-xxxs font-black uppercase tracking-tighter">
-                      {isSaving
-                        ? t('sidebar.header.syncing')
-                        : t('sidebar.header.cloud')}
-                    </span>
-                  </div>
-
-                  {isDriveConnected && (
-                    <div
-                      className="flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all duration-500 bg-blue-50 text-blue-600"
-                      title={t('sidebar.header.googleDriveConnected')}
-                    >
-                      <GoogleDriveIcon className="w-3 h-3" />
-                      <span className="text-xxxs font-black uppercase tracking-tighter">
-                        {t('sidebar.header.drive')}
-                      </span>
-                    </div>
-                  )}
-                </div>
               </div>
               <IconButton
                 onClick={() => {

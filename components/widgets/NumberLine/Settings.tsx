@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 import {
   WidgetData,
   NumberLineConfig,
@@ -354,6 +356,22 @@ export const NumberLineSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
         </div>
       </section>
+    </div>
+  );
+};
+
+export const NumberLineAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => {
+  const { updateWidget } = useDashboard();
+  const config = widget.config as NumberLineConfig;
+  const updateConfig = (updates: Partial<NumberLineConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
+
+  return (
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );
 };

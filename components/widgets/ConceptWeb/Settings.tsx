@@ -1,10 +1,8 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import {
-  WidgetComponentProps,
-  ConceptWebConfig,
-  GlobalFontFamily,
-} from '@/types';
+import { WidgetComponentProps, ConceptWebConfig } from '@/types';
+import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
+import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const ConceptWebSettings: React.FC<WidgetComponentProps> = ({
   widget,
@@ -110,34 +108,13 @@ export const ConceptWebAppearanceSettings: React.FC<WidgetComponentProps> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as ConceptWebConfig;
-
-  const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = e.target.value;
-    const fontFamily =
-      selected === 'global' ? undefined : (selected as GlobalFontFamily);
-
-    updateWidget(widget.id, {
-      config: { ...config, fontFamily },
-    });
-  };
+  const updateConfig = (updates: Partial<ConceptWebConfig>) =>
+    updateWidget(widget.id, { config: { ...config, ...updates } });
 
   return (
-    <div className="space-y-4 p-4 text-slate-800">
-      <div>
-        <label className="block text-sm font-medium mb-1">Font Family</label>
-        <select
-          value={config.fontFamily ?? 'global'}
-          onChange={handleFontChange}
-          className="w-full rounded border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-        >
-          <option value="global">Global (Dashboard default)</option>
-          <option value="sans">Sans Serif</option>
-          <option value="serif">Serif</option>
-          <option value="mono">Monospace</option>
-          <option value="comic">Comic</option>
-          <option value="handwritten">Handwritten</option>
-        </select>
-      </div>
+    <div className="space-y-6">
+      <TypographySettings config={config} updateConfig={updateConfig} />
+      <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );
 };

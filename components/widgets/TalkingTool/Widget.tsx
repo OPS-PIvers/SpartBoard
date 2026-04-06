@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
 import { Quote } from 'lucide-react';
-import { WidgetComponentProps, TalkingToolGlobalConfig } from '@/types';
+import {
+  WidgetComponentProps,
+  TalkingToolGlobalConfig,
+  TalkingToolConfig,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { getIcon } from './constants';
+import { hexToRgba } from '@/utils/styles';
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
-  widget: _widget,
+  widget,
 }) => {
   const { featurePermissions } = useAuth();
+  const widgetConfig = widget.config as TalkingToolConfig;
+  const cardColor = widgetConfig.cardColor ?? '#ffffff';
+  const cardOpacity = widgetConfig.cardOpacity ?? 1;
+  const surfaceBg = hexToRgba(cardColor, cardOpacity);
 
   // Get config from feature permissions
   const permission = featurePermissions.find(
@@ -30,14 +39,17 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   if (!activeCat) return null;
 
   return (
-    <div className="flex h-full w-full bg-white select-none overflow-hidden rounded-lg">
+    <div
+      className="flex h-full w-full select-none overflow-hidden rounded-lg"
+      style={{ backgroundColor: surfaceBg }}
+    >
       {/* Sidebar Navigation */}
       <div
-        className="flex flex-col border-r border-slate-200 bg-slate-50 shrink-0"
-        style={{ width: 'min(140px, 35cqw)' }}
+        className="flex flex-col border-r border-slate-200 shrink-0"
+        style={{ width: 'min(140px, 35cqw)', backgroundColor: surfaceBg }}
       >
         <div
-          className="border-b border-slate-200 bg-white"
+          className="border-b border-slate-200"
           style={{ padding: 'min(12px, 3cqmin)' }}
         >
           <label
@@ -115,8 +127,8 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
 
       {/* Main Content Area */}
       <div
-        className="flex-1 overflow-y-auto bg-white custom-scrollbar"
-        style={{ padding: 'min(20px, 5cqmin)' }}
+        className="flex-1 overflow-y-auto custom-scrollbar"
+        style={{ padding: 'min(20px, 5cqmin)', backgroundColor: surfaceBg }}
       >
         <div className="animate-in fade-in slide-in-from-right-2 duration-300">
           <h3

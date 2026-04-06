@@ -7,7 +7,7 @@ import {
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { getFontClass } from '@/utils/styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 
 const EditableNode: React.FC<{
   id: string;
@@ -110,6 +110,9 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   const currentFontFamily = config.fontFamily ?? templateFontFamily ?? 'global';
   const fontClass = getFontClass(currentFontFamily, globalStyle.fontFamily);
   const nodes = config.nodes ?? {};
+  const cardColor = config.cardColor ?? '#ffffff';
+  const cardOpacity = config.cardOpacity ?? 1;
+  const cellBg = hexToRgba(cardColor, cardOpacity);
 
   const handleUpdate = (id: string, text: string) => {
     updateWidget(widget.id, {
@@ -124,8 +127,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const renderFrayer = () => (
-    <div className="grid grid-cols-2 grid-rows-2 h-full gap-2 p-2 relative bg-slate-100">
-      <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
+    <div className="grid grid-cols-2 grid-rows-2 h-full gap-2 p-2 relative">
+      <div
+        className="border-2 border-slate-300 rounded p-4 relative"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
           {selectedTemplate?.defaultNodes?.topLeft ?? 'Definition'}
         </div>
@@ -137,7 +143,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           placeholder={`Type ${selectedTemplate?.defaultNodes?.topLeft ?? 'definition'}...`}
         />
       </div>
-      <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
+      <div
+        className="border-2 border-slate-300 rounded p-4 relative"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
           {selectedTemplate?.defaultNodes?.topRight ?? 'Characteristics'}
         </div>
@@ -149,7 +158,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           placeholder={`Type ${selectedTemplate?.defaultNodes?.topRight ?? 'characteristics'}...`}
         />
       </div>
-      <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
+      <div
+        className="border-2 border-slate-300 rounded p-4 relative"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
           {selectedTemplate?.defaultNodes?.bottomLeft ?? 'Examples'}
         </div>
@@ -161,7 +173,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomLeft ?? 'examples'}...`}
         />
       </div>
-      <div className="bg-white border-2 border-slate-300 rounded p-4 relative">
+      <div
+        className="border-2 border-slate-300 rounded p-4 relative"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
           {selectedTemplate?.defaultNodes?.bottomRight ?? 'Non-Examples'}
         </div>
@@ -186,7 +201,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const renderTChart = () => (
-    <div className="grid grid-cols-2 h-full gap-0 p-4 bg-white relative">
+    <div
+      className="grid grid-cols-2 h-full gap-0 p-4 relative"
+      style={{ backgroundColor: cellBg }}
+    >
       <div className="border-r-4 border-slate-400 p-4">
         <EditableNode
           id="left-header"
@@ -227,7 +245,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const renderVenn = () => (
-    <div className="flex h-full items-center justify-center relative bg-white overflow-hidden p-4">
+    <div
+      className="flex h-full items-center justify-center relative overflow-hidden p-4"
+      style={{ backgroundColor: cellBg }}
+    >
       <div className="absolute w-[60%] h-[80%] left-[10%] border-4 border-blue-400 rounded-full opacity-30 bg-blue-100" />
       <div className="absolute w-[60%] h-[80%] right-[10%] border-4 border-green-400 rounded-full opacity-30 bg-green-100" />
 
@@ -289,7 +310,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const renderKWL = () => (
-    <div className="grid grid-cols-3 h-full gap-0 bg-white">
+    <div
+      className="grid grid-cols-3 h-full gap-0"
+      style={{ backgroundColor: cellBg }}
+    >
       <div className="border-r-2 border-slate-300 flex flex-col h-full">
         <div className="bg-blue-100 p-3 text-center border-b-2 border-slate-300">
           <div className="text-3xl font-black text-blue-800">K</div>
@@ -339,8 +363,14 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const renderCauseEffect = () => (
-    <div className="flex items-center justify-center h-full p-6 bg-slate-50 gap-4">
-      <div className="flex-1 bg-white border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col">
+    <div
+      className="flex items-center justify-center h-full p-6 gap-4"
+      style={{ backgroundColor: cellBg }}
+    >
+      <div
+        className="flex-1 border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="bg-rose-100 p-2 text-center rounded-t-md border-b-2 border-rose-300 font-bold text-rose-800 uppercase tracking-wider">
           Cause
         </div>
@@ -371,7 +401,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         </svg>
       </div>
 
-      <div className="flex-1 bg-white border-2 border-emerald-300 rounded-lg shadow-sm h-full flex flex-col">
+      <div
+        className="flex-1 border-2 border-emerald-300 rounded-lg shadow-sm h-full flex flex-col"
+        style={{ backgroundColor: cellBg }}
+      >
         <div className="bg-emerald-100 p-2 text-center rounded-t-md border-b-2 border-emerald-300 font-bold text-emerald-800 uppercase tracking-wider">
           Effect
         </div>

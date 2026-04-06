@@ -1,2 +1,2 @@
 export { MathToolsWidget } from './Widget';
-export { MathToolsSettings } from './Settings';
+export { MathToolsSettings, MathToolsAppearanceSettings } from './Settings';

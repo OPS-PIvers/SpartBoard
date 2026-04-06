@@ -1,29 +1,27 @@
 import React from 'react';
-import { WidgetData, ActivityWallConfig } from '@/types';
+import { WidgetData, TalkingToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
 
-export const ActivityWallSettings: React.FC<{ widget: WidgetData }> = () => {
+export const TalkingToolSettings: React.FC<{ widget: WidgetData }> = () => {
   return (
     <div className="p-4 text-sm text-slate-600 space-y-2">
-      <p className="font-semibold text-slate-700">
-        Activity management moved to the front of this widget.
-      </p>
+      <p className="font-semibold text-slate-700">Global content settings</p>
       <p>
-        Use the Activity Library in the widget body to create, view, edit, and
-        delete activities.
+        Talking stems and categories are configured by an admin via Feature
+        Permissions.
       </p>
     </div>
   );
 };
 
-export const ActivityWallAppearanceSettings: React.FC<{
+export const TalkingToolAppearanceSettings: React.FC<{
   widget: WidgetData;
 }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
-  const config = widget.config as ActivityWallConfig;
-  const updateConfig = (updates: Partial<ActivityWallConfig>) =>
+  const config = widget.config as TalkingToolConfig;
+  const updateConfig = (updates: Partial<TalkingToolConfig>) =>
     updateWidget(widget.id, { config: { ...config, ...updates } });
 
   return (
