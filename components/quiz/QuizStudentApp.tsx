@@ -378,6 +378,11 @@ const ActiveQuiz: React.FC<{
   const [prevAlreadyAnswered, setPrevAlreadyAnswered] =
     useState<boolean>(alreadyAnswered);
 
+  // Track which question triggered an auto-submit so we fire the side-effect exactly once.
+  const [autoSubmitTriggeredFor, setAutoSubmitTriggeredFor] = useState<
+    string | null
+  >(null);
+
   // Derived state: reset local UI state on new question or when global alreadyAnswered state arrives
   if (
     currentQuestion?.id !== prevQuestionId ||
@@ -388,8 +393,22 @@ const ActiveQuiz: React.FC<{
     setSelectedAnswer(null);
     setSubmitted(alreadyAnswered);
     setFibAnswer('');
+    setAutoSubmitTriggeredFor(null);
     const tl = currentQuestion?.timeLimit ?? 0;
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
+  }
+
+  // Auto-submit detection: when the timer hits zero, mark as submitted during render.
+  if (
+    timeLeft !== null &&
+    timeLeft <= 0 &&
+    !submitted &&
+    !submitting &&
+    currentQuestion &&
+    autoSubmitTriggeredFor !== currentQuestion.id
+  ) {
+    setAutoSubmitTriggeredFor(currentQuestion.id);
+    setSubmitted(true);
   }
 
   // Keep refs for volatile state used by the countdown effect so the timer
@@ -406,27 +425,26 @@ const ActiveQuiz: React.FC<{
     onAnswerRef.current = onAnswer;
   }, [currentQuestion, selectedAnswer, fibAnswer, onAnswer]);
 
-  // Countdown
+  // Countdown — only runs the interval; auto-submit is handled above.
   useEffect(() => {
-    if (timeLeft === null || submitted || submitting) return;
-    if (timeLeft <= 0) {
-      // Auto-submit empty answer when time runs out
-      if (currentQuestionRef.current && !submitted && !submitting) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSubmitted(true);
-        void onAnswerRef.current(
-          currentQuestionRef.current.id,
-          selectedAnswerRef.current ?? fibAnswerRef.current ?? ''
-        );
-      }
-      return;
-    }
+    if (timeLeft === null || timeLeft <= 0 || submitted || submitting) return;
     const id = setInterval(
       () => setTimeLeft((t) => (t !== null ? t - 1 : null)),
       1000
     );
     return () => clearInterval(id);
   }, [timeLeft, submitted, submitting]);
+
+  // Side-effect: submit the answer when auto-submit is triggered.
+  useEffect(() => {
+    if (!autoSubmitTriggeredFor) return;
+    const question = currentQuestionRef.current;
+    if (!question || question.id !== autoSubmitTriggeredFor) return;
+    void onAnswerRef.current(
+      autoSubmitTriggeredFor,
+      selectedAnswerRef.current ?? fibAnswerRef.current ?? ''
+    );
+  }, [autoSubmitTriggeredFor]);
 
   if (!currentQuestion) {
     return (
