@@ -373,7 +373,10 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                     />
                   </button>
                   {openCategories.has(VIDEOS_KEY) && (
-                    <div id="bg-panel-vid" className="p-2 grid grid-cols-2 gap-2">
+                    <div
+                      id="bg-panel-vid"
+                      className="p-2 grid grid-cols-2 gap-2"
+                    >
                       {videoPresets.map((bg) => (
                         <ThumbnailButton
                           key={bg.id}
