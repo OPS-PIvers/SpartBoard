@@ -1223,6 +1223,7 @@ export const AnalyticsManager: React.FC = () => {
               aria-selected={selectedTab === tab.id}
               id={`tab-${tab.id}`}
               aria-controls={`panel-${tab.id}`}
+              tabIndex={selectedTab === tab.id ? 0 : -1}
               onClick={() => setSelectedTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
                 selectedTab === tab.id
@@ -1231,7 +1232,9 @@ export const AnalyticsManager: React.FC = () => {
               }`}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sr-only sm:not-sr-only sm:inline">
+                {tab.label}
+              </span>
             </button>
           ))}
         </div>
