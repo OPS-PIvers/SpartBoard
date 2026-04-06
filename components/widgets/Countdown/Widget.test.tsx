@@ -11,6 +11,13 @@ vi.mock('../WidgetLayout', () => ({
   ),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({
+    activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    updateWidget: vi.fn(),
+  }),
+}));
+
 const buildWidget = (config: Partial<CountdownConfig>): WidgetData =>
   ({
     id: 'countdown-widget',

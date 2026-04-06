@@ -151,7 +151,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                 className="font-medium"
                 style={{
                   fontSize: 'min(9cqh, 16cqw)',
-                  marginTop: '2cqh',
+                  marginTop: 'min(8px, 2cqmin)',
                   color: fontColor,
                   opacity: 0.6,
                 }}
@@ -162,7 +162,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                 className="font-bold text-center break-words"
                 style={{
                   fontSize: 'min(13cqh, 30cqw)',
-                  marginTop: '1.5cqh',
+                  marginTop: 'min(6px, 1.5cqmin)',
                   paddingLeft: 'min(16px, 4cqmin)',
                   paddingRight: 'min(16px, 4cqmin)',
                   color: eventColor,
