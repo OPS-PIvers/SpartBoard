@@ -5,9 +5,9 @@ import { Circle, CheckCircle2, Timer } from 'lucide-react';
 import {
   formatCountdown,
   formatScheduleTime,
-  hexToRgba,
   parseScheduleTimeSeconds,
 } from '@/components/widgets/Schedule/utils';
+import { hexToRgba } from '@/utils/styles';
 
 interface CountdownDisplayProps {
   startTime?: string;

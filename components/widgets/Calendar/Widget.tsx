@@ -13,7 +13,8 @@ import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
-import { GAP_STYLE, hexToRgba } from './constants';
+import { GAP_STYLE } from './constants';
+import { hexToRgba } from '@/utils/styles';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */

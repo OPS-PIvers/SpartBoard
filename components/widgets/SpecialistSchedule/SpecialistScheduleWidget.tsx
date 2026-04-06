@@ -13,6 +13,7 @@ import { Calendar, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { hexToRgba } from '@/utils/styles';
 
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 const parseTime = (t: string | undefined): number => {
@@ -32,16 +33,6 @@ const formatTime = (time: string, format24: boolean): string => {
   const period = h >= 12 ? 'PM' : 'AM';
   const hours12 = h % 12 || 12;
   return `${hours12}:${m.toString().padStart(2, '0')} ${period}`;
-};
-
-const hexToRgba = (hex: string, alpha: number): string => {
-  const clean = (hex ?? '#ffffff').replace('#', '');
-  const a = Math.max(0, Math.min(1, alpha));
-  if (clean.length !== 6) return `rgba(255, 255, 255, ${a})`;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
 const toDateStr = (d: Date): string => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Circle, CheckCircle2 } from 'lucide-react';
-import { hexToRgba } from '../constants';
+import { hexToRgba } from '@/utils/styles';
 
 interface ChecklistCardProps {
   id: string;

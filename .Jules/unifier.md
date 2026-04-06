@@ -201,3 +201,6 @@ Unifier is responsible for maintaining a consistent look and feel across all SPA
 
 **Drift:** Various components were hardcoding `zIndex: 10`, `zIndex: 50`, or `zIndex: 100` during drag operations (e.g., `isDragging ? 10 : 'auto'`), ignoring the centralized registry and creating inconsistent stacking.
 **Fix:** Created a new standard token `Z_INDEX.itemDragging = 50` in `config/zIndex.ts`, exported it to `tailwind.config.js` as `item-dragging`, and updated all sortable items to use this semantic token.
+## 2024-05-18 - Standardize hexToRgba utility
+**Drift:** Multiple widgets (Schedule, Checklist, Calendar, SpecialistSchedule) duplicated the `hexToRgba` utility function, creating inconsistencies and redundant code.
+**Fix:** Extracted `hexToRgba` to `utils/styles.ts` and refactored all widgets to import and use this standardized utility.
