@@ -162,21 +162,21 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 <div
-                  className="font-black uppercase tracking-tight opacity-40 leading-none"
-                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  className="font-black uppercase tracking-tight opacity-30 leading-none"
+                  style={{ fontSize: 'min(8px, 2.2cqmin)' }}
                 >
                   Level
                 </div>
                 <div
-                  className="font-black leading-none mb-1"
-                  style={{ fontSize: 'min(18px, 5cqmin)' }}
+                  className="font-black leading-none mb-0.5"
+                  style={{ fontSize: 'min(14px, 3.8cqmin)' }}
                 >
                   {v.id}
                 </div>
                 <v.icon
                   style={{
-                    width: 'min(24px, 6cqmin)',
-                    height: 'min(24px, 6cqmin)',
+                    width: 'min(32px, 8cqmin)',
+                    height: 'min(32px, 8cqmin)',
                   }}
                   strokeWidth={2.5}
                 />
@@ -393,21 +393,21 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 {selectedVolume ? (
                   <>
                     <div
-                      className="font-black uppercase tracking-tight opacity-40 leading-none"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      className="font-black uppercase tracking-tight opacity-30 leading-none"
+                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
                     >
                       Level
                     </div>
                     <div
                       className="font-black leading-none mb-1"
-                      style={{ fontSize: 'min(24px, 6cqmin)' }}
+                      style={{ fontSize: 'min(18px, 4.5cqmin)' }}
                     >
                       {selectedVolume.id}
                     </div>
                     <selectedVolume.icon
                       style={{
-                        width: 'min(32px, 8cqmin)',
-                        height: 'min(32px, 8cqmin)',
+                        width: 'min(40px, 10cqmin)',
+                        height: 'min(40px, 10cqmin)',
                       }}
                       strokeWidth={2.5}
                     />

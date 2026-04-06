@@ -71,6 +71,22 @@ describe('ExpectationsWidget', () => {
     });
   });
 
+  it('renders "Level" label and number for volume options', () => {
+    render(<ExpectationsWidget widget={mockWidget} />);
+    // In main view
+    expect(screen.getAllByText('Level').length).toBeGreaterThan(0);
+    expect(screen.getByText('0')).toBeInTheDocument();
+
+    // In sub view
+    fireEvent.click(screen.getByText('Silence'));
+    expect(screen.getAllByText('Level').length).toBeGreaterThan(0);
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+  });
+
   it('navigates back to main menu from sub-views', () => {
     render(<ExpectationsWidget widget={mockWidget} />);
     fireEvent.click(screen.getByText('Silence'));
