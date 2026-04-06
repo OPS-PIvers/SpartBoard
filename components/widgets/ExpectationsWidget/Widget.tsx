@@ -151,33 +151,35 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-xl flex items-center justify-center shrink-0 relative ${
+                className={`rounded-xl flex flex-col items-center justify-center shrink-0 ${
                   voiceLevel === v.id ? 'bg-white' : 'bg-slate-50'
                 }`}
                 style={{
-                  width: 'min(56px, 14cqmin)',
-                  height: 'min(56px, 14cqmin)',
-                  padding: 'min(12px, 3cqmin)',
+                  width: 'min(72px, 18cqmin)',
+                  height: 'min(72px, 18cqmin)',
+                  padding: 'min(8px, 2cqmin)',
+                  gap: 'min(2px, 0.5cqmin)',
                 }}
               >
-                <v.icon
-                  style={{ width: '100%', height: '100%' }}
-                  strokeWidth={2.5}
-                />
                 <div
-                  className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center font-black border-2 ${
-                    voiceLevel === v.id
-                      ? 'bg-white border-current shadow-sm'
-                      : 'bg-slate-200 border-slate-300 text-slate-600'
-                  }`}
-                  style={{
-                    width: 'min(24px, 6cqmin)',
-                    height: 'min(24px, 6cqmin)',
-                    fontSize: 'min(12px, 3.5cqmin)',
-                  }}
+                  className="font-black uppercase tracking-tight opacity-40 leading-none"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
+                  Level
+                </div>
+                <div
+                  className="font-black leading-none mb-1"
+                  style={{ fontSize: 'min(18px, 5cqmin)' }}
                 >
                   {v.id}
                 </div>
+                <v.icon
+                  style={{
+                    width: 'min(24px, 6cqmin)',
+                    height: 'min(24px, 6cqmin)',
+                  }}
+                  strokeWidth={2.5}
+                />
               </div>
               <div className="text-left">
                 <div
@@ -376,32 +378,39 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-xl transition-colors relative ${selectedVolume ? 'bg-white' : 'bg-slate-50'}`}
+                className={`rounded-xl transition-colors ${selectedVolume ? 'bg-white' : 'bg-slate-50'}`}
                 style={{
                   width: '18cqmin',
                   height: '18cqmin',
-                  padding: 'min(12px, 2.5cqmin)',
+                  padding: 'min(8px, 2cqmin)',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: 'min(2px, 0.5cqmin)',
                 }}
               >
                 {selectedVolume ? (
                   <>
-                    <selectedVolume.icon
-                      style={{ width: '100%', height: '100%' }}
-                      strokeWidth={2.5}
-                    />
                     <div
-                      className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center font-black bg-white shadow-sm border-2 border-current"
-                      style={{
-                        width: 'min(28px, 7cqmin)',
-                        height: 'min(28px, 7cqmin)',
-                        fontSize: 'min(16px, 4cqmin)',
-                      }}
+                      className="font-black uppercase tracking-tight opacity-40 leading-none"
+                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    >
+                      Level
+                    </div>
+                    <div
+                      className="font-black leading-none mb-1"
+                      style={{ fontSize: 'min(24px, 6cqmin)' }}
                     >
                       {selectedVolume.id}
                     </div>
+                    <selectedVolume.icon
+                      style={{
+                        width: 'min(32px, 8cqmin)',
+                        height: 'min(32px, 8cqmin)',
+                      }}
+                      strokeWidth={2.5}
+                    />
                   </>
                 ) : (
                   <Volume2
