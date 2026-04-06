@@ -328,10 +328,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                       />
                     </button>
                     {isOpen && (
-                      <div
-                        id={panelId}
-                        className="p-2 grid grid-cols-2 gap-2"
-                      >
+                      <div id={panelId} className="p-2 grid grid-cols-2 gap-2">
                         {items.map((bg) => (
                           <ThumbnailButton
                             key={bg.id}
@@ -347,46 +344,40 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
               })}
 
               {/* Ambient Videos accordion section */}
-              {videoPresets.length > 0 && (() => {
-                const isVideosOpen = openCategories.has(VIDEOS_KEY);
-                return (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(VIDEOS_KEY)}
-                      aria-expanded={isVideosOpen}
-                      aria-controls="bg-panel-vid"
-                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
-                        <Video className="w-3.5 h-3.5" />
-                        Ambient Videos
-                        <span className="text-slate-400 font-normal normal-case tracking-normal">
-                          ({videoPresets.length})
-                        </span>
+              {videoPresets.length > 0 && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(VIDEOS_KEY)}
+                    aria-expanded={openCategories.has(VIDEOS_KEY)}
+                    aria-controls="bg-panel-vid"
+                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5" />
+                      Ambient Videos
+                      <span className="text-slate-400 font-normal normal-case tracking-normal">
+                        ({videoPresets.length})
                       </span>
-                      <ChevronDown
-                        className={`w-4 h-4 text-slate-400 transition-transform ${isVideosOpen ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                    {isVideosOpen && (
-                      <div
-                        id="bg-panel-vid"
-                        className="p-2 grid grid-cols-2 gap-2"
-                      >
-                        {videoPresets.map((bg) => (
-                          <ThumbnailButton
-                            key={bg.id}
-                            {...bg}
-                            isActive={activeDashboard?.background === bg.id}
-                            onSelect={setBackground}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 transition-transform ${openCategories.has(VIDEOS_KEY) ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {openCategories.has(VIDEOS_KEY) && (
+                    <div id="bg-panel-vid" className="p-2 grid grid-cols-2 gap-2">
+                      {videoPresets.map((bg) => (
+                        <ThumbnailButton
+                          key={bg.id}
+                          {...bg}
+                          isActive={activeDashboard?.background === bg.id}
+                          onSelect={setBackground}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {groupedImagePresets.length === 0 &&
                 videoPresets.length === 0 && (
