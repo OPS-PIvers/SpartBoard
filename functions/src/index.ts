@@ -1765,6 +1765,12 @@ interface EngagementCounts {
   daily: number;
 }
 
+const REGISTERED_USERS_CACHE_TTL_MS = 15 * 60 * 1000;
+let registeredUsersCache: {
+  value: number;
+  fetchedAt: number;
+} | null = null;
+
 /**
  * Cloud Function to fetch administrative analytics.
  * Uses onRequest with explicit CORS to avoid preflight issues with onCall.
@@ -1952,7 +1958,9 @@ export const adminAnalytics = functionsV1
             allDashboardOwnerUids.add(ownerUid);
           }
 
-          const widgetCount = dashData.widgets?.length ?? 0;
+          const widgetCount = Array.isArray(dashData.widgets)
+            ? dashData.widgets.length
+            : 0;
           totalWidgetInstances += widgetCount;
 
           if (dashData.widgets && Array.isArray(dashData.widgets)) {
@@ -1985,20 +1993,33 @@ export const adminAnalytics = functionsV1
         console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
 
         // Get authoritative registered user count from Firebase Auth
-        let totalRegisteredUsers = 0;
-        try {
-          let pageToken: string | undefined = undefined;
-          do {
-            const listResult = await admin.auth().listUsers(1000, pageToken);
-            totalRegisteredUsers += listResult.users.length;
-            pageToken = listResult.pageToken;
-          } while (pageToken);
-        } catch (authErr) {
-          console.error(
-            '[getAdminAnalytics] Could not list Auth users:',
-            authErr
-          );
-          totalRegisteredUsers = totalEngagement.total;
+        // Cached in-memory per function instance to reduce repeated full scans.
+        let totalRegisteredUsers = totalEngagement.total;
+        const isCacheFresh =
+          registeredUsersCache !== null &&
+          now - registeredUsersCache.fetchedAt <= REGISTERED_USERS_CACHE_TTL_MS;
+        if (isCacheFresh && registeredUsersCache !== null) {
+          totalRegisteredUsers = registeredUsersCache.value;
+        } else {
+          try {
+            totalRegisteredUsers = 0;
+            let pageToken: string | undefined = undefined;
+            do {
+              const listResult = await admin.auth().listUsers(1000, pageToken);
+              totalRegisteredUsers += listResult.users.length;
+              pageToken = listResult.pageToken;
+            } while (pageToken);
+            registeredUsersCache = {
+              value: totalRegisteredUsers,
+              fetchedAt: now,
+            };
+          } catch (authErr) {
+            console.error(
+              '[getAdminAnalytics] Could not list Auth users:',
+              authErr
+            );
+            totalRegisteredUsers = totalEngagement.total;
+          }
         }
 
         // Resolve widget UIDs to emails (cap at 200 unique UIDs total)

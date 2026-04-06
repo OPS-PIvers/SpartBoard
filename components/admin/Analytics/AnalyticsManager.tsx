@@ -47,6 +47,7 @@ interface AnalyticsData {
   users: {
     total: number;
     registered: number;
+    registeredIsFallback?: boolean;
     monthly: number;
     daily: number;
     withDashboards: number;
@@ -180,6 +181,7 @@ const OverviewPanel: React.FC<{
   filteredMonthly: number;
   filteredDaily: number;
   registeredUsers: number;
+  registeredIsFallback: boolean;
   usersWithDashboards: number;
   dashboards: { total: number; avgWidgetsPerDashboard: number };
 }> = ({
@@ -188,6 +190,7 @@ const OverviewPanel: React.FC<{
   filteredMonthly,
   filteredDaily,
   registeredUsers,
+  registeredIsFallback,
   usersWithDashboards,
   dashboards,
 }) => {
@@ -218,9 +221,13 @@ const OverviewPanel: React.FC<{
     <div className="space-y-5">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
-          title="Registered Users"
+          title={registeredIsFallback ? 'Known User Docs' : 'Registered Users'}
           value={formatNumber(registeredUsers)}
-          subtitle="Firebase Auth"
+          subtitle={
+            registeredIsFallback
+              ? 'Fallback: Firestore user profiles'
+              : 'Firebase Auth'
+          }
           accentColor="#4356a0"
           accentBg="rgba(67,86,160,0.2)"
           icon={<Users className="w-5 h-5 text-blue-200" />}
@@ -343,28 +350,26 @@ const OverviewPanel: React.FC<{
 const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
 
-  const rows = useMemo(
-    () =>
-      Object.entries(data.widgets.totalInstances)
-        .map(([type, total]) => {
-          const active = data.widgets.activeInstances[type] ?? 0;
-          const usersEntry = data.widgets.usersByType?.[type] ?? {
-            count: 0,
-            emails: [],
-          };
-          return {
-            type,
-            name: WIDGET_LABELS[type] ?? type,
-            total,
-            active,
-            users: usersEntry.count,
-            emails: usersEntry.emails,
-            activeRate: total > 0 ? (active / total) * 100 : 0,
-          };
-        })
-        .sort((a, b) => b.total - a.total),
-    [data.widgets]
-  );
+  const rows = useMemo(() => {
+    const usersByType = data.widgets.usersByType;
+    const usersAvailable = usersByType !== undefined;
+    return Object.entries(data.widgets.totalInstances)
+      .map(([type, total]) => {
+        const active = data.widgets.activeInstances[type] ?? 0;
+        const usersEntry = usersByType?.[type];
+        return {
+          type,
+          name: WIDGET_LABELS[type] ?? type,
+          total,
+          active,
+          usersAvailable,
+          users: usersEntry?.count ?? 0,
+          emails: usersEntry?.emails ?? [],
+          activeRate: total > 0 ? (active / total) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }, [data.widgets]);
 
   const radarData = useMemo(
     () =>
@@ -501,7 +506,9 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
                   </p>
                 </div>
                 <span className="rounded-full bg-purple-500/20 text-purple-200 text-xs px-2.5 py-1 font-semibold">
-                  {formatNumber(row.users)} users
+                  {row.usersAvailable
+                    ? `${formatNumber(row.users)} users`
+                    : 'Users unavailable'}
                 </span>
               </div>
               <div className="mt-3">
@@ -521,12 +528,13 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
               </div>
               <button
                 type="button"
+                disabled={!row.usersAvailable}
                 onClick={() =>
                   setExpandedWidget((prev) =>
                     prev === row.type ? null : row.type
                   )
                 }
-                className="mt-4 w-full rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 text-xs font-semibold px-2 py-1.5 flex items-center justify-center gap-1"
+                className="mt-4 w-full rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 text-xs font-semibold px-2 py-1.5 flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {expanded ? 'Hide emails' : 'Show emails'}
                 {expanded ? (
@@ -537,7 +545,12 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
               </button>
               {expanded && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {row.emails.length === 0 ? (
+                  {!row.usersAvailable ? (
+                    <p className="text-xs text-slate-400">
+                      User drilldown is unavailable until the latest Cloud
+                      Function is deployed.
+                    </p>
+                  ) : row.emails.length === 0 ? (
                     <p className="text-xs text-slate-400">
                       No users found with this widget.
                     </p>
@@ -573,7 +586,7 @@ const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const userRows = useMemo(
     () =>
       data.api.topUsers.slice(0, 10).map((u) => ({
-        name: u.email.includes('@') ? u.email.split('@')[0] : u.email,
+        email: u.email,
         calls: u.count,
       })),
     [data.api.topUsers]
@@ -682,8 +695,8 @@ const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
               />
               <YAxis
                 type="category"
-                dataKey="name"
-                width={90}
+                dataKey="email"
+                width={180}
                 tick={{ fill: chartTheme.axisText, fontSize: 12 }}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -982,6 +995,7 @@ export const AnalyticsManager: React.FC = () => {
         users: {
           total: raw.users?.total ?? 0,
           registered: raw.users?.registered ?? raw.users?.total ?? 0,
+          registeredIsFallback: raw.users?.registered === undefined,
           monthly: raw.users?.monthly ?? 0,
           daily: raw.users?.daily ?? 0,
           withDashboards: raw.users?.withDashboards ?? 0,
@@ -1216,6 +1230,7 @@ export const AnalyticsManager: React.FC = () => {
             filteredMonthly={filteredMonthly}
             filteredDaily={filteredDaily}
             registeredUsers={data.users.registered ?? data.users.total}
+            registeredIsFallback={data.users.registeredIsFallback ?? false}
             usersWithDashboards={data.users.withDashboards ?? 0}
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
