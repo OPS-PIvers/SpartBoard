@@ -130,9 +130,7 @@ vi.mock('firebase-admin', () => {
               ? new Date(u.data.lastLogin as number).toISOString()
               : undefined,
           },
-          providerData: u.anonymous
-            ? []
-            : [{ providerId: 'google.com' }],
+          providerData: u.anonymous ? [] : [{ providerId: 'google.com' }],
         }));
         return Promise.resolve({ users, pageToken: undefined });
       }),
