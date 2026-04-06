@@ -28,6 +28,7 @@ jobs:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY || 'test-key' }}
           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID || 'test-client-id' }}
+          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
 
       - name: Run type check
         run: pnpm run type-check:all
@@ -49,6 +50,7 @@ jobs:
           echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
           echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
           echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
+          echo "VITE_PEXELS_API_KEY=${{ secrets.VITE_PEXELS_API_KEY }}" >> .env
 
       - name: Build project
         run: pnpm run build:all

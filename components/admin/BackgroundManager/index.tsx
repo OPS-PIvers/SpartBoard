@@ -50,6 +50,8 @@ import { Button } from '@/components/common/Button';
 import { useDialog } from '@/context/useDialog';
 import { ListPresetRow } from './ListPresetRow';
 import { GridPresetCard } from './GridPresetCard';
+import { StockPhotoPicker, type StockPhotoSelection } from './StockPhotoPicker';
+import { isPexelsConfigured } from '@/utils/pexelsService';
 
 const DEFAULT_PRESETS = [
   {
@@ -106,6 +108,10 @@ export const BackgroundManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [message, setMessage] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -146,6 +152,7 @@ export const BackgroundManager: React.FC = () => {
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [loadingDrive, setLoadingDrive] = useState(false);
   const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const [showStockPicker, setShowStockPicker] = useState(false);
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -209,6 +216,29 @@ export const BackgroundManager: React.FC = () => {
       }
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleStockPhotoSelect = async (photo: StockPhotoSelection) => {
+    const presetId = crypto.randomUUID();
+    try {
+      const newPreset: BackgroundPreset = {
+        id: presetId,
+        url: photo.url,
+        thumbnailUrl: photo.thumbnailUrl,
+        label: photo.label || 'Stock Photo',
+        active: true,
+        accessLevel: 'public',
+        betaUsers: [],
+        createdAt: Date.now(),
+      };
+      await setDoc(doc(db, 'admin_backgrounds', newPreset.id), newPreset);
+      setPresets((prev) => [newPreset, ...prev]);
+      showMessage('success', `Added "${newPreset.label}"`);
+      setShowStockPicker(false);
+    } catch (error) {
+      console.error('Failed to add stock photo:', error);
+      showMessage('error', 'Failed to add stock photo');
     }
   };
 
@@ -284,54 +314,82 @@ export const BackgroundManager: React.FC = () => {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !user) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showMessage('error', 'Image too large (Max 5MB)');
+    const validFiles: File[] = [];
+    const skipped: string[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) {
+        skipped.push(file.name);
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) {
+      showMessage('error', 'All files exceeded 5MB limit');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     setUploading(true);
-    let downloadURL = '';
-    const presetId = crypto.randomUUID();
-    try {
-      // Use shared admin path with the pre-generated ID for security rules
-      downloadURL = await uploadAdminBackground(presetId, file);
+    setUploadProgress({ current: 0, total: validFiles.length });
+    let successCount = 0;
+    let failCount = 0;
 
-      const lastDotIndex = file.name.lastIndexOf('.');
-      const baseName =
-        lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
-      const label = baseName.replace(/[-_]/g, ' ');
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      setUploadProgress({ current: i + 1, total: validFiles.length });
+      let downloadURL = '';
+      const presetId = crypto.randomUUID();
+      try {
+        downloadURL = await uploadAdminBackground(presetId, file);
 
-      const newPreset: BackgroundPreset = {
-        id: presetId,
-        url: downloadURL,
-        label,
-        active: true,
-        accessLevel: 'public',
-        betaUsers: [],
-        createdAt: Date.now(),
-      };
+        const lastDotIndex = file.name.lastIndexOf('.');
+        const baseName =
+          lastDotIndex > 0 ? file.name.substring(0, lastDotIndex) : file.name;
+        const label = baseName.replace(/[-_]/g, ' ');
 
-      await setDoc(doc(db, 'admin_backgrounds', newPreset.id), newPreset);
-      setPresets((prev) => [newPreset, ...prev]);
-      showMessage('success', 'Background uploaded successfully');
-    } catch (error) {
-      console.error('Upload failed:', error);
-      showMessage('error', 'Upload failed');
-      if (downloadURL) {
-        try {
-          const fileRef = ref(storage, downloadURL);
-          await deleteObject(fileRef);
-        } catch (cleanupError) {
-          console.error('Failed to cleanup orphaned file:', cleanupError);
+        const newPreset: BackgroundPreset = {
+          id: presetId,
+          url: downloadURL,
+          label,
+          active: true,
+          accessLevel: 'public',
+          betaUsers: [],
+          createdAt: Date.now(),
+        };
+
+        await setDoc(doc(db, 'admin_backgrounds', newPreset.id), newPreset);
+        setPresets((prev) => [newPreset, ...prev]);
+        successCount++;
+      } catch (error) {
+        console.error(`Upload failed for ${file.name}:`, error);
+        failCount++;
+        if (downloadURL) {
+          try {
+            const fileRef = ref(storage, downloadURL);
+            await deleteObject(fileRef);
+          } catch (cleanupError) {
+            console.error('Failed to cleanup orphaned file:', cleanupError);
+          }
         }
       }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+
+    const parts: string[] = [];
+    if (successCount > 0) parts.push(`${successCount} uploaded`);
+    if (failCount > 0) parts.push(`${failCount} failed`);
+    if (skipped.length > 0) parts.push(`${skipped.length} skipped (too large)`);
+    showMessage(
+      failCount === 0 && skipped.length === 0 ? 'success' : 'error',
+      parts.join(', ')
+    );
+
+    setUploading(false);
+    setUploadProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleAddYoutubeVideo = async () => {
@@ -600,13 +658,24 @@ export const BackgroundManager: React.FC = () => {
             >
               Restore Defaults
             </Button>
+            {isPexelsConfigured() && (
+              <Button
+                variant="secondary"
+                onClick={() => setShowStockPicker(true)}
+                icon={<ImageIcon size={16} />}
+              >
+                Stock Photos
+              </Button>
+            )}
             <Button
               variant="primary"
               onClick={() => fileInputRef.current?.click()}
               isLoading={uploading}
               icon={<Upload size={16} />}
             >
-              Upload New
+              {uploadProgress
+                ? `Uploading ${uploadProgress.current}/${uploadProgress.total}`
+                : 'Upload New'}
             </Button>
           </div>
           <input
@@ -614,6 +683,7 @@ export const BackgroundManager: React.FC = () => {
             ref={fileInputRef}
             className="hidden"
             accept="image/*"
+            multiple
             onChange={(e) => void handleFileUpload(e)}
           />
 
@@ -982,6 +1052,13 @@ export const BackgroundManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Stock Photo Picker */}
+      <StockPhotoPicker
+        isOpen={showStockPicker}
+        onClose={() => setShowStockPicker(false)}
+        onSelectPhoto={(photo) => void handleStockPhotoSelect(photo)}
+      />
 
       {/* Background List / Grid */}
       <div className="flex-1">

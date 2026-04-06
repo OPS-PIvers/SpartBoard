@@ -23,6 +23,18 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
         }
       }
 
+      // Do nothing if clicking inside a portal with data-click-outside-ignore
+      let node: Node | null = target;
+      while (node && node !== document) {
+        if (
+          node instanceof HTMLElement &&
+          node.dataset.clickOutsideIgnore === 'true'
+        ) {
+          return;
+        }
+        node = node.parentNode;
+      }
+
       handler(event);
     };
 

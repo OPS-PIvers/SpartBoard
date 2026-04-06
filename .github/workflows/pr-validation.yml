@@ -47,6 +47,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID || '1:123456789:web:abc123' }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY || 'test-key' }}
           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY || 'test-key' }}
+          VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
 
   e2e:
     runs-on: ubuntu-24.04

@@ -60,6 +60,28 @@ describe('useClickOutside', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it('should not call handler when clicking on element with data-click-outside-ignore', () => {
+    const handler = vi.fn();
+    const div = document.createElement('div');
+    const ref = { current: div };
+    document.body.appendChild(div);
+    elementsToCleanup.push(div);
+
+    const portalDiv = document.createElement('div');
+    portalDiv.dataset.clickOutsideIgnore = 'true';
+    const portalChild = document.createElement('button');
+    portalDiv.appendChild(portalChild);
+    document.body.appendChild(portalDiv);
+    elementsToCleanup.push(portalDiv);
+
+    renderHook(() => useClickOutside(ref, handler));
+
+    const event = new MouseEvent('mousedown', { bubbles: true });
+    portalChild.dispatchEvent(event);
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it('should not call handler when clicking on ignored ref', () => {
     const handler = vi.fn();
     const div = document.createElement('div');
