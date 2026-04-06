@@ -1,39 +1,41 @@
 import React, {
-  useState,
+  useCallback,
   useEffect,
   useMemo,
-  useCallback,
   useRef,
+  useState,
 } from 'react';
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
 import { auth } from '@/config/firebase';
 import {
-  BarChart2,
-  Users,
-  Zap,
-  LayoutGrid,
   AlertCircle,
-  RefreshCw,
+  BarChart2,
   ChevronDown,
   ChevronUp,
-  ArrowUpDown,
+  LayoutGrid,
+  RefreshCw,
+  School,
+  Users,
+  WandSparkles,
+  Zap,
 } from 'lucide-react';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface EngagementCounts {
   total: number;
@@ -44,8 +46,10 @@ interface EngagementCounts {
 interface AnalyticsData {
   users: {
     total: number;
+    registered: number;
     monthly: number;
     daily: number;
+    withDashboards: number;
     domains: Record<string, EngagementCounts>;
     buildings: Record<string, EngagementCounts>;
     domainBuilding: Record<string, Record<string, EngagementCounts>>;
@@ -55,18 +59,21 @@ interface AnalyticsData {
     activeInstances: Record<string, number>;
     usersByType?: Record<string, { count: number; emails: string[] }>;
   };
+  dashboards: {
+    total: number;
+    avgWidgetsPerDashboard: number;
+  };
   api: {
     totalCalls: number;
     activeUsers: number;
     topUsers: { uid: string; count: number; email: string }[];
     avgDailyCalls: number;
     avgDailyCallsPerUser: number;
+    byFeature: Record<string, number>;
   };
 }
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
-
-// ─── Constants ───────────────────────────────────────────────────────────────
 
 const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   (acc, tool) => {
@@ -77,8 +84,7 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
 );
 
 const KNOWN_BUILDINGS = new Map(BUILDINGS.map((b) => [b.id, b]));
-
-const PIE_COLORS = [
+const CHART_COLORS = [
   '#2d3f89',
   '#4356a0',
   '#6d80c0',
@@ -87,6 +93,10 @@ const PIE_COLORS = [
   '#c13435',
   '#e05d5e',
   '#14b8a6',
+  '#0d9488',
+  '#a855f7',
+  '#f59e0b',
+  '#10b981',
 ];
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
@@ -94,450 +104,635 @@ const formatNumber = (value: number) => NUMBER_FORMATTER.format(value);
 const formatRate = (value: number) =>
   Number.isFinite(value) ? `${value.toFixed(1)}%` : '0.0%';
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+const chartTheme = {
+  grid: '#ffffff15',
+  axisText: '#94a3b8',
+};
 
-const StatCard: React.FC<{
+const CustomTooltip = ({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean;
+  label?: string | number;
+  payload?: Array<{ name?: string; value?: number | string }>;
+}) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-slate-200 shadow-lg">
+      {label && <p className="mb-1 text-slate-400">{label}</p>}
+      <div className="space-y-1">
+        {payload.map((entry, idx) => (
+          <p key={`${entry.name ?? 'item'}-${idx}`} className="font-medium">
+            {entry.name}: {formatNumber(Number(entry.value ?? 0))}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const KpiCard: React.FC<{
   title: string;
   value: string | number;
-  icon: React.ReactNode;
   subtitle?: string;
-  accent?: string;
-}> = ({
-  title,
-  value,
-  icon,
-  subtitle,
-  accent = 'text-brand-blue-primary bg-brand-blue-primary/10',
-}) => (
-  <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`p-3 rounded-xl ${accent}`}>{icon}</div>
-    </div>
-    <div>
-      <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">
-        {title}
-      </h4>
-      <div className="text-3xl font-black text-slate-800">{value}</div>
-      {subtitle && (
-        <div className="text-sm text-slate-500 mt-1">{subtitle}</div>
-      )}
+  accentColor: string;
+  accentBg: string;
+  icon: React.ReactNode;
+}> = ({ title, value, subtitle, accentColor, accentBg, icon }) => (
+  <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-2xl p-5 relative overflow-hidden">
+    <div
+      className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+      style={{ background: accentColor }}
+    />
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {title}
+        </p>
+        <p className="text-3xl font-black text-white mt-1">{value}</p>
+        {subtitle && <p className="text-sm text-slate-400 mt-1">{subtitle}</p>}
+      </div>
+      <div className="p-3 rounded-xl" style={{ background: accentBg }}>
+        {icon}
+      </div>
     </div>
   </div>
 );
 
-// ─── Tab: Overview ────────────────────────────────────────────────────────────
+const PanelCard: React.FC<React.PropsWithChildren<{ title: string }>> = ({
+  title,
+  children,
+}) => (
+  <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-2xl p-5">
+    <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4">
+      {title}
+    </h3>
+    {children}
+  </div>
+);
 
 const OverviewPanel: React.FC<{
   data: AnalyticsData;
   filteredTotalUsers: number;
   filteredMonthly: number;
   filteredDaily: number;
-}> = ({ data, filteredTotalUsers, filteredMonthly, filteredDaily }) => {
-  const monthlyRate =
-    filteredTotalUsers > 0 ? (filteredMonthly / filteredTotalUsers) * 100 : 0;
-  const dailyRate =
-    filteredTotalUsers > 0 ? (filteredDaily / filteredTotalUsers) * 100 : 0;
+  registeredUsers: number;
+  usersWithDashboards: number;
+  dashboards: { total: number; avgWidgetsPerDashboard: number };
+}> = ({
+  data,
+  filteredTotalUsers,
+  filteredMonthly,
+  filteredDaily,
+  registeredUsers,
+  usersWithDashboards,
+  dashboards,
+}) => {
+  const funnel = useMemo(
+    () => [
+      { name: 'Registered', value: registeredUsers, fill: '#4356a0' },
+      { name: 'With Dashboards', value: usersWithDashboards, fill: '#14b8a6' },
+      { name: 'Monthly Active', value: filteredMonthly, fill: '#a855f7' },
+      { name: 'Daily Active', value: filteredDaily, fill: '#10b981' },
+    ],
+    [filteredDaily, filteredMonthly, registeredUsers, usersWithDashboards]
+  );
 
-  const domainPieData = useMemo(
+  const domainRows = useMemo(
     () =>
       Object.entries(data.users.domains)
-        .map(([domain, counts]) => ({ name: domain, value: counts.total }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8),
+        .map(([domain, counts]) => ({
+          domain,
+          total: counts.total,
+          monthly: counts.monthly,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10),
     [data.users.domains]
   );
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          title="Total Users"
-          value={formatNumber(filteredTotalUsers)}
-          icon={<Users className="w-5 h-5" />}
-          subtitle="Lifetime registered users"
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
+          title="Registered Users"
+          value={formatNumber(registeredUsers)}
+          subtitle="Firebase Auth"
+          accentColor="#4356a0"
+          accentBg="rgba(67,86,160,0.2)"
+          icon={<Users className="w-5 h-5 text-blue-200" />}
         />
-        <StatCard
+        <KpiCard
+          title="Users with Dashboards"
+          value={formatNumber(usersWithDashboards)}
+          subtitle="Unique dashboard owners"
+          accentColor="#14b8a6"
+          accentBg="rgba(20,184,166,0.2)"
+          icon={<LayoutGrid className="w-5 h-5 text-teal-200" />}
+        />
+        <KpiCard
           title="Monthly Active"
           value={formatNumber(filteredMonthly)}
-          icon={<BarChart2 className="w-5 h-5" />}
-          subtitle={`${formatRate(monthlyRate)} of total`}
+          subtitle={`${formatRate(filteredTotalUsers > 0 ? (filteredMonthly / filteredTotalUsers) * 100 : 0)} of visible users`}
+          accentColor="#a855f7"
+          accentBg="rgba(168,85,247,0.2)"
+          icon={<BarChart2 className="w-5 h-5 text-purple-200" />}
         />
-        <StatCard
+        <KpiCard
           title="Daily Active"
           value={formatNumber(filteredDaily)}
-          icon={<Zap className="w-5 h-5" />}
-          subtitle={`${formatRate(dailyRate)} of total`}
+          subtitle={`${formatRate(filteredTotalUsers > 0 ? (filteredDaily / filteredTotalUsers) * 100 : 0)} of visible users`}
+          accentColor="#10b981"
+          accentBg="rgba(16,185,129,0.2)"
+          icon={<Zap className="w-5 h-5 text-emerald-200" />}
         />
       </div>
 
-      {domainPieData.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
-            Users by Domain
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={domainPieData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={({
-                  name,
-                  percent,
-                }: {
-                  name?: string;
-                  percent?: number;
-                }) => `${name ?? ''} (${((percent ?? 0) * 100).toFixed(0)}%)`}
-              >
-                {domainPieData.map((_, i) => (
-                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value) => [
-                  formatNumber(Number(value ?? 0)),
-                  'Users',
-                ]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-};
+      <div className="grid grid-cols-2 gap-4">
+        <KpiCard
+          title="Total Dashboards"
+          value={formatNumber(dashboards.total)}
+          accentColor="#6d80c0"
+          accentBg="rgba(109,128,192,0.2)"
+          icon={<LayoutGrid className="w-5 h-5 text-blue-200" />}
+        />
+        <KpiCard
+          title="Avg Widgets / Dashboard"
+          value={dashboards.avgWidgetsPerDashboard.toFixed(1)}
+          accentColor="#f59e0b"
+          accentBg="rgba(245,158,11,0.2)"
+          icon={<WandSparkles className="w-5 h-5 text-amber-200" />}
+        />
+      </div>
 
-// ─── Tab: Widgets ─────────────────────────────────────────────────────────────
-
-const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
-  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
-
-  const widgetBarData = useMemo(
-    () =>
-      Object.entries(data.widgets.totalInstances)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 20)
-        .map(([type, total]) => ({
-          name: WIDGET_LABELS[type] ?? type,
-          type,
-          total,
-          active: data.widgets.activeInstances[type] ?? 0,
-        })),
-    [data.widgets]
-  );
-
-  const toggleWidget = (type: string) => {
-    setExpandedWidget((prev) => (prev === type ? null : type));
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-5">
-          Widget Adoption (Top 20)
-        </h3>
-        <ResponsiveContainer
-          width="100%"
-          height={Math.max(300, widgetBarData.length * 34)}
-        >
+      <PanelCard title="User Engagement Funnel">
+        <ResponsiveContainer width="100%" height={240}>
           <BarChart
-            data={widgetBarData}
+            data={funnel}
             layout="vertical"
-            margin={{ left: 130, right: 50, top: 4, bottom: 4 }}
+            margin={{ left: 20, right: 15 }}
           >
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
             <XAxis
               type="number"
-              tickFormatter={formatNumber}
-              tick={{ fontSize: 11 }}
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
             />
             <YAxis
               type="category"
               dataKey="name"
-              width={125}
-              tick={{ fontSize: 12 }}
+              width={130}
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
             />
-            <Tooltip
-              formatter={(value, name) => [
-                formatNumber(Number(value ?? 0)),
-                String(name ?? ''),
-              ]}
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="value" barSize={24} radius={[0, 8, 8, 0]}>
+              {funnel.map((row, idx) => (
+                <Cell key={`${row.name}-${idx}`} fill={row.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </PanelCard>
+
+      <PanelCard title="Top Domains (Total vs Monthly Active)">
+        <ResponsiveContainer
+          width="100%"
+          height={Math.max(280, domainRows.length * 34)}
+        >
+          <BarChart
+            data={domainRows}
+            layout="vertical"
+            margin={{ left: 10, right: 24 }}
+          >
+            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
             />
-            <Legend />
+            <YAxis
+              type="category"
+              dataKey="domain"
+              width={130}
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ color: chartTheme.axisText }} />
             <Bar
               dataKey="total"
-              name="Total Instances"
-              fill="#2d3f89"
-              radius={[0, 4, 4, 0]}
+              fill="#4356a0"
+              name="Total"
+              radius={[0, 8, 8, 0]}
+              barSize={16}
+            />
+            <Bar
+              dataKey="monthly"
+              fill="#14b8a6"
+              name="Monthly Active"
+              radius={[0, 8, 8, 0]}
+              barSize={16}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </PanelCard>
+    </div>
+  );
+};
+
+const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
+  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
+
+  const rows = useMemo(
+    () =>
+      Object.entries(data.widgets.totalInstances)
+        .map(([type, total]) => {
+          const active = data.widgets.activeInstances[type] ?? 0;
+          const usersEntry = data.widgets.usersByType?.[type] ?? {
+            count: 0,
+            emails: [],
+          };
+          return {
+            type,
+            name: WIDGET_LABELS[type] ?? type,
+            total,
+            active,
+            users: usersEntry.count,
+            emails: usersEntry.emails,
+            activeRate: total > 0 ? (active / total) * 100 : 0,
+          };
+        })
+        .sort((a, b) => b.total - a.total),
+    [data.widgets]
+  );
+
+  const radarData = useMemo(
+    () =>
+      rows.slice(0, 8).map((row) => ({
+        widget: row.name,
+        total: row.total,
+        active: row.active,
+      })),
+    [rows]
+  );
+
+  return (
+    <div className="space-y-5">
+      <PanelCard title="Widget Popularity + Active Users">
+        <ResponsiveContainer
+          width="100%"
+          height={Math.max(300, rows.slice(0, 12).length * 38)}
+        >
+          <BarChart
+            data={rows.slice(0, 12)}
+            layout="vertical"
+            margin={{ left: 120, right: 30 }}
+          >
+            <defs>
+              <linearGradient
+                id="widgetTotalGradient"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="0"
+              >
+                <stop offset="0%" stopColor="#4356a0" />
+                <stop offset="100%" stopColor="#6d80c0" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={120}
+              tick={{ fill: chartTheme.axisText, fontSize: 11 }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ color: chartTheme.axisText }} />
+            <Bar
+              dataKey="total"
+              name="Total"
+              fill="url(#widgetTotalGradient)"
+              barSize={20}
+              radius={[0, 8, 8, 0]}
             />
             <Bar
               dataKey="active"
               name="Active (30d)"
               fill="#14b8a6"
-              radius={[0, 4, 4, 0]}
+              barSize={20}
+              radius={[0, 8, 8, 0]}
+            />
+            <Bar
+              dataKey="users"
+              name="Users"
+              fill="#a855f7"
+              barSize={20}
+              radius={[0, 8, 8, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </PanelCard>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-            Widget Details &amp; User Drilldown
-          </h3>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {widgetBarData.map(({ type, name, total, active }, index) => {
-            const activeRate = total > 0 ? (active / total) * 100 : 0;
-            // Distinguish "not deployed" (usersByType === undefined) from
-            // "deployed but no entry" (key absent → 0 users)
-            const usersByTypeMap = data.widgets.usersByType;
-            const userEntry =
-              usersByTypeMap === undefined
-                ? null
-                : (usersByTypeMap[type] ?? { count: 0, emails: [] });
-            const isExpanded = expandedWidget === type;
+      {radarData.length > 0 && (
+        <PanelCard title="Top Widget Comparison (Radar)">
+          <ResponsiveContainer width="100%" height={320}>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke={chartTheme.grid} />
+              <PolarAngleAxis
+                dataKey="widget"
+                tick={{ fill: chartTheme.axisText, fontSize: 11 }}
+              />
+              <PolarRadiusAxis
+                tick={{ fill: chartTheme.axisText, fontSize: 10 }}
+              />
+              <Radar
+                name="Total"
+                dataKey="total"
+                stroke="#6d80c0"
+                fill="#6d80c0"
+                fillOpacity={0.35}
+              />
+              <Radar
+                name="Active"
+                dataKey="active"
+                stroke="#14b8a6"
+                fill="#14b8a6"
+                fillOpacity={0.28}
+              />
+              <Legend wrapperStyle={{ color: chartTheme.axisText }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </PanelCard>
+      )}
 
-            return (
-              <div key={type}>
-                <button
-                  type="button"
-                  onClick={() => toggleWidget(type)}
-                  className="w-full flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors text-left"
-                >
-                  <span className="w-6 text-center text-xs font-bold text-slate-400">
-                    #{index + 1}
-                  </span>
-                  <span className="flex-1 font-semibold text-slate-700 text-sm">
-                    {name}
-                  </span>
-                  <span className="text-sm text-slate-500 w-20 text-right">
-                    {formatNumber(total)} total
-                  </span>
-                  <span className="text-sm text-teal-600 font-medium w-24 text-right">
-                    {formatNumber(active)} active
-                  </span>
-                  <span className="text-sm text-slate-400 w-16 text-right">
-                    {formatRate(activeRate)}
-                  </span>
-                  <span className="text-xs text-slate-400 w-20 text-right">
-                    {userEntry !== null
-                      ? `${formatNumber(userEntry.count)} user${userEntry.count !== 1 ? 's' : ''}`
-                      : '—'}
-                  </span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                  )}
-                </button>
-                {isExpanded && (
-                  <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                    {userEntry === null ? (
-                      <p className="text-sm text-slate-500 italic">
-                        User drilldown available after deploying the latest
-                        Cloud Function.
-                      </p>
-                    ) : userEntry.emails.length === 0 ? (
-                      <p className="text-sm text-slate-500">
-                        No users found with this widget.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {userEntry.emails.map((email) => (
-                            <span
-                              key={email}
-                              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-blue-primary/10 text-brand-blue-primary"
-                            >
-                              {email}
-                            </span>
-                          ))}
-                        </div>
-                        {userEntry.count > userEntry.emails.length && (
-                          <p className="text-xs text-slate-400">
-                            Showing {userEntry.emails.length} of{' '}
-                            {formatNumber(userEntry.count)} users
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {rows.map((row, index) => {
+          const expanded = expandedWidget === row.type;
+          const color = CHART_COLORS[index % CHART_COLORS.length];
+          return (
+            <div
+              key={row.type}
+              className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-2xl p-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ background: color }}
+                  />
+                  <h4 className="text-sm font-semibold text-white truncate">
+                    {row.name}
+                  </h4>
+                </div>
+                <span className="text-xs text-slate-400">#{index + 1}</span>
               </div>
-            );
-          })}
-          {widgetBarData.length === 0 && (
-            <div className="px-6 py-10 text-center text-slate-500 text-sm">
-              No widget data available yet.
+              <div className="mt-4 flex items-end justify-between">
+                <div>
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">
+                    Total instances
+                  </p>
+                  <p className="text-2xl font-black text-white">
+                    {formatNumber(row.total)}
+                  </p>
+                </div>
+                <span className="rounded-full bg-purple-500/20 text-purple-200 text-xs px-2.5 py-1 font-semibold">
+                  {formatNumber(row.users)} users
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Active 30d: {formatNumber(row.active)}</span>
+                  <span>{formatRate(row.activeRate)}</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/10 mt-1.5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, row.activeRate)}%`,
+                      background: color,
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedWidget((prev) =>
+                    prev === row.type ? null : row.type
+                  )
+                }
+                className="mt-4 w-full rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/5 text-xs font-semibold px-2 py-1.5 flex items-center justify-center gap-1"
+              >
+                {expanded ? 'Hide emails' : 'Show emails'}
+                {expanded ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+              {expanded && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {row.emails.length === 0 ? (
+                    <p className="text-xs text-slate-400">
+                      No users found with this widget.
+                    </p>
+                  ) : (
+                    row.emails.map((email) => (
+                      <span
+                        key={email}
+                        className="text-[11px] rounded-full bg-blue-500/15 text-blue-200 px-2 py-1"
+                      >
+                        {email}
+                      </span>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-// ─── Tab: AI Usage ────────────────────────────────────────────────────────────
-
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
-  const safeAvgDailyPerUser =
-    data.api.activeUsers > 0
-      ? data.api.avgDailyCalls / data.api.activeUsers
-      : 0;
-
-  // Use full email as the stable chart key to avoid Y-axis collisions when
-  // multiple users share the same local-part across domains.
-  const aiBarData = useMemo(
+  const featureRows = useMemo(
     () =>
-      data.api.topUsers
-        .slice(0, 10)
-        .map((u) => ({ email: u.email, calls: u.count })),
+      Object.entries(data.api.byFeature ?? {})
+        .map(([feature, count]) => ({ feature, count }))
+        .sort((a, b) => b.count - a.count),
+    [data.api.byFeature]
+  );
+
+  const userRows = useMemo(
+    () =>
+      data.api.topUsers.slice(0, 10).map((u) => ({
+        name: u.email.includes('@') ? u.email.split('@')[0] : u.email,
+        calls: u.count,
+      })),
     [data.api.topUsers]
   );
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
           title="Total API Calls"
           value={formatNumber(data.api.totalCalls)}
-          icon={<Zap className="w-5 h-5" />}
-          accent="text-purple-600 bg-purple-100"
+          accentColor="#ad2122"
+          accentBg="rgba(173,33,34,0.2)"
+          icon={<Zap className="w-5 h-5 text-red-200" />}
         />
-        <StatCard
+        <KpiCard
           title="Active AI Users"
           value={formatNumber(data.api.activeUsers)}
-          icon={<Users className="w-5 h-5" />}
-          accent="text-purple-600 bg-purple-100"
+          accentColor="#e05d5e"
+          accentBg="rgba(224,93,94,0.2)"
+          icon={<Users className="w-5 h-5 text-red-200" />}
         />
-        <StatCard
+        <KpiCard
           title="Avg Daily Calls"
           value={formatNumber(data.api.avgDailyCalls)}
-          icon={<BarChart2 className="w-5 h-5" />}
-          accent="text-purple-600 bg-purple-100"
+          accentColor="#a855f7"
+          accentBg="rgba(168,85,247,0.2)"
+          icon={<BarChart2 className="w-5 h-5 text-purple-200" />}
         />
-        <StatCard
+        <KpiCard
           title="Avg Per User/Day"
-          value={safeAvgDailyPerUser.toFixed(1)}
-          icon={<Users className="w-5 h-5" />}
-          accent="text-purple-600 bg-purple-100"
+          value={data.api.avgDailyCallsPerUser.toFixed(1)}
+          accentColor="#10b981"
+          accentBg="rgba(16,185,129,0.2)"
+          icon={<WandSparkles className="w-5 h-5 text-emerald-200" />}
         />
       </div>
 
-      {aiBarData.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-5">
-            Top AI Users
-          </h3>
+      <PanelCard title="AI Feature Breakdown">
+        {featureRows.length === 0 ? (
+          <p className="text-sm text-slate-400">
+            No feature-level usage data available yet.
+          </p>
+        ) : (
           <ResponsiveContainer
             width="100%"
-            height={Math.max(240, aiBarData.length * 36)}
+            height={Math.max(260, featureRows.length * 36)}
           >
             <BarChart
-              data={aiBarData}
+              data={featureRows}
               layout="vertical"
-              margin={{ left: 110, right: 60, top: 4, bottom: 4 }}
+              margin={{ left: 120, right: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
               <XAxis
                 type="number"
-                tickFormatter={formatNumber}
-                tick={{ fontSize: 11 }}
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
               />
               <YAxis
                 type="category"
-                dataKey="email"
+                dataKey="feature"
                 width={120}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(email: string) =>
-                  email.includes('@') ? email.split('@')[0] : email
-                }
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
               />
-              <Tooltip
-                formatter={(value) => [
-                  formatNumber(Number(value ?? 0)),
-                  'API Calls',
-                ]}
-                labelFormatter={(label) => String(label ?? '')}
-              />
+              <Tooltip content={<CustomTooltip />} />
               <Bar
-                dataKey="calls"
-                name="API Calls"
-                fill="#ad2122"
-                radius={[0, 4, 4, 0]}
+                dataKey="count"
+                fill="#14b8a6"
+                radius={[0, 8, 8, 0]}
+                barSize={20}
               />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        )}
+      </PanelCard>
 
-      {aiBarData.length === 0 && (
-        <div className="bg-white rounded-2xl p-10 border border-slate-200 text-center text-slate-500">
-          No AI usage data available yet.
-        </div>
-      )}
+      <PanelCard title="Top AI Users">
+        {userRows.length === 0 ? (
+          <p className="text-sm text-slate-400">No AI users found.</p>
+        ) : (
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(260, userRows.length * 36)}
+          >
+            <BarChart
+              data={userRows}
+              layout="vertical"
+              margin={{ left: 90, right: 20 }}
+            >
+              <defs>
+                <linearGradient
+                  id="aiUsersGradient"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="0"
+                >
+                  <stop offset="0%" stopColor="#ad2122" />
+                  <stop offset="100%" stopColor="#e05d5e" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={90}
+                tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar
+                dataKey="calls"
+                fill="url(#aiUsersGradient)"
+                radius={[0, 8, 8, 0]}
+                barSize={20}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </PanelCard>
     </div>
   );
 };
 
-// ─── Tab: Users ───────────────────────────────────────────────────────────────
-
 type SortKey = 'name' | 'total' | 'monthly' | 'daily' | 'monthlyRate';
+type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
-const SortHeader: React.FC<{
-  label: string;
-  sortKey: SortKey;
-  current: { key: SortKey; dir: 'asc' | 'desc' };
-  onToggle: (key: SortKey) => void;
-  align?: string;
-}> = ({ label, sortKey, current, onToggle, align = 'text-right' }) => (
-  <th
-    className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider ${align}`}
-  >
-    <button
-      type="button"
-      onClick={() => onToggle(sortKey)}
-      className={`inline-flex items-center gap-1 transition-colors hover:text-slate-800 ${
-        current.key === sortKey ? 'text-brand-blue-primary' : ''
-      }`}
-    >
-      {label}
-      <ArrowUpDown className="w-3 h-3" />
-    </button>
-  </th>
-);
+type SortableRow = {
+  name: string;
+  total: number;
+  monthly: number;
+  daily: number;
+  monthlyRate: number;
+};
 
-type SortableRow = { name: string } & Record<string, number | string>;
-
-function sortRows<T extends SortableRow>(
-  rows: T[],
-  { key, dir }: { key: SortKey; dir: 'asc' | 'desc' }
-): T[] {
+function sortRows<T extends SortableRow>(rows: T[], sort: SortState): T[] {
+  const { key, dir } = sort;
   return [...rows].sort((a, b) => {
-    const av = key === 'name' ? a.name : a[key];
-    const bv = key === 'name' ? b.name : b[key];
+    const av = a[key];
+    const bv = b[key];
     if (typeof av === 'string' && typeof bv === 'string') {
       return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     }
-    return dir === 'asc'
-      ? (av as number) - (bv as number)
-      : (bv as number) - (av as number);
+    return dir === 'asc' ? Number(av) - Number(bv) : Number(bv) - Number(av);
   });
 }
 
 const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
-  const [domainSort, setDomainSort] = useState<{
-    key: SortKey;
-    dir: 'asc' | 'desc';
-  }>({ key: 'total', dir: 'desc' });
-  const [buildingSort, setBuildingSort] = useState<{
-    key: SortKey;
-    dir: 'asc' | 'desc';
-  }>({ key: 'total', dir: 'desc' });
+  const [domainSort, setDomainSort] = useState<SortState>({
+    key: 'total',
+    dir: 'desc',
+  });
+  const [buildingSort, setBuildingSort] = useState<SortState>({
+    key: 'total',
+    dir: 'desc',
+  });
 
   const domainRows = useMemo(
     () =>
@@ -570,16 +765,25 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
     [data.users.buildings, buildingSort]
   );
 
-  const toggleDomainSort = (key: SortKey) => {
-    setDomainSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
-        : { key, dir: 'desc' }
-    );
-  };
+  const buildingChartRows = useMemo(
+    () =>
+      Object.entries(data.users.buildings)
+        .map(([id, counts]) => ({
+          name:
+            id === 'none'
+              ? 'No Building Assigned'
+              : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`),
+          total: counts.total,
+        }))
+        .sort((a, b) => b.total - a.total),
+    [data.users.buildings]
+  );
 
-  const toggleBuildingSort = (key: SortKey) => {
-    setBuildingSort((prev) =>
+  const toggleSort = (
+    setter: React.Dispatch<React.SetStateAction<SortState>>,
+    key: SortKey
+  ) => {
+    setter((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
         : { key, dir: 'desc' }
@@ -587,190 +791,151 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Domain Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-            Users by Domain
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Multi-district: each school district appears as its own domain row.
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <SortHeader
-                  label="Domain"
-                  sortKey="name"
-                  current={domainSort}
-                  onToggle={toggleDomainSort}
-                  align="text-left"
-                />
-                <SortHeader
-                  label="Total"
-                  sortKey="total"
-                  current={domainSort}
-                  onToggle={toggleDomainSort}
-                />
-                <SortHeader
-                  label="Monthly Active"
-                  sortKey="monthly"
-                  current={domainSort}
-                  onToggle={toggleDomainSort}
-                />
-                <SortHeader
-                  label="MAU %"
-                  sortKey="monthlyRate"
-                  current={domainSort}
-                  onToggle={toggleDomainSort}
-                />
-                <SortHeader
-                  label="Daily Active"
-                  sortKey="daily"
-                  current={domainSort}
-                  onToggle={toggleDomainSort}
-                />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {domainRows.map((row) => (
-                <tr
-                  key={row.name}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-slate-800">
-                    {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.total)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.monthly)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-teal-600 font-medium text-right">
-                    {formatRate(row.monthlyRate)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.daily)}
-                  </td>
-                </tr>
-              ))}
-              {domainRows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-10 text-center text-slate-500 text-sm"
-                  >
-                    No domain data available yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PanelCard title="Users by Building (Distribution)">
+        <ResponsiveContainer
+          width="100%"
+          height={Math.max(260, buildingChartRows.length * 36)}
+        >
+          <BarChart
+            data={buildingChartRows}
+            layout="vertical"
+            margin={{ left: 120, right: 20 }}
+          >
+            <CartesianGrid stroke={chartTheme.grid} horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={120}
+              tick={{ fill: chartTheme.axisText, fontSize: 12 }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar
+              dataKey="total"
+              fill="#0d9488"
+              radius={[0, 8, 8, 0]}
+              barSize={20}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </PanelCard>
 
-      {/* Building Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-            Users by Building
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <SortHeader
-                  label="Building"
-                  sortKey="name"
-                  current={buildingSort}
-                  onToggle={toggleBuildingSort}
-                  align="text-left"
-                />
-                <SortHeader
-                  label="Total"
-                  sortKey="total"
-                  current={buildingSort}
-                  onToggle={toggleBuildingSort}
-                />
-                <SortHeader
-                  label="Monthly Active"
-                  sortKey="monthly"
-                  current={buildingSort}
-                  onToggle={toggleBuildingSort}
-                />
-                <SortHeader
-                  label="MAU %"
-                  sortKey="monthlyRate"
-                  current={buildingSort}
-                  onToggle={toggleBuildingSort}
-                />
-                <SortHeader
-                  label="Daily Active"
-                  sortKey="daily"
-                  current={buildingSort}
-                  onToggle={toggleBuildingSort}
-                />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {buildingRows.map((row) => (
-                <tr
-                  key={row.name}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-slate-800">
-                    {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.total)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.monthly)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-teal-600 font-medium text-right">
-                    {formatRate(row.monthlyRate)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">
-                    {formatNumber(row.daily)}
-                  </td>
-                </tr>
-              ))}
-              {buildingRows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-10 text-center text-slate-500 text-sm"
-                  >
-                    No building data available yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DarkTable
+        title="Users by Domain"
+        rows={domainRows}
+        sort={domainSort}
+        onSort={(key) => toggleSort(setDomainSort, key)}
+      />
+      <DarkTable
+        title="Users by Building"
+        rows={buildingRows}
+        sort={buildingSort}
+        onSort={(key) => toggleSort(setBuildingSort, key)}
+      />
     </div>
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+const DarkTable: React.FC<{
+  title: string;
+  rows: SortableRow[];
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+}> = ({ title, rows, sort, onSort }) => {
+  const header = (label: string, key: SortKey, align = 'text-right') => (
+    <th
+      className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 ${align}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(key)}
+        className="hover:text-white transition-colors"
+      >
+        {label}
+        {sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+      </button>
+    </th>
+  );
+
+  return (
+    <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/10">
+        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">
+          {title}
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px]">
+          <thead className="border-b border-white/10 bg-slate-900/40">
+            <tr>
+              {header('Name', 'name', 'text-left')}
+              {header('Total', 'total')}
+              {header('Monthly', 'monthly')}
+              {header('MAU %', 'monthlyRate')}
+              {header('Daily', 'daily')}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {rows.map((row) => (
+              <tr key={row.name} className="hover:bg-white/5 transition-colors">
+                <td className="px-4 py-3 text-sm font-medium text-slate-200">
+                  {row.name}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-300 text-right">
+                  {formatNumber(row.total)}
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-300 text-right">
+                  {formatNumber(row.monthly)}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="inline-flex items-center gap-2 w-32 justify-end">
+                    <span className="text-sm text-teal-300">
+                      {formatRate(row.monthlyRate)}
+                    </span>
+                    <span className="relative h-1.5 w-12 rounded-full bg-white/15 overflow-hidden">
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full bg-teal-400"
+                        style={{ width: `${Math.min(100, row.monthlyRate)}%` }}
+                      />
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-300 text-right">
+                  {formatNumber(row.daily)}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-slate-400 text-sm"
+                >
+                  No data available.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 
 export const AnalyticsManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<AnalyticsTab>('overview');
+  const [selectedDomain, setSelectedDomain] = useState('all');
+  const [selectedBuilding, setSelectedBuilding] = useState('all');
+
   const requestSequenceRef = useRef(0);
   const isMountedRef = useRef(true);
-
-  // Filters
-  const [selectedDomain, setSelectedDomain] = useState<string>('all');
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('all');
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -794,7 +959,6 @@ export const AnalyticsManager: React.FC = () => {
       const token = await user.getIdToken();
       const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
       const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
-
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -813,11 +977,38 @@ export const AnalyticsManager: React.FC = () => {
         throw new Error(msg);
       }
 
-      const nextData = (await response.json()) as AnalyticsData;
+      const raw = (await response.json()) as Partial<AnalyticsData>;
+      const normalized: AnalyticsData = {
+        users: {
+          total: raw.users?.total ?? 0,
+          registered: raw.users?.registered ?? raw.users?.total ?? 0,
+          monthly: raw.users?.monthly ?? 0,
+          daily: raw.users?.daily ?? 0,
+          withDashboards: raw.users?.withDashboards ?? 0,
+          domains: raw.users?.domains ?? {},
+          buildings: raw.users?.buildings ?? {},
+          domainBuilding: raw.users?.domainBuilding ?? {},
+        },
+        widgets: {
+          totalInstances: raw.widgets?.totalInstances ?? {},
+          activeInstances: raw.widgets?.activeInstances ?? {},
+          usersByType: raw.widgets?.usersByType,
+        },
+        dashboards: raw.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 },
+        api: {
+          totalCalls: raw.api?.totalCalls ?? 0,
+          activeUsers: raw.api?.activeUsers ?? 0,
+          topUsers: raw.api?.topUsers ?? [],
+          avgDailyCalls: raw.api?.avgDailyCalls ?? 0,
+          avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
+          byFeature: raw.api?.byFeature ?? {},
+        },
+      };
+
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
         return;
       }
-      setData(nextData);
+      setData(normalized);
     } catch (err: unknown) {
       console.error('Failed to load analytics', err);
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
@@ -850,6 +1041,7 @@ export const AnalyticsManager: React.FC = () => {
         filteredDaily: data.users.daily,
       };
     }
+
     if (selectedDomain === 'all') {
       const bucket = data.users.buildings[selectedBuilding];
       return {
@@ -858,6 +1050,7 @@ export const AnalyticsManager: React.FC = () => {
         filteredDaily: bucket?.daily ?? 0,
       };
     }
+
     if (selectedBuilding === 'all') {
       const bucket = data.users.domains[selectedDomain];
       return {
@@ -866,6 +1059,7 @@ export const AnalyticsManager: React.FC = () => {
         filteredDaily: bucket?.daily ?? 0,
       };
     }
+
     const bucket =
       data.users.domainBuilding[selectedDomain]?.[selectedBuilding];
     return {
@@ -873,12 +1067,13 @@ export const AnalyticsManager: React.FC = () => {
       filteredMonthly: bucket?.monthly ?? 0,
       filteredDaily: bucket?.daily ?? 0,
     };
-  }, [data, selectedDomain, selectedBuilding]);
+  }, [data, selectedBuilding, selectedDomain]);
 
   const uniqueDomains = useMemo(
     () => (data ? Object.keys(data.users.domains).filter(Boolean).sort() : []),
     [data]
   );
+
   const buildingOptions = useMemo(
     () =>
       data
@@ -892,20 +1087,45 @@ export const AnalyticsManager: React.FC = () => {
         : [],
     [data]
   );
+
   const hasNoBuildingUsers = Boolean(data?.users.buildings.none);
+
+  const tabs: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: <LayoutGrid className="w-4 h-4" />,
+    },
+    {
+      id: 'widgets',
+      label: 'Widgets',
+      icon: <BarChart2 className="w-4 h-4" />,
+    },
+    { id: 'ai', label: 'AI Usage', icon: <WandSparkles className="w-4 h-4" /> },
+    { id: 'users', label: 'Users', icon: <School className="w-4 h-4" /> },
+  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-slate-500">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-blue-primary mr-3" />
-        Processing analytics...
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-slate-800/60 border border-white/10 rounded-2xl p-5 animate-pulse"
+            >
+              <div className="h-3 w-20 bg-slate-700 rounded mb-3" />
+              <div className="h-8 w-16 bg-slate-700 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 text-red-700 p-6 rounded-2xl flex items-start gap-3">
+      <div className="bg-red-900/25 border border-red-400/30 text-red-200 p-6 rounded-2xl flex items-start gap-3">
         <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
         <div>
           <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
@@ -917,30 +1137,14 @@ export const AnalyticsManager: React.FC = () => {
 
   if (!data) return null;
 
-  const TABS: { id: AnalyticsTab; label: string; icon: React.ReactNode }[] = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      icon: <LayoutGrid className="w-4 h-4" />,
-    },
-    {
-      id: 'widgets',
-      label: 'Widgets',
-      icon: <BarChart2 className="w-4 h-4" />,
-    },
-    { id: 'ai', label: 'AI Usage', icon: <Zap className="w-4 h-4" /> },
-    { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
-  ];
-
   return (
     <div className="space-y-5 pb-12">
-      {/* Header: filters + refresh */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <select
             value={selectedDomain}
             onChange={(e) => setSelectedDomain(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue-primary bg-white"
+            className="border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-200 bg-slate-900/60 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Domains</option>
             {uniqueDomains.map((d) => (
@@ -952,7 +1156,7 @@ export const AnalyticsManager: React.FC = () => {
           <select
             value={selectedBuilding}
             onChange={(e) => setSelectedBuilding(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-blue-primary bg-white"
+            className="border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-200 bg-slate-900/60 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Buildings</option>
             {hasNoBuildingUsers && (
@@ -965,72 +1169,58 @@ export const AnalyticsManager: React.FC = () => {
             ))}
           </select>
         </div>
+
         <button
           type="button"
-          disabled={loading}
           onClick={() => void fetchAnalytics()}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 self-start sm:self-auto"
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
       </div>
 
-      {/* Tab bar */}
-      <div role="tablist" className="flex gap-1 border-b border-slate-200">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            type="button"
-            aria-selected={selectedTab === tab.id}
-            aria-controls={`panel-${tab.id}`}
-            id={`tab-${tab.id}`}
-            onClick={() => setSelectedTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${
-              selectedTab === tab.id
-                ? 'border-brand-blue-primary text-brand-blue-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      <div
+        className="sticky top-0 z-10 bg-slate-950/70 backdrop-blur-md rounded-xl border border-white/10 p-1.5"
+        role="tablist"
+      >
+        <div className="flex gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              type="button"
+              aria-selected={selectedTab === tab.id}
+              onClick={() => setSelectedTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+                selectedTab === tab.id
+                  ? 'bg-blue-500/20 border-blue-400/60 text-blue-100'
+                  : 'bg-transparent border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Tab panels */}
-      <div className="animate-in fade-in duration-200">
-        {selectedTab === 'overview' && (
-          <div
-            role="tabpanel"
-            id="panel-overview"
-            aria-labelledby="tab-overview"
-          >
-            <OverviewPanel
-              data={data}
-              filteredTotalUsers={filteredTotalUsers}
-              filteredMonthly={filteredMonthly}
-              filteredDaily={filteredDaily}
-            />
-          </div>
-        )}
-        {selectedTab === 'widgets' && (
-          <div role="tabpanel" id="panel-widgets" aria-labelledby="tab-widgets">
-            <WidgetsPanel data={data} />
-          </div>
-        )}
-        {selectedTab === 'ai' && (
-          <div role="tabpanel" id="panel-ai" aria-labelledby="tab-ai">
-            <AiPanel data={data} />
-          </div>
-        )}
-        {selectedTab === 'users' && (
-          <div role="tabpanel" id="panel-users" aria-labelledby="tab-users">
-            <UsersPanel data={data} />
-          </div>
-        )}
-      </div>
+      {selectedTab === 'overview' && (
+        <OverviewPanel
+          data={data}
+          filteredTotalUsers={filteredTotalUsers}
+          filteredMonthly={filteredMonthly}
+          filteredDaily={filteredDaily}
+          registeredUsers={data.users.registered ?? data.users.total}
+          usersWithDashboards={data.users.withDashboards ?? 0}
+          dashboards={
+            data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
+          }
+        />
+      )}
+      {selectedTab === 'widgets' && <WidgetsPanel data={data} />}
+      {selectedTab === 'ai' && <AiPanel data={data} />}
+      {selectedTab === 'users' && <UsersPanel data={data} />}
     </div>
   );
 };
