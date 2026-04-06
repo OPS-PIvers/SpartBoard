@@ -123,7 +123,7 @@ const CustomTooltip = ({
 
   return (
     <div className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-slate-200 shadow-lg">
-      {label && <p className="mb-1 text-slate-400">{label}</p>}
+      {label != null && <p className="mb-1 text-slate-400">{label}</p>}
       <div className="space-y-1">
         {payload.map((entry, idx) => (
           <p key={`${entry.name ?? 'item'}-${idx}`} className="font-medium">
@@ -859,20 +859,30 @@ const DarkTable: React.FC<{
   sort: SortState;
   onSort: (key: SortKey) => void;
 }> = ({ title, rows, sort, onSort }) => {
-  const header = (label: string, key: SortKey, align = 'text-right') => (
-    <th
-      className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 ${align}`}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(key)}
-        className="hover:text-white transition-colors"
+  const header = (label: string, key: SortKey, align = 'text-right') => {
+    const ariaSort =
+      sort.key === key
+        ? sort.dir === 'desc'
+          ? 'descending'
+          : 'ascending'
+        : 'none';
+    return (
+      <th
+        scope="col"
+        aria-sort={ariaSort}
+        className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 ${align}`}
       >
-        {label}
-        {sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}
-      </button>
-    </th>
-  );
+        <button
+          type="button"
+          onClick={() => onSort(key)}
+          className="hover:text-white transition-colors"
+        >
+          {label}
+          {sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}
+        </button>
+      </th>
+    );
+  };
 
   return (
     <div className="bg-slate-800/60 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden">
@@ -995,7 +1005,9 @@ export const AnalyticsManager: React.FC = () => {
         users: {
           total: raw.users?.total ?? 0,
           registered: raw.users?.registered ?? raw.users?.total ?? 0,
-          registeredIsFallback: raw.users?.registered === undefined,
+          registeredIsFallback:
+            raw.users?.registeredIsFallback ??
+            raw.users?.registered === undefined,
           monthly: raw.users?.monthly ?? 0,
           daily: raw.users?.daily ?? 0,
           withDashboards: raw.users?.withDashboards ?? 0,
@@ -1158,6 +1170,7 @@ export const AnalyticsManager: React.FC = () => {
           <select
             value={selectedDomain}
             onChange={(e) => setSelectedDomain(e.target.value)}
+            aria-label="Filter by domain"
             className="border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-200 bg-slate-900/60 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Domains</option>
@@ -1170,6 +1183,7 @@ export const AnalyticsManager: React.FC = () => {
           <select
             value={selectedBuilding}
             onChange={(e) => setSelectedBuilding(e.target.value)}
+            aria-label="Filter by building"
             className="border border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-200 bg-slate-900/60 outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Buildings</option>

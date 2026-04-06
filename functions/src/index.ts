@@ -1995,6 +1995,7 @@ export const adminAnalytics = functionsV1
         // Get authoritative registered user count from Firebase Auth
         // Cached in-memory per function instance to reduce repeated full scans.
         let totalRegisteredUsers = totalEngagement.total;
+        let registeredIsFallback = false;
         const isCacheFresh =
           registeredUsersCache !== null &&
           now - registeredUsersCache.fetchedAt <= REGISTERED_USERS_CACHE_TTL_MS;
@@ -2019,6 +2020,7 @@ export const adminAnalytics = functionsV1
               authErr
             );
             totalRegisteredUsers = totalEngagement.total;
+            registeredIsFallback = true;
           }
         }
 
@@ -2065,8 +2067,17 @@ export const adminAnalytics = functionsV1
                   widgetUserEmails[u.uid] = u.email;
                 }
               });
-            } catch {
-              // non-fatal, leave as Unknown
+            } catch (error) {
+              console.warn(
+                '[getAdminAnalytics] Failed to resolve widget user emails via auth fallback',
+                {
+                  chunkSize: chunk.length,
+                  chunkStart: i,
+                  totalIdentifiers: identifiers.length,
+                  totalUnresolvedUids: unresolvedWidgetUids.length,
+                  error,
+                }
+              );
             }
           }
         }
@@ -2187,8 +2198,17 @@ export const adminAnalytics = functionsV1
                   topUserEmails[u.uid] = u.email;
                 }
               });
-            } catch {
-              // non-fatal, leave as Unknown
+            } catch (error) {
+              console.warn(
+                '[getAdminAnalytics] Failed to resolve top user emails via auth fallback',
+                {
+                  chunkSize: chunk.length,
+                  chunkStart: i,
+                  totalIdentifiers: identifiers.length,
+                  totalUnresolvedUids: unresolvedTopUserUids.length,
+                  error,
+                }
+              );
             }
           }
         }
@@ -2207,6 +2227,7 @@ export const adminAnalytics = functionsV1
           users: {
             total: totalEngagement.total,
             registered: totalRegisteredUsers,
+            registeredIsFallback,
             monthly: totalEngagement.monthly,
             daily: totalEngagement.daily,
             withDashboards: allDashboardOwnerUids.size,
