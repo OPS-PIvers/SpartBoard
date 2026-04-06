@@ -90,7 +90,9 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                       })}
                     </p>
                     <p className="text-xxs text-emerald-600 mt-0.5">
-                      Files sync automatically
+                      {t('sidebar.settings.filesSyncAuto', {
+                        defaultValue: 'Files sync automatically',
+                      })}
                     </p>
                   </div>
                 </>
@@ -106,7 +108,9 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                       })}
                     </p>
                     <p className="text-xxs text-amber-600 mt-0.5">
-                      Connect to enable cloud backup
+                      {t('sidebar.settings.connectForBackup', {
+                        defaultValue: 'Connect to enable cloud backup',
+                      })}
                     </p>
                   </div>
                 </>
@@ -122,7 +126,9 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-sm"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh
+                    {t('sidebar.settings.refresh', {
+                      defaultValue: 'Refresh',
+                    })}
                   </button>
                   <button
                     onClick={() => disconnectGoogleDrive()}
@@ -151,21 +157,31 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
           {/* Info Section */}
           <div className="space-y-3">
             <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
-              How it works
+              {t('sidebar.settings.howItWorks', {
+                defaultValue: 'How it works',
+              })}
             </h3>
             <div className="space-y-2.5">
               {[
                 {
                   step: '1',
-                  text: 'Boards are saved as JSON files in your Drive',
+                  text: t('sidebar.settings.driveStep1', {
+                    defaultValue:
+                      'Boards are saved as JSON files in your Drive',
+                  }),
                 },
                 {
                   step: '2',
-                  text: 'Uploaded images and assets sync automatically',
+                  text: t('sidebar.settings.driveStep2', {
+                    defaultValue:
+                      'Uploaded images and assets sync automatically',
+                  }),
                 },
                 {
                   step: '3',
-                  text: 'Access your boards from any device',
+                  text: t('sidebar.settings.driveStep3', {
+                    defaultValue: 'Access your boards from any device',
+                  }),
                 },
               ].map((item) => (
                 <div key={item.step} className="flex items-start gap-3 px-1">

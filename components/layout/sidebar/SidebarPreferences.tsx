@@ -37,8 +37,10 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              Customize how your board behaves. These settings apply to the
-              current board.
+              {t('sidebar.settings.preferencesDescription', {
+                defaultValue:
+                  'Customize how your board behaves. These settings apply to the current board.',
+              })}
             </p>
           </div>
 
@@ -86,7 +88,9 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-bold text-slate-700">
-                    Remote Control
+                    {t('sidebar.settings.remoteControl', {
+                      defaultValue: 'Remote Control',
+                    })}
                   </span>
                   <Toggle
                     size="sm"
@@ -101,7 +105,10 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                   />
                 </div>
                 <p className="text-xxs text-slate-500 mt-1 leading-relaxed pr-2">
-                  Allow controlling this board remotely from another device.
+                  {t('sidebar.settings.remoteControlDescription', {
+                    defaultValue:
+                      'Allow controlling this board remotely from another device.',
+                  })}
                 </p>
               </div>
             </div>
@@ -110,8 +117,13 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
           {/* Info Note */}
           <div className="px-3 py-3 bg-brand-blue-lighter/30 rounded-xl border border-brand-blue-lighter">
             <p className="text-xxs text-brand-blue-primary leading-relaxed">
-              <span className="font-bold">Tip:</span> These preferences are
-              saved per board. Switch boards to configure them independently.
+              <span className="font-bold">
+                {t('sidebar.settings.tip', { defaultValue: 'Tip:' })}
+              </span>{' '}
+              {t('sidebar.settings.preferencesTip', {
+                defaultValue:
+                  'These preferences are saved per board. Switch boards to configure them independently.',
+              })}
             </p>
           </div>
         </div>

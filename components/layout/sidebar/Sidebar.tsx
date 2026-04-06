@@ -453,7 +453,11 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <GoogleDriveIcon className="w-4 h-4" />
                     </div>
-                    <span className="flex-grow text-[13px]">Google Drive</span>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.googleDrive', {
+                        defaultValue: 'Google Drive',
+                      })}
+                    </span>
                     <div
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
                     />
@@ -467,7 +471,9 @@ export const Sidebar: React.FC = () => {
                       <Globe className="w-4 h-4 text-violet-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
                     <span className="flex-grow text-[13px]">
-                      Language & Region
+                      {t('sidebar.nav.languageRegion', {
+                        defaultValue: 'Language & Region',
+                      })}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
@@ -478,7 +484,11 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <SlidersHorizontal className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">Preferences</span>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.preferences', {
+                        defaultValue: 'Preferences',
+                      })}
+                    </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                 </div>
