@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useWindowSize } from './useWindowSize';
+import { useWindowSize, windowSizeStore } from './useWindowSize';
 
 describe('useWindowSize', () => {
   const originalInnerWidth = window.innerWidth;
@@ -10,6 +10,8 @@ describe('useWindowSize', () => {
     // Reset window size before each test
     window.innerWidth = 1024;
     window.innerHeight = 768;
+    windowSizeStore.listeners.clear();
+    windowSizeStore.snapshot = { width: 1024, height: 768 };
     vi.clearAllMocks();
   });
 
