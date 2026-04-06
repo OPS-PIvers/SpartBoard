@@ -6,6 +6,7 @@ import {
   ExpectationsConfig,
   ExpectationsGlobalConfig,
 } from '@/types';
+import * as Icons from 'lucide-react';
 import {
   Volume2,
   Users,
@@ -26,7 +27,7 @@ import {
 export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget } = useDashboard();
+  const { updateWidget, addWidget } = useDashboard();
   const { featurePermissions, selectedBuildings } = useAuth();
   const config = widget.config as ExpectationsConfig;
   const { voiceLevel = null, workMode = null, interactionMode = null } = config;
@@ -124,6 +125,21 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     </div>
   );
 
+  const handleLaunchSticker = (icon: string, label: string, color: string) => {
+    addWidget('sticker', {
+      x: 100,
+      y: 100,
+      w: 150,
+      h: 150,
+      config: {
+        icon,
+        label,
+        color,
+        rotation: 0,
+      },
+    });
+  };
+
   const renderVolumeView = () => (
     <WidgetLayout
       padding="p-0"
@@ -134,78 +150,93 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(8px, 1.5cqmin)' }}
         >
-          {activeVolumeOptions.map((v) => (
-            <button
-              key={v.id}
-              onClick={() =>
-                updateConfig({ voiceLevel: voiceLevel === v.id ? null : v.id })
-              }
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
-                voiceLevel === v.id
-                  ? `${v.bg} border-current ${v.color} shadow-sm`
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-              }`}
-              style={{
-                gap: 'min(20px, 4cqmin)',
-                padding: 'min(12px, 2.5cqmin)',
-              }}
-            >
-              <div
-                className={`rounded-xl flex flex-col items-center justify-center shrink-0 ${
-                  voiceLevel === v.id ? 'bg-white' : 'bg-slate-50'
+          {activeVolumeOptions.map((v) => {
+            const Icon =
+              (Icons as Record<string, React.ElementType>)[v.icon] ??
+              Icons.HelpCircle;
+            return (
+              <button
+                key={v.id}
+                onClick={() => {
+                  updateConfig({
+                    voiceLevel: voiceLevel === v.id ? null : v.id,
+                  });
+                  if (voiceLevel !== v.id) {
+                    handleLaunchSticker(v.icon, v.label, v.bg.split('-')[1]);
+                  }
+                }}
+                className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
+                  voiceLevel === v.id
+                    ? `${v.bg} border-current ${v.color} shadow-sm`
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                 }`}
                 style={{
-                  width: 'min(72px, 18cqmin)',
-                  height: 'min(72px, 18cqmin)',
-                  padding: 'min(8px, 2cqmin)',
-                  gap: 'min(2px, 0.5cqmin)',
+                  gap: 'min(20px, 4cqmin)',
+                  padding: 'min(12px, 2.5cqmin)',
                 }}
               >
                 <div
-                  className="font-black uppercase tracking-tight opacity-30 leading-none"
-                  style={{ fontSize: 'min(8px, 2.2cqmin)' }}
-                >
-                  Level
-                </div>
-                <div
-                  className="font-black leading-none mb-0.5"
-                  style={{ fontSize: 'min(14px, 3.8cqmin)' }}
-                >
-                  {v.id}
-                </div>
-                <v.icon
+                  className={`rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm border ${
+                    voiceLevel === v.id
+                      ? 'bg-white border-white/50'
+                      : 'bg-slate-50 border-slate-100'
+                  }`}
                   style={{
-                    width: 'min(32px, 8cqmin)',
-                    height: 'min(32px, 8cqmin)',
+                    width: 'min(80px, 22cqmin)',
+                    height: 'min(80px, 22cqmin)',
+                    padding: 'min(8px, 2cqmin)',
+                    gap: 'min(2px, 0.5cqmin)',
                   }}
-                  strokeWidth={2.5}
-                />
-              </div>
-              <div className="text-left">
-                <div
-                  className="font-black uppercase leading-tight"
-                  style={{ fontSize: 'min(24px, 8cqmin)' }}
                 >
-                  {v.label}
+                  <Icon
+                    style={{
+                      width: 'min(44px, 11cqmin)',
+                      height: 'min(44px, 11cqmin)',
+                    }}
+                    strokeWidth={2.5}
+                    className={voiceLevel === v.id ? v.color : 'text-slate-600'}
+                  />
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="font-black uppercase tracking-tight opacity-30 leading-none"
+                      style={{ fontSize: 'min(6px, 1.6cqmin)' }}
+                    >
+                      Level
+                    </div>
+                    <div
+                      className="font-black leading-none"
+                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    >
+                      {v.id}
+                    </div>
+                  </div>
                 </div>
-                <div
-                  className="font-bold opacity-60 uppercase"
-                  style={{ fontSize: 'min(14px, 5cqmin)' }}
-                >
-                  {v.sub}
+                <div className="text-left">
+                  <div
+                    className="font-black uppercase leading-tight"
+                    style={{ fontSize: 'min(24px, 8cqmin)' }}
+                  >
+                    {v.label}
+                  </div>
+                  <div
+                    className="font-bold opacity-60 uppercase"
+                    style={{ fontSize: 'min(14px, 5cqmin)' }}
+                  >
+                    {v.sub}
+                  </div>
                 </div>
-              </div>
-              {voiceLevel === v.id && (
-                <CheckCircle2
-                  className="ml-auto"
-                  style={{
-                    width: 'min(28px, 7cqmin)',
-                    height: 'min(28px, 7cqmin)',
-                  }}
-                />
-              )}
-            </button>
-          ))}
+                {voiceLevel === v.id && (
+                  <CheckCircle2
+                    className="ml-auto"
+                    style={{
+                      width: 'min(28px, 7cqmin)',
+                      height: 'min(28px, 7cqmin)',
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       }
     />
@@ -221,46 +252,68 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
-          {activeGroupOptions.map((g) => (
-            <button
-              key={g.id}
-              onClick={() =>
-                updateConfig({ workMode: workMode === g.id ? null : g.id })
-              }
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
-                workMode === g.id
-                  ? `${g.bg} border-current ${g.color} shadow-sm`
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-              }`}
-              style={{
-                gap: 'min(20px, 4cqmin)',
-                padding: 'min(16px, 3.5cqmin)',
-              }}
-            >
-              <g.icon
-                style={{
-                  width: 'min(40px, 10cqmin)',
-                  height: 'min(40px, 10cqmin)',
+          {activeGroupOptions.map((g) => {
+            const Icon =
+              (Icons as Record<string, React.ElementType>)[g.icon] ??
+              Icons.HelpCircle;
+            return (
+              <button
+                key={g.id}
+                onClick={() => {
+                  updateConfig({ workMode: workMode === g.id ? null : g.id });
+                  if (workMode !== g.id) {
+                    handleLaunchSticker(g.icon, g.label, g.bg.split('-')[1]);
+                  }
                 }}
-                strokeWidth={2.5}
-              />
-              <span
-                className="font-black uppercase tracking-wide"
-                style={{ fontSize: 'min(24px, 8cqmin)' }}
+                className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
+                  workMode === g.id
+                    ? `${g.bg} border-current ${g.color} shadow-sm`
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                }`}
+                style={{
+                  gap: 'min(20px, 4cqmin)',
+                  padding: 'min(16px, 3.5cqmin)',
+                }}
               >
-                {g.label}
-              </span>
-              {workMode === g.id && (
-                <CheckCircle2
-                  className="ml-auto"
+                <div
+                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
+                    workMode === g.id
+                      ? 'bg-white border-white/50'
+                      : 'bg-slate-50 border-slate-100'
+                  }`}
                   style={{
-                    width: 'min(28px, 7cqmin)',
-                    height: 'min(28px, 7cqmin)',
+                    width: 'min(72px, 18cqmin)',
+                    height: 'min(72px, 18cqmin)',
+                    padding: 'min(12px, 2.5cqmin)',
                   }}
-                />
-              )}
-            </button>
-          ))}
+                >
+                  <Icon
+                    style={{
+                      width: 'min(44px, 11cqmin)',
+                      height: 'min(44px, 11cqmin)',
+                    }}
+                    strokeWidth={2.5}
+                    className={workMode === g.id ? g.color : 'text-slate-600'}
+                  />
+                </div>
+                <span
+                  className="font-black uppercase tracking-wide"
+                  style={{ fontSize: 'min(24px, 8cqmin)' }}
+                >
+                  {g.label}
+                </span>
+                {workMode === g.id && (
+                  <CheckCircle2
+                    className="ml-auto"
+                    style={{
+                      width: 'min(28px, 7cqmin)',
+                      height: 'min(28px, 7cqmin)',
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       }
     />
@@ -276,48 +329,72 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-1 min-h-0 overflow-y-auto flex flex-col custom-scrollbar w-full animate-in slide-in-from-right duration-200"
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
-          {activeInteractionOptions.map((i) => (
-            <button
-              key={i.id}
-              onClick={() =>
-                updateConfig({
-                  interactionMode: interactionMode === i.id ? null : i.id,
-                })
-              }
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
-                interactionMode === i.id
-                  ? `${i.bg} border-current ${i.color} shadow-sm`
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-              }`}
-              style={{
-                gap: 'min(20px, 4cqmin)',
-                padding: 'min(16px, 3.5cqmin)',
-              }}
-            >
-              <i.icon
-                style={{
-                  width: 'min(40px, 10cqmin)',
-                  height: 'min(40px, 10cqmin)',
+          {activeInteractionOptions.map((i) => {
+            const Icon =
+              (Icons as Record<string, React.ElementType>)[i.icon] ??
+              Icons.HelpCircle;
+            return (
+              <button
+                key={i.id}
+                onClick={() => {
+                  updateConfig({
+                    interactionMode: interactionMode === i.id ? null : i.id,
+                  });
+                  if (interactionMode !== i.id) {
+                    handleLaunchSticker(i.icon, i.label, i.bg.split('-')[1]);
+                  }
                 }}
-                strokeWidth={2.5}
-              />
-              <span
-                className="font-black uppercase tracking-wide"
-                style={{ fontSize: 'min(24px, 8cqmin)' }}
+                className={`flex-1 flex items-center rounded-2xl border-2 transition-all ${
+                  interactionMode === i.id
+                    ? `${i.bg} border-current ${i.color} shadow-sm`
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                }`}
+                style={{
+                  gap: 'min(20px, 4cqmin)',
+                  padding: 'min(16px, 3.5cqmin)',
+                }}
               >
-                {i.label}
-              </span>
-              {interactionMode === i.id && (
-                <CheckCircle2
-                  className="ml-auto"
+                <div
+                  className={`rounded-2xl flex items-center justify-center shrink-0 shadow-sm border ${
+                    interactionMode === i.id
+                      ? 'bg-white border-white/50'
+                      : 'bg-slate-50 border-slate-100'
+                  }`}
                   style={{
-                    width: 'min(28px, 7cqmin)',
-                    height: 'min(28px, 7cqmin)',
+                    width: 'min(72px, 18cqmin)',
+                    height: 'min(72px, 18cqmin)',
+                    padding: 'min(12px, 2.5cqmin)',
                   }}
-                />
-              )}
-            </button>
-          ))}
+                >
+                  <Icon
+                    style={{
+                      width: 'min(44px, 11cqmin)',
+                      height: 'min(44px, 11cqmin)',
+                    }}
+                    strokeWidth={2.5}
+                    className={
+                      interactionMode === i.id ? i.color : 'text-slate-600'
+                    }
+                  />
+                </div>
+                <span
+                  className="font-black uppercase tracking-wide"
+                  style={{ fontSize: 'min(24px, 8cqmin)' }}
+                >
+                  {i.label}
+                </span>
+                {interactionMode === i.id && (
+                  <CheckCircle2
+                    className="ml-auto"
+                    style={{
+                      width: 'min(28px, 7cqmin)',
+                      height: 'min(28px, 7cqmin)',
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       }
     />
@@ -378,7 +455,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-xl transition-colors ${selectedVolume ? 'bg-white' : 'bg-slate-50'}`}
+                className={`rounded-2xl transition-all shadow-sm border ${
+                  selectedVolume
+                    ? 'bg-white border-white/50'
+                    : 'bg-slate-50 border-slate-100'
+                }`}
                 style={{
                   width: '18cqmin',
                   height: '18cqmin',
@@ -392,29 +473,44 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedVolume ? (
                   <>
-                    <div
-                      className="font-black uppercase tracking-tight opacity-30 leading-none"
-                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-                    >
-                      Level
-                    </div>
-                    <div
-                      className="font-black leading-none mb-1"
-                      style={{ fontSize: 'min(18px, 4.5cqmin)' }}
-                    >
-                      {selectedVolume.id}
-                    </div>
-                    <selectedVolume.icon
-                      style={{
-                        width: 'min(40px, 10cqmin)',
-                        height: 'min(40px, 10cqmin)',
-                      }}
-                      strokeWidth={2.5}
+                    <Icons.Volume2
+                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedVolume.color}`}
+                      style={{ width: '100%', height: '100%' }}
                     />
+                    {(() => {
+                      const Icon =
+                        (Icons as Record<string, React.ElementType>)[
+                          selectedVolume.icon
+                        ] ?? Icons.Volume2;
+                      return (
+                        <Icon
+                          style={{
+                            width: 'min(48px, 11cqmin)',
+                            height: 'min(48px, 11cqmin)',
+                          }}
+                          strokeWidth={2.5}
+                          className={selectedVolume.color}
+                        />
+                      );
+                    })()}
+                    <div className="flex flex-col items-center">
+                      <div
+                        className="font-black uppercase tracking-tight opacity-30 leading-none"
+                        style={{ fontSize: 'min(8px, 2.2cqmin)' }}
+                      >
+                        Level
+                      </div>
+                      <div
+                        className="font-black leading-none"
+                        style={{ fontSize: 'min(14px, 3.8cqmin)' }}
+                      >
+                        {selectedVolume.id}
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <Volume2
-                    style={{ width: '100%', height: '100%' }}
+                    style={{ width: '70%', height: '70%' }}
                     strokeWidth={2.5}
                   />
                 )}
@@ -450,7 +546,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-xl transition-colors ${selectedGroup ? 'bg-white' : 'bg-slate-50'}`}
+                className={`rounded-2xl transition-all shadow-sm border ${
+                  selectedGroup
+                    ? 'bg-white border-white/50'
+                    : 'bg-slate-50 border-slate-100'
+                }`}
                 style={{
                   width: '18cqmin',
                   height: '18cqmin',
@@ -460,10 +560,26 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                   justifyContent: 'center',
                 }}
               >
-                <Users
-                  style={{ width: '100%', height: '100%' }}
-                  strokeWidth={2.5}
-                />
+                {selectedGroup ? (
+                  (() => {
+                    const Icon =
+                      (Icons as Record<string, React.ElementType>)[
+                        selectedGroup.icon
+                      ] ?? Icons.Users;
+                    return (
+                      <Icon
+                        style={{ width: '80%', height: '80%' }}
+                        strokeWidth={2.5}
+                        className={selectedGroup.color}
+                      />
+                    );
+                  })()
+                ) : (
+                  <Users
+                    style={{ width: '100%', height: '100%' }}
+                    strokeWidth={2.5}
+                  />
+                )}
               </div>
               <div className="text-left flex-1 min-w-0">
                 <div
@@ -496,7 +612,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-xl transition-colors ${selectedInteraction ? 'bg-white' : 'bg-slate-50'}`}
+                className={`rounded-2xl transition-all shadow-sm border ${
+                  selectedInteraction
+                    ? 'bg-white border-white/50'
+                    : 'bg-slate-50 border-slate-100'
+                }`}
                 style={{
                   width: '18cqmin',
                   height: '18cqmin',
@@ -506,10 +626,26 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                   justifyContent: 'center',
                 }}
               >
-                <MessagesSquare
-                  style={{ width: '100%', height: '100%' }}
-                  strokeWidth={2.5}
-                />
+                {selectedInteraction ? (
+                  (() => {
+                    const Icon =
+                      (Icons as Record<string, React.ElementType>)[
+                        selectedInteraction.icon
+                      ] ?? Icons.MessagesSquare;
+                    return (
+                      <Icon
+                        style={{ width: '80%', height: '80%' }}
+                        strokeWidth={2.5}
+                        className={selectedInteraction.color}
+                      />
+                    );
+                  })()
+                ) : (
+                  <MessagesSquare
+                    style={{ width: '100%', height: '100%' }}
+                    strokeWidth={2.5}
+                  />
+                )}
               </div>
               <div className="text-left flex-1 min-w-0">
                 <div
