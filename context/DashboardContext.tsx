@@ -1909,9 +1909,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const loadDashboard = useCallback(
     (id: string) => {
       setActiveId(id);
+      setZoom(1);
       addToast('Board loaded');
     },
-    [addToast]
+    [addToast, setZoom]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
