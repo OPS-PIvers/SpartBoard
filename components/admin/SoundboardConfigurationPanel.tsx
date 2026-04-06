@@ -150,9 +150,19 @@ export const SoundboardConfigurationPanel: React.FC<
       (getBuildingConfig(buildingId)[key] ?? []).includes(soundId)
     );
 
+    const nextBuildingDefaults: Record<string, SoundboardBuildingConfig> = {
+      ...buildingDefaults,
+    };
     ALL_BUILDING_IDS.forEach((buildingId) => {
-      setSoundEnabledForBuilding(soundId, buildingId, key, !allEnabled);
+      const current = getBuildingConfig(buildingId);
+      const currentIds = current[key] ?? [];
+      const nextIds = !allEnabled
+        ? Array.from(new Set([...currentIds, soundId]))
+        : currentIds.filter((id) => id !== soundId);
+      nextBuildingDefaults[buildingId] = { ...current, [key]: nextIds };
     });
+
+    onChange({ ...config, buildingDefaults: nextBuildingDefaults });
   };
 
   const testSound = async (id: string, url: string) => {
