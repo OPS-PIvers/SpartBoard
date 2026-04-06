@@ -1832,6 +1832,10 @@ export const adminAnalytics = functionsV1
         do {
           const listResult = await admin.auth().listUsers(1000, authPageToken);
           for (const u of listResult.users) {
+            // Skip anonymous auth users (student accounts) — they have no
+            // linked providers and no email, and should not appear in analytics.
+            if (!u.email && u.providerData.length === 0) continue;
+
             const lastSignIn = u.metadata.lastSignInTime
               ? new Date(u.metadata.lastSignInTime).getTime()
               : 0;
