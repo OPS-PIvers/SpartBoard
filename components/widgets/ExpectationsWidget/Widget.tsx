@@ -140,6 +140,10 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
+  const getIcon = (iconName: string, fallback: React.ElementType) => {
+    return (Icons as Record<string, React.ElementType>)[iconName] ?? fallback;
+  };
+
   const renderVolumeView = () => (
     <WidgetLayout
       padding="p-0"
@@ -151,9 +155,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(8px, 1.5cqmin)' }}
         >
           {activeVolumeOptions.map((v) => {
-            const Icon =
-              (Icons as Record<string, React.ElementType>)[v.icon] ??
-              Icons.HelpCircle;
+            const Icon = getIcon(v.icon, Icons.HelpCircle);
             return (
               <button
                 key={v.id}
@@ -253,9 +255,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
           {activeGroupOptions.map((g) => {
-            const Icon =
-              (Icons as Record<string, React.ElementType>)[g.icon] ??
-              Icons.HelpCircle;
+            const Icon = getIcon(g.icon, Icons.HelpCircle);
             return (
               <button
                 key={g.id}
@@ -330,9 +330,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
           {activeInteractionOptions.map((i) => {
-            const Icon =
-              (Icons as Record<string, React.ElementType>)[i.icon] ??
-              Icons.HelpCircle;
+            const Icon = getIcon(i.icon, Icons.HelpCircle);
             return (
               <button
                 key={i.id}
@@ -478,10 +476,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                       style={{ width: '100%', height: '100%' }}
                     />
                     {(() => {
-                      const Icon =
-                        (Icons as Record<string, React.ElementType>)[
-                          selectedVolume.icon
-                        ] ?? Icons.Volume2;
+                      const Icon = getIcon(selectedVolume.icon, Icons.Volume2);
                       return (
                         <Icon
                           style={{
@@ -562,10 +557,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedGroup ? (
                   (() => {
-                    const Icon =
-                      (Icons as Record<string, React.ElementType>)[
-                        selectedGroup.icon
-                      ] ?? Icons.Users;
+                    const Icon = getIcon(selectedGroup.icon, Icons.Users);
                     return (
                       <Icon
                         style={{ width: '80%', height: '80%' }}
@@ -628,10 +620,10 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedInteraction ? (
                   (() => {
-                    const Icon =
-                      (Icons as Record<string, React.ElementType>)[
-                        selectedInteraction.icon
-                      ] ?? Icons.MessagesSquare;
+                    const Icon = getIcon(
+                      selectedInteraction.icon,
+                      Icons.MessagesSquare
+                    );
                     return (
                       <Icon
                         style={{ width: '80%', height: '80%' }}
