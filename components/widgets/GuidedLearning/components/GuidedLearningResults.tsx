@@ -92,22 +92,26 @@ export const GuidedLearningResults: React.FC<Props> = ({
       return { step, correct, total: stepAnswers.length, pct };
     });
 
-    const completedResponses = rStats.filter(
-      (r) => r.response.completedAt !== null
-    );
+    let completedResponsesCount = 0;
+    let totalScore = 0;
+
+    for (const r of rStats) {
+      if (r.response.completedAt !== null) {
+        completedResponsesCount++;
+        if (qSteps.length > 0) {
+          totalScore += Math.round((r.qCorrect / qSteps.length) * 100);
+        }
+      }
+    }
 
     let computedAvgScore: number | null = null;
-    if (completedResponses.length > 0 && qSteps.length > 0) {
-      const totalScore = completedResponses.reduce((sum, { qCorrect }) => {
-        const score = Math.round((qCorrect / qSteps.length) * 100);
-        return sum + score;
-      }, 0);
-      computedAvgScore = Math.round(totalScore / completedResponses.length);
+    if (completedResponsesCount > 0 && qSteps.length > 0) {
+      computedAvgScore = Math.round(totalScore / completedResponsesCount);
     }
 
     return {
       questionSteps: qSteps,
-      completedResponsesCount: completedResponses.length,
+      completedResponsesCount,
       avgScore: computedAvgScore,
       questionStats: qStats,
       responseStats: rStats,

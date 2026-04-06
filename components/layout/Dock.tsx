@@ -536,17 +536,13 @@ export const Dock: React.FC = () => {
     const acc = {} as Record<WidgetType, WidgetData[]>;
     if (!activeDashboard) return acc;
 
-    return activeDashboard.widgets.reduce<Record<WidgetType, WidgetData[]>>(
-      (prev, widget) => {
-        if (widget.minimized) {
-          const existing = prev[widget.type] ?? [];
-          existing.push(widget);
-          prev[widget.type] = existing;
-        }
-        return prev;
-      },
-      acc
-    );
+    for (const widget of activeDashboard.widgets) {
+      if (widget.minimized) {
+        if (!acc[widget.type]) acc[widget.type] = [];
+        acc[widget.type].push(widget);
+      }
+    }
+    return acc;
   }, [activeDashboard]);
 
   // Minimized custom-widget instances (not in the static TOOLS list so
