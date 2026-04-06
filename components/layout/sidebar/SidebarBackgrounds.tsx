@@ -1,10 +1,17 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Upload, Loader2, Grid, Image as ImageIcon, Video } from 'lucide-react';
+import {
+  Upload,
+  Loader2,
+  Grid,
+  Video,
+  Search,
+  X,
+  ChevronDown,
+} from 'lucide-react';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { extractYouTubeId } from '@/utils/youtube';
-import { BACKGROUND_CATEGORY_ORDER } from '@/utils/backgroundCategories';
 
 interface ThumbnailButtonProps {
   id: string;
@@ -49,6 +56,19 @@ interface SidebarBackgroundsProps {
   isVisible: boolean;
 }
 
+// Namespaced keys for the openCategories Set to prevent collision between
+// image category names and the special ambient-videos section.
+const imgKey = (category: string) => `img:${category}`;
+const VIDEOS_KEY = 'vid';
+
+// Produce a DOM-safe id from an arbitrary category string (which may contain
+// spaces or special chars from Firestore admin input).
+const toPanelId = (category: string) =>
+  `bg-panel-${category
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')}`;
+
 export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
   isVisible,
 }) => {
@@ -63,7 +83,9 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
   const [designTab, setDesignTab] = useState<'media' | 'colors' | 'my-uploads'>(
     'media'
   );
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  // Stores namespaced keys (imgKey(category) or VIDEOS_KEY) for open sections
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
 
   // My Uploads state
   const [userUploads, setUserUploads] = useState<string[]>([]);
@@ -90,31 +112,7 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     );
   }, [presets]);
 
-  // Categories present in imagePresets: canonical order first, then any extras
-  const availableCategories = useMemo(() => {
-    const cats = new Set(imagePresets.map((bg) => bg.category));
-    const canonical = BACKGROUND_CATEGORY_ORDER.filter((c) => cats.has(c));
-    const extras = [...cats].filter(
-      (c) => !(BACKGROUND_CATEGORY_ORDER as readonly string[]).includes(c)
-    );
-    return [...canonical, ...extras];
-  }, [imagePresets]);
-
-  // Reset stale activeCategory if it no longer exists in the available list
-  if (
-    activeCategory !== 'All' &&
-    !availableCategories.some((c) => c === activeCategory)
-  ) {
-    setActiveCategory('All');
-  }
-
-  // When filtering: flat list for the active category; null means show all grouped
-  const filteredImagePresets = useMemo(() => {
-    if (activeCategory === 'All') return null;
-    return imagePresets.filter((bg) => bg.category === activeCategory);
-  }, [imagePresets, activeCategory]);
-
-  // Grouped presets used when activeCategory === 'All'
+  // Grouped presets sorted alphabetically by category
   const groupedImagePresets = useMemo(() => {
     const groups = new Map<string, typeof imagePresets>();
     for (const bg of imagePresets) {
@@ -125,23 +123,38 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
         groups.set(bg.category, [bg]);
       }
     }
-    // Canonical order first, then any unrecognized categories
-    const allCategories = [
-      ...BACKGROUND_CATEGORY_ORDER.filter((c) => groups.has(c)),
-      ...[...groups.keys()].filter(
-        (c) => !(BACKGROUND_CATEGORY_ORDER as readonly string[]).includes(c)
-      ),
-    ];
-    return allCategories.map((c) => ({
-      category: c,
-      items: groups.get(c) ?? [],
-    }));
+    // Alphabetical sort — new admin categories appear automatically
+    return [...groups.keys()]
+      .sort((a, b) => a.localeCompare(b))
+      .map((c) => ({ category: c, items: groups.get(c) ?? [] }));
   }, [imagePresets]);
 
-  // Reset category filter when switching away from media tab
+  // Search results across all presets (images + videos); null = no active search
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return null;
+    const q = searchQuery.toLowerCase();
+    return presets.filter(
+      (bg) =>
+        bg.label.toLowerCase().includes(q) ||
+        bg.category.toLowerCase().includes(q)
+    );
+  }, [presets, searchQuery]);
+
+  const toggleCategory = (key: string) => {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Reset search when switching away from media tab.
+  // openCategories is intentionally preserved across tab switches so expanded
+  // sections remain open when the user returns to the Media tab.
   const handleTabChange = (tab: typeof designTab) => {
     setDesignTab(tab);
-    if (tab !== 'media') setActiveCategory('All');
+    if (tab !== 'media') setSearchQuery('');
   };
 
   // Fetch past uploads from Google Drive when the "My Uploads" tab is opened
@@ -249,79 +262,133 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
 
       {/* ── Media tab ── */}
       {designTab === 'media' && (
-        <div className="flex flex-col gap-4 pb-4">
-          {/* Category filter chips — only shown when there are categorised images */}
-          {availableCategories.length > 1 && (
-            <div className="flex flex-wrap gap-1.5 shrink-0">
+        <div className="flex flex-col gap-3 pb-4">
+          {/* Search input */}
+          <div className="relative flex items-center shrink-0">
+            <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search backgrounds…"
+              aria-label="Search backgrounds"
+              className="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-brand-blue-primary transition-colors"
+            />
+            {searchQuery.trim() && (
               <button
                 type="button"
-                onClick={() => setActiveCategory('All')}
-                className={`px-2.5 py-1 rounded-full text-xxs font-bold uppercase tracking-wide transition-all border ${
-                  activeCategory === 'All'
-                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-brand-blue-primary hover:text-brand-blue-primary'
-                }`}
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Clear search"
               >
-                All
+                <X className="w-3.5 h-3.5" />
               </button>
-              {availableCategories.map((cat) => (
-                <button
-                  type="button"
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-2.5 py-1 rounded-full text-xxs font-bold uppercase tracking-wide transition-all border ${
-                    activeCategory === cat
-                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-brand-blue-primary hover:text-brand-blue-primary'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Filtered view — specific category selected */}
-          {filteredImagePresets !== null && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                {filteredImagePresets.map((bg) => (
-                  <ThumbnailButton
-                    key={bg.id}
-                    {...bg}
-                    isActive={activeDashboard?.background === bg.id}
-                    onSelect={setBackground}
-                  />
-                ))}
-              </div>
-              {filteredImagePresets.length === 0 && (
+          {/* Search results */}
+          {searchResults !== null ? (
+            <div className="flex flex-col gap-2">
+              {searchResults.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {searchResults.map((bg) => (
+                    <ThumbnailButton
+                      key={bg.id}
+                      {...bg}
+                      isActive={activeDashboard?.background === bg.id}
+                      onSelect={setBackground}
+                    />
+                  ))}
+                </div>
+              ) : (
                 <p className="text-center text-xs text-slate-400 py-8">
-                  No backgrounds in this category.
+                  No backgrounds match &ldquo;{searchQuery}&rdquo;.
                 </p>
               )}
             </div>
-          )}
-
-          {/* Grouped view — "All" selected */}
-          {filteredImagePresets === null && (
-            <div className="flex flex-col gap-6">
-              {groupedImagePresets.map(({ category, items }) => (
-                <div key={category} className="space-y-2">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                    <ImageIcon className="w-3 h-3" /> {category}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {items.map((bg) => (
-                      <ThumbnailButton
-                        key={bg.id}
-                        {...bg}
-                        isActive={activeDashboard?.background === bg.id}
-                        onSelect={setBackground}
+          ) : (
+            /* Accordion view — no active search */
+            <div className="flex flex-col gap-2">
+              {groupedImagePresets.map(({ category, items }) => {
+                const key = imgKey(category);
+                const isOpen = openCategories.has(key);
+                const panelId = toPanelId(category);
+                return (
+                  <div
+                    key={category}
+                    className="border border-slate-200 rounded-lg overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(key)}
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
+                    >
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                        {category}
+                        <span className="ml-1.5 text-slate-400 font-normal normal-case tracking-normal">
+                          ({items.length})
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                       />
-                    ))}
+                    </button>
+                    {isOpen && (
+                      <div id={panelId} className="p-2 grid grid-cols-2 gap-2">
+                        {items.map((bg) => (
+                          <ThumbnailButton
+                            key={bg.id}
+                            {...bg}
+                            isActive={activeDashboard?.background === bg.id}
+                            onSelect={setBackground}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+
+              {/* Ambient Videos accordion section */}
+              {videoPresets.length > 0 && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(VIDEOS_KEY)}
+                    aria-expanded={openCategories.has(VIDEOS_KEY)}
+                    aria-controls="bg-panel-vid"
+                    className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                      <Video className="w-3.5 h-3.5" />
+                      Ambient Videos
+                      <span className="text-slate-400 font-normal normal-case tracking-normal">
+                        ({videoPresets.length})
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 transition-transform ${openCategories.has(VIDEOS_KEY) ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {openCategories.has(VIDEOS_KEY) && (
+                    <div
+                      id="bg-panel-vid"
+                      className="p-2 grid grid-cols-2 gap-2"
+                    >
+                      {videoPresets.map((bg) => (
+                        <ThumbnailButton
+                          key={bg.id}
+                          {...bg}
+                          isActive={activeDashboard?.background === bg.id}
+                          onSelect={setBackground}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
 
               {groupedImagePresets.length === 0 &&
                 videoPresets.length === 0 && (
@@ -329,25 +396,6 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                     No media backgrounds available yet.
                   </p>
                 )}
-            </div>
-          )}
-
-          {/* Ambient Videos — always shown at the bottom of the media tab */}
-          {videoPresets.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                <Video className="w-3 h-3" /> Ambient Videos
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {videoPresets.map((bg) => (
-                  <ThumbnailButton
-                    key={bg.id}
-                    {...bg}
-                    isActive={activeDashboard?.background === bg.id}
-                    onSelect={setBackground}
-                  />
-                ))}
-              </div>
             </div>
           )}
         </div>
