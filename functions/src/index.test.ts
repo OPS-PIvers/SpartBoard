@@ -7,6 +7,8 @@ interface MockDocInput {
   data: Record<string, unknown>;
   /** Optional: populates ref.parent.parent.id for dashboard snapshots */
   ownerUid?: string;
+  /** Optional: when true, simulates an anonymous auth user (no email, no providers) */
+  anonymous?: boolean;
 }
 
 const mockFirestoreState = {
@@ -119,6 +121,29 @@ vi.mock('firebase-admin', () => {
     firestore: firestoreFn,
     auth: vi.fn(() => ({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
+      listUsers: vi.fn().mockImplementation(() => {
+        const users = mockFirestoreState.users.map((u) => ({
+          uid: u.id,
+          email: u.anonymous ? undefined : (u.data.email as string),
+          metadata: {
+            lastSignInTime: u.data.lastLogin
+              ? new Date(u.data.lastLogin as number).toISOString()
+              : undefined,
+          },
+          providerData: u.anonymous ? [] : [{ providerId: 'google.com' }],
+        }));
+        return Promise.resolve({ users, pageToken: undefined });
+      }),
+      getUsers: vi.fn().mockImplementation((ids: { uid: string }[]) => {
+        const uidSet = new Set(ids.map((i) => i.uid));
+        const users = mockFirestoreState.users
+          .filter((u) => uidSet.has(u.id))
+          .map((u) => ({
+            uid: u.id,
+            email: u.anonymous ? undefined : (u.data.email as string),
+          }));
+        return Promise.resolve({ users });
+      }),
     })),
   };
 });
@@ -679,5 +704,103 @@ describe('adminAnalytics', () => {
     // Emails preview capped at 20
     expect(capturedData.widgets.usersByType.clock.emails).toHaveLength(20);
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+  });
+
+  it('excludes anonymous auth users from all analytics metrics', async () => {
+    const now = Date.now();
+    mockFirestoreState.users = [
+      {
+        id: 'uid_teacher',
+        data: {
+          email: 'teacher@school.org',
+          lastLogin: now - 2 * 60 * 60 * 1000,
+          buildings: ['north'],
+        },
+      },
+      {
+        id: 'uid_anon1',
+        anonymous: true,
+        data: {
+          lastLogin: now - 1 * 60 * 60 * 1000,
+          buildings: [],
+        },
+      },
+      {
+        id: 'uid_anon2',
+        anonymous: true,
+        data: {
+          lastLogin: now - 30 * 60 * 1000,
+          buildings: [],
+        },
+      },
+    ];
+
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-teacher',
+        ownerUid: 'uid_teacher',
+        data: {
+          updatedAt: now,
+          widgets: [{ type: 'clock' }],
+        },
+      },
+      {
+        id: 'dash-anon1',
+        ownerUid: 'uid_anon1',
+        data: {
+          updatedAt: now,
+          widgets: [{ type: 'clock' }, { type: 'timer' }],
+        },
+      },
+    ];
+
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_teacher_2026-03-30', data: { count: 5 } },
+      { id: 'uid_anon1_2026-03-30', data: { count: 10 } },
+    ];
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+    const resPromise = new Promise<any>((resolve) => {
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockImplementation((data) => {
+          resolve(data);
+          return data;
+        }),
+        setHeader: vi.fn().mockReturnThis(),
+        getHeader: vi.fn().mockReturnValue(''),
+      };
+      const mockReq = {
+        headers: {
+          origin: 'http://localhost',
+          authorization: 'Bearer mock-token',
+        },
+      };
+      (adminAnalytics as any)(mockReq, mockRes);
+    });
+
+    const capturedData = await resPromise;
+
+    // Only the teacher should be counted — anonymous users excluded
+    expect(capturedData.users.total).toBe(1);
+    expect(capturedData.users.registered).toBe(1);
+    expect(capturedData.users.monthly).toBe(1);
+    expect(capturedData.users.daily).toBe(1);
+
+    // No 'unknown' domain should appear
+    expect(capturedData.users.domains['unknown']).toBeUndefined();
+    expect(capturedData.users.domains['school.org']).toEqual({
+      total: 1,
+      monthly: 1,
+      daily: 1,
+    });
+
+    // Only teacher's dashboard counted
+    expect(capturedData.users.withDashboards).toBe(1);
+    expect(capturedData.dashboards.total).toBe(1);
+
+    // Only teacher's AI usage counted
+    expect(capturedData.api.totalCalls).toBe(5);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
   });
 });

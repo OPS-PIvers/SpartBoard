@@ -1832,6 +1832,10 @@ export const adminAnalytics = functionsV1
         do {
           const listResult = await admin.auth().listUsers(1000, authPageToken);
           for (const u of listResult.users) {
+            // Skip anonymous auth users (student accounts) — they have no
+            // linked providers and no email, and should not appear in analytics.
+            if (!u.email && u.providerData.length === 0) continue;
+
             const lastSignIn = u.metadata.lastSignInTime
               ? new Date(u.metadata.lastSignInTime).getTime()
               : 0;
@@ -1856,6 +1860,8 @@ export const adminAnalytics = functionsV1
 
         for await (const userDoc of usersStream) {
           if (!userDoc.exists) continue;
+          // Skip users not in the filtered auth map (e.g. anonymous students)
+          if (!authUsersMap.has(userDoc.id)) continue;
           const userData = userDoc.data();
           if (
             Array.isArray(userData.buildings) &&
@@ -1978,9 +1984,11 @@ export const adminAnalytics = functionsV1
 
           // Extract owner UID from path: users/{uid}/dashboards/{dashId}
           const ownerUid: string | null = dashDoc.ref.parent.parent?.id ?? null;
-          if (ownerUid) {
-            allDashboardOwnerUids.add(ownerUid);
-          }
+
+          // Skip dashboards owned by anonymous users (not in filtered auth map)
+          if (!ownerUid || !authUsersMap.has(ownerUid)) continue;
+
+          allDashboardOwnerUids.add(ownerUid);
 
           const widgetCount = Array.isArray(dashData.widgets)
             ? dashData.widgets.length
@@ -2137,6 +2145,9 @@ export const adminAnalytics = functionsV1
           const uid = uidParts.join('_');
 
           if (!uid || !datePart) continue;
+
+          // Skip AI usage from anonymous users (not in filtered auth map)
+          if (!authUsersMap.has(uid)) continue;
 
           const usageData = usageDoc.data();
           const count =
