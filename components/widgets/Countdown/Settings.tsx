@@ -4,6 +4,9 @@ import { WidgetData, CountdownConfig } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { TEXT_COLOR_PRESETS } from '@/config/widgetAppearance';
+import { Palette } from 'lucide-react';
 
 export const CountdownSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -173,9 +176,40 @@ export const CountdownAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
   const updateConfig = (updates: Partial<CountdownConfig>) =>
     updateWidget(widget.id, { config: { ...config, ...updates } });
 
+  const eventColor = config.eventColor ?? '#2d3f89';
+
   return (
     <div className="space-y-6">
       <TypographySettings config={config} updateConfig={updateConfig} />
+      <div>
+        <SettingsLabel icon={Palette}>Event Title Color</SettingsLabel>
+        <div className="flex flex-wrap gap-2 px-1 mb-2">
+          {TEXT_COLOR_PRESETS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => updateConfig({ eventColor: color })}
+              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 ${
+                eventColor === color
+                  ? 'border-slate-800 scale-110 shadow-sm'
+                  : color === '#ffffff'
+                    ? 'border-slate-300'
+                    : 'border-transparent'
+              }`}
+              style={{ backgroundColor: color }}
+              title={color}
+              aria-label={`Select event title color ${color}`}
+            />
+          ))}
+        </div>
+        <input
+          type="color"
+          value={eventColor}
+          onChange={(e) => updateConfig({ eventColor: e.target.value })}
+          className="h-8 w-full rounded-md border border-slate-200 bg-white"
+          aria-label="Custom event title color"
+        />
+      </div>
       <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );

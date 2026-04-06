@@ -1589,6 +1589,7 @@ export interface CountdownConfig {
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
   fontColor?: string;
+  eventColor?: string;
 }
 
 export interface BuildingCountdownDefaults {

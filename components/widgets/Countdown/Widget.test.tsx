@@ -11,6 +11,13 @@ vi.mock('../WidgetLayout', () => ({
   ),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({
+    activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    updateWidget: vi.fn(),
+  }),
+}));
+
 const buildWidget = (config: Partial<CountdownConfig>): WidgetData =>
   ({
     id: 'countdown-widget',
@@ -58,5 +65,21 @@ describe('CountdownWidget', () => {
 
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText(/days until/i)).toBeInTheDocument();
+  });
+
+  it('applies eventColor to the event title and does not use the hardcoded brand-blue class', () => {
+    render(<CountdownWidget widget={buildWidget({ eventColor: '#ff0000' })} />);
+
+    const titleEl = screen.getByText('Field Trip');
+    expect(titleEl).toHaveStyle({ color: '#ff0000' });
+    expect(titleEl).not.toHaveClass('text-brand-blue-primary');
+  });
+
+  it('uses the default brand-blue eventColor when none is configured', () => {
+    render(<CountdownWidget widget={buildWidget({})} />);
+
+    const titleEl = screen.getByText('Field Trip');
+    expect(titleEl).toHaveStyle({ color: '#2d3f89' });
+    expect(titleEl).not.toHaveClass('text-brand-blue-primary');
   });
 });

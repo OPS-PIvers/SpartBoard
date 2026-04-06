@@ -10,13 +10,12 @@ interface SurfaceColorSettingsProps<T extends WidgetConfig> {
 }
 
 export const SurfaceColorSettings = <
-  T extends WidgetConfig & { cardColor?: string; cardOpacity?: number },
+  T extends WidgetConfig & { cardColor?: string },
 >({
   config,
   updateConfig,
 }: SurfaceColorSettingsProps<T>) => {
   const cardColor = config.cardColor ?? '#ffffff';
-  const cardOpacity = config.cardOpacity ?? 1;
 
   return (
     <div>
@@ -48,26 +47,6 @@ export const SurfaceColorSettings = <
           className="h-8 w-full rounded-md border border-slate-200 bg-white"
           aria-label="Custom surface color"
         />
-
-        <div>
-          <div className="mb-1 flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Opacity</span>
-            <span>{Math.round(cardOpacity * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={cardOpacity}
-            onChange={(e) =>
-              updateConfig({
-                cardOpacity: parseFloat(e.target.value),
-              } as Partial<T>)
-            }
-            className="w-full accent-indigo-600"
-          />
-        </div>
       </div>
     </div>
   );
