@@ -456,7 +456,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border ${
+                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
                   selectedVolume
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'
@@ -544,7 +544,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border ${
+                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
                   selectedGroup
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'
@@ -559,16 +559,22 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 {selectedGroup ? (
-                  (() => {
-                    const Icon = getIcon(selectedGroup.icon, Icons.Users);
-                    return (
-                      <Icon
-                        style={{ width: '80%', height: '80%' }}
-                        strokeWidth={2.5}
-                        className={selectedGroup.color}
-                      />
-                    );
-                  })()
+                  <>
+                    <Icons.Users
+                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedGroup.color}`}
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                    {(() => {
+                      const Icon = getIcon(selectedGroup.icon, Icons.Users);
+                      return (
+                        <Icon
+                          style={{ width: '80%', height: '80%' }}
+                          strokeWidth={2.5}
+                          className={selectedGroup.color}
+                        />
+                      );
+                    })()}
+                  </>
                 ) : (
                   <Users
                     style={{ width: '100%', height: '100%' }}
@@ -607,7 +613,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             >
               <div
-                className={`rounded-2xl transition-all shadow-sm border ${
+                className={`rounded-2xl transition-all shadow-sm border relative overflow-hidden ${
                   selectedInteraction
                     ? 'bg-white border-white/50'
                     : 'bg-slate-50 border-slate-100'
@@ -622,19 +628,25 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 {selectedInteraction ? (
-                  (() => {
-                    const Icon = getIcon(
-                      selectedInteraction.icon,
-                      Icons.MessagesSquare
-                    );
-                    return (
-                      <Icon
-                        style={{ width: '80%', height: '80%' }}
-                        strokeWidth={2.5}
-                        className={selectedInteraction.color}
-                      />
-                    );
-                  })()
+                  <>
+                    <Icons.MessagesSquare
+                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedInteraction.color}`}
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                    {(() => {
+                      const Icon = getIcon(
+                        selectedInteraction.icon,
+                        Icons.MessagesSquare
+                      );
+                      return (
+                        <Icon
+                          style={{ width: '80%', height: '80%' }}
+                          strokeWidth={2.5}
+                          className={selectedInteraction.color}
+                        />
+                      );
+                    })()}
+                  </>
                 ) : (
                   <MessagesSquare
                     style={{ width: '100%', height: '100%' }}
