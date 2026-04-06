@@ -856,7 +856,7 @@ const DarkTable: React.FC<{
         className="hover:text-white transition-colors"
       >
         {label}
-        {sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+        {sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}
       </button>
     </th>
   );
@@ -1172,10 +1172,11 @@ export const AnalyticsManager: React.FC = () => {
 
         <button
           type="button"
+          disabled={loading}
           onClick={() => void fetchAnalytics()}
-          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -1191,6 +1192,8 @@ export const AnalyticsManager: React.FC = () => {
               role="tab"
               type="button"
               aria-selected={selectedTab === tab.id}
+              id={`tab-${tab.id}`}
+              aria-controls={`panel-${tab.id}`}
               onClick={() => setSelectedTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
                 selectedTab === tab.id
@@ -1206,21 +1209,35 @@ export const AnalyticsManager: React.FC = () => {
       </div>
 
       {selectedTab === 'overview' && (
-        <OverviewPanel
-          data={data}
-          filteredTotalUsers={filteredTotalUsers}
-          filteredMonthly={filteredMonthly}
-          filteredDaily={filteredDaily}
-          registeredUsers={data.users.registered ?? data.users.total}
-          usersWithDashboards={data.users.withDashboards ?? 0}
-          dashboards={
-            data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
-          }
-        />
+        <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+          <OverviewPanel
+            data={data}
+            filteredTotalUsers={filteredTotalUsers}
+            filteredMonthly={filteredMonthly}
+            filteredDaily={filteredDaily}
+            registeredUsers={data.users.registered ?? data.users.total}
+            usersWithDashboards={data.users.withDashboards ?? 0}
+            dashboards={
+              data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
+            }
+          />
+        </div>
       )}
-      {selectedTab === 'widgets' && <WidgetsPanel data={data} />}
-      {selectedTab === 'ai' && <AiPanel data={data} />}
-      {selectedTab === 'users' && <UsersPanel data={data} />}
+      {selectedTab === 'widgets' && (
+        <div role="tabpanel" id="panel-widgets" aria-labelledby="tab-widgets">
+          <WidgetsPanel data={data} />
+        </div>
+      )}
+      {selectedTab === 'ai' && (
+        <div role="tabpanel" id="panel-ai" aria-labelledby="tab-ai">
+          <AiPanel data={data} />
+        </div>
+      )}
+      {selectedTab === 'users' && (
+        <div role="tabpanel" id="panel-users" aria-labelledby="tab-users">
+          <UsersPanel data={data} />
+        </div>
+      )}
     </div>
   );
 };
