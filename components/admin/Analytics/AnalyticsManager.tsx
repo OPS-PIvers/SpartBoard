@@ -1219,6 +1219,7 @@ export const AnalyticsManager: React.FC = () => {
               key={tab.id}
               role="tab"
               type="button"
+              aria-label={tab.label}
               aria-selected={selectedTab === tab.id}
               id={`tab-${tab.id}`}
               aria-controls={`panel-${tab.id}`}

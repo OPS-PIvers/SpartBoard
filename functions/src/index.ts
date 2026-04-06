@@ -2034,6 +2034,36 @@ export const adminAnalytics = functionsV1
         }
 
         const widgetUserEmails: Record<string, string> = {};
+        const resolveUserEmailsViaAuthFallback = async (
+          uids: string[],
+          targetMap: Record<string, string>,
+          warningContext: string
+        ): Promise<void> => {
+          const identifiers = uids.map((uid) => ({ uid }));
+          for (let i = 0; i < identifiers.length; i += 100) {
+            const chunk = identifiers.slice(i, i + 100);
+            if (chunk.length === 0) continue;
+            try {
+              const result = await admin.auth().getUsers(chunk);
+              result.users.forEach((u) => {
+                if (u.email) {
+                  targetMap[u.uid] = u.email;
+                }
+              });
+            } catch (error) {
+              console.warn(
+                `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
+                {
+                  chunkSize: chunk.length,
+                  chunkStart: i,
+                  totalIdentifiers: identifiers.length,
+                  totalUids: uids.length,
+                  error,
+                }
+              );
+            }
+          }
+        };
         const allWidgetUidArray = Array.from(allWidgetUids);
         for (let i = 0; i < allWidgetUidArray.length; i += 30) {
           const uidChunk = allWidgetUidArray.slice(i, i + 30);
@@ -2057,29 +2087,11 @@ export const adminAnalytics = functionsV1
           (uid) => !widgetUserEmails[uid]
         );
         if (unresolvedWidgetUids.length > 0) {
-          const identifiers = unresolvedWidgetUids.map((uid) => ({ uid }));
-          for (let i = 0; i < identifiers.length; i += 100) {
-            const chunk = identifiers.slice(i, i + 100);
-            try {
-              const result = await admin.auth().getUsers(chunk);
-              result.users.forEach((u) => {
-                if (u.email) {
-                  widgetUserEmails[u.uid] = u.email;
-                }
-              });
-            } catch (error) {
-              console.warn(
-                '[getAdminAnalytics] Failed to resolve widget user emails via auth fallback',
-                {
-                  chunkSize: chunk.length,
-                  chunkStart: i,
-                  totalIdentifiers: identifiers.length,
-                  totalUnresolvedUids: unresolvedWidgetUids.length,
-                  error,
-                }
-              );
-            }
-          }
+          await resolveUserEmailsViaAuthFallback(
+            unresolvedWidgetUids,
+            widgetUserEmails,
+            'widget drilldowns'
+          );
         }
 
         const usersByType: Record<string, { count: number; emails: string[] }> =
@@ -2188,29 +2200,11 @@ export const adminAnalytics = functionsV1
           (uid) => !topUserEmails[uid]
         );
         if (unresolvedTopUserUids.length > 0) {
-          const identifiers = unresolvedTopUserUids.map((uid) => ({ uid }));
-          for (let i = 0; i < identifiers.length; i += 100) {
-            const chunk = identifiers.slice(i, i + 100);
-            try {
-              const result = await admin.auth().getUsers(chunk);
-              result.users.forEach((u) => {
-                if (u.email) {
-                  topUserEmails[u.uid] = u.email;
-                }
-              });
-            } catch (error) {
-              console.warn(
-                '[getAdminAnalytics] Failed to resolve top user emails via auth fallback',
-                {
-                  chunkSize: chunk.length,
-                  chunkStart: i,
-                  totalIdentifiers: identifiers.length,
-                  totalUnresolvedUids: unresolvedTopUserUids.length,
-                  error,
-                }
-              );
-            }
-          }
+          await resolveUserEmailsViaAuthFallback(
+            unresolvedTopUserUids,
+            topUserEmails,
+            'AI top users'
+          );
         }
 
         const topUsers = Object.entries(callsPerUser)
