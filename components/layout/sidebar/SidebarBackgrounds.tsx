@@ -366,11 +366,12 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
                 </div>
               )}
 
-              {groupedImagePresets.length === 0 && videoPresets.length === 0 && (
-                <p className="text-center text-xs text-slate-400 py-8">
-                  No media backgrounds available yet.
-                </p>
-              )}
+              {groupedImagePresets.length === 0 &&
+                videoPresets.length === 0 && (
+                  <p className="text-center text-xs text-slate-400 py-8">
+                    No media backgrounds available yet.
+                  </p>
+                )}
             </div>
           )}
         </div>
