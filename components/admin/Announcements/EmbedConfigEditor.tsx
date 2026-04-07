@@ -30,6 +30,8 @@ export const EmbedConfigEditor: React.FC<{
   const { addToast } = useDashboard();
 
   // Keep raw URL in local state so the input remains editable while typing.
+  // The converted (embeddable) URL is flushed to config on blur (applyUrl)
+  // or when switching tabs (setTab), avoiding a useEffect sync loop.
   const [rawUrl, setRawUrl] = useState(config.url ?? '');
   const [copied, setCopied] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -52,13 +54,10 @@ export const EmbedConfigEditor: React.FC<{
   const embedUrl = convertToEmbedUrl(rawUrl);
   const wasConverted = rawUrl.trim() !== '' && embedUrl !== rawUrl.trim();
 
-  const handleUrlChange = (newRawUrl: string) => {
-    setRawUrl(newRawUrl);
-  };
-
   const applyUrl = () => {
-    if (embedUrl !== config.url) {
-      onChange({ ...config, url: embedUrl });
+    const finalUrl = embedUrl || rawUrl.trim();
+    if (finalUrl !== config.url) {
+      onChange({ ...config, url: finalUrl });
     }
   };
 
@@ -131,9 +130,13 @@ export const EmbedConfigEditor: React.FC<{
   const setTab = (tab: EmbedTab) => {
     setActiveTab(tab);
 
-    // Apply any pending URL changes when switching tabs
-    const finalUrl = embedUrl;
-    const newConfig = { ...config, url: finalUrl };
+    // Flush any pending URL edit when switching tabs
+    const finalUrl = embedUrl || rawUrl.trim();
+    const newConfig: Partial<EmbedConfig> = { ...config };
+
+    if (finalUrl !== config.url) {
+      newConfig.url = finalUrl;
+    }
 
     if (tab === 'url' || tab === 'code') {
       newConfig.mode = tab;
@@ -180,7 +183,7 @@ export const EmbedConfigEditor: React.FC<{
           <input
             type="url"
             value={rawUrl}
-            onChange={(e) => handleUrlChange(e.target.value)}
+            onChange={(e) => setRawUrl(e.target.value)}
             onBlur={applyUrl}
             className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
@@ -388,7 +391,7 @@ export const EmbedConfigEditor: React.FC<{
             <input
               type="url"
               value={rawUrl}
-              onChange={(e) => handleUrlChange(e.target.value)}
+              onChange={(e) => setRawUrl(e.target.value)}
               onBlur={applyUrl}
               placeholder="https://www.youtube.com/live/…"
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
