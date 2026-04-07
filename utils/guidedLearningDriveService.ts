@@ -10,11 +10,10 @@
  */
 
 import { GuidedLearningSet } from '@/types';
+import { APP_NAME } from '@/config/constants';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
-
-const APP_FOLDER_NAME = 'SpartBoard';
 const GL_FOLDER_NAME = 'Guided Learning';
 
 function driveQueryEscape(s: string): string {
@@ -86,7 +85,7 @@ export class GuidedLearningDriveService {
   }
 
   private async getGLFolderId(): Promise<string> {
-    const appFolderId = await this.getOrCreateFolder(APP_FOLDER_NAME);
+    const appFolderId = await this.getOrCreateFolder(APP_NAME);
     return this.getOrCreateFolder(GL_FOLDER_NAME, appFolderId);
   }
 

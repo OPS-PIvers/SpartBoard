@@ -255,17 +255,28 @@ export class GoogleDriveService {
       }
     );
     if (!response.ok) {
-      throw new Error(`Failed to rename Drive folder (${response.status})`);
+      const responseBody = await response.text();
+      const statusText = response.statusText ? ` ${response.statusText}` : '';
+      const bodyText = responseBody ? ` - ${responseBody}` : '';
+      throw new Error(
+        `Failed to rename Drive file/folder (${response.status}${statusText})${bodyText}`
+      );
     }
   }
 
   /**
    * One-time migration helper: if a root-level folder named `oldName` exists,
    * rename it to `newName`. No-ops when the old folder is absent (new user or
-   * already migrated). Safe to call repeatedly.
+   * already migrated) or when `newName` already exists at root. Safe to call
+   * repeatedly. Scoped to root to avoid matching same-named folders in
+   * subfolders or Shared Drives.
    */
   async migrateAppFolderName(oldName: string, newName: string): Promise<void> {
-    const oldFolderId = await this.findFolder(oldName);
+    const existingNewFolderId = await this.findFolder(newName, 'root');
+    if (existingNewFolderId) {
+      return;
+    }
+    const oldFolderId = await this.findFolder(oldName, 'root');
     if (oldFolderId) {
       await this.renameFile(oldFolderId, newName);
     }

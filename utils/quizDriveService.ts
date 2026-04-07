@@ -16,6 +16,7 @@ import {
   QuizResponse,
 } from '../types';
 import { gradeAnswer } from '../hooks/useQuizSession';
+import { APP_NAME } from '../config/constants';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -29,7 +30,6 @@ const COL_CORRECT_ANSWER = 3;
 const COL_INCORRECT_1 = 4;
 const COL_INCORRECT_4 = 7;
 
-const APP_FOLDER_NAME = 'SpartBoard';
 const QUIZ_FOLDER_NAME = 'Quizzes';
 
 /** Escape single quotes in Drive API q-string values (single-quote is the delimiter). */
@@ -112,7 +112,7 @@ export class QuizDriveService {
   }
 
   private async getQuizFolderId(): Promise<string> {
-    const appFolderId = await this.getOrCreateFolder(APP_FOLDER_NAME);
+    const appFolderId = await this.getOrCreateFolder(APP_NAME);
     return this.getOrCreateFolder(QUIZ_FOLDER_NAME, appFolderId);
   }
 
