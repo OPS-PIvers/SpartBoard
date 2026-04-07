@@ -19,6 +19,9 @@ import {
   Cloud,
   CloudCheck,
   AlertCircle,
+  Zap,
+  Globe,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -30,9 +33,20 @@ import { IconButton } from '@/components/common/IconButton';
 import { StylePanel } from './StylePanel';
 import { SidebarBoards } from './SidebarBoards';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
-import { SidebarSettings } from './SidebarSettings';
+import { SidebarQuickAccess } from './SidebarQuickAccess';
+import { SidebarGoogleDrive } from './SidebarGoogleDrive';
+import { SidebarLanguageRegion } from './SidebarLanguageRegion';
+import { SidebarPreferences } from './SidebarPreferences';
 
-type MenuSection = 'main' | 'boards' | 'backgrounds' | 'style' | 'settings';
+type MenuSection =
+  | 'main'
+  | 'boards'
+  | 'backgrounds'
+  | 'style'
+  | 'quick-access'
+  | 'google-drive'
+  | 'language'
+  | 'preferences';
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -337,58 +351,145 @@ export const Sidebar: React.FC = () => {
             <div className="flex-1 relative overflow-hidden bg-white">
               {/* MAIN MENU */}
               <nav
-                className={`absolute inset-0 pt-4 flex flex-col overflow-y-auto transition-all duration-300 ease-in-out ${
+                className={`absolute inset-0 pt-3 flex flex-col overflow-y-auto transition-all duration-300 ease-in-out ${
                   activeSection === 'main'
                     ? 'translate-x-0 opacity-100 visible'
                     : '-translate-x-full opacity-0 invisible'
                 }`}
               >
-                <div className="px-3 mb-2">
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.1em] px-3">
+                {/* WORKSPACE Section */}
+                <div className="px-5 mb-1.5 mt-1">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
                     {t('sidebar.nav.workspace')}
                   </span>
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col px-2.5 mb-1">
                   <button
                     onClick={() => setActiveSection('boards')}
-                    className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
                   >
-                    <SquareSquare className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span className="flex-grow">{t('sidebar.nav.boards')}</span>
-                    <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-1.5 py-0.5 rounded font-bold">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <SquareSquare className="w-4 h-4 text-indigo-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.boards')}
+                    </span>
+                    <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
                       {dashboards.length}
                     </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
                     onClick={() => setActiveSection('backgrounds')}
-                    className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
                   >
-                    <Paintbrush className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>{t('sidebar.nav.backgrounds')}</span>
+                    <div className="w-8 h-8 rounded-lg bg-pink-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Paintbrush className="w-4 h-4 text-pink-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.backgrounds')}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                 </div>
 
-                <div className="my-4 border-t border-slate-100"></div>
+                <div className="mx-5 my-2.5 border-t border-slate-100" />
 
-                <div className="px-3 mb-2">
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.1em] px-3">
-                    {t('sidebar.nav.configuration')}
+                {/* CUSTOMIZE Section */}
+                <div className="px-5 mb-1.5">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                    {t('sidebar.nav.configuration', {
+                      defaultValue: 'Customize',
+                    })}
                   </span>
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col px-2.5 mb-1">
                   <button
                     onClick={() => setActiveSection('style')}
-                    className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
                   >
-                    <Palette className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>{t('sidebar.nav.globalStyle')}</span>
+                    <div className="w-8 h-8 rounded-lg bg-purple-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Palette className="w-4 h-4 text-purple-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.globalStyle')}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
-                    onClick={() => setActiveSection('settings')}
-                    className="group flex items-center gap-3 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors text-left"
+                    onClick={() => setActiveSection('quick-access')}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
                   >
-                    <Settings className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    <span>{t('sidebar.nav.generalSettings')}</span>
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Zap className="w-4 h-4 text-amber-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.quickAccess', {
+                        defaultValue: 'Quick Access',
+                      })}
+                    </span>
+                    <span className="text-xxs bg-amber-50 text-amber-500 px-2 py-0.5 rounded-full font-bold">
+                      {activeDashboard?.settings?.quickAccessWidgets?.length ??
+                        0}
+                      /2
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
+                </div>
+
+                <div className="mx-5 my-2.5 border-t border-slate-100" />
+
+                {/* ACCOUNT Section */}
+                <div className="px-5 mb-1.5">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                    {t('sidebar.nav.account', { defaultValue: 'Account' })}
+                  </span>
+                </div>
+                <div className="flex flex-col px-2.5">
+                  <button
+                    onClick={() => setActiveSection('google-drive')}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <GoogleDriveIcon className="w-4 h-4" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.googleDrive', {
+                        defaultValue: 'Google Drive',
+                      })}
+                    </span>
+                    <div
+                      className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                    />
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('language')}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-violet-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Globe className="w-4 h-4 text-violet-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.languageRegion', {
+                        defaultValue: 'Language & Region',
+                      })}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('preferences')}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <SlidersHorizontal className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.preferences', {
+                        defaultValue: 'Preferences',
+                      })}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                 </div>
               </nav>
@@ -407,11 +508,21 @@ export const Sidebar: React.FC = () => {
                 addToast={addToast}
               />
 
-              {/* SETTINGS SECTION */}
-              <SidebarSettings
-                isVisible={activeSection === 'settings'}
-                onCancel={() => setActiveSection('main')}
+              {/* QUICK ACCESS SECTION */}
+              <SidebarQuickAccess
+                isVisible={activeSection === 'quick-access'}
               />
+
+              {/* GOOGLE DRIVE SECTION */}
+              <SidebarGoogleDrive
+                isVisible={activeSection === 'google-drive'}
+              />
+
+              {/* LANGUAGE & REGION SECTION */}
+              <SidebarLanguageRegion isVisible={activeSection === 'language'} />
+
+              {/* PREFERENCES SECTION */}
+              <SidebarPreferences isVisible={activeSection === 'preferences'} />
             </div>
 
             {/* Footer */}

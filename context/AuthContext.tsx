@@ -418,6 +418,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [refreshGoogleToken]);
 
+  /** Clear the Google Drive token without touching Firebase auth. */
+  const disconnectGoogleDrive = useCallback(() => {
+    localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+    setGoogleAccessToken(null);
+  }, []);
+
   // Persist googleAccessToken to localStorage
   useEffect(() => {
     if (isAuthBypass) return;
@@ -965,6 +972,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setLanguage,
         refreshGoogleToken,
         connectGoogleDrive,
+        disconnectGoogleDrive,
         savedWidgetConfigs,
         saveWidgetConfig,
         profileLoaded,

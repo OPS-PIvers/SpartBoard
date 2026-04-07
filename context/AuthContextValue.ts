@@ -50,6 +50,8 @@ export interface AuthContextType {
    * Safe to call from user-triggered UI (e.g. the disconnect banner).
    */
   connectGoogleDrive: () => Promise<void>;
+  /** Disconnect Google Drive without signing the user out of the app. */
+  disconnectGoogleDrive: () => void;
   /** Global saved configs for complex widgets */
   savedWidgetConfigs: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** Save a widget's config globally (debounced Firestore write) */

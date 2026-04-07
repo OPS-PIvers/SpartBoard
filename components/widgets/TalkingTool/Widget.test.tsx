@@ -53,6 +53,9 @@ const mockAuthContext = (
   },
   refreshGoogleToken: () => Promise.resolve(null),
   connectGoogleDrive: () => Promise.resolve(),
+  disconnectGoogleDrive: () => {
+    /* mock */
+  },
   savedWidgetConfigs: {},
   saveWidgetConfig: () => {
     /* mock */
