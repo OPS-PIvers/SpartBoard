@@ -6,8 +6,8 @@
   "packageManager": "pnpm@10.30.2",
   "type": "module",
   "engines": {
-    "node": "^20.20.2",
-    "pnpm": "10.30.2"
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
   },
   "scripts": {
     "dev": "node scripts/generate-version.js && vite",
