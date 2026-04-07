@@ -4,7 +4,6 @@ import {
   FeaturePermission,
   WidgetType,
   InternalToolType,
-  LunchCountGlobalConfig,
   WeatherGlobalConfig,
   WeatherTemperatureRange,
   RecessGearGlobalConfig,
@@ -59,6 +58,7 @@ import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
 import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
+import { LunchCountConfigurationPanel } from './LunchCountConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
 // Shared prop shape for all "building-defaults" config panels
@@ -70,6 +70,7 @@ type BuildingConfigPanel = React.ComponentType<{
 // Map from widget/tool type to its building-defaults configuration panel.
 // Catalyst is excluded here because it requires additional props.
 const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
+  lunchCount: LunchCountConfigurationPanel as unknown as BuildingConfigPanel,
   url: UrlConfigurationPanel as unknown as BuildingConfigPanel,
   soundboard: SoundboardConfigurationPanel as unknown as BuildingConfigPanel,
   schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
@@ -298,115 +299,6 @@ export const FeatureConfigurationPanel: React.FC<
           })
         }
       />
-
-      {tool.type === 'lunchCount' && (
-        <div className="space-y-3">
-          {(() => {
-            const config = (permission.config ?? {}) as LunchCountGlobalConfig;
-            const isSchumannIdMalformed =
-              config.schumannSheetId && config.schumannSheetId.includes('/');
-            const isIntermediateIdMalformed =
-              config.intermediateSheetId &&
-              config.intermediateSheetId.includes('/');
-            const isUrlMalformed =
-              config.submissionUrl &&
-              !config.submissionUrl.startsWith('https://');
-
-            return (
-              <>
-                <p className="text-xxs text-slate-400 leading-tight">
-                  Found in the URL: docs.google.com/spreadsheets/d/<b>[ID]</b>
-                  /edit
-                </p>
-                <div>
-                  <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                    Schumann Elementary — Sheet ID
-                  </label>
-                  <input
-                    type="text"
-                    value={config.schumannSheetId ?? ''}
-                    onChange={(e) =>
-                      updatePermission(tool.type, {
-                        config: {
-                          ...config,
-                          schumannSheetId: e.target.value.trim(),
-                        },
-                      })
-                    }
-                    className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
-                      isSchumannIdMalformed
-                        ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                        : 'border-slate-300 focus:ring-brand-blue-primary'
-                    }`}
-                    placeholder="Schumann spreadsheet ID"
-                  />
-                  {isSchumannIdMalformed && (
-                    <p className="text-xxs text-red-600 font-bold mt-1">
-                      Warning: Enter only the ID, not the full URL.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                    Intermediate School — Sheet ID
-                  </label>
-                  <input
-                    type="text"
-                    value={config.intermediateSheetId ?? ''}
-                    onChange={(e) =>
-                      updatePermission(tool.type, {
-                        config: {
-                          ...config,
-                          intermediateSheetId: e.target.value.trim(),
-                        },
-                      })
-                    }
-                    className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
-                      isIntermediateIdMalformed
-                        ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                        : 'border-slate-300 focus:ring-brand-blue-primary'
-                    }`}
-                    placeholder="Intermediate spreadsheet ID"
-                  />
-                  {isIntermediateIdMalformed && (
-                    <p className="text-xxs text-red-600 font-bold mt-1">
-                      Warning: Enter only the ID, not the full URL.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                    Submission URL (Apps Script)
-                  </label>
-                  <input
-                    type="text"
-                    value={config.submissionUrl ?? ''}
-                    onChange={(e) =>
-                      updatePermission(tool.type, {
-                        config: {
-                          ...config,
-                          submissionUrl: e.target.value.trim(),
-                        },
-                      })
-                    }
-                    className={`w-full px-2 py-1.5 text-xs font-mono border rounded focus:ring-1 outline-none ${
-                      isUrlMalformed
-                        ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                        : 'border-slate-300 focus:ring-brand-blue-primary'
-                    }`}
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                  />
-                  {isUrlMalformed && (
-                    <p className="text-xxs text-red-600 font-bold mt-1">
-                      Warning: URL must start with https://
-                    </p>
-                  )}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
 
       {tool.type === 'weather' && (
         <div className="space-y-4">

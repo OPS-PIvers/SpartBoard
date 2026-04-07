@@ -243,17 +243,15 @@ Config: `components/admin/InstructionalRoutinesManager.tsx` _(separate modal; do
 
 ---
 
-[X] Lunch Count — Type: `lunchCount` | Label: "Lunch"
-Config: Inline in `components/admin/FeatureConfigurationPanel.tsx` — no dedicated file. To extract,
-create `components/admin/LunchCountConfigurationPanel.tsx` and register in `BUILDING_CONFIG_PANELS`.
-
-- **User-level Defaults:**
-  - None.
-- **Admin-only Settings:**
-  - `schumannSheetId`: Google Sheet ID for Schumann Elementary.
-  - `intermediateSheetId`: Google Sheet ID for Intermediate School.
-  - `submissionUrl`: Apps Script URL for data POSTing.
-  - `dockDefaults`: Per-building dock visibility.
+[x] Lunch Count — Type: `lunchCount` | Label: "Lunch"
+Config: `components/admin/LunchCountConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- schumannSheetId: Google Sheet ID for Schumann Elementary.
+        -- intermediateSheetId: Google Sheet ID for Intermediate School.
+        -- submissionUrl: Apps Script URL for data POSTing.
+        -- dockDefaults: Per-building dock visibility.
 
 ---
 
@@ -655,4 +653,31 @@ Config: `components/admin/UrlConfigurationPanel.tsx` _(dedicated panel via `BUIL
     - [Default User-Level Settings]
         -- urls: Default list of active links pre-populated on creation.
     - [Admin-Only Settings]
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Soundboard — Type: `soundboard` | Label: "Soundboard"
+Config: `components/admin/SoundboardConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- availableSounds: Pre-populated list of sounds available for the user to select from.
+    - [Admin-Only Settings]
+        -- enabledLibrarySoundIds: Assignment of pre-made library sounds to grade bands.
+        -- enabledCustomSoundIds: Assignment of custom uploaded sounds to grade bands.
+        -- customLibrarySounds: Global shared custom sounds repository.
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Magic — Type: `magic` | Label: "Magic"
+Config: `components/admin/MagicConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- promptSuggestions: Default AI prompt suggestions pre-populated for users.
+    - [Admin-Only Settings]
+        -- dailyRateLimit: Maximum number of AI requests per user per day.
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Record — Type: `record` | Label: "Record"
+Config: `components/admin/RecordConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- maxDurationMinutes: Maximum allowed duration for screen recordings.
+        -- maxResolution: Maximum resolution cap for recordings.
         -- dockDefaults: Per-building dock visibility.
