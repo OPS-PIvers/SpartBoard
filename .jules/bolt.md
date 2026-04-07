@@ -32,3 +32,8 @@
 
 **Learning:** Object spread syntax (`...acc`) inside an array `.reduce()` method is heavily used in React contexts but causes severe performance bottlenecks when iterating large arrays, as it dynamically allocates a new object on every single iteration in $O(M^2)$ time. In `context/DashboardContext.tsx` this happened per-widget upon receiving server snapshots.
 **Action:** Replace `array.reduce((acc, x) => ({ ...acc, [x.key]: x.val }), {})` patterns with IIFEs containing a fast `for...of` loop mutating a single local object, ensuring $O(M)$ time complexity and avoiding huge garbage collection spikes during high-frequency sync events.
+
+## 2025-04-06 - Nested Array Iterations and Map Lookups
+
+**Learning:** Performing a `.find()` operation inside a `.map()` loop creates an $O(N^2)$ time complexity, which causes performance bottlenecks during bulk text updates or array processing. Similarly, using `.reduce()` to conditionally group elements can add unnecessary overhead compared to a fast `for...of` loop.
+**Action:** When searching for matching items inside a `.map()` loop (e.g., syncing bulk checklist text), create an $O(1)$ lookup `Map` beforehand to reduce complexity to $O(N)$. Also, prefer `for...of` loops over `.reduce()` when pushing items into grouped arrays.

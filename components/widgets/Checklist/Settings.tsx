@@ -78,12 +78,17 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
       const currentText = itemsRef.current.map((i) => i.text).join('\n');
       if (text === currentText) return;
 
+      const existingItemsMap = new Map<string, ChecklistItem>();
+      for (const item of itemsRef.current) {
+        existingItemsMap.set(item.text, item);
+      }
+
       const lines = text.split('\n');
       const newItems: ChecklistItem[] = lines
         .filter((line) => line.trim() !== '')
         .map((line) => {
           const trimmedLine = line.trim();
-          const existing = itemsRef.current.find((i) => i.text === trimmedLine);
+          const existing = existingItemsMap.get(trimmedLine);
           return {
             id: existing?.id ?? crypto.randomUUID(),
             text: trimmedLine,
