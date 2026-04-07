@@ -611,12 +611,6 @@ export const DashboardView: React.FC = () => {
     }
   }, [currentIndex]);
 
-  // Reset zoom when the active dashboard changes. This must happen in an effect
-  // because setZoom updates the parent DashboardContext.
-  React.useEffect(() => {
-    setZoom(1);
-  }, [activeDashboard?.id, setZoom]);
-
   // Reset panOffset during render when zoom is 1 to avoid useEffect and extra re-renders
   if (zoom === 1 && (panOffset.x !== 0 || panOffset.y !== 0)) {
     setPanOffset({ x: 0, y: 0 });
