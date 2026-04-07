@@ -647,6 +647,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             typeof data.disableCloseConfirmation === 'boolean'
           ) {
             setDisableCloseConfirmationState(data.disableCloseConfirmation);
+          } else {
+            setDisableCloseConfirmationState(false);
           }
           if (
             'remoteControlEnabled' in data &&
