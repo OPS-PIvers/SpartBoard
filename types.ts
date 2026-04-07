@@ -54,7 +54,8 @@ export type WidgetType =
   | 'custom-widget'
   | 'soundboard'
   | 'url'
-  | 'activity-wall';
+  | 'activity-wall'
+  | 'first-5';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2539,6 +2540,13 @@ export interface FeaturePermission {
 export interface CarRiderProGlobalConfig {
   /** District portal login URL for the Car Rider Pro dismissal widget */
   url?: string;
+}
+
+export interface First5GlobalConfig {
+  /** The day number as of the reference date */
+  activeDayNumber?: number;
+  /** ISO date string (YYYY-MM-DD) when activeDayNumber was last set */
+  referenceDate?: string;
 }
 
 export interface LunchCountGlobalConfig {

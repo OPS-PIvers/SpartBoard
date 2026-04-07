@@ -46,6 +46,7 @@ import {
 import { ToolMetadata } from '../types';
 
 import { RecordIcon } from '../components/layout/dock/RecordIcon';
+import { First5Icon } from '../components/widgets/First5/First5Icon';
 
 export const TOOLS: ToolMetadata[] = [
   {
@@ -123,6 +124,12 @@ export const TOOLS: ToolMetadata[] = [
     icon: CarFront,
     label: 'Car Rider',
     color: 'bg-blue-500',
+  },
+  {
+    type: 'first-5',
+    icon: First5Icon,
+    label: 'First 5',
+    color: 'bg-amber-500',
   },
   {
     type: 'instructionalRoutines',

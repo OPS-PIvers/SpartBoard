@@ -58,6 +58,7 @@ import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPan
 import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
 import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
+import { First5ConfigurationPanel } from './First5ConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { Toggle } from '../common/Toggle';
 
@@ -111,6 +112,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
     GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
   remote: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
+  'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {

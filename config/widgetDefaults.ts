@@ -338,6 +338,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 600,
     config: {},
   },
+  'first-5': {
+    w: 450,
+    h: 600,
+    config: {},
+  },
   'specialist-schedule': {
     w: 300,
     h: 400,
