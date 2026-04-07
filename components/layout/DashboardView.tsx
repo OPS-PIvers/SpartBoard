@@ -4,7 +4,11 @@ import { useGesture } from '@use-gesture/react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { isExternalBackground } from '@/utils/backgrounds';
+import {
+  isExternalBackground,
+  isCustomBackground,
+  getCustomBackgroundStyle,
+} from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
@@ -919,6 +923,12 @@ export const DashboardView: React.FC = () => {
       transformOrigin: 'center center',
     };
 
+    // Custom user-created colors/gradients (custom: prefix)
+    if (isCustomBackground(bg)) {
+      Object.assign(styles, getCustomBackgroundStyle(bg));
+      return styles;
+    }
+
     // Check if it's a URL or Base64 image
     if (isExternalBackground(bg)) {
       Object.assign(styles, {
@@ -934,8 +944,8 @@ export const DashboardView: React.FC = () => {
   const backgroundClasses = useMemo(() => {
     if (!activeDashboard) return '';
     const bg = activeDashboard.background;
-    // If it's a URL (including YouTube), don't apply the Tailwind class
-    if (isExternalBackground(bg)) return '';
+    // URLs, YouTube, and custom backgrounds don't use Tailwind classes
+    if (isExternalBackground(bg) || isCustomBackground(bg)) return '';
     return bg;
   }, [activeDashboard]);
 

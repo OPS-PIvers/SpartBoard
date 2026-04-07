@@ -3,7 +3,11 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { BackgroundPreset } from '@/types';
-import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from '@/config/backgrounds';
+import {
+  BACKGROUND_COLORS,
+  BACKGROUND_GRADIENTS,
+  BACKGROUND_PATTERNS,
+} from '@/config/backgrounds';
 import { resolveCategory } from '@/utils/backgroundCategories';
 
 export interface BackgroundPresetItem {
@@ -150,6 +154,7 @@ export const useBackgrounds = () => {
   return {
     presets,
     colors: BACKGROUND_COLORS,
+    patterns: BACKGROUND_PATTERNS,
     gradients: BACKGROUND_GRADIENTS,
     loading,
   };
