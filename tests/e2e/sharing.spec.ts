@@ -36,7 +36,7 @@ test.describe('Board Sharing', () => {
 
   test('can share and import a board', async ({ page }) => {
     await page.getByTitle('Open Menu').click();
-    await expect(page.getByText('SpartBoard')).toBeVisible();
+    await expect(page.getByText('SpartBoard', { exact: true })).toBeVisible();
     // Use a specific locator for the Sidebar Boards button to avoid ambiguity with the Dock button
     await page
       .locator('nav button')
