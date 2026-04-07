@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizSessionTeacher } from '@/hooks/useQuizSession';
-import { QuizManager } from './components/QuizManager';
+import { QuizManager, PlcOptions } from './components/QuizManager';
 import { QuizImporter } from './components/QuizImporter';
 import { QuizEditor } from './components/QuizEditor';
 import { QuizPreview } from './components/QuizPreview';
@@ -13,7 +13,7 @@ import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, rosters } = useDashboard();
   const { user, googleAccessToken } = useAuth();
   const config = widget.config as QuizConfig;
 
@@ -304,7 +304,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         const data = await loadQuiz(meta);
         if (data) setView('preview');
       }}
-      onAssign={async (meta, mode) => {
+      rosters={rosters}
+      config={config}
+      onAssign={async (meta, mode, plcOptions: PlcOptions) => {
         const data = await loadQuiz(meta);
         if (!data) return;
         try {
@@ -316,6 +318,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               selectedQuizId: meta.id,
               selectedQuizTitle: meta.title,
               activeLiveSessionCode: code,
+              plcMode: plcOptions.plcMode,
+              teacherName: plcOptions.teacherName ?? '',
+              periodName: plcOptions.periodName ?? '',
+              plcSheetUrl: plcOptions.plcSheetUrl ?? '',
             } as QuizConfig,
           });
           const url = `${window.location.origin}/quiz?code=${code}`;

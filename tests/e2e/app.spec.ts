@@ -22,7 +22,7 @@ test.describe(APP_NAME, () => {
     await menuButton.click();
 
     // Verify sidebar header
-    await expect(page.getByText(APP_NAME)).toBeVisible();
+    await expect(page.getByText(APP_NAME, { exact: true })).toBeVisible();
 
     // Verify Workspace section is visible
     await expect(page.getByText('Workspace')).toBeVisible();

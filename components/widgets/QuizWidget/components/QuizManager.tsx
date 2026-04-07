@@ -19,8 +19,23 @@ import {
   User,
   Zap,
   X,
+  AlertTriangle,
+  Share2,
 } from 'lucide-react';
-import { QuizMetadata, QuizSessionMode } from '@/types';
+import {
+  QuizMetadata,
+  QuizSessionMode,
+  QuizConfig,
+  ClassRoster,
+} from '@/types';
+import { Toggle } from '@/components/common/Toggle';
+
+export interface PlcOptions {
+  plcMode: boolean;
+  teacherName?: string;
+  periodName?: string;
+  plcSheetUrl?: string;
+}
 
 interface QuizManagerProps {
   quizzes: QuizMetadata[];
@@ -29,13 +44,19 @@ interface QuizManagerProps {
   onImport: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
-  onAssign: (quiz: QuizMetadata, mode: QuizSessionMode) => void;
+  onAssign: (
+    quiz: QuizMetadata,
+    mode: QuizSessionMode,
+    plcOptions: PlcOptions
+  ) => void;
   onResume: () => void;
   onEndSession: () => Promise<void>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void;
   hasActiveSession: boolean;
   activeQuizId: string | null;
+  rosters: ClassRoster[];
+  config: QuizConfig;
 }
 
 export const QuizManager: React.FC<QuizManagerProps> = ({
@@ -52,11 +73,44 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onDelete,
   hasActiveSession,
   activeQuizId,
+  rosters,
+  config,
 }) => {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [selectedForLive, setSelectedForLive] = useState<QuizMetadata | null>(
     null
   );
+
+  // PLC form state — initialized from config defaults, reset when modal opens
+  const [plcMode, setPlcMode] = useState(config.plcMode ?? false);
+  const [teacherName, setTeacherName] = useState(config.teacherName ?? '');
+  const [periodName, setPeriodName] = useState(config.periodName ?? '');
+  const [plcSheetUrl, setPlcSheetUrl] = useState(config.plcSheetUrl ?? '');
+  const [prevSelectedForLive, setPrevSelectedForLive] =
+    useState(selectedForLive);
+
+  // Reset PLC form state when the modal re-opens (adjusting state during render)
+  if (selectedForLive && selectedForLive !== prevSelectedForLive) {
+    setPrevSelectedForLive(selectedForLive);
+    setPlcMode(config.plcMode ?? false);
+    setTeacherName(config.teacherName ?? '');
+    setPeriodName(config.periodName ?? '');
+    setPlcSheetUrl(config.plcSheetUrl ?? '');
+  }
+  if (!selectedForLive && prevSelectedForLive) {
+    setPrevSelectedForLive(null);
+  }
+
+  const plcSheetUrlInvalid =
+    !!plcSheetUrl &&
+    !plcSheetUrl.startsWith('https://docs.google.com/spreadsheets/');
+
+  const buildPlcOptions = (): PlcOptions => ({
+    plcMode,
+    teacherName: teacherName || undefined,
+    periodName: periodName || undefined,
+    plcSheetUrl: plcSheetUrl || undefined,
+  });
 
   if (loading) {
     return (
@@ -80,8 +134,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       {/* Mode Selection Modal */}
       {selectedForLive && (
         <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="bg-brand-blue-primary p-4 flex items-center justify-between">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-full">
+            <div className="bg-brand-blue-primary p-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 text-white">
                 <Play className="w-5 h-5 fill-current" />
                 <span className="font-black uppercase tracking-tight">
@@ -96,7 +150,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto">
               <div className="text-center">
                 <p className="font-bold text-brand-blue-dark text-base truncate px-2">
                   {selectedForLive.title}
@@ -115,7 +169,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Teacher-paced"
                   desc="You control when to move to the next question."
                   onClick={() => {
-                    onAssign(selectedForLive, 'teacher');
+                    onAssign(selectedForLive, 'teacher', buildPlcOptions());
                     setSelectedForLive(null);
                   }}
                 />
@@ -124,7 +178,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Auto-progress"
                   desc="Moves automatically once everyone has answered."
                   onClick={() => {
-                    onAssign(selectedForLive, 'auto');
+                    onAssign(selectedForLive, 'auto', buildPlcOptions());
                     setSelectedForLive(null);
                   }}
                 />
@@ -133,10 +187,112 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   title="Self-paced"
                   desc="Students move through questions at their own speed."
                   onClick={() => {
-                    onAssign(selectedForLive, 'student');
+                    onAssign(selectedForLive, 'student', buildPlcOptions());
                     setSelectedForLive(null);
                   }}
                 />
+              </div>
+
+              {/* PLC / Share with PLC Section */}
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-4 h-4 text-brand-blue-primary" />
+                    <span className="text-sm font-bold text-brand-blue-dark">
+                      Share with PLC
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={plcMode}
+                    onChange={setPlcMode}
+                    size="sm"
+                    showLabels={true}
+                  />
+                </div>
+                <p className="text-xxs text-slate-500 mt-1">
+                  Export results to a shared Google Sheet for your PLC team.
+                </p>
+
+                {plcMode && (
+                  <div className="mt-3 space-y-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    {/* Teacher Name */}
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                        Your Name
+                      </label>
+                      <input
+                        type="text"
+                        value={teacherName}
+                        onChange={(e) => setTeacherName(e.target.value)}
+                        placeholder="e.g. Ms. Smith"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <p className="text-xxs text-slate-400 mt-0.5">
+                        Appears in the &quot;Teacher&quot; column of the shared
+                        sheet
+                      </p>
+                    </div>
+
+                    {/* Class Period */}
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                        Class Period
+                      </label>
+                      {rosters.length > 0 ? (
+                        <select
+                          value={periodName}
+                          onChange={(e) => setPeriodName(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">Select a class...</option>
+                          {rosters.map((r) => (
+                            <option key={r.id} value={r.name}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={periodName}
+                          onChange={(e) => setPeriodName(e.target.value)}
+                          placeholder="e.g. Period 3"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      )}
+                      <p className="text-xxs text-slate-400 mt-0.5">
+                        Must match your Class widget roster name for student
+                        name lookup
+                      </p>
+                    </div>
+
+                    {/* Shared Sheet URL */}
+                    <div>
+                      <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                        Shared Google Sheet URL
+                      </label>
+                      <input
+                        type="text"
+                        value={plcSheetUrl}
+                        onChange={(e) => setPlcSheetUrl(e.target.value)}
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      {plcSheetUrlInvalid && (
+                        <div className="flex items-center gap-1 mt-1 text-amber-600">
+                          <AlertTriangle className="w-3 h-3" />
+                          <span className="text-xxs">
+                            This doesn&apos;t look like a Google Sheets URL
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-xxs text-slate-400 mt-0.5">
+                        Paste the URL of the Google Sheet shared by your PLC
+                        lead
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
