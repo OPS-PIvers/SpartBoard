@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Zap,
   Globe,
+  Building2,
   SlidersHorizontal,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
@@ -36,6 +37,7 @@ import { SidebarBackgrounds } from './SidebarBackgrounds';
 import { SidebarQuickAccess } from './SidebarQuickAccess';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarLanguageRegion } from './SidebarLanguageRegion';
+import { SidebarBuildings } from './SidebarBuildings';
 import { SidebarPreferences } from './SidebarPreferences';
 
 type MenuSection =
@@ -46,6 +48,7 @@ type MenuSection =
   | 'quick-access'
   | 'google-drive'
   | 'language'
+  | 'buildings'
   | 'preferences';
 
 export const Sidebar: React.FC = () => {
@@ -435,6 +438,20 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
+                  <button
+                    onClick={() => setActiveSection('buildings')}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-all text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Building2 className="w-4 h-4 text-teal-400 group-hover:text-brand-blue-primary transition-colors" />
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.buildings', {
+                        defaultValue: 'My Building(s)',
+                      })}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
                 </div>
 
                 <div className="mx-5 my-2.5 border-t border-slate-100" />
@@ -520,6 +537,9 @@ export const Sidebar: React.FC = () => {
 
               {/* LANGUAGE & REGION SECTION */}
               <SidebarLanguageRegion isVisible={activeSection === 'language'} />
+
+              {/* MY BUILDING(S) SECTION */}
+              <SidebarBuildings isVisible={activeSection === 'buildings'} />
 
               {/* PREFERENCES SECTION */}
               <SidebarPreferences isVisible={activeSection === 'preferences'} />

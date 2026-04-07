@@ -191,6 +191,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [profileLoaded, setProfileLoaded] = useState(isAuthBypass);
   const [setupCompleted, setSetupCompletedState] = useState(isAuthBypass);
+  const [disableCloseConfirmation, setDisableCloseConfirmationState] =
+    useState(false);
+  const [remoteControlEnabled, setRemoteControlEnabledState] = useState(true);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -638,6 +641,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             !('setupCompleted' in data) || data.setupCompleted === true
           );
 
+          // Load account-level preferences
+          if (
+            'disableCloseConfirmation' in data &&
+            typeof data.disableCloseConfirmation === 'boolean'
+          ) {
+            setDisableCloseConfirmationState(data.disableCloseConfirmation);
+          }
+          if (
+            'remoteControlEnabled' in data &&
+            typeof data.remoteControlEnabled === 'boolean'
+          ) {
+            setRemoteControlEnabledState(data.remoteControlEnabled);
+          } else {
+            // Default to true if not explicitly set
+            setRemoteControlEnabledState(true);
+          }
+
           setProfileLoaded(true);
           return;
         }
@@ -747,6 +767,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error('Error saving setup completion:', error);
     }
   }, [user]);
+
+  const updateAccountPreferences = useCallback(
+    async (updates: {
+      disableCloseConfirmation?: boolean;
+      remoteControlEnabled?: boolean;
+    }) => {
+      if (updates.disableCloseConfirmation !== undefined) {
+        setDisableCloseConfirmationState(updates.disableCloseConfirmation);
+      }
+      if (updates.remoteControlEnabled !== undefined) {
+        setRemoteControlEnabledState(updates.remoteControlEnabled);
+      }
+      if (!user || isAuthBypass) return;
+      const myToken = ++writeTokenRef.current;
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          updates,
+          { merge: true }
+        );
+      } catch (error) {
+        if (myToken === writeTokenRef.current) {
+          console.error('Error saving account preferences:', error);
+        }
+      }
+    },
+    [user]
+  );
 
   const saveWidgetConfig = useCallback(
     (type: WidgetType, config: Partial<WidgetConfig>) => {
@@ -978,6 +1026,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         profileLoaded,
         setupCompleted,
         completeSetup,
+        disableCloseConfirmation,
+        remoteControlEnabled,
+        updateAccountPreferences,
       }}
     >
       {children}

@@ -99,7 +99,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
 }) => {
   const isSpotlighted = dashboardSettings?.spotlightWidgetId === widget.id;
   const windowSize = useWindowSize(!!widget.maximized);
-  const { canAccessFeature, featurePermissions } = useAuth();
+  const {
+    canAccessFeature,
+    featurePermissions,
+    disableCloseConfirmation: accountDisableCloseConfirmation,
+  } = useAuth();
 
   const handleToggleLive = async () => {
     try {
@@ -322,7 +326,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       style={customStyle}
       isSpotlighted={isSpotlighted}
       skipCloseConfirmation={
-        widget.type === 'classes' || dashboardSettings?.disableCloseConfirmation
+        widget.type === 'classes' || accountDisableCloseConfirmation
       }
       globalStyle={globalStyle}
       headerActions={

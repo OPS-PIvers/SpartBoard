@@ -62,6 +62,15 @@ export interface AuthContextType {
   setupCompleted: boolean;
   /** Mark setup as done — writes setupCompleted:true to Firestore */
   completeSetup: () => Promise<void>;
+  /** Whether to skip the close-widget confirmation dialog (account-level preference) */
+  disableCloseConfirmation: boolean;
+  /** Whether remote control is enabled (account-level preference) */
+  remoteControlEnabled: boolean;
+  /** Update account-level preferences (disableCloseConfirmation, remoteControlEnabled) */
+  updateAccountPreferences: (updates: {
+    disableCloseConfirmation?: boolean;
+    remoteControlEnabled?: boolean;
+  }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(

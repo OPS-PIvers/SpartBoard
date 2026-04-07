@@ -55,6 +55,11 @@ const mockAuth: AuthContextType = {
   completeSetup: async () => {
     // No-op in student view
   },
+  disableCloseConfirmation: false,
+  remoteControlEnabled: true,
+  updateAccountPreferences: async () => {
+    // No-op in student view
+  },
 };
 
 // --- MOCK DASHBOARD ---

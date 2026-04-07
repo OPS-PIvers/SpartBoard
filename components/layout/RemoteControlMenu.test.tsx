@@ -3,13 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RemoteControlMenu from './RemoteControlMenu';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(),
+}));
+
 describe('RemoteControlMenu', () => {
-  const updateDashboardSettings = vi.fn();
+  const updateAccountPreferences = vi.fn();
   const onClose = vi.fn();
   const anchorRect = {
     left: 20,
@@ -35,9 +40,12 @@ describe('RemoteControlMenu', () => {
       activeDashboard: {
         id: 'board-123',
         name: 'Board 123',
-        settings: { remoteControlEnabled: true },
       },
-      updateDashboardSettings,
+    });
+
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      remoteControlEnabled: true,
+      updateAccountPreferences,
     });
   });
 

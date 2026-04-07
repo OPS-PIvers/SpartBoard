@@ -62,6 +62,9 @@ vi.mock('@/context/useAuth', () => ({
     profileLoaded: true,
     setupCompleted: true,
     completeSetup: vi.fn(),
+    disableCloseConfirmation: false,
+    remoteControlEnabled: true,
+    updateAccountPreferences: vi.fn(),
   })),
 }));
 
@@ -389,6 +392,9 @@ describe('EmbedWidget', () => {
         profileLoaded: true,
         setupCompleted: true,
         completeSetup: vi.fn(),
+        disableCloseConfirmation: false,
+        remoteControlEnabled: true,
+        updateAccountPreferences: vi.fn(),
       });
 
       render(<EmbedWidget widget={validWidget} />);

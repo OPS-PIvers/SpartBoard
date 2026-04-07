@@ -100,6 +100,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -128,6 +129,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
+  // Keep a ref to account-level remote control so the Firestore snapshot
+  // handler can read the latest value without triggering a re-subscription.
+  const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
+  accountRemoteControlEnabledRef.current = accountRemoteControlEnabled;
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const dashboardsRef = useRef(dashboards);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -726,7 +731,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               ] as const;
 
               const remoteControlEnabled =
-                currentActive.settings?.remoteControlEnabled ?? true;
+                accountRemoteControlEnabledRef.current;
 
               // Pre-calculate merge decisions for all incoming server widgets
               const widgetMergeDecisions = db.widgets.map((sw) => {

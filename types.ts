@@ -2396,6 +2396,10 @@ export interface UserProfile {
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
+  /** Skip the confirmation dialog when closing widgets (account-level) */
+  disableCloseConfirmation?: boolean;
+  /** Whether remote control is enabled for all boards (account-level) */
+  remoteControlEnabled?: boolean;
 }
 
 export interface SharedGroup {

@@ -38,6 +38,7 @@ vi.mock('../context/useAuth', () => ({
     savedWidgetConfigs: {},
     saveWidgetConfig: vi.fn(),
     refreshGoogleToken: vi.fn(),
+    remoteControlEnabled: true,
   }),
 }));
 

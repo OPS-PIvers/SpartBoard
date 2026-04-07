@@ -65,6 +65,11 @@ const mockAuthContext = (
   completeSetup: async () => {
     /* mock */
   },
+  disableCloseConfirmation: false,
+  remoteControlEnabled: true,
+  updateAccountPreferences: async () => {
+    /* mock */
+  },
   ...overrides,
 });
 

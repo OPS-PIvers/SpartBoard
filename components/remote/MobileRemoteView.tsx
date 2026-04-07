@@ -32,6 +32,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { WidgetData, WidgetType, DashboardSettings } from '@/types';
 import { RemoteWidgetCard } from './RemoteWidgetCard';
 
@@ -72,6 +73,7 @@ export const MobileRemoteView: React.FC = () => {
     loadDashboard,
     dashboards,
   } = useDashboard();
+  const { remoteControlEnabled: accountRemoteEnabled } = useAuth();
 
   // ---- Local snapshot state ----
   // Initialised once from activeDashboard, then only updated on manual Sync.
@@ -274,7 +276,7 @@ export const MobileRemoteView: React.FC = () => {
     );
   }
 
-  const remoteEnabled = activeDashboard.settings?.remoteControlEnabled ?? true;
+  const remoteEnabled = accountRemoteEnabled;
 
   if (!remoteEnabled) {
     return (

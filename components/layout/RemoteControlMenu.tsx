@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { Toggle } from '../common/Toggle';
@@ -11,11 +12,10 @@ interface Props {
 }
 
 const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
-  const { activeDashboard, updateDashboardSettings } = useDashboard();
+  const { activeDashboard } = useDashboard();
+  const { remoteControlEnabled: enabled, updateAccountPreferences } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
-
-  const enabled = activeDashboard?.settings?.remoteControlEnabled ?? true;
   const remoteUrlObject = new URL('/remote', window.location.origin);
   if (activeDashboard) {
     remoteUrlObject.searchParams.set('boardId', activeDashboard.id);
@@ -106,7 +106,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
           <Toggle
             checked={enabled}
             onChange={(val) =>
-              updateDashboardSettings({ remoteControlEnabled: val })
+              void updateAccountPreferences({ remoteControlEnabled: val })
             }
           />
         </div>

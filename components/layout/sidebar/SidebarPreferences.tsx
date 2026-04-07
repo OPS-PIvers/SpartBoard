@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, ShieldX, MousePointerClick } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
-import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 
 interface SidebarPreferencesProps {
   isVisible: boolean;
@@ -12,7 +12,11 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
   isVisible,
 }) => {
   const { t } = useTranslation();
-  const { activeDashboard, updateDashboardSettings } = useDashboard();
+  const {
+    disableCloseConfirmation,
+    remoteControlEnabled,
+    updateAccountPreferences,
+  } = useAuth();
 
   return (
     <div
@@ -39,7 +43,7 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
               {t('sidebar.settings.preferencesDescription', {
                 defaultValue:
-                  'Customize how your board behaves. These settings apply to the current board.',
+                  'Customize how your boards behave. These settings apply to your account across all boards.',
               })}
             </p>
           </div>
@@ -60,12 +64,9 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                   </span>
                   <Toggle
                     size="sm"
-                    checked={
-                      activeDashboard?.settings?.disableCloseConfirmation ??
-                      false
-                    }
+                    checked={disableCloseConfirmation}
                     onChange={(checked) =>
-                      updateDashboardSettings({
+                      void updateAccountPreferences({
                         disableCloseConfirmation: checked,
                       })
                     }
@@ -94,11 +95,9 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                   </span>
                   <Toggle
                     size="sm"
-                    checked={
-                      activeDashboard?.settings?.remoteControlEnabled ?? false
-                    }
+                    checked={remoteControlEnabled}
                     onChange={(checked) =>
-                      updateDashboardSettings({
+                      void updateAccountPreferences({
                         remoteControlEnabled: checked,
                       })
                     }
@@ -122,7 +121,7 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
               </span>{' '}
               {t('sidebar.settings.preferencesTip', {
                 defaultValue:
-                  'These preferences are saved per board. Switch boards to configure them independently.',
+                  'These preferences are saved to your account and apply to all your boards.',
               })}
             </p>
           </div>
