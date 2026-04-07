@@ -319,9 +319,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               selectedQuizTitle: meta.title,
               activeLiveSessionCode: code,
               plcMode: plcOptions.plcMode,
-              teacherName: plcOptions.teacherName,
-              periodName: plcOptions.periodName,
-              plcSheetUrl: plcOptions.plcSheetUrl,
+              teacherName: plcOptions.teacherName ?? '',
+              periodName: plcOptions.periodName ?? '',
+              plcSheetUrl: plcOptions.plcSheetUrl ?? '',
             } as QuizConfig,
           });
           const url = `${window.location.origin}/quiz?code=${code}`;

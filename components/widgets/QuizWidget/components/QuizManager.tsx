@@ -206,7 +206,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                     checked={plcMode}
                     onChange={setPlcMode}
                     size="sm"
-                    showLabels={false}
+                    showLabels={true}
                   />
                 </div>
                 <p className="text-xxs text-slate-500 mt-1">
