@@ -131,7 +131,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
         const newOrder = arrayMove(dashboards, oldIndex, newIndex).map(
           (d) => d.id
         );
-        reorderDashboards(newOrder);
+        void reorderDashboards(newOrder);
       }
     },
     [dashboards, reorderDashboards]
@@ -177,7 +177,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     if (data) {
       try {
         const parsed = JSON.parse(data) as DashboardData;
-        createNewDashboard(
+        void createNewDashboard(
           `${t('sidebar.boards.imported')}: ${parsed.name}`,
           parsed as unknown as Dashboard
         );
@@ -212,9 +212,9 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
           | undefined,
         createdAt: Date.now(),
       };
-      createNewDashboard(newDashboardName.trim(), templateData);
+      void createNewDashboard(newDashboardName.trim(), templateData);
     } else {
-      createNewDashboard(newDashboardName.trim());
+      void createNewDashboard(newDashboardName.trim());
     }
     setShowNewDashboardModal(false);
     setPendingTemplateSource(null);
@@ -361,7 +361,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     if (editingDashboard.name.trim()) {
-                      renameDashboard(
+                      void renameDashboard(
                         editingDashboard.id,
                         editingDashboard.name.trim()
                       );
@@ -384,7 +384,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
                 <button
                   onClick={() => {
                     if (editingDashboard.name.trim()) {
-                      renameDashboard(
+                      void renameDashboard(
                         editingDashboard.id,
                         editingDashboard.name.trim()
                       );
