@@ -236,18 +236,35 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     }
   };
 
-  // Check if a custom color/gradient is currently active
-  const isCustomColorActive =
-    activeDashboard?.background === `custom:${customColor}`;
-  const currentGradientValue = `linear-gradient(${gradientAngle}, ${gradientColor1}, ${gradientColor2})`;
-  const isCustomGradientActive =
-    activeDashboard?.background === `custom:${currentGradientValue}`;
+  // Sync picker state when the active dashboard background changes
+  const activeCustomValue = useMemo(() => {
+    const bg = activeDashboard?.background ?? '';
+    return isCustomBackground(bg) ? bg.slice('custom:'.length) : '';
+  }, [activeDashboard?.background]);
 
-  // Detect if the active background is a custom color and sync the picker
-  const activeBackground = activeDashboard?.background ?? '';
-  const isActiveCustomColor =
-    isCustomBackground(activeBackground) &&
-    activeBackground.slice('custom:'.length).startsWith('#');
+  useEffect(() => {
+    if (activeCustomValue.startsWith('#')) {
+      setCustomColor(activeCustomValue);
+      return;
+    }
+
+    const m = activeCustomValue.match(
+      /^linear-gradient\(\s*([^,]+?)\s*,\s*(#[0-9a-fA-F]{3,8})\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/
+    );
+    if (m) {
+      setGradientAngle(m[1].trim());
+      setGradientColor1(m[2]);
+      setGradientColor2(m[3]);
+    }
+  }, [activeCustomValue]);
+
+  // Check if a custom color/gradient is currently active
+  const currentGradientValue = `linear-gradient(${gradientAngle}, ${gradientColor1}, ${gradientColor2})`;
+  const isCustomColorActive =
+    activeCustomValue.startsWith('#') && activeCustomValue === customColor;
+  const isCustomGradientActive =
+    activeCustomValue.startsWith('linear-gradient(') &&
+    activeCustomValue === currentGradientValue;
 
   return (
     <div
@@ -483,10 +500,11 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
               <button
                 type="button"
                 onClick={() => setBackground(`custom:${customColor}`)}
+                disabled={!/^#([0-9a-fA-F]{3}){1,2}$/.test(customColor)}
                 className={`px-3 py-1.5 text-xxs font-bold uppercase rounded-lg transition-all ${
-                  isCustomColorActive || isActiveCustomColor
+                  isCustomColorActive
                     ? 'bg-brand-blue-primary text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-brand-blue-primary hover:text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-brand-blue-primary hover:text-white disabled:opacity-50 disabled:hover:bg-slate-100 disabled:hover:text-slate-600'
                 }`}
               >
                 {isCustomColorActive ? (

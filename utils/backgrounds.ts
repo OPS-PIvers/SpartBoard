@@ -18,15 +18,18 @@ export const isCustomBackground = (background: string): boolean =>
 
 /**
  * Converts a custom: background string to inline CSS properties.
- * - `custom:#ff5500` → { backgroundColor: '#ff5500' }
- * - `custom:linear-gradient(...)` → { background: 'linear-gradient(...)' }
+ * Only supports hex colors, rgb/rgba colors, and linear-gradient values.
+ * Returns an empty object for unrecognised formats.
  */
 export const getCustomBackgroundStyle = (
   background: string
 ): React.CSSProperties => {
   const value = background.slice('custom:'.length);
-  if (value.startsWith('#') || value.startsWith('rgb')) {
+  if (/^#([0-9a-fA-F]{3}){1,2}$/.test(value) || value.startsWith('rgb')) {
     return { backgroundColor: value };
   }
-  return { background: value };
+  if (value.startsWith('linear-gradient(')) {
+    return { background: value };
+  }
+  return {};
 };
