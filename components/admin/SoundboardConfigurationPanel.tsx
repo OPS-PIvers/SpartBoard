@@ -12,8 +12,6 @@ import { useAuth } from '@/context/useAuth';
 import { ensureProtocol, extractGoogleFileId } from '@/utils/urlHelpers';
 import {
   normalizeSoundboardAudioUrl,
-  isDriveUrl,
-  extractDriveAudioFileId,
   fetchDriveAudioBlobUrl,
 } from '@/utils/soundboardAudioUrl';
 

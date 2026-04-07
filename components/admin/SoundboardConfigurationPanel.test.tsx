@@ -1,9 +1,24 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, beforeEach, afterAll, vi } from 'vitest';
 import { SoundboardConfigurationPanel } from './SoundboardConfigurationPanel';
 import { SoundboardGlobalConfig } from '@/types';
 import { SOUND_LIBRARY } from '@/config/soundLibrary';
 import { BUILDINGS } from '@/config/buildings';
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn().mockReturnValue({ googleAccessToken: 'test-token' }),
+}));
+
+const FAKE_BLOB_URL = 'blob:http://localhost/fake-audio';
+vi.mock('@/utils/soundboardAudioUrl', async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import('@/utils/soundboardAudioUrl')
+  >();
+  return {
+    ...actual,
+    fetchDriveAudioBlobUrl: vi.fn().mockResolvedValue(FAKE_BLOB_URL),
+  };
+});
 
 const mockPlay = vi
   .fn<() => Promise<void>>()
@@ -26,6 +41,10 @@ vi.stubGlobal(
     pause(): void {
       mockPause();
     }
+
+    addEventListener(): void {
+      /* noop */
+    }
   }
 );
 
@@ -38,7 +57,7 @@ describe('SoundboardConfigurationPanel', () => {
     vi.unstubAllGlobals();
   });
 
-  it('normalizes Google Drive share links before test playback', () => {
+  it('fetches Google Drive audio via the authenticated API before test playback', async () => {
     const config: SoundboardGlobalConfig = {
       customLibrarySounds: [
         {
@@ -61,10 +80,10 @@ describe('SoundboardConfigurationPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /test/i }));
 
-    expect(mockAudioConstructor).toHaveBeenCalledWith(
-      'https://drive.google.com/uc?id=1EjE5Dnmrx2H8um03srzcoMm1LCdtO8Xp&export=download'
-    );
-    expect(mockPlay).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAudioConstructor).toHaveBeenCalledWith(FAKE_BLOB_URL);
+      expect(mockPlay).toHaveBeenCalled();
+    });
   });
 
   it('toggles a library sound across all buildings in a single onChange call', () => {
