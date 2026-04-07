@@ -20,9 +20,11 @@ import {
   LayoutGrid,
   List,
   Filter,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
 
@@ -105,7 +107,10 @@ const GEMINI_FEATURES: GlobalFeature[] = [
 ];
 
 export const GlobalPermissionsManager: React.FC = () => {
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const effectiveViewMode = isMobile ? 'grid' : viewMode;
+  const [showFilters, setShowFilters] = useState(false);
   const [permissions, setPermissions] = useState<
     Map<string, GlobalFeaturePermission>
   >(new Map());
@@ -334,6 +339,43 @@ export const GlobalPermissionsManager: React.FC = () => {
     });
   }, [permissions, filterEnabled, filterAvailability]);
 
+  const btnClass = (active: boolean) =>
+    `px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
+      active
+        ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+    }`;
+
+  const renderEnabledFilter = () => (
+    <div className="flex items-center gap-1 flex-wrap">
+      <span className="text-xs text-slate-500 font-medium">Enabled:</span>
+      {(['all', 'on', 'off'] as const).map((val) => (
+        <button
+          key={val}
+          onClick={() => setFilterEnabled(val)}
+          className={btnClass(filterEnabled === val)}
+        >
+          {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderAvailabilityFilter = () => (
+    <div className="flex items-center gap-1 flex-wrap">
+      <span className="text-xs text-slate-500 font-medium">Availability:</span>
+      {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
+        <button
+          key={val}
+          onClick={() => setFilterAvailability(val)}
+          className={btnClass(filterAvailability === val)}
+        >
+          {val === 'all' ? 'All' : val.charAt(0).toUpperCase() + val.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -367,7 +409,7 @@ export const GlobalPermissionsManager: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
             {appSettings?.logoUrl ? (
               <img
@@ -410,87 +452,81 @@ export const GlobalPermissionsManager: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-2">
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Filter className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase tracking-wide">
-            Filter
-          </span>
-        </div>
-
-        {/* Enabled filter */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-slate-500 font-medium">Enabled:</span>
-          {(['all', 'on', 'off'] as const).map((val) => (
-            <button
-              key={val}
-              onClick={() => setFilterEnabled(val)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterEnabled === val
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-slate-200" />
-
-        {/* Availability filter */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-slate-500 font-medium">
-            Availability:
-          </span>
-          {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
-            <button
-              key={val}
-              onClick={() => setFilterAvailability(val)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
-                filterAvailability === val
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {val === 'all'
-                ? 'All'
-                : val.charAt(0).toUpperCase() + val.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="ml-auto flex bg-white p-0.5 rounded-lg border border-slate-200">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">
+        {/* Filter header row */}
+        <div className="flex items-center gap-2 p-2 md:p-3">
+          {/* Mobile: collapsible filter toggle */}
           <button
-            type="button"
-            onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'grid'
-                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="Grid View"
-            aria-label="Grid view"
-            aria-pressed={viewMode === 'grid'}
+            onClick={() => setShowFilters((v) => !v)}
+            className="flex items-center gap-1.5 text-slate-500 md:hidden"
+            aria-expanded={showFilters}
+            aria-controls="global-perm-mobile-filters"
           >
-            <LayoutGrid size={16} />
+            <Filter className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wide">
+              Filters
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+            />
           </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'list'
-                ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            title="List View"
-            aria-label="List view"
-            aria-pressed={viewMode === 'list'}
-          >
-            <List size={16} />
-          </button>
+
+          {/* Desktop: inline filters */}
+          <div className="hidden md:flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <Filter className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-wide">
+                Filter
+              </span>
+            </div>
+            {renderEnabledFilter()}
+            <div className="w-px h-5 bg-slate-200" />
+            {renderAvailabilityFilter()}
+          </div>
+
+          {/* View Mode Toggle - hidden on mobile */}
+          <div className="ml-auto hidden md:flex bg-white p-0.5 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+              title="Grid View"
+              aria-label="Grid view"
+              aria-pressed={viewMode === 'grid'}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-md transition-all ${
+                viewMode === 'list'
+                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+              title="List View"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
+
+        {/* Mobile: collapsible filter content */}
+        {showFilters && (
+          <div
+            id="global-perm-mobile-filters"
+            className="flex flex-col gap-3 px-3 pb-3 border-t border-slate-200 pt-3 md:hidden"
+          >
+            {renderEnabledFilter()}
+            {renderAvailabilityFilter()}
+          </div>
+        )}
       </div>
 
       <>
@@ -504,8 +540,8 @@ export const GlobalPermissionsManager: React.FC = () => {
         )}
         <div
           className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 gap-6'
+            effectiveViewMode === 'grid'
+              ? 'grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6'
               : 'space-y-3'
           }
         >
@@ -513,7 +549,7 @@ export const GlobalPermissionsManager: React.FC = () => {
             const permission = getPermission(feature.id);
             const isSaving = saving.has(feature.id);
 
-            if (viewMode === 'list') {
+            if (effectiveViewMode === 'list') {
               return (
                 <div
                   key={feature.id}
@@ -521,7 +557,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                 >
                   <div className="flex items-center gap-4 p-3">
                     {/* Identity Section */}
-                    <div className="flex items-center gap-3 w-72 shrink-0">
+                    <div className="flex items-center gap-3 w-56 xl:w-72 shrink-0">
                       <div className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
                         <feature.icon className="w-5 h-5" />
                       </div>

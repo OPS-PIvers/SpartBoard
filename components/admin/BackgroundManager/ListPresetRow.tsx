@@ -39,9 +39,9 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
 
   return (
     <div className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden">
-      <div className="flex items-center gap-3 p-3">
+      <div className="flex items-center gap-2 lg:gap-3 p-3">
         {/* Thumbnail */}
-        <div className="relative w-20 h-14 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+        <div className="relative w-16 lg:w-20 h-12 lg:h-14 rounded-lg overflow-hidden bg-slate-100 shrink-0">
           <img
             src={preset.thumbnailUrl ?? preset.url}
             alt={preset.label}
@@ -55,7 +55,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
         </div>
 
         {/* Label */}
-        <div className="w-44 shrink-0">
+        <div className="w-32 xl:w-44 shrink-0 min-w-0">
           {editingId === preset.id ? (
             <div className="flex items-center gap-1">
               <input

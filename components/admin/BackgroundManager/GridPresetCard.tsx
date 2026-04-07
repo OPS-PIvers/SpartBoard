@@ -143,7 +143,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 title={`Set to ${level}`}
               >
                 {getAccessLevelIcon(level)}
-                <span className="hidden xl:inline">{level}</span>
+                <span className="hidden sm:inline">{level}</span>
               </button>
             ))}
           </div>
