@@ -581,4 +581,91 @@ describe('ClassesWidget RosterEditor', () => {
       screen.queryByRole('button', { name: /classlink/i })
     ).not.toBeInTheDocument();
   });
+
+  // ─── PIN UI Tests ──────────────────────────────────────────────────────────
+
+  it('shows "+ Quiz PIN" button and toggles PIN column', async () => {
+    const user = userEvent.setup();
+    render(<ClassesWidget widget={mockWidget} />);
+
+    await user.click(screen.getByRole('button', { name: /create new class/i }));
+
+    // PIN column not shown by default
+    expect(
+      screen.queryByPlaceholderText(/01\n02\n03/i)
+    ).not.toBeInTheDocument();
+
+    // Toggle PIN column on
+    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
+
+    // PIN textarea is now visible
+    expect(screen.getByPlaceholderText(/^01/)).toBeInTheDocument();
+  });
+
+  it('saves PINs from the PIN column', async () => {
+    const user = userEvent.setup();
+    render(<ClassesWidget widget={mockWidget} />);
+
+    await user.click(screen.getByRole('button', { name: /create new class/i }));
+
+    const nameInput = screen.getByPlaceholderText(/class name/i);
+    await user.type(nameInput, 'PIN Class');
+
+    const namesTextarea = screen.getByPlaceholderText(
+      /paste full names or group names here/i
+    );
+    await user.type(namesTextarea, 'Alice\nBob');
+
+    // Toggle PIN column and enter PINs
+    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
+    const pinTextarea = screen.getByPlaceholderText(/^01/);
+    await user.type(pinTextarea, 'dragon\n42');
+
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(defaultDashboardMock.addRoster).toHaveBeenCalled();
+    });
+
+    expect(defaultDashboardMock.addRoster).toHaveBeenCalledWith('PIN Class', [
+      expect.objectContaining({ firstName: 'Alice', pin: 'dragon' }),
+      expect.objectContaining({ firstName: 'Bob', pin: '42' }),
+    ]);
+  });
+
+  it('shows duplicate PIN warning', async () => {
+    const user = userEvent.setup();
+    render(<ClassesWidget widget={mockWidget} />);
+
+    await user.click(screen.getByRole('button', { name: /create new class/i }));
+
+    const namesTextarea = screen.getByPlaceholderText(
+      /paste full names or group names here/i
+    );
+    await user.type(namesTextarea, 'Alice\nBob');
+
+    // Toggle PIN column and enter duplicate PINs
+    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
+    const pinTextarea = screen.getByPlaceholderText(/^01/);
+    await user.type(pinTextarea, 'same\nsame');
+
+    await waitFor(() => {
+      expect(screen.getByText(/duplicate pins/i)).toBeInTheDocument();
+    });
+  });
+
+  it('hides PIN column when Hide button is clicked', async () => {
+    const user = userEvent.setup();
+    render(<ClassesWidget widget={mockWidget} />);
+
+    await user.click(screen.getByRole('button', { name: /create new class/i }));
+
+    // Toggle PIN column on
+    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
+    expect(screen.getByPlaceholderText(/^01/)).toBeInTheDocument();
+
+    // Toggle it off via "Hide" button
+    await user.click(screen.getByRole('button', { name: /hide/i }));
+    expect(screen.queryByPlaceholderText(/^01/)).not.toBeInTheDocument();
+  });
 });

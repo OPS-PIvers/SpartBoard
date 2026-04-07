@@ -445,8 +445,12 @@ export class QuizDriveService {
     }
   ): Promise<string> {
     const pinToName = options?.pinToName ?? {};
-    const teacherName = options?.teacherName ?? 'Unknown Teacher';
-    const periodName = options?.periodName ?? 'Unknown Period';
+    const teacherName =
+      (options?.teacherName?.trim() ? options.teacherName.trim() : null) ??
+      'Unknown Teacher';
+    const periodName =
+      (options?.periodName?.trim() ? options.periodName.trim() : null) ??
+      'Unknown Period';
     const timestamp = new Date().toISOString();
 
     const resolveStudent = (pin: string): string =>
