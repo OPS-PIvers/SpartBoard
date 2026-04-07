@@ -224,10 +224,10 @@ export class QuizDriveService {
 
   /**
    * Extract the Google Sheet ID from a sheet URL.
-   * Supports both /spreadsheets/d/{id} and /spreadsheets/d/{id}/edit formats.
+   * Supports /spreadsheets/d/{id}, /spreadsheets/u/0/d/{id}, and /edit variants.
    */
   static extractSheetId(url: string): string | null {
-    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    const match = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]+)/);
     return match ? match[1] : null;
   }
 
@@ -427,16 +427,6 @@ export class QuizDriveService {
   // ─── Results export ─────────────────────────────────────────────────────────
 
   /**
-   * Extract a Google Sheets spreadsheet ID from a URL.
-   * Handles URLs like https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/...
-   */
-  private extractSpreadsheetId(url: string): string {
-    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-    if (!match) throw new Error('Invalid Google Sheets URL');
-    return match[1];
-  }
-
-  /**
    * Export quiz results to a Google Sheet.
    * In solo mode (default), creates a new spreadsheet.
    * In PLC mode, appends rows to the shared sheet at plcSheetUrl.
@@ -599,11 +589,32 @@ export class QuizDriveService {
     headers: string[],
     dataRows: string[][]
   ): Promise<string> {
-    const spreadsheetId = this.extractSpreadsheetId(sheetUrl);
+    const spreadsheetId = QuizDriveService.extractSheetId(sheetUrl);
+    if (!spreadsheetId) throw new Error('Invalid Google Sheets URL');
+
+    // Discover the first sheet's actual title (handles renamed tabs)
+    let sheetTitle = 'Sheet1';
+    try {
+      const metaRes = await fetch(
+        `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
+        { headers: this.authHeaders }
+      );
+      if (metaRes.ok) {
+        const meta = (await metaRes.json()) as {
+          sheets?: { properties?: { title?: string } }[];
+        };
+        const firstTitle = meta.sheets?.[0]?.properties?.title;
+        if (firstTitle) sheetTitle = firstTitle;
+      }
+    } catch {
+      // Fall back to 'Sheet1' if metadata lookup fails
+    }
+
+    const encodedTitle = encodeURIComponent(sheetTitle);
 
     // Check if sheet already has content by reading A1
     const checkRes = await fetch(
-      `${SHEETS_API_URL}/${spreadsheetId}/values/Sheet1!A1`,
+      `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!A1`,
       { headers: this.authHeaders }
     );
 
@@ -625,7 +636,7 @@ export class QuizDriveService {
 
     // Append via Sheets API
     const appendRes = await fetch(
-      `${SHEETS_API_URL}/${spreadsheetId}/values/Sheet1!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
       {
         method: 'POST',
         headers: this.jsonHeaders,

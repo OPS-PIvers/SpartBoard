@@ -73,13 +73,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
 
   const handleSave = () => {
     if (!name.trim()) return;
-    const students = generateStudentsList(
-      firsts,
-      lasts,
-      roster?.students,
-      showPins ? pins : undefined
-    );
-    onSave(name, students);
+    onSave(name, previewStudents);
   };
 
   return (
@@ -121,9 +115,11 @@ export const RosterEditor: React.FC<EditorProps> = ({
             className={`grid ${
               showLastNames && showPins
                 ? 'grid-cols-[1fr_1fr_auto]'
-                : showLastNames || showPins
-                  ? 'grid-cols-[1fr_auto]'
-                  : 'grid-cols-1'
+                : showLastNames
+                  ? 'grid-cols-2'
+                  : showPins
+                    ? 'grid-cols-[1fr_auto]'
+                    : 'grid-cols-1'
             } gap-3 flex-1 min-h-0`}
           >
             <div className="flex flex-col h-full min-h-0">

@@ -78,7 +78,7 @@ export const generateStudentsList = (
       const existing = existingStudents[i];
       const id = existing ? existing.id : crypto.randomUUID();
       const pin = pList
-        ? (pList[i]?.trim() ?? existing?.pin ?? '')
+        ? pList[i]?.trim() || existing?.pin || ''
         : (existing?.pin ?? '');
 
       return { id, firstName: first, lastName: last, pin };

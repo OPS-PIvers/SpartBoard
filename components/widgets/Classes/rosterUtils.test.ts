@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { splitNames, mergeNames, generateStudentsList } from './rosterUtils';
+import {
+  splitNames,
+  mergeNames,
+  generateStudentsList,
+  findDuplicatePins,
+} from './rosterUtils';
 
 describe('rosterUtils', () => {
   describe('splitNames', () => {
@@ -114,6 +119,79 @@ describe('rosterUtils', () => {
       expect(result).toHaveLength(2);
       expect(result[0].firstName).toBe('John');
       expect(result[1].firstName).toBe('Jane');
+    });
+
+    it('applies PINs from the pins parameter', () => {
+      const firsts = 'Alice\nBob';
+      const lasts = 'A\nB';
+      const pins = 'dragon\n42';
+      const result = generateStudentsList(firsts, lasts, [], pins);
+
+      expect(result[0].pin).toBe('dragon');
+      expect(result[1].pin).toBe('42');
+    });
+
+    it('falls back to existing pin when pins line is empty', () => {
+      const existing = [
+        { id: '1', firstName: 'Alice', lastName: 'A', pin: '01' },
+        { id: '2', firstName: 'Bob', lastName: 'B', pin: '02' },
+      ];
+      const firsts = 'Alice\nBob';
+      const lasts = 'A\nB';
+      const pins = 'dragon\n';
+      const result = generateStudentsList(firsts, lasts, existing, pins);
+
+      expect(result[0].pin).toBe('dragon');
+      expect(result[1].pin).toBe('02');
+    });
+
+    it('preserves existing pins when pins parameter is omitted', () => {
+      const existing = [
+        { id: '1', firstName: 'Alice', lastName: 'A', pin: '05' },
+      ];
+      const result = generateStudentsList('Alice', 'A', existing);
+      expect(result[0].pin).toBe('05');
+    });
+  });
+
+  describe('findDuplicatePins', () => {
+    it('returns duplicate PINs', () => {
+      const students = [
+        { id: '1', firstName: 'A', lastName: '', pin: '01' },
+        { id: '2', firstName: 'B', lastName: '', pin: '02' },
+        { id: '3', firstName: 'C', lastName: '', pin: '01' },
+      ];
+      const dupes = findDuplicatePins(students);
+      expect(dupes).toEqual(new Set(['01']));
+    });
+
+    it('returns empty set when no duplicates', () => {
+      const students = [
+        { id: '1', firstName: 'A', lastName: '', pin: '01' },
+        { id: '2', firstName: 'B', lastName: '', pin: '02' },
+      ];
+      const dupes = findDuplicatePins(students);
+      expect(dupes.size).toBe(0);
+    });
+
+    it('ignores empty PINs', () => {
+      const students = [
+        { id: '1', firstName: 'A', lastName: '', pin: '' },
+        { id: '2', firstName: 'B', lastName: '', pin: '' },
+      ];
+      const dupes = findDuplicatePins(students);
+      expect(dupes.size).toBe(0);
+    });
+
+    it('handles multiple groups of duplicates', () => {
+      const students = [
+        { id: '1', firstName: 'A', lastName: '', pin: 'x' },
+        { id: '2', firstName: 'B', lastName: '', pin: 'y' },
+        { id: '3', firstName: 'C', lastName: '', pin: 'x' },
+        { id: '4', firstName: 'D', lastName: '', pin: 'y' },
+      ];
+      const dupes = findDuplicatePins(students);
+      expect(dupes).toEqual(new Set(['x', 'y']));
     });
   });
 });
