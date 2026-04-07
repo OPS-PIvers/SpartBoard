@@ -19,16 +19,21 @@ import {
 import { auth } from '@/config/firebase';
 import {
   AlertCircle,
+  ArrowDownUp,
+  ArrowUp,
+  ArrowDown,
   BarChart2,
   ChevronDown,
   ChevronUp,
   LayoutGrid,
   RefreshCw,
   School,
+  Search,
   Users,
   WandSparkles,
   Zap,
 } from 'lucide-react';
+import { Modal } from '@/components/common/Modal';
 import { BUILDINGS } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 
@@ -37,6 +42,28 @@ interface EngagementCounts {
   monthly: number;
   daily: number;
 }
+
+interface KpiUser {
+  email: string;
+  buildings: string[];
+  lastSignInMs: number;
+  hasDashboard: boolean;
+  isMonthlyActive: boolean;
+  isDailyActive: boolean;
+}
+
+type KpiCategory =
+  | 'registered'
+  | 'withDashboards'
+  | 'monthlyActive'
+  | 'dailyActive';
+
+const KPI_TITLES: Record<KpiCategory, string> = {
+  registered: 'Registered Users',
+  withDashboards: 'Users with Dashboards',
+  monthlyActive: 'Monthly Active Users',
+  dailyActive: 'Daily Active Users',
+};
 
 interface AnalyticsData {
   users: {
@@ -49,6 +76,7 @@ interface AnalyticsData {
     domains: Record<string, EngagementCounts>;
     buildings: Record<string, EngagementCounts>;
     domainBuilding: Record<string, Record<string, EngagementCounts>>;
+    userList?: KpiUser[];
   };
   widgets: {
     totalInstances: Record<string, number>;
@@ -137,8 +165,24 @@ const KpiCard: React.FC<{
   accentColor: string;
   accentBg: string;
   icon: React.ReactNode;
-}> = ({ title, value, subtitle, accentColor, accentBg, icon }) => (
-  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+  onClick?: () => void;
+}> = ({ title, value, subtitle, accentColor, accentBg, icon, onClick }) => (
+  <div
+    className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden${onClick ? ' cursor-pointer hover:border-slate-300 hover:shadow-md transition-all' : ''}`}
+    onClick={onClick}
+    onKeyDown={
+      onClick
+        ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClick();
+            }
+          }
+        : undefined
+    }
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+  >
     <div
       className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
       style={{ background: accentColor }}
@@ -179,6 +223,7 @@ const OverviewPanel: React.FC<{
   registeredIsFallback: boolean;
   usersWithDashboards: number;
   dashboards: { total: number; avgWidgetsPerDashboard: number };
+  onKpiClick?: (category: KpiCategory) => void;
 }> = ({
   data,
   filteredTotalUsers,
@@ -188,6 +233,7 @@ const OverviewPanel: React.FC<{
   registeredIsFallback,
   usersWithDashboards,
   dashboards,
+  onKpiClick,
 }) => {
   const funnel = useMemo(
     () => [
@@ -226,6 +272,7 @@ const OverviewPanel: React.FC<{
           accentColor="#4356a0"
           accentBg="rgba(67,86,160,0.2)"
           icon={<Users className="w-5 h-5 text-blue-700" />}
+          onClick={onKpiClick ? () => onKpiClick('registered') : undefined}
         />
         <KpiCard
           title="Users with Dashboards"
@@ -234,6 +281,7 @@ const OverviewPanel: React.FC<{
           accentColor="#10b981"
           accentBg="rgba(16,185,129,0.12)"
           icon={<LayoutGrid className="w-5 h-5 text-emerald-600" />}
+          onClick={onKpiClick ? () => onKpiClick('withDashboards') : undefined}
         />
         <KpiCard
           title="Monthly Active"
@@ -242,6 +290,7 @@ const OverviewPanel: React.FC<{
           accentColor="#3b82f6"
           accentBg="rgba(59,130,246,0.12)"
           icon={<BarChart2 className="w-5 h-5 text-blue-500" />}
+          onClick={onKpiClick ? () => onKpiClick('monthlyActive') : undefined}
         />
         <KpiCard
           title="Daily Active"
@@ -250,6 +299,7 @@ const OverviewPanel: React.FC<{
           accentColor="#f59e0b"
           accentBg="rgba(245,158,11,0.12)"
           icon={<Zap className="w-5 h-5 text-amber-500" />}
+          onClick={onKpiClick ? () => onKpiClick('dailyActive') : undefined}
         />
       </div>
 
@@ -929,6 +979,245 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   );
 };
 
+/* ─── relative-time helper ─── */
+const formatRelativeTime = (ms: number): string => {
+  if (ms <= 0) return 'Never';
+  const diff = Date.now() - ms;
+  if (diff < 0) return 'Just now';
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return 'Just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ms).toLocaleDateString();
+};
+
+type KpiSortKey = 'email' | 'building' | 'lastSignIn';
+
+const KpiUserModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  category: KpiCategory;
+  users: KpiUser[];
+}> = ({ isOpen, onClose, category, users }) => {
+  const [emailSearch, setEmailSearch] = useState('');
+  const [buildingFilter, setBuildingFilter] = useState('all');
+  const [sortKey, setSortKey] = useState<KpiSortKey>('email');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (key: KpiSortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const renderSortIcon = (column: KpiSortKey) => {
+    if (sortKey !== column)
+      return <ArrowDownUp className="w-3.5 h-3.5 text-slate-400" />;
+    return sortDir === 'asc' ? (
+      <ArrowUp className="w-3.5 h-3.5 text-slate-700" />
+    ) : (
+      <ArrowDown className="w-3.5 h-3.5 text-slate-700" />
+    );
+  };
+
+  // Filter by KPI category
+  const categoryUsers = useMemo(() => {
+    switch (category) {
+      case 'registered':
+        return users;
+      case 'withDashboards':
+        return users.filter((u) => u.hasDashboard);
+      case 'monthlyActive':
+        return users.filter((u) => u.isMonthlyActive);
+      case 'dailyActive':
+        return users.filter((u) => u.isDailyActive);
+    }
+  }, [users, category]);
+
+  // Collect unique buildings for the dropdown
+  const availableBuildings = useMemo(() => {
+    const ids = new Set<string>();
+    categoryUsers.forEach((u) =>
+      u.buildings.length > 0
+        ? u.buildings.forEach((b) => ids.add(b))
+        : ids.add('none')
+    );
+    return Array.from(ids).sort();
+  }, [categoryUsers]);
+
+  // Apply search + building filter + sort
+  const displayUsers = useMemo(() => {
+    let list = categoryUsers;
+
+    if (emailSearch) {
+      const q = emailSearch.toLowerCase();
+      list = list.filter((u) => u.email.toLowerCase().includes(q));
+    }
+
+    if (buildingFilter !== 'all') {
+      list = list.filter((u) =>
+        buildingFilter === 'none'
+          ? u.buildings.length === 0
+          : u.buildings.includes(buildingFilter)
+      );
+    }
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'email':
+          cmp = a.email.localeCompare(b.email);
+          break;
+        case 'building': {
+          const aName = a.buildings[0]
+            ? (KNOWN_BUILDINGS.get(a.buildings[0])?.name ?? a.buildings[0])
+            : '';
+          const bName = b.buildings[0]
+            ? (KNOWN_BUILDINGS.get(b.buildings[0])?.name ?? b.buildings[0])
+            : '';
+          cmp = aName.localeCompare(bName);
+          break;
+        }
+        case 'lastSignIn':
+          cmp = a.lastSignInMs - b.lastSignInMs;
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [categoryUsers, emailSearch, buildingFilter, sortKey, sortDir]);
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={KPI_TITLES[category]}
+      maxWidth="max-w-3xl"
+    >
+      <div className="space-y-4 pb-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by email…"
+              value={emailSearch}
+              onChange={(e) => setEmailSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <select
+            value={buildingFilter}
+            onChange={(e) => setBuildingFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Buildings</option>
+            {availableBuildings.map((id) => (
+              <option key={id} value={id}>
+                {id === 'none'
+                  ? 'No Building Assigned'
+                  : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Count */}
+        <p className="text-xs text-slate-500">
+          Showing {formatNumber(displayUsers.length)} of{' '}
+          {formatNumber(categoryUsers.length)} users
+        </p>
+
+        {/* Table */}
+        <div className="overflow-x-auto border border-slate-200 rounded-lg">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th
+                  className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort('email')}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Email {renderSortIcon('email')}
+                  </span>
+                </th>
+                <th
+                  className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort('building')}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Building {renderSortIcon('building')}
+                  </span>
+                </th>
+                <th
+                  className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort('lastSignIn')}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Last Sign-In {renderSortIcon('lastSignIn')}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayUsers.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="text-center py-8 text-slate-400 text-sm"
+                  >
+                    No users match the current filters.
+                  </td>
+                </tr>
+              ) : (
+                displayUsers.map((u) => (
+                  <tr
+                    key={u.email}
+                    className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-4 py-2.5 text-slate-800 font-medium">
+                      {u.email}
+                    </td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      {u.buildings.length > 0
+                        ? u.buildings
+                            .map(
+                              (b) =>
+                                KNOWN_BUILDINGS.get(b)?.name ?? `Unknown (${b})`
+                            )
+                            .join(', ')
+                        : '—'}
+                    </td>
+                    <td
+                      className="px-4 py-2.5 text-slate-600"
+                      title={
+                        u.lastSignInMs > 0
+                          ? new Date(u.lastSignInMs).toLocaleString()
+                          : 'Never signed in'
+                      }
+                    >
+                      {formatRelativeTime(u.lastSignInMs)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 const DataTable: React.FC<{
   title: string;
   rows: SortableRow[];
@@ -1035,6 +1324,7 @@ export const AnalyticsManager: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<AnalyticsTab>('overview');
   const [selectedDomain, setSelectedDomain] = useState('all');
   const [selectedBuilding, setSelectedBuilding] = useState('all');
+  const [kpiModal, setKpiModal] = useState<KpiCategory | null>(null);
 
   const requestSequenceRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -1093,6 +1383,7 @@ export const AnalyticsManager: React.FC = () => {
           domains: raw.users?.domains ?? {},
           buildings: raw.users?.buildings ?? {},
           domainBuilding: raw.users?.domainBuilding ?? {},
+          userList: raw.users?.userList,
         },
         widgets: {
           totalInstances: raw.widgets?.totalInstances ?? {},
@@ -1173,6 +1464,27 @@ export const AnalyticsManager: React.FC = () => {
       filteredDaily: bucket?.daily ?? 0,
     };
   }, [data, selectedBuilding, selectedDomain]);
+
+  const filteredUserList = useMemo(() => {
+    const list = data?.users.userList ?? [];
+    if (selectedDomain === 'all' && selectedBuilding === 'all') return list;
+    return list.filter((u) => {
+      if (selectedDomain !== 'all') {
+        const domain = u.email.includes('@')
+          ? u.email.split('@')[1]
+          : 'unknown';
+        if (domain !== selectedDomain) return false;
+      }
+      if (selectedBuilding !== 'all') {
+        if (selectedBuilding === 'none') {
+          if (u.buildings.length > 0) return false;
+        } else {
+          if (!u.buildings.includes(selectedBuilding)) return false;
+        }
+      }
+      return true;
+    });
+  }, [data, selectedDomain, selectedBuilding]);
 
   const uniqueDomains = useMemo(
     () => (data ? Object.keys(data.users.domains).filter(Boolean).sort() : []),
@@ -1332,6 +1644,7 @@ export const AnalyticsManager: React.FC = () => {
             dashboards={
               data.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 }
             }
+            onKpiClick={filteredUserList.length > 0 ? setKpiModal : undefined}
           />
         </div>
       )}
@@ -1349,6 +1662,15 @@ export const AnalyticsManager: React.FC = () => {
         <div role="tabpanel" id="panel-users" aria-labelledby="tab-users">
           <UsersPanel data={data} />
         </div>
+      )}
+
+      {kpiModal && (
+        <KpiUserModal
+          isOpen={!!kpiModal}
+          onClose={() => setKpiModal(null)}
+          category={kpiModal}
+          users={filteredUserList}
+        />
       )}
     </div>
   );

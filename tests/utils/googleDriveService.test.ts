@@ -121,6 +121,135 @@ describe('GoogleDriveService', () => {
     });
   });
 
+  describe('findFolder', () => {
+    it('should generate correct query for folder by name', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ files: [] }),
+      });
+
+      await service.findFolder('MyFolder');
+
+      const [urlStr] = fetchSpy.mock.calls[0];
+      const url = new URL(urlStr as string);
+      const q = url.searchParams.get('q') ?? '';
+
+      expect(q).toContain("name = 'MyFolder'");
+      expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
+      expect(q).toContain('trashed = false');
+      expect(
+        (fetchSpy.mock.calls[0][1] as RequestInit)?.headers as Record<
+          string,
+          string
+        >
+      ).toMatchObject({ Authorization: `Bearer ${accessToken}` });
+    });
+
+    it('should generate correct query with parentId', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ files: [] }),
+      });
+
+      await service.findFolder('MyFolder', 'parent123');
+
+      const [urlStr] = fetchSpy.mock.calls[0];
+      const url = new URL(urlStr as string);
+      const q = url.searchParams.get('q') ?? '';
+
+      expect(q).toContain("name = 'MyFolder'");
+      expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
+      expect(q).toContain('trashed = false');
+      expect(q).toContain("'parent123' in parents");
+    });
+
+    it('should return folder ID if found', async () => {
+      mockFetch({
+        json: () =>
+          Promise.resolve({ files: [{ id: 'folder-id', name: 'MyFolder' }] }),
+      });
+
+      const folderId = await service.findFolder('MyFolder');
+      expect(folderId).toBe('folder-id');
+    });
+
+    it('should return null if not found', async () => {
+      mockFetch({
+        json: () => Promise.resolve({ files: [] }),
+      });
+
+      const folderId = await service.findFolder('NonExistentFolder');
+      expect(folderId).toBeNull();
+    });
+  });
+
+  describe('createSpreadsheet', () => {
+    it('should create a new spreadsheet with correct metadata', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ id: 'sheet-1', name: 'MySheet' }),
+      });
+
+      const sheet = await service.createSpreadsheet('MySheet', 'parent-123');
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/files'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
+          }),
+        })
+      );
+
+      const lastCall = fetchSpy.mock.calls[0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      const body = JSON.parse((lastCall[1] as any)?.body as string);
+      expect(body).toEqual({
+        name: 'MySheet',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        parents: ['parent-123'],
+      });
+
+      expect(sheet).toEqual({
+        id: 'sheet-1',
+        name: 'MySheet',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      });
+    });
+
+    it('creates spreadsheet without folderId (no parents in metadata)', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ id: 'sheet-2', name: 'NoParent' }),
+      });
+
+      const sheet = await service.createSpreadsheet('NoParent');
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as any)?.body as string);
+      expect(body).toEqual({
+        name: 'NoParent',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      });
+      expect(body).not.toHaveProperty('parents');
+
+      expect(sheet).toEqual({
+        id: 'sheet-2',
+        name: 'NoParent',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      });
+    });
+
+    it('should throw an error if creation fails', async () => {
+      mockFetch({
+        ok: false,
+        statusText: 'Bad Request',
+        text: () => Promise.resolve('Error details'),
+      });
+
+      await expect(service.createSpreadsheet('MySheet')).rejects.toThrow(
+        'Failed to create spreadsheet: Bad Request'
+      );
+    });
+  });
+
   describe('getOrCreateFolder', () => {
     it('should return existing folder ID if found', async () => {
       const mockFolder = { id: 'folder-1', name: 'TestFolder' };

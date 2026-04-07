@@ -2024,6 +2024,19 @@ export const adminAnalytics = functionsV1
 
         console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
 
+        // 4b. Build per-user detail list for KPI drilldowns
+        const userList = Array.from(authUsersMap.entries()).map(
+          ([uid, { email: userEmail, lastSignInMs }]) => ({
+            email: userEmail,
+            buildings: buildingsMap.get(uid) ?? [],
+            lastSignInMs,
+            hasDashboard: allDashboardOwnerUids.has(uid),
+            isMonthlyActive:
+              lastSignInMs > 0 && now - lastSignInMs <= thirtyDaysMs,
+            isDailyActive: lastSignInMs > 0 && now - lastSignInMs <= oneDayMs,
+          })
+        );
+
         // Auth data was already collected in step 3a – no separate scan needed
         const totalRegisteredUsers = authUsersMap.size;
         const registeredIsFallback = false;
@@ -2235,6 +2248,7 @@ export const adminAnalytics = functionsV1
             domains: usersByDomain,
             buildings: usersByBuilding,
             domainBuilding: usersByDomainAndBuilding,
+            userList,
           },
           widgets: {
             totalInstances: totalWidgetCounts,
