@@ -136,6 +136,12 @@ describe('GoogleDriveService', () => {
       expect(q).toContain("name = 'MyFolder'");
       expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
       expect(q).toContain('trashed = false');
+      expect(
+        (fetchSpy.mock.calls[0][1] as RequestInit)?.headers as Record<
+          string,
+          string
+        >
+      ).toMatchObject({ Authorization: `Bearer ${accessToken}` });
     });
 
     it('should generate correct query with parentId', async () => {
@@ -205,6 +211,28 @@ describe('GoogleDriveService', () => {
       expect(sheet).toEqual({
         id: 'sheet-1',
         name: 'MySheet',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      });
+    });
+
+    it('creates spreadsheet without folderId (no parents in metadata)', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ id: 'sheet-2', name: 'NoParent' }),
+      });
+
+      const sheet = await service.createSpreadsheet('NoParent');
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      const body = JSON.parse((fetchSpy.mock.calls[0][1] as any)?.body as string);
+      expect(body).toEqual({
+        name: 'NoParent',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      });
+      expect(body).not.toHaveProperty('parents');
+
+      expect(sheet).toEqual({
+        id: 'sheet-2',
+        name: 'NoParent',
         mimeType: 'application/vnd.google-apps.spreadsheet',
       });
     });
