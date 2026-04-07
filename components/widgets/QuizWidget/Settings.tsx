@@ -18,7 +18,7 @@ export const QuizWidgetSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-700">
+      <div className="flex items-start gap-2 p-3 bg-brand-blue-lighter/30 border border-brand-blue-primary/10 rounded-xl text-xs text-brand-blue-primary">
         <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <span>
           All quiz management (import, edit, preview, live sessions) is
@@ -35,7 +35,7 @@ export const QuizWidgetSettings: React.FC<{ widget: WidgetData }> = ({
             updateWidget(widget.id, { customTitle: e.target.value || null })
           }
           placeholder="Quiz"
-          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
         />
       </div>
 
