@@ -243,6 +243,35 @@ export class GoogleDriveService {
   }
 
   /**
+   * Rename a Drive file or folder by ID.
+   */
+  async renameFile(fileId: string, newName: string): Promise<void> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}`,
+      {
+        method: 'PATCH',
+        headers: this.headers,
+        body: JSON.stringify({ name: newName }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to rename Drive folder (${response.status})`);
+    }
+  }
+
+  /**
+   * One-time migration helper: if a root-level folder named `oldName` exists,
+   * rename it to `newName`. No-ops when the old folder is absent (new user or
+   * already migrated). Safe to call repeatedly.
+   */
+  async migrateAppFolderName(oldName: string, newName: string): Promise<void> {
+    const oldFolderId = await this.findFolder(oldName);
+    if (oldFolderId) {
+      await this.renameFile(oldFolderId, newName);
+    }
+  }
+
+  /**
    * Get a specific subfolder path (e.g., "Assets/Backgrounds")
    */
   async getFolderPath(path: string): Promise<string> {
