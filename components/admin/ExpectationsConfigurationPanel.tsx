@@ -50,6 +50,7 @@ export const ExpectationsConfigurationPanel: React.FC<
     id: string | number;
     label: string;
     sub?: string;
+    icon?: React.ElementType;
   }
 
   const renderOptionEditor = (
@@ -90,6 +91,7 @@ export const ExpectationsConfigurationPanel: React.FC<
         >
           {options.map((opt) => {
             const override = overrideMap[opt.id] ?? { enabled: true };
+            const Icon: React.ElementType | undefined = opt.icon;
             return (
               <div
                 key={opt.id}
@@ -109,6 +111,11 @@ export const ExpectationsConfigurationPanel: React.FC<
                   }
                   size="sm"
                 />
+                {Icon && (
+                  <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-slate-500" />
+                  </div>
+                )}
                 <div className="flex-1 grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xxxs font-bold text-slate-400 uppercase mb-1 block">

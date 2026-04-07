@@ -1,12 +1,3 @@
-import {
-  User,
-  Users,
-  UsersRound,
-  Heart,
-  Ear,
-  CheckCircle2,
-  MessagesSquare,
-} from 'lucide-react';
 import { ExpectationsConfig } from '../types';
 
 export const VOLUME_OPTIONS = [
@@ -16,6 +7,7 @@ export const VOLUME_OPTIONS = [
     sub: 'Independent',
     color: 'text-blue-600',
     bg: 'bg-blue-50',
+    icon: 'VolumeX',
   },
   {
     id: 1,
@@ -23,6 +15,7 @@ export const VOLUME_OPTIONS = [
     sub: 'Partner Talk',
     color: 'text-green-600',
     bg: 'bg-green-50',
+    icon: 'MessageCircle',
   },
   {
     id: 2,
@@ -30,6 +23,7 @@ export const VOLUME_OPTIONS = [
     sub: 'Table Talk',
     color: 'text-yellow-600',
     bg: 'bg-yellow-50',
+    icon: 'Users',
   },
   {
     id: 3,
@@ -37,6 +31,7 @@ export const VOLUME_OPTIONS = [
     sub: 'Speaking',
     color: 'text-orange-600',
     bg: 'bg-orange-50',
+    icon: 'Mic',
   },
   {
     id: 4,
@@ -44,34 +39,35 @@ export const VOLUME_OPTIONS = [
     sub: 'Recess',
     color: 'text-red-600',
     bg: 'bg-red-50',
+    icon: 'Megaphone',
   },
 ];
 
 export const GROUP_OPTIONS: {
   id: ExpectationsConfig['workMode'];
   label: string;
-  icon: typeof User;
+  icon: string;
   color: string;
   bg: string;
 }[] = [
   {
     id: 'individual',
     label: 'Alone',
-    icon: User,
+    icon: 'User',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
   },
   {
     id: 'partner',
     label: 'Partner',
-    icon: Users,
+    icon: 'Users',
     color: 'text-blue-600',
     bg: 'bg-blue-50',
   },
   {
     id: 'group',
     label: 'Group',
-    icon: UsersRound,
+    icon: 'UsersRound',
     color: 'text-purple-600',
     bg: 'bg-purple-50',
   },
@@ -80,35 +76,35 @@ export const GROUP_OPTIONS: {
 export const INTERACTION_OPTIONS: {
   id: ExpectationsConfig['interactionMode'];
   label: string;
-  icon: typeof Heart;
+  icon: string;
   color: string;
   bg: string;
 }[] = [
   {
     id: 'respectful',
     label: 'Respectful',
-    icon: Heart,
+    icon: 'Heart',
     color: 'text-rose-600',
     bg: 'bg-rose-50',
   },
   {
     id: 'listening',
     label: 'Listening',
-    icon: Ear,
+    icon: 'Ear',
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
   {
     id: 'productive',
     label: 'Productive',
-    icon: CheckCircle2,
+    icon: 'CheckCircle2',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
   },
   {
     id: 'discussion',
     label: 'Discussion',
-    icon: MessagesSquare,
+    icon: 'MessagesSquare',
     color: 'text-sky-600',
     bg: 'bg-sky-50',
   },

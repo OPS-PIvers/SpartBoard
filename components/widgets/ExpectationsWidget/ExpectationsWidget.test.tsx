@@ -3,7 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ExpectationsWidget } from './';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, ExpectationsConfig } from '@/types';
+import {
+  WidgetData,
+  ExpectationsConfig,
+  WidgetType,
+  AddWidgetOverrides,
+} from '@/types';
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
@@ -14,6 +19,7 @@ vi.mock('@/context/useAuth', () => ({
 }));
 
 const mockUpdateWidget = vi.fn();
+const mockAddWidget = vi.fn();
 
 const mockWidget: WidgetData = {
   id: 'test-expectations',
@@ -36,8 +42,10 @@ const mockWidget: WidgetData = {
 
 describe('ExpectationsWidget', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     (useDashboard as Mock).mockReturnValue({
       updateWidget: mockUpdateWidget,
+      addWidget: mockAddWidget,
     });
     (useAuth as Mock).mockReturnValue({
       featurePermissions: [],
@@ -69,6 +77,40 @@ describe('ExpectationsWidget', () => {
         voiceLevel: 1,
       }) as ExpectationsConfig,
     });
+  });
+
+  it('launches a sticker when selecting a new option', () => {
+    render(<ExpectationsWidget widget={mockWidget} />);
+    fireEvent.click(screen.getByText('Silence'));
+    fireEvent.click(screen.getByText('Whisper'));
+
+    expect(mockAddWidget).toHaveBeenCalled();
+    const calls = mockAddWidget.mock.calls as [
+      WidgetType,
+      AddWidgetOverrides,
+    ][];
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall[0]).toBe('sticker');
+    expect(lastCall[1].config).toMatchObject({
+      icon: 'MessageCircle',
+      label: 'Whisper',
+    });
+  });
+
+  it('renders "Level" label and number for volume options', () => {
+    render(<ExpectationsWidget widget={mockWidget} />);
+    // In main view
+    expect(screen.getAllByText('Level').length).toBeGreaterThan(0);
+    expect(screen.getByText('0')).toBeInTheDocument();
+
+    // In sub view
+    fireEvent.click(screen.getByText('Silence'));
+    expect(screen.getAllByText('Level').length).toBeGreaterThan(0);
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
   });
 
   it('navigates back to main menu from sub-views', () => {
