@@ -61,10 +61,12 @@ export const mergeNames = (firsts: string, lasts: string): string[] => {
 export const generateStudentsList = (
   firsts: string,
   lasts: string,
-  existingStudents: Student[] = []
+  existingStudents: Student[] = [],
+  pins?: string
 ): Student[] => {
   const fList = firsts.split('\n');
   const lList = lasts.split('\n');
+  const pList = pins?.split('\n');
 
   return fList
     .map((f, i) => {
@@ -75,8 +77,29 @@ export const generateStudentsList = (
       // Try to find an existing student at this position to preserve ID
       const existing = existingStudents[i];
       const id = existing ? existing.id : crypto.randomUUID();
+      const pin = pList
+        ? pList[i]?.trim() || existing?.pin || ''
+        : (existing?.pin ?? '');
 
-      return { id, firstName: first, lastName: last, pin: existing?.pin ?? '' };
+      return { id, firstName: first, lastName: last, pin };
     })
     .filter((s): s is Student => s !== null);
+};
+
+/**
+ * Finds duplicate PINs in a list of students.
+ * Returns a Set of PIN values that appear more than once.
+ */
+export const findDuplicatePins = (students: Student[]): Set<string> => {
+  const seen = new Map<string, number>();
+  for (const s of students) {
+    if (s.pin) {
+      seen.set(s.pin, (seen.get(s.pin) ?? 0) + 1);
+    }
+  }
+  const dupes = new Set<string>();
+  for (const [pin, count] of seen) {
+    if (count > 1) dupes.add(pin);
+  }
+  return dupes;
 };

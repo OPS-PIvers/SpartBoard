@@ -1398,6 +1398,16 @@ export interface QuizConfig {
   activeLiveSessionCode: string | null;
   /** Quiz session ID for viewing historical results */
   resultsSessionId: string | null;
+  /** PLC mode: export results to a shared Google Sheet */
+  plcMode?: boolean;
+  /** URL of the shared Google Sheet for PLC exports */
+  plcSheetUrl?: string;
+  /** Teacher's display name for the export sheet */
+  teacherName?: string;
+  /** Class period/roster name for the export sheet */
+  periodName?: string;
+  /** PLC member emails (informational only for v1) */
+  plcMemberEmails?: string[];
 }
 
 // --- VIDEO ACTIVITY TYPES ---

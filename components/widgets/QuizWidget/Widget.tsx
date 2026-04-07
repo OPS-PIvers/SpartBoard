@@ -240,6 +240,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizResults
         quiz={loadedQuizData}
         responses={responses}
+        config={config}
         onBack={() => {
           setLoadedQuizData(null);
           setView('manager');

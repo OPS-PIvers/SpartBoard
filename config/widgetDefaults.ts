@@ -251,6 +251,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       selectedQuizTitle: null,
       activeLiveSessionCode: null,
       resultsSessionId: null,
+      plcMode: false,
+      plcSheetUrl: '',
+      teacherName: '',
+      periodName: '',
+      plcMemberEmails: [],
     },
   },
   'talking-tool': {

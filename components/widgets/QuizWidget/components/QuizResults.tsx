@@ -18,7 +18,7 @@ import {
   Target,
   AlertTriangle,
 } from 'lucide-react';
-import { QuizResponse, QuizData, QuizQuestion } from '@/types';
+import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer } from '@/hooks/useQuizSession';
@@ -41,15 +41,18 @@ function getResponseScore(r: QuizResponse, questions: QuizQuestion[]): number {
 interface QuizResultsProps {
   quiz: QuizData;
   responses: QuizResponse[];
+  config: QuizConfig;
   onBack: () => void;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
   quiz,
   responses,
+  config,
   onBack,
 }) => {
-  const { activeDashboard, updateWidget, addWidget, addToast } = useDashboard();
+  const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
+    useDashboard();
   const { googleAccessToken } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
@@ -126,13 +129,36 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
+      // Build PIN → student name lookup from the matching roster (Drive-loaded data only)
+      const matchingRoster = rosters.find((r) => r.name === config.periodName);
+      const pinToName: Record<string, string> = {};
+      if (matchingRoster?.students) {
+        for (const s of matchingRoster.students) {
+          if (s.pin && (s.firstName || s.lastName)) {
+            pinToName[s.pin] = [s.firstName, s.lastName]
+              .filter(Boolean)
+              .join(' ');
+          }
+        }
+      }
+
       const svc = new QuizDriveService(googleAccessToken);
       const url = await svc.exportResultsToSheet(
         quiz.title,
         responses,
-        quiz.questions
+        quiz.questions,
+        {
+          pinToName,
+          teacherName: config.teacherName,
+          periodName: config.periodName,
+          plcMode: config.plcMode,
+          plcSheetUrl: config.plcSheetUrl,
+        }
       );
       setExportUrl(url);
+      if (config.plcMode) {
+        addToast('Results exported to shared PLC sheet', 'success');
+      }
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export failed');
     } finally {
