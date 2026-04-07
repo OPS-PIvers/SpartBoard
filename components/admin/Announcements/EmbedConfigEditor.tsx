@@ -54,8 +54,12 @@ export const EmbedConfigEditor: React.FC<{
 
   const handleUrlChange = (newRawUrl: string) => {
     setRawUrl(newRawUrl);
-    const finalUrl = convertToEmbedUrl(newRawUrl) || newRawUrl.trim();
-    onChange({ ...config, url: finalUrl });
+  };
+
+  const applyUrl = () => {
+    if (embedUrl !== config.url) {
+      onChange({ ...config, url: embedUrl });
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -128,7 +132,7 @@ export const EmbedConfigEditor: React.FC<{
     setActiveTab(tab);
 
     // Apply any pending URL changes when switching tabs
-    const finalUrl = embedUrl || rawUrl.trim();
+    const finalUrl = embedUrl;
     const newConfig = { ...config, url: finalUrl };
 
     if (tab === 'url' || tab === 'code') {
@@ -177,6 +181,7 @@ export const EmbedConfigEditor: React.FC<{
             type="url"
             value={rawUrl}
             onChange={(e) => handleUrlChange(e.target.value)}
+            onBlur={applyUrl}
             className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             placeholder="YouTube, Google Drive, Docs, Slides, Forms…"
           />
@@ -384,6 +389,7 @@ export const EmbedConfigEditor: React.FC<{
               type="url"
               value={rawUrl}
               onChange={(e) => handleUrlChange(e.target.value)}
+              onBlur={applyUrl}
               placeholder="https://www.youtube.com/live/…"
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
