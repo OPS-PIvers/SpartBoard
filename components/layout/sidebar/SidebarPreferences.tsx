@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, ShieldX, MousePointerClick } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { Card } from '@/components/common/Card';
 import { useAuth } from '@/context/useAuth';
 
 interface SidebarPreferencesProps {
@@ -51,7 +52,10 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
           {/* Preference Items */}
           <div className="space-y-2">
             {/* Close Warning Toggle */}
-            <div className="flex items-start gap-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <Card
+              className="flex items-start gap-4 transition-shadow"
+              hoverable
+            >
               <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <ShieldX className="w-[18px] h-[18px] text-red-400" />
               </div>
@@ -79,10 +83,13 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                   })}
                 </p>
               </div>
-            </div>
+            </Card>
 
             {/* Remote Control Toggle */}
-            <div className="flex items-start gap-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <Card
+              className="flex items-start gap-4 transition-shadow"
+              hoverable
+            >
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <MousePointerClick className="w-[18px] h-[18px] text-blue-400" />
               </div>
@@ -110,7 +117,7 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                   })}
                 </p>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Info Note */}
