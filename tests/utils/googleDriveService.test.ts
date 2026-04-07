@@ -129,12 +129,13 @@ describe('GoogleDriveService', () => {
 
       await service.findFolder('MyFolder');
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'q=name+%3D+%27MyFolder%27+and+mimeType+%3D+%27application%2Fvnd.google-apps.folder%27+and+trashed+%3D+false'
-        ),
-        expect.anything()
-      );
+      const [urlStr] = fetchSpy.mock.calls[0];
+      const url = new URL(urlStr as string);
+      const q = url.searchParams.get('q') ?? '';
+
+      expect(q).toContain("name = 'MyFolder'");
+      expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
+      expect(q).toContain('trashed = false');
     });
 
     it('should generate correct query with parentId', async () => {
@@ -144,10 +145,14 @@ describe('GoogleDriveService', () => {
 
       await service.findFolder('MyFolder', 'parent123');
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        expect.stringContaining('and+%27parent123%27+in+parents'),
-        expect.anything()
-      );
+      const [urlStr] = fetchSpy.mock.calls[0];
+      const url = new URL(urlStr as string);
+      const q = url.searchParams.get('q') ?? '';
+
+      expect(q).toContain("name = 'MyFolder'");
+      expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
+      expect(q).toContain('trashed = false');
+      expect(q).toContain("'parent123' in parents");
     });
 
     it('should return folder ID if found', async () => {
@@ -179,16 +184,24 @@ describe('GoogleDriveService', () => {
       const sheet = await service.createSpreadsheet('MySheet', 'parent-123');
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'https://www.googleapis.com/drive/v3/files',
+        expect.stringContaining('/files'),
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({
-            name: 'MySheet',
-            mimeType: 'application/vnd.google-apps.spreadsheet',
-            parents: ['parent-123'],
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${accessToken}`,
           }),
         })
       );
+
+      const lastCall = fetchSpy.mock.calls[0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+      const body = JSON.parse((lastCall[1] as any)?.body as string);
+      expect(body).toEqual({
+        name: 'MySheet',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        parents: ['parent-123'],
+      });
+
       expect(sheet).toEqual({
         id: 'sheet-1',
         name: 'MySheet',
