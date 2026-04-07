@@ -1851,23 +1851,29 @@ export const adminAnalytics = functionsV1
           `[getAdminAnalytics] Found ${authUsersMap.size} Auth users`
         );
 
-        // 3b. Stream Firestore /users/{uid} docs for building assignments only
+        // 3b. Batch-read /users/{uid}/userProfile/profile for building assignments
+        // The source of truth for buildings is the profile subcollection, not the
+        // root user doc (which is only populated on recent logins).
         const buildingsMap = new Map<string, string[]>();
-        const usersStream = db
-          .collection('users')
-          .select('buildings')
-          .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-        for await (const userDoc of usersStream) {
-          if (!userDoc.exists) continue;
-          // Skip users not in the filtered auth map (e.g. anonymous students)
-          if (!authUsersMap.has(userDoc.id)) continue;
-          const userData = userDoc.data();
-          if (
-            Array.isArray(userData.buildings) &&
-            userData.buildings.length > 0
-          ) {
-            buildingsMap.set(userDoc.id, userData.buildings.map(String));
+        const authUids = Array.from(authUsersMap.keys());
+        const PROFILE_BATCH = 500;
+        for (let i = 0; i < authUids.length; i += PROFILE_BATCH) {
+          const batch = authUids.slice(i, i + PROFILE_BATCH);
+          const refs = batch.map((uid) =>
+            db.doc(`users/${uid}/userProfile/profile`)
+          );
+          const snapshots = await db.getAll(...refs);
+          for (const snap of snapshots) {
+            if (!snap.exists) continue;
+            const data = snap.data();
+            if (
+              data &&
+              Array.isArray(data.selectedBuildings) &&
+              data.selectedBuildings.length > 0
+            ) {
+              const uid = snap.ref.parent.parent!.id;
+              buildingsMap.set(uid, data.selectedBuildings.map(String));
+            }
           }
         }
 
