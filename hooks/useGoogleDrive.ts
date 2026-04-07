@@ -28,8 +28,9 @@ export const useGoogleDrive = () => {
     driveService
       .migrateAppFolderName(LEGACY_FOLDER_NAME, APP_NAME)
       .then(() => localStorage.setItem(key, '1'))
-      .catch(() => {
+      .catch((error) => {
         // Silent fail — will retry on next page load
+        console.error('Failed to migrate Google Drive folder name:', error);
       });
   }, [driveService, user?.uid]);
 
