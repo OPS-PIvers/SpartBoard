@@ -1,6 +1,6 @@
 {
   "name": "spart-board",
-  "description": "SPART Board Application",
+  "description": "SpartBoard Application",
   "private": true,
   "version": "0.0.1",
   "packageManager": "pnpm@10.30.2",

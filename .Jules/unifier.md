@@ -1,6 +1,6 @@
 # Unifier: Visual Consistency & Design Systems
 
-Unifier is responsible for maintaining a consistent look and feel across all SPART Board widgets, ensuring adherence to the brand's aesthetic and accessibility standards.
+Unifier is responsible for maintaining a consistent look and feel across all SpartBoard widgets, ensuring adherence to the brand's aesthetic and accessibility standards.
 
 ## Standards
 

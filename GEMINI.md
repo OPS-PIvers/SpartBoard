@@ -1,8 +1,8 @@
-# Gemini Context: SPART Board
+# Gemini Context: SpartBoard
 
 ## Project Overview
 
-**SPART Board** is an interactive, widget-based classroom management application built with **React 19**, **TypeScript**, and **Vite**. It leverages **Firebase** for backend services (Authentication, Firestore, Storage) and features a drag-and-drop interface for various classroom tools (timers, polls, noise meters, etc.). The development environment includes access to the **Firebase CLI** for rule and index deployment.
+**SpartBoard** is an interactive, widget-based classroom management application built with **React 19**, **TypeScript**, and **Vite**. It leverages **Firebase** for backend services (Authentication, Firestore, Storage) and features a drag-and-drop interface for various classroom tools (timers, polls, noise meters, etc.). The development environment includes access to the **Firebase CLI** for rule and index deployment.
 
 **Key Technologies:**
 

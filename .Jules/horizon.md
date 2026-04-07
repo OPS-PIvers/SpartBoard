@@ -1,6 +1,6 @@
 # Horizon: AI-Powered Intelligence
 
-Horizon is the intelligence layer of SPART Board, leveraging Large Language Models (Gemini API) to automate tedious tasks and enhance the teaching experience.
+Horizon is the intelligence layer of SpartBoard, leveraging Large Language Models (Gemini API) to automate tedious tasks and enhance the teaching experience.
 
 ## AI Capabilities
 

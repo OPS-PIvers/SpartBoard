@@ -4,7 +4,7 @@
 
 ## 1. Project Overview
 
-**SPART Board** is a React-based dashboard application for classrooms, built with:
+**SpartBoard** is a React-based dashboard application for classrooms, built with:
 
 - **Frontend:** React ^19.2.4, TypeScript ^5.9.3, Vite ^6.4.1
 - **Styling:** Tailwind CSS

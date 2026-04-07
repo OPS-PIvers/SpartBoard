@@ -1,9 +1,9 @@
 ---
 name: new-widget
-description: Use this skill whenever building a new widget for the SPART Board or making significant structural changes to an existing widget. Covers the complete widget creation workflow including type registration, file structure, component architecture, CSS container query scaling rules, settings panels, appearance panels, admin config wiring, and all required config file updates. Follow the step-by-step checklist and refer to the provided templates and reference implementations to ensure your widget integrates seamlessly with the SPART Board's architecture and design standards.
+description: Use this skill whenever building a new widget for the SpartBoard or making significant structural changes to an existing widget. Covers the complete widget creation workflow including type registration, file structure, component architecture, CSS container query scaling rules, settings panels, appearance panels, admin config wiring, and all required config file updates. Follow the step-by-step checklist and refer to the provided templates and reference implementations to ensure your widget integrates seamlessly with the SpartBoard's architecture and design standards.
 ---
 
-# SPART Board — New Widget Skill
+# SpartBoard — New Widget Skill
 
 ## The Complete Checklist (do these in order)
 

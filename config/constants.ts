@@ -1,1 +1,1 @@
-export const APP_NAME = 'SPART Board';
+export const APP_NAME = 'SpartBoard';

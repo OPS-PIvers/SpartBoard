@@ -1,8 +1,8 @@
-# Copilot Instructions for SPART Board
+# Copilot Instructions for SpartBoard
 
 ## Project Overview
 
-**SPART Board** is a React 19 + TypeScript + Vite application providing 30+ interactive classroom management widgets (timers, noise meters, drawing boards, polls, etc.) with Firebase backend. The project uses a **flat file structure** (no `src/` directory) with all source files at root level.
+**SpartBoard** is a React 19 + TypeScript + Vite application providing 30+ interactive classroom management widgets (timers, noise meters, drawing boards, polls, etc.) with Firebase backend. The project uses a **flat file structure** (no `src/` directory) with all source files at root level.
 
 **Tech Stack:** React 19, TypeScript 5.9, Vite 6, Firebase (Auth/Firestore/Storage/Functions), Tailwind CSS, ESLint 9 (flat config), Prettier, Husky, Vitest, Playwright
 **Runtime:** Node.js v20+

@@ -72,7 +72,7 @@ interface ArchiveActivityWallPhotoData {
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
-const APP_DRIVE_FOLDER = 'SPART Board';
+const APP_DRIVE_FOLDER = 'SpartBoard';
 
 const getDriveHeaders = (accessToken: string) => ({
   Authorization: `Bearer ${accessToken}`,

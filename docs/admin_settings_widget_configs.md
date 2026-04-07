@@ -1,6 +1,6 @@
-SPART Board Widget Configuration Analysis
+SpartBoard Widget Configuration Analysis
 
-This document outlines the administrative and user-level configuration capabilities for all widgets in the SPART Board application. It is divided into widgets that currently have global administrative settings and those that could benefit from them in the future. The focus is on establishing Global Admin Configurations that set Building-Level Defaults (the initial state a widget boots up with when a teacher adds it to their dashboard, based on their building assignment).
+This document outlines the administrative and user-level configuration capabilities for all widgets in the SpartBoard application. It is divided into widgets that currently have global administrative settings and those that could benefit from them in the future. The focus is on establishing Global Admin Configurations that set Building-Level Defaults (the initial state a widget boots up with when a teacher adds it to their dashboard, based on their building assignment).
 
 ---
 

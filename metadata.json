@@ -1,5 +1,5 @@
 {
-  "name": "SPART Board",
+  "name": "SpartBoard",
   "description": "A professional-grade interactive management board for classrooms with widgets like timers, noise meters, and drawing boards, featuring drag-and-drop and real-time persistence.",
   "requestFramePermissions": ["camera", "microphone", "geolocation"]
 }

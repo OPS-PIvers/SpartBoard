@@ -1,5 +1,5 @@
 {
-  "name": "SPART Board - Full AI Workspace",
+  "name": "SpartBoard - Full AI Workspace",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
 
   "features": {
@@ -12,7 +12,7 @@
 
   "postCreateCommand": "bash .devcontainer/setup.sh",
 
-  "postAttachCommand": "clear && echo 'Welcome to SPART Board AI! Type \"gemini\" to start.'",
+  "postAttachCommand": "clear && echo 'Welcome to SpartBoard AI! Type \"gemini\" to start.'",
 
   "forwardPorts": [3000],
   "portsAttributes": {

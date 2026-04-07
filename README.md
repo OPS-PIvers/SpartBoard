@@ -1,4 +1,4 @@
-# SPART Board
+# SpartBoard
 
 **A professional-grade interactive management board for classrooms.**
 

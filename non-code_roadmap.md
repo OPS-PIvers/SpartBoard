@@ -1,6 +1,6 @@
-# SPART Board No-Code/Low-Code Admin Roadmap
+# SpartBoard No-Code/Low-Code Admin Roadmap
 
-This document outlines opportunities to shift customization, design, and widget creation from code-level changes (React/Tailwind) into dynamic, admin-configurable settings within the SPART Board application. This shift lowers the barrier to scaling the app across different domains, empowering admins to match their branding and utility needs without coding.
+This document outlines opportunities to shift customization, design, and widget creation from code-level changes (React/Tailwind) into dynamic, admin-configurable settings within the SpartBoard application. This shift lowers the barrier to scaling the app across different domains, empowering admins to match their branding and utility needs without coding.
 
 > **Implementation status key:**
 >
@@ -29,7 +29,7 @@ Currently, the application relies heavily on hardcoded Tailwind utility classes 
     - **Implemented:** `StylePanel` already provides sliders and selectors for `windowTransparency`, `windowBorderRadius`, `dockTransparency`, `dockBorderRadius`, `dockTextColor`, and `dockTextShadow`. All values persist to Firestore via `setGlobalStyle()`.
 
 4.  ✅ **Custom Backgrounds & Logos:**
-    - **Implemented:** `BackgroundManager` admin panel allows uploading and managing background presets. Global branding UI added to `GlobalPermissionsManager` for uploading a custom logo to replace the default SPART Board logo in the sidebar header. The logo URL is stored in the `app_settings` global Firestore configuration.
+    - **Implemented:** `BackgroundManager` admin panel allows uploading and managing background presets. Global branding UI added to `GlobalPermissionsManager` for uploading a custom logo to replace the default SpartBoard logo in the sidebar header. The logo URL is stored in the `app_settings` global Firestore configuration.
 
 ---
 
@@ -134,7 +134,7 @@ Empower admins to control the initial user experience for teachers.
 | 5.7   | Onboarding / Setup Wizard (completion tracking) | ✅ Done                                        |
 | 5.7   | Building-profile-driven onboarding flow         | 🔲 Remaining                                   |
 
-By completing the remaining widget admin config panels, integrating Monaco Editor for the Mini App library, implementing template auto-assignment on first login, and adding the student-facing publish URL, SPART Board will reach a state where a district admin can fully configure, brand, and deploy the platform for their teachers and students without any developer intervention. The JSON Schema-driven admin UI (Phase 2.2) and Visual Widget Builder (Phase 3.2) represent the next frontier — turning widget creation itself into an admin-level operation.
+By completing the remaining widget admin config panels, integrating Monaco Editor for the Mini App library, implementing template auto-assignment on first login, and adding the student-facing publish URL, SpartBoard will reach a state where a district admin can fully configure, brand, and deploy the platform for their teachers and students without any developer intervention. The JSON Schema-driven admin UI (Phase 2.2) and Visual Widget Builder (Phase 3.2) represent the next frontier — turning widget creation itself into an admin-level operation.
 
 ---
 

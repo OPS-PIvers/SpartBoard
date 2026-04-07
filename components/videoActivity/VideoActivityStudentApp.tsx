@@ -164,7 +164,7 @@ const JoinAndPlay: React.FC = () => {
             </div>
             <div>
               <p className="text-white font-black text-xl leading-none">
-                SPART Board
+                SpartBoard
               </p>
               <p className="text-slate-400 text-xs font-medium mt-0.5">
                 Video Activity

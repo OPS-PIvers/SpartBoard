@@ -9,7 +9,7 @@
  *  3. MERGE  — overlay PII fields from Drive back onto a Firestore-loaded dashboard
  *
  * The Drive supplement file lives at:
- *   SPART Board/Data/Dashboards/{dashboardId}-pii.json
+ *   SpartBoard/Data/Dashboards/{dashboardId}-pii.json
  * and is a Record<widgetId, Partial<WidgetConfig>> containing only PII fields.
  */
 

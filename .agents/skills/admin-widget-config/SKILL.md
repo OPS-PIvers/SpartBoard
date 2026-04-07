@@ -1,9 +1,9 @@
 ---
 name: admin-widget-config
-description: Use this skill whenever the user asks to add, edit, create, or wire up a widget configuration modal in the SPART Board admin settings. This covers Admin Settings > Feature Permissions > Widget Config Modal — NOT the user-level widget settings panel on the dashboard. Triggers include: add admin config for a widget, create a config modal, the widget needs global settings, add building defaults, wire up the config button, admin config is not showing, or any request to manage widget behavior from the admin level. Always use this skill for admin-level widget configuration — do not place these settings in the user-facing widget settings panel.
+description: Use this skill whenever the user asks to add, edit, create, or wire up a widget configuration modal in the SpartBoard admin settings. This covers Admin Settings > Feature Permissions > Widget Config Modal — NOT the user-level widget settings panel on the dashboard. Triggers include: add admin config for a widget, create a config modal, the widget needs global settings, add building defaults, wire up the config button, admin config is not showing, or any request to manage widget behavior from the admin level. Always use this skill for admin-level widget configuration — do not place these settings in the user-facing widget settings panel.
 ---
 
-# SPART Board — Widget Admin Config Modal Skill
+# SpartBoard — Widget Admin Config Modal Skill
 
 ## What this skill covers
 

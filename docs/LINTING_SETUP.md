@@ -1,6 +1,6 @@
 # Linting and Type Checking Setup
 
-This document describes the linting and type checking setup for the SPART Board project.
+This document describes the linting and type checking setup for the SpartBoard project.
 
 ## Tools Installed
 

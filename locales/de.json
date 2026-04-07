@@ -16,7 +16,7 @@
   },
   "sidebar": {
     "header": {
-      "classroomManager": "Klassenzimmer-Manager",
+      "classroomManager": "SpartBoard",
       "syncing": "Synchronisierung",
       "cloud": "Cloud",
       "drive": "Drive",

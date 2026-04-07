@@ -216,7 +216,7 @@ export const NextUpStudentApp: React.FC = () => {
         </div>
 
         <p className="text-center text-slate-400 text-xs mt-8 font-medium">
-          SPART Board &bull; Learning in Motion
+          SpartBoard &bull; Learning in Motion
         </p>
       </div>
     </div>

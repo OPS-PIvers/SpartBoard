@@ -28,7 +28,7 @@ function assignPins(students: Student[]): Student[] {
 
 /**
  * Drive folder path for per-roster student files.
- * Structure: SPART Board/Data/Rosters/{rosterId}.json → Student[]
+ * Structure: SpartBoard/Data/Rosters/{rosterId}.json → Student[]
  */
 const ROSTER_DRIVE_FOLDER = 'Data/Rosters';
 

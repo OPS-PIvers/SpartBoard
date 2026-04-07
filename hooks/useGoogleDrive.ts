@@ -1,9 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/useAuth';
 import { GoogleDriveService } from '../utils/googleDriveService';
 import { APP_NAME } from '../config/constants';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
+const LEGACY_FOLDER_NAME = 'SPART Board';
+const MIGRATION_COMPLETED_FLAG = 'true';
+const migrationKey = (uid: string) => `spart_drive_folder_migrated_v2_${uid}`;
 
 export const useGoogleDrive = () => {
   const { googleAccessToken, refreshGoogleToken, user } = useAuth();
@@ -15,6 +18,22 @@ export const useGoogleDrive = () => {
 
   const userDomain = user?.email?.split('@')[1];
   const isConnected = !!googleAccessToken;
+
+  // One-time migration: rename the legacy "SPART Board" Drive folder to the
+  // current APP_NAME ("SpartBoard") so existing users don't lose their data.
+  useEffect(() => {
+    if (!driveService || !user?.uid) return;
+    const key = migrationKey(user.uid);
+    if (localStorage.getItem(key)) return;
+
+    driveService
+      .migrateAppFolderName(LEGACY_FOLDER_NAME, APP_NAME)
+      .then(() => localStorage.setItem(key, MIGRATION_COMPLETED_FLAG))
+      .catch((error) => {
+        // Silent fail — will retry on next page load
+        console.error('Failed to migrate Google Drive folder name:', error);
+      });
+  }, [driveService, user?.uid]);
 
   /**
    * Upload an image file to the user's Drive "Backgrounds" folder and return
