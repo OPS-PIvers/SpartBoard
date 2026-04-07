@@ -27,10 +27,8 @@ export const useBackgrounds = () => {
   const [prevUser, setPrevUser] = useState(user);
   if (user !== prevUser) {
     setPrevUser(user);
-    if (!user) {
-      setManagedBackgrounds([]);
-      setLoading(false);
-    }
+    setManagedBackgrounds([]);
+    setLoading(!!user);
   }
 
   // Refs to prevent race conditions when both queries update simultaneously
