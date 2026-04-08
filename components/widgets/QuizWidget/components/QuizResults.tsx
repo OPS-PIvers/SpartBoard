@@ -17,6 +17,8 @@ import {
   ExternalLink,
   Target,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -27,15 +29,17 @@ import { ScoreboardTeam } from '@/types';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
 /**
- * Compute a student's percentage score by re-grading answers with gradeAnswer
+ * Compute a student's percentage score using per-question point values.
  */
 function getResponseScore(r: QuizResponse, questions: QuizQuestion[]): number {
-  if (questions.length === 0) return 0;
-  const correct = r.answers.filter((a) => {
-    const q = questions.find((qn) => qn.id === a.questionId);
-    return q ? gradeAnswer(q, a.answer) : false;
-  }).length;
-  return Math.round((correct / questions.length) * 100);
+  const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
+  if (maxPoints === 0) return 0;
+  const earned = questions.reduce((sum, q) => {
+    const ans = r.answers.find((a) => a.questionId === q.id);
+    if (!ans) return sum;
+    return sum + (gradeAnswer(q, ans.answer) ? (q.points ?? 1) : 0);
+  }, 0);
+  return Math.round((earned / maxPoints) * 100);
 }
 
 interface QuizResultsProps {
@@ -170,7 +174,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
       <div
-        className="flex items-center border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
+        className="flex items-center border-b border-brand-blue-primary/10"
         style={{
           gap: 'min(12px, 3cqmin)',
           padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
@@ -297,7 +301,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         <>
           {/* Tabs Navigation */}
           <div
-            className="flex bg-white/50 border-b border-brand-blue-primary/10"
+            className="flex border-b border-brand-blue-primary/10"
             style={{
               padding: 'min(8px, 2cqmin) min(16px, 4cqmin) 0',
               gap: 'min(4px, 1cqmin)',
@@ -598,83 +602,126 @@ const QuestionsTab: React.FC<{
 const StudentsTab: React.FC<{
   responses: QuizResponse[];
   questions: QuizQuestion[];
-}> = ({ responses, questions }) => (
-  <div className="space-y-2">
-    {responses
-      .slice()
-      .sort((a, b) => {
-        const scoreA =
-          a.status === 'completed' || a.status === 'in-progress'
-            ? getResponseScore(a, questions)
-            : -1;
-        const scoreB =
-          b.status === 'completed' || b.status === 'in-progress'
-            ? getResponseScore(b, questions)
-            : -1;
-        return scoreB - scoreA;
-      })
-      .map((r) => {
-        const score = getResponseScore(r, questions);
-        const correct = r.answers.filter((a) => {
-          const q = questions.find((qn) => qn.id === a.questionId);
-          return q ? gradeAnswer(q, a.answer) : false;
-        }).length;
-        const warnings = r.tabSwitchWarnings ?? 0;
+}> = ({ responses, questions }) => {
+  const [showResults, setShowResults] = useState(false);
 
-        return (
-          <div
-            key={r.studentUid}
-            className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p
-                  className="font-bold text-brand-blue-dark truncate font-mono"
-                  style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-                >
-                  PIN {r.pin}
-                </p>
-                {warnings > 0 && (
-                  <span
-                    className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                    title={`${warnings} Tab Switch Warning(s)`}
-                  >
-                    <AlertTriangle style={{ width: 10, height: 10 }} />
-                    {warnings}
-                  </span>
-                )}
-              </div>
-            </div>
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={() => setShowResults(!showResults)}
+        className="w-full flex items-center justify-between p-3 bg-white/60 border border-brand-blue-primary/10 rounded-xl hover:bg-white/80 transition-all"
+      >
+        <span
+          className="font-bold text-brand-blue-dark"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          {responses.length} student{responses.length !== 1 ? 's' : ''}
+        </span>
+        <span
+          className="flex items-center gap-1.5 text-brand-blue-primary font-bold"
+          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+        >
+          {showResults ? (
+            <>
+              <EyeOff
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              Hide Results
+            </>
+          ) : (
+            <>
+              <Eye
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              Show Results
+            </>
+          )}
+        </span>
+      </button>
 
-            <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
-              {r.status === 'completed' || r.status === 'in-progress' ? (
-                <>
-                  <p
-                    className={`font-black ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
-                    style={{ fontSize: 'min(15px, 5cqmin)' }}
-                  >
-                    {score}%
-                  </p>
-                  <p
-                    className="text-brand-blue-primary/60 font-bold"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    {correct}/{questions.length} Correct
-                    {r.status === 'in-progress' && ' (In Progress)'}
-                  </p>
-                </>
-              ) : (
-                <div
-                  className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
-                  style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                >
-                  {r.status}
+      {showResults &&
+        responses
+          .slice()
+          .sort((a, b) => {
+            const scoreA =
+              a.status === 'completed' || a.status === 'in-progress'
+                ? getResponseScore(a, questions)
+                : -1;
+            const scoreB =
+              b.status === 'completed' || b.status === 'in-progress'
+                ? getResponseScore(b, questions)
+                : -1;
+            return scoreB - scoreA;
+          })
+          .map((r) => {
+            const score = getResponseScore(r, questions);
+            const correct = r.answers.filter((a) => {
+              const q = questions.find((qn) => qn.id === a.questionId);
+              return q ? gradeAnswer(q, a.answer) : false;
+            }).length;
+            const warnings = r.tabSwitchWarnings ?? 0;
+
+            return (
+              <div
+                key={r.studentUid}
+                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="font-bold text-brand-blue-dark truncate font-mono"
+                      style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+                    >
+                      PIN {r.pin}
+                    </p>
+                    {warnings > 0 && (
+                      <span
+                        className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                        title={`${warnings} Tab Switch Warning(s)`}
+                      >
+                        <AlertTriangle style={{ width: 10, height: 10 }} />
+                        {warnings}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-  </div>
-);
+
+                <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
+                  {r.status === 'completed' || r.status === 'in-progress' ? (
+                    <>
+                      <p
+                        className={`font-black ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
+                        style={{ fontSize: 'min(15px, 5cqmin)' }}
+                      >
+                        {score}%
+                      </p>
+                      <p
+                        className="text-brand-blue-primary/60 font-bold"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        {correct}/{questions.length} Correct
+                        {r.status === 'in-progress' && ' (In Progress)'}
+                      </p>
+                    </>
+                  ) : (
+                    <div
+                      className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
+                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                    >
+                      {r.status}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+    </div>
+  );
+};

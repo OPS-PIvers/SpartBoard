@@ -112,7 +112,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
     <div className="flex flex-col h-full font-sans bg-brand-blue-lighter/10">
       {/* Header */}
       <div
-        className="flex items-center gap-3 border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
+        className="flex items-center gap-3 border-b border-brand-blue-primary/10"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <button
@@ -264,7 +264,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
 
       {/* Navigation Footer */}
       <div
-        className="flex items-center justify-between border-t border-brand-blue-primary/10 bg-white"
+        className="flex items-center justify-between border-t border-brand-blue-primary/10"
         style={{ padding: 'min(12px, 3cqmin) min(16px, 4cqmin)' }}
       >
         <button

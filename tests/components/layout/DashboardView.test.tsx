@@ -38,6 +38,14 @@ vi.mock('@/hooks/useLiveSession', () => ({
   useLiveSession: vi.fn(),
 }));
 
+vi.mock('@/hooks/useQuiz', () => ({
+  useQuiz: vi.fn().mockReturnValue({
+    importSharedQuiz: vi.fn().mockResolvedValue(undefined),
+    shareQuiz: vi.fn().mockResolvedValue(''),
+    createQuizTemplate: vi.fn().mockResolvedValue(''),
+  }),
+}));
+
 vi.mock('@use-gesture/react', () => ({
   useGesture: mockUseGesture,
 }));

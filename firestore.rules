@@ -165,6 +165,15 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Shared quizzes - Same pattern as shared_boards.
+    match /shared_quizzes/{shareId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
     // Sessions - Teacher owns it, Students can join
     match /sessions/{userId} {
       // Only authenticated users (including anonymous) can read sessions

@@ -227,6 +227,10 @@ const mockDashboard: DashboardContextValue = {
   clearPendingShare: () => {
     // No-op
   },
+  pendingQuizShareId: null,
+  clearPendingQuizShare: () => {
+    // No-op
+  },
   // Roster mocks
   rosters: [],
   activeRosterId: null,

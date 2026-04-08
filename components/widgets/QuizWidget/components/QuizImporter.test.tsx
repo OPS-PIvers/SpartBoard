@@ -18,6 +18,7 @@ describe('QuizImporter', () => {
   const mockOnSave = vi.fn();
   const mockImportFromSheet = vi.fn();
   const mockImportFromCSV = vi.fn();
+  const mockCreateQuizTemplate = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -33,6 +34,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 
@@ -46,6 +48,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 
@@ -75,6 +78,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 
@@ -142,6 +146,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 
@@ -203,6 +208,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 
@@ -233,6 +239,7 @@ describe('QuizImporter', () => {
         onSave={mockOnSave}
         importFromSheet={mockImportFromSheet}
         importFromCSV={mockImportFromCSV}
+        createQuizTemplate={mockCreateQuizTemplate}
       />
     );
 

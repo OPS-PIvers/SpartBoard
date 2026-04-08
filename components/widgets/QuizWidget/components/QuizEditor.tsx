@@ -157,7 +157,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
       <div
-        className="flex items-center gap-3 border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
+        className="flex items-center gap-3 border-b border-brand-blue-primary/10"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <button
@@ -292,8 +292,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
             {/* Expanded form */}
             {expandedId === q.id && (
               <div className="px-4 pb-4 space-y-4 border-t border-brand-blue-primary/5 pt-4 bg-brand-blue-lighter/10">
-                {/* Type + time limit */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Type + time limit + points */}
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label
                       className="block font-bold text-brand-blue-dark mb-1"
@@ -346,6 +346,38 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                       >
                         SEC
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label
+                      className="block font-bold text-brand-blue-dark mb-1"
+                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                    >
+                      Points
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={q.points ?? 1}
+                        onChange={(e) =>
+                          updateQuestion(q.id, {
+                            points: Math.max(
+                              1,
+                              parseInt(e.target.value, 10) || 1
+                            ),
+                          })
+                        }
+                        className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm"
+                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      />
+                      <span
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        PT
                       </span>
                     </div>
                   </div>
