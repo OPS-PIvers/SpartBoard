@@ -344,6 +344,9 @@ export const Dock: React.FC = () => {
               config: { activeApp: previewItem, activeAppUnsaved: true },
             });
             addToast('HTML opened — click the save icon to keep it!', 'info');
+          } else if (result.action === 'import-quiz') {
+            // Navigate to the share/quiz URL to trigger import
+            window.location.href = `${window.location.origin}/share/quiz/${result.shareId}`;
           } else if (result.action === 'prompt-text-or-checklist') {
             // Ambiguous: show a picker modal for the user to decide
             setSmartPastePending(result.text);

@@ -128,6 +128,51 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('detects quiz share URLs', () => {
+    const input = 'https://spartboard.web.app/share/quiz/abc123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-quiz') {
+      expect(result.shareId).toBe('abc123');
+    } else {
+      throw new Error('Expected import-quiz action');
+    }
+  });
+
+  it('detects quiz share URLs with bare domain', () => {
+    const input = 'spartboard.web.app/share/quiz/xyz789';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-quiz') {
+      expect(result.shareId).toBe('xyz789');
+    } else {
+      throw new Error('Expected import-quiz action');
+    }
+  });
+
+  it('does not treat quiz share URLs as board imports', () => {
+    const input = 'https://spartboard.web.app/share/quiz/abc123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    expect(result?.action).toBe('import-quiz');
+    expect(result?.action).not.toBe('import-board');
+  });
+
+  it('still detects board share URLs correctly', () => {
+    const input = 'https://myapp.com/share/boardId123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-board') {
+      expect(result.url).toBe(input);
+    } else {
+      throw new Error('Expected import-board action');
+    }
+  });
+
   it('defaults to text widget for long prose', () => {
     const input =
       'This is a very long paragraph that should definitely be treated as a text widget rather than a checklist, even if it has multiple lines that are not clearly separated into a list format. It contains multiple sentences and is quite long in terms of character count per line or paragraph.';

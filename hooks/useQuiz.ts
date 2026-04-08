@@ -12,6 +12,8 @@ import {
   onSnapshot,
   setDoc,
   deleteDoc,
+  getDoc,
+  addDoc,
   query,
   orderBy,
 } from 'firebase/firestore';
@@ -41,6 +43,12 @@ export interface UseQuizResult {
   importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
   /** Parse a CSV string and return quiz questions */
   importFromCSV: (csvContent: string, title: string) => Promise<QuizData>;
+  /** Create a template Google Sheet for quiz imports in the user's Drive */
+  createQuizTemplate: () => Promise<string>;
+  /** Share a quiz publicly and return the share URL */
+  shareQuiz: (quizMeta: QuizMetadata) => Promise<string>;
+  /** Import a shared quiz into the current user's library */
+  importSharedQuiz: (shareId: string) => Promise<void>;
   /** Is a Drive service available? */
   isDriveConnected: boolean;
 }
@@ -196,6 +204,48 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     []
   );
 
+  const createQuizTemplate = useCallback(async (): Promise<string> => {
+    const drive = getDriveService();
+    return drive.createQuizTemplate();
+  }, [getDriveService]);
+
+  const shareQuiz = useCallback(
+    async (quizMeta: QuizMetadata): Promise<string> => {
+      if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
+      const quizData = await drive.loadQuiz(quizMeta.driveFileId);
+      const shareRef = await addDoc(collection(db, 'shared_quizzes'), {
+        ...quizData,
+        originalAuthor: userId,
+        sharedAt: Date.now(),
+      });
+      return `${window.location.origin}/share/quiz/${shareRef.id}`;
+    },
+    [userId, getDriveService]
+  );
+
+  const importSharedQuiz = useCallback(
+    async (shareId: string): Promise<void> => {
+      if (!userId) throw new Error('Not authenticated');
+      const snap = await getDoc(doc(db, 'shared_quizzes', shareId));
+      if (!snap.exists()) throw new Error('Shared quiz not found');
+      const shared = snap.data() as QuizData & {
+        originalAuthor: string;
+        sharedAt: number;
+      };
+      // Create a fresh copy for this user
+      const newQuiz: QuizData = {
+        id: crypto.randomUUID(),
+        title: shared.title,
+        questions: shared.questions,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await saveQuiz(newQuiz);
+    },
+    [userId, saveQuiz]
+  );
+
   return {
     quizzes,
     loading,
@@ -205,6 +255,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     deleteQuiz,
     importFromSheet,
     importFromCSV,
+    createQuizTemplate,
+    shareQuiz,
+    importSharedQuiz,
     isDriveConnected: isConnected,
   };
 };

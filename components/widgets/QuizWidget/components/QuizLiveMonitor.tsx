@@ -18,6 +18,8 @@ import {
   Zap,
   User,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { QuizSession, QuizResponse, QuizQuestion, QuizData } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
@@ -41,6 +43,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const [showStats, setShowStats] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [showRoster, setShowRoster] = useState(false);
   const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
 
   // Sync auto-countdown with session timestamp
@@ -140,7 +143,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
       <div
-        className="border-b border-brand-red-primary/10 bg-brand-red-lighter/20"
+        className="border-b border-brand-red-primary/10"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <div className="flex items-center justify-between">
@@ -483,40 +486,60 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
           {/* Detailed Student Progress List */}
           {responses.length > 0 && (
             <div className="space-y-2 mt-2">
-              <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
+              <button
+                onClick={() => setShowRoster(!showRoster)}
+                className="w-full flex items-center justify-between border-b border-brand-blue-primary/10 pb-1"
+              >
                 <span
                   className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
                   style={{ fontSize: 'min(10px, 3cqmin)' }}
                 >
-                  Roster Progress
+                  Roster Progress · {responses.length} Active
                 </span>
                 <span
-                  className="text-brand-blue-primary/40 font-bold"
+                  className="flex items-center gap-1 text-brand-blue-primary/40 font-bold"
                   style={{ fontSize: 'min(10px, 3cqmin)' }}
                 >
-                  {responses.length} ACTIVE
-                </span>
-              </div>
-              <div
-                className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
-                style={{
-                  gap: 'min(8px, 2cqmin)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                {responses
-                  .slice()
-                  .sort((a, b) => a.pin.localeCompare(b.pin))
-                  .map((r) => (
-                    <StudentRow
-                      key={r.studentUid}
-                      response={r}
-                      totalQuestions={session.totalQuestions}
-                      questions={quizData.questions}
+                  {showRoster ? (
+                    <EyeOff
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
                     />
-                  ))}
-              </div>
+                  ) : (
+                    <Eye
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                  )}
+                  {showRoster ? 'HIDE' : 'SHOW'}
+                </span>
+              </button>
+              {showRoster && (
+                <div
+                  className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  {responses
+                    .slice()
+                    .sort((a, b) => a.pin.localeCompare(b.pin))
+                    .map((r) => (
+                      <StudentRow
+                        key={r.studentUid}
+                        response={r}
+                        totalQuestions={session.totalQuestions}
+                        questions={quizData.questions}
+                      />
+                    ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -526,7 +549,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       {(session.status === 'waiting' ||
         (session.status === 'active' && session.sessionMode !== 'student')) && (
         <div
-          className="bg-white border-t border-brand-blue-primary/10"
+          className="border-t border-brand-blue-primary/10"
           style={{ padding: 'min(16px, 4cqmin)' }}
         >
           <button

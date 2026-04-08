@@ -14,9 +14,13 @@ import {
   Info,
   X,
   Sparkles,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, GeneratedQuestion } from '@/utils/ai';
+import { QuizDriveService } from '@/utils/quizDriveService';
 import { useAuth } from '@/context/useAuth';
 
 interface QuizImporterProps {
@@ -24,6 +28,7 @@ interface QuizImporterProps {
   onSave: (quiz: QuizData) => Promise<void>;
   importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
   importFromCSV: (csvContent: string, title: string) => Promise<QuizData>;
+  createQuizTemplate: () => Promise<string>;
 }
 
 export const QuizImporter: React.FC<QuizImporterProps> = ({
@@ -31,6 +36,7 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
   onSave,
   importFromSheet,
   importFromCSV,
+  createQuizTemplate,
 }) => {
   const { canAccessFeature } = useAuth();
   const [sheetUrl, setSheetUrl] = useState('');
@@ -44,6 +50,8 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
   const [showGeminiPrompt, setShowGeminiPrompt] = useState(false);
   const [geminiPrompt, setGeminiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [copiedTemplate, setCopiedTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -148,6 +156,54 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
     }
   };
 
+  const copiedTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  // Clean up timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
+
+  const handleCopyTemplate = async () => {
+    try {
+      const tsv = QuizDriveService.getQuizTemplateTSV();
+      await navigator.clipboard.writeText(tsv);
+      setCopiedTemplate(true);
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      copiedTimeoutRef.current = setTimeout(
+        () => setCopiedTemplate(false),
+        2000
+      );
+    } catch {
+      setError('Failed to copy template to clipboard.');
+    }
+  };
+
+  const handleCreateTemplate = async () => {
+    setCreatingTemplate(true);
+    setError(null);
+    // Open blank tab synchronously to preserve user gesture (avoids popup blockers)
+    const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    try {
+      const url = await createQuizTemplate();
+      if (newTab && !newTab.closed) {
+        newTab.location.href = url;
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      if (newTab && !newTab.closed) newTab.close();
+      setError(
+        err instanceof Error ? err.message : 'Failed to create template'
+      );
+    } finally {
+      setCreatingTemplate(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!parsedQuiz) return;
     setSaving(true);
@@ -165,7 +221,7 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
     <div className="flex flex-col h-full font-sans relative">
       {/* Header */}
       <div
-        className="flex items-center gap-3 border-b border-brand-blue-primary/10 bg-brand-blue-lighter/30"
+        className="flex items-center gap-3 border-b border-brand-blue-primary/10"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <button
@@ -241,18 +297,42 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
                 className="text-brand-gray-primary leading-relaxed italic"
                 style={{ fontSize: 'min(10px, 3cqmin)' }}
               >
-                <strong>Tip:</strong> CSV is private and doesn&apos;t require
-                public link sharing. Use it for sensitive assessments.
+                <strong>Tip:</strong> Get a ready-to-fill template with example
+                rows for each question type.
               </p>
-              <a
-                href="https://gemini.google.com/gem/1fhsIc6WX8_mSDldDOTuH4HNOjmjECGZW?usp=sharing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-bold text-xs hover:opacity-90 transition-opacity mt-2"
-                aria-label="Open Gemini CSV Helper (opens in new window)"
-              >
-                Open Gemini CSV Helper
-              </a>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => void handleCopyTemplate()}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
+                  {copiedTemplate ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-emerald-600">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      COPY TEMPLATE
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => void handleCreateTemplate()}
+                  disabled={creatingTemplate}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-white border-2 border-brand-blue-primary/20 hover:border-brand-blue-primary/40 rounded-xl text-brand-blue-primary font-black transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                >
+                  {creatingTemplate ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                  )}
+                  CREATE SHEET
+                  <ExternalLink className="w-3 h-3 opacity-40" />
+                </button>
+              </div>
             </div>
           )}
 

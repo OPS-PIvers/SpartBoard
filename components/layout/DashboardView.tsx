@@ -11,6 +11,7 @@ import {
 } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { useQuiz } from '@/hooks/useQuiz';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
@@ -139,7 +140,39 @@ export const DashboardView: React.FC = () => {
     updateDashboard,
     zoom,
     setZoom,
+    pendingQuizShareId,
+    clearPendingQuizShare,
   } = useDashboard();
+
+  const { importSharedQuiz } = useQuiz(user?.uid);
+
+  // Handle pending quiz share import from URL
+  useEffect(() => {
+    if (!pendingQuizShareId || !user) return;
+    void importSharedQuiz(pendingQuizShareId)
+      .then(() => addToast('Shared quiz imported to your library!', 'success'))
+      .catch((err: unknown) => {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : '';
+        addToast(
+          msg
+            ? `Failed to import shared quiz: ${msg}`
+            : 'Failed to import shared quiz.',
+          'error'
+        );
+      })
+      .finally(() => clearPendingQuizShare());
+  }, [
+    pendingQuizShareId,
+    user,
+    importSharedQuiz,
+    addToast,
+    clearPendingQuizShare,
+  ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
 

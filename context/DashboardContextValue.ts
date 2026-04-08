@@ -80,6 +80,8 @@ export interface DashboardContextValue {
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
   clearPendingShare: () => void;
+  pendingQuizShareId: string | null;
+  clearPendingQuizShare: () => void;
 
   // Roster system
   rosters: ClassRoster[];

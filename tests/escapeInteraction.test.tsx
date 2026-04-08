@@ -69,6 +69,13 @@ vi.mock('../hooks/useLiveSession', () => ({
     toggleGlobalFreeze: vi.fn(),
   }),
 }));
+vi.mock('../hooks/useQuiz', () => ({
+  useQuiz: () => ({
+    importSharedQuiz: vi.fn().mockResolvedValue(undefined),
+    shareQuiz: vi.fn().mockResolvedValue(''),
+    createQuizTemplate: vi.fn().mockResolvedValue(''),
+  }),
+}));
 
 const mockGlobalStyle: GlobalStyle = {
   fontFamily: 'sans',

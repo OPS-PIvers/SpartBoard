@@ -1269,6 +1269,8 @@ export interface QuizQuestion {
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
   incorrectAnswers: string[];
+  /** Point value for this question. Defaults to 1 if not set. */
+  points?: number;
 }
 
 /** Full quiz data stored in Google Drive as JSON */

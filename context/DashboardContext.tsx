@@ -116,14 +116,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname;
+    // Skip quiz share URLs — those are handled separately
+    if (path.startsWith('/share/quiz/')) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
     return null;
   });
 
+  const [pendingQuizShareId, setPendingQuizShareId] = useState<string | null>(
+    () => {
+      if (typeof window === 'undefined') return null;
+      const path = window.location.pathname;
+      if (path.startsWith('/share/quiz/')) {
+        return path.split('/share/quiz/')[1] || null;
+      }
+      return null;
+    }
+  );
+
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  const clearPendingQuizShare = useCallback(() => {
+    setPendingQuizShareId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -2823,6 +2841,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingQuizShareId,
+      clearPendingQuizShare,
       zoom,
       setZoom,
     }),
@@ -2891,6 +2911,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingQuizShareId,
+      clearPendingQuizShare,
       zoom,
       setZoom,
     ]

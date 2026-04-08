@@ -26,6 +26,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     deleteQuiz,
     importFromSheet,
     importFromCSV,
+    createQuizTemplate,
+    shareQuiz,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
@@ -185,6 +187,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onBack={() => setView('manager')}
         importFromSheet={importFromSheet}
         importFromCSV={importFromCSV}
+        createQuizTemplate={createQuizTemplate}
         onSave={async (quiz) => {
           try {
             await saveQuiz(quiz);
@@ -363,6 +366,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             err instanceof Error ? err.message : 'Delete failed',
             'error'
           );
+        }
+      }}
+      onShare={async (meta) => {
+        let url: string;
+        try {
+          url = await shareQuiz(meta);
+        } catch (err) {
+          addToast(
+            err instanceof Error ? err.message : 'Share failed',
+            'error'
+          );
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(url);
+          addToast('Share link copied to clipboard!', 'success');
+        } catch {
+          addToast(`Share link: ${url}`, 'info');
         }
       }}
     />
