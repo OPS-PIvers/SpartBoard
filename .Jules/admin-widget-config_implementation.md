@@ -656,3 +656,11 @@ Config: `components/admin/UrlConfigurationPanel.tsx` _(dedicated panel via `BUIL
         -- urls: Default list of active links pre-populated on creation.
     - [Admin-Only Settings]
         -- dockDefaults: Per-building dock visibility.
+
+[x] First 5
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- activeDayNumber: Admin-only control over the First 5 current day.
+        -- referenceDate: Admin-only control for the start date reference for the First 5 day calculation.
+        -- dockDefaults: Per-building dock visibility.

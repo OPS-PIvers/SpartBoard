@@ -2561,6 +2561,8 @@ export interface First5GlobalConfig {
   activeDayNumber?: number;
   /** ISO date string (YYYY-MM-DD) when activeDayNumber was last set */
   referenceDate?: string;
+  /** Per-building dock visibility overrides */
+  dockDefaults?: Record<string, boolean>;
 }
 
 export interface LunchCountGlobalConfig {
