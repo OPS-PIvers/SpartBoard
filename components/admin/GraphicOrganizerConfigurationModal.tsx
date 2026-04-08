@@ -78,12 +78,15 @@ export const GraphicOrganizerConfigurationModal: React.FC<
     BUILDINGS.length > 0 ? BUILDINGS[0].id : ''
   );
   const [globalConfig, setGlobalConfig] =
-    useState<GraphicOrganizerGlobalConfig>(
-      (permission.config as unknown as GraphicOrganizerGlobalConfig) || {
-        buildings: {},
-      }
-    );
-  const isLoading = false;
+    useState<GraphicOrganizerGlobalConfig>(() => {
+      const config =
+        permission.config as unknown as GraphicOrganizerGlobalConfig;
+      return {
+        ...config,
+        buildings: config?.buildings || {},
+      };
+    });
+
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -96,14 +99,14 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Sync state if permission.config changes externally, avoiding useEffect.
-  const [prevConfigRef, setPrevConfigRef] = useState(permission.config);
-  if (permission.config !== prevConfigRef) {
-    setPrevConfigRef(permission.config);
-    setGlobalConfig(
-      (permission.config as unknown as GraphicOrganizerGlobalConfig) || {
-        buildings: {},
-      }
-    );
+  const [prevConfig, setPrevConfig] = useState(permission.config);
+  if (permission.config !== prevConfig) {
+    setPrevConfig(permission.config);
+    const config = permission.config as unknown as GraphicOrganizerGlobalConfig;
+    setGlobalConfig({
+      ...config,
+      buildings: config?.buildings || {},
+    });
   }
 
   const handleSave = () => {
@@ -285,245 +288,239 @@ export const GraphicOrganizerConfigurationModal: React.FC<
 
         {/* Content */}
         <div className="flex flex-1 overflow-hidden">
-          {isLoading ? (
-            <div className="flex flex-1 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
+            {/* Dock Defaults */}
+            <DockDefaultsPanel
+              config={{
+                dockDefaults: globalConfig.dockDefaults ?? {},
+              }}
+              onChange={(d) =>
+                setGlobalConfig((prev) => ({
+                  ...prev,
+                  dockDefaults: d,
+                }))
+              }
+            />
+
+            <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">
+              {BUILDINGS.map((building) => (
+                <button
+                  key={building.id}
+                  onClick={() => {
+                    setSelectedBuilding(building.id);
+                    setEditingTemplateId(null);
+                    setCurrentTemplateDraft(null);
+                  }}
+                  className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${
+                    selectedBuilding === building.id
+                      ? 'bg-white text-indigo-600 border border-slate-200 border-b-white -mb-[9px] z-10'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {building.name}
+                </button>
+              ))}
             </div>
-          ) : (
-            <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 p-6">
-              {/* Dock Defaults */}
-              <DockDefaultsPanel
-                config={{
-                  dockDefaults: globalConfig.dockDefaults ?? {},
-                }}
-                onChange={(d) =>
-                  setGlobalConfig((prev) => ({
-                    ...prev,
-                    dockDefaults: d,
-                  }))
-                }
-              />
 
-              <div className="mb-6 flex space-x-2 border-b border-slate-200 pb-2">
-                {BUILDINGS.map((building) => (
-                  <button
-                    key={building.id}
-                    onClick={() => {
-                      setSelectedBuilding(building.id);
-                      setEditingTemplateId(null);
-                      setCurrentTemplateDraft(null);
-                    }}
-                    className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${
-                      selectedBuilding === building.id
-                        ? 'bg-white text-indigo-600 border border-slate-200 border-b-white -mb-[9px] z-10'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {building.name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                {!editingTemplateId ? (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-bold text-slate-800">
-                        Custom Templates
-                      </h3>
-                      <Button
-                        size="sm"
-                        onClick={startNewTemplate}
-                        className="gap-2"
-                      >
-                        <Plus className="h-4 w-4" /> Add Template
-                      </Button>
-                    </div>
-
-                    {currentTemplates.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                        No custom templates for this building yet. Click
-                        &quot;Add Template&quot; to create one.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {currentTemplates.map((template) => (
-                          <div
-                            key={template.id}
-                            className="border border-slate-200 rounded-lg p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors"
-                          >
-                            <div>
-                              <div className="font-bold text-slate-800">
-                                {template.name}
-                              </div>
-                              <div className="text-sm text-slate-500 mb-2">
-                                {
-                                  LAYOUT_OPTIONS.find(
-                                    (l) => l.value === template.layout
-                                  )?.label
-                                }
-                              </div>
-                              <div className="text-xs font-mono bg-slate-100 p-1 rounded inline-block text-slate-600 mb-4">
-                                {template.fontFamily}
-                              </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => editTemplate(template)}
-                              >
-                                Edit
-                              </Button>
-                              <button
-                                onClick={() => deleteTemplate(template.id)}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete Template"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              {!editingTemplateId ? (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-slate-800">
+                      Custom Templates
+                    </h3>
+                    <Button
+                      size="sm"
+                      onClick={startNewTemplate}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Add Template
+                    </Button>
                   </div>
-                ) : (
-                  currentTemplateDraft && (
-                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      <div className="flex items-center gap-2 mb-6">
-                        <button
-                          onClick={cancelTemplateEdit}
-                          className="p-1 hover:bg-slate-100 rounded text-slate-500"
+
+                  {currentTemplates.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                      No custom templates for this building yet. Click &quot;Add
+                      Template&quot; to create one.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {currentTemplates.map((template) => (
+                        <div
+                          key={template.id}
+                          className="border border-slate-200 rounded-lg p-4 flex flex-col justify-between hover:border-indigo-300 transition-colors"
                         >
-                          <ChevronLeft className="h-5 w-5" />
-                        </button>
-                        <h3 className="text-lg font-bold text-slate-800">
-                          {currentTemplateDraft.id.startsWith('template-') &&
-                          !currentTemplates.find(
-                            (t) => t.id === currentTemplateDraft.id
-                          )
-                            ? 'Create Template'
-                            : 'Edit Template'}
-                        </h3>
-                      </div>
-
-                      <div className="space-y-6 max-w-2xl">
-                        {/* Template Name */}
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-1">
-                            Template Name
-                          </label>
-                          <input
-                            type="text"
-                            value={currentTemplateDraft.name}
-                            onChange={(e) =>
-                              setCurrentTemplateDraft({
-                                ...currentTemplateDraft,
-                                name: e.target.value,
-                              })
-                            }
-                            className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            placeholder="e.g., Weekly Frayer Model"
-                          />
-                        </div>
-
-                        {/* Base Layout */}
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-1">
-                            Base Layout
-                          </label>
-                          <select
-                            value={currentTemplateDraft.layout}
-                            onChange={(e) =>
-                              handleLayoutChange(
-                                e.target.value as GraphicOrganizerLayoutType
-                              )
-                            }
-                            className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                          >
-                            {LAYOUT_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Font Family */}
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-1">
-                            Font Family
-                          </label>
-                          <select
-                            value={currentTemplateDraft.fontFamily ?? 'sans'}
-                            onChange={(e) =>
-                              setCurrentTemplateDraft({
-                                ...currentTemplateDraft,
-                                fontFamily: e.target.value as GlobalFontFamily,
-                              })
-                            }
-                            className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                          >
-                            {FONT_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Node Default Labels */}
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Default Node Labels
-                          </label>
-                          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 gap-4">
-                            {Object.keys(currentTemplateDraft.defaultNodes).map(
-                              (nodeKey) => (
-                                <div key={nodeKey}>
-                                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                    {nodeKey}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={
-                                      currentTemplateDraft.defaultNodes[nodeKey]
-                                    }
-                                    onChange={(e) =>
-                                      handleNodeLabelChange(
-                                        nodeKey,
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    placeholder={`Enter ${nodeKey} text...`}
-                                  />
-                                </div>
-                              )
-                            )}
+                          <div>
+                            <div className="font-bold text-slate-800">
+                              {template.name}
+                            </div>
+                            <div className="text-sm text-slate-500 mb-2">
+                              {
+                                LAYOUT_OPTIONS.find(
+                                  (l) => l.value === template.layout
+                                )?.label
+                              }
+                            </div>
+                            <div className="text-xs font-mono bg-slate-100 p-1 rounded inline-block text-slate-600 mb-4">
+                              {template.fontFamily}
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => editTemplate(template)}
+                            >
+                              Edit
+                            </Button>
+                            <button
+                              onClick={() => deleteTemplate(template.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Template"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                currentTemplateDraft && (
+                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center gap-2 mb-6">
+                      <button
+                        onClick={cancelTemplateEdit}
+                        className="p-1 hover:bg-slate-100 rounded text-slate-500"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <h3 className="text-lg font-bold text-slate-800">
+                        {currentTemplateDraft.id.startsWith('template-') &&
+                        !currentTemplates.find(
+                          (t) => t.id === currentTemplateDraft.id
+                        )
+                          ? 'Create Template'
+                          : 'Edit Template'}
+                      </h3>
+                    </div>
 
-                        {/* Actions */}
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                          <Button
-                            variant="secondary"
-                            onClick={cancelTemplateEdit}
-                          >
-                            Cancel
-                          </Button>
-                          <Button onClick={saveTemplateDraft}>
-                            Save Template
-                          </Button>
+                    <div className="space-y-6 max-w-2xl">
+                      {/* Template Name */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                          Template Name
+                        </label>
+                        <input
+                          type="text"
+                          value={currentTemplateDraft.name}
+                          onChange={(e) =>
+                            setCurrentTemplateDraft({
+                              ...currentTemplateDraft,
+                              name: e.target.value,
+                            })
+                          }
+                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                          placeholder="e.g., Weekly Frayer Model"
+                        />
+                      </div>
+
+                      {/* Base Layout */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                          Base Layout
+                        </label>
+                        <select
+                          value={currentTemplateDraft.layout}
+                          onChange={(e) =>
+                            handleLayoutChange(
+                              e.target.value as GraphicOrganizerLayoutType
+                            )
+                          }
+                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                          {LAYOUT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Font Family */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                          Font Family
+                        </label>
+                        <select
+                          value={currentTemplateDraft.fontFamily ?? 'sans'}
+                          onChange={(e) =>
+                            setCurrentTemplateDraft({
+                              ...currentTemplateDraft,
+                              fontFamily: e.target.value as GlobalFontFamily,
+                            })
+                          }
+                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                          {FONT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Node Default Labels */}
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                          Default Node Labels
+                        </label>
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 gap-4">
+                          {Object.keys(currentTemplateDraft.defaultNodes).map(
+                            (nodeKey) => (
+                              <div key={nodeKey}>
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                                  {nodeKey}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={
+                                    currentTemplateDraft.defaultNodes[nodeKey]
+                                  }
+                                  onChange={(e) =>
+                                    handleNodeLabelChange(
+                                      nodeKey,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full rounded-md border-slate-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                  placeholder={`Enter ${nodeKey} text...`}
+                                />
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
+
+                      {/* Actions */}
+                      <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                        <Button
+                          variant="secondary"
+                          onClick={cancelTemplateEdit}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={saveTemplateDraft}>
+                          Save Template
+                        </Button>
+                      </div>
                     </div>
-                  )
-                )}
-              </div>
+                  </div>
+                )
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -537,7 +534,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || isLoading || !!editingTemplateId}
+              disabled={isSaving || !!editingTemplateId}
               className="gap-2"
             >
               {isSaving ? (
