@@ -160,13 +160,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const displayMode = config.liveScoreboardMode ?? 'pin';
       const pinToName = buildPinToNameMap(rosters, config.periodName);
 
-      let eligibleResponses;
-      if (scoringMode === 'completion') {
-        eligibleResponses = responses.filter((r) => r.status === 'completed');
-      } else {
-        // per-question: include anyone with at least one answer
-        eligibleResponses = responses.filter((r) => r.answers.length > 0);
-      }
+      const eligibleResponses =
+        scoringMode === 'completion'
+          ? responses.filter((r) => r.status === 'completed')
+          : // per-question: include anyone with at least one answer
+            responses.filter((r) => r.answers.length > 0);
 
       let newTeams: ScoreboardTeam[];
       if (scoringMode === 'per-question') {
@@ -219,7 +217,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       if (existingScoreboard) {
         updateWidget(existingScoreboard.id, {
-          config: { teams: newTeams },
+          config: { ...existingScoreboard.config, teams: newTeams },
         });
         if (config.liveScoreboardWidgetId !== existingScoreboard.id) {
           updateWidget(widget.id, {

@@ -136,6 +136,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       if (existingScoreboard) {
         updateWidget(existingScoreboard.id, {
           config: {
+            ...existingScoreboard.config,
             teams: newTeams,
           },
         });
