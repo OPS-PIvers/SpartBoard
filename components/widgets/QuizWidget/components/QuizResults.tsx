@@ -4,7 +4,7 @@
  * Allows exporting to Google Sheets.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Download,
@@ -19,14 +19,18 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  User,
+  Hash,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
-import { ScoreboardTeam } from '@/types';
-import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import {
+  buildPinToNameMap,
+  buildScoreboardTeams,
+} from '../utils/quizScoreboard';
 
 /**
  * Compute the raw points a student earned.
@@ -70,6 +74,30 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students'
   >('overview');
+  const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
+  const scoreboardPromptRef = useRef<HTMLDivElement>(null);
+
+  // Close popup on click-outside or Escape
+  useEffect(() => {
+    if (!showScoreboardPrompt) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        scoreboardPromptRef.current &&
+        !scoreboardPromptRef.current.contains(e.target as Node)
+      ) {
+        setShowScoreboardPrompt(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowScoreboardPrompt(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [showScoreboardPrompt]);
 
   const completed = responses.filter((r) => r.status === 'completed');
   const avgScore =
@@ -82,52 +110,73 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         )
       : null;
 
-  const handleSendToScoreboard = () => {
+  const pinToName = buildPinToNameMap(rosters, config.periodName);
+  const hasNames = Object.keys(pinToName).length > 0;
+
+  const handleScoreboardClick = useCallback(() => {
     if (completed.length === 0) {
       addToast('No completed students yet', 'error');
       return;
     }
-
-    const studentsWithScores = completed.map((r) => ({
-      response: r,
-      score: getResponseScore(r, quiz.questions),
-    }));
-
-    const newTeams: ScoreboardTeam[] = studentsWithScores
-      .sort((a, b) => b.score - a.score)
-      .map(({ response, score }, index) => ({
-        id: crypto.randomUUID(),
-        name: `PIN ${response.pin}`,
-        score,
-        color: SCOREBOARD_COLORS[index % SCOREBOARD_COLORS.length],
-      }));
-
-    const existingScoreboard = activeDashboard?.widgets.find(
-      (w) => w.type === 'scoreboard'
-    );
-
-    if (existingScoreboard) {
-      updateWidget(existingScoreboard.id, {
-        config: {
-          teams: newTeams,
-        },
-      });
-      addToast(
-        `Updated scoreboard with ${newTeams.length} students.`,
-        'success'
-      );
+    if (hasNames) {
+      setShowScoreboardPrompt(true);
     } else {
-      addWidget('scoreboard', {
-        config: {
-          teams: newTeams,
-        },
-      });
-      addToast(
-        `Created scoreboard with ${newTeams.length} students.`,
-        'success'
-      );
+      handleSendToScoreboard('pin');
     }
-  };
+  }, [completed.length, hasNames, addToast]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSendToScoreboard = useCallback(
+    (mode: 'pin' | 'name') => {
+      setShowScoreboardPrompt(false);
+
+      if (completed.length === 0) {
+        addToast('No completed students yet', 'error');
+        return;
+      }
+
+      const newTeams = buildScoreboardTeams(
+        completed,
+        quiz.questions,
+        mode,
+        pinToName
+      );
+
+      const existingScoreboard = activeDashboard?.widgets.find(
+        (w) => w.type === 'scoreboard'
+      );
+
+      if (existingScoreboard) {
+        updateWidget(existingScoreboard.id, {
+          config: {
+            teams: newTeams,
+          },
+        });
+        addToast(
+          `Updated scoreboard with ${newTeams.length} students.`,
+          'success'
+        );
+      } else {
+        addWidget('scoreboard', {
+          config: {
+            teams: newTeams,
+          },
+        });
+        addToast(
+          `Created scoreboard with ${newTeams.length} students.`,
+          'success'
+        );
+      }
+    },
+    [
+      completed,
+      quiz.questions,
+      pinToName,
+      activeDashboard?.widgets,
+      updateWidget,
+      addWidget,
+      addToast,
+    ]
+  );
 
   const handleExport = async () => {
     if (!googleAccessToken) {
@@ -139,19 +188,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setExporting(true);
     setExportError(null);
     try {
-      // Build PIN → student name lookup from the matching roster (Drive-loaded data only)
-      const matchingRoster = rosters.find((r) => r.name === config.periodName);
-      const pinToName: Record<string, string> = {};
-      if (matchingRoster?.students) {
-        for (const s of matchingRoster.students) {
-          if (s.pin && (s.firstName || s.lastName)) {
-            pinToName[s.pin] = [s.firstName, s.lastName]
-              .filter(Boolean)
-              .join(' ');
-          }
-        }
-      }
-
       const svc = new QuizDriveService(googleAccessToken);
       const url = await svc.exportResultsToSheet(
         quiz.title,
@@ -213,23 +249,84 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         </div>
 
         {completed.length > 0 && (
-          <button
-            onClick={handleSendToScoreboard}
-            className="flex items-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-          >
-            <Trophy
+          <div className="relative shrink-0">
+            <button
+              onClick={handleScoreboardClick}
+              className="flex items-center bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
               style={{
-                width: 'min(14px, 4cqmin)',
-                height: 'min(14px, 4cqmin)',
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3.5cqmin)',
               }}
-            />
-            SEND TO SCOREBOARD
-          </button>
+            >
+              <Trophy
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              SEND TO SCOREBOARD
+            </button>
+            {showScoreboardPrompt && (
+              <div
+                ref={scoreboardPromptRef}
+                className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                style={{
+                  padding: 'min(16px, 4cqmin)',
+                  width: 'max(220px, 50cqw)',
+                }}
+              >
+                <p
+                  className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginBottom: 'min(12px, 3cqmin)',
+                  }}
+                >
+                  How should students appear?
+                </p>
+                <div
+                  className="flex flex-col"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
+                  <button
+                    onClick={() => handleSendToScoreboard('name')}
+                    className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
+                    style={{
+                      gap: 'min(8px, 2cqmin)',
+                      padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                      fontSize: 'min(12px, 3.5cqmin)',
+                    }}
+                  >
+                    <User
+                      style={{
+                        width: 'min(16px, 4cqmin)',
+                        height: 'min(16px, 4cqmin)',
+                      }}
+                    />
+                    Student Names
+                  </button>
+                  <button
+                    onClick={() => handleSendToScoreboard('pin')}
+                    className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
+                    style={{
+                      gap: 'min(8px, 2cqmin)',
+                      padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
+                      fontSize: 'min(12px, 3.5cqmin)',
+                    }}
+                  >
+                    <Hash
+                      style={{
+                        width: 'min(16px, 4cqmin)',
+                        height: 'min(16px, 4cqmin)',
+                      }}
+                    />
+                    PINs Only
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {exportUrl ? (
           <a

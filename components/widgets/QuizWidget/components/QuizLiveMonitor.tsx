@@ -4,7 +4,7 @@
  * and real-time per-question answer distribution.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Copy,
   CheckCircle2,
@@ -20,9 +20,19 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Trophy,
+  Hash,
 } from 'lucide-react';
-import { QuizSession, QuizResponse, QuizQuestion, QuizData } from '@/types';
+import {
+  QuizSession,
+  QuizResponse,
+  QuizQuestion,
+  QuizData,
+  QuizConfig,
+  ClassRoster,
+} from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import { buildPinToNameMap } from '../utils/quizScoreboard';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -30,6 +40,10 @@ interface QuizLiveMonitorProps {
   quizData: QuizData;
   onAdvance: () => Promise<void>;
   onEnd: () => Promise<void>;
+  config: QuizConfig;
+  widgetId: string;
+  rosters: ClassRoster[];
+  onUpdateConfig: (updates: Partial<QuizConfig>) => void;
 }
 
 export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
@@ -38,6 +52,10 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   quizData,
   onAdvance,
   onEnd,
+  config,
+  widgetId: _widgetId,
+  rosters,
+  onUpdateConfig,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -45,6 +63,61 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const [ending, setEnding] = useState(false);
   const [showRoster, setShowRoster] = useState(false);
   const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
+  const [showLiveScoreboardSetup, setShowLiveScoreboardSetup] = useState(false);
+  const [liveScoreboardMode, setLiveScoreboardMode] = useState<'pin' | 'name'>(
+    'name'
+  );
+  const [liveScoreboardScoring, setLiveScoreboardScoring] = useState<
+    'completion' | 'per-question'
+  >('completion');
+  const liveScoreboardSetupRef = useRef<HTMLDivElement>(null);
+
+  const pinToName = buildPinToNameMap(rosters, config.periodName);
+  const hasNames = Object.keys(pinToName).length > 0;
+  const isLiveScoreboardActive = config.liveScoreboardEnabled ?? false;
+
+  // Close live scoreboard setup popup on click-outside or Escape
+  useEffect(() => {
+    if (!showLiveScoreboardSetup) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        liveScoreboardSetupRef.current &&
+        !liveScoreboardSetupRef.current.contains(e.target as Node)
+      ) {
+        setShowLiveScoreboardSetup(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowLiveScoreboardSetup(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [showLiveScoreboardSetup]);
+
+  const handleToggleLiveScoreboard = () => {
+    if (isLiveScoreboardActive) {
+      // Turn off
+      onUpdateConfig({
+        liveScoreboardEnabled: false,
+      });
+    } else {
+      // Show setup popup
+      setShowLiveScoreboardSetup(true);
+    }
+  };
+
+  const handleEnableLiveScoreboard = () => {
+    setShowLiveScoreboardSetup(false);
+    onUpdateConfig({
+      liveScoreboardEnabled: true,
+      liveScoreboardMode: liveScoreboardMode,
+      liveScoreboardScoring: liveScoreboardScoring,
+    });
+  };
 
   // Sync auto-countdown with session timestamp
   useEffect(() => {
@@ -288,6 +361,171 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 OPEN PAGE
               </a>
             </div>
+          </div>
+
+          {/* Live Scoreboard Toggle */}
+          <div className="relative">
+            <button
+              onClick={handleToggleLiveScoreboard}
+              className={`w-full flex items-center justify-center font-bold rounded-2xl transition-all active:scale-95 border ${
+                isLiveScoreboardActive
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
+                  : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
+              }`}
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
+                fontSize: 'min(11px, 3.5cqmin)',
+              }}
+            >
+              <Trophy
+                className={isLiveScoreboardActive ? 'animate-pulse' : ''}
+                style={{
+                  width: 'min(16px, 4cqmin)',
+                  height: 'min(16px, 4cqmin)',
+                }}
+              />
+              {isLiveScoreboardActive
+                ? 'LIVE SCOREBOARD ON'
+                : 'ENABLE LIVE SCOREBOARD'}
+            </button>
+            {showLiveScoreboardSetup && (
+              <div
+                ref={liveScoreboardSetupRef}
+                className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                style={{ padding: 'min(16px, 4cqmin)' }}
+              >
+                <p
+                  className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginBottom: 'min(12px, 3cqmin)',
+                  }}
+                >
+                  Live Scoreboard Setup
+                </p>
+
+                {/* Name/PIN choice */}
+                <p
+                  className="font-bold text-slate-500 uppercase tracking-wider"
+                  style={{
+                    fontSize: 'min(9px, 2.5cqmin)',
+                    marginBottom: 'min(6px, 1.5cqmin)',
+                  }}
+                >
+                  Display as
+                </p>
+                <div
+                  className="flex"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    marginBottom: 'min(12px, 3cqmin)',
+                  }}
+                >
+                  <button
+                    onClick={() => setLiveScoreboardMode('name')}
+                    className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                      liveScoreboardMode === 'name'
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    disabled={!hasNames}
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      padding: 'min(8px, 2cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                    }}
+                  >
+                    <User
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                    Names
+                  </button>
+                  <button
+                    onClick={() => setLiveScoreboardMode('pin')}
+                    className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                      liveScoreboardMode === 'pin'
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    style={{
+                      gap: 'min(4px, 1cqmin)',
+                      padding: 'min(8px, 2cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                    }}
+                  >
+                    <Hash
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                    PINs
+                  </button>
+                </div>
+
+                {/* Scoring mode choice */}
+                <p
+                  className="font-bold text-slate-500 uppercase tracking-wider"
+                  style={{
+                    fontSize: 'min(9px, 2.5cqmin)',
+                    marginBottom: 'min(6px, 1.5cqmin)',
+                  }}
+                >
+                  Update scores
+                </p>
+                <div
+                  className="flex flex-col"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    marginBottom: 'min(14px, 3.5cqmin)',
+                  }}
+                >
+                  <button
+                    onClick={() => setLiveScoreboardScoring('completion')}
+                    className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                      liveScoreboardScoring === 'completion'
+                        ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                    style={{
+                      padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                    }}
+                  >
+                    On quiz completion
+                  </button>
+                  <button
+                    onClick={() => setLiveScoreboardScoring('per-question')}
+                    className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                      liveScoreboardScoring === 'per-question'
+                        ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                    style={{
+                      padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                    }}
+                  >
+                    After each question
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleEnableLiveScoreboard}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
+                  style={{
+                    padding: 'min(10px, 2.5cqmin)',
+                    fontSize: 'min(11px, 3.5cqmin)',
+                  }}
+                >
+                  START LIVE SCOREBOARD
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Student summary counters */}
