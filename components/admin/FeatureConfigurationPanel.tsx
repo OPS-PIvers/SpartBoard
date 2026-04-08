@@ -1211,7 +1211,6 @@ export const FeatureConfigurationPanel: React.FC<
         'expectations',
         'guided-learning',
         'instructionalRoutines',
-        'lunchCount',
         'miniApp',
         'quiz',
         'stickers',

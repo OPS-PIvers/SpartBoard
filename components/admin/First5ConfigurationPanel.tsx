@@ -1,51 +1,10 @@
 import React from 'react';
 import { First5GlobalConfig } from '@/types';
+import { computeCurrentDayNumber } from '@/utils/first5';
 
 interface First5ConfigurationPanelProps {
   config: First5GlobalConfig;
   onChange: (newConfig: First5GlobalConfig) => void;
-}
-
-/**
- * Counts weekdays (Mon–Fri) between two dates, excluding start, including end.
- * Returns positive if end > start, negative if end < start.
- */
-function countWeekdaysBetween(start: Date, end: Date): number {
-  const startMs = start.getTime();
-  const endMs = end.getTime();
-  const sign = endMs >= startMs ? 1 : -1;
-  const [from, to] = sign === 1 ? [start, end] : [end, start];
-
-  let count = 0;
-  const cursor = new Date(from);
-  cursor.setDate(cursor.getDate() + 1);
-  while (cursor <= to) {
-    const day = cursor.getDay();
-    if (day !== 0 && day !== 6) count++;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return count * sign;
-}
-
-function stripTime(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-const ROLLOVER_HOUR = 6;
-
-function computeTodaysDayNumber(
-  activeDayNumber: number,
-  referenceDate: string
-): number {
-  const ref = stripTime(new Date(referenceDate + 'T00:00:00'));
-
-  const now = new Date();
-  if (now.getHours() < ROLLOVER_HOUR) {
-    now.setDate(now.getDate() - 1);
-  }
-  const today = stripTime(now);
-
-  return activeDayNumber + countWeekdaysBetween(ref, today);
 }
 
 export const First5ConfigurationPanel: React.FC<
@@ -56,7 +15,7 @@ export const First5ConfigurationPanel: React.FC<
 
   const todaysDayNumber =
     activeDayNumber && referenceDate
-      ? computeTodaysDayNumber(activeDayNumber, referenceDate)
+      ? computeCurrentDayNumber(activeDayNumber, referenceDate)
       : null;
 
   const now = new Date();

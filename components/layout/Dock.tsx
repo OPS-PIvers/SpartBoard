@@ -561,6 +561,16 @@ export const Dock: React.FC = () => {
     [customWidgets]
   );
 
+  const canAccessTool = useCallback(
+    (type: WidgetType | InternalToolType) => {
+      if (type === 'record') return canAccessFeature('screen-recording');
+      if (type === 'magic') return canAccessFeature('magic-layout');
+      if (type === 'remote') return canAccessFeature('remote-control');
+      return canAccessWidget(type as WidgetType);
+    },
+    [canAccessFeature, canAccessWidget]
+  );
+
   return (
     <div
       ref={dockContainerRef}
@@ -748,14 +758,7 @@ export const Dock: React.FC = () => {
                   setShowMoreMenu(false);
                 }
               }}
-              canAccess={(type) => {
-                if (type === 'record')
-                  return canAccessFeature('screen-recording');
-                if (type === 'magic') return canAccessFeature('magic-layout');
-                if (type === 'remote')
-                  return canAccessFeature('remote-control');
-                return canAccessWidget(type as WidgetType);
-              }}
+              canAccess={canAccessTool}
               matchesUserBuilding={matchesUserBuilding}
               onClose={() => {
                 setShowMoreMenu(false);

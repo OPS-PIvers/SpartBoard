@@ -22,13 +22,10 @@ export const useBackgrounds = () => {
   const [managedBackgrounds, setManagedBackgrounds] = useState<
     BackgroundPreset[]
   >([]);
-  const [loading, setLoading] = useState(!!user);
-
   const [prevUser, setPrevUser] = useState(user);
   if (user !== prevUser) {
     setPrevUser(user);
     setManagedBackgrounds([]);
-    setLoading(!!user);
   }
 
   // Refs to prevent race conditions when both queries update simultaneously
@@ -57,11 +54,9 @@ export const useBackgrounds = () => {
             setManagedBackgrounds(
               backgrounds.sort((a, b) => b.createdAt - a.createdAt)
             );
-            setLoading(false);
           },
           (error) => {
             console.error('Error fetching admin backgrounds:', error);
-            setLoading(false);
           }
         )
       );
@@ -71,7 +66,6 @@ export const useBackgrounds = () => {
         const all = [...publicBgsRef.current, ...betaBgsRef.current];
         const unique = Array.from(new Map(all.map((b) => [b.id, b])).values());
         setManagedBackgrounds(unique.sort((a, b) => b.createdAt - a.createdAt));
-        setLoading(false);
       };
 
       // Query 1: Public backgrounds
@@ -101,7 +95,7 @@ export const useBackgrounds = () => {
             },
             (error) => {
               console.error('Error fetching beta backgrounds:', error);
-              // Don't update loading here; let the public query completion handle it
+              // Beta query errors are non-fatal; public backgrounds still load
             }
           )
         );
@@ -119,7 +113,6 @@ export const useBackgrounds = () => {
           },
           (error) => {
             console.error('Error fetching public backgrounds:', error);
-            setLoading(false);
           }
         )
       );
@@ -156,6 +149,5 @@ export const useBackgrounds = () => {
     colors: BACKGROUND_COLORS,
     patterns: BACKGROUND_PATTERNS,
     gradients: BACKGROUND_GRADIENTS,
-    loading,
   };
 };
