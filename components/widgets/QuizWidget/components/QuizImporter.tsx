@@ -170,10 +170,17 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
   const handleCreateTemplate = async () => {
     setCreatingTemplate(true);
     setError(null);
+    // Open blank tab synchronously to preserve user gesture (avoids popup blockers)
+    const newTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
     try {
       const url = await createQuizTemplate();
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (newTab && !newTab.closed) {
+        newTab.location.href = url;
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
     } catch (err) {
+      if (newTab && !newTab.closed) newTab.close();
       setError(
         err instanceof Error ? err.message : 'Failed to create template'
       );
