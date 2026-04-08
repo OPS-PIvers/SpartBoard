@@ -34,6 +34,10 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 
+// O(1) Lookup Map for TOOLS optimization.
+// Extracted outside the component to prevent recreating the map on every mount.
+const TOOLS_MAP = new Map(TOOLS.map((t) => [t.type, t]));
+
 interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
   visibleTools: (WidgetType | InternalToolType)[];
@@ -207,7 +211,8 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
     // Filter tools: must be accessible AND NOT already in the dock,
     // and in normal mode must match the user's selected buildings
     const availableTools = effectiveOrder
-      .map((type) => TOOLS.find((t) => t.type === type))
+      // Replaced TOOLS.find with TOOLS_MAP.get to eliminate O(N^2) complexity in rendering loop.
+      .map((type) => TOOLS_MAP.get(type))
       .filter((tool): tool is (typeof TOOLS)[0] => {
         if (!tool) return false;
         if (!canAccess(tool.type)) return false;
