@@ -4,6 +4,7 @@ import { BuildingSelector } from './BuildingSelector';
 import { EmbedGlobalConfig, BuildingEmbedDefaults } from '@/types';
 import { Plus, Trash2, Settings2 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { Card } from '@/components/common/Card';
 
 interface EmbedConfigurationPanelProps {
   config: EmbedGlobalConfig;
@@ -99,7 +100,7 @@ export const EmbedConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           Users in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> will
@@ -176,7 +177,7 @@ export const EmbedConfigurationPanel: React.FC<
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { Card } from '@/components/common/Card';
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
@@ -96,7 +97,7 @@ export const TrafficLightConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           Sets the default active light state when a teacher in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
@@ -138,7 +139,7 @@ export const TrafficLightConfigurationPanel: React.FC<
             })}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

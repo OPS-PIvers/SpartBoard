@@ -60,7 +60,7 @@ export const RandomConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Random Picker widget when a
           teacher in{' '}
@@ -124,7 +124,7 @@ export const RandomConfigurationPanel: React.FC<
             showLabels={false}
           />
         </Card>
-      </div>
+      </Card>
     </div>
   );
 };

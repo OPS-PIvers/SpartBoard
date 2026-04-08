@@ -7,6 +7,7 @@ import {
   ChecklistDefaultItem,
 } from '@/types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Card } from '@/components/common/Card';
 
 interface ChecklistConfigurationPanelProps {
   config: ChecklistGlobalConfig;
@@ -92,7 +93,7 @@ export const ChecklistConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-populate the Checklist widget when a teacher
           in <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
@@ -183,7 +184,7 @@ export const ChecklistConfigurationPanel: React.FC<
             </button>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

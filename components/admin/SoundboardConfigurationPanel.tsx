@@ -1,3 +1,4 @@
+import { Card } from '@/components/common/Card';
 import React, { useEffect, useRef, useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import {
@@ -420,7 +421,7 @@ export const SoundboardConfigurationPanel: React.FC<
       </div>
 
       {/* Custom Sounds Section */}
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Plus size={16} className="text-brand-blue-primary" />
@@ -586,7 +587,7 @@ export const SoundboardConfigurationPanel: React.FC<
             })}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

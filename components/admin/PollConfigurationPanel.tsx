@@ -9,6 +9,7 @@ import {
 } from '@/types';
 import { Plus, Trash2, GripVertical, Type } from 'lucide-react';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { Card } from '@/components/common/Card';
 
 interface PollConfigurationPanelProps {
   config: PollGlobalConfig;
@@ -104,7 +105,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-populate the Poll widget when a teacher in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
@@ -184,7 +185,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
             <Plus className="w-3 h-3" /> Add Option
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

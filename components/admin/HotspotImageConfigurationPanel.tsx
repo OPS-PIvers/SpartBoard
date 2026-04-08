@@ -1,3 +1,4 @@
+import { Card } from '@/components/common/Card';
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
@@ -62,7 +63,7 @@ export const HotspotImageConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-populate the Hotspot Image widget when a
           teacher in{' '}
@@ -96,7 +97,7 @@ export const HotspotImageConfigurationPanel: React.FC<
             ))}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

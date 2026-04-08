@@ -16,6 +16,7 @@ import {
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { Button } from '@/components/common/Button';
 import { Plus, Trash2, Search } from 'lucide-react';
+import { Card } from '@/components/common/Card';
 
 interface MaterialsConfigurationPanelProps {
   config: MaterialsGlobalConfig;
@@ -446,7 +447,7 @@ export const MaterialsConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These materials will be available to teachers in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> when
@@ -516,7 +517,7 @@ export const MaterialsConfigurationPanel: React.FC<
             this building is configured.
           </p>
         )}
-      </div>
+      </Card>
     </div>
   );
 };
