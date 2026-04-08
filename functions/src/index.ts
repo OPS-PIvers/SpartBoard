@@ -408,8 +408,7 @@ export const generateWithAI = functionsV1
     if (genType === 'video-activity')
       specificFeatureId = 'video-activity-audio-transcription';
     if (genType === 'ocr') specificFeatureId = 'ocr';
-    if (genType === 'guided-learning')
-      specificFeatureId = 'guided-learning';
+    if (genType === 'guided-learning') specificFeatureId = 'guided-learning';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -424,8 +423,7 @@ export const generateWithAI = functionsV1
           ? (overallUsageDoc.data()?.count as number) || 0
           : 0;
 
-        let specificUsageRef: admin.firestore.DocumentReference | null =
-          null;
+        let specificUsageRef: admin.firestore.DocumentReference | null = null;
         let currentSpecificUsage = 0;
 
         if (specificFeatureId) {
@@ -495,10 +493,7 @@ export const generateWithAI = functionsV1
                 specPerm.config?.dailyLimitEnabled !== false;
               const specificLimit = specPerm.config?.dailyLimit ?? 20;
 
-              if (
-                specLimitEnabled &&
-                currentSpecificUsage >= specificLimit
-              ) {
+              if (specLimitEnabled && currentSpecificUsage >= specificLimit) {
                 throw new functionsV1.https.HttpsError(
                   'resource-exhausted',
                   `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
