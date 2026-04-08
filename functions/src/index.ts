@@ -62,6 +62,58 @@ interface GlobalPermission {
   config?: GlobalPermConfig;
 }
 
+const DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview';
+
+/**
+ * Validates and normalises a Gemini model name.
+ * Returns `undefined` when the supplied value is falsy or fails the pattern
+ * check, so callers can fall back to a default.
+ */
+function normalizeModelName(raw: unknown): string | undefined {
+  if (!raw || typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (!/^gemini-[\w.-]+$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+interface GeminiModelConfig {
+  advancedModel?: string;
+  standardModel?: string;
+}
+
+/**
+ * Reads the admin-configured model overrides from the `gemini-functions`
+ * global permissions document. Returns validated model names (or defaults).
+ */
+async function getGeminiModelConfig(
+  db: admin.firestore.Firestore
+): Promise<{ advancedModel: string; standardModel: string }> {
+  try {
+    const doc = await db
+      .collection('global_permissions')
+      .doc('gemini-functions')
+      .get();
+    const cfg = doc.data()?.config as GeminiModelConfig | undefined;
+    return {
+      advancedModel:
+        normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
+      standardModel:
+        normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
+    };
+  } catch (error) {
+    console.warn(
+      'Failed to read Gemini model config from Firestore; using defaults.',
+      error
+    );
+    return {
+      advancedModel: DEFAULT_ADVANCED_MODEL,
+      standardModel: DEFAULT_STANDARD_MODEL,
+    };
+  }
+}
+
 interface ArchiveActivityWallPhotoData {
   accessToken?: string;
   sessionId?: string;
@@ -408,8 +460,7 @@ export const generateWithAI = functionsV1
     if (genType === 'video-activity')
       specificFeatureId = 'video-activity-audio-transcription';
     if (genType === 'ocr') specificFeatureId = 'ocr';
-    if (genType === 'guided-learning')
-      specificFeatureId = 'guided-learning';
+    if (genType === 'guided-learning') specificFeatureId = 'guided-learning';
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -424,8 +475,7 @@ export const generateWithAI = functionsV1
           ? (overallUsageDoc.data()?.count as number) || 0
           : 0;
 
-        let specificUsageRef: admin.firestore.DocumentReference | null =
-          null;
+        let specificUsageRef: admin.firestore.DocumentReference | null = null;
         let currentSpecificUsage = 0;
 
         if (specificFeatureId) {
@@ -495,10 +545,7 @@ export const generateWithAI = functionsV1
                 specPerm.config?.dailyLimitEnabled !== false;
               const specificLimit = specPerm.config?.dailyLimit ?? 20;
 
-              if (
-                specLimitEnabled &&
-                currentSpecificUsage >= specificLimit
-              ) {
+              if (specLimitEnabled && currentSpecificUsage >= specificLimit) {
                 throw new functionsV1.https.HttpsError(
                   'resource-exhausted',
                   `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
@@ -539,6 +586,9 @@ export const generateWithAI = functionsV1
       // Don't block AI generation if tracking fails
       console.warn('AI usage tracking failed, proceeding with generation.');
     }
+
+    // Read model config from Firestore (for both admins and non-admins)
+    const geminiConfig = await getGeminiModelConfig(db);
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -773,10 +823,11 @@ export const generateWithAI = functionsV1
       }
 
       // Use higher complexity model for code generation, and lite for OCR and simple JSON tasks
+      // Model names are admin-configurable via global_permissions/gemini-functions
       const model =
         genType === 'mini-app' || genType === 'widget-builder'
-          ? 'gemini-3-flash-preview'
-          : 'gemini-3.1-flash-lite-preview';
+          ? geminiConfig.advancedModel
+          : geminiConfig.standardModel;
 
       const result = await ai.models.generateContent({
         model,
@@ -815,9 +866,11 @@ export const generateWithAI = functionsV1
         throw error;
       }
 
-      const msg =
-        error instanceof Error ? error.message : 'AI Generation failed';
-      throw new functionsV1.https.HttpsError('internal', msg);
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      throw new functionsV1.https.HttpsError(
+        'internal',
+        `AI generation failed (model: ${model}): ${detail}`
+      );
     }
   });
 
@@ -1216,6 +1269,10 @@ export const generateVideoActivity = functionsV1
         );
       }
 
+      // Read model config from Firestore
+      const geminiConfig = await getGeminiModelConfig(db);
+      const videoModel = geminiConfig.standardModel;
+
       const ai = new GoogleGenAI({ apiKey });
 
       const systemPrompt = `You are an expert teacher creating a video comprehension activity.
@@ -1246,7 +1303,7 @@ Return JSON in this exact format:
 
       try {
         const result = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite-preview',
+          model: videoModel,
           contents: [
             {
               role: 'user',
@@ -1280,9 +1337,11 @@ Return JSON in this exact format:
         return parsed;
       } catch (error: unknown) {
         console.error('[generateVideoActivity] Gemini error:', error);
-        const msg =
-          error instanceof Error ? error.message : 'AI generation failed';
-        throw new functionsV1.https.HttpsError('internal', msg);
+        const detail = error instanceof Error ? error.message : 'unknown error';
+        throw new functionsV1.https.HttpsError(
+          'internal',
+          `AI generation failed (model: ${videoModel}): ${detail}`
+        );
       }
     }
   );
@@ -1567,8 +1626,8 @@ Return JSON:
         return parsed;
       } catch (error: unknown) {
         console.error('[transcribeVideoWithGemini] Gemini error:', error);
-        const msg =
-          error instanceof Error ? error.message : 'AI generation failed';
+        const detail = error instanceof Error ? error.message : 'unknown error';
+        const msg = `AI generation failed (model: ${model}): ${detail}`;
         throw new functionsV1.https.HttpsError('internal', msg);
       }
     }
@@ -1632,8 +1691,8 @@ export const generateGuidedLearning = functionsV1
           'Authenticated user must have an email address.'
         );
       }
-      const adminDoc = await admin
-        .firestore()
+      const db = admin.firestore();
+      const adminDoc = await db
         .collection('admins')
         .doc(userEmail.toLowerCase())
         .get();
@@ -1659,6 +1718,10 @@ export const generateGuidedLearning = functionsV1
           'AI service is not configured.'
         );
       }
+
+      // Read model config from Firestore
+      const geminiConfig = await getGeminiModelConfig(db);
+      const guidedLearningModel = geminiConfig.advancedModel;
 
       try {
         const ai = new GoogleGenAI({ apiKey });
@@ -1710,7 +1773,7 @@ Guidelines:
           : 'Analyze this educational image and create an engaging guided learning experience.';
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: guidedLearningModel,
           contents: [
             {
               role: 'user',
@@ -1751,8 +1814,8 @@ Guidelines:
         return parsed;
       } catch (error: unknown) {
         console.error('[generateGuidedLearning] Gemini error:', error);
-        const msg =
-          error instanceof Error ? error.message : 'AI generation failed';
+        const detail = error instanceof Error ? error.message : 'unknown error';
+        const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
         throw new functionsV1.https.HttpsError('internal', msg);
       }
     }
