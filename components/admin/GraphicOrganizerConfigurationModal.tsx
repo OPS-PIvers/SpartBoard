@@ -99,11 +99,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   const [prevConfigRef, setPrevConfigRef] = useState(permission.config);
   if (permission.config !== prevConfigRef) {
     setPrevConfigRef(permission.config);
-    if (permission.config) {
-      setGlobalConfig(
-        permission.config as unknown as GraphicOrganizerGlobalConfig
-      );
-    }
+    setGlobalConfig(
+      (permission.config as unknown as GraphicOrganizerGlobalConfig) || {
+        buildings: {},
+      }
+    );
   }
 
   const handleSave = () => {
