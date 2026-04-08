@@ -184,7 +184,7 @@ export const ExpectationsConfigurationPanel: React.FC<
         />
       </div>
 
-      <Card rounded="xl" className="bg-slate-50">
+      <Card rounded="xl" shadow="none" className="bg-slate-50">
         {renderOptionEditor(
           'Volume Options',
           VOLUME_OPTIONS as OptionBase[],

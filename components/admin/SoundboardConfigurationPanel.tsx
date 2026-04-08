@@ -421,7 +421,7 @@ export const SoundboardConfigurationPanel: React.FC<
       </div>
 
       {/* Custom Sounds Section */}
-      <Card rounded="xl" className="bg-slate-50 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Plus size={16} className="text-brand-blue-primary" />

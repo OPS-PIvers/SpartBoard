@@ -361,7 +361,7 @@ export const ScheduleConfigurationPanel: React.FC<
         />
       </div>
 
-      <Card rounded="xl" className="bg-slate-50">
+      <Card rounded="xl" shadow="none" className="bg-slate-50">
         {!activeScheduleId ? (
           <div>
             <div className="flex items-center justify-between mb-3">

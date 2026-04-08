@@ -66,7 +66,7 @@ export const SoundConfigurationPanel: React.FC<
         />
       </div>
 
-      <Card rounded="xl" className="bg-slate-50 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Sound Meter widget when a
           teacher in{' '}
