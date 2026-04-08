@@ -701,11 +701,23 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   );
 };
 
+const AI_FEATURE_LABELS: Record<string, string> = {
+  'smart-poll': 'Smart Poll',
+  'embed-mini-app': 'Mini App',
+  'video-activity-audio-transcription': 'Video Activity',
+  quiz: 'Quiz Generation',
+  ocr: 'OCR',
+  'guided-learning': 'Guided Learning',
+};
+
 const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
   const featureRows = useMemo(
     () =>
       Object.entries(data.api.byFeature ?? {})
-        .map(([feature, count]) => ({ feature, count }))
+        .map(([feature, count]) => ({
+          feature: AI_FEATURE_LABELS[feature] ?? feature,
+          count,
+        }))
         .sort((a, b) => b.count - a.count),
     [data.api.byFeature]
   );

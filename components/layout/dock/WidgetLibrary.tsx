@@ -34,6 +34,12 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 
+// O(1) Lookup Map for TOOLS optimization.
+// Extracted outside the component to prevent recreating the map on every mount.
+const TOOLS_MAP = new Map<WidgetType | InternalToolType, (typeof TOOLS)[0]>(
+  TOOLS.map((t) => [t.type, t])
+);
+
 interface WidgetLibraryProps {
   onToggle: (type: WidgetType | InternalToolType) => void;
   visibleTools: (WidgetType | InternalToolType)[];
@@ -206,22 +212,34 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
 
     // Filter tools: must be accessible AND NOT already in the dock,
     // and in normal mode must match the user's selected buildings
-    const availableTools = effectiveOrder
-      .map((type) => TOOLS.find((t) => t.type === type))
-      .filter((tool): tool is (typeof TOOLS)[0] => {
-        if (!tool) return false;
-        if (!canAccess(tool.type)) return false;
-        // Hide if already in the dock
-        if (visibleTools.includes(tool.type)) return false;
-        // In normal (non-edit) mode, apply building-based grade-level filter
-        if (
-          !isEditMode &&
-          matchesUserBuilding &&
-          !matchesUserBuilding(tool.type)
-        )
-          return false;
-        return true;
-      });
+    const availableTools = useMemo(() => {
+      const visibleToolsSet = new Set(visibleTools);
+      return (
+        effectiveOrder
+          // Replaced TOOLS.find with TOOLS_MAP.get to eliminate O(N^2) complexity in rendering loop.
+          .map((type) => TOOLS_MAP.get(type))
+          .filter((tool): tool is (typeof TOOLS)[0] => {
+            if (!tool) return false;
+            if (!canAccess(tool.type)) return false;
+            // Hide if already in the dock
+            if (visibleToolsSet.has(tool.type)) return false;
+            // In normal (non-edit) mode, apply building-based grade-level filter
+            if (
+              !isEditMode &&
+              matchesUserBuilding &&
+              !matchesUserBuilding(tool.type)
+            )
+              return false;
+            return true;
+          })
+      );
+    }, [
+      effectiveOrder,
+      visibleTools,
+      canAccess,
+      isEditMode,
+      matchesUserBuilding,
+    ]);
 
     return createPortal(
       <div className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none">

@@ -37,6 +37,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Card } from '@/components/common/Card';
 
 interface ScheduleConfigurationPanelProps {
   config: ScheduleGlobalConfig;
@@ -360,7 +361,7 @@ export const ScheduleConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50">
         {!activeScheduleId ? (
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -531,7 +532,7 @@ export const ScheduleConfigurationPanel: React.FC<
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

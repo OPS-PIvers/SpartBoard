@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { Card } from '@/components/common/Card';
 
 interface BreathingConfigurationPanelProps {
   config: BreathingGlobalConfig;
@@ -74,7 +75,7 @@ export const BreathingConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Breathing widget when a teacher
           in <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
@@ -163,7 +164,7 @@ export const BreathingConfigurationPanel: React.FC<
             ))}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

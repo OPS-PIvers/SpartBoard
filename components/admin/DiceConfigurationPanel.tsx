@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { DiceGlobalConfig, BuildingDiceDefaults } from '@/types';
+import { Card } from '@/components/common/Card';
 
 interface DiceConfigurationPanelProps {
   config: DiceGlobalConfig;
@@ -53,7 +54,7 @@ export const DiceConfigurationPanel: React.FC<DiceConfigurationPanelProps> = ({
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Dice widget when a teacher in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
@@ -84,7 +85,7 @@ export const DiceConfigurationPanel: React.FC<DiceConfigurationPanelProps> = ({
             Widget default: 1 die
           </p>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

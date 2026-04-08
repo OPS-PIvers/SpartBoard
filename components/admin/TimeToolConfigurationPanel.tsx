@@ -3,6 +3,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { Card } from '@/components/common/Card';
 
 interface TimeToolConfigurationPanelProps {
   config: TimeToolGlobalConfig;
@@ -69,7 +70,7 @@ export const TimeToolConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Timer widget when a teacher in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
@@ -150,7 +151,7 @@ export const TimeToolConfigurationPanel: React.FC<
             ))}
           </div>
         </div>
-      </div>
+      </Card>
 
       <div className="flex items-center justify-between border-b pb-4">
         <div>

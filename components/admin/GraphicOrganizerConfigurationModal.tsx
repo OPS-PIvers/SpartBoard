@@ -71,6 +71,14 @@ const FONT_OPTIONS: { value: GlobalFontFamily; label: string }[] = [
   { value: 'cursive', label: 'Cursive' },
 ];
 
+const normalizeConfig = (raw: unknown): GraphicOrganizerGlobalConfig => {
+  const config = raw as GraphicOrganizerGlobalConfig;
+  return {
+    ...config,
+    buildings: config?.buildings ?? {},
+  };
+};
+
 export const GraphicOrganizerConfigurationModal: React.FC<
   GraphicOrganizerConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
@@ -78,14 +86,9 @@ export const GraphicOrganizerConfigurationModal: React.FC<
     BUILDINGS.length > 0 ? BUILDINGS[0].id : ''
   );
   const [globalConfig, setGlobalConfig] =
-    useState<GraphicOrganizerGlobalConfig>(() => {
-      const config =
-        permission.config as unknown as GraphicOrganizerGlobalConfig;
-      return {
-        ...config,
-        buildings: config?.buildings || {},
-      };
-    });
+    useState<GraphicOrganizerGlobalConfig>(() =>
+      normalizeConfig(permission.config)
+    );
 
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -102,11 +105,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
   const [prevConfig, setPrevConfig] = useState(permission.config);
   if (permission.config !== prevConfig) {
     setPrevConfig(permission.config);
-    const config = permission.config as unknown as GraphicOrganizerGlobalConfig;
-    setGlobalConfig({
-      ...config,
-      buildings: config?.buildings || {},
-    });
+    setGlobalConfig(normalizeConfig(permission.config));
   }
 
   const handleSave = () => {
