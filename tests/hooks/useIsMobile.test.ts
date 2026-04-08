@@ -1,9 +1,9 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useIsMobile } from '../../hooks/useIsMobile';
-import * as useWindowSizeModule from '../../hooks/useWindowSize';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import * as useWindowSizeModule from '@/hooks/useWindowSize';
 
-vi.mock('../../hooks/useWindowSize', () => ({
+vi.mock('@/hooks/useWindowSize', () => ({
   useWindowSize: vi.fn(),
 }));
 
