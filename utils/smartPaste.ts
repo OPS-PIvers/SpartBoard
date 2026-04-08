@@ -47,7 +47,7 @@ function tryParseQuizImport(text: string): PasteResult | null {
 
   try {
     const url = new URL(candidate, window.location.origin);
-    const match = url.pathname.match(/^\/share\/quiz\/([a-zA-Z0-9]+)$/);
+    const match = url.pathname.match(/^\/share\/quiz\/([a-zA-Z0-9_-]+)$/);
     if (match) {
       return { action: 'import-quiz', shareId: match[1] };
     }

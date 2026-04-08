@@ -29,17 +29,23 @@ import { ScoreboardTeam } from '@/types';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
 /**
+ * Compute the raw points a student earned.
+ */
+function getEarnedPoints(r: QuizResponse, questions: QuizQuestion[]): number {
+  return questions.reduce((sum, q) => {
+    const ans = r.answers.find((a) => a.questionId === q.id);
+    if (!ans) return sum;
+    return sum + (gradeAnswer(q, ans.answer) ? (q.points ?? 1) : 0);
+  }, 0);
+}
+
+/**
  * Compute a student's percentage score using per-question point values.
  */
 function getResponseScore(r: QuizResponse, questions: QuizQuestion[]): number {
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   if (maxPoints === 0) return 0;
-  const earned = questions.reduce((sum, q) => {
-    const ans = r.answers.find((a) => a.questionId === q.id);
-    if (!ans) return sum;
-    return sum + (gradeAnswer(q, ans.answer) ? (q.points ?? 1) : 0);
-  }, 0);
-  return Math.round((earned / maxPoints) * 100);
+  return Math.round((getEarnedPoints(r, questions) / maxPoints) * 100);
 }
 
 interface QuizResultsProps {
@@ -662,12 +668,7 @@ const StudentsTab: React.FC<{
           })
           .map((r) => {
             const score = getResponseScore(r, questions);
-            const answerMap = new Map(r.answers.map((a) => [a.questionId, a]));
-            const earned = questions.reduce((sum, q) => {
-              const ans = answerMap.get(q.id);
-              if (!ans) return sum;
-              return sum + (gradeAnswer(q, ans.answer) ? (q.points ?? 1) : 0);
-            }, 0);
+            const earned = getEarnedPoints(r, questions);
             const warnings = r.tabSwitchWarnings ?? 0;
 
             return (
