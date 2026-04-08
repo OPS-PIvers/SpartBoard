@@ -46,4 +46,4 @@
 
 ## 2026-04-06 - [Runtime Config Drift] **Bottleneck:** The cloud functions backend was deploying to a Node 22 runtime due to `functions/package.json` configuration, while local dev, CI, and the Dockerfile all tested against Node 20, creating a config drift that risked production runtime errors. **Fix:** Standardized `functions/package.json` to use Node 20 and enforced strict immutable tags (`20.20.2`) across the GitHub setup action and root `package.json`.
 
-## 2024-04-08 - [Runtime Config Drift] **Bottleneck:** Loose version constraints causing config drift between CI, Docker, and local environments. **Fix:** Enforced exact Node (20.20.2) and pnpm (10.30.2) versions in package.json and GitHub actions.
+## 2026-04-08 - [Runtime Config Drift] **Bottleneck:** Loose version constraints causing config drift between CI, Docker, and local environments. **Fix:** Enforced exact Node (20.20.2) and pnpm (10.30.2) versions in package.json and GitHub actions.
