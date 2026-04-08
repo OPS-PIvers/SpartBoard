@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { SoundGlobalConfig, BuildingSoundDefaults } from '@/types';
+import { Card } from '@/components/common/Card';
 
 interface SoundConfigurationPanelProps {
   config: SoundGlobalConfig;
@@ -65,7 +66,7 @@ export const SoundConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the Sound Meter widget when a
           teacher in{' '}
@@ -133,7 +134,7 @@ export const SoundConfigurationPanel: React.FC<
             <span>3.0x (High)</span>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -16,6 +16,7 @@ interface ScoreboardConfigurationPanelProps {
 // Must match TEAM_COLORS in ScoreboardItem.tsx — these are the only valid
 // color classes the scoreboard widget knows how to render.
 import { SCOREBOARD_COLORS as AVAILABLE_COLORS } from '@/config/scoreboard';
+import { Card } from '@/components/common/Card';
 
 const DEFAULT_TEAMS: ScoreboardDefaultTeam[] = [
   { id: crypto.randomUUID(), name: 'Team A', color: 'bg-blue-500' },
@@ -98,7 +99,7 @@ export const ScoreboardConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-populate the Scoreboard widget when a teacher
           in <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
@@ -195,7 +196,7 @@ export const ScoreboardConfigurationPanel: React.FC<
             </p>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

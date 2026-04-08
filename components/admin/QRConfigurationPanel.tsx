@@ -3,6 +3,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { QRGlobalConfig, BuildingQRDefaults } from '@/types';
 import { QrCode, Link, Palette } from 'lucide-react';
+import { Card } from '@/components/common/Card';
 
 interface QRConfigurationPanelProps {
   config: QRGlobalConfig;
@@ -50,7 +51,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-5">
+      <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-5">
         <p className="text-xxs text-slate-500 leading-tight">
           These defaults will pre-configure the QR widget when a teacher in{' '}
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
@@ -189,7 +190,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

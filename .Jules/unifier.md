@@ -201,3 +201,8 @@ Unifier is responsible for maintaining a consistent look and feel across all Spa
 
 **Drift:** Various components were hardcoding `zIndex: 10`, `zIndex: 50`, or `zIndex: 100` during drag operations (e.g., `isDragging ? 10 : 'auto'`), ignoring the centralized registry and creating inconsistent stacking.
 **Fix:** Created a new standard token `Z_INDEX.itemDragging = 50` in `config/zIndex.ts`, exported it to `tailwind.config.js` as `item-dragging`, and updated all sortable items to use this semantic token.
+
+## 2026-04-08 - Standardized Card Containers in Admin Panels
+
+**Drift:** Discovered 19 hardcoded instances of the pattern `<div className="bg-slate-50 rounded-xl border border-slate-200 p-4">` acting as settings container wrappers across almost all widget configuration panels in `components/admin/`. This bypassed the existing design system component.
+**Fix:** Refactored all 19 instances to use the centralized `<Card rounded="xl" className="bg-slate-50">` component, enforcing consistent shadow, border, and padding rendering across the entire admin dashboard architecture.

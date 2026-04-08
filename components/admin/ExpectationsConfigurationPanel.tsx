@@ -1,3 +1,4 @@
+import { Card } from '@/components/common/Card';
 import React, { useState } from 'react';
 import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
@@ -183,7 +184,7 @@ export const ExpectationsConfigurationPanel: React.FC<
         />
       </div>
 
-      <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+      <Card rounded="xl" shadow="none" className="bg-slate-50">
         {renderOptionEditor(
           'Volume Options',
           VOLUME_OPTIONS as OptionBase[],
@@ -213,7 +214,7 @@ export const ExpectationsConfigurationPanel: React.FC<
           currentBuildingConfig.showInteraction ?? true,
           (enabled) => handleUpdateBuilding({ showInteraction: enabled })
         )}
-      </div>
+      </Card>
     </div>
   );
 };
