@@ -292,7 +292,10 @@ export const DashboardView: React.FC = () => {
     if (scaledDashboardIdsRef.current.has(id)) return;
     scaledDashboardIdsRef.current.add(id);
 
-    if (!savedW || !savedH || !widgets.length) return;
+    // Skip scaling if saved viewport is missing or unreasonably small
+    // (< 300px is almost certainly a corrupted value).
+    if (!savedW || !savedH || savedW < 300 || savedH < 300 || !widgets.length)
+      return;
 
     const currentW = window.innerWidth;
     const currentH = window.innerHeight;
@@ -301,16 +304,32 @@ export const DashboardView: React.FC = () => {
     const diffY = Math.abs(currentH - savedH) / savedH;
     if (diffX < 0.05 && diffY < 0.05) return; // Same screen (~5% tolerance)
 
-    const scaleX = currentW / savedW;
-    const scaleY = currentH / savedH;
+    const MAX_SCALE = 3;
+    const scaleX = Math.min(MAX_SCALE, currentW / savedW);
+    const scaleY = Math.min(MAX_SCALE, currentH / savedH);
+
+    const MIN_VISIBLE = 80;
+    const TITLE_BAR = 40;
 
     widgets.forEach(({ id: widgetId, x, y, w, h }) => {
-      updateWidget(widgetId, {
-        x: Math.round(x * scaleX),
-        y: Math.round(y * scaleY),
-        w: Math.max(100, Math.round(w * scaleX)),
-        h: Math.max(60, Math.round(h * scaleY)),
-      });
+      // Scale dimensions, capped at viewport size
+      const newW = Math.min(currentW, Math.max(100, Math.round(w * scaleX)));
+      const newH = Math.min(currentH, Math.max(60, Math.round(h * scaleY)));
+
+      // Scale positions with bounds clamping to keep widgets visible
+      let newX = Math.round(x * scaleX);
+      let newY = Math.round(y * scaleY);
+      if (newW <= MIN_VISIBLE) {
+        newX = Math.max(0, Math.min(newX, currentW - newW));
+      } else {
+        newX = Math.max(
+          -(newW - MIN_VISIBLE),
+          Math.min(newX, currentW - MIN_VISIBLE)
+        );
+      }
+      newY = Math.max(0, Math.min(newY, currentH - TITLE_BAR));
+
+      updateWidget(widgetId, { x: newX, y: newY, w: newW, h: newH });
     });
 
     updateDashboard({ viewportWidth: currentW, viewportHeight: currentH });

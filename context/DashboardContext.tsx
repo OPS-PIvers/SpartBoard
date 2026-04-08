@@ -1112,11 +1112,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard({
-        ...active,
-        viewportWidth: window.innerWidth,
-        viewportHeight: window.innerHeight,
-      })
+      saveDashboard(active)
         .then(() => {
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
@@ -2509,6 +2505,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!activeIdRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
+
+      // Track whether this update changes widget position/size so we can
+      // stamp the current viewport dimensions — ensuring the saved viewport
+      // always matches the viewport where widget layout was actually set.
+      const isLayoutChange =
+        'x' in updates || 'y' in updates || 'w' in updates || 'h' in updates;
+
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeIdRef.current) return d;
@@ -2550,6 +2553,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...d,
             widgets: newWidgets,
+            ...(isLayoutChange
+              ? {
+                  viewportWidth: window.innerWidth,
+                  viewportHeight: window.innerHeight,
+                }
+              : {}),
           };
         })
       );
