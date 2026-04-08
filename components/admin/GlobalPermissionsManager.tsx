@@ -752,6 +752,69 @@ export const GlobalPermissionsManager: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Gemini Model Configuration (gemini-functions only) */}
+                  {feature.id === 'gemini-functions' && (
+                    <div className="border-t border-slate-100 bg-purple-50 p-4 text-left">
+                      <label className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-3 block">
+                        AI Model Configuration
+                      </label>
+                      <p className="text-xxs text-purple-500 mb-3 leading-tight">
+                        Override the default Gemini models. Leave blank to use
+                        defaults.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xxs font-bold text-purple-600 mb-1 block">
+                            Advanced Model
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="gemini-3-flash-preview"
+                            value={
+                              (permission.config?.advancedModel as string) ?? ''
+                            }
+                            onChange={(e) =>
+                              updatePermission(feature.id, {
+                                config: {
+                                  ...permission.config,
+                                  advancedModel: e.target.value,
+                                },
+                              })
+                            }
+                            className="w-full px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white"
+                          />
+                          <span className="text-xxs text-purple-400 mt-0.5 block">
+                            Mini-apps, widget builder, guided learning
+                          </span>
+                        </div>
+                        <div>
+                          <label className="text-xxs font-bold text-purple-600 mb-1 block">
+                            Standard Model
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="gemini-3.1-flash-lite-preview"
+                            value={
+                              (permission.config?.standardModel as string) ?? ''
+                            }
+                            onChange={(e) =>
+                              updatePermission(feature.id, {
+                                config: {
+                                  ...permission.config,
+                                  standardModel: e.target.value,
+                                },
+                              })
+                            }
+                            className="w-full px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white"
+                          />
+                          <span className="text-xxs text-purple-400 mt-0.5 block">
+                            OCR, quizzes, polls, layouts, video activities
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -944,6 +1007,70 @@ export const GlobalPermissionsManager: React.FC = () => {
                       see a &quot;limit reached&quot; message after this many
                       generations.
                     </p>
+                  </div>
+                )}
+
+                {/* Gemini Model Configuration (gemini-functions only) */}
+                {feature.id === 'gemini-functions' && (
+                  <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100">
+                    <label className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-2 block">
+                      AI Model Configuration
+                    </label>
+                    <p className="text-xxs text-purple-500 mb-4 leading-tight">
+                      Override the default Gemini models used by AI features.
+                      Leave blank to use defaults.
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xxs font-bold text-purple-600 mb-1 block">
+                          Advanced Model
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="gemini-3-flash-preview"
+                          value={
+                            (permission.config?.advancedModel as string) ?? ''
+                          }
+                          onChange={(e) =>
+                            updatePermission(feature.id, {
+                              config: {
+                                ...permission.config,
+                                advancedModel: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        />
+                        <span className="text-xxs text-purple-400 mt-1 block">
+                          Used for mini-apps, widget builder, guided learning
+                        </span>
+                      </div>
+                      <div>
+                        <label className="text-xxs font-bold text-purple-600 mb-1 block">
+                          Standard Model
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="gemini-3.1-flash-lite-preview"
+                          value={
+                            (permission.config?.standardModel as string) ?? ''
+                          }
+                          onChange={(e) =>
+                            updatePermission(feature.id, {
+                              config: {
+                                ...permission.config,
+                                standardModel: e.target.value,
+                              },
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        />
+                        <span className="text-xxs text-purple-400 mt-1 block">
+                          Used for OCR, quizzes, polls, layouts, video
+                          activities
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

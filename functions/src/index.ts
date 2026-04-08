@@ -53,6 +53,8 @@ interface AIData {
 interface GlobalPermConfig {
   dailyLimit?: number;
   dailyLimitEnabled?: boolean;
+  advancedModel?: string;
+  standardModel?: string;
 }
 
 interface GlobalPermission {
@@ -537,6 +539,15 @@ export const generateWithAI = functionsV1
       }
     }
 
+    // Read model config from Firestore (for both admins and non-admins)
+    const geminiPermDoc = await db
+      .collection('global_permissions')
+      .doc('gemini-functions')
+      .get();
+    const geminiConfig = geminiPermDoc.exists
+      ? (geminiPermDoc.data()?.config as GlobalPermConfig | undefined)
+      : undefined;
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('CRITICAL: GEMINI_API_KEY is missing');
@@ -770,10 +781,15 @@ export const generateWithAI = functionsV1
       }
 
       // Use higher complexity model for code generation, and lite for OCR and simple JSON tasks
+      // Model names are admin-configurable via global_permissions/gemini-functions
+      const advancedModel =
+        geminiConfig?.advancedModel || 'gemini-3-flash-preview';
+      const standardModel =
+        geminiConfig?.standardModel || 'gemini-3.1-flash-lite-preview';
       const model =
         genType === 'mini-app' || genType === 'widget-builder'
-          ? 'gemini-3-flash-preview'
-          : 'gemini-3.1-flash-lite-preview';
+          ? advancedModel
+          : standardModel;
 
       const result = await ai.models.generateContent({
         model,
@@ -1213,6 +1229,17 @@ export const generateVideoActivity = functionsV1
         );
       }
 
+      // Read model config from Firestore
+      const geminiPermDoc = await db
+        .collection('global_permissions')
+        .doc('gemini-functions')
+        .get();
+      const geminiConfig = geminiPermDoc.exists
+        ? (geminiPermDoc.data()?.config as GlobalPermConfig | undefined)
+        : undefined;
+      const videoModel =
+        geminiConfig?.standardModel || 'gemini-3.1-flash-lite-preview';
+
       const ai = new GoogleGenAI({ apiKey });
 
       const systemPrompt = `You are an expert teacher creating a video comprehension activity.
@@ -1243,7 +1270,7 @@ Return JSON in this exact format:
 
       try {
         const result = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite-preview',
+          model: videoModel,
           contents: [
             {
               role: 'user',
@@ -1657,6 +1684,18 @@ export const generateGuidedLearning = functionsV1
         );
       }
 
+      // Read model config from Firestore
+      const db = admin.firestore();
+      const geminiPermDoc = await db
+        .collection('global_permissions')
+        .doc('gemini-functions')
+        .get();
+      const geminiConfig = geminiPermDoc.exists
+        ? (geminiPermDoc.data()?.config as GlobalPermConfig | undefined)
+        : undefined;
+      const guidedLearningModel =
+        geminiConfig?.advancedModel || 'gemini-3-flash-preview';
+
       try {
         const ai = new GoogleGenAI({ apiKey });
 
@@ -1707,7 +1746,7 @@ Guidelines:
           : 'Analyze this educational image and create an engaging guided learning experience.';
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: guidedLearningModel,
           contents: [
             {
               role: 'user',
