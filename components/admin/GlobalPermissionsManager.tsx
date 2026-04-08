@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { collection, doc, setDoc, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AccessLevel, GlobalFeature, GlobalFeaturePermission } from '@/types';
 import {
@@ -106,6 +113,221 @@ const GEMINI_FEATURES: GlobalFeature[] = [
   'video-activity-audio-transcription',
 ];
 
+const KNOWN_GEMINI_MODELS = [
+  {
+    value: 'gemini-3-flash-preview',
+    label: 'Gemini 3 Flash (Preview)',
+    tier: 'advanced',
+  },
+  {
+    value: 'gemini-3.1-flash-lite-preview',
+    label: 'Gemini 3.1 Flash Lite (Preview)',
+    tier: 'standard',
+  },
+  {
+    value: 'gemini-2.5-flash',
+    label: 'Gemini 2.5 Flash',
+    tier: 'advanced',
+  },
+  {
+    value: 'gemini-2.5-flash-lite',
+    label: 'Gemini 2.5 Flash Lite',
+    tier: 'standard',
+  },
+  {
+    value: 'gemini-2.0-flash',
+    label: 'Gemini 2.0 Flash',
+    tier: 'advanced',
+  },
+  {
+    value: 'gemini-2.0-flash-lite',
+    label: 'Gemini 2.0 Flash Lite',
+    tier: 'standard',
+  },
+] as const;
+
+const GEMINI_MODEL_REGEX = /^gemini-[\w.-]+$/;
+
+const DEFAULT_ADVANCED_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_STANDARD_MODEL = 'gemini-3.1-flash-lite-preview';
+
+/**
+ * Shared UI for configuring Gemini model overrides on the `gemini-functions`
+ * permission. Renders in two visual variants: `inline` for list view and
+ * `expanded` for grid view.
+ */
+const GeminiModelConfigSection: React.FC<{
+  variant: 'inline' | 'expanded';
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+}> = ({ variant, permission, onUpdate }) => {
+  const advancedModel = (permission.config?.advancedModel as string) ?? '';
+  const standardModel = (permission.config?.standardModel as string) ?? '';
+
+  const isCustomAdvanced =
+    advancedModel !== '' &&
+    !KNOWN_GEMINI_MODELS.some((m) => m.value === advancedModel);
+  const isCustomStandard =
+    standardModel !== '' &&
+    !KNOWN_GEMINI_MODELS.some((m) => m.value === standardModel);
+
+  const [showCustomAdvanced, setShowCustomAdvanced] =
+    React.useState(isCustomAdvanced);
+  const [showCustomStandard, setShowCustomStandard] =
+    React.useState(isCustomStandard);
+
+  const advancedError =
+    showCustomAdvanced &&
+    advancedModel !== '' &&
+    !GEMINI_MODEL_REGEX.test(advancedModel);
+  const standardError =
+    showCustomStandard &&
+    standardModel !== '' &&
+    !GEMINI_MODEL_REGEX.test(standardModel);
+
+  const handleSelectChange = (
+    field: 'advancedModel' | 'standardModel',
+    value: string,
+    setShowCustom: (v: boolean) => void
+  ) => {
+    if (value === '__custom__') {
+      setShowCustom(true);
+      onUpdate({
+        config: { ...permission.config, [field]: '' },
+      });
+    } else {
+      setShowCustom(false);
+      onUpdate({
+        config: { ...permission.config, [field]: value },
+      });
+    }
+  };
+
+  const handleCustomInput = (
+    field: 'advancedModel' | 'standardModel',
+    value: string
+  ) => {
+    onUpdate({
+      config: { ...permission.config, [field]: value },
+    });
+  };
+
+  const getSelectValue = (
+    currentValue: string,
+    showCustom: boolean
+  ): string => {
+    if (showCustom) return '__custom__';
+    if (currentValue === '') return '';
+    const known = KNOWN_GEMINI_MODELS.find((m) => m.value === currentValue);
+    return known ? currentValue : '__custom__';
+  };
+
+  const isInline = variant === 'inline';
+
+  const containerClass = isInline
+    ? 'border-t border-slate-100 bg-purple-50 p-4'
+    : 'mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100';
+
+  const layoutClass = isInline
+    ? 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+    : 'space-y-3';
+
+  const inputClass = isInline
+    ? 'w-full px-3 py-1.5 border rounded text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500'
+    : 'w-full px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500';
+
+  const selectClass = isInline
+    ? 'w-full px-3 py-1.5 border border-purple-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white'
+    : 'w-full px-3 py-2 border border-purple-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white';
+
+  const renderModelField = (
+    label: string,
+    field: 'advancedModel' | 'standardModel',
+    currentValue: string,
+    defaultModel: string,
+    tier: string,
+    showCustom: boolean,
+    setShowCustom: (v: boolean) => void,
+    hasError: boolean
+  ) => (
+    <div>
+      <label className="text-xxs font-bold text-purple-700 uppercase tracking-widest mb-1 block">
+        {label}
+      </label>
+      <select
+        value={getSelectValue(currentValue, showCustom)}
+        onChange={(e) =>
+          handleSelectChange(field, e.target.value, setShowCustom)
+        }
+        className={selectClass}
+      >
+        <option value="">Default ({defaultModel})</option>
+        {KNOWN_GEMINI_MODELS.filter((m) => m.tier === tier).map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+        <option value="__custom__">Custom...</option>
+      </select>
+      {showCustom && (
+        <div className="mt-1.5">
+          <input
+            type="text"
+            placeholder="e.g. gemini-2.5-flash"
+            value={currentValue}
+            onChange={(e) => handleCustomInput(field, e.target.value)}
+            className={`${inputClass} ${
+              hasError
+                ? 'border-red-400 focus:ring-red-400'
+                : 'border-purple-200'
+            }`}
+          />
+          {hasError && (
+            <p className="text-xxs text-red-600 mt-0.5">
+              Must match pattern: gemini-[name] (letters, digits, dots, hyphens,
+              underscores)
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={containerClass}>
+      <label className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-2 block">
+        Gemini Model Overrides
+      </label>
+      <div className={layoutClass}>
+        {renderModelField(
+          'Advanced Model (mini-apps, guided learning)',
+          'advancedModel',
+          advancedModel,
+          DEFAULT_ADVANCED_MODEL,
+          'advanced',
+          showCustomAdvanced,
+          setShowCustomAdvanced,
+          advancedError
+        )}
+        {renderModelField(
+          'Standard Model (OCR, polls, quizzes)',
+          'standardModel',
+          standardModel,
+          DEFAULT_STANDARD_MODEL,
+          'standard',
+          showCustomStandard,
+          setShowCustomStandard,
+          standardError
+        )}
+      </div>
+      <p className="text-xxs text-purple-500 mt-2 leading-tight">
+        Override the AI models used by Cloud Functions. Leave as
+        &quot;Default&quot; to use the built-in model for each tier.
+      </p>
+    </div>
+  );
+};
+
 export const GlobalPermissionsManager: React.FC = () => {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -122,7 +344,7 @@ export const GlobalPermissionsManager: React.FC = () => {
   } | null>(null);
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
 
-  const { appSettings, updateAppSettings } = useAuth();
+  const { user, appSettings, updateAppSettings } = useAuth();
   const { uploadAdminLogo, deleteAdminLogo, uploading } = useStorage();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -247,6 +469,27 @@ export const GlobalPermissionsManager: React.FC = () => {
       const permission = getPermission(featureId);
 
       await setDoc(doc(db, 'global_permissions', featureId), permission);
+
+      // Audit log for model config changes
+      if (
+        featureId === 'gemini-functions' &&
+        (permission.config?.advancedModel || permission.config?.standardModel)
+      ) {
+        try {
+          await addDoc(collection(db, 'admin_audit_log'), {
+            action: 'model_config_change',
+            email: user?.email ?? '(unknown)',
+            timestamp: serverTimestamp(),
+            advancedModel:
+              (permission.config?.advancedModel as string) || '(default)',
+            standardModel:
+              (permission.config?.standardModel as string) || '(default)',
+          });
+        } catch (auditErr) {
+          // Non-blocking — don't fail the save if audit logging fails
+          console.error('Failed to write audit log:', auditErr);
+        }
+      }
 
       setUnsavedChanges((prev) => {
         const next = new Set(prev);
@@ -753,85 +996,15 @@ export const GlobalPermissionsManager: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Gemini Model Configuration (gemini-functions only) */}
+                  {/* Gemini Model Config (gemini-functions only) */}
                   {feature.id === 'gemini-functions' && (
-                    <div className="border-t border-slate-100 bg-purple-50 p-4 text-left">
-                      <label className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-3 block">
-                        AI Model Configuration
-                      </label>
-                      <p className="text-xxs text-purple-500 mb-3 leading-tight">
-                        Override the default Gemini models. Leave blank to use
-                        defaults.
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xxs font-bold text-purple-600 mb-1 block">
-                            Advanced Model
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="gemini-3-flash-preview"
-                            value={
-                              (permission.config?.advancedModel as string) ?? ''
-                            }
-                            onChange={(e) =>
-                              updatePermission(feature.id, {
-                                config: {
-                                  ...permission.config,
-                                  advancedModel: e.target.value,
-                                },
-                              })
-                            }
-                            onBlur={(e) => {
-                              const trimmed = e.target.value.trim();
-                              updatePermission(feature.id, {
-                                config: {
-                                  ...permission.config,
-                                  advancedModel: trimmed || undefined,
-                                },
-                              });
-                            }}
-                            className="w-full px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white"
-                          />
-                          <span className="text-xxs text-purple-400 mt-0.5 block">
-                            Mini-apps, widget builder, guided learning
-                          </span>
-                        </div>
-                        <div>
-                          <label className="text-xxs font-bold text-purple-600 mb-1 block">
-                            Standard Model
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="gemini-3.1-flash-lite-preview"
-                            value={
-                              (permission.config?.standardModel as string) ?? ''
-                            }
-                            onChange={(e) =>
-                              updatePermission(feature.id, {
-                                config: {
-                                  ...permission.config,
-                                  standardModel: e.target.value,
-                                },
-                              })
-                            }
-                            onBlur={(e) => {
-                              const trimmed = e.target.value.trim();
-                              updatePermission(feature.id, {
-                                config: {
-                                  ...permission.config,
-                                  standardModel: trimmed || undefined,
-                                },
-                              });
-                            }}
-                            className="w-full px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 bg-white"
-                          />
-                          <span className="text-xxs text-purple-400 mt-0.5 block">
-                            OCR, quizzes, polls, layouts, video activities
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <GeminiModelConfigSection
+                      variant="inline"
+                      permission={permission}
+                      onUpdate={(updates) =>
+                        updatePermission(feature.id, updates)
+                      }
+                    />
                   )}
                 </div>
               );
@@ -1028,86 +1201,15 @@ export const GlobalPermissionsManager: React.FC = () => {
                   </div>
                 )}
 
-                {/* Gemini Model Configuration (gemini-functions only) */}
+                {/* Gemini Model Config (gemini-functions only) */}
                 {feature.id === 'gemini-functions' && (
-                  <div className="mb-6 p-4 bg-purple-50 rounded-xl border border-purple-100">
-                    <label className="text-xs font-bold text-purple-700 uppercase tracking-widest mb-2 block">
-                      AI Model Configuration
-                    </label>
-                    <p className="text-xxs text-purple-500 mb-4 leading-tight">
-                      Override the default Gemini models used by AI features.
-                      Leave blank to use defaults.
-                    </p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xxs font-bold text-purple-600 mb-1 block">
-                          Advanced Model
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="gemini-3-flash-preview"
-                          value={
-                            (permission.config?.advancedModel as string) ?? ''
-                          }
-                          onChange={(e) =>
-                            updatePermission(feature.id, {
-                              config: {
-                                ...permission.config,
-                                advancedModel: e.target.value,
-                              },
-                            })
-                          }
-                          onBlur={(e) => {
-                            const trimmed = e.target.value.trim();
-                            updatePermission(feature.id, {
-                              config: {
-                                ...permission.config,
-                                advancedModel: trimmed || undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                        />
-                        <span className="text-xxs text-purple-400 mt-1 block">
-                          Used for mini-apps, widget builder, guided learning
-                        </span>
-                      </div>
-                      <div>
-                        <label className="text-xxs font-bold text-purple-600 mb-1 block">
-                          Standard Model
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="gemini-3.1-flash-lite-preview"
-                          value={
-                            (permission.config?.standardModel as string) ?? ''
-                          }
-                          onChange={(e) =>
-                            updatePermission(feature.id, {
-                              config: {
-                                ...permission.config,
-                                standardModel: e.target.value,
-                              },
-                            })
-                          }
-                          onBlur={(e) => {
-                            const trimmed = e.target.value.trim();
-                            updatePermission(feature.id, {
-                              config: {
-                                ...permission.config,
-                                standardModel: trimmed || undefined,
-                              },
-                            });
-                          }}
-                          className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
-                        />
-                        <span className="text-xxs text-purple-400 mt-1 block">
-                          Used for OCR, quizzes, polls, layouts, video
-                          activities
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <GeminiModelConfigSection
+                    variant="expanded"
+                    permission={permission}
+                    onUpdate={(updates) =>
+                      updatePermission(feature.id, updates)
+                    }
+                  />
                 )}
 
                 {/* Save Button */}
