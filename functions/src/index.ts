@@ -581,7 +581,7 @@ export const generateWithAI = functionsV1
         'dashboard-layout': () => ({
           systemPrompt: `
           You are an expert instructional designer and classroom space planner. Based on the user's lesson description provided within <lesson_description> tags, suggest a set of interactive widgets and arrange them on a 12x12 grid (columns 0-11, rows 0-11).
-          
+
           Available Widgets (use EXACT type strings):
           - clock: Digital/analog clock
           - time-tool: Timer/Stopwatch
@@ -609,7 +609,7 @@ export const generateWithAI = functionsV1
           - stickers: Reward/decorative stickers
           - seating-chart: Classroom layout manager
           - catalyst: Instructional warm-ups/activities
-          
+
           Spatial Grid Rules (12x12):
           1. Total grid width is 12 columns (0-11). Total grid height is 12 rows (0-11).
           2. Avoid overlapping widgets.
