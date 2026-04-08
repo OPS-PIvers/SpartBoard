@@ -52,10 +52,7 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
           {/* Preference Items */}
           <div className="space-y-2">
             {/* Close Warning Toggle */}
-            <Card
-              className="flex items-start gap-4 transition-shadow"
-              hoverable
-            >
+            <Card className="flex items-start gap-4" hoverable>
               <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <ShieldX className="w-[18px] h-[18px] text-red-400" />
               </div>
@@ -86,10 +83,7 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
             </Card>
 
             {/* Remote Control Toggle */}
-            <Card
-              className="flex items-start gap-4 transition-shadow"
-              hoverable
-            >
+            <Card className="flex items-start gap-4" hoverable>
               <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <MousePointerClick className="w-[18px] h-[18px] text-blue-400" />
               </div>
