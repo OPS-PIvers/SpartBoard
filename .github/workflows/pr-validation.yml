@@ -21,11 +21,7 @@ jobs:
         run: pnpm run lint
 
       - name: Check code formatting
-        run: |
-          npx prettier --write "functions/src/index.ts" || true
-          git diff
-          git checkout -- .
-          pnpm run format:check
+        run: pnpm run format:check
 
       - name: Run type check
         run: pnpm run type-check:all
