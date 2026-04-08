@@ -76,6 +76,7 @@ const BASE_ANNOUNCEMENT: Announcement = {
   activatedAt: 1000000,
   dismissalType: 'admin',
   targetBuildings: [],
+  targetUsers: [],
   createdAt: 900000,
   updatedAt: 900000,
   createdBy: 'admin@example.com',
@@ -277,6 +278,76 @@ describe('AnnouncementOverlay', () => {
     emitAnnouncements([targeted, untargeted]);
     expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
     expect(screen.getByText('Untargeted')).toBeInTheDocument();
+  });
+
+  // -------------------------------------------------------------------------
+  // User email targeting
+  // -------------------------------------------------------------------------
+
+  it('shows an announcement targeted to the current user email', () => {
+    mockAuth([]);
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      { ...BASE_ANNOUNCEMENT, targetUsers: ['test@example.com'] },
+    ]);
+    expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+  });
+
+  it('hides an announcement targeted to a different email', () => {
+    mockAuth([]);
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      { ...BASE_ANNOUNCEMENT, targetUsers: ['other@example.com'] },
+    ]);
+    expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+  });
+
+  it('email targeting is case-insensitive', () => {
+    mockAuth([]);
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      { ...BASE_ANNOUNCEMENT, targetUsers: ['TEST@EXAMPLE.COM'] },
+    ]);
+    expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+  });
+
+  it('shows announcement when user matches email but not building (OR logic)', () => {
+    mockAuth(['BuildingB']); // user is in BuildingB
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      {
+        ...BASE_ANNOUNCEMENT,
+        targetBuildings: ['BuildingA'], // user not in BuildingA
+        targetUsers: ['test@example.com'], // but user email matches
+      },
+    ]);
+    expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+  });
+
+  it('shows announcement when user matches building but not email (OR logic)', () => {
+    mockAuth(['BuildingA']);
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      {
+        ...BASE_ANNOUNCEMENT,
+        targetBuildings: ['BuildingA'],
+        targetUsers: ['other@example.com'],
+      },
+    ]);
+    expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+  });
+
+  it('hides announcement when user matches neither building nor email', () => {
+    mockAuth(['BuildingB']);
+    render(<AnnouncementOverlay />);
+    emitAnnouncements([
+      {
+        ...BASE_ANNOUNCEMENT,
+        targetBuildings: ['BuildingA'],
+        targetUsers: ['other@example.com'],
+      },
+    ]);
+    expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
   });
 
   // -------------------------------------------------------------------------

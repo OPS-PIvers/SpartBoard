@@ -16,6 +16,7 @@ import {
   X,
   Clock,
   Building2,
+  Users,
   Play,
   Square,
   ChevronDown,
@@ -135,6 +136,7 @@ function buildDefaultForm(): AnnouncementFormData {
     dismissalDurationSeconds: 60,
     dismissalDurationUnit: 'seconds',
     targetBuildings: [],
+    targetUsers: [],
   };
 }
 
@@ -636,6 +638,7 @@ export const AnnouncementsManager: React.FC = () => {
       dismissalDurationSeconds: isMinutes ? durationSec / 60 : durationSec,
       dismissalDurationUnit: isMinutes ? 'minutes' : 'seconds',
       targetBuildings: a.targetBuildings,
+      targetUsers: (a.targetUsers ?? []).map((e) => e.trim().toLowerCase()),
     });
     setEditingId(a.id);
     setIsCreating(true);
@@ -661,6 +664,30 @@ export const AnnouncementsManager: React.FC = () => {
       targetBuildings: f.targetBuildings.includes(id)
         ? f.targetBuildings.filter((b) => b !== id)
         : [...f.targetBuildings, id],
+    }));
+  };
+
+  const [targetEmailInput, setTargetEmailInput] = useState('');
+
+  const addTargetUser = () => {
+    const email = targetEmailInput.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      addToast('Please enter a valid email address.', 'error');
+      return;
+    }
+    if (form.targetUsers.includes(email)) {
+      addToast('This email is already in the list.', 'error');
+      return;
+    }
+    setForm((f) => ({ ...f, targetUsers: [...f.targetUsers, email] }));
+    setTargetEmailInput('');
+  };
+
+  const removeTargetUser = (email: string) => {
+    setForm((f) => ({
+      ...f,
+      targetUsers: f.targetUsers.filter((e) => e !== email),
     }));
   };
 
@@ -705,6 +732,9 @@ export const AnnouncementsManager: React.FC = () => {
         dismissalDurationSeconds:
           form.dismissalType === 'duration' ? durationSeconds : undefined,
         targetBuildings: form.targetBuildings,
+        targetUsers: [
+          ...new Set(form.targetUsers.map((e) => e.trim().toLowerCase())),
+        ],
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
         createdBy: user?.email ?? 'admin',
@@ -808,6 +838,7 @@ export const AnnouncementsManager: React.FC = () => {
         <div className="space-y-3">
           {announcements.map((a) => {
             const allBuildings = a.targetBuildings.length === 0;
+            const userCount = a.targetUsers?.length ?? 0;
             return (
               <div
                 key={a.id}
@@ -838,6 +869,12 @@ export const AnnouncementsManager: React.FC = () => {
                           ? 'All buildings'
                           : a.targetBuildings.map(getBuildingLabel).join(', ')}
                       </span>
+                      {userCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          {userCount} {userCount === 1 ? 'user' : 'users'}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1229,12 +1266,66 @@ export const AnnouncementsManager: React.FC = () => {
                   </div>
                 ))}
               </div>
-              {form.targetBuildings.length === 0 && (
-                <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                  No buildings selected — this announcement will be sent to all
-                  users.
+            </FormSection>
+
+            {/* Target Users */}
+            <FormSection
+              title="Target Users"
+              icon={<Users className="w-4 h-4" />}
+            >
+              <p className="text-xs text-slate-500 -mt-1">
+                Add specific user emails to receive this announcement. When
+                combined with building targeting, users matching either will see
+                it.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={targetEmailInput}
+                  onChange={(e) => setTargetEmailInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTargetUser();
+                    }
+                  }}
+                  placeholder="teacher@example.com"
+                  className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                />
+                <button
+                  type="button"
+                  onClick={addTargetUser}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-lg transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              {form.targetUsers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.targetUsers.map((email) => (
+                    <span
+                      key={email}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-full"
+                    >
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => removeTargetUser(email)}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
+              {form.targetUsers.length === 0 &&
+                form.targetBuildings.length === 0 && (
+                  <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    No users or buildings targeted — this announcement will be
+                    sent to everyone.
+                  </div>
+                )}
             </FormSection>
           </div>
 

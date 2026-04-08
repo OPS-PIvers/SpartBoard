@@ -24,6 +24,8 @@ import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
 
+import { applyAutoplay } from './applyAutoplay';
+
 const NEW_WIDGET_SPACING = 20;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -41,6 +43,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     isEmbeddable = true,
     blockedReason = '',
     zoom = 1,
+    autoplay = false,
   } = config;
 
   const ZOOM_STEPS = [
@@ -78,6 +81,13 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
   const sanitizedUrl = ensureProtocol(url);
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
+
+  // When autoplay is enabled, append ?autoplay=1 for supported hosts
+  const finalEmbedUrl = React.useMemo(
+    () => applyAutoplay(embedUrl, autoplay),
+    [embedUrl, autoplay]
+  );
+
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isActuallyEmbeddable = React.useMemo(() => {
@@ -408,7 +418,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <iframe
                 key={refreshKey}
                 title="Embed Content"
-                src={displayMode === 'url' ? embedUrl : undefined}
+                src={displayMode === 'url' ? finalEmbedUrl : undefined}
                 srcDoc={displayMode === 'code' ? html : undefined}
                 className="absolute top-0 left-0 border-none block"
                 style={{

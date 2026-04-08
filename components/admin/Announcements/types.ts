@@ -17,6 +17,7 @@ export interface AnnouncementFormData {
   dismissalDurationSeconds: number;
   dismissalDurationUnit: 'seconds' | 'minutes';
   targetBuildings: string[];
+  targetUsers: string[];
 }
 
 export type EmbedTab = 'url' | 'code' | 'record' | 'live';

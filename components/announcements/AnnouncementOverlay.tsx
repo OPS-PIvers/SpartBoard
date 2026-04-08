@@ -400,20 +400,37 @@ export const AnnouncementOverlay: React.FC = () => {
         const epochKey = `${a.id}_${a.activatedAt}`;
         if (dismissed.has(epochKey) || isDismissed(a)) return false;
 
-        // Check building targeting (empty targetBuildings = all users see it)
-        if (a.targetBuildings.length > 0) {
-          // User has no building configured — do not show targeted announcements
-          if (selectedBuildings.length === 0) return false;
-          // User has buildings — check for overlap with announcement targets
-          const hasOverlap = a.targetBuildings.some((b) =>
-            selectedBuildings.includes(b)
-          );
-          if (!hasOverlap) return false;
+        // Check targeting (empty targetBuildings AND empty targetUsers = broadcast to all)
+        const hasBuildings = a.targetBuildings.length > 0;
+        const hasUsers = (a.targetUsers?.length ?? 0) > 0;
+        if (hasBuildings || hasUsers) {
+          let matches = false;
+          // Building match
+          if (
+            hasBuildings &&
+            selectedBuildings.length > 0 &&
+            a.targetBuildings.some((b) => selectedBuildings.includes(b))
+          ) {
+            matches = true;
+          }
+          // User email match (OR logic — if either matches, show it)
+          const userEmail = user?.email;
+          if (
+            !matches &&
+            hasUsers &&
+            userEmail &&
+            (a.targetUsers ?? []).some(
+              (e) => e.toLowerCase() === userEmail.toLowerCase()
+            )
+          ) {
+            matches = true;
+          }
+          if (!matches) return false;
         }
 
         return true;
       }),
-    [announcements, dismissed, selectedBuildings, nowMinutes]
+    [announcements, dismissed, selectedBuildings, nowMinutes, user?.email]
   );
 
   if (visible.length === 0) return null;

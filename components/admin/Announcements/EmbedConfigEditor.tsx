@@ -17,6 +17,7 @@ import { convertToEmbedUrl } from '@/utils/urlHelpers';
 import { EmbedTab } from './types';
 
 import { EmbedConfig } from '@/types';
+import { Toggle } from '@/components/common/Toggle';
 
 export const EmbedConfigEditor: React.FC<{
   config: Partial<EmbedConfig>;
@@ -417,6 +418,24 @@ export const EmbedConfigEditor: React.FC<{
           </p>
         </div>
       )}
+
+      {/* Auto-play toggle */}
+      <div className="flex items-center gap-3 pt-3 border-t border-slate-200">
+        <Toggle
+          checked={config.autoplay ?? false}
+          onChange={(v) => onChange({ ...config, autoplay: v })}
+        />
+        <div>
+          <div className="text-sm font-medium text-slate-700">
+            Auto-play video
+          </div>
+          <div className="text-xs text-slate-500">
+            Video will attempt to play automatically when this announcement
+            activates. Works reliably with YouTube; best-effort for Google
+            Drive.
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
