@@ -97,23 +97,62 @@ export const useLiveSession = (
 ): UseLiveSessionResult => {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [students, setStudents] = useState<LiveStudent[]>([]);
-  const [loading, setLoading] = useState(
-    role === 'teacher' || (role === 'student' && !!joinCode)
-  );
+  const [loading, setLoading] = useState(() => {
+    if (role === 'student' && !joinCode) return false;
+    return role === 'teacher' || (role === 'student' && !!joinCode);
+  });
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentPin, setStudentPin] = useState<string | null>(null);
   const [individualFrozen, setIndividualFrozen] = useState(false);
+
+  // ⚡ REACT BEST PRACTICE: Adjusting state during rendering
+  // We track prop/state changes that require resetting other state to prevent extra re-renders
+  // and avoid the react-hooks/set-state-in-effect anti-pattern.
+  const [prevDeps, setPrevDeps] = useState({
+    role,
+    userId,
+    joinCode,
+    studentId,
+    isActive: session?.isActive,
+  });
+
+  if (
+    role !== prevDeps.role ||
+    userId !== prevDeps.userId ||
+    joinCode !== prevDeps.joinCode ||
+    studentId !== prevDeps.studentId ||
+    session?.isActive !== prevDeps.isActive
+  ) {
+    // 1. Update the tracking state
+    setPrevDeps({
+      role,
+      userId,
+      joinCode,
+      studentId,
+      isActive: session?.isActive,
+    });
+
+    // 2. Synchronously adjust derived states
+    const targetId = role === 'teacher' ? userId : joinCode;
+    if (!targetId && role === 'student' && !joinCode) {
+      setSession(null);
+      setLoading(false);
+    }
+
+    if (role !== 'teacher' || !userId || !session?.isActive) {
+      setStudents([]);
+    }
+
+    if (role !== 'student' || !joinCode || !studentId) {
+      setIndividualFrozen(false);
+      setStudentPin(null);
+    }
+  }
 
   // SESSION SUBSCRIPTION: Subscribe to session document (Teachers use userId, Students use joinCode)
   useEffect(() => {
     const targetId = role === 'teacher' ? userId : joinCode;
     if (!targetId) {
-      if (role === 'student' && !joinCode) {
-        setTimeout(() => {
-          setSession(null);
-          setLoading(false);
-        }, 0);
-      }
       return;
     }
 
@@ -143,7 +182,6 @@ export const useLiveSession = (
   // TEACHER: Subscribe to students (only when live)
   useEffect(() => {
     if (role !== 'teacher' || !userId || !session?.isActive) {
-      setTimeout(() => setStudents([]), 0);
       return;
     }
 
@@ -192,10 +230,6 @@ export const useLiveSession = (
   // STUDENT: Subscribe to My Student Status (Am I individually frozen?)
   useEffect(() => {
     if (role !== 'student' || !joinCode || !studentId) {
-      setTimeout(() => {
-        setIndividualFrozen(false);
-        setStudentPin(null);
-      }, 0);
       return;
     }
 
