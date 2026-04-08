@@ -397,20 +397,49 @@ export const generateWithAI = functionsV1
       .get();
     const isAdmin = adminDoc.exists;
 
-    if (!isAdmin) {
-      // 1. Determine specific feature ID if applicable
-      let specificFeatureId: string | null = null;
-      const genType = String(data?.type || '')
-        .toLowerCase()
-        .trim();
-      if (genType === 'mini-app') specificFeatureId = 'embed-mini-app';
-      if (genType === 'poll') specificFeatureId = 'smart-poll';
+    // 1. Determine specific feature ID if applicable
+    let specificFeatureId: string | null = null;
+    const genType = String(data?.type || '')
+      .toLowerCase()
+      .trim();
+    if (genType === 'mini-app') specificFeatureId = 'embed-mini-app';
+    if (genType === 'poll') specificFeatureId = 'smart-poll';
+    if (genType === 'quiz') specificFeatureId = 'quiz';
+    if (genType === 'video-activity')
+      specificFeatureId = 'video-activity-audio-transcription';
+    if (genType === 'ocr') specificFeatureId = 'ocr';
+    if (genType === 'guided-learning')
+      specificFeatureId = 'guided-learning';
 
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-      try {
-        await db.runTransaction(async (transaction) => {
-          // --- Check Overall Gemini Limit ---
+    try {
+      await db.runTransaction(async (transaction) => {
+        // --- Read current usage (needed for both tracking and limits) ---
+        const overallUsageRef = db
+          .collection('ai_usage')
+          .doc(`${uid}_${today}`);
+        const overallUsageDoc = await transaction.get(overallUsageRef);
+        const currentOverallUsage = overallUsageDoc.exists
+          ? (overallUsageDoc.data()?.count as number) || 0
+          : 0;
+
+        let specificUsageRef: admin.firestore.DocumentReference | null =
+          null;
+        let currentSpecificUsage = 0;
+
+        if (specificFeatureId) {
+          specificUsageRef = db
+            .collection('ai_usage')
+            .doc(`${uid}_${specificFeatureId}_${today}`);
+          const specUsageDoc = await transaction.get(specificUsageRef);
+          currentSpecificUsage = specUsageDoc.exists
+            ? (specUsageDoc.data()?.count as number) || 0
+            : 0;
+        }
+
+        // --- Rate-limit checks (non-admin only) ---
+        if (!isAdmin) {
           const globalPermDoc = await transaction.get(
             db.collection('global_permissions').doc('gemini-functions')
           );
@@ -448,14 +477,6 @@ export const generateWithAI = functionsV1
             globalPerm?.config?.dailyLimitEnabled !== false;
           const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
 
-          const overallUsageRef = db
-            .collection('ai_usage')
-            .doc(`${uid}_${today}`);
-          const overallUsageDoc = await transaction.get(overallUsageRef);
-          const currentOverallUsage = overallUsageDoc.exists
-            ? (overallUsageDoc.data()?.count as number) || 0
-            : 0;
-
           if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
             throw new functionsV1.https.HttpsError(
               'resource-exhausted',
@@ -464,11 +485,6 @@ export const generateWithAI = functionsV1
           }
 
           // --- Check Specific Feature Limit ---
-          let specificLimitReached = false;
-          let specificLimit = 0;
-          let specificUsageRef = null;
-          let currentSpecificUsage = 0;
-
           if (specificFeatureId) {
             const specPermDoc = await transaction.get(
               db.collection('global_permissions').doc(specificFeatureId)
@@ -477,64 +493,51 @@ export const generateWithAI = functionsV1
               const specPerm = specPermDoc.data() as GlobalPermission;
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
-              specificLimit = specPerm.config?.dailyLimit ?? 20;
+              const specificLimit = specPerm.config?.dailyLimit ?? 20;
 
-              if (specLimitEnabled) {
-                specificUsageRef = db
-                  .collection('ai_usage')
-                  .doc(`${uid}_${specificFeatureId}_${today}`);
-                const specUsageDoc = await transaction.get(specificUsageRef);
-                currentSpecificUsage = specUsageDoc.exists
-                  ? (specUsageDoc.data()?.count as number) || 0
-                  : 0;
-
-                if (currentSpecificUsage >= specificLimit) {
-                  specificLimitReached = true;
-                }
+              if (
+                specLimitEnabled &&
+                currentSpecificUsage >= specificLimit
+              ) {
+                throw new functionsV1.https.HttpsError(
+                  'resource-exhausted',
+                  `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
+                );
               }
             }
           }
+        }
 
-          if (specificLimitReached) {
-            throw new functionsV1.https.HttpsError(
-              'resource-exhausted',
-              `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
-            );
-          }
+        // --- Increment usage counters (all users including admins) ---
+        transaction.set(
+          overallUsageRef,
+          {
+            count: currentOverallUsage + 1,
+            email: email,
+            lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
 
-          // --- Increment Both ---
+        if (specificUsageRef) {
           transaction.set(
-            overallUsageRef,
+            specificUsageRef,
             {
-              count: currentOverallUsage + 1,
+              count: currentSpecificUsage + 1,
               email: email,
               lastUsed: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
           );
-
-          if (specificUsageRef) {
-            transaction.set(
-              specificUsageRef,
-              {
-                count: currentSpecificUsage + 1,
-                email: email,
-                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          }
-        });
-      } catch (error) {
-        if (error instanceof functionsV1.https.HttpsError) {
-          throw error;
         }
-        console.error('Usage tracking error:', error);
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'Failed to verify AI usage limits.'
-        );
+      });
+    } catch (error) {
+      if (error instanceof functionsV1.https.HttpsError) {
+        throw error;
       }
+      console.error('Usage tracking error:', error);
+      // Don't block AI generation if tracking fails
+      console.warn('AI usage tracking failed, proceeding with generation.');
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -2158,6 +2161,9 @@ export const adminAnalytics = functionsV1
           'smart-poll',
           'embed-mini-app',
           'video-activity-audio-transcription',
+          'quiz',
+          'ocr',
+          'guided-learning',
         ];
 
         const aiUsageStream = db
