@@ -131,7 +131,7 @@ describe('rosterUtils', () => {
       expect(result[1].pin).toBe('42');
     });
 
-    it('falls back to existing pin when pins line is empty', () => {
+    it('clears pin when pins line is explicitly empty', () => {
       const existing = [
         { id: '1', firstName: 'Alice', lastName: 'A', pin: '01' },
         { id: '2', firstName: 'Bob', lastName: 'B', pin: '02' },
@@ -142,7 +142,7 @@ describe('rosterUtils', () => {
       const result = generateStudentsList(firsts, lasts, existing, pins);
 
       expect(result[0].pin).toBe('dragon');
-      expect(result[1].pin).toBe('02');
+      expect(result[1].pin).toBe('');
     });
 
     it('preserves existing pins when pins parameter is omitted', () => {
