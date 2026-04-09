@@ -826,10 +826,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedWidgetConfigs((prev) => {
         const newConfigs = {
           ...prev,
-          [type]: {
+          [type]: stripTransientKeys({
             ...(prev[type] ?? {}),
             ...filtered,
-          },
+          }),
         };
 
         if (widgetConfigTimeoutRef.current) {
