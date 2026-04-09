@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { WidgetData } from '@/types';
 import { widgetRefRegistry } from './widgetRefRegistry';
 import { useDashboard } from '@/context/useDashboard';
@@ -55,6 +55,15 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
       el: HTMLDivElement | null;
     }>;
   } | null>(null);
+  // Store cleanup function for active resize listeners
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
+  // Clean up listeners on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      resizeCleanupRef.current?.();
+    };
+  }, []);
 
   const bbox = groupWidgets.length > 0 ? computeBBox(groupWidgets) : null;
 
@@ -226,11 +235,22 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           })
         );
         resizeState.current = null;
+        resizeCleanupRef.current = null;
       };
 
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
+
+      // Store cleanup so unmount can remove listeners
+      resizeCleanupRef.current = () => {
+        if (animFrame !== null) cancelAnimationFrame(animFrame);
+        document.body.classList.remove('is-dragging-widget');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        resizeState.current = null;
+      };
     },
     [groupWidgets, zoom, updateWidgets]
   );
