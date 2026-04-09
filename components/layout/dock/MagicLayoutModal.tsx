@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { Wand2, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
-import { generateDashboardLayout } from '@/utils/ai';
+import {
+  generateDashboardLayout,
+  buildPromptWithFileContext,
+} from '@/utils/ai';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -30,10 +33,11 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
 
     setIsGenerating(true);
     try {
-      let fullDescription = description;
-      if (fileContext) {
-        fullDescription = `Context from attached file (${fileName}):\n\n${fileContext}\n\n${description}`;
-      }
+      const fullDescription = buildPromptWithFileContext(
+        description,
+        fileContext,
+        fileName
+      );
       const widgets = await generateDashboardLayout(fullDescription);
       addWidgets(widgets);
       addToast('Magic layout generated!', 'success');

@@ -22,7 +22,6 @@ import { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, GeneratedQuestion } from '@/utils/ai';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { useAuth } from '@/context/useAuth';
-import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
 interface QuizImporterProps {
   onBack: () => void;
@@ -51,8 +50,6 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
   const [showGeminiPrompt, setShowGeminiPrompt] = useState(false);
   const [geminiPrompt, setGeminiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [fileContext, setFileContext] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [copiedTemplate, setCopiedTemplate] = useState(false);
 
@@ -119,11 +116,7 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
     setError(null);
     setParsedQuiz(null);
     try {
-      let fullPrompt = geminiPrompt;
-      if (fileContext) {
-        fullPrompt = `Context from attached file (${fileName}):\n\n${fileContext}\n\n${geminiPrompt}`;
-      }
-      const result = await generateQuiz(fullPrompt);
+      const result = await generateQuiz(geminiPrompt);
       setTitle(result.title);
       // Assign IDs to questions as they might be missing from AI response
       const questionsWithIds = result.questions.map((q: GeneratedQuestion) => {
@@ -563,15 +556,6 @@ export const QuizImporter: React.FC<QuizImporterProps> = ({
               autoFocus
               aria-label="Describe your quiz"
             />
-            {canAccessFeature('ai-file-context') && (
-              <DriveFileAttachment
-                onFileContent={(content, name) => {
-                  setFileContext(content);
-                  setFileName(name);
-                }}
-                disabled={isGenerating}
-              />
-            )}
             <button
               onClick={handleGeminiGenerate}
               disabled={isGenerating || !geminiPrompt.trim()}

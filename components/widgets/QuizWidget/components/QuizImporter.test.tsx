@@ -9,9 +9,10 @@ import { useAuth } from '@/context/useAuth';
 vi.mock('@/context/useAuth');
 
 // Mock generateQuiz
-vi.mock('@/utils/ai', () => ({
-  generateQuiz: vi.fn(),
-}));
+vi.mock('@/utils/ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/ai')>();
+  return { ...actual, generateQuiz: vi.fn() };
+});
 
 describe('QuizImporter', () => {
   const mockOnBack = vi.fn();

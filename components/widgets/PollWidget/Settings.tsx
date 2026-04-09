@@ -14,7 +14,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { MagicInput } from '@/components/common/MagicInput';
-import { generatePoll, GeneratedPoll } from '@/utils/ai';
+import {
+  generatePoll,
+  GeneratedPoll,
+  buildPromptWithFileContext,
+} from '@/utils/ai';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
@@ -186,10 +190,9 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           )}
           <MagicInput<GeneratedPoll>
             onGenerate={(topic) => {
-              const fullPrompt = fileContext
-                ? `Context from attached file (${fileName}):\n\n${fileContext}\n\nGenerate a poll about: ${topic}`
-                : topic;
-              return generatePoll(fullPrompt);
+              return generatePoll(
+                buildPromptWithFileContext(topic, fileContext, fileName)
+              );
             }}
             onSuccess={(result) => {
               const newOptions = result.options.map((opt) => ({

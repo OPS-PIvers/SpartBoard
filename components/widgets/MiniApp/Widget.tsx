@@ -23,7 +23,7 @@ import {
   CheckCircle2,
   ExternalLink,
 } from 'lucide-react';
-import { generateMiniAppCode } from '@/utils/ai';
+import { generateMiniAppCode, buildPromptWithFileContext } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import {
   DndContext,
@@ -478,10 +478,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
     setIsGenerating(true);
     try {
-      let fullPrompt = prompt;
-      if (fileContext) {
-        fullPrompt = `Context from attached file (${fileName}):\n\n${fileContext}\n\n${prompt}`;
-      }
+      const fullPrompt = buildPromptWithFileContext(
+        prompt,
+        fileContext,
+        fileName
+      );
       const result = await generateMiniAppCode(fullPrompt);
       setEditTitle(result.title);
       setEditCode(result.html);

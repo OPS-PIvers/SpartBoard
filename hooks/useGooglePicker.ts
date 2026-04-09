@@ -36,6 +36,17 @@ function rejectAllCallbacks(error: Error) {
   pending.forEach((cb) => cb.reject(error));
 }
 
+/** Dynamically inject the gapi script tag if not already present. */
+function injectGapiScript(): void {
+  if (document.querySelector('script[src*="apis.google.com/js/api.js"]')) {
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://apis.google.com/js/api.js';
+  script.async = true;
+  document.head.appendChild(script);
+}
+
 /** Ensure the gapi picker library is loaded exactly once. */
 function ensurePickerApi(): Promise<void> {
   if (pickerApiLoaded) return Promise.resolve();
@@ -45,6 +56,8 @@ function ensurePickerApi(): Promise<void> {
 
     if (pickerApiLoading) return; // Already loading — just wait for the callback
     pickerApiLoading = true;
+
+    injectGapiScript();
 
     const startTime = Date.now();
 

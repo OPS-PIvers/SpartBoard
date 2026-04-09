@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Wand2, Upload, Loader2, X } from 'lucide-react';
 import { GuidedLearningSet } from '@/types';
-import { generateGuidedLearning } from '@/utils/ai';
+import { generateGuidedLearning, buildPromptWithFileContext } from '@/utils/ai';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
@@ -59,11 +59,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     setGenerating(true);
     setError('');
     try {
-      let fullPrompt = prompt || undefined;
-      if (fileContext) {
-        const prefix = `Context from attached file (${fileName}):\n\n${fileContext}`;
-        fullPrompt = prompt ? `${prefix}\n\n${prompt}` : prefix;
-      }
+      const fullPrompt =
+        buildPromptWithFileContext(prompt, fileContext, fileName) || undefined;
       const result = await generateGuidedLearning(
         imageBase64,
         imageMimeType,
