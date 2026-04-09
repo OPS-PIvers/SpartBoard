@@ -39,6 +39,7 @@ import {
 import { AuthContext } from './AuthContextValue';
 import { getBuildingGradeLevels } from '../config/buildings';
 import i18n from '../i18n';
+import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 
 /**
  * IMPORTANT: Authentication bypass / mock user mode
@@ -818,12 +819,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveWidgetConfig = useCallback(
     (type: WidgetType, config: Partial<WidgetConfig>) => {
+      // Strip transient/runtime keys so they never reach Firestore
+      const filtered = stripTransientKeys(config);
+      if (Object.keys(filtered).length === 0) return;
+
       setSavedWidgetConfigs((prev) => {
         const newConfigs = {
           ...prev,
           [type]: {
             ...(prev[type] ?? {}),
-            ...config,
+            ...filtered,
           },
         };
 

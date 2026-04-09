@@ -24,6 +24,7 @@ import {
   MaterialsGlobalConfig,
 } from '../types';
 import { useAuth } from './useAuth';
+import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { useFirestore } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
@@ -78,16 +79,6 @@ const getDashboardSaveState = (d: Dashboard) => ({
     settings: JSON.stringify(d.settings ?? {}),
   },
 });
-
-const PERSISTED_WIDGET_TYPES: WidgetType[] = [
-  'schedule',
-  'calendar',
-  'lunchCount',
-  'weather',
-  'instructionalRoutines',
-  'nextUp',
-  'specialist-schedule',
-];
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -2285,9 +2276,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               {},
               defaults.config ?? {},
               adminConfig,
-              PERSISTED_WIDGET_TYPES.includes(type)
-                ? (savedWidgetConfigs?.[type] ?? {})
-                : {},
+              stripTransientKeys(savedWidgetConfigs?.[type] ?? {}),
               overrides?.config ?? {}
             ) as WidgetConfig,
           };
@@ -2366,9 +2355,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               {},
               defaults.config ?? {},
               adminConfig,
-              PERSISTED_WIDGET_TYPES.includes(item.type)
-                ? (savedWidgetConfigs?.[item.type] ?? {})
-                : {},
+              stripTransientKeys(savedWidgetConfigs?.[item.type] ?? {}),
               sanitizedInputConfig
             ) as WidgetConfig;
 
@@ -2541,12 +2528,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return w;
           });
 
-          // If the widget type is in our persistence list, and config was updated, save it globally
-          if (
-            widgetType &&
-            updates.config &&
-            PERSISTED_WIDGET_TYPES.includes(widgetType)
-          ) {
+          // Save config globally so new instances inherit settings.
+          // saveWidgetConfig handles transient-key stripping and no-op detection.
+          if (widgetType && updates.config) {
             saveWidgetConfig(widgetType, updates.config);
           }
 
