@@ -1406,7 +1406,7 @@ export interface QuizResponseAnswer {
    * stored value are still valid.
    */
   isCorrect?: boolean;
-  /** Bonus points earned from answering quickly (speed bonus feature) */
+  /** Percentage speed bonus earned from answering quickly (0–50 means +0% to +50%). */
   speedBonus?: number;
 }
 

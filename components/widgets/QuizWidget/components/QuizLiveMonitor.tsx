@@ -407,7 +407,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             {/* Sound mute toggle */}
             {session.soundEffectsEnabled && (
               <button
-                onClick={() => setSoundMuted(!soundMuted)}
+                onClick={() => setSoundMuted((m) => !m)}
                 className={`ml-auto flex items-center rounded-lg transition-all active:scale-95 ${
                   soundMuted
                     ? 'text-slate-400 hover:bg-slate-100'

@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/config/firebase';
-import { useQuizSessionStudent } from '@/hooks/useQuizSession';
+import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
 import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -509,8 +509,7 @@ const ActiveQuiz: React.FC<{
           ?.answer;
       if (studentAns) {
         const isCorrect =
-          studentAns.trim().toLowerCase() ===
-          currentRevealed.trim().toLowerCase();
+          normalizeAnswer(studentAns) === normalizeAnswer(currentRevealed);
         setAnswerFeedback(isCorrect ? 'correct' : 'incorrect');
         if (isCorrect) {
           setStreakCount((s) => s + 1);
@@ -555,8 +554,7 @@ const ActiveQuiz: React.FC<{
     if (session.showResultToStudent) {
       const revealed = session.revealedAnswers?.[currentQuestion.id];
       if (revealed) {
-        const isCorrect =
-          answer.trim().toLowerCase() === revealed.trim().toLowerCase();
+        const isCorrect = normalizeAnswer(answer) === normalizeAnswer(revealed);
         setAnswerFeedback(isCorrect ? 'correct' : 'incorrect');
 
         // Sound effects

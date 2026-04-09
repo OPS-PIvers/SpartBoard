@@ -87,21 +87,23 @@ function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
 
 // ─── Grading ──────────────────────────────────────────────────────────────────
 
-const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+/** Normalize an answer string for comparison (collapse whitespace, lowercase). */
+export const normalizeAnswer = (s: string) =>
+  s.trim().toLowerCase().replace(/\s+/g, ' ');
 
 export function gradeAnswer(
   question: QuizQuestion,
   studentAnswer: string
 ): boolean {
-  const correct = norm(question.correctAnswer);
-  const given = norm(studentAnswer);
+  const correct = normalizeAnswer(question.correctAnswer);
+  const given = normalizeAnswer(studentAnswer);
 
   if (question.type === 'MC' || question.type === 'FIB') {
     return correct === given;
   }
   if (question.type === 'Matching') {
-    const correctSet = new Set(correct.split('|').map(norm));
-    const givenParts = given.split('|').map(norm);
+    const correctSet = new Set(correct.split('|').map(normalizeAnswer));
+    const givenParts = given.split('|').map(normalizeAnswer);
     return (
       givenParts.length === correctSet.size &&
       givenParts.every((p) => correctSet.has(p))

@@ -12,30 +12,40 @@ interface CustomWindow extends Window {
 
 let audioCtx: AudioContext | null = null;
 
-function getCtx(): AudioContext {
-  if (!audioCtx) {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as CustomWindow).webkitAudioContext;
+function getCtx(): AudioContext | null {
+  if (audioCtx) return audioCtx;
+
+  if (typeof window === 'undefined') return null;
+
+  const AudioContextClass =
+    window.AudioContext ||
+    (window as unknown as CustomWindow).webkitAudioContext;
+  if (!AudioContextClass) return null;
+
+  try {
     audioCtx = new AudioContextClass();
+  } catch {
+    return null;
   }
   return audioCtx;
 }
 
 /** Resume the AudioContext after a user interaction (required by browsers). */
-function ensureResumed() {
+function ensureResumed(): AudioContext | null {
   const ctx = getCtx();
+  if (!ctx) return null;
   if (ctx.state === 'suspended') {
     void ctx.resume().catch(() => undefined);
   }
+  return ctx;
 }
 
 // ─── Individual sound effects ────────────────────────────────────────────────
 
 /** Short rising chime for correct answers. */
 export function playCorrectChime() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   const osc = ctx.createOscillator();
@@ -53,8 +63,8 @@ export function playCorrectChime() {
 
 /** Short descending buzz for incorrect answers. */
 export function playIncorrectBuzz() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   const osc = ctx.createOscillator();
@@ -71,8 +81,8 @@ export function playIncorrectBuzz() {
 
 /** Countdown tick — used for the last 5 seconds of a timed question. */
 export function playCountdownTick() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   const osc = ctx.createOscillator();
@@ -88,8 +98,8 @@ export function playCountdownTick() {
 
 /** Fanfare for podium/leaderboard reveal. */
 export function playPodiumFanfare() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
@@ -109,8 +119,8 @@ export function playPodiumFanfare() {
 
 /** Celebration jingle for quiz completion. */
 export function playQuizCompleteCelebration() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   // Ascending arpeggio + final chord
@@ -131,8 +141,8 @@ export function playQuizCompleteCelebration() {
 
 /** Streak fire sound — quick ascending sweep. */
 export function playStreakSound() {
-  ensureResumed();
-  const ctx = getCtx();
+  const ctx = ensureResumed();
+  if (!ctx) return;
   const now = ctx.currentTime;
 
   const osc = ctx.createOscillator();
