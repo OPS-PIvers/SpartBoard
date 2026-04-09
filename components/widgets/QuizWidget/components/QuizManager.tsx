@@ -881,10 +881,22 @@ const ToggleRow: React.FC<{
 }> = ({ label, checked, onChange, hint, disabled }) => (
   <div className={disabled ? 'opacity-40 pointer-events-none' : ''}>
     <div className="flex items-center justify-between">
-      <span className="text-sm font-bold text-brand-blue-dark">{label}</span>
+      <span
+        className="font-bold text-brand-blue-dark"
+        style={{ fontSize: 'min(14px, 4cqmin)' }}
+      >
+        {label}
+      </span>
       <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
     </div>
-    {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
+    {hint && (
+      <p
+        className="text-slate-500 mt-0.5"
+        style={{ fontSize: 'min(10px, 3cqmin)' }}
+      >
+        {hint}
+      </p>
+    )}
   </div>
 );
 
