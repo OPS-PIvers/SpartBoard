@@ -869,7 +869,7 @@ export const generateWithAI = functionsV1
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new functionsV1.https.HttpsError(
         'internal',
-        `AI generation failed (model: ${model}): ${detail}`
+        `AI generation failed: ${detail}`
       );
     }
   });
