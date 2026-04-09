@@ -103,7 +103,7 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
                   <p
                     className={`font-bold text-center truncate ${fontClass}`}
                     style={{
-                      fontSize: `min(${18 * sizeMultiplier}px, ${6 * sizeMultiplier}cqmin)`,
+                      fontSize: `min(${24 * sizeMultiplier}px, ${9 * sizeMultiplier}cqmin)`,
                       color: config.fontColor ?? '#1e293b',
                     }}
                   >
@@ -128,49 +128,47 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           {/* Selection bar (only when focused) */}
-          {isFocused && symbols.length > 0 && (
-            <div
-              className="w-full flex-shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
-              style={{
-                minHeight: 'max(56px, min(72px, 18cqmin))',
-                marginTop: 'min(6px, 1.5cqmin)',
-              }}
-            >
-              {symbols.map((symbol) => {
-                const isSelected = selectedSymbolId === symbol.id;
-                return (
-                  <button
-                    key={symbol.id}
-                    onClick={() =>
-                      updateConfig({
-                        selectedSymbolId: isSelected ? null : symbol.id,
-                      })
-                    }
-                    className={`flex-shrink-0 rounded-xl border-2 overflow-hidden transition-all relative ${
-                      isSelected
-                        ? 'border-brand-blue-primary shadow-sm'
-                        : 'border-transparent bg-white/40 hover:border-slate-300'
-                    }`}
-                    style={{
-                      width: 'max(48px, min(64px, 16cqmin))',
-                      height: 'max(48px, min(64px, 16cqmin))',
-                    }}
-                  >
-                    <img
-                      src={symbol.imageUrl}
-                      alt={symbol.title}
-                      className="w-full h-full object-contain p-1"
-                      loading="lazy"
-                      draggable={false}
-                    />
-                    {isSelected && (
-                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-brand-blue-primary rounded-full border border-white shadow-sm" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {isFocused &&
+            symbols.length > 0 &&
+            (() => {
+              const unselected = symbols.filter(
+                (s) => s.id !== selectedSymbolId
+              );
+              if (unselected.length === 0) return null;
+              return (
+                <div
+                  className="w-full flex-shrink-0 flex justify-center"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    marginTop: 'min(6px, 1.5cqmin)',
+                    padding: '0 min(4px, 1cqmin)',
+                  }}
+                >
+                  {unselected.map((symbol) => (
+                    <button
+                      key={symbol.id}
+                      onClick={() =>
+                        updateConfig({ selectedSymbolId: symbol.id })
+                      }
+                      className="rounded-xl border-2 border-transparent bg-white/40 hover:border-slate-300 overflow-hidden transition-all aspect-square"
+                      style={{
+                        flex: '1 1 0',
+                        maxWidth: 'min(80px, 20cqmin)',
+                        minWidth: 'min(40px, 10cqmin)',
+                      }}
+                    >
+                      <img
+                        src={symbol.imageUrl}
+                        alt={symbol.title}
+                        className="w-full h-full object-contain p-1"
+                        loading="lazy"
+                        draggable={false}
+                      />
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
         </div>
       }
     />

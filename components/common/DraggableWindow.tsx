@@ -73,6 +73,8 @@ const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE
 // const MIN_GESTURE_SWIPE_DISTANCE = 100;
 const DRAG_CLICK_THRESHOLD_PX = 25;
 const INVISIBLE_EDGE_PAD = 20; // px of invisible grab zone extending outside widget bounds
+const INNER_EDGE_PAD = 16; // px of invisible drag zone inside widget bounds
+const INNER_EDGE_CORNER_INSET = 24; // px inset at corners to avoid resize handle overlap
 
 interface DraggableWindowProps {
   widget: WidgetData;
@@ -1288,6 +1290,78 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             />
           )}
           {children}
+
+          {/* Inner edge drag zones — invisible grab strips along the inside perimeter
+              so users can drag full-interactive widgets (embed, text, etc.) from within
+              the visible widget boundary instead of only from outside it. */}
+          {!isMaximized && !isAnnotating && !isPinned && !isLocked && (
+            <>
+              {/* Top */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: INNER_EDGE_CORNER_INSET,
+                  right: INNER_EDGE_CORNER_INSET,
+                  height: INNER_EDGE_PAD,
+                  zIndex: Z_INDEX.widgetResize,
+                  touchAction: 'none',
+                  cursor: 'grab',
+                  pointerEvents: 'auto',
+                }}
+                onPointerDown={handleDragStart}
+              />
+              {/* Bottom */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: INNER_EDGE_CORNER_INSET,
+                  right: INNER_EDGE_CORNER_INSET,
+                  height: INNER_EDGE_PAD,
+                  zIndex: Z_INDEX.widgetResize,
+                  touchAction: 'none',
+                  cursor: 'grab',
+                  pointerEvents: 'auto',
+                }}
+                onPointerDown={handleDragStart}
+              />
+              {/* Left */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: INNER_EDGE_CORNER_INSET,
+                  bottom: INNER_EDGE_CORNER_INSET,
+                  width: INNER_EDGE_PAD,
+                  zIndex: Z_INDEX.widgetResize,
+                  touchAction: 'none',
+                  cursor: 'grab',
+                  pointerEvents: 'auto',
+                }}
+                onPointerDown={handleDragStart}
+              />
+              {/* Right */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: INNER_EDGE_CORNER_INSET,
+                  bottom: INNER_EDGE_CORNER_INSET,
+                  width: INNER_EDGE_PAD,
+                  zIndex: Z_INDEX.widgetResize,
+                  touchAction: 'none',
+                  cursor: 'grab',
+                  pointerEvents: 'auto',
+                }}
+                onPointerDown={handleDragStart}
+              />
+            </>
+          )}
 
           {isAnnotating && (
             <>
