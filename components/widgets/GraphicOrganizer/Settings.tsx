@@ -9,7 +9,6 @@ import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 
 export const GraphicOrganizerSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -42,7 +41,6 @@ export const GraphicOrganizerSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="p-4 space-y-4 text-slate-800">
-      <WidgetBuildingSelector widget={widget} />
       <div className="space-y-2">
         <label className="block text-sm font-medium">Template Type</label>
         <select

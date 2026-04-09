@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
+import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { WidgetData, GlobalStyle } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { UniversalStyleSettings } from '@/components/common/UniversalStyleSettings';
@@ -169,16 +170,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               {widget.customTitle ?? title}
             </span>
           </div>
-          <IconButton
-            onClick={onClose}
-            icon={<X className="w-4 h-4" />}
-            label="Close settings"
-            title="Close settings (Esc)"
-            variant="ghost"
-            size="sm"
-            shape="square"
-            className="shrink-0"
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            <WidgetBuildingToggle widget={widget} updateWidget={updateWidget} />
+            <IconButton
+              onClick={onClose}
+              icon={<X className="w-4 h-4" />}
+              label="Close settings"
+              title="Close settings (Esc)"
+              variant="ghost"
+              size="sm"
+              shape="square"
+              className="shrink-0"
+            />
+          </div>
         </div>
 
         {/* Tab bar */}

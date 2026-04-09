@@ -861,6 +861,8 @@ export interface ScheduleConfig {
   cardColor?: string;
   /** Card background opacity, 0 (fully transparent) to 1 (fully opaque). Default: 1. */
   cardOpacity?: number;
+  /** Persisted schedule tab selection in the settings panel. Not used by the front-face display. */
+  settingsSelectedScheduleId?: string | null;
 }
 
 export interface CalendarConfig {

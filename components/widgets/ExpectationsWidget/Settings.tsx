@@ -1,7 +1,6 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, ExpectationsConfig } from '@/types';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 
 export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -11,7 +10,6 @@ export const ExpectationsSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-6">
-      <WidgetBuildingSelector widget={widget} />
       <div>
         <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
           Nexus Connections

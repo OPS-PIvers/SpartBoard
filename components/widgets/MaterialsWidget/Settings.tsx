@@ -7,7 +7,6 @@ import { Type, Palette, Edit3 } from 'lucide-react';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 
 export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -93,7 +92,6 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="flex flex-col gap-6 p-1">
-      <WidgetBuildingSelector widget={widget} />
       {/* Title Settings */}
       <div className="space-y-4">
         <div>

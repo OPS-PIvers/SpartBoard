@@ -23,7 +23,6 @@ import { Button } from '@/components/common/Button';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 
 const RECURRING_DEFAULTS = [
   { task: '🍴 Lunch', startTime: '11:00', endTime: '11:30' },
@@ -217,7 +216,6 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-4">
-      <WidgetBuildingSelector widget={widget} />
       {/* Tabs */}
       <div className="flex border-b border-slate-200">
         <button

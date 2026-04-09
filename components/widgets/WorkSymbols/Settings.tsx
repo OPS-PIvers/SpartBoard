@@ -2,20 +2,11 @@ import React from 'react';
 import { AlignVerticalSpaceAround } from 'lucide-react';
 import { WidgetData, WorkSymbolsConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 
-export const WorkSymbolsSettings: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
-  return (
-    <div className="space-y-6">
-      <WidgetBuildingSelector widget={widget} />
-    </div>
-  );
-};
+export const WorkSymbolsSettings: React.FC<{ widget: WidgetData }> = () => null;
 
 export const WorkSymbolsAppearanceSettings: React.FC<{
   widget: WidgetData;

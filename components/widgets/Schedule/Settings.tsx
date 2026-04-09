@@ -43,7 +43,6 @@ import { Toggle } from '@/components/common/Toggle';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
-import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
 
@@ -115,7 +114,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   // selectedScheduleId: null means "auto-select today's active schedule"
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
-    null
+    config.settingsSelectedScheduleId ?? null
   );
   const [showBuildingSchedules, setShowBuildingSchedules] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -146,6 +145,19 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
     })
   );
 
+  // ── Schedule tab selection ──────────────────────────────────────────────────
+
+  const handleScheduleSelect = (id: string) => {
+    if (id === selectedScheduleId) return;
+    setSelectedScheduleId(id);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        settingsSelectedScheduleId: id,
+      } as ScheduleConfig,
+    });
+  };
+
   // ── Schedule CRUD ──────────────────────────────────────────────────────────
 
   const handleAddSchedule = () => {
@@ -171,6 +183,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           ...config,
           items: [],
           schedules: [migratedSchedule, newSchedule],
+          settingsSelectedScheduleId: newSchedule.id,
         } as ScheduleConfig,
       });
     } else {
@@ -178,6 +191,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         config: {
           ...config,
           schedules: [...(config.schedules ?? []), newSchedule],
+          settingsSelectedScheduleId: newSchedule.id,
         } as ScheduleConfig,
       });
     }
@@ -200,6 +214,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           ...config,
           items: [],
           schedules: [newSchedule],
+          settingsSelectedScheduleId: newSchedule.id,
         } as ScheduleConfig,
       });
       setSelectedScheduleId(newSchedule.id);
@@ -231,16 +246,25 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
         id === 'default' && (config.schedules?.length ?? 0) === 0;
       if (isLegacy) {
         updateWidget(widget.id, {
-          config: { ...config, items: [] } as ScheduleConfig,
+          config: {
+            ...config,
+            items: [],
+            settingsSelectedScheduleId: null,
+          } as ScheduleConfig,
         });
       } else {
         const newSchedules = schedules
           .filter((s) => s.id !== 'default')
           .filter((s) => s.id !== id);
         updateWidget(widget.id, {
-          config: { ...config, schedules: newSchedules } as ScheduleConfig,
+          config: {
+            ...config,
+            schedules: newSchedules,
+            settingsSelectedScheduleId: null,
+          } as ScheduleConfig,
         });
       }
+      setSelectedScheduleId(null);
     }
   };
 
@@ -395,7 +419,6 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-4">
-      <WidgetBuildingSelector widget={widget} />
       {/* ── Schedule picker ─────────────────────────────────────── */}
       {schedules.length === 0 ? (
         <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
@@ -416,7 +439,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setSelectedScheduleId(s.id)}
+                  onClick={() => handleScheduleSelect(s.id)}
                   className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     effectiveSelectedId === s.id
                       ? 'bg-brand-blue-primary text-white'
@@ -635,6 +658,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                       config: {
                         ...config,
                         schedules: [...(config.schedules ?? []), newSchedule],
+                        settingsSelectedScheduleId: newSchedule.id,
                       } as ScheduleConfig,
                     });
                     addToast(`Added "${s.name}" to My Schedules`, 'success');
