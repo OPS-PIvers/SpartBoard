@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Wand2, Upload, Loader2, X } from 'lucide-react';
 import { GuidedLearningSet } from '@/types';
-import { generateGuidedLearning } from '@/utils/ai';
+import { generateGuidedLearning, buildPromptWithFileContext } from '@/utils/ai';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
+import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
 interface Props {
   onClose: () => void;
@@ -14,7 +15,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   onClose,
   onGenerated,
 }) => {
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { uploading, uploadHotspotImage } = useStorage();
   const [imageUrl, setImageUrl] = useState('');
   const [imageBase64, setImageBase64] = useState('');
@@ -22,6 +23,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [fileContext, setFileContext] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,10 +59,12 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     setGenerating(true);
     setError('');
     try {
+      const fullPrompt =
+        buildPromptWithFileContext(prompt, fileContext, fileName) || undefined;
       const result = await generateGuidedLearning(
         imageBase64,
         imageMimeType,
-        prompt || undefined
+        fullPrompt
       );
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
@@ -153,6 +158,17 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm resize-none"
           />
         </div>
+
+        {/* Drive file attachment */}
+        {canAccessFeature('ai-file-context') && (
+          <DriveFileAttachment
+            onFileContent={(content, name) => {
+              setFileContext(content);
+              setFileName(name);
+            }}
+            disabled={generating}
+          />
+        )}
 
         {error && (
           <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">

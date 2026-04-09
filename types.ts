@@ -2501,7 +2501,8 @@ export type GlobalFeature =
   | 'screen-recording'
   | 'remote-control'
   | 'embed-mini-app'
-  | 'video-activity-audio-transcription';
+  | 'video-activity-audio-transcription'
+  | 'ai-file-context';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;

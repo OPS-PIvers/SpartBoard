@@ -474,3 +474,17 @@ export async function generateGuidedLearning(
     );
   }
 }
+
+/**
+ * Prepend file context to a user prompt for AI generation.
+ * Returns the original prompt unchanged when no file is attached.
+ */
+export function buildPromptWithFileContext(
+  prompt: string,
+  fileContext: string | null,
+  fileName: string | null
+): string {
+  if (!fileContext) return prompt;
+  const prefix = `Context from attached file (${fileName}):\n\n${fileContext}`;
+  return prompt ? `${prefix}\n\n${prompt}` : prefix;
+}

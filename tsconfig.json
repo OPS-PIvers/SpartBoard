@@ -6,7 +6,13 @@
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "types": ["node", "vite/client", "google.accounts"],
+    "types": [
+      "node",
+      "vite/client",
+      "google.accounts",
+      "google.picker",
+      "gapi"
+    ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",

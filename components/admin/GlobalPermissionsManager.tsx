@@ -28,6 +28,7 @@ import {
   List,
   Filter,
   ChevronDown,
+  FileUp,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -104,6 +105,13 @@ const GLOBAL_FEATURES: {
     description:
       'Allow generating quizzes from videos that do not have captions, using Gemini AI audio transcription.',
   },
+  {
+    id: 'ai-file-context',
+    label: 'AI File Context (Drive)',
+    icon: FileUp,
+    description:
+      'Allow attaching Google Drive files as context when generating with AI.',
+  },
 ];
 
 const GEMINI_FEATURES: GlobalFeature[] = [
@@ -111,6 +119,7 @@ const GEMINI_FEATURES: GlobalFeature[] = [
   'smart-poll',
   'embed-mini-app',
   'video-activity-audio-transcription',
+  'ai-file-context',
 ];
 
 const KNOWN_GEMINI_MODELS = [

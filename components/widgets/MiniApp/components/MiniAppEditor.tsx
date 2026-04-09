@@ -18,6 +18,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { Toggle } from '@/components/common/Toggle';
 import { useMiniAppGlobalConfig } from '../hooks/useMiniAppGlobalConfig';
+import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
 interface MiniAppEditorProps {
   widget: WidgetData;
@@ -34,6 +35,7 @@ interface MiniAppEditorProps {
   onGenerate: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onFileContent?: (content: string | null, name: string | null) => void;
 }
 
 export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
@@ -51,6 +53,7 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
   onGenerate,
   onSave,
   onCancel,
+  onFileContent,
 }) => {
   const { canAccessFeature } = useAuth();
   const { updateWidget, addToast, activeDashboard } = useDashboard();
@@ -261,6 +264,12 @@ export const MiniAppEditor: React.FC<MiniAppEditorProps> = ({
                   autoFocus
                   aria-label="Describe your mini-app"
                 />
+                {canAccessFeature('ai-file-context') && onFileContent && (
+                  <DriveFileAttachment
+                    onFileContent={onFileContent}
+                    disabled={isGenerating}
+                  />
+                )}
                 <button
                   onClick={onGenerate}
                   disabled={isGenerating || !prompt.trim()}

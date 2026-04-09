@@ -14,8 +14,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { MagicInput } from '@/components/common/MagicInput';
-import { generatePoll, GeneratedPoll } from '@/utils/ai';
+import {
+  generatePoll,
+  GeneratedPoll,
+  buildPromptWithFileContext,
+} from '@/utils/ai';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
 import { OptionInput } from './components/OptionInput';
 
@@ -31,6 +36,10 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () => rosters.find((r) => r.id === activeRosterId),
     [rosters, activeRosterId]
   );
+
+  // AI file context state
+  const [fileContext, setFileContext] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   // Question local state
   // Using key={question} on input allows removing the useEffect sync
@@ -170,8 +179,21 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {canAccessFeature('smart-poll') && (
         <div>
           <SettingsLabel>Magic Generator</SettingsLabel>
+          {canAccessFeature('ai-file-context') && (
+            <DriveFileAttachment
+              onFileContent={(content, name) => {
+                setFileContext(content);
+                setFileName(name);
+              }}
+              className="mb-2"
+            />
+          )}
           <MagicInput<GeneratedPoll>
-            onGenerate={generatePoll}
+            onGenerate={(topic) => {
+              return generatePoll(
+                buildPromptWithFileContext(topic, fileContext, fileName)
+              );
+            }}
             onSuccess={(result) => {
               const newOptions = result.options.map((opt) => ({
                 id: crypto.randomUUID(),

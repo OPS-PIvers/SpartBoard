@@ -97,31 +97,64 @@ export const useLiveSession = (
 ): UseLiveSessionResult => {
   const [session, setSession] = useState<LiveSession | null>(null);
   const [students, setStudents] = useState<LiveStudent[]>([]);
-  const [loading, setLoading] = useState(
-    role === 'teacher' || (role === 'student' && !!joinCode)
-  );
+  const [loading, setLoading] = useState(() => {
+    if (role === 'student' && !joinCode) return false;
+    return role === 'teacher' || (role === 'student' && !!joinCode);
+  });
   const [studentId, setStudentId] = useState<string | null>(null);
   const [studentPin, setStudentPin] = useState<string | null>(null);
   const [individualFrozen, setIndividualFrozen] = useState(false);
+
+  // ⚡ REACT BEST PRACTICE: Adjusting state during rendering
+  // We track prop/state changes that require resetting other state to prevent extra re-renders
+  // and avoid the react-hooks/set-state-in-effect anti-pattern.
+  const [prevDeps, setPrevDeps] = useState({
+    role,
+    userId,
+    joinCode,
+    isActive: session?.isActive,
+  });
+
+  if (
+    role !== prevDeps.role ||
+    userId !== prevDeps.userId ||
+    joinCode !== prevDeps.joinCode ||
+    session?.isActive !== prevDeps.isActive
+  ) {
+    // 1. Update the tracking state
+    setPrevDeps({
+      role,
+      userId,
+      joinCode,
+      isActive: session?.isActive,
+    });
+
+    // 2. Synchronously adjust derived states
+    const targetId = role === 'teacher' ? userId : joinCode;
+    if (!targetId) {
+      setSession(null);
+      setLoading(false);
+    }
+
+    if (role !== 'teacher' || !userId || !session?.isActive) {
+      setStudents([]);
+    }
+  }
 
   // SESSION SUBSCRIPTION: Subscribe to session document (Teachers use userId, Students use joinCode)
   useEffect(() => {
     const targetId = role === 'teacher' ? userId : joinCode;
     if (!targetId) {
-      if (role === 'student' && !joinCode) {
-        setTimeout(() => {
-          setSession(null);
-          setLoading(false);
-        }, 0);
-      }
       return;
     }
 
+    let isCurrent = true;
     const sessionRef = doc(db, SESSIONS_COLLECTION, targetId);
 
     const unsubscribeSession = onSnapshot(
       sessionRef,
       (docSnap) => {
+        if (!isCurrent) return;
         if (docSnap.exists()) {
           setSession(docSnap.data() as LiveSession);
         } else {
@@ -130,12 +163,14 @@ export const useLiveSession = (
         setLoading(false);
       },
       (err) => {
+        if (!isCurrent) return;
         console.error('Session subscription error:', err);
         setLoading(false);
       }
     );
 
     return () => {
+      isCurrent = false;
       unsubscribeSession();
     };
   }, [userId, joinCode, role]);
@@ -143,10 +178,10 @@ export const useLiveSession = (
   // TEACHER: Subscribe to students (only when live)
   useEffect(() => {
     if (role !== 'teacher' || !userId || !session?.isActive) {
-      setTimeout(() => setStudents([]), 0);
       return;
     }
 
+    let isCurrent = true;
     const studentsRef = collection(
       db,
       SESSIONS_COLLECTION,
@@ -154,6 +189,7 @@ export const useLiveSession = (
       STUDENTS_COLLECTION
     );
     const unsubscribeStudents = onSnapshot(studentsRef, (snapshot) => {
+      if (!isCurrent) return;
       const studentList = snapshot.docs.map((doc) => ({
         ...doc.data(),
         id: doc.id,
@@ -185,6 +221,7 @@ export const useLiveSession = (
     });
 
     return () => {
+      isCurrent = false;
       unsubscribeStudents();
     };
   }, [userId, role, session?.isActive]);
@@ -192,13 +229,10 @@ export const useLiveSession = (
   // STUDENT: Subscribe to My Student Status (Am I individually frozen?)
   useEffect(() => {
     if (role !== 'student' || !joinCode || !studentId) {
-      setTimeout(() => {
-        setIndividualFrozen(false);
-        setStudentPin(null);
-      }, 0);
       return;
     }
 
+    let isCurrent = true;
     const myStudentRef = doc(
       db,
       SESSIONS_COLLECTION,
@@ -207,6 +241,7 @@ export const useLiveSession = (
       studentId
     );
     const unsubscribeStudent = onSnapshot(myStudentRef, (docSnap) => {
+      if (!isCurrent) return;
       if (docSnap.exists()) {
         const studentData = docSnap.data() as LiveStudent;
         setIndividualFrozen(studentData.status === 'frozen');
@@ -215,6 +250,7 @@ export const useLiveSession = (
     });
 
     return () => {
+      isCurrent = false;
       unsubscribeStudent();
     };
   }, [joinCode, role, studentId]);
@@ -289,6 +325,7 @@ export const useLiveSession = (
     await setDoc(doc(studentsRef, uid), newStudent);
     setStudentId(uid);
     setStudentPin(sanitizedPin);
+    setIndividualFrozen(false);
     return teacherId;
   };
 
@@ -305,6 +342,7 @@ export const useLiveSession = (
       await updateDoc(studentRef, { status: 'disconnected' });
       setStudentId(null);
       setStudentPin(null);
+      setIndividualFrozen(false);
       setSession(null);
     } catch (err) {
       console.error('Failed to leave session:', err);
