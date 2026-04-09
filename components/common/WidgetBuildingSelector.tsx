@@ -52,9 +52,10 @@ export const WidgetBuildingSelector: React.FC<WidgetBuildingSelectorProps> = ({
               type="button"
               role="radio"
               aria-checked={isActive}
-              onClick={() =>
-                updateWidget(widget.id, { buildingId: building.id })
-              }
+              onClick={() => {
+                if (isActive) return;
+                updateWidget(widget.id, { buildingId: building.id });
+              }}
               className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${
                 isActive
                   ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
