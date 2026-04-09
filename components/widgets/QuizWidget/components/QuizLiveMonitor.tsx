@@ -43,7 +43,7 @@ import {
   ClassRoster,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
-import { buildPinToNameMap } from '../utils/quizScoreboard';
+import { buildPinToNameMap, getResponseScore } from '../utils/quizScoreboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   playPodiumFanfare,
@@ -185,15 +185,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     soundMuted,
   ]);
 
-  // Play celebration sound when quiz ends
+  // Play celebration sound once when quiz transitions to ended
+  const prevSessionStatusRef = useRef(session.status);
   useEffect(() => {
-    if (
-      session.status === 'ended' &&
-      session.soundEffectsEnabled &&
-      !soundMuted
-    ) {
+    const didJustEnd =
+      prevSessionStatusRef.current === 'active' && session.status === 'ended';
+    if (didJustEnd && session.soundEffectsEnabled && !soundMuted) {
       playQuizCompleteCelebration();
     }
+    prevSessionStatusRef.current = session.status;
   }, [session.status, session.soundEffectsEnabled, soundMuted]);
 
   const joinUrl = `${window.location.origin}/quiz?code=${session.code}`;
@@ -670,6 +670,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             <PodiumView
               responses={responses}
               questions={quizData.questions}
+              session={session}
               pinToName={pinToName}
               onDismiss={() => setShowPodium(false)}
             />
@@ -741,7 +742,13 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       className="flex items-center gap-1 text-brand-red-primary font-black animate-pulse"
                       style={{ fontSize: 'min(10px, 3cqmin)' }}
                     >
-                      <Zap className="w-3 h-3 fill-current" />
+                      <Zap
+                        className="fill-current"
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
                       {autoCountdown}s
                     </div>
                   )}
@@ -1232,7 +1239,12 @@ const StudentRow: React.FC<{
             style={{ fontSize: 'min(9px, 2.5cqmin)' }}
             title={`${warnings} Tab Switch Warning(s)`}
           >
-            <AlertTriangle className="w-3 h-3" />
+            <AlertTriangle
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
             {warnings}
           </span>
         )}
@@ -1271,22 +1283,14 @@ const StudentRow: React.FC<{
 const PodiumView: React.FC<{
   responses: QuizResponse[];
   questions: QuizQuestion[];
+  session: QuizSession;
   pinToName: Record<string, string>;
   onDismiss: () => void;
-}> = ({ responses, questions, pinToName, onDismiss }) => {
-  // Calculate scores for all responses
+}> = ({ responses, questions, session, pinToName, onDismiss }) => {
+  // Use shared scoring utility for consistency with scoreboard
   const scored = responses
     .map((r) => {
-      let earned = 0;
-      let maxPts = 0;
-      for (const a of r.answers) {
-        const q = questions.find((qn) => qn.id === a.questionId);
-        if (!q) continue;
-        const pts = q.points ?? 1;
-        maxPts += pts;
-        if (gradeAnswer(q, a.answer)) earned += pts;
-      }
-      const score = maxPts > 0 ? Math.round((earned / maxPts) * 100) : 0;
+      const score = getResponseScore(r, questions, session);
       const name = pinToName[r.pin] ?? `PIN ${r.pin}`;
       return { name, score, pin: r.pin };
     })

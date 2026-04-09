@@ -437,7 +437,11 @@ export interface UseQuizSessionStudentResult {
   error: string | null;
   teacherUidRef: MutableRefObject<string | null>;
   joinQuizSession: (code: string, pin: string) => Promise<string>;
-  submitAnswer: (questionId: string, answer: string) => Promise<void>;
+  submitAnswer: (
+    questionId: string,
+    answer: string,
+    speedBonus?: number
+  ) => Promise<void>;
   completeQuiz: () => Promise<void>;
   /**
    * Increments the tab switch warning count for the student in Firestore.
@@ -593,7 +597,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   );
 
   const submitAnswer = useCallback(
-    async (questionId: string, answer: string) => {
+    async (questionId: string, answer: string, speedBonus?: number) => {
       const teacherUid = teacherUidRef.current;
       const studentUid = studentUidRef.current;
       if (!teacherUid || !studentUid) return;
@@ -605,6 +609,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         questionId,
         answer,
         answeredAt: Date.now(),
+        ...(speedBonus != null && speedBonus > 0 ? { speedBonus } : {}),
       };
 
       const existingAnswers = myResponseRef.current?.answers ?? [];

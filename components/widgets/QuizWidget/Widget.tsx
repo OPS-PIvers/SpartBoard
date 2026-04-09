@@ -151,6 +151,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   useEffect(() => {
     if (!config.liveScoreboardEnabled || !loadedQuizData || !liveSession) {
+      // Reset fingerprint when disabled so re-enabling triggers an immediate sync
+      prevResponsesJsonRef.current = '';
       return;
     }
 
@@ -224,7 +226,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 ],
             }));
         } else {
-          // Completion mode: include ALL responses — show 0% for non-completed
+          // Completion mode: uses total quiz points as denominator, so
+          // in-progress students show partial scores proportional to
+          // what they've answered out of the entire quiz.
           newTeams = buildScoreboardTeams(
             allResponses,
             loadedQuizData.questions,

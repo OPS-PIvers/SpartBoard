@@ -109,8 +109,8 @@ const QuizJoinFlow: React.FC = () => {
   );
 
   const handleAnswer = useCallback(
-    async (questionId: string, answer: string) => {
-      await submitAnswer(questionId, answer);
+    async (questionId: string, answer: string, speedBonus?: number) => {
+      await submitAnswer(questionId, answer, speedBonus);
     },
     [submitAnswer]
   );
@@ -269,7 +269,7 @@ const ActiveQuiz: React.FC<{
   currentQuestion: QuizPublicQuestion | undefined;
   alreadyAnswered: boolean;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
-  onAnswer: (qId: string, answer: string) => Promise<void>;
+  onAnswer: (qId: string, answer: string, speedBonus?: number) => Promise<void>;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   warningCount: number;
@@ -532,7 +532,16 @@ const ActiveQuiz: React.FC<{
     setSubmitting(true);
     setSubmitted(true);
     setSelectedAnswer(answer);
-    await onAnswer(currentQuestion.id, answer);
+
+    // Compute speed bonus before submit so it's persisted with the answer
+    let computedSpeedBonus: number | undefined;
+    if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+      const remaining = Math.max(0, timeLeft ?? 0);
+      const bonusPct = Math.round((remaining / currentQuestion.timeLimit) * 50);
+      if (bonusPct > 0) computedSpeedBonus = bonusPct;
+    }
+
+    await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
     setSubmitting(false);
 
     // ─── Answer feedback & gamification ──────────────────────────────────────
@@ -576,14 +585,9 @@ const ActiveQuiz: React.FC<{
       }
     }
 
-    // Speed bonus calculation (visual only — actual scoring in quizScoreboard)
-    // Use timeLeft (from countdown state) to avoid calling Date.now() in render scope
-    if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
-      const remaining = Math.max(0, timeLeft ?? 0);
-      const bonusPct = Math.round((remaining / currentQuestion.timeLimit) * 50);
-      if (bonusPct > 0) {
-        setSpeedBonusEarned(bonusPct);
-      }
+    // Display the speed bonus that was persisted with the answer
+    if (computedSpeedBonus != null && computedSpeedBonus > 0) {
+      setSpeedBonusEarned(computedSpeedBonus);
     }
 
     // Auto-complete if on last question

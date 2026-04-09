@@ -5,10 +5,20 @@
  * Follows the global AudioContext singleton pattern from SoundboardWidget.
  */
 
+// Safari fallback
+interface CustomWindow extends Window {
+  webkitAudioContext: typeof AudioContext;
+}
+
 let audioCtx: AudioContext | null = null;
 
 function getCtx(): AudioContext {
-  audioCtx ??= new AudioContext();
+  if (!audioCtx) {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as CustomWindow).webkitAudioContext;
+    audioCtx = new AudioContextClass();
+  }
   return audioCtx;
 }
 
@@ -16,7 +26,9 @@ function getCtx(): AudioContext {
 function ensureResumed() {
   const ctx = getCtx();
   if (ctx.state === 'suspended') {
-    void ctx.resume();
+    // Silently swallow rejection (e.g. no user gesture yet)
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    void ctx.resume().catch(() => {});
   }
 }
 
