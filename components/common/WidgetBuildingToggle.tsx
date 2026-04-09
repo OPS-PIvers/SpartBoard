@@ -29,13 +29,14 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
   if (userBuildings.length < 2) return null;
 
   const effectiveBuildingId =
-    widget.buildingId && selectedBuildings.includes(widget.buildingId)
+    widget.buildingId && userBuildings.some((b) => b.id === widget.buildingId)
       ? widget.buildingId
-      : selectedBuildings[0];
+      : userBuildings[0]?.id;
 
   return (
     <div
       className="flex items-center bg-slate-200/80 rounded-lg p-0.5 shrink-0"
+      role="radiogroup"
       aria-label="Building"
     >
       {userBuildings.map((building) => {
@@ -44,8 +45,10 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
           <button
             key={building.id}
             type="button"
-            aria-pressed={isActive}
-            aria-label={building.name}
+            role="radio"
+            aria-checked={isActive}
+            aria-label={`${building.gradeLabel} – ${building.name}`}
+            title={building.name}
             onClick={() => {
               if (isActive) return;
               updateWidget(widget.id, { buildingId: building.id });

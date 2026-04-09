@@ -148,6 +148,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
   // ── Schedule tab selection ──────────────────────────────────────────────────
 
   const handleScheduleSelect = (id: string) => {
+    if (id === selectedScheduleId) return;
     setSelectedScheduleId(id);
     updateWidget(widget.id, {
       config: {
