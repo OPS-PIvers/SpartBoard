@@ -37,7 +37,7 @@ export function getEarnedPoints(
 
   // Sort answers by answeredAt to compute streaks in chronological order
   const sortedAnswers = [...r.answers].sort(
-    (a, b) => a.answeredAt - b.answeredAt
+    (a, b) => (a.answeredAt ?? 0) - (b.answeredAt ?? 0)
   );
 
   let totalPoints = 0;
