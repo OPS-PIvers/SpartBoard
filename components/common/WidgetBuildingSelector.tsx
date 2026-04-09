@@ -2,6 +2,7 @@ import React from 'react';
 import { Building2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { BUILDINGS } from '@/config/buildings';
 import { WidgetData } from '@/types';
 
@@ -19,6 +20,7 @@ export const WidgetBuildingSelector: React.FC<WidgetBuildingSelectorProps> = ({
 }) => {
   const { selectedBuildings = [] } = useAuth();
   const { updateWidget } = useDashboard();
+  const effectiveBuildingId = useWidgetBuildingId(widget);
 
   // Only show when user works across multiple buildings
   if (selectedBuildings.length < 2) return null;
@@ -27,13 +29,6 @@ export const WidgetBuildingSelector: React.FC<WidgetBuildingSelectorProps> = ({
   const userBuildings = BUILDINGS.filter((b) =>
     selectedBuildings.includes(b.id)
   );
-
-  // Constrain to the user's current selection — if the widget's saved
-  // buildingId is no longer among their selected buildings, fall back.
-  const effectiveBuildingId =
-    widget.buildingId && selectedBuildings.includes(widget.buildingId)
-      ? widget.buildingId
-      : selectedBuildings[0];
 
   return (
     <div className="mb-3">

@@ -23,6 +23,7 @@ import { generateMiniAppCode } from '@/utils/ai';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 
 import { applyAutoplay } from './applyAutoplay';
 
@@ -31,7 +32,8 @@ const NEW_WIDGET_SPACING = 20;
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, addToast, updateWidget } = useDashboard();
   const { canAccessFeature } = useAuth();
-  const { config: globalConfig } = useEmbedConfig(widget.buildingId);
+  const buildingId = useWidgetBuildingId(widget);
+  const { config: globalConfig } = useEmbedConfig(buildingId);
   const { getDriveFileTextContent } = useGoogleDrive();
   const [isGeneratingApp, setIsGeneratingApp] = useState(false);
   const config = widget.config as EmbedConfig;

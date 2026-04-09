@@ -10,7 +10,11 @@ export const useEmbedConfig = (widgetBuildingId?: string) => {
   const [config, setConfig] = useState<BuildingEmbedDefaults | null>(null);
 
   useEffect(() => {
-    const buildingId = widgetBuildingId ?? selectedBuildings?.[0];
+    const validatedBuildingId =
+      widgetBuildingId && selectedBuildings?.includes(widgetBuildingId)
+        ? widgetBuildingId
+        : undefined;
+    const buildingId = validatedBuildingId ?? selectedBuildings?.[0];
 
     const unsubscribe = subscribeToPermission('embed', (perm) => {
       // When no building is selected, use neutral defaults (no restrictions)

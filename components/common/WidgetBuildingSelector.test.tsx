@@ -5,8 +5,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData } from '@/types';
 
-vi.mock('../../context/useAuth');
-vi.mock('../../context/useDashboard');
+vi.mock('@/context/useAuth');
+vi.mock('@/context/useDashboard');
 
 vi.mock('lucide-react', () => ({
   Building2: () => <span data-testid="building-icon" />,

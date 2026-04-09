@@ -16,6 +16,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { ensureProtocol } from '@/utils/urlHelpers';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { WidgetBuildingSelector } from '@/components/common/WidgetBuildingSelector';
 
 interface CompatibilityResult {
@@ -27,6 +28,7 @@ interface CompatibilityResult {
 
 export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
+  const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as EmbedConfig;
   const {
     mode = 'url',
@@ -41,7 +43,7 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     'idle' | 'success' | 'blocked' | 'error'
   >('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const { config: globalConfig, isLoading } = useEmbedConfig(widget.buildingId);
+  const { config: globalConfig, isLoading } = useEmbedConfig(buildingId);
 
   const isActuallyEmbeddable = React.useMemo(() => {
     if (isEmbeddable) return true;

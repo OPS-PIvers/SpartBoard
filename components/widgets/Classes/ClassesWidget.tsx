@@ -18,9 +18,9 @@ interface Props {
   widget: WidgetData;
 }
 
-const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
+const ClassesWidget: React.FC<Props> = ({ widget }) => {
   const { featurePermissions } = useAuth();
-  const buildingId = useWidgetBuildingId(_widget);
+  const buildingId = useWidgetBuildingId(widget);
   const {
     rosters,
     addRoster,
@@ -96,7 +96,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
   };
 
   const editingRoster = rosters.find((r) => r.id === editingId) ?? null;
-  const config = _widget.config as ClassesConfig;
+  const config = widget.config as ClassesConfig;
 
   // Calculate effective classLinkEnabled flag
   const effectiveClassLinkEnabled = (() => {
