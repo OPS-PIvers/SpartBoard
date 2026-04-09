@@ -277,11 +277,11 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(unpinButton.className).toContain('text-amber-600');
     });
 
-    it('hides pin button when widget is admin-locked', () => {
+    it('disables pin button when widget is admin-locked', () => {
       renderWithToolbar({ isLocked: true });
 
-      const pinButton = screen.queryByLabelText(/pin position/i);
-      expect(pinButton).not.toBeInTheDocument();
+      const pinButton = screen.getByLabelText(/pin position/i);
+      expect(pinButton).toBeDisabled();
     });
 
     it('hides resize handles when pinned', () => {

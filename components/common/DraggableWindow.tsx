@@ -1612,27 +1612,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               <div className="h-4 w-px bg-slate-300/50 mx-1" />
 
               <div className="flex items-center gap-1">
-                {!isLocked && (
-                  <IconButton
-                    onClick={() => {
-                      const nextPinned = !isPinned;
-                      if (nextPinned) setShowSnapMenu(false);
-                      updateWidget(widget.id, { isPinned: nextPinned });
-                    }}
-                    icon={<Pin className="w-3.5 h-3.5" />}
-                    label={
-                      isPinned
-                        ? `${t('widgetWindow.unpin')} (Alt+P)`
-                        : `${t('widgetWindow.pin')} (Alt+P)`
-                    }
-                    size="sm"
-                    variant="glass"
-                    active={isPinned}
-                    className={
-                      isPinned ? '!bg-amber-500/20 !text-amber-600' : ''
-                    }
-                  />
-                )}
+                <IconButton
+                  onClick={() => {
+                    if (isLocked) return;
+                    const nextPinned = !isPinned;
+                    if (nextPinned) setShowSnapMenu(false);
+                    updateWidget(widget.id, { isPinned: nextPinned });
+                  }}
+                  icon={<Pin className="w-3.5 h-3.5" />}
+                  label={
+                    isPinned
+                      ? `${t('widgetWindow.unpin')} (Alt+P)`
+                      : `${t('widgetWindow.pin')} (Alt+P)`
+                  }
+                  size="sm"
+                  variant="glass"
+                  active={isPinned}
+                  disabled={isLocked}
+                  className={isPinned ? '!bg-amber-500/20 !text-amber-600' : ''}
+                />
                 {headerActions && (
                   <div className="flex items-center text-slate-700">
                     {headerActions}
