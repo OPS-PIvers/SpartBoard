@@ -6,9 +6,7 @@ import { TypographySettings } from '@/components/common/TypographySettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 
-export const WorkSymbolsSettings: React.FC<{ widget: WidgetData }> = () => {
-  return <div className="space-y-6" />;
-};
+export const WorkSymbolsSettings: React.FC<{ widget: WidgetData }> = () => null;
 
 export const WorkSymbolsAppearanceSettings: React.FC<{
   widget: WidgetData;
