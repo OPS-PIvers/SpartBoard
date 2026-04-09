@@ -85,31 +85,58 @@ const getDashboardSaveState = (d: Dashboard) => ({
  * or large instance-specific data (would bloat the user profile document).
  */
 const TRANSIENT_CONFIG_KEYS = new Set<string>([
-  // Runtime state
+  // Timer/stopwatch runtime state
   'isRunning',
   'elapsedTime',
   'startTime',
+
+  // Live session identifiers (ephemeral, would reference dead sessions)
   'activeLiveSessionCode',
   'resultsSessionId',
-  'activeActivityId',
-  'draftActivity',
-  'view',
-  'activeApp',
-  'activeAppUnsaved',
   'liveScoreboardWidgetId',
   'liveScoreboardEnabled',
-  'startedAt',
+  'activeActivityId',
+  'playerSetId',
+
+  // Navigation view state (should reset to landing page)
+  'view',
   'selectedQuizId',
   'selectedQuizTitle',
   'selectedActivityId',
   'selectedActivityTitle',
-  'playerSetId',
+
+  // Remote/capture ephemeral data
+  'remoteCaptureDataUrl',
+  'remoteCaptureTimestamp',
+
+  // Cross-widget instance references (widget IDs don't survive across sessions)
+  'liveQuizWidgetId',
+  'linkedWeatherWidgetId',
+  'externalTrigger',
+
+  // Instance-specific runtime data
+  'isActive',
+  'startedAt',
+  'createdAt',
+  'lastUpdated',
+  'activeDriveFileId',
+  'sessionName',
+  'activities',
+  'draftActivity',
+  'activeApp',
+  'activeAppUnsaved',
   'activeNotebookId',
-  // Large instance data
+  'lastResult',
+  'remainingStudents',
+
+  // Large instance data / per-session game state
   'paths',
   'furniture',
   'assignments',
-  'activities',
+  'completedNames',
+  'cards',
+  'memoryCards',
+  'hotspots',
 ]);
 
 function stripTransientKeys(
@@ -2570,9 +2597,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return w;
           });
 
-          // If the widget type is in our persistence list, and config was updated, save it globally
+          // Save non-transient config fields globally so new instances inherit them
           if (widgetType && updates.config) {
-            saveWidgetConfig(widgetType, stripTransientKeys(updates.config));
+            const persistable = stripTransientKeys(updates.config);
+            if (Object.keys(persistable).length > 0) {
+              saveWidgetConfig(widgetType, persistable);
+            }
           }
 
           return {
