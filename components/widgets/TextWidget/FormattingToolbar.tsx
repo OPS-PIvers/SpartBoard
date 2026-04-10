@@ -174,6 +174,16 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Sync font size state when configFontSize changes externally
+  // (e.g. preset changes, remote widget updates).
+  // Uses the "adjusting state while rendering" pattern with state (not ref).
+  const [prevConfigFontSize, setPrevConfigFontSize] = useState(configFontSize);
+  if (prevConfigFontSize !== configFontSize) {
+    setPrevConfigFontSize(configFontSize);
+    setCurrentFontSize(configFontSize);
+    setFontSizeInput(String(configFontSize));
+  }
+
   const closeAllMenus = useCallback(() => {
     setShowFontMenu(false);
     setShowColorMenu(false);

@@ -850,7 +850,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       // must take priority over them.
       if (el instanceof HTMLIFrameElement || el instanceof HTMLCanvasElement)
         continue;
-      if ((el as HTMLElement).isContentEditable) continue;
+      if (el instanceof HTMLElement && el.isContentEditable) continue;
       if (
         el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
         el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR)

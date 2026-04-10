@@ -191,9 +191,10 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 data-click-outside-ignore="true"
                 style={{
                   position: 'fixed',
-                  top: Math.max(0, toolbarPos.top - 40),
+                  top: toolbarPos.top,
                   left: toolbarPos.left,
                   width: toolbarPos.width,
+                  transform: 'translateY(calc(-100% - 8px))',
                   zIndex: 11000,
                   pointerEvents: 'auto',
                 }}
