@@ -841,9 +841,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
     for (const el of elementsAtPoint) {
       if (el === resizeEl) continue;
+      // Iframes and canvases (e.g. embed or drawing widgets) often fill the
+      // entire container — the resize handle must take priority over them.
+      if (el instanceof HTMLIFrameElement || el instanceof HTMLCanvasElement)
+        continue;
       if (
-        (el as HTMLElement).matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
-        (el as HTMLElement).closest?.(INTERACTIVE_ELEMENTS_SELECTOR)
+        el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
+        el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR)
       ) {
         // Temporarily remove pointer-events so the browser dispatches
         // the subsequent click to the interactive element beneath.
