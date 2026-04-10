@@ -335,11 +335,15 @@ export const DashboardView: React.FC = () => {
         Math.min(Math.round(y * scaleY), Math.max(0, currentH - newH))
       );
 
-      batch.push({
-        id: widgetId,
-        changes: { x: newX, y: newY, w: newW, h: newH },
-      });
+      if (newX !== x || newY !== y || newW !== w || newH !== h) {
+        batch.push({
+          id: widgetId,
+          changes: { x: newX, y: newY, w: newW, h: newH },
+        });
+      }
     });
+
+    if (!batch.length) return;
     updateWidgets(batch);
     addToast('Layout scaled to fit this screen', 'info');
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
