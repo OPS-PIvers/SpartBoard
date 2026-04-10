@@ -25,6 +25,8 @@ interface WorkSymbolsConfigurationModalProps {
   onSave: (updates: Partial<FeaturePermission>) => void;
 }
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
 const normalizeConfig = (raw: unknown): WorkSymbolsGlobalConfig => {
   const config = raw as WorkSymbolsGlobalConfig | undefined;
   return { symbols: config?.symbols ?? [] };
@@ -60,9 +62,20 @@ export const WorkSymbolsConfigurationModal: React.FC<
   // --- Upload ---
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
-      const fileArray = Array.from(files).filter((f) =>
+      const imageFiles = Array.from(files).filter((f) =>
         f.type.startsWith('image/')
       );
+      if (!imageFiles.length) return;
+
+      const oversized = imageFiles.filter((f) => f.size > MAX_FILE_SIZE);
+      const fileArray = imageFiles.filter((f) => f.size <= MAX_FILE_SIZE);
+
+      if (oversized.length > 0) {
+        setToastMessage(
+          `${oversized.length} file${oversized.length > 1 ? 's' : ''} exceeded 5MB limit and ${oversized.length > 1 ? 'were' : 'was'} skipped`
+        );
+      }
+
       if (!fileArray.length) return;
 
       setUploading(true);

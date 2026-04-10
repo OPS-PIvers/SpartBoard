@@ -910,6 +910,8 @@ export const FeaturePermissionsManager: React.FC = () => {
         <BloomsTaxonomyConfigurationModal
           isOpen={true}
           onClose={() => setActiveModalTool(null)}
+          permission={getPermission('blooms-taxonomy')}
+          onSave={(updates) => updatePermission('blooms-taxonomy', updates)}
         />
       )}
 

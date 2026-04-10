@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DraggableWindow } from '@/components/common/DraggableWindow';
 import { WidgetData, GlobalStyle } from '@/types';
 import {
@@ -310,6 +310,34 @@ describe('DraggableWindow (Tests folder)', () => {
 
       const closeButton = screen.getByLabelText(/close/i);
       expect(closeButton).not.toBeDisabled();
+    });
+
+    it('toggles pin via Alt+P keyboard shortcut (widget-keyboard-action)', () => {
+      renderWithToolbar();
+
+      act(() => {
+        const event = new CustomEvent('widget-keyboard-action', {
+          detail: { widgetId: 'test-widget', key: 'Pin', shiftKey: false },
+        });
+        window.dispatchEvent(event);
+      });
+
+      expect(mockContext.updateWidget).toHaveBeenCalledWith('test-widget', {
+        isPinned: true,
+      });
+    });
+
+    it('does not toggle pin via Alt+P when widget is locked', () => {
+      renderWithToolbar({ isLocked: true });
+
+      act(() => {
+        const event = new CustomEvent('widget-keyboard-action', {
+          detail: { widgetId: 'test-widget', key: 'Pin', shiftKey: false },
+        });
+        window.dispatchEvent(event);
+      });
+
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
   });
 });

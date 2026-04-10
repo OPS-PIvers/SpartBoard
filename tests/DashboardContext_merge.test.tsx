@@ -234,7 +234,7 @@ describe('DashboardContext per-widget merge', () => {
     });
   });
 
-  it('preserves a locally-present widget that the server deleted while local edits exist', async () => {
+  it('removes a remotely-deleted widget even when the client has other unsaved changes', async () => {
     const stateRef = setup();
 
     const widgetA = makeWidget('wA', 'original-A');
@@ -259,18 +259,18 @@ describe('DashboardContext per-widget merge', () => {
     const serverWithoutC = makeDashboard([makeWidget('wA', 'original-A')]);
     await pushSnapshot([{ ...serverWithoutC, updatedAt: 2000 }]);
 
-    // Known behaviour: widget C is treated as a locally-added widget (present
-    // locally but absent from the server) and is therefore preserved in the
-    // merged result.  This is a documented limitation of the current merge
-    // strategy when a widget was previously synced but the server deletes it
-    // while the client has other unsaved changes.
+    // Widget C was synced from the server (not locally added), so the merge
+    // correctly treats it as remotely deleted and removes it.
     await waitFor(() => {
       const widgets = stateRef.current?.activeDashboard?.widgets;
-      expect(widgets?.some((w) => w.id === 'wC')).toBe(true);
+      expect(widgets?.some((w) => w.id === 'wC')).toBe(false);
+      // Local edit on widget A is preserved
+      const wA = widgets?.find((w) => w.id === 'wA');
+      expect(wA?.config).toMatchObject({ text: 'local-A' });
     });
   });
 
-  it('preserves local changes to style fields but drops un-tracked fields like customTitle', async () => {
+  it('preserves local changes to style fields including customTitle', async () => {
     const stateRef = setup();
 
     const widgetA = makeWidget('wA', 'original-A');
@@ -283,7 +283,7 @@ describe('DashboardContext per-widget merge', () => {
     );
     await pushSnapshot([initialDashboard]);
 
-    // Local changes to non-config, non-layout fields on widget A
+    // Local changes to style fields on widget A
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
         customTitle: 'My Custom Title',
@@ -306,20 +306,15 @@ describe('DashboardContext per-widget merge', () => {
     ]);
     await pushSnapshot([{ ...serverDashboard, updatedAt: 2000 }]);
 
-    // Known behaviour: non-config, non-layout fields (customTitle,
-    // maximized) are NOT covered by the per-field merge logic.  The merge uses
-    // `...sw` (the server widget) as the base, so server values overwrite any
-    // locally-changed fields outside of `config`, `STYLE_FIELDS` and `LAYOUT_FIELDS`.
-    // This test documents that limitation as a regression baseline.
     await waitFor(() => {
       const wA = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wA'
       );
-      // customTitle reverts to the server's (undefined) value
-      expect(wA?.customTitle).toBeUndefined();
+      // customTitle is preserved since it is now in STYLE_FIELDS
+      expect(wA?.customTitle).toBe('My Custom Title');
       // transparency is preserved since it is in STYLE_FIELDS
       expect(wA?.transparency).toBe(0.5);
-      // But widget B's server config is still accepted
+      // Widget B's server config is still accepted
       const wB = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wB'
       );

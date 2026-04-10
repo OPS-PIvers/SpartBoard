@@ -153,7 +153,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           for (const w of rs.widgets) {
             minScale = Math.max(minScale, 150 / w.startW, 100 / w.startH);
           }
-          const scale = Math.max(minScale, (scaleX + scaleY) / 2);
+          const scale = Math.max(minScale, Math.sqrt(scaleX * scaleY));
 
           // Apply to each widget via direct DOM manipulation
           for (const w of rs.widgets) {

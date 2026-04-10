@@ -43,7 +43,11 @@ import {
   ClassRoster,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
-import { buildPinToNameMap, getResponseScore } from '../utils/quizScoreboard';
+import {
+  buildPinToNameMap,
+  getDisplayScore,
+  getScoreSuffix,
+} from '../utils/quizScoreboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   playPodiumFanfare,
@@ -1885,9 +1889,10 @@ const PodiumView: React.FC<{
   onDismiss: () => void;
 }> = ({ responses, questions, session, pinToName, onDismiss }) => {
   // Use shared scoring utility for consistency with scoreboard
+  const suffix = getScoreSuffix(session);
   const scored = responses
     .map((r) => {
-      const score = getResponseScore(r, questions, session);
+      const score = getDisplayScore(r, questions, session);
       const name = pinToName[r.pin] ?? `PIN ${r.pin}`;
       return { name, score, pin: r.pin };
     })
@@ -1966,7 +1971,8 @@ const PodiumView: React.FC<{
               className="font-black text-emerald-600"
               style={{ fontSize: 'min(13px, 4.5cqmin)' }}
             >
-              {entry.score}%
+              {entry.score}
+              {suffix}
             </span>
           </div>
         ))}

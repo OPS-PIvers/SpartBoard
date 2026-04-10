@@ -159,6 +159,7 @@ export const useQuizSessionTeacher = (
   const [session, setSession] = useState<QuizSession | null>(null);
   const [responses, setResponses] = useState<QuizResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const advancingRef = useRef(false);
 
   useEffect(() => {
     if (!teacherUid) {
@@ -179,10 +180,11 @@ export const useQuizSessionTeacher = (
     );
   }, [teacherUid]);
 
+  const hasSession = !!session;
   useEffect(() => {
     // Keep the listener active even after the session ends so that any
     // late student submissions still appear in the live monitor / results.
-    if (!teacherUid || !session) return;
+    if (!teacherUid || !hasSession) return;
     const responsesRef = collection(
       db,
       QUIZ_SESSIONS_COLLECTION,
@@ -197,7 +199,7 @@ export const useQuizSessionTeacher = (
       },
       (err) => console.error('[useQuizSessionTeacher] responses:', err)
     );
-  }, [teacherUid, session]);
+  }, [teacherUid, hasSession]);
 
   const finalizeAllResponses = useCallback(async () => {
     if (!teacherUid) return;
@@ -364,9 +366,13 @@ export const useQuizSessionTeacher = (
     const timer = setInterval(() => {
       if (Date.now() >= (session.autoProgressAt ?? 0)) {
         clearInterval(timer);
-        advanceQuestion().catch((err) =>
-          console.error('[AutoProgress] advance failed:', err)
-        );
+        if (advancingRef.current) return;
+        advancingRef.current = true;
+        advanceQuestion()
+          .catch((err) => console.error('[AutoProgress] advance failed:', err))
+          .finally(() => {
+            advancingRef.current = false;
+          });
       }
     }, 1000);
 

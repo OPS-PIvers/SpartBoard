@@ -22,6 +22,7 @@ import {
   buildPinToNameMap,
   buildScoreboardTeams,
   getEarnedPoints,
+  isGamificationActive,
 } from './utils/quizScoreboard';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
@@ -196,6 +197,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // feedback before quiz completion, unlike the final score which divides
           // by total points and would show low percentages for students mid-quiz.
           const questions = loadedQuizData.questions;
+          const gamified = isGamificationActive(liveSession);
           newTeams = allResponses
             .map((r) => {
               let maxAnsweredPoints = 0;
@@ -204,8 +206,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 if (q) maxAnsweredPoints += q.points ?? 1;
               }
               const earned = getEarnedPoints(r, questions, liveSession);
-              const score =
-                maxAnsweredPoints > 0
+              // When gamification is active, show raw points to avoid >100% values
+              const score = gamified
+                ? earned
+                : maxAnsweredPoints > 0
                   ? Math.round((earned / maxAnsweredPoints) * 100)
                   : 0;
               return { response: r, score };
@@ -513,6 +517,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setView('manager');
         }}
         tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
+        session={liveSession}
       />
     );
   }

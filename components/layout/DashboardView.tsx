@@ -785,6 +785,29 @@ export const DashboardView: React.FC = () => {
         return;
       }
 
+      // Alt + P: Pin/Unpin top or focused widget
+      if (e.altKey && e.key === 'p') {
+        e.preventDefault();
+        if (activeDashboard && activeDashboard.widgets.length > 0) {
+          const sorted = [...activeDashboard.widgets].sort((a, b) => b.z - a.z);
+          const topWidget = sorted[0];
+
+          const targetId = document.activeElement?.closest('.widget')
+            ? (document.activeElement as HTMLElement).getAttribute(
+                'data-widget-id'
+              )
+            : topWidget.id;
+
+          if (targetId) {
+            const event = new CustomEvent('widget-keyboard-action', {
+              detail: { widgetId: targetId, key: 'Pin', shiftKey: false },
+            });
+            window.dispatchEvent(event);
+          }
+        }
+        return;
+      }
+
       // Alt + Left/Right: Navigate boards (with wrap-around)
       if (e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault();

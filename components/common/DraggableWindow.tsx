@@ -1205,6 +1205,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         } else {
           updateWidget(widget.id, { minimized: true, flipped: false });
         }
+      } else if (key === 'Pin') {
+        if (!isLocked) {
+          const nextPinned = !isPinned;
+          if (nextPinned) setShowSnapMenu(false);
+          updateWidget(widget.id, { isPinned: nextPinned });
+          handleCloseTools();
+        }
       } else if (key === 'Delete') {
         if (!isLocked) {
           if (skipCloseConfirmation) {
@@ -1229,6 +1236,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     showConfirm,
     isAnnotating,
     isLocked,
+    isPinned,
     skipCloseConfirmation,
     removeWidget,
     updateWidget,
@@ -1891,6 +1899,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     const nextPinned = !isPinned;
                     if (nextPinned) setShowSnapMenu(false);
                     updateWidget(widget.id, { isPinned: nextPinned });
+                    handleCloseTools();
                   }}
                   icon={<Pin className="w-3.5 h-3.5" />}
                   label={

@@ -24,6 +24,9 @@ vi.mock('@/config/scoreboard', () => ({
 import {
   getEarnedPoints,
   getResponseScore,
+  getDisplayScore,
+  getScoreSuffix,
+  isGamificationActive,
   buildPinToNameMap,
   buildScoreboardTeams,
 } from './quizScoreboard';
@@ -303,6 +306,95 @@ describe('quizScoreboard', () => {
     });
   });
 
+  describe('isGamificationActive', () => {
+    it('returns false when no session is provided', () => {
+      expect(isGamificationActive()).toBe(false);
+      expect(isGamificationActive(null)).toBe(false);
+    });
+
+    it('returns false when neither bonus is enabled', () => {
+      const session = makeSession({
+        speedBonusEnabled: false,
+        streakBonusEnabled: false,
+      });
+      expect(isGamificationActive(session)).toBe(false);
+    });
+
+    it('returns true when speed bonus is enabled', () => {
+      const session = makeSession({ speedBonusEnabled: true });
+      expect(isGamificationActive(session)).toBe(true);
+    });
+
+    it('returns true when streak bonus is enabled', () => {
+      const session = makeSession({ streakBonusEnabled: true });
+      expect(isGamificationActive(session)).toBe(true);
+    });
+  });
+
+  describe('getDisplayScore', () => {
+    it('returns percentage when gamification is not active', () => {
+      const questions = [makeQuestion('q1', 'A'), makeQuestion('q2', 'B')];
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'wrong' },
+      ]);
+      expect(getDisplayScore(response, questions)).toBe(50);
+    });
+
+    it('returns raw points when speed bonus is active', () => {
+      const questions = [
+        makeQuestion('q1', 'A', 5),
+        makeQuestion('q2', 'B', 5),
+      ];
+      questions[0].timeLimit = 30;
+      questions[1].timeLimit = 30;
+      const session = makeSession({ speedBonusEnabled: true });
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A', answeredAt: 100, speedBonus: 50 },
+        { questionId: 'q2', answer: 'B', answeredAt: 200, speedBonus: 50 },
+      ]);
+      // Each: 5 * 1.5 = 7.5 → total 15 → rounds to 15
+      // As percentage this would be 150%, but getDisplayScore returns raw 15
+      expect(getDisplayScore(response, questions, session)).toBe(15);
+      // Confirm getResponseScore would exceed 100%
+      expect(getResponseScore(response, questions, session)).toBe(150);
+    });
+
+    it('returns raw points when streak bonus is active', () => {
+      const questions = [
+        makeQuestion('q1', 'A'),
+        makeQuestion('q2', 'B'),
+        makeQuestion('q3', 'C'),
+      ];
+      const session = makeSession({ streakBonusEnabled: true });
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A', answeredAt: 100 },
+        { questionId: 'q2', answer: 'B', answeredAt: 200 },
+        { questionId: 'q3', answer: 'C', answeredAt: 300 },
+      ]);
+      // q1: 1*1=1, q2: 1*1.5=1.5, q3: 1*2=2 → 4.5 → rounds to 5
+      // As percentage: 167%, but getDisplayScore returns raw 5
+      expect(getDisplayScore(response, questions, session)).toBe(5);
+    });
+  });
+
+  describe('getScoreSuffix', () => {
+    it('returns "%" when no gamification is active', () => {
+      expect(getScoreSuffix()).toBe('%');
+      expect(getScoreSuffix(null)).toBe('%');
+      expect(getScoreSuffix(makeSession())).toBe('%');
+    });
+
+    it('returns " pts" when gamification is active', () => {
+      expect(getScoreSuffix(makeSession({ speedBonusEnabled: true }))).toBe(
+        ' pts'
+      );
+      expect(getScoreSuffix(makeSession({ streakBonusEnabled: true }))).toBe(
+        ' pts'
+      );
+    });
+  });
+
   describe('buildPinToNameMap', () => {
     it('returns a map from PIN to full name when roster matches', () => {
       const rosters = [
@@ -432,6 +524,31 @@ describe('quizScoreboard', () => {
       const questions = [makeQuestion('q1', 'A')];
       const teams = buildScoreboardTeams([], questions, 'pin', {});
       expect(teams).toEqual([]);
+    });
+
+    it('uses raw points instead of percentage when gamification is active', () => {
+      const questions = [
+        makeQuestion('q1', 'A', 5),
+        makeQuestion('q2', 'B', 5),
+      ];
+      questions[0].timeLimit = 30;
+      questions[1].timeLimit = 30;
+      const session = makeSession({ speedBonusEnabled: true });
+      const responses = [
+        makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100, speedBonus: 50 },
+          { questionId: 'q2', answer: 'B', answeredAt: 200, speedBonus: 50 },
+        ]),
+      ];
+      const teams = buildScoreboardTeams(
+        responses,
+        questions,
+        'pin',
+        {},
+        session
+      );
+      // Each: 5 * 1.5 = 7.5 → total 15 (raw points, not 150%)
+      expect(teams[0].score).toBe(15);
     });
   });
 });

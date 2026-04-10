@@ -437,6 +437,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pendingSaveCountRef = useRef<number>(0);
   // Tracks Drive file IDs for PII supplements per dashboard to enable in-place updates
   const piiDriveFileIdRef = useRef<Map<string, string>>(new Map());
+  // Tracks widget IDs added locally but not yet confirmed by a server snapshot
+  const locallyAddedWidgetIds = useRef<Set<string>>(new Set());
 
   // Sync refs during render (safe — refs are mutable containers, not state)
   activeIdRef.current = activeId;
@@ -741,6 +743,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 'baseTextSize',
                 'transparency',
                 'buildingId',
+                'customTitle',
+                'isPinned',
+                'isLocked',
+                'annotation',
               ] as const;
 
               const remoteControlEnabled =
@@ -829,10 +835,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   }
                 );
 
-              // Append widgets added locally that aren't on the server yet
+              // Clean up locally-added tracking for widgets now confirmed by the server
               const serverIds = new Set(db.widgets.map((w) => w.id));
+              for (const sid of serverIds) {
+                locallyAddedWidgetIds.current.delete(sid);
+              }
+
+              // Append widgets added locally that aren't on the server yet.
+              // Only keep widgets explicitly tracked as locally-added; widgets
+              // present locally but absent from the server that are NOT in the
+              // tracking set were remotely deleted and should be removed.
               const localOnlyWidgets = currentActive.widgets.filter(
-                (w) => !serverIds.has(w.id)
+                (w) =>
+                  !serverIds.has(w.id) &&
+                  locallyAddedWidgetIds.current.has(w.id)
               );
 
               // SURGICAL MERGE STATE UPDATE
@@ -2263,8 +2279,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const maxZ = d.widgets.reduce((max, w) => Math.max(max, w.z), 0);
           const defaults = WIDGET_DEFAULTS[type] ?? {};
 
+          const newWidgetId = crypto.randomUUID();
+          locallyAddedWidgetIds.current.add(newWidgetId);
           const newWidget: WidgetData = {
-            id: crypto.randomUUID(),
+            id: newWidgetId,
             type,
             x: 50,
             y: 80,
@@ -2363,11 +2381,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               sanitizedInputConfig
             ) as WidgetConfig;
 
+            const newWidgetId = crypto.randomUUID();
+            locallyAddedWidgetIds.current.add(newWidgetId);
+
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
               const { col, row, colSpan, rowSpan } = validatedGrid;
               return {
-                id: crypto.randomUUID(),
+                id: newWidgetId,
                 type: item.type,
                 flipped: false,
                 z: maxZ,
@@ -2390,7 +2411,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const ROW_HEIGHT = 280;
 
             return {
-              id: crypto.randomUUID(),
+              id: newWidgetId,
               type: item.type,
               x: START_X + col * COL_WIDTH,
               y: START_Y + row * ROW_HEIGHT,
@@ -2613,24 +2634,56 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
 
-  const groupWidgets = useCallback((widgetIds: string[]) => {
-    if (!activeIdRef.current || widgetIds.length < 2) return;
-    const gid = crypto.randomUUID();
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    const idSet = new Set(widgetIds);
-    setDashboards((prev) =>
-      prev.map((d) => {
-        if (d.id !== activeIdRef.current) return d;
-        return {
-          ...d,
-          widgets: d.widgets.map((w) =>
-            idSet.has(w.id) ? { ...w, groupId: gid } : w
-          ),
-        };
-      })
-    );
-  }, []);
+  const groupWidgets = useCallback(
+    (widgetIds: string[]) => {
+      if (!activeIdRef.current || widgetIds.length < 2) return;
+
+      // Find the active dashboard to check widget states
+      const active = dashboardsRef.current.find(
+        (d) => d.id === activeIdRef.current
+      );
+      if (!active) return;
+
+      const widgetMap = new Map(active.widgets.map((w) => [w.id, w]));
+      const eligible: string[] = [];
+      let excluded = 0;
+      for (const id of widgetIds) {
+        const w = widgetMap.get(id);
+        if (!w) continue;
+        if (w.isPinned || w.isLocked || w.minimized) {
+          excluded++;
+        } else {
+          eligible.push(id);
+        }
+      }
+
+      if (excluded > 0) {
+        addToast(
+          `${excluded} widget${excluded > 1 ? 's' : ''} skipped (pinned, locked, or minimized)`,
+          'info'
+        );
+      }
+
+      if (eligible.length < 2) return;
+
+      const gid = crypto.randomUUID();
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      const idSet = new Set(eligible);
+      setDashboards((prev) =>
+        prev.map((d) => {
+          if (d.id !== activeIdRef.current) return d;
+          return {
+            ...d,
+            widgets: d.widgets.map((w) =>
+              idSet.has(w.id) ? { ...w, groupId: gid } : w
+            ),
+          };
+        })
+      );
+    },
+    [addToast]
+  );
 
   const ungroupWidgets = useCallback((groupId: string) => {
     if (!activeIdRef.current) return;

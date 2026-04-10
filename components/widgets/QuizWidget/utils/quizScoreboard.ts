@@ -80,6 +80,14 @@ export function getEarnedPoints(
 }
 
 /**
+ * Returns true when the session has speed bonus or streak multiplier enabled,
+ * meaning scores can exceed 100% and should be shown as raw points instead.
+ */
+export function isGamificationActive(session?: QuizSession | null): boolean {
+  return !!(session?.speedBonusEnabled ?? session?.streakBonusEnabled);
+}
+
+/**
  * Compute a student's percentage score using per-question point values.
  */
 export function getResponseScore(
@@ -90,6 +98,30 @@ export function getResponseScore(
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   if (maxPoints === 0) return 0;
   return Math.round((getEarnedPoints(r, questions, session) / maxPoints) * 100);
+}
+
+/**
+ * Returns the score value appropriate for display:
+ * - When gamification is active: raw earned points (avoids confusing >100% values)
+ * - When gamification is off: percentage score (0-100)
+ */
+export function getDisplayScore(
+  r: QuizResponse,
+  questions: QuizQuestion[],
+  session?: QuizSession | null
+): number {
+  if (isGamificationActive(session)) {
+    return getEarnedPoints(r, questions, session);
+  }
+  return getResponseScore(r, questions, session);
+}
+
+/**
+ * Returns the suffix for displayed scores: "pts" when gamification is active,
+ * "%" otherwise.
+ */
+export function getScoreSuffix(session?: QuizSession | null): string {
+  return isGamificationActive(session) ? ' pts' : '%';
 }
 
 /**
@@ -133,7 +165,7 @@ export function buildScoreboardTeams(
   return completedResponses
     .map((r) => ({
       response: r,
-      score: getResponseScore(r, questions, session),
+      score: getDisplayScore(r, questions, session),
     }))
     .sort((a, b) => b.score - a.score)
     .map(({ response, score }) => ({
