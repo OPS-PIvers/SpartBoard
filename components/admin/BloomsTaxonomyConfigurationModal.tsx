@@ -131,8 +131,8 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
 
   // Content editor helpers
   const getItemsForLevelCategory = (
-    level: string,
-    category: string
+    level: BloomsLevel,
+    category: ContentCategory
   ): string[] => {
     return (
       currentBuildingConfig.contentOverrides?.[level]?.[category] ??
@@ -141,7 +141,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     );
   };
 
-  const updateItems = (level: string, category: string, items: string[]) => {
+  const updateItems = (
+    level: BloomsLevel,
+    category: ContentCategory,
+    items: string[]
+  ) => {
     const overrides = {
       ...(currentBuildingConfig.contentOverrides ?? {}),
       [level]: {
@@ -152,12 +156,16 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     updateBuilding({ contentOverrides: overrides });
   };
 
-  const addItem = (level: string, category: string) => {
+  const addItem = (level: BloomsLevel, category: ContentCategory) => {
     const items = getItemsForLevelCategory(level, category);
     updateItems(level, category, [...items, '']);
   };
 
-  const removeItem = (level: string, category: string, index: number) => {
+  const removeItem = (
+    level: BloomsLevel,
+    category: ContentCategory,
+    index: number
+  ) => {
     const items = getItemsForLevelCategory(level, category);
     updateItems(
       level,
@@ -167,8 +175,8 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
   };
 
   const updateItem = (
-    level: string,
-    category: string,
+    level: BloomsLevel,
+    category: ContentCategory,
     index: number,
     value: string
   ) => {

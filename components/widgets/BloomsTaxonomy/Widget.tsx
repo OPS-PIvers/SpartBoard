@@ -7,6 +7,7 @@ import {
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Triangle } from 'lucide-react';
@@ -28,11 +29,10 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { addWidget, addToast } = useDashboard();
-  const { featurePermissions, selectedBuildings } = useAuth();
+  const { featurePermissions } = useAuth();
+  const buildingId = useWidgetBuildingId(widget) ?? '';
 
   const config = widget.config as BloomsTaxonomyConfig;
-  const { enabledCategories = CONTENT_CATEGORIES as unknown as string[] } =
-    config;
 
   // Read admin building config from feature permissions
   const bloomsPerm = featurePermissions.find(
@@ -41,14 +41,20 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
   const globalConfig = bloomsPerm?.config as
     | BloomsTaxonomyGlobalConfig
     | undefined;
-  const buildingId = selectedBuildings[0] ?? '';
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
   const {
     availableCategories,
     aiEnabled = false,
     contentOverrides,
+    defaultEnabledCategories,
   } = buildingConfig;
+
+  // Honor admin's defaultEnabledCategories when widget has no saved setting
+  const enabledCategories =
+    config.enabledCategories ??
+    defaultEnabledCategories ??
+    ([...CONTENT_CATEGORIES] as string[]);
 
   // Filter categories: intersection of admin-available and user-enabled
   const activeCategories = (CONTENT_CATEGORIES as readonly string[]).filter(
@@ -125,6 +131,33 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
     [aiEnabled, aiTopic, activeCategories.length, addToast]
   );
 
+  // Handle keyboard activation — center menu on the tier element
+  const handleTierKeyboardActivate = useCallback(
+    (level: BloomsLevel, element: HTMLElement) => {
+      if (activeCategories.length === 0) {
+        addToast('No categories enabled. Flip to configure.', 'info');
+        return;
+      }
+
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      const tierRect = element.getBoundingClientRect();
+      if (!containerRect) return;
+
+      const x = tierRect.left - containerRect.left + tierRect.width / 2;
+      const y = tierRect.top - containerRect.top + tierRect.height / 2;
+
+      setActiveMenu({
+        level,
+        position: { x, y },
+        containerSize: {
+          width: containerRect.width,
+          height: containerRect.height,
+        },
+      });
+    },
+    [activeCategories.length, addToast]
+  );
+
   // Handle category selection from radial menu
   const handleCategorySelect = useCallback(
     (category: ContentCategory) => {
@@ -135,8 +168,15 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
       const catLabel = CATEGORY_LABELS[category];
       const color = BLOOMS_COLORS[level];
 
-      // Format content for the text widget
-      const formatted = `<b>${label} — ${catLabel}</b><br><br>${items.map((item) => `• ${item}`).join('<br>')}`;
+      // Format content for the text widget (escape HTML to prevent XSS from admin overrides)
+      const esc = (s: string) =>
+        s
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      const formatted = `<b>${esc(label)} — ${esc(catLabel)}</b><br><br>${items.map((item) => `• ${esc(item)}`).join('<br>')}`;
 
       addWidget('text', {
         config: {
@@ -210,6 +250,7 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
           <div className="flex-1 min-h-0">
             <Pyramid
               onTierClick={handleTierClick}
+              onTierKeyboardActivate={handleTierKeyboardActivate}
               onTierDragStart={handleTierDragStart}
             />
           </div>

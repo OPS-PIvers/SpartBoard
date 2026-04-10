@@ -2,6 +2,7 @@ import React from 'react';
 import { WidgetData, BloomsTaxonomyConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import {
   CONTENT_CATEGORIES,
   CATEGORY_LABELS,
@@ -16,9 +17,9 @@ export const BloomsTaxonomySettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
-  const { featurePermissions, selectedBuildings } = useAuth();
+  const { featurePermissions } = useAuth();
+  const buildingId = useWidgetBuildingId(widget) ?? '';
   const config = widget.config as BloomsTaxonomyConfig;
-  const enabledCategories = config.enabledCategories ?? [...CONTENT_CATEGORIES];
 
   // Read admin building config for available categories
   const bloomsPerm = featurePermissions.find(
@@ -27,10 +28,15 @@ export const BloomsTaxonomySettings: React.FC<{ widget: WidgetData }> = ({
   const globalConfig = bloomsPerm?.config as
     | BloomsTaxonomyGlobalConfig
     | undefined;
-  const buildingId = selectedBuildings[0] ?? '';
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
-  const { availableCategories } = buildingConfig;
+  const { availableCategories, defaultEnabledCategories } = buildingConfig;
+
+  // Honor admin's defaultEnabledCategories when widget has no saved setting
+  const enabledCategories =
+    config.enabledCategories ??
+    defaultEnabledCategories ??
+    ([...CONTENT_CATEGORIES] as string[]);
 
   // Only show categories the admin has made available
   const displayCategories = (

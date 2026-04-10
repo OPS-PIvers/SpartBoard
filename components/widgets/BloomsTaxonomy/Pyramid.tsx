@@ -8,6 +8,7 @@ import {
 
 interface PyramidProps {
   onTierClick: (level: BloomsLevel, event: React.MouseEvent) => void;
+  onTierKeyboardActivate: (level: BloomsLevel, element: HTMLElement) => void;
   onTierDragStart: (level: BloomsLevel, event: React.DragEvent) => void;
 }
 
@@ -27,6 +28,7 @@ const TIER_CLIP_PATHS = [
 
 export const Pyramid: React.FC<PyramidProps> = ({
   onTierClick,
+  onTierKeyboardActivate,
   onTierDragStart,
 }) => {
   // Render levels top-to-bottom visually: create at top, remember at bottom
@@ -68,7 +70,7 @@ export const Pyramid: React.FC<PyramidProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onTierClick(level, e as unknown as React.MouseEvent);
+                  onTierKeyboardActivate(level, e.currentTarget as HTMLElement);
                 }
               }}
               onMouseEnter={(e) => {
