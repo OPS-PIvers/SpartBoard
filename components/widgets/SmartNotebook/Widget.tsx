@@ -81,13 +81,25 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
     config,
   ]);
 
-  // Clamp currentPage when the active notebook shrinks or the notebook changes
+  // Clamp currentPage when the active notebook changes or page count shrinks.
+  // Uses React's "adjusting state during rendering" pattern instead of useEffect
+  // to avoid the circular dependency (currentPage was in its own effect's deps).
   const pageCount = activeNotebook?.pageUrls.length ?? 0;
-  useEffect(() => {
-    if (activeNotebook && currentPage >= pageCount) {
-      setCurrentPage(Math.max(0, pageCount - 1));
+  const [prevNotebookId, setPrevNotebookId] = useState(activeNotebookId);
+  const [prevPageCount, setPrevPageCount] = useState(pageCount);
+
+  if (activeNotebookId !== prevNotebookId) {
+    setPrevNotebookId(activeNotebookId);
+    setPrevPageCount(pageCount);
+    if (currentPage !== 0) {
+      setCurrentPage(0);
     }
-  }, [activeNotebookId, pageCount, activeNotebook, currentPage]);
+  } else if (pageCount !== prevPageCount) {
+    setPrevPageCount(pageCount);
+    if (currentPage >= pageCount && pageCount > 0) {
+      setCurrentPage(pageCount - 1);
+    }
+  }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
