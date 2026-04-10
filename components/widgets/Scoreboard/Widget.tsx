@@ -147,41 +147,6 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
           )}
 
-          {/* Layout toggle button */}
-          {teams.length > 0 && (
-            <button
-              onClick={toggleLayout}
-              className="absolute z-10 bg-white/70 hover:bg-white/90 text-slate-500 hover:text-slate-700 backdrop-blur-sm transition-all active:scale-95"
-              style={{
-                top: 'min(4px, 1cqmin)',
-                right: 'min(4px, 1cqmin)',
-                padding: 'min(4px, 1cqmin)',
-                borderRadius: 'min(8px, 2cqmin)',
-              }}
-              aria-label={
-                layout === 'cards'
-                  ? 'Switch to list view'
-                  : 'Switch to card view'
-              }
-            >
-              {layout === 'cards' ? (
-                <List
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              ) : (
-                <LayoutGrid
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              )}
-            </button>
-          )}
-
           {teams.length === 0 ? (
             <div className="h-full">
               <ScaledEmptyState
@@ -191,38 +156,79 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                 className="opacity-40"
               />
             </div>
-          ) : layout === 'cards' ? (
-            <div
-              className="grid grid-cols-[repeat(auto-fit,minmax(min(120px,100%),1fr))] auto-rows-[1fr] h-full w-full bg-transparent overflow-y-auto custom-scrollbar"
-              style={{
-                gap: 'min(16px, 3.5cqmin)',
-                padding: 'min(16px, 3.5cqmin)',
-              }}
-            >
-              {teams.map((team) => (
-                <ScoreboardItem
-                  key={team.id}
-                  team={team}
-                  onUpdateScore={handleUpdateScore}
-                />
-              ))}
-            </div>
           ) : (
-            <div
-              className="flex flex-col h-full w-full overflow-y-auto custom-scrollbar"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(8px, 2cqmin)',
-              }}
-            >
-              {sortedTeams.map((team, index) => (
-                <ScoreboardRowItem
-                  key={team.id}
-                  team={team}
-                  rank={index + 1}
-                  onUpdateScore={handleUpdateScore}
-                />
-              ))}
+            <div className="flex flex-col h-full w-full">
+              {layout === 'cards' ? (
+                <div
+                  className="grid grid-cols-[repeat(auto-fit,minmax(min(120px,100%),1fr))] auto-rows-[1fr] flex-1 w-full bg-transparent overflow-y-auto custom-scrollbar"
+                  style={{
+                    gap: 'min(16px, 3.5cqmin)',
+                    padding: 'min(16px, 3.5cqmin)',
+                  }}
+                >
+                  {teams.map((team) => (
+                    <ScoreboardItem
+                      key={team.id}
+                      team={team}
+                      onUpdateScore={handleUpdateScore}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="flex flex-col flex-1 w-full overflow-y-auto custom-scrollbar"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(8px, 2cqmin)',
+                  }}
+                >
+                  {sortedTeams.map((team, index) => (
+                    <ScoreboardRowItem
+                      key={team.id}
+                      team={team}
+                      rank={index + 1}
+                      onUpdateScore={handleUpdateScore}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Layout toggle — inline at bottom to avoid overlapping rows and resize handles */}
+              <div
+                className="flex justify-center border-t border-slate-200/30 shrink-0"
+                style={{ padding: 'min(4px, 1cqmin)' }}
+              >
+                <button
+                  onClick={toggleLayout}
+                  className="flex items-center bg-white/70 hover:bg-white/90 text-slate-500 hover:text-slate-700 backdrop-blur-sm rounded-lg transition-all active:scale-95"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(10px, 3cqmin)',
+                  }}
+                  aria-label={
+                    layout === 'cards'
+                      ? 'Switch to list view'
+                      : 'Switch to card view'
+                  }
+                >
+                  {layout === 'cards' ? (
+                    <List
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <LayoutGrid
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  )}
+                  {layout === 'cards' ? 'List' : 'Grid'}
+                </button>
+              </div>
             </div>
           )}
         </div>

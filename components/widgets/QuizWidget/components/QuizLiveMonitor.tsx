@@ -104,6 +104,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const [showTabWarnings, setShowTabWarnings] = useState(true);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [soundMuted, setSoundMuted] = useState(false);
+  const [expandedStat, setExpandedStat] = useState<
+    'joined' | 'active' | 'finished' | null
+  >(null);
   const isReviewing = session.questionPhase === 'reviewing';
 
   // Close live scoreboard setup popup on click-outside or Escape
@@ -217,29 +220,43 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
 
   // ⚡ Bolt: Optimize multiple array iterations inside the render loop
   // Instead of 4 separate .filter() passes, calculate all stats in one O(N) loop
-  const { answered, completed, inProgress, joined } = React.useMemo(() => {
-    let _answered = 0;
-    let _completed = 0;
-    let _inProgress = 0;
-    let _joined = 0;
+  const { answered, completed, inProgress, joined, studentsByStatus } =
+    React.useMemo(() => {
+      let _answered = 0;
+      let _completed = 0;
+      let _inProgress = 0;
+      let _joined = 0;
+      const byStatus: {
+        joined: { pin: string; name: string }[];
+        active: { pin: string; name: string }[];
+        finished: { pin: string; name: string }[];
+      } = { joined: [], active: [], finished: [] };
 
-    for (const r of responses) {
-      if (currentQ && r.answers.some((a) => a.questionId === currentQ.id)) {
-        _answered++;
+      for (const r of responses) {
+        if (currentQ && r.answers.some((a) => a.questionId === currentQ.id)) {
+          _answered++;
+        }
+        const name = pinToName[r.pin] ?? `PIN ${r.pin}`;
+        if (r.status === 'completed') {
+          _completed++;
+          byStatus.finished.push({ pin: r.pin, name });
+        } else if (r.status === 'in-progress') {
+          _inProgress++;
+          byStatus.active.push({ pin: r.pin, name });
+        } else if (r.status === 'joined') {
+          _joined++;
+          byStatus.joined.push({ pin: r.pin, name });
+        }
       }
 
-      if (r.status === 'completed') _completed++;
-      else if (r.status === 'in-progress') _inProgress++;
-      else if (r.status === 'joined') _joined++;
-    }
-
-    return {
-      answered: _answered,
-      completed: _completed,
-      inProgress: _inProgress,
-      joined: _joined,
-    };
-  }, [responses, currentQ]);
+      return {
+        answered: _answered,
+        completed: _completed,
+        inProgress: _inProgress,
+        joined: _joined,
+        studentsByStatus: byStatus,
+      };
+    }, [responses, currentQ, pinToName]);
 
   const modeIcon =
     session.sessionMode === 'auto' ? (
@@ -331,379 +348,40 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
           className="flex flex-col"
           style={{ gap: isActive ? 'min(8px, 2cqmin)' : 'min(16px, 4cqmin)' }}
         >
-          {/* Compact join code bar */}
-          <div
-            className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm"
-            style={{
-              padding: isActive
-                ? 'min(4px, 1cqmin) min(8px, 2cqmin)'
-                : 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              gap: 'min(8px, 2cqmin)',
-            }}
-          >
-            <span
-              className="font-black tracking-[0.15em] text-brand-blue-dark font-mono bg-brand-blue-lighter/40 rounded-lg border border-brand-blue-primary/5"
-              style={{
-                fontSize: isActive ? 'min(14px, 4cqmin)' : 'min(18px, 5cqmin)',
-                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-              }}
-            >
-              {session.code}
-            </span>
-            <button
-              onClick={handleCopy}
-              className="flex items-center bg-brand-blue-lighter hover:bg-brand-blue-primary/20 text-brand-blue-primary font-bold rounded-lg transition-all active:scale-95"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'min(10px, 3cqmin)',
-              }}
-            >
-              {copied ? (
-                <CheckCircle2
-                  className="text-emerald-600"
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              ) : (
-                <Copy
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-              )}
-              {copied ? 'COPIED' : 'COPY'}
-            </button>
-            <a
-              href={joinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'min(10px, 3cqmin)',
-              }}
-            >
-              <ExternalLink
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-              OPEN
-            </a>
-            {/* Sound mute toggle */}
-            {session.soundEffectsEnabled && (
-              <button
-                onClick={() => setSoundMuted((m) => !m)}
-                className={`ml-auto flex items-center rounded-lg transition-all active:scale-95 ${
-                  soundMuted
-                    ? 'text-slate-400 hover:bg-slate-100'
-                    : 'text-brand-blue-primary hover:bg-brand-blue-lighter/50'
-                }`}
-                style={{ padding: 'min(6px, 1.5cqmin)' }}
-                title={soundMuted ? 'Unmute sounds' : 'Mute sounds'}
-              >
-                {soundMuted ? (
-                  <VolumeX
-                    style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
-                    }}
-                  />
-                ) : (
-                  <Volume2
-                    style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
-                    }}
-                  />
+          {/* ── ACTIVE STATE: restructured layout with question at top ── */}
+          {isActive && currentQ && (
+            <>
+              {/* 1. QUESTION — hero content at the very top */}
+              <div className="relative">
+                {autoCountdown !== null && (
+                  <div
+                    className="absolute top-0 left-0 right-0 rounded-full overflow-hidden bg-brand-blue-lighter"
+                    style={{ height: 'min(4px, 1cqmin)' }}
+                  >
+                    <div
+                      className="h-full bg-brand-red-primary transition-all duration-1000 ease-linear"
+                      style={{ width: `${(autoCountdown / 5) * 100}%` }}
+                    />
+                  </div>
                 )}
-              </button>
-            )}
-          </div>
-
-          {/* Live Scoreboard Toggle */}
-          <div className="relative">
-            <button
-              onClick={handleToggleLiveScoreboard}
-              className={`w-full flex items-center justify-center font-bold rounded-2xl transition-all active:scale-95 border ${
-                isLiveScoreboardActive
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
-                  : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
-              }`}
-              style={{
-                gap: 'min(8px, 2cqmin)',
-                padding: isActive
-                  ? 'min(6px, 1.5cqmin) min(12px, 3cqmin)'
-                  : 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
-                fontSize: 'min(11px, 3.5cqmin)',
-              }}
-            >
-              <Trophy
-                className={isLiveScoreboardActive ? 'animate-pulse' : ''}
-                style={{
-                  width: 'min(16px, 4cqmin)',
-                  height: 'min(16px, 4cqmin)',
-                }}
-              />
-              {isLiveScoreboardActive
-                ? 'LIVE SCOREBOARD ON'
-                : 'ENABLE LIVE SCOREBOARD'}
-            </button>
-            {showLiveScoreboardSetup && (
-              <div
-                ref={liveScoreboardSetupRef}
-                className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                style={{ padding: 'min(16px, 4cqmin)' }}
-              >
-                <p
-                  className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
-                  style={{
-                    fontSize: 'min(11px, 3.5cqmin)',
-                    marginBottom: 'min(12px, 3cqmin)',
-                  }}
-                >
-                  Live Scoreboard Setup
-                </p>
-
-                {/* Name/PIN choice */}
-                <p
-                  className="font-bold text-slate-500 uppercase tracking-wider"
-                  style={{
-                    fontSize: 'min(9px, 2.5cqmin)',
-                    marginBottom: 'min(6px, 1.5cqmin)',
-                  }}
-                >
-                  Display as
-                </p>
                 <div
-                  className="flex"
+                  className="flex items-center flex-wrap"
                   style={{
                     gap: 'min(6px, 1.5cqmin)',
-                    marginBottom: 'min(12px, 3cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
+                    marginTop:
+                      autoCountdown !== null ? 'min(6px, 1.5cqmin)' : undefined,
                   }}
                 >
-                  <button
-                    onClick={() => setLiveScoreboardMode('name')}
-                    className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                      liveScoreboardMode === 'name'
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                    disabled={!hasNames}
-                    style={{
-                      gap: 'min(4px, 1cqmin)',
-                      padding: 'min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 3cqmin)',
-                    }}
-                  >
-                    <User
-                      style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
-                      }}
-                    />
-                    Names
-                  </button>
-                  <button
-                    onClick={() => setLiveScoreboardMode('pin')}
-                    className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                      liveScoreboardMode === 'pin'
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                    style={{
-                      gap: 'min(4px, 1cqmin)',
-                      padding: 'min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 3cqmin)',
-                    }}
-                  >
-                    <Hash
-                      style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
-                      }}
-                    />
-                    PINs
-                  </button>
-                </div>
-
-                {/* Scoring mode choice */}
-                <p
-                  className="font-bold text-slate-500 uppercase tracking-wider"
-                  style={{
-                    fontSize: 'min(9px, 2.5cqmin)',
-                    marginBottom: 'min(6px, 1.5cqmin)',
-                  }}
-                >
-                  Update scores
-                </p>
-                <div
-                  className="flex flex-col"
-                  style={{
-                    gap: 'min(4px, 1cqmin)',
-                    marginBottom: 'min(14px, 3.5cqmin)',
-                  }}
-                >
-                  <button
-                    onClick={() => setLiveScoreboardScoring('completion')}
-                    className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                      liveScoreboardScoring === 'completion'
-                        ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                    style={{
-                      padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                      fontSize: 'min(10px, 3cqmin)',
-                    }}
-                  >
-                    On quiz completion
-                  </button>
-                  <button
-                    onClick={() => setLiveScoreboardScoring('per-question')}
-                    className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                      liveScoreboardScoring === 'per-question'
-                        ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                    style={{
-                      padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                      fontSize: 'min(10px, 3cqmin)',
-                    }}
-                  >
-                    After each question
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleEnableLiveScoreboard}
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
-                  style={{
-                    padding: 'min(10px, 2.5cqmin)',
-                    fontSize: 'min(11px, 3.5cqmin)',
-                  }}
-                >
-                  START LIVE SCOREBOARD
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Student summary counters */}
-          <div
-            className="grid grid-cols-3"
-            style={{ gap: isActive ? 'min(4px, 1cqmin)' : 'min(8px, 2cqmin)' }}
-          >
-            <StatBox
-              label="Joined"
-              value={joined + inProgress + completed}
-              icon={
-                <Users
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              }
-              color="blue"
-            />
-            <StatBox
-              label="Active"
-              value={inProgress}
-              icon={
-                <Clock
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              }
-              color="amber"
-            />
-            <StatBox
-              label="Finished"
-              value={completed}
-              icon={
-                <CheckCircle2
-                  style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
-                  }}
-                />
-              }
-              color="green"
-            />
-          </div>
-
-          {/* Session Logic Views */}
-          {session.status === 'waiting' && (
-            <div className="p-5 bg-white border-2 border-dashed border-brand-blue-primary/20 rounded-2xl text-center shadow-inner">
-              <p
-                className="text-brand-blue-primary font-black uppercase tracking-wider"
-                style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-              >
-                Waiting for Students
-              </p>
-              <p
-                className="text-brand-gray-primary font-medium"
-                style={{
-                  fontSize: 'min(12px, 3.5cqmin)',
-                  marginTop: 'min(4px, 1cqmin)',
-                }}
-              >
-                Students appear below as they join. Press START to begin the
-                first question.
-              </p>
-            </div>
-          )}
-
-          {/* Podium overlay between questions (review phase) */}
-          {isReviewing && session.showPodiumBetweenQuestions && (
-            <PodiumView
-              responses={responses}
-              questions={quizData.questions}
-              session={session}
-              pinToName={pinToName}
-              onDismiss={() => {
-                /* persists until teacher clicks advance */
-              }}
-            />
-          )}
-
-          {session.status === 'active' && currentQ && (
-            <div
-              className="bg-white border border-brand-blue-primary/10 rounded-2xl shadow-sm overflow-hidden relative flex-1"
-              style={{ padding: 'min(16px, 4cqmin)' }}
-            >
-              {autoCountdown !== null && (
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-brand-blue-lighter">
-                  <div
-                    className="h-full bg-brand-red-primary transition-all duration-1000 ease-linear"
-                    style={{ width: `${(autoCountdown / 5) * 100}%` }}
-                  />
-                </div>
-              )}
-
-              <div
-                className="flex items-center justify-between"
-                style={{ marginBottom: 'min(8px, 2cqmin)' }}
-              >
-                <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className="bg-brand-blue-primary text-white font-bold rounded-lg"
                     style={{
-                      fontSize: 'min(11px, 3.5cqmin)',
-                      padding: 'min(3px, 0.7cqmin) min(10px, 2.5cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
                       textTransform: 'uppercase',
                     }}
                   >
-                    Q {session.currentQuestionIndex + 1} /{' '}
-                    {session.totalQuestions}
+                    Q{session.currentQuestionIndex + 1}/{session.totalQuestions}
                   </span>
                   <span
                     className={`font-bold rounded-lg ${
@@ -716,21 +394,21 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                             : 'bg-teal-100 text-teal-700'
                     }`}
                     style={{
-                      fontSize: 'min(10px, 3cqmin)',
-                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                      fontSize: 'min(9px, 2.5cqmin)',
+                      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
                     }}
                   >
                     {currentQ.type}
                   </span>
                   {currentQ.timeLimit > 0 && (
                     <span
-                      className="flex items-center gap-1 text-slate-500 font-bold"
-                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      className="flex items-center gap-0.5 text-slate-500 font-bold"
+                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
                     >
                       <Clock
                         style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
+                          width: 'min(10px, 2.5cqmin)',
+                          height: 'min(10px, 2.5cqmin)',
                         }}
                       />
                       {currentQ.timeLimit}s
@@ -738,298 +416,1108 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   )}
                   {autoCountdown !== null && (
                     <div
-                      className="flex items-center gap-1 text-brand-red-primary font-black animate-pulse"
-                      style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      className="flex items-center gap-0.5 text-brand-red-primary font-black animate-pulse"
+                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
                     >
                       <Zap
                         className="fill-current"
                         style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
+                          width: 'min(10px, 2.5cqmin)',
+                          height: 'min(10px, 2.5cqmin)',
                         }}
                       />
                       {autoCountdown}s
                     </div>
                   )}
+                  <button
+                    onClick={() => setShowStats(!showStats)}
+                    className="ml-auto flex items-center text-brand-blue-primary font-bold hover:underline"
+                    style={{
+                      gap: 'min(3px, 0.7cqmin)',
+                      fontSize: 'min(10px, 3cqmin)',
+                    }}
+                  >
+                    <BarChart3
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                    {showStats ? 'Hide' : 'Stats'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowStats(!showStats)}
-                  className="flex items-center text-brand-blue-primary font-bold hover:underline"
+                <p
+                  className="text-brand-blue-dark font-black"
                   style={{
-                    gap: 'min(4px, 1cqmin)',
-                    fontSize: 'min(11px, 3.5cqmin)',
+                    fontSize: 'min(28px, 12cqmin)',
+                    lineHeight: 1.15,
                   }}
                 >
-                  <BarChart3
+                  {currentQ.text}
+                </p>
+
+                {/* Correct answer on board */}
+                {session.showCorrectOnBoard &&
+                  session.revealedAnswers?.[currentQ.id] && (
+                    <div
+                      className="bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
+                      style={{
+                        fontSize: 'min(13px, 4.5cqmin)',
+                        marginTop: 'min(6px, 1.5cqmin)',
+                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                      }}
+                    >
+                      <div>
+                        <span className="text-emerald-600 font-black">✓ </span>
+                        <span className="text-emerald-800 font-bold">
+                          {session.revealedAnswers[currentQ.id]}
+                        </span>
+                      </div>
+                      {onHideAnswer && (
+                        <button
+                          onClick={() => void onHideAnswer(currentQ.id)}
+                          className="text-emerald-500 hover:text-emerald-700 transition-colors ml-2 shrink-0"
+                          title="Hide answer"
+                        >
+                          <EyeOff
+                            style={{
+                              width: 'min(14px, 3.5cqmin)',
+                              height: 'min(14px, 3.5cqmin)',
+                            }}
+                          />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                {/* Reveal answer button */}
+                {session.showCorrectOnBoard &&
+                  !session.revealedAnswers?.[currentQ.id] &&
+                  onRevealAnswer && (
+                    <button
+                      onClick={() =>
+                        void onRevealAnswer(currentQ.id, currentQ.correctAnswer)
+                      }
+                      className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
+                      style={{
+                        fontSize: 'min(11px, 3.5cqmin)',
+                        marginTop: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      <Eye
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                      Reveal Answer
+                    </button>
+                  )}
+
+                {/* Completion progress bar */}
+                <div style={{ marginTop: 'min(8px, 2cqmin)' }}>
+                  <div
+                    className="flex items-center justify-between text-brand-gray-primary font-bold uppercase tracking-wider"
+                    style={{
+                      fontSize: 'min(9px, 2.5cqmin)',
+                      marginBottom: 'min(3px, 0.7cqmin)',
+                    }}
+                  >
+                    <span>Answered</span>
+                    <span>
+                      {answered} / {responses.length}
+                    </span>
+                  </div>
+                  <div
+                    className="bg-brand-blue-lighter rounded-full overflow-hidden shadow-inner border border-brand-blue-primary/5"
+                    style={{ height: 'min(8px, 2cqmin)' }}
+                  >
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                      style={{
+                        width: `${responses.length > 0 ? (answered / responses.length) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Live answer distribution (MC only) */}
+                {showStats && currentQ.type === 'MC' && (
+                  <div
+                    className="border-t border-brand-blue-primary/5"
+                    style={{
+                      marginTop: 'min(8px, 2cqmin)',
+                      paddingTop: 'min(8px, 2cqmin)',
+                    }}
+                  >
+                    <MCDistribution question={currentQ} responses={responses} />
+                  </div>
+                )}
+              </div>
+
+              {/* Podium overlay between questions (review phase) */}
+              {isReviewing && session.showPodiumBetweenQuestions && (
+                <PodiumView
+                  responses={responses}
+                  questions={quizData.questions}
+                  session={session}
+                  pinToName={pinToName}
+                  onDismiss={() => {
+                    /* persists until teacher clicks advance */
+                  }}
+                />
+              )}
+
+              {/* 2. INTERACTIVE STAT BOXES — tappable to show students */}
+              <div
+                className="grid grid-cols-3"
+                data-no-drag="true"
+                onPointerDown={(e) => e.stopPropagation()}
+                style={{ gap: 'min(4px, 1cqmin)', touchAction: 'auto' }}
+              >
+                <InteractiveStatBox
+                  label="Joined"
+                  value={joined + inProgress + completed}
+                  icon={
+                    <Users
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                  }
+                  color="blue"
+                  expanded={expandedStat === 'joined'}
+                  onToggle={() =>
+                    setExpandedStat(expandedStat === 'joined' ? null : 'joined')
+                  }
+                  students={[
+                    ...studentsByStatus.joined,
+                    ...studentsByStatus.active,
+                    ...studentsByStatus.finished,
+                  ]}
+                />
+                <InteractiveStatBox
+                  label="Active"
+                  value={inProgress}
+                  icon={
+                    <Clock
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                  }
+                  color="amber"
+                  expanded={expandedStat === 'active'}
+                  onToggle={() =>
+                    setExpandedStat(expandedStat === 'active' ? null : 'active')
+                  }
+                  students={studentsByStatus.active}
+                />
+                <InteractiveStatBox
+                  label="Finished"
+                  value={completed}
+                  icon={
+                    <CheckCircle2
+                      style={{
+                        width: 'min(12px, 3.5cqmin)',
+                        height: 'min(12px, 3.5cqmin)',
+                      }}
+                    />
+                  }
+                  color="green"
+                  expanded={expandedStat === 'finished'}
+                  onToggle={() =>
+                    setExpandedStat(
+                      expandedStat === 'finished' ? null : 'finished'
+                    )
+                  }
+                  students={studentsByStatus.finished}
+                />
+              </div>
+
+              {/* 3. JOIN CODE bar (compact) */}
+              <div
+                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm"
+                style={{
+                  padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                  gap: 'min(6px, 1.5cqmin)',
+                }}
+              >
+                <span
+                  className="font-black tracking-[0.15em] text-brand-blue-dark font-mono bg-brand-blue-lighter/40 rounded-lg border border-brand-blue-primary/5"
+                  style={{
+                    fontSize: 'min(13px, 3.5cqmin)',
+                    padding: 'min(3px, 0.7cqmin) min(8px, 2cqmin)',
+                  }}
+                >
+                  {session.code}
+                </span>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center bg-brand-blue-lighter hover:bg-brand-blue-primary/20 text-brand-blue-primary font-bold rounded-lg transition-all active:scale-95"
+                  style={{
+                    gap: 'min(3px, 0.7cqmin)',
+                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                    fontSize: 'min(9px, 2.5cqmin)',
+                  }}
+                >
+                  {copied ? (
+                    <CheckCircle2
+                      className="text-emerald-600"
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <Copy
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />
+                  )}
+                  {copied ? 'COPIED' : 'COPY'}
+                </button>
+                <a
+                  href={joinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                  style={{
+                    gap: 'min(3px, 0.7cqmin)',
+                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                    fontSize: 'min(9px, 2.5cqmin)',
+                  }}
+                >
+                  <ExternalLink
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                  OPEN
+                </a>
+                {/* Sound mute toggle */}
+                {session.soundEffectsEnabled && (
+                  <button
+                    onClick={() => setSoundMuted((m) => !m)}
+                    className={`ml-auto flex items-center rounded-lg transition-all active:scale-95 ${
+                      soundMuted
+                        ? 'text-slate-400 hover:bg-slate-100'
+                        : 'text-brand-blue-primary hover:bg-brand-blue-lighter/50'
+                    }`}
+                    style={{ padding: 'min(4px, 1cqmin)' }}
+                    title={soundMuted ? 'Unmute sounds' : 'Mute sounds'}
+                  >
+                    {soundMuted ? (
+                      <VolumeX
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                    ) : (
+                      <Volume2
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* 4. Live Scoreboard Toggle (compact) */}
+              <div className="relative">
+                <button
+                  onClick={handleToggleLiveScoreboard}
+                  className={`w-full flex items-center justify-center font-bold rounded-xl transition-all active:scale-95 border ${
+                    isLiveScoreboardActive
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
+                      : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
+                  }`}
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(5px, 1.2cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(10px, 3cqmin)',
+                  }}
+                >
+                  <Trophy
+                    className={isLiveScoreboardActive ? 'animate-pulse' : ''}
                     style={{
                       width: 'min(14px, 3.5cqmin)',
                       height: 'min(14px, 3.5cqmin)',
                     }}
                   />
-                  {showStats ? 'Hide' : 'Stats'}
+                  {isLiveScoreboardActive
+                    ? 'LIVE SCOREBOARD ON'
+                    : 'ENABLE LIVE SCOREBOARD'}
                 </button>
-              </div>
-
-              {/* Question text — hero content */}
-              <p
-                className="text-brand-blue-dark font-black"
-                style={{
-                  fontSize: 'min(32px, 15cqmin)',
-                  lineHeight: 1.1,
-                  marginTop: 'min(4px, 1cqmin)',
-                }}
-              >
-                {currentQ.text}
-              </p>
-
-              {/* Correct answer on board */}
-              {session.showCorrectOnBoard &&
-                session.revealedAnswers?.[currentQ.id] && (
+                {showLiveScoreboardSetup && (
                   <div
-                    className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
-                    style={{ fontSize: 'min(14px, 5cqmin)' }}
+                    ref={liveScoreboardSetupRef}
+                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                    style={{ padding: 'min(16px, 4cqmin)' }}
                   >
-                    <div>
-                      <span className="text-emerald-600 font-black">✓ </span>
-                      <span className="text-emerald-800 font-bold">
-                        {session.revealedAnswers[currentQ.id]}
-                      </span>
-                    </div>
-                    {onHideAnswer && (
+                    <p
+                      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(11px, 3.5cqmin)',
+                        marginBottom: 'min(12px, 3cqmin)',
+                      }}
+                    >
+                      Live Scoreboard Setup
+                    </p>
+
+                    {/* Name/PIN choice */}
+                    <p
+                      className="font-bold text-slate-500 uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        marginBottom: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      Display as
+                    </p>
+                    <div
+                      className="flex"
+                      style={{
+                        gap: 'min(6px, 1.5cqmin)',
+                        marginBottom: 'min(12px, 3cqmin)',
+                      }}
+                    >
                       <button
-                        onClick={() => void onHideAnswer(currentQ.id)}
-                        className="text-emerald-500 hover:text-emerald-700 transition-colors ml-2 shrink-0"
-                        title="Hide answer"
+                        onClick={() => setLiveScoreboardMode('name')}
+                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                          liveScoreboardMode === 'name'
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        disabled={!hasNames}
+                        style={{
+                          gap: 'min(4px, 1cqmin)',
+                          padding: 'min(8px, 2cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
                       >
-                        <EyeOff
+                        <User
                           style={{
-                            width: 'min(14px, 3.5cqmin)',
-                            height: 'min(14px, 3.5cqmin)',
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
                           }}
                         />
+                        Names
                       </button>
-                    )}
+                      <button
+                        onClick={() => setLiveScoreboardMode('pin')}
+                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                          liveScoreboardMode === 'pin'
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        style={{
+                          gap: 'min(4px, 1cqmin)',
+                          padding: 'min(8px, 2cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        <Hash
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                        />
+                        PINs
+                      </button>
+                    </div>
+
+                    {/* Scoring mode choice */}
+                    <p
+                      className="font-bold text-slate-500 uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        marginBottom: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      Update scores
+                    </p>
+                    <div
+                      className="flex flex-col"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        marginBottom: 'min(14px, 3.5cqmin)',
+                      }}
+                    >
+                      <button
+                        onClick={() => setLiveScoreboardScoring('completion')}
+                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                          liveScoreboardScoring === 'completion'
+                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        style={{
+                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        On quiz completion
+                      </button>
+                      <button
+                        onClick={() => setLiveScoreboardScoring('per-question')}
+                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                          liveScoreboardScoring === 'per-question'
+                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        style={{
+                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        After each question
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={handleEnableLiveScoreboard}
+                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
+                      style={{
+                        padding: 'min(10px, 2.5cqmin)',
+                        fontSize: 'min(11px, 3.5cqmin)',
+                      }}
+                    >
+                      START LIVE SCOREBOARD
+                    </button>
                   </div>
                 )}
+              </div>
 
-              {/* Reveal answer button for teacher-paced mode */}
-              {session.showCorrectOnBoard &&
-                !session.revealedAnswers?.[currentQ.id] &&
-                onRevealAnswer && (
-                  <button
-                    onClick={() =>
-                      void onRevealAnswer(currentQ.id, currentQ.correctAnswer)
-                    }
-                    className="mt-3 flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
-                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                  >
-                    <Eye
+              {/* 5. ROSTER show/hide + student list */}
+              {responses.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
+                    <button
+                      onClick={() => setShowRoster(!showRoster)}
+                      className="flex items-center gap-1"
+                    >
+                      <span
+                        className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        Roster · {responses.length}
+                      </span>
+                      {showRoster ? (
+                        <EyeOff
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                          className="text-brand-blue-primary/40"
+                        />
+                      ) : (
+                        <Eye
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                          className="text-brand-blue-primary/40"
+                        />
+                      )}
+                    </button>
+                    {showRoster && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowAnswerColors(!showAnswerColors)}
+                          className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+                            showAnswerColors
+                              ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
+                              : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+                          }`}
+                          style={{
+                            fontSize: 'min(9px, 2.5cqmin)',
+                            padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+                          }}
+                          title="Color-code answers for current question"
+                        >
+                          <Palette
+                            style={{
+                              width: 'min(12px, 3cqmin)',
+                              height: 'min(12px, 3cqmin)',
+                            }}
+                          />
+                          Colors
+                        </button>
+                        {session.tabWarningsEnabled !== false && (
+                          <button
+                            onClick={() => setShowTabWarnings(!showTabWarnings)}
+                            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+                              showTabWarnings
+                                ? 'text-red-500 bg-red-50'
+                                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+                            }`}
+                            style={{
+                              fontSize: 'min(9px, 2.5cqmin)',
+                              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+                            }}
+                            title="Show/hide tab switch warnings in roster"
+                          >
+                            <AlertTriangle
+                              style={{
+                                width: 'min(12px, 3cqmin)',
+                                height: 'min(12px, 3cqmin)',
+                              }}
+                            />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {showRoster && (
+                    <div
+                      className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
+                      style={{
+                        gap: 'min(6px, 1.5cqmin)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      {responses
+                        .slice()
+                        .sort((a, b) => a.pin.localeCompare(b.pin))
+                        .map((r) => (
+                          <StudentRow
+                            key={r.studentUid}
+                            response={r}
+                            totalQuestions={session.totalQuestions}
+                            questions={quizData.questions}
+                            currentQuestion={currentQ}
+                            showAnswerColors={showAnswerColors}
+                            showTabWarnings={
+                              showTabWarnings &&
+                              session.tabWarningsEnabled !== false
+                            }
+                            confirmRemove={confirmRemove === r.studentUid}
+                            onConfirmRemoveToggle={() =>
+                              setConfirmRemove(
+                                confirmRemove === r.studentUid
+                                  ? null
+                                  : r.studentUid
+                              )
+                            }
+                            onRemove={
+                              onRemoveStudent
+                                ? () => {
+                                    void Promise.resolve(
+                                      onRemoveStudent(r.studentUid)
+                                    )
+                                      .then(() => setConfirmRemove(null))
+                                      .catch(() => undefined);
+                                  }
+                                : undefined
+                            }
+                            pinToName={pinToName}
+                          />
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── NON-ACTIVE STATES: waiting + ended (original layout) ── */}
+          {!isActive && (
+            <>
+              {/* Join code bar (full size) */}
+              <div
+                className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl shadow-sm"
+                style={{
+                  padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                  gap: 'min(8px, 2cqmin)',
+                }}
+              >
+                <span
+                  className="font-black tracking-[0.15em] text-brand-blue-dark font-mono bg-brand-blue-lighter/40 rounded-lg border border-brand-blue-primary/5"
+                  style={{
+                    fontSize: 'min(18px, 5cqmin)',
+                    padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+                  }}
+                >
+                  {session.code}
+                </span>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center bg-brand-blue-lighter hover:bg-brand-blue-primary/20 text-brand-blue-primary font-bold rounded-lg transition-all active:scale-95"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(10px, 3cqmin)',
+                  }}
+                >
+                  {copied ? (
+                    <CheckCircle2
+                      className="text-emerald-600"
                       style={{
                         width: 'min(14px, 3.5cqmin)',
                         height: 'min(14px, 3.5cqmin)',
                       }}
                     />
-                    Reveal Answer
-                  </button>
-                )}
-
-              {/* Completion progress bar */}
-              <div className="mt-4 space-y-1.5">
-                <div
-                  className="flex items-center justify-between text-brand-gray-primary font-bold uppercase tracking-wider"
-                  style={{ fontSize: 'min(10px, 3cqmin)' }}
-                >
-                  <span>Answered</span>
-                  <span>
-                    {answered} / {responses.length}
-                  </span>
-                </div>
-                <div
-                  className="bg-brand-blue-lighter rounded-full overflow-hidden shadow-inner border border-brand-blue-primary/5"
-                  style={{ height: 'min(10px, 2.5cqmin)' }}
-                >
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-                    style={{
-                      width: `${responses.length > 0 ? (answered / responses.length) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Live answer distribution (MC only for now) */}
-              {showStats && currentQ.type === 'MC' && (
-                <div className="mt-4 pt-4 border-t border-brand-blue-primary/5">
-                  <MCDistribution question={currentQ} responses={responses} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {session.status === 'ended' && (
-            <div className="p-5 bg-emerald-50 text-center rounded-2xl border-2 border-emerald-100 shadow-sm">
-              <div
-                className="bg-emerald-500 text-white mx-auto rounded-full flex items-center justify-center shadow-lg"
-                style={{
-                  width: 'min(32px, 8cqmin)',
-                  height: 'min(32px, 8cqmin)',
-                  marginBottom: 'min(12px, 3cqmin)',
-                }}
-              >
-                <CheckCircle2
-                  style={{
-                    width: 'min(20px, 5cqmin)',
-                    height: 'min(20px, 5cqmin)',
-                  }}
-                />
-              </div>
-              <p
-                className="text-emerald-800 font-black uppercase tracking-wider"
-                style={{ fontSize: 'min(16px, 5cqmin)' }}
-              >
-                Quiz Finished!
-              </p>
-              <p
-                className="text-emerald-700/70 font-bold"
-                style={{
-                  fontSize: 'min(13px, 4cqmin)',
-                  marginTop: 'min(4px, 1cqmin)',
-                }}
-              >
-                {completed} students crossed the finish line
-              </p>
-            </div>
-          )}
-
-          {/* Detailed Student Progress List */}
-          {responses.length > 0 && (
-            <div className="space-y-2 mt-2">
-              <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
-                <button
-                  onClick={() => setShowRoster(!showRoster)}
-                  className="flex items-center gap-1"
-                >
-                  <span
-                    className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
-                    style={{ fontSize: 'min(10px, 3cqmin)' }}
-                  >
-                    Roster · {responses.length}
-                  </span>
-                  {showRoster ? (
-                    <EyeOff
-                      style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
-                      }}
-                      className="text-brand-blue-primary/40"
-                    />
                   ) : (
-                    <Eye
+                    <Copy
                       style={{
-                        width: 'min(12px, 3.5cqmin)',
-                        height: 'min(12px, 3.5cqmin)',
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
                       }}
-                      className="text-brand-blue-primary/40"
                     />
                   )}
+                  {copied ? 'COPIED' : 'COPY'}
                 </button>
-                {showRoster && (
-                  <div className="flex items-center gap-2">
-                    {/* Answer color toggle */}
-                    <button
-                      onClick={() => setShowAnswerColors(!showAnswerColors)}
-                      className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                        showAnswerColors
-                          ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
-                          : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                      }`}
-                      style={{
-                        fontSize: 'min(9px, 2.5cqmin)',
-                        padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-                      }}
-                      title="Color-code answers for current question"
-                    >
-                      <Palette
+                <a
+                  href={joinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(10px, 3cqmin)',
+                  }}
+                >
+                  <ExternalLink
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                  OPEN
+                </a>
+                {session.soundEffectsEnabled && (
+                  <button
+                    onClick={() => setSoundMuted((m) => !m)}
+                    className={`ml-auto flex items-center rounded-lg transition-all active:scale-95 ${
+                      soundMuted
+                        ? 'text-slate-400 hover:bg-slate-100'
+                        : 'text-brand-blue-primary hover:bg-brand-blue-lighter/50'
+                    }`}
+                    style={{ padding: 'min(6px, 1.5cqmin)' }}
+                    title={soundMuted ? 'Unmute sounds' : 'Mute sounds'}
+                  >
+                    {soundMuted ? (
+                      <VolumeX
                         style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
                         }}
                       />
-                      Colors
-                    </button>
-                    {/* Tab warnings visibility toggle */}
-                    {session.tabWarningsEnabled !== false && (
-                      <button
-                        onClick={() => setShowTabWarnings(!showTabWarnings)}
-                        className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                          showTabWarnings
-                            ? 'text-red-500 bg-red-50'
-                            : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                        }`}
+                    ) : (
+                      <Volume2
                         style={{
-                          fontSize: 'min(9px, 2.5cqmin)',
-                          padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
                         }}
-                        title="Show/hide tab switch warnings in roster"
+                      />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Live Scoreboard Toggle (full size) */}
+              <div className="relative">
+                <button
+                  onClick={handleToggleLiveScoreboard}
+                  className={`w-full flex items-center justify-center font-bold rounded-2xl transition-all active:scale-95 border ${
+                    isLiveScoreboardActive
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
+                      : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
+                  }`}
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
+                    fontSize: 'min(11px, 3.5cqmin)',
+                  }}
+                >
+                  <Trophy
+                    className={isLiveScoreboardActive ? 'animate-pulse' : ''}
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
+                  {isLiveScoreboardActive
+                    ? 'LIVE SCOREBOARD ON'
+                    : 'ENABLE LIVE SCOREBOARD'}
+                </button>
+                {showLiveScoreboardSetup && (
+                  <div
+                    ref={liveScoreboardSetupRef}
+                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+                    style={{ padding: 'min(16px, 4cqmin)' }}
+                  >
+                    <p
+                      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(11px, 3.5cqmin)',
+                        marginBottom: 'min(12px, 3cqmin)',
+                      }}
+                    >
+                      Live Scoreboard Setup
+                    </p>
+                    <p
+                      className="font-bold text-slate-500 uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        marginBottom: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      Display as
+                    </p>
+                    <div
+                      className="flex"
+                      style={{
+                        gap: 'min(6px, 1.5cqmin)',
+                        marginBottom: 'min(12px, 3cqmin)',
+                      }}
+                    >
+                      <button
+                        onClick={() => setLiveScoreboardMode('name')}
+                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                          liveScoreboardMode === 'name'
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        disabled={!hasNames}
+                        style={{
+                          gap: 'min(4px, 1cqmin)',
+                          padding: 'min(8px, 2cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
                       >
-                        <AlertTriangle
+                        <User
                           style={{
-                            width: 'min(12px, 3cqmin)',
-                            height: 'min(12px, 3cqmin)',
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
                           }}
                         />
+                        Names
                       </button>
-                    )}
+                      <button
+                        onClick={() => setLiveScoreboardMode('pin')}
+                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+                          liveScoreboardMode === 'pin'
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        style={{
+                          gap: 'min(4px, 1cqmin)',
+                          padding: 'min(8px, 2cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        <Hash
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                        />
+                        PINs
+                      </button>
+                    </div>
+                    <p
+                      className="font-bold text-slate-500 uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        marginBottom: 'min(6px, 1.5cqmin)',
+                      }}
+                    >
+                      Update scores
+                    </p>
+                    <div
+                      className="flex flex-col"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        marginBottom: 'min(14px, 3.5cqmin)',
+                      }}
+                    >
+                      <button
+                        onClick={() => setLiveScoreboardScoring('completion')}
+                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                          liveScoreboardScoring === 'completion'
+                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        style={{
+                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        On quiz completion
+                      </button>
+                      <button
+                        onClick={() => setLiveScoreboardScoring('per-question')}
+                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+                          liveScoreboardScoring === 'per-question'
+                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        style={{
+                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                          fontSize: 'min(10px, 3cqmin)',
+                        }}
+                      >
+                        After each question
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleEnableLiveScoreboard}
+                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
+                      style={{
+                        padding: 'min(10px, 2.5cqmin)',
+                        fontSize: 'min(11px, 3.5cqmin)',
+                      }}
+                    >
+                      START LIVE SCOREBOARD
+                    </button>
                   </div>
                 )}
               </div>
-              {showRoster && (
-                <div
-                  className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  {responses
-                    .slice()
-                    .sort((a, b) => a.pin.localeCompare(b.pin))
-                    .map((r) => (
-                      <StudentRow
-                        key={r.studentUid}
-                        response={r}
-                        totalQuestions={session.totalQuestions}
-                        questions={quizData.questions}
-                        currentQuestion={currentQ}
-                        showAnswerColors={showAnswerColors}
-                        showTabWarnings={
-                          showTabWarnings &&
-                          session.tabWarningsEnabled !== false
-                        }
-                        confirmRemove={confirmRemove === r.studentUid}
-                        onConfirmRemoveToggle={() =>
-                          setConfirmRemove(
-                            confirmRemove === r.studentUid ? null : r.studentUid
-                          )
-                        }
-                        onRemove={
-                          onRemoveStudent
-                            ? () => {
-                                void Promise.resolve(
-                                  onRemoveStudent(r.studentUid)
-                                )
-                                  .then(() => setConfirmRemove(null))
-                                  .catch(() => undefined);
-                              }
-                            : undefined
-                        }
-                        pinToName={pinToName}
-                      />
-                    ))}
+
+              {/* Stat boxes (non-interactive for waiting/ended) */}
+              <div
+                className="grid grid-cols-3"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                <StatBox
+                  label="Joined"
+                  value={joined + inProgress + completed}
+                  icon={
+                    <Users
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  }
+                  color="blue"
+                />
+                <StatBox
+                  label="Active"
+                  value={inProgress}
+                  icon={
+                    <Clock
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  }
+                  color="amber"
+                />
+                <StatBox
+                  label="Finished"
+                  value={completed}
+                  icon={
+                    <CheckCircle2
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  }
+                  color="green"
+                />
+              </div>
+
+              {session.status === 'waiting' && (
+                <div className="p-5 bg-white border-2 border-dashed border-brand-blue-primary/20 rounded-2xl text-center shadow-inner">
+                  <p
+                    className="text-brand-blue-primary font-black uppercase tracking-wider"
+                    style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                  >
+                    Waiting for Students
+                  </p>
+                  <p
+                    className="text-brand-gray-primary font-medium"
+                    style={{
+                      fontSize: 'min(12px, 3.5cqmin)',
+                      marginTop: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    Students appear below as they join. Press START to begin the
+                    first question.
+                  </p>
                 </div>
               )}
-            </div>
+
+              {session.status === 'ended' && (
+                <div className="p-5 bg-emerald-50 text-center rounded-2xl border-2 border-emerald-100 shadow-sm">
+                  <div
+                    className="bg-emerald-500 text-white mx-auto rounded-full flex items-center justify-center shadow-lg"
+                    style={{
+                      width: 'min(32px, 8cqmin)',
+                      height: 'min(32px, 8cqmin)',
+                      marginBottom: 'min(12px, 3cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      style={{
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                    />
+                  </div>
+                  <p
+                    className="text-emerald-800 font-black uppercase tracking-wider"
+                    style={{ fontSize: 'min(16px, 5cqmin)' }}
+                  >
+                    Quiz Finished!
+                  </p>
+                  <p
+                    className="text-emerald-700/70 font-bold"
+                    style={{
+                      fontSize: 'min(13px, 4cqmin)',
+                      marginTop: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    {completed} students crossed the finish line
+                  </p>
+                </div>
+              )}
+
+              {/* Student roster for waiting/ended */}
+              {responses.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
+                    <button
+                      onClick={() => setShowRoster(!showRoster)}
+                      className="flex items-center gap-1"
+                    >
+                      <span
+                        className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                      >
+                        Roster · {responses.length}
+                      </span>
+                      {showRoster ? (
+                        <EyeOff
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                          className="text-brand-blue-primary/40"
+                        />
+                      ) : (
+                        <Eye
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                          className="text-brand-blue-primary/40"
+                        />
+                      )}
+                    </button>
+                    {showRoster && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowAnswerColors(!showAnswerColors)}
+                          className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+                            showAnswerColors
+                              ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
+                              : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+                          }`}
+                          style={{
+                            fontSize: 'min(9px, 2.5cqmin)',
+                            padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+                          }}
+                          title="Color-code answers for current question"
+                        >
+                          <Palette
+                            style={{
+                              width: 'min(12px, 3cqmin)',
+                              height: 'min(12px, 3cqmin)',
+                            }}
+                          />
+                          Colors
+                        </button>
+                        {session.tabWarningsEnabled !== false && (
+                          <button
+                            onClick={() => setShowTabWarnings(!showTabWarnings)}
+                            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+                              showTabWarnings
+                                ? 'text-red-500 bg-red-50'
+                                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+                            }`}
+                            style={{
+                              fontSize: 'min(9px, 2.5cqmin)',
+                              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+                            }}
+                            title="Show/hide tab switch warnings in roster"
+                          >
+                            <AlertTriangle
+                              style={{
+                                width: 'min(12px, 3cqmin)',
+                                height: 'min(12px, 3cqmin)',
+                              }}
+                            />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {showRoster && (
+                    <div
+                      className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
+                      style={{
+                        gap: 'min(6px, 1.5cqmin)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      {responses
+                        .slice()
+                        .sort((a, b) => a.pin.localeCompare(b.pin))
+                        .map((r) => (
+                          <StudentRow
+                            key={r.studentUid}
+                            response={r}
+                            totalQuestions={session.totalQuestions}
+                            questions={quizData.questions}
+                            currentQuestion={currentQ}
+                            showAnswerColors={showAnswerColors}
+                            showTabWarnings={
+                              showTabWarnings &&
+                              session.tabWarningsEnabled !== false
+                            }
+                            confirmRemove={confirmRemove === r.studentUid}
+                            onConfirmRemoveToggle={() =>
+                              setConfirmRemove(
+                                confirmRemove === r.studentUid
+                                  ? null
+                                  : r.studentUid
+                              )
+                            }
+                            onRemove={
+                              onRemoveStudent
+                                ? () => {
+                                    void Promise.resolve(
+                                      onRemoveStudent(r.studentUid)
+                                    )
+                                      .then(() => setConfirmRemove(null))
+                                      .catch(() => undefined);
+                                  }
+                                : undefined
+                            }
+                            pinToName={pinToName}
+                          />
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -1130,6 +1618,87 @@ const StatBox: React.FC<{
       >
         {label}
       </p>
+    </div>
+  );
+};
+
+const InteractiveStatBox: React.FC<{
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  color: 'blue' | 'amber' | 'green';
+  expanded: boolean;
+  onToggle: () => void;
+  students: { pin: string; name: string }[];
+}> = ({ label, value, icon, color, expanded, onToggle, students }) => {
+  const themes = {
+    blue: 'bg-brand-blue-lighter border-brand-blue-primary/10 text-brand-blue-primary',
+    amber: 'bg-amber-50 border-amber-200 text-amber-600',
+    green: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+  };
+  const expandedBorder = {
+    blue: 'border-brand-blue-primary/30',
+    amber: 'border-amber-300',
+    green: 'border-emerald-300',
+  };
+
+  return (
+    <div className="flex flex-col">
+      <button
+        onClick={onToggle}
+        className={`${themes[color]} rounded-xl text-center border shadow-sm transition-all active:scale-95 cursor-pointer ${
+          expanded ? `ring-2 ring-offset-1 ${expandedBorder[color]}` : ''
+        }`}
+        style={{ padding: 'min(6px, 1.5cqmin) min(4px, 1cqmin)' }}
+      >
+        <div
+          className="opacity-60"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: 'min(2px, 0.5cqmin)',
+          }}
+        >
+          {icon}
+        </div>
+        <p
+          className="font-black leading-none"
+          style={{ fontSize: 'min(18px, 5.5cqmin)' }}
+        >
+          {value}
+        </p>
+        <p
+          className="font-bold uppercase tracking-tighter opacity-70"
+          style={{
+            fontSize: 'min(9px, 3cqmin)',
+            marginTop: 'min(1px, 0.3cqmin)',
+          }}
+        >
+          {label}
+        </p>
+      </button>
+      {expanded && students.length > 0 && (
+        <div
+          className={`${themes[color]} rounded-lg border mt-1 overflow-y-auto`}
+          style={{
+            maxHeight: 'min(100px, 25cqmin)',
+            padding: 'min(4px, 1cqmin)',
+          }}
+        >
+          {students.map((s) => (
+            <p
+              key={s.pin}
+              className="truncate font-bold"
+              style={{
+                fontSize: 'min(10px, 2.8cqmin)',
+                padding: 'min(2px, 0.5cqmin) min(4px, 1cqmin)',
+              }}
+            >
+              {s.name}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

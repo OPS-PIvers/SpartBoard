@@ -94,6 +94,8 @@ export function getResponseScore(
 
 /**
  * Build a PIN → student full-name lookup from the matching roster.
+ * Stores both the canonical (zero-padded) and numeric-only (stripped leading
+ * zeros) forms so lookups succeed regardless of how the student typed their PIN.
  */
 export function buildPinToNameMap(
   rosters: ClassRoster[],
@@ -105,7 +107,14 @@ export function buildPinToNameMap(
   if (!roster?.students) return map;
   for (const s of roster.students) {
     if (s.pin && (s.firstName || s.lastName)) {
-      map[s.pin] = [s.firstName, s.lastName].filter(Boolean).join(' ');
+      const name = [s.firstName, s.lastName].filter(Boolean).join(' ');
+      // Canonical form (e.g. "01")
+      map[s.pin] = name;
+      // Stripped form (e.g. "1") for students who omit the leading zero
+      const stripped = s.pin.replace(/^0+/, '');
+      if (stripped && stripped !== s.pin) {
+        map[stripped] = name;
+      }
     }
   }
   return map;

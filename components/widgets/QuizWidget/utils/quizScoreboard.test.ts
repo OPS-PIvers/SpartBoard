@@ -312,9 +312,12 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, 'Period 1');
+      // Includes both zero-padded and stripped forms for flexible matching
       expect(map).toEqual({
         '01': 'Alice Smith',
+        '1': 'Alice Smith',
         '02': 'Bob Jones',
+        '2': 'Bob Jones',
       });
     });
 
@@ -348,6 +351,7 @@ describe('quizScoreboard', () => {
       const map = buildPinToNameMap(rosters, 'Period 1');
       expect(map).toEqual({
         '02': 'Bob Jones',
+        '2': 'Bob Jones',
       });
     });
 
@@ -358,7 +362,7 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, 'Period 1');
-      expect(map).toEqual({ '01': 'Cher' });
+      expect(map).toEqual({ '01': 'Cher', '1': 'Cher' });
     });
   });
 
