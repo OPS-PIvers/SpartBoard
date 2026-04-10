@@ -283,10 +283,16 @@ describe('DashboardContext per-widget merge', () => {
     );
     await pushSnapshot([initialDashboard]);
 
-    // Local changes to non-config, non-layout fields on widget A
+    // Local changes to instance, style, and annotation fields on widget A
+    const testAnnotation = {
+      mode: 'window' as const,
+      paths: [{ points: [{ x: 0, y: 0 }], color: '#000', width: 2 }],
+    };
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
         customTitle: 'My Custom Title',
+        isPinned: true,
+        annotation: testAnnotation,
         transparency: 0.5,
       });
       await Promise.resolve();
@@ -297,24 +303,30 @@ describe('DashboardContext per-widget merge', () => {
         (w) => w.id === 'wA'
       );
       expect(wA?.customTitle).toBe('My Custom Title');
+      expect(wA?.isPinned).toBe(true);
     });
 
     // Server snapshot: widget B config changed; widget A unchanged on server
     const serverDashboard = makeDashboard([
-      makeWidget('wA', 'original-A'), // server unaware of local customTitle / transparency
+      makeWidget('wA', 'original-A'), // server unaware of local instance / style changes
       makeWidget('wB', 'server-B'),
     ]);
     await pushSnapshot([{ ...serverDashboard, updatedAt: 2000 }]);
 
-    // customTitle is now preserved during merge via INSTANCE_FIELDS,
-    // alongside transparency (STYLE_FIELDS). Server config changes
-    // on other widgets are still accepted.
+    // All locally-changed fields are preserved during merge:
+    // customTitle and isPinned via INSTANCE_FIELDS, annotation via
+    // dedicated annotation tracking, transparency via STYLE_FIELDS.
+    // Server config changes on other widgets are still accepted.
     await waitFor(() => {
       const wA = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wA'
       );
       // customTitle is preserved since it is in INSTANCE_FIELDS
       expect(wA?.customTitle).toBe('My Custom Title');
+      // isPinned is preserved since it is in INSTANCE_FIELDS
+      expect(wA?.isPinned).toBe(true);
+      // annotation is preserved via dedicated annotation tracking
+      expect(wA?.annotation).toEqual(testAnnotation);
       // transparency is preserved since it is in STYLE_FIELDS
       expect(wA?.transparency).toBe(0.5);
       // But widget B's server config is still accepted

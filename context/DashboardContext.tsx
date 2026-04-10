@@ -765,6 +765,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     saved,
                     keepLocalConfig: false,
                     keepLocalLayout: false,
+                    keepLocalStyle: false,
                     keepLocalInstance: false,
                     keepLocalAnnotation: false,
                     isDeletedLocally,
@@ -785,9 +786,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const instanceChangedLocally = INSTANCE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
+                // Fast-path: skip expensive JSON.stringify when both are
+                // absent or the same reference. Only deep-compare when both
+                // are present and structurally different.
                 const annotationChangedLocally =
+                  lw.annotation !== saved.annotation &&
                   JSON.stringify(lw.annotation) !==
-                  JSON.stringify(saved.annotation);
+                    JSON.stringify(saved.annotation);
 
                 return {
                   sw,
