@@ -109,7 +109,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    const formatted = `<b>${esc(label)} — ${esc(catLabel)}</b><br><br>${items.map((item) => `• ${esc(item)}`).join('<br>')}`;
+    const formatted = `<b>${esc(label)} \u2014 ${esc(catLabel)}</b><br><br>${items.map((item) => `\u2022 ${esc(item)}`).join('<br>')}`;
 
     addWidget('text', {
       config: {
