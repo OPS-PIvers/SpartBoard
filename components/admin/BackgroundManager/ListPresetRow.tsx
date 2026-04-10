@@ -8,6 +8,7 @@ import {
   Plus,
   Trash2,
   Building2,
+  Star,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { BUILDINGS } from '@/config/buildings';
@@ -32,6 +33,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
   addBetaUser,
   removeBetaUser,
   toggleBuildingId,
+  toggleFeatured,
   getAccessLevelIcon,
   getAccessLevelColor,
 }) => {
@@ -231,6 +233,22 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             <span className="text-xxs text-slate-400 italic">All</span>
           )}
         </div>
+
+        {/* Featured */}
+        <button
+          onClick={() => void toggleFeatured(preset.id)}
+          className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+            preset.featured
+              ? 'text-amber-500 hover:bg-amber-50'
+              : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
+          }`}
+          title={preset.featured ? 'Remove from featured' : 'Mark as featured'}
+        >
+          <Star
+            className="w-4 h-4"
+            fill={preset.featured ? 'currentColor' : 'none'}
+          />
+        </button>
 
         {/* Delete */}
         <button

@@ -533,6 +533,12 @@ export const BackgroundManager: React.FC = () => {
     await updatePreset(presetId, { buildingIds: updated });
   };
 
+  const toggleFeatured = async (presetId: string) => {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    await updatePreset(presetId, { featured: !preset.featured });
+  };
+
   const getAccessLevelIcon = (level: AccessLevel) => {
     switch (level) {
       case 'admin':
@@ -568,6 +574,16 @@ export const BackgroundManager: React.FC = () => {
     const counts = new Map<string, number>();
     presets.forEach((p) => {
       if (p.category) {
+        counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [presets]);
+
+  const categoryFeaturedCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    presets.forEach((p) => {
+      if (p.category && p.featured) {
         counts.set(p.category, (counts.get(p.category) ?? 0) + 1);
       }
     });
@@ -804,18 +820,26 @@ export const BackgroundManager: React.FC = () => {
                   No categories yet. Add one below.
                 </p>
               )}
-              {allCategories.map((cat) => (
-                <div
-                  key={cat}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm"
-                >
-                  <Tag className="w-3 h-3 text-brand-blue-primary" />
-                  {cat}
-                  <span className="text-slate-400 ml-1">
-                    ({categoryCounts.get(cat) ?? 0})
-                  </span>
-                </div>
-              ))}
+              {allCategories.map((cat) => {
+                const featuredCount = categoryFeaturedCounts.get(cat) ?? 0;
+                return (
+                  <div
+                    key={cat}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 shadow-sm"
+                  >
+                    <Tag className="w-3 h-3 text-brand-blue-primary" />
+                    {cat}
+                    <span className="text-slate-400 ml-1">
+                      ({categoryCounts.get(cat) ?? 0})
+                    </span>
+                    {featuredCount > 0 && (
+                      <span className="text-amber-500 ml-0.5">
+                        {featuredCount} featured
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <div className="flex gap-2 max-w-xs">
               <input
@@ -1141,6 +1165,7 @@ export const BackgroundManager: React.FC = () => {
                 addBetaUser={addBetaUser}
                 removeBetaUser={removeBetaUser}
                 toggleBuildingId={toggleBuildingId}
+                toggleFeatured={toggleFeatured}
                 getAccessLevelIcon={getAccessLevelIcon}
                 getAccessLevelColor={getAccessLevelColor}
               />
@@ -1168,6 +1193,7 @@ export const BackgroundManager: React.FC = () => {
                 addBetaUser={addBetaUser}
                 removeBetaUser={removeBetaUser}
                 toggleBuildingId={toggleBuildingId}
+                toggleFeatured={toggleFeatured}
                 getAccessLevelIcon={getAccessLevelIcon}
                 getAccessLevelColor={getAccessLevelColor}
               />

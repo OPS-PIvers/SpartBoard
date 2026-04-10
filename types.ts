@@ -2667,6 +2667,8 @@ export interface BackgroundPreset {
   category?: string;
   /** Building IDs this background is assigned to; empty/undefined = all buildings */
   buildingIds?: string[];
+  /** Whether this background is featured in the sidebar overview (max ~6 per category) */
+  featured?: boolean;
 }
 
 // --- GLOBAL STYLING TYPES ---

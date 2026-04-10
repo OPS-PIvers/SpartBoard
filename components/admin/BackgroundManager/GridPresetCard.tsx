@@ -1,5 +1,5 @@
 import React from 'react';
-import { Video, Pencil, Check, X, Tag, Plus, Trash2 } from 'lucide-react';
+import { Video, Pencil, Check, X, Tag, Plus, Trash2, Star } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { BUILDINGS } from '@/config/buildings';
 import { extractYouTubeId } from '@/utils/youtube';
@@ -23,6 +23,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
   addBetaUser,
   removeBetaUser,
   toggleBuildingId,
+  toggleFeatured,
   getAccessLevelIcon,
   getAccessLevelColor,
 }) => {
@@ -45,7 +46,23 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             </span>
           </div>
         )}
-        <div className="absolute top-1.5 right-1.5 z-10">
+        <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1">
+          <button
+            onClick={() => void toggleFeatured(preset.id)}
+            className={`p-1.5 rounded-lg shadow-md transition-all scale-90 hover:scale-100 ${
+              preset.featured
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-white/80 text-slate-400 hover:bg-amber-500 hover:text-white'
+            }`}
+            title={
+              preset.featured ? 'Remove from featured' : 'Mark as featured'
+            }
+          >
+            <Star
+              className="w-3.5 h-3.5"
+              fill={preset.featured ? 'currentColor' : 'none'}
+            />
+          </button>
           <button
             onClick={() => void deletePreset(preset)}
             className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md transition-all scale-90 hover:scale-100"
