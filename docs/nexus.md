@@ -8,7 +8,7 @@
 - **Date**: pre-2026
 - **Value**: Automatically starts a timer when a student is selected, enabling timed turn-taking.
 - **Status**: implemented
-- **Code**: `RandomWidget.tsx` checks `autoStartTimer` config and triggers `updateWidget` on the active `time-tool` widget.
+- **Code**: `random/RandomWidget.tsx` checks `autoStartTimer` config and triggers `updateWidget` on the active `time-tool` widget.
 
 ### Text Widget → QR Widget
 - **Date**: pre-2026
@@ -32,7 +32,7 @@
 - **Date**: pre-2026
 - **Value**: Instantly converts generated random groups into a competitive scoreboard for team activities.
 - **Status**: implemented
-- **Code**: `RandomWidget.tsx` provides a "Send to Scoreboard" button in Groups mode that creates or updates a Scoreboard widget.
+- **Code**: `random/RandomWidget.tsx` provides a "Send to Scoreboard" button in Groups mode that creates or updates a Scoreboard widget.
 
 ### NextUp → Timer
 - **Date**: pre-2026
@@ -145,14 +145,14 @@
 ### Timer → Music (Auto-Play/Pause)
 - **User story**: "I want background music to automatically start when the work timer begins and stop when it ends."
 - **Data flow**: Timer widget emits start/stop events → Music widget receives play/pause commands.
-- **Approach**: `useTimeTool.ts` adds `timerStartMusic` and `timerEndMusic` config flags; on timer state change, finds the active music widget and toggles its `isPlaying` config via `updateWidget`.
+- **Approach**: `useTimeTool.ts` adds `timerStartMusic` and `timerEndMusic` config flags; on timer state change, finds the active music widget and toggles playback via `updateWidget`. Note: `MusicConfig` would need a new `isPlaying` field added to `types.ts` to support this.
 - **Scores**: Value: 4/5 | Feasibility: 5/5 | Coupling risk: 2/5 | **Total: 7**
 - **Status**: proposed
 
 ### Scoreboard → Stickers (Achievement Rewards)
 - **User story**: "When a team reaches a score milestone, I want a celebration sticker to automatically appear on the dashboard."
 - **Data flow**: Scoreboard widget emits milestone event (team name + score) → Stickers widget spawns a celebratory sticker.
-- **Approach**: Scoreboard widget adds configurable milestone thresholds; on threshold hit, calls `addWidget('sticker', { config: { stickerType: 'celebration' } })` positioned near the scoreboard.
+- **Approach**: Scoreboard widget adds configurable milestone thresholds; on threshold hit, calls `addWidget('sticker', { config: { icon: 'celebration' } })` positioned near the scoreboard.
 - **Scores**: Value: 3/5 | Feasibility: 4/5 | Coupling risk: 2/5 | **Total: 5**
 - **Status**: proposed
 
@@ -180,7 +180,7 @@
 ### Activity Wall → Hotspot Image (AI-Placed Responses)
 - **User story**: "I want student activity wall submissions to appear as pins on a hotspot image so we can see responses spatially organized."
 - **Data flow**: Activity Wall widget emits student submissions (text[]) → AI assigns spatial coordinates based on content similarity → Hotspot Image widget receives annotated pins.
-- **Approach**: Activity Wall results view adds an "Organize on Image" button. Uses `gemini-3.1-flash-lite-preview` to cluster submissions and assign (x,y) positions, then calls `addWidget('hotspot-image', { config: { pins } })`.
+- **Approach**: Activity Wall results view adds an "Organize on Image" button. Uses `gemini-3.1-flash-lite-preview` to cluster submissions and assign (x,y) positions, then calls `addWidget('hotspot-image', { config: { hotspots } })`.
 - **Scores**: Value: 3/5 | Feasibility: 2/5 | Coupling risk: 3/5 | **Total: 2**
 - **Status**: proposed
 
@@ -194,6 +194,6 @@
 ### Guided Learning → Quiz (AI Assessment Generation)
 - **User story**: "After a guided learning session, I want to quickly generate a formative quiz based on the content we just covered."
 - **Data flow**: Guided Learning widget emits lesson content/slides (text) → AI generates quiz questions → Quiz widget receives question set.
-- **Approach**: Guided Learning results panel adds a "Generate Quiz" button. Uses `gemini-3-flash-preview` (complex task: content analysis + question generation) to produce 5-10 questions from the lesson content, then calls `addWidget('quiz', { config: { questions } })`.
+- **Approach**: Guided Learning results panel adds a "Generate Quiz" button. Uses `gemini-3-flash-preview` (complex task: content analysis + question generation) to produce 5-10 questions from the lesson content. Note: `QuizConfig` currently loads quizzes by ID from Drive, so this would need an `activeQuiz` inline state (similar to `MiniAppConfig`) or save the generated quiz to Drive first, then pass the ID to `addWidget('quiz', ...)`.
 - **Scores**: Value: 5/5 | Feasibility: 3/5 | Coupling risk: 2/5 | **Total: 6**
 - **Status**: proposed
