@@ -17,6 +17,20 @@ export const FONTS = [
     className: 'font-rounded',
   },
   { id: 'font-fun', label: 'Fun', icon: '★', className: 'font-fun' },
+  { id: 'font-slab', label: 'Slab Serif', icon: 'Sl', className: 'font-slab' },
+  { id: 'font-retro', label: 'Retro', icon: '▦', className: 'font-retro' },
+  {
+    id: 'font-marker',
+    label: 'Marker',
+    icon: '✍',
+    className: 'font-marker',
+  },
+  {
+    id: 'font-cursive',
+    label: 'Cursive',
+    icon: '𝒞',
+    className: 'font-cursive',
+  },
 ] as const;
 
 export const FONT_COLORS = [

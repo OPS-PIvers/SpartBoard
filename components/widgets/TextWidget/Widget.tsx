@@ -129,60 +129,65 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <WidgetLayout
       padding="p-0"
-      header={
-        isSelected && (
-          <FormattingToolbar
-            editorRef={editorRef}
-            verticalAlign={verticalAlign}
-            onVerticalAlignChange={(value) =>
-              updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  verticalAlign: value,
-                } as TextConfig,
-              })
-            }
-          />
-        )
-      }
       content={
-        <div
-          className={`h-full w-full ${fontClass} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative flex flex-col`}
-        >
-          {/* Background color overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-20"
-            style={{ backgroundColor: bgColor }}
-          />
-          <div className="relative z-10 flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
-            <div
-              className="flex min-h-full w-full flex-col"
-              style={{
-                justifyContent:
-                  verticalAlign === 'center'
-                    ? 'center'
-                    : verticalAlign === 'bottom'
-                      ? 'flex-end'
-                      : 'flex-start',
-              }}
-            >
-              <div
-                ref={editorRef}
-                className="w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
-                style={{
-                  padding: 'min(16px, 3.5cqmin)',
-                  color: fontColor,
-                  fontSize: `min(${resolvedFontSize}px, ${resolvedFontSize * 0.5}cqmin)`,
-                  lineHeight: 1.5,
-                }}
-                data-placeholder={PLACEHOLDER_TEXT}
-                contentEditable
-                suppressContentEditableWarning
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                onInput={handleInput}
-                onKeyDown={handleKeyDown}
+        <div className="relative h-full w-full">
+          {/* Floating formatting toolbar */}
+          {isSelected && (
+            <div className="absolute top-0 left-0 right-0 z-10">
+              <FormattingToolbar
+                editorRef={editorRef}
+                verticalAlign={verticalAlign}
+                onVerticalAlignChange={(value) =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      verticalAlign: value,
+                    } as TextConfig,
+                  })
+                }
               />
+            </div>
+          )}
+
+          <div
+            className={`h-full w-full ${fontClass} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative flex flex-col`}
+          >
+            {/* Background color overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-20"
+              style={{ backgroundColor: bgColor }}
+            />
+            <div className="relative z-[1] flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
+              <div
+                className="flex min-h-full w-full flex-col"
+                style={{
+                  justifyContent:
+                    verticalAlign === 'center'
+                      ? 'center'
+                      : verticalAlign === 'bottom'
+                        ? 'flex-end'
+                        : 'flex-start',
+                }}
+              >
+                <div
+                  ref={editorRef}
+                  className="w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
+                  style={{
+                    padding: 'min(16px, 3.5cqmin)',
+                    color: fontColor,
+                    fontSize: `min(${resolvedFontSize}px, ${resolvedFontSize * 0.5}cqmin)`,
+                    lineHeight: 1.5,
+                  }}
+                  data-placeholder={PLACEHOLDER_TEXT}
+                  contentEditable
+                  suppressContentEditableWarning
+                  spellCheck={isSelected}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  onInput={handleInput}
+                  onKeyDown={handleKeyDown}
+                />
+              </div>
             </div>
           </div>
         </div>

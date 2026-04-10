@@ -6,11 +6,12 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
+  Minus,
+  Plus,
 } from 'lucide-react';
 
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
-import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { TEXT_WIDGET_COLORS, TEXT_WIDGET_TEMPLATES } from './constants';
 
 export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -71,40 +72,49 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       </div>
 
-      <TextSizePresetSettings
-        config={config}
-        updateConfig={(updates) =>
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              ...updates,
-            } as TextConfig,
-          })
-        }
-      />
-
       <div>
-        <SettingsLabel>Font Size (Fine Tune)</SettingsLabel>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="12"
-            max="48"
-            value={config.fontSize}
-            onChange={(e) =>
+        <SettingsLabel>Font Size</SettingsLabel>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const next = Math.max(8, (config.fontSize ?? 18) - 1);
               updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  fontSize: parseInt(e.target.value),
-                } as TextConfig,
-              })
-            }
-            className="flex-1 accent-blue-600"
-            aria-label="Font size slider"
+                config: { ...config, fontSize: next } as TextConfig,
+              });
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+            aria-label="Decrease font size"
+          >
+            <Minus className="w-3.5 h-3.5 text-slate-600" />
+          </button>
+          <input
+            type="text"
+            value={config.fontSize ?? 18}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!Number.isNaN(val)) {
+                const clamped = Math.max(8, Math.min(96, val));
+                updateWidget(widget.id, {
+                  config: { ...config, fontSize: clamped } as TextConfig,
+                });
+              }
+            }}
+            className="w-12 h-8 text-center font-mono text-sm text-slate-700 border border-slate-200 rounded-lg bg-white outline-none focus:border-blue-400"
+            aria-label="Font size"
           />
-          <span className="w-8 text-center font-mono text-slate-700 text-xs">
-            {config.fontSize}
-          </span>
+          <button
+            onClick={() => {
+              const next = Math.min(96, (config.fontSize ?? 18) + 1);
+              updateWidget(widget.id, {
+                config: { ...config, fontSize: next } as TextConfig,
+              });
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+            aria-label="Increase font size"
+          >
+            <Plus className="w-3.5 h-3.5 text-slate-600" />
+          </button>
+          <span className="text-xs text-slate-500">px</span>
         </div>
       </div>
 

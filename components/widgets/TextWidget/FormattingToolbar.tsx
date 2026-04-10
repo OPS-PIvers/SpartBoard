@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
   Bold,
@@ -19,9 +25,11 @@ import {
   Highlighter,
   Link as LinkIcon,
   ChevronDown,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
-import { FONT_COLORS, FONTS } from '@/config/fonts';
+import { FONT_COLORS } from '@/config/fonts';
 import { PASTEL_PALETTE } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
 
@@ -31,13 +39,39 @@ interface FormattingToolbarProps {
   onVerticalAlignChange: (value: 'top' | 'center' | 'bottom') => void;
 }
 
-const FONT_SIZES = [
-  { label: 'Small', value: '1' },
-  { label: 'Normal', value: '3' },
-  { label: 'Medium', value: '4' },
-  { label: 'Large', value: '5' },
-  { label: 'Huge', value: '6' },
-  { label: 'Giant', value: '7' },
+const TOOLBAR_FONTS = [
+  { id: 'global', label: 'Default', family: 'inherit' },
+  { id: 'font-sans', label: 'Lexend', family: 'Lexend, sans-serif' },
+  { id: 'font-serif', label: 'Merriweather', family: 'Merriweather, serif' },
+  {
+    id: 'font-mono',
+    label: 'Roboto Mono',
+    family: 'Roboto Mono, monospace',
+  },
+  {
+    id: 'font-handwritten',
+    label: 'Patrick Hand',
+    family: 'Patrick Hand, cursive',
+  },
+  { id: 'font-comic', label: 'Comic Neue', family: 'Comic Neue, cursive' },
+  {
+    id: 'font-rounded',
+    label: 'Varela Round',
+    family: 'Varela Round, sans-serif',
+  },
+  { id: 'font-fun', label: 'Fredoka', family: 'Fredoka, sans-serif' },
+  { id: 'font-slab', label: 'Roboto Slab', family: 'Roboto Slab, serif' },
+  { id: 'font-retro', label: 'VT323', family: 'VT323, monospace' },
+  {
+    id: 'font-marker',
+    label: 'Permanent Marker',
+    family: 'Permanent Marker, cursive',
+  },
+  {
+    id: 'font-cursive',
+    label: 'Dancing Script',
+    family: 'Dancing Script, cursive',
+  },
 ];
 
 const MenuButton: React.FC<{
@@ -120,10 +154,28 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 }) => {
   const { showPrompt } = useDialog();
   const [showFontMenu, setShowFontMenu] = useState(false);
-  const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const [currentFontSize, setCurrentFontSize] = useState(16);
+  const [fontSizeInput, setFontSizeInput] = useState('16');
   const savedRangeRef = useRef<Range | null>(null);
+
+  /** Read the computed font-size of the current selection anchor */
+  const detectFontSize = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
+    const node =
+      sel.anchorNode?.nodeType === Node.TEXT_NODE
+        ? sel.anchorNode.parentElement
+        : (sel.anchorNode as HTMLElement | null);
+    if (!node || !editorRef.current.contains(node)) return;
+    const computed = window.getComputedStyle(node).fontSize;
+    const px = Math.round(parseFloat(computed));
+    if (!Number.isNaN(px) && px > 0) {
+      setCurrentFontSize(px);
+      setFontSizeInput(String(px));
+    }
+  }, [editorRef]);
 
   useEffect(() => {
     const captureSelection = () => {
@@ -142,13 +194,15 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       if (container instanceof Node && editor.contains(container)) {
         savedRangeRef.current = range.cloneRange();
       }
+
+      detectFontSize();
     };
 
     document.addEventListener('selectionchange', captureSelection);
     return () => {
       document.removeEventListener('selectionchange', captureSelection);
     };
-  }, [editorRef]);
+  }, [editorRef, detectFontSize]);
 
   const restoreSelection = () => {
     const selection = window.getSelection();
@@ -172,6 +226,34 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     editorRef.current?.focus();
   };
 
+  /** Apply an arbitrary pixel font size using the marker-replacement technique */
+  const applyFontSize = useCallback(
+    (size: number) => {
+      const clamped = Math.max(8, Math.min(96, Math.round(size)));
+      setCurrentFontSize(clamped);
+      setFontSizeInput(String(clamped));
+
+      restoreSelection();
+      document.execCommand('styleWithCSS', false, 'true');
+      document.execCommand('fontSize', false, '7');
+
+      // Replace <font size="7"> markers with styled spans
+      const editor = editorRef.current;
+      if (editor) {
+        const fontElements = editor.querySelectorAll('font[size="7"]');
+        fontElements.forEach((el) => {
+          const span = document.createElement('span');
+          span.style.fontSize = `${clamped}px`;
+          span.innerHTML = el.innerHTML;
+          el.replaceWith(span);
+        });
+      }
+      editor?.focus();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editorRef]
+  );
+
   const handleLink = async () => {
     const url = await showPrompt('Enter the URL for the link:', {
       placeholder: 'https://example.com',
@@ -185,7 +267,6 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   useEffect(() => {
     const handleClickOutside = () => {
       setShowFontMenu(false);
-      setShowSizeMenu(false);
       setShowColorMenu(false);
       setShowHighlightMenu(false);
     };
@@ -195,7 +276,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
   return (
     <div
-      className="flex flex-col gap-0.5 p-1 bg-white border-b border-slate-200"
+      className="flex flex-col gap-0.5 p-1 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm rounded-t-lg"
       onMouseDown={(e) => e.preventDefault()}
     >
       {/* Row 1: Text formatting */}
@@ -208,35 +289,21 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           onClick={() => {
             const wasOpen = showFontMenu;
             setShowFontMenu(!wasOpen);
-            setShowSizeMenu(false);
             setShowColorMenu(false);
             setShowHighlightMenu(false);
           }}
         >
-          <div className="flex flex-col gap-0.5">
-            {FONTS.map((f) => (
+          <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto custom-scrollbar">
+            {TOOLBAR_FONTS.map((f) => (
               <button
                 key={f.id}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  const fontFamilyMap: Record<string, string> = {
-                    'font-sans': 'Lexend, sans-serif',
-                    'font-serif': 'Merriweather, serif',
-                    'font-mono': 'Roboto Mono, monospace',
-                    'font-handwritten': 'Patrick Hand, cursive',
-                    'font-rounded': 'Varela Round, sans-serif',
-                    'font-fun': 'Fredoka, sans-serif',
-                    'font-comic': 'Comic Neue, cursive',
-                    'font-slab': 'Roboto Slab, serif',
-                    'font-retro': 'VT323, monospace',
-                    'font-marker': 'Permanent Marker, cursive',
-                    'font-cursive': 'Dancing Script, cursive',
-                  };
-                  exec('fontName', fontFamilyMap[f.id] || 'sans-serif');
+                  exec('fontName', f.id === 'global' ? 'sans-serif' : f.family);
                   setShowFontMenu(false);
                 }}
                 className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 whitespace-nowrap"
-                style={{ fontFamily: f.id === 'global' ? 'inherit' : f.id }}
+                style={{ fontFamily: f.family }}
               >
                 {f.label}
               </button>
@@ -244,37 +311,49 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           </div>
         </MenuButton>
 
-        {/* Font Size */}
-        <MenuButton
-          icon={
-            <span className="text-[10px] font-bold text-slate-600">Aa</span>
-          }
-          label="Font Size"
-          isOpen={showSizeMenu}
-          onClick={() => {
-            const wasOpen = showSizeMenu;
-            setShowSizeMenu(!wasOpen);
-            setShowFontMenu(false);
-            setShowColorMenu(false);
-            setShowHighlightMenu(false);
-          }}
-        >
-          <div className="flex flex-col gap-0.5">
-            {FONT_SIZES.map((s) => (
-              <button
-                key={s.value}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  exec('fontSize', s.value);
-                  setShowSizeMenu(false);
-                }}
-                className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700"
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </MenuButton>
+        {/* Font Size - Numeric Stepper */}
+        <div className="flex items-center gap-0 rounded border border-slate-200 mx-0.5">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFontSize(currentFontSize - 1)}
+            className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-l"
+            title="Decrease font size"
+          >
+            <Minus className="w-2.5 h-2.5 text-slate-500" />
+          </button>
+          <input
+            type="text"
+            value={fontSizeInput}
+            onMouseDown={(e) => e.preventDefault()}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => setFontSizeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = parseInt(fontSizeInput, 10);
+                if (!Number.isNaN(val)) applyFontSize(val);
+                e.preventDefault();
+              }
+            }}
+            onBlur={() => {
+              const val = parseInt(fontSizeInput, 10);
+              if (!Number.isNaN(val)) {
+                applyFontSize(val);
+              } else {
+                setFontSizeInput(String(currentFontSize));
+              }
+            }}
+            className="w-7 h-6 text-center text-[10px] font-mono text-slate-600 border-x border-slate-200 bg-transparent outline-none"
+            aria-label="Font size"
+          />
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => applyFontSize(currentFontSize + 1)}
+            className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-r"
+            title="Increase font size"
+          >
+            <Plus className="w-2.5 h-2.5 text-slate-500" />
+          </button>
+        </div>
 
         <div className="w-px h-4 bg-slate-200 mx-1" />
 
@@ -315,7 +394,6 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             const wasOpen = showColorMenu;
             setShowColorMenu(!wasOpen);
             setShowFontMenu(false);
-            setShowSizeMenu(false);
             setShowHighlightMenu(false);
           }}
         >
@@ -344,7 +422,6 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             const wasOpen = showHighlightMenu;
             setShowHighlightMenu(!wasOpen);
             setShowFontMenu(false);
-            setShowSizeMenu(false);
             setShowColorMenu(false);
           }}
         >
