@@ -236,6 +236,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
 
         {/* Featured */}
         <button
+          type="button"
           onClick={() => void toggleFeatured(preset.id)}
           className={`p-1.5 rounded-lg transition-colors shrink-0 ${
             preset.featured
@@ -243,6 +244,9 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
               : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
           }`}
           title={preset.featured ? 'Remove from featured' : 'Mark as featured'}
+          aria-label={
+            preset.featured ? 'Remove from featured' : 'Mark as featured'
+          }
         >
           <Star
             className="w-4 h-4"

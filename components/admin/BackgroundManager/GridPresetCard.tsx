@@ -48,6 +48,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
         )}
         <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1">
           <button
+            type="button"
             onClick={() => void toggleFeatured(preset.id)}
             className={`p-1.5 rounded-lg shadow-md transition-all scale-90 hover:scale-100 ${
               preset.featured
@@ -55,6 +56,9 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 : 'bg-white/80 text-slate-400 hover:bg-amber-500 hover:text-white'
             }`}
             title={
+              preset.featured ? 'Remove from featured' : 'Mark as featured'
+            }
+            aria-label={
               preset.featured ? 'Remove from featured' : 'Mark as featured'
             }
           >

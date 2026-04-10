@@ -125,12 +125,14 @@ export const useBackgrounds = () => {
   // Preload featured thumbnails first, then fill up to 20 with non-featured.
   // This ensures the sidebar overview (which only shows featured) feels instant.
   useEffect(() => {
-    const featured = managedBackgrounds.filter((bg) => bg.featured);
+    const featured = managedBackgrounds
+      .filter((bg) => bg.featured)
+      .slice(0, 20);
     const nonFeatured = managedBackgrounds.filter((bg) => !bg.featured);
     const toPreload = [
       ...featured,
       ...nonFeatured.slice(0, Math.max(0, 20 - featured.length)),
-    ];
+    ].slice(0, 20);
     toPreload.forEach((bg) => {
       const src = bg.thumbnailUrl ?? bg.url;
       if (src?.startsWith('http')) {

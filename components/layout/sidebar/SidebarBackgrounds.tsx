@@ -177,13 +177,12 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     );
   }, [activeCategory, groupedImagePresets]);
 
-  // Reset detail panel when switching away from media tab
+  // Reset search when switching away from media tab.
+  // activeCategory is intentionally preserved across tab switches so users
+  // don't lose their place when briefly switching to Colors or My Uploads.
   const handleTabChange = (tab: typeof designTab) => {
     setDesignTab(tab);
-    if (tab !== 'media') {
-      setSearchQuery('');
-      setActiveCategory(null);
-    }
+    if (tab !== 'media') setSearchQuery('');
   };
 
   // Reset detail panel when sidebar is hidden
