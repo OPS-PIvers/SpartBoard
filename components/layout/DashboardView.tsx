@@ -139,7 +139,6 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
-    updateDashboard,
     zoom,
     setZoom,
     pendingQuizShareId,
@@ -319,15 +318,14 @@ export const DashboardView: React.FC = () => {
 
     const batch: Array<{
       id: string;
-      changes: Partial<Pick<WidgetData, 'x' | 'y' | 'w' | 'h'>>;
+      changes: { x: number; y: number; w: number; h: number };
     }> = [];
     widgets.forEach(({ id: widgetId, x, y, w, h }) => {
       // Scale dimensions, capped at viewport size
       const newW = Math.min(currentW, Math.max(100, Math.round(w * scaleX)));
       const newH = Math.min(currentH, Math.max(60, Math.round(h * scaleY)));
 
-      // Scale positions — keep widgets fully on-screen. If a widget is
-      // wider/taller than the viewport, pin it to the top-left edge.
+      // Scale positions and clamp so the resized widget stays fully on-screen.
       const newX = Math.max(
         0,
         Math.min(Math.round(x * scaleX), Math.max(0, currentW - newW))
