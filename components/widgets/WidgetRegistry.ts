@@ -348,7 +348,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./TimeTool/Settings'),
     'TimeToolAppearanceSettings'
   ),
-  text: lazyNamed(() => import('./TextWidget'), 'TextAppearanceSettings'),
   checklist: lazyNamed(
     () => import('./Checklist'),
     'ChecklistAppearanceSettings'
@@ -504,8 +503,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   text: {
-    baseWidth: 300,
-    baseHeight: 250,
+    baseWidth: 400,
+    baseHeight: 300,
     canSpread: true,
     skipScaling: true,
     padding: 0,

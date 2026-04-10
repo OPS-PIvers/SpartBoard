@@ -845,10 +845,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
     for (const el of elementsAtPoint) {
       if (el === resizeEl) continue;
-      // Iframes and canvases (e.g. embed or drawing widgets) often fill the
-      // entire container — the resize handle must take priority over them.
+      // Iframes, canvases, and contentEditable elements (e.g. embed, drawing,
+      // or text widgets) often fill the entire container — the resize handle
+      // must take priority over them.
       if (el instanceof HTMLIFrameElement || el instanceof HTMLCanvasElement)
         continue;
+      if ((el as HTMLElement).isContentEditable) continue;
       if (
         el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
         el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR)

@@ -28,7 +28,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     fontSize = 18,
     fontFamily = 'global',
     fontColor = '#334155',
-    verticalAlign = 'top',
+    verticalAlign = 'center',
     textSizePreset,
   } = config;
 
@@ -191,7 +191,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 data-click-outside-ignore="true"
                 style={{
                   position: 'fixed',
-                  top: toolbarPos.top,
+                  top: Math.max(0, toolbarPos.top - 40),
                   left: toolbarPos.left,
                   width: toolbarPos.width,
                   zIndex: 11000,
@@ -200,6 +200,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <FormattingToolbar
                   editorRef={editorRef}
+                  configFontSize={resolvedFontSize}
                   verticalAlign={verticalAlign}
                   onVerticalAlignChange={(value) =>
                     updateWidget(widget.id, {

@@ -41,8 +41,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   },
   traffic: { w: 120, h: 320, config: {} },
   text: {
-    w: 300,
-    h: 250,
+    w: 400,
+    h: 300,
     config: {
       content: '',
       bgColor: STICKY_NOTE_COLORS.yellow,

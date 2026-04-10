@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TextWidget, TextSettings, TextAppearanceSettings } from './index';
+import { TextWidget, TextSettings } from './index';
 import { WidgetData, TextConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -372,35 +372,5 @@ describe('TextSettings', () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(lastCall[1].config.content).toContain('Integrity Code');
     }
-  });
-
-  it('changes background color', () => {
-    render(<TextAppearanceSettings widget={mockWidget} />);
-    // Find the button for the second color (#dcfce7 - Green)
-    const colorButton = screen.getByLabelText('Select green background');
-    fireEvent.click(colorButton);
-
-    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
-      config: { ...mockConfig, bgColor: '#dcfce7' },
-    });
-  });
-
-  it('changes font size via increment button', () => {
-    render(<TextAppearanceSettings widget={mockWidget} />);
-    const increaseButton = screen.getByLabelText('Increase font size');
-    fireEvent.click(increaseButton);
-
-    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
-      config: { ...mockConfig, fontSize: 19 },
-    });
-  });
-
-  it('changes vertical alignment in appearance settings', () => {
-    render(<TextAppearanceSettings widget={mockWidget} />);
-    fireEvent.click(screen.getByRole('button', { name: /bottom/i }));
-
-    expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
-      config: { ...mockConfig, verticalAlign: 'bottom' },
-    });
   });
 });

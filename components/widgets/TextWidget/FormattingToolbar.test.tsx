@@ -38,6 +38,7 @@ describe('FormattingToolbar', () => {
 
   const defaultProps = {
     editorRef: mockEditorRef,
+    configFontSize: 18,
     verticalAlign: 'top' as const,
     onVerticalAlignChange: mockVerticalAlignChange,
     suppressInputRef: mockSuppressInputRef,

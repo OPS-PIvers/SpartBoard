@@ -35,6 +35,7 @@ import { useDialog } from '@/context/useDialog';
 
 interface FormattingToolbarProps {
   editorRef: React.RefObject<HTMLDivElement | null>;
+  configFontSize: number;
   verticalAlign: 'top' | 'center' | 'bottom';
   onVerticalAlignChange: (value: 'top' | 'center' | 'bottom') => void;
   suppressInputRef: React.MutableRefObject<boolean>;
@@ -153,6 +154,7 @@ const MenuButton: React.FC<{
 
 export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   editorRef,
+  configFontSize,
   verticalAlign,
   onVerticalAlignChange,
   suppressInputRef,
@@ -165,8 +167,8 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showAlignMenu, setShowAlignMenu] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
-  const [currentFontSize, setCurrentFontSize] = useState(16);
-  const [fontSizeInput, setFontSizeInput] = useState('16');
+  const [currentFontSize, setCurrentFontSize] = useState(configFontSize);
+  const [fontSizeInput, setFontSizeInput] = useState(String(configFontSize));
   const [visibleCount, setVisibleCount] = useState(6);
   const savedRangeRef = useRef<Range | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -179,22 +181,38 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     setShowOverflowMenu(false);
   }, []);
 
-  /** Read the computed font-size of the current selection anchor */
+  /** Read the font-size at the current selection anchor.
+   *  Checks for an inline font-size style first (applied by the toolbar),
+   *  then falls back to the widget's config font size. */
   const detectFontSize = useCallback(() => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || !editorRef.current) return;
-    const node =
+    const node: HTMLElement | null =
       sel.anchorNode?.nodeType === Node.TEXT_NODE
         ? sel.anchorNode.parentElement
         : (sel.anchorNode as HTMLElement | null);
     if (!node || !editorRef.current.contains(node)) return;
-    const computed = window.getComputedStyle(node).fontSize;
-    const px = Math.round(parseFloat(computed));
-    if (!Number.isNaN(px) && px > 0) {
-      setCurrentFontSize(px);
-      setFontSizeInput(String(px));
+
+    // Walk up from the selection anchor looking for an inline font-size style
+    // (set by the toolbar's applyFontSize via <span style="font-size:Xpx">).
+    let cursor: HTMLElement | null = node;
+    while (cursor && cursor !== editorRef.current) {
+      const inlineSize = cursor.style?.fontSize;
+      if (inlineSize) {
+        const px = Math.round(parseFloat(inlineSize));
+        if (!Number.isNaN(px) && px > 0) {
+          setCurrentFontSize(px);
+          setFontSizeInput(String(px));
+          return;
+        }
+      }
+      cursor = cursor.parentElement;
     }
-  }, [editorRef]);
+
+    // No inline style found — use the widget's config font size
+    setCurrentFontSize(configFontSize);
+    setFontSizeInput(String(configFontSize));
+  }, [editorRef, configFontSize]);
 
   useEffect(() => {
     const captureSelection = () => {
