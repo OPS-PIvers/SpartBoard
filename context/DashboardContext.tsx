@@ -786,13 +786,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const instanceChangedLocally = INSTANCE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
-                // Fast-path: skip expensive JSON.stringify when both are
-                // absent or the same reference. Only deep-compare when both
-                // are present and structurally different.
-                const annotationChangedLocally =
-                  lw.annotation !== saved.annotation &&
-                  JSON.stringify(lw.annotation) !==
-                    JSON.stringify(saved.annotation);
+                // Fast-path: skip JSON.stringify when both values are the
+                // same reference (including both undefined). When references
+                // differ, short-circuit on paths array length before falling
+                // back to deep comparison to avoid serializing large paths.
+                const annotationChangedLocally = (() => {
+                  const la = lw.annotation;
+                  const sa = saved.annotation;
+                  if (la === sa) return false;
+                  if (!la || !sa) return true;
+                  if (la.mode !== sa.mode) return true;
+                  if (la.paths.length !== sa.paths.length) return true;
+                  return JSON.stringify(la) !== JSON.stringify(sa);
+                })();
 
                 return {
                   sw,
