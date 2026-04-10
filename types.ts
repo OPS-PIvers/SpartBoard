@@ -57,7 +57,8 @@ export type WidgetType =
   | 'activity-wall'
   | 'first-5'
   | 'work-symbols'
-  | 'blooms-taxonomy';
+  | 'blooms-taxonomy'
+  | 'blooms-detail';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -558,6 +559,14 @@ export interface BloomsTaxonomyConfig {
   enabledCategories?: BloomsCategoryKey[];
   aiTopic?: string;
   themeColor?: string;
+  detailWidgetId?: string;
+}
+
+export interface BloomsDetailConfig {
+  parentWidgetId: string;
+  level: BloomsLevelKey;
+  category?: BloomsCategoryKey;
+  buildingId?: string;
 }
 
 export interface BloomsTaxonomyGlobalConfig {
@@ -2283,7 +2292,8 @@ export type WidgetConfig =
   | SoundboardConfig
   | ActivityWallConfig
   | WorkSymbolsConfig
-  | BloomsTaxonomyConfig;
+  | BloomsTaxonomyConfig
+  | BloomsDetailConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -2402,7 +2412,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                   ? WorkSymbolsConfig
                                                                                                                   : T extends 'blooms-taxonomy'
                                                                                                                     ? BloomsTaxonomyConfig
-                                                                                                                    : never;
+                                                                                                                    : T extends 'blooms-detail'
+                                                                                                                      ? BloomsDetailConfig
+                                                                                                                      : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
