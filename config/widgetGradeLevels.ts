@@ -104,6 +104,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   'custom-widget': ALL_GRADE_LEVELS,
   'work-symbols': ALL_GRADE_LEVELS,
   'blooms-taxonomy': ALL_GRADE_LEVELS,
+  'blooms-detail': ALL_GRADE_LEVELS,
 };
 
 /**
