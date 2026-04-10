@@ -72,12 +72,13 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
     const clamped = Math.max(8, Math.min(96, value));
     setLocalSize(clamped);
     setFontSizeInput(String(clamped));
+    const nextConfig: TextConfig = {
+      ...config,
+      fontSize: clamped,
+    };
+    delete nextConfig.textSizePreset;
     updateWidget(widget.id, {
-      config: {
-        ...config,
-        fontSize: clamped,
-        textSizePreset: undefined,
-      } as TextConfig,
+      config: nextConfig,
     });
   };
 

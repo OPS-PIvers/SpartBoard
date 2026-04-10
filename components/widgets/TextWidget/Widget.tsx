@@ -133,7 +133,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         <div className="relative h-full w-full">
           {/* Floating formatting toolbar */}
           {isSelected && (
-            <div className="absolute top-0 left-0 right-0 z-10">
+            <div className="absolute top-0 left-0 right-0 z-widget-internal-overlay">
               <FormattingToolbar
                 editorRef={editorRef}
                 verticalAlign={verticalAlign}
@@ -157,7 +157,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="absolute inset-0 pointer-events-none opacity-20"
               style={{ backgroundColor: bgColor }}
             />
-            <div className="relative z-[1] flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
+            <div className="relative z-content flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
               <div
                 className="flex min-h-full w-full flex-col"
                 style={{
