@@ -12,6 +12,7 @@ import {
 
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { TEXT_WIDGET_COLORS, TEXT_WIDGET_TEMPLATES } from './constants';
 
 export const TextSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
@@ -50,17 +51,26 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget } = useDashboard();
   const config = widget.config as TextConfig;
-  const fontSize = config.fontSize ?? 18;
+  const baseFontSize = config.fontSize ?? 18;
 
-  const [fontSizeInput, setFontSizeInput] = useState(String(fontSize));
+  // Resolve the effective font size (base * preset multiplier) so the
+  // displayed value matches what the user actually sees on screen.
+  const resolvedFontSize = Math.round(
+    baseFontSize * resolveTextPresetMultiplier(config.textSizePreset, 1)
+  );
 
-  // Sync local input when the config changes externally (e.g. +/- buttons)
+  const [localSize, setLocalSize] = useState(resolvedFontSize);
+  const [fontSizeInput, setFontSizeInput] = useState(String(resolvedFontSize));
+
+  // Sync local state when config changes externally
   useEffect(() => {
-    setFontSizeInput(String(fontSize));
-  }, [fontSize]);
+    setLocalSize(resolvedFontSize);
+    setFontSizeInput(String(resolvedFontSize));
+  }, [resolvedFontSize]);
 
   const commitFontSize = (value: number) => {
     const clamped = Math.max(8, Math.min(96, value));
+    setLocalSize(clamped);
     setFontSizeInput(String(clamped));
     updateWidget(widget.id, {
       config: {
@@ -96,7 +106,7 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
         <SettingsLabel>Font Size</SettingsLabel>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => commitFontSize(fontSize - 1)}
+            onClick={() => commitFontSize(localSize - 1)}
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
             aria-label="Decrease font size"
           >
@@ -111,7 +121,7 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               if (!Number.isNaN(val)) {
                 commitFontSize(val);
               } else {
-                setFontSizeInput(String(fontSize));
+                setFontSizeInput(String(localSize));
               }
             }}
             onKeyDown={(e) => {
@@ -120,7 +130,7 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
                 if (!Number.isNaN(val)) {
                   commitFontSize(val);
                 } else {
-                  setFontSizeInput(String(fontSize));
+                  setFontSizeInput(String(localSize));
                 }
               }
             }}
@@ -128,7 +138,7 @@ export const TextAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
             aria-label="Font size"
           />
           <button
-            onClick={() => commitFontSize(fontSize + 1)}
+            onClick={() => commitFontSize(localSize + 1)}
             className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
             aria-label="Increase font size"
           >

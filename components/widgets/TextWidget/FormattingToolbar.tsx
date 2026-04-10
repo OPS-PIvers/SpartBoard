@@ -322,7 +322,13 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                 key={f.id}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  exec('fontName', f.id === 'global' ? 'sans-serif' : f.family);
+                  const family =
+                    f.id === 'global'
+                      ? window.getComputedStyle(
+                          editorRef.current ?? document.body
+                        ).fontFamily
+                      : f.family;
+                  exec('fontName', family);
                   setShowFontMenu(false);
                 }}
                 className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 whitespace-nowrap"
@@ -341,6 +347,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             onClick={() => applyFontSize(currentFontSize - 1)}
             className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-l"
             title="Decrease font size"
+            aria-label="Decrease font size"
           >
             <Minus className="w-2.5 h-2.5 text-slate-500" />
           </button>
@@ -372,6 +379,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             onClick={() => applyFontSize(currentFontSize + 1)}
             className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-r"
             title="Increase font size"
+            aria-label="Increase font size"
           >
             <Plus className="w-2.5 h-2.5 text-slate-500" />
           </button>

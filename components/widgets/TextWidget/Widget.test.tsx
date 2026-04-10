@@ -380,7 +380,7 @@ describe('TextSettings', () => {
     fireEvent.click(increaseButton);
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
-      config: { ...mockConfig, fontSize: 19 },
+      config: { ...mockConfig, fontSize: 19, textSizePreset: undefined },
     });
   });
 
