@@ -33,19 +33,15 @@ export const BloomsTaxonomySettings: React.FC<{ widget: WidgetData }> = ({
   const { availableCategories, defaultEnabledCategories } = buildingConfig;
 
   // Honor admin's defaultEnabledCategories when widget has no saved setting
-  const enabledCategories =
-    config.enabledCategories ??
-    defaultEnabledCategories ??
-    ([...CONTENT_CATEGORIES] as string[]);
+  const enabledCategories = config.enabledCategories ??
+    defaultEnabledCategories ?? [...CONTENT_CATEGORIES];
 
   // Only show categories the admin has made available
-  const displayCategories = (
-    CONTENT_CATEGORIES as readonly ContentCategory[]
-  ).filter(
-    (cat) => !availableCategories || availableCategories.includes(cat as string)
+  const displayCategories = CONTENT_CATEGORIES.filter(
+    (cat) => !availableCategories || availableCategories.includes(cat)
   );
 
-  const toggleCategory = (cat: string) => {
+  const toggleCategory = (cat: ContentCategory) => {
     const next = enabledCategories.includes(cat)
       ? enabledCategories.filter((c) => c !== cat)
       : [...enabledCategories, cat];

@@ -534,12 +534,28 @@ export interface WorkSymbolsGlobalConfig {
 
 // --- BLOOM'S TAXONOMY ---
 
-export interface BloomsContent {
-  [level: string]: { [category: string]: string[] };
-}
+export type BloomsLevelKey =
+  | 'remember'
+  | 'understand'
+  | 'apply'
+  | 'analyze'
+  | 'evaluate'
+  | 'create';
+
+export type BloomsCategoryKey =
+  | 'questionStems'
+  | 'actionVerbs'
+  | 'activityTypes'
+  | 'assessmentIdeas'
+  | 'iCanStatements'
+  | 'dokAlignment';
+
+export type BloomsContent = Partial<
+  Record<BloomsLevelKey, Partial<Record<BloomsCategoryKey, string[]>>>
+>;
 
 export interface BloomsTaxonomyConfig {
-  enabledCategories?: string[];
+  enabledCategories?: BloomsCategoryKey[];
   aiTopic?: string;
   themeColor?: string;
 }
@@ -550,9 +566,9 @@ export interface BloomsTaxonomyGlobalConfig {
 
 export interface BloomsTaxonomyBuildingConfig {
   contentOverrides?: BloomsContent;
-  availableCategories?: string[];
+  availableCategories?: BloomsCategoryKey[];
   aiEnabled?: boolean;
-  defaultEnabledCategories?: string[];
+  defaultEnabledCategories?: BloomsCategoryKey[];
 }
 
 export interface TalkingToolStem {

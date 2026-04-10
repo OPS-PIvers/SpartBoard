@@ -72,11 +72,19 @@ export const RadialMenu: React.FC<RadialMenuProps> = ({
         const px = Math.cos(angle) * radius;
         const py = Math.sin(angle) * radius;
 
-        // Clamp position so pill stays within container
+        // Clamp pill center so the full pill stays within the container
         const pillLeft = position.x + px;
         const pillTop = position.y + py;
-        const clampedLeft = Math.max(8, Math.min(containerW - 140, pillLeft));
-        const clampedTop = Math.max(8, Math.min(containerH - 32, pillTop));
+        const pillHalfW = 70; // ~half of pill width
+        const pillHalfH = 16; // ~half of pill height
+        const clampedLeft = Math.max(
+          8 + pillHalfW,
+          Math.min(containerW - 8 - pillHalfW, pillLeft)
+        );
+        const clampedTop = Math.max(
+          8 + pillHalfH,
+          Math.min(containerH - 8 - pillHalfH, pillTop)
+        );
         const offsetX = clampedLeft - position.x;
         const offsetY = clampedTop - position.y;
 

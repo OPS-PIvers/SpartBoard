@@ -202,7 +202,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     ...CONTENT_CATEGORIES,
   ];
 
-  const toggleAvailable = (cat: string) => {
+  const toggleAvailable = (cat: ContentCategory) => {
     const next = availableCategories.includes(cat)
       ? availableCategories.filter((c) => c !== cat)
       : [...availableCategories, cat];
@@ -213,7 +213,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     });
   };
 
-  const toggleDefaultEnabled = (cat: string) => {
+  const toggleDefaultEnabled = (cat: ContentCategory) => {
     const next = defaultEnabled.includes(cat)
       ? defaultEnabled.filter((c) => c !== cat)
       : [...defaultEnabled, cat];
@@ -365,7 +365,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                               onChange={() => toggleDefaultEnabled(cat)}
                               className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
                             />
-                            {CATEGORY_LABELS[cat as ContentCategory]}
+                            {CATEGORY_LABELS[cat]}
                           </label>
                         ))}
                       </div>

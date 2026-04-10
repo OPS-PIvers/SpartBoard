@@ -4,6 +4,8 @@ import {
   BloomsTaxonomyConfig,
   BloomsTaxonomyGlobalConfig,
   BloomsTaxonomyBuildingConfig,
+  type BloomsLevelKey,
+  type BloomsCategoryKey,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -51,23 +53,18 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
   } = buildingConfig;
 
   // Honor admin's defaultEnabledCategories when widget has no saved setting
-  const enabledCategories =
-    config.enabledCategories ??
-    defaultEnabledCategories ??
-    ([...CONTENT_CATEGORIES] as string[]);
+  const enabledCategories = config.enabledCategories ??
+    defaultEnabledCategories ?? [...CONTENT_CATEGORIES];
 
   // Filter categories: intersection of admin-available and user-enabled
-  const activeCategories = (CONTENT_CATEGORIES as readonly string[]).filter(
-    (cat) => {
-      if (availableCategories && !availableCategories.includes(cat))
-        return false;
-      return enabledCategories.includes(cat);
-    }
-  ) as ContentCategory[];
+  const activeCategories = CONTENT_CATEGORIES.filter((cat) => {
+    if (availableCategories && !availableCategories.includes(cat)) return false;
+    return enabledCategories.includes(cat);
+  });
 
   // Content merging: admin overrides > default content
   const getContent = useCallback(
-    (level: string, category: string): string[] => {
+    (level: BloomsLevelKey, category: BloomsCategoryKey): string[] => {
       return (
         contentOverrides?.[level]?.[category] ??
         DEFAULT_BLOOMS_CONTENT[level]?.[category] ??
