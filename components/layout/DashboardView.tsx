@@ -128,6 +128,7 @@ export const DashboardView: React.FC = () => {
     dashboards,
     addWidget,
     updateWidget,
+    updateWidgets,
     removeWidget,
     duplicateWidget,
     bringToFront,
@@ -138,7 +139,6 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     setSelectedWidgetId,
     updateDashboardSettings,
-    updateDashboard,
     zoom,
     setZoom,
     pendingQuizShareId,
@@ -310,38 +310,43 @@ export const DashboardView: React.FC = () => {
 
     const diffX = Math.abs(currentW - savedW) / savedW;
     const diffY = Math.abs(currentH - savedH) / savedH;
-    if (diffX < 0.05 && diffY < 0.05) return; // Same screen (~5% tolerance)
+    if (diffX < 0.1 && diffY < 0.1) return; // Same screen (~10% tolerance)
 
     const MAX_SCALE = 3;
     const scaleX = Math.min(MAX_SCALE, currentW / savedW);
     const scaleY = Math.min(MAX_SCALE, currentH / savedH);
 
-    const MIN_VISIBLE = 80;
-    const TITLE_BAR = 40;
-
+    const batch: Array<{
+      id: string;
+      changes: { x: number; y: number; w: number; h: number };
+    }> = [];
     widgets.forEach(({ id: widgetId, x, y, w, h }) => {
       // Scale dimensions, capped at viewport size
       const newW = Math.min(currentW, Math.max(100, Math.round(w * scaleX)));
       const newH = Math.min(currentH, Math.max(60, Math.round(h * scaleY)));
 
-      // Scale positions with bounds clamping to keep widgets visible
-      let newX = Math.round(x * scaleX);
-      let newY = Math.round(y * scaleY);
-      if (newW <= MIN_VISIBLE) {
-        newX = Math.max(0, Math.min(newX, currentW - newW));
-      } else {
-        newX = Math.max(
-          -(newW - MIN_VISIBLE),
-          Math.min(newX, currentW - MIN_VISIBLE)
-        );
-      }
-      newY = Math.max(0, Math.min(newY, currentH - TITLE_BAR));
+      // Scale positions and clamp so the resized widget stays fully on-screen.
+      const newX = Math.max(
+        0,
+        Math.min(Math.round(x * scaleX), Math.max(0, currentW - newW))
+      );
+      const newY = Math.max(
+        0,
+        Math.min(Math.round(y * scaleY), Math.max(0, currentH - newH))
+      );
 
-      updateWidget(widgetId, { x: newX, y: newY, w: newW, h: newH });
+      if (newX !== x || newY !== y || newW !== w || newH !== h) {
+        batch.push({
+          id: widgetId,
+          changes: { x: newX, y: newY, w: newW, h: newH },
+        });
+      }
     });
 
-    updateDashboard({ viewportWidth: currentW, viewportHeight: currentH });
-    addToast('Layout scaled to fit this screen', 'info');
+    updateWidgets(batch);
+    if (batch.length) {
+      addToast('Layout scaled to fit this screen', 'info');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
   }, [activeDashboard?.id]);
 

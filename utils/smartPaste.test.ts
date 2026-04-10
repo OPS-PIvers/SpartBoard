@@ -50,6 +50,79 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('detects Google Drive file URL and converts to preview embed', () => {
+    const input = 'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/view';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toBe(
+        'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/preview'
+      );
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects Google Drive open?id= URL and converts to preview embed', () => {
+    const input = 'https://drive.google.com/open?id=1aBcDeFgHiJkLmNoPqRsT';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toBe(
+        'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/preview'
+      );
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects Google Vids URL and converts to preview embed', () => {
+    const input = 'https://vids.google.com/vids/some_vid_id-123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toBe(
+        'https://vids.google.com/vids/some_vid_id-123/preview'
+      );
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects Google Vids URL with user segment and converts to preview embed', () => {
+    const input = 'https://vids.google.com/u/0/vids/some_vid_id-123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toBe(
+        'https://vids.google.com/vids/some_vid_id-123/preview'
+      );
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('does not treat Google Drive folder URLs as embeddable', () => {
+    const input =
+      'https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsT';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    expect(result?.action).toBe('prompt-url-or-qr');
+  });
+
   it('detects other URLs and returns prompt-url-or-qr action', () => {
     const input = 'https://google.com';
     const result = detectWidgetType(input);

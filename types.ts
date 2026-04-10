@@ -56,7 +56,8 @@ export type WidgetType =
   | 'url'
   | 'activity-wall'
   | 'first-5'
-  | 'work-symbols';
+  | 'work-symbols'
+  | 'blooms-taxonomy';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -529,6 +530,45 @@ export interface WorkSymbol {
 
 export interface WorkSymbolsGlobalConfig {
   symbols: WorkSymbol[];
+}
+
+// --- BLOOM'S TAXONOMY ---
+
+export type BloomsLevelKey =
+  | 'remember'
+  | 'understand'
+  | 'apply'
+  | 'analyze'
+  | 'evaluate'
+  | 'create';
+
+export type BloomsCategoryKey =
+  | 'questionStems'
+  | 'actionVerbs'
+  | 'activityTypes'
+  | 'assessmentIdeas'
+  | 'iCanStatements'
+  | 'dokAlignment';
+
+export type BloomsContent = Partial<
+  Record<BloomsLevelKey, Partial<Record<BloomsCategoryKey, string[]>>>
+>;
+
+export interface BloomsTaxonomyConfig {
+  enabledCategories?: BloomsCategoryKey[];
+  aiTopic?: string;
+  themeColor?: string;
+}
+
+export interface BloomsTaxonomyGlobalConfig {
+  buildingDefaults?: Record<string, BloomsTaxonomyBuildingConfig>;
+}
+
+export interface BloomsTaxonomyBuildingConfig {
+  contentOverrides?: BloomsContent;
+  availableCategories?: BloomsCategoryKey[];
+  aiEnabled?: boolean;
+  defaultEnabledCategories?: BloomsCategoryKey[];
 }
 
 export interface TalkingToolStem {
@@ -2242,7 +2282,8 @@ export type WidgetConfig =
   | CustomWidgetConfig
   | SoundboardConfig
   | ActivityWallConfig
-  | WorkSymbolsConfig;
+  | WorkSymbolsConfig
+  | BloomsTaxonomyConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -2359,7 +2400,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                 ? ActivityWallConfig
                                                                                                                 : T extends 'work-symbols'
                                                                                                                   ? WorkSymbolsConfig
-                                                                                                                  : never;
+                                                                                                                  : T extends 'blooms-taxonomy'
+                                                                                                                    ? BloomsTaxonomyConfig
+                                                                                                                    : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -2667,6 +2710,8 @@ export interface BackgroundPreset {
   category?: string;
   /** Building IDs this background is assigned to; empty/undefined = all buildings */
   buildingIds?: string[];
+  /** Whether this background is featured in the sidebar overview (max ~6 per category) */
+  featured?: boolean;
 }
 
 // --- GLOBAL STYLING TYPES ---

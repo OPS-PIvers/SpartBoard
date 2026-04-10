@@ -45,7 +45,8 @@ interface AIData {
     | 'ocr'
     | 'quiz'
     | 'widget-builder'
-    | 'widget-explainer';
+    | 'widget-explainer'
+    | 'blooms-ai';
   prompt?: string;
   image?: string; // base64 data
 }
@@ -777,6 +778,15 @@ export const generateWithAI = functionsV1
           `,
           userPrompt: sanitizedUserInput,
         }),
+        'blooms-ai': () => ({
+          systemPrompt: `
+          You are an expert instructional designer specializing in Bloom's Taxonomy.
+          Generate clear, practical, classroom-ready content for the requested cognitive level and topic.
+          Format your response as a readable bulleted list using plain text (not markdown).
+          Keep each item concise (one sentence). Output ONLY the list, no preamble or closing.
+          `,
+          userPrompt: sanitizedUserInput,
+        }),
       };
 
       const promptDataFn = promptMap[genType];
@@ -833,9 +843,11 @@ export const generateWithAI = functionsV1
         model,
         contents,
         config: {
-          // widget-builder and widget-explainer return plain text; all other types return JSON
+          // widget-builder, widget-explainer, and blooms-ai return plain text; all other types return JSON
           responseMimeType:
-            genType === 'widget-builder' || genType === 'widget-explainer'
+            genType === 'widget-builder' ||
+            genType === 'widget-explainer' ||
+            genType === 'blooms-ai'
               ? 'text/plain'
               : 'application/json',
         },
@@ -845,6 +857,11 @@ export const generateWithAI = functionsV1
 
       if (!text) {
         throw new Error('Empty response from AI');
+      }
+
+      // blooms-ai returns plain text — wrap in { text } for the generic callAI client
+      if (genType === 'blooms-ai') {
+        return { text };
       }
 
       // widget-builder and widget-explainer return plain text — wrap in { result } for the client

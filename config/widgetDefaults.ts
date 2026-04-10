@@ -6,6 +6,7 @@ import {
   GraphicOrganizerConfig,
   RevealGridConfig,
   QRConfig,
+  BloomsTaxonomyConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 
@@ -480,5 +481,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       selectedSymbolId: null,
     },
+  },
+  'blooms-taxonomy': {
+    w: 450,
+    h: 550,
+    config: {} satisfies BloomsTaxonomyConfig,
   },
 };

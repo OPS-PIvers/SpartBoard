@@ -21,6 +21,7 @@ export interface PresetCardProps {
   addBetaUser: (presetId: string, email: string) => Promise<void>;
   removeBetaUser: (presetId: string, email: string) => Promise<void>;
   toggleBuildingId: (presetId: string, buildingId: string) => Promise<void>;
+  toggleFeatured: (presetId: string) => Promise<void>;
   getAccessLevelIcon: (level: AccessLevel) => React.ReactNode;
   getAccessLevelColor: (level: AccessLevel) => string;
 }

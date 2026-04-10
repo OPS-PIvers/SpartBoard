@@ -49,7 +49,8 @@ export type AIGenerationType =
   | 'ocr'
   | 'quiz'
   | 'video-activity'
-  | 'guided-learning';
+  | 'guided-learning'
+  | 'blooms-ai';
 
 export interface GeneratedVideoQuestion extends GeneratedQuestion {
   /** Seconds from video start when this question should trigger. */
@@ -487,4 +488,19 @@ export function buildPromptWithFileContext(
   if (!fileContext) return prompt;
   const prefix = `Context from attached file (${fileName}):\n\n${fileContext}`;
   return prompt ? `${prefix}\n\n${prompt}` : prefix;
+}
+
+/**
+ * Generates Bloom's Taxonomy content for a given level and topic.
+ *
+ * @param prompt - The prompt describing the level and topic.
+ * @returns A promise resolving to the generated text content.
+ */
+export async function generateBloomsContent(prompt: string): Promise<string> {
+  const data = await callAI(
+    { type: 'blooms-ai', prompt },
+    "Failed to generate Bloom's Taxonomy content."
+  );
+
+  return data.text ?? '';
 }

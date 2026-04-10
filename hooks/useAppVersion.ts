@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
+declare const __APP_VERSION__: string;
+
 interface VersionInfo {
   version: string;
   buildDate: string;
@@ -9,30 +11,28 @@ interface VersionInfo {
  * React hook that polls the app's `/version.json` endpoint to detect when
  * a newer version of the application is available.
  *
- * Behavior:
- * - On mount, it performs an initial fetch to capture the current version.
- * - After the initial version is known, it polls `/version.json`
- *   every `checkIntervalMs` milliseconds.
- * - If the fetched version string differs from the initial version, the
- *   `updateAvailable` flag is set to `true`.
+ * The "current" version is baked into the JS bundle at build time via Vite's
+ * `define` (see vite.config.ts), so no initial network fetch is needed — the
+ * hook starts polling immediately and compares against the embedded version.
  *
  * @param checkIntervalMs - Polling interval in milliseconds (default: 60000ms).
  * @returns An object containing `updateAvailable` boolean and `reloadApp` function.
  */
 export const useAppVersion = (checkIntervalMs = 60000) => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+  const buildVersion = __APP_VERSION__;
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
+    // Don't poll in development – the version is the static string 'dev'
+    if (buildVersion === 'dev') return;
+
     isMountedRef.current = true;
 
-    // Function to fetch the version
-    const fetchVersion = async (signal?: AbortSignal) => {
+    const fetchVersion = async () => {
       try {
         const response = await fetch(`/version.json?t=${Date.now()}`, {
-          signal,
           cache: 'no-store',
         });
         if (!response.ok) return null;
@@ -57,40 +57,15 @@ export const useAppVersion = (checkIntervalMs = 60000) => {
         const latestVersion = await fetchVersion();
         if (!isMountedRef.current) return;
 
-        if (
-          latestVersion &&
-          currentVersion &&
-          latestVersion !== currentVersion
-        ) {
+        if (latestVersion && latestVersion !== buildVersion) {
           setUpdateAvailable(true);
-          // Stop polling once an update is detected to avoid redundant network
-          // requests. The user should refresh to get the latest version.
+          // Stop polling once an update is detected.
         } else {
-          if (!latestVersion || latestVersion === currentVersion) {
-            schedulePoll();
-          }
+          schedulePoll();
         }
       }, checkIntervalMs);
     };
 
-    if (!currentVersion) {
-      // Initial check to set current version
-      const abortController = new AbortController();
-
-      void (async () => {
-        const version = await fetchVersion(abortController.signal);
-        if (isMountedRef.current && version) {
-          setCurrentVersion(version);
-        }
-      })();
-
-      return () => {
-        isMountedRef.current = false;
-        abortController.abort();
-      };
-    }
-
-    // Start polling loop
     schedulePoll();
 
     return () => {
@@ -99,7 +74,7 @@ export const useAppVersion = (checkIntervalMs = 60000) => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [currentVersion, checkIntervalMs]);
+  }, [buildVersion, checkIntervalMs]);
 
   const reloadApp = () => {
     window.location.reload();

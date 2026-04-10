@@ -184,6 +184,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./WorkSymbols/Widget'),
     'WorkSymbolsWidget'
   ),
+  'blooms-taxonomy': lazyNamed(
+    () => import('./BloomsTaxonomy/Widget'),
+    'BloomsTaxonomyWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -321,6 +325,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   'work-symbols': lazyNamed(
     () => import('./WorkSymbols/Settings'),
     'WorkSymbolsSettings'
+  ),
+  'blooms-taxonomy': lazyNamed(
+    () => import('./BloomsTaxonomy/Settings'),
+    'BloomsTaxonomySettings'
   ),
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
@@ -844,6 +852,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'work-symbols': {
     baseWidth: 300,
     baseHeight: 300,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'blooms-taxonomy': {
+    baseWidth: 450,
+    baseHeight: 550,
     canSpread: true,
     skipScaling: true,
     padding: 0,

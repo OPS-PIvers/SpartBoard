@@ -43,6 +43,7 @@ import {
   GraduationCap,
   MessagesSquare,
   Image as ImageIcon,
+  Triangle,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -272,5 +273,11 @@ export const TOOLS: ToolMetadata[] = [
     icon: ImageIcon,
     label: 'Work Symbols',
     color: 'bg-violet-500',
+  },
+  {
+    type: 'blooms-taxonomy',
+    icon: Triangle,
+    label: "Bloom's Taxonomy",
+    color: 'bg-indigo-600',
   },
 ];

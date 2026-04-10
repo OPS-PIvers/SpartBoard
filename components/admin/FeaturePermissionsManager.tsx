@@ -46,6 +46,7 @@ import { CatalystConfigurationModal } from '@/components/admin/CatalystConfigura
 import { PdfLibraryModal } from '@/components/admin/PdfLibraryModal';
 import { VideoActivityConfigurationModal } from '@/components/admin/VideoActivityConfigurationModal';
 import { WorkSymbolsConfigurationModal } from '@/components/admin/WorkSymbolsConfigurationModal';
+import { BloomsTaxonomyConfigurationModal } from '@/components/admin/BloomsTaxonomyConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 
@@ -905,8 +906,16 @@ export const FeaturePermissionsManager: React.FC = () => {
         />
       )}
 
+      {activeModalTool?.type === 'blooms-taxonomy' && (
+        <BloomsTaxonomyConfigurationModal
+          isOpen={true}
+          onClose={() => setActiveModalTool(null)}
+        />
+      )}
+
       {activeModalTool &&
         ![
+          'blooms-taxonomy',
           'calendar',
           'catalyst',
           'graphic-organizer',
