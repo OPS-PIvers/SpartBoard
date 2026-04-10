@@ -11,7 +11,7 @@
  *   1. Local config change on one widget + remote config change on another.
  *   2. Remote deletion of a previously-synced widget while local edits exist.
  *   3. Local changes to non-config, non-layout widget fields (customTitle,
- *      maximized, transparency).
+ *      isPinned, annotation, transparency).
  */
 
 import React, { useEffect } from 'react';
@@ -270,7 +270,7 @@ describe('DashboardContext per-widget merge', () => {
     });
   });
 
-  it('preserves local changes to style fields but drops un-tracked fields like customTitle', async () => {
+  it('preserves local changes to style and instance fields including customTitle', async () => {
     const stateRef = setup();
 
     const widgetA = makeWidget('wA', 'original-A');
@@ -306,17 +306,15 @@ describe('DashboardContext per-widget merge', () => {
     ]);
     await pushSnapshot([{ ...serverDashboard, updatedAt: 2000 }]);
 
-    // Known behaviour: non-config, non-layout fields (customTitle,
-    // maximized) are NOT covered by the per-field merge logic.  The merge uses
-    // `...sw` (the server widget) as the base, so server values overwrite any
-    // locally-changed fields outside of `config`, `STYLE_FIELDS` and `LAYOUT_FIELDS`.
-    // This test documents that limitation as a regression baseline.
+    // customTitle is now preserved during merge via INSTANCE_FIELDS,
+    // alongside transparency (STYLE_FIELDS). Server config changes
+    // on other widgets are still accepted.
     await waitFor(() => {
       const wA = stateRef.current?.activeDashboard?.widgets.find(
         (w) => w.id === 'wA'
       );
-      // customTitle reverts to the server's (undefined) value
-      expect(wA?.customTitle).toBeUndefined();
+      // customTitle is preserved since it is in INSTANCE_FIELDS
+      expect(wA?.customTitle).toBe('My Custom Title');
       // transparency is preserved since it is in STYLE_FIELDS
       expect(wA?.transparency).toBe(0.5);
       // But widget B's server config is still accepted

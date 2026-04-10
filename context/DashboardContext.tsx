@@ -743,6 +743,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 'buildingId',
               ] as const;
 
+              const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
+
               const remoteControlEnabled =
                 accountRemoteControlEnabledRef.current;
 
@@ -763,6 +765,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     saved,
                     keepLocalConfig: false,
                     keepLocalLayout: false,
+                    keepLocalInstance: false,
+                    keepLocalAnnotation: false,
                     isDeletedLocally,
                   };
                 }
@@ -778,6 +782,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const styleChangedLocally = STYLE_FIELDS.some(
                   (f) => lw[f] !== saved[f]
                 );
+                const instanceChangedLocally = INSTANCE_FIELDS.some(
+                  (f) => lw[f] !== saved[f]
+                );
+                const annotationChangedLocally =
+                  JSON.stringify(lw.annotation) !==
+                  JSON.stringify(saved.annotation);
 
                 return {
                   sw,
@@ -790,6 +800,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   keepLocalLayout:
                     layoutChangedLocally || !remoteControlEnabled,
                   keepLocalStyle: styleChangedLocally || !remoteControlEnabled,
+                  keepLocalInstance:
+                    instanceChangedLocally || !remoteControlEnabled,
+                  keepLocalAnnotation:
+                    annotationChangedLocally || !remoteControlEnabled,
                 };
               });
 
@@ -802,6 +816,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     keepLocalConfig,
                     keepLocalLayout,
                     keepLocalStyle,
+                    keepLocalInstance,
+                    keepLocalAnnotation,
                   }) => {
                     if (!lw) return sw; // new widget from server -> accept
 
@@ -824,6 +840,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                               acc[f] = lw[f as keyof WidgetData];
                             return acc as Partial<WidgetData>;
                           })()
+                        : {}),
+                      ...(keepLocalInstance
+                        ? (() => {
+                            const acc: Record<string, unknown> = {};
+                            for (const f of INSTANCE_FIELDS)
+                              acc[f] = lw[f as keyof WidgetData];
+                            return acc as Partial<WidgetData>;
+                          })()
+                        : {}),
+                      ...(keepLocalAnnotation
+                        ? { annotation: lw.annotation }
                         : {}),
                     };
                   }
@@ -868,6 +895,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   keepLocalConfig,
                   keepLocalLayout,
                   keepLocalStyle,
+                  keepLocalInstance,
+                  keepLocalAnnotation,
                 }) => {
                   if (!lw || !saved) return sw;
 
@@ -890,6 +919,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                             acc[f] = saved[f as keyof WidgetData];
                           return acc as Partial<WidgetData>;
                         })()
+                      : {}),
+                    ...(keepLocalInstance
+                      ? (() => {
+                          const acc: Record<string, unknown> = {};
+                          for (const f of INSTANCE_FIELDS)
+                            acc[f] = saved[f as keyof WidgetData];
+                          return acc as Partial<WidgetData>;
+                        })()
+                      : {}),
+                    ...(keepLocalAnnotation
+                      ? { annotation: saved.annotation }
                       : {}),
                   };
                 }
