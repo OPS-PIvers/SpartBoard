@@ -139,12 +139,11 @@ function tryParseImageWidget(url: string): PasteResult | null {
   return null;
 }
 
-function tryParseEmbedWidget(url: string): PasteResult | null {
-  const isEmbed = /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com)/.test(
-    url
-  );
+const EMBED_PROVIDERS =
+  /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com|drive\.google\.com\/(?:file\/d\/|open\?(?:.*&)?id=)|vids\.google\.com\/(?:u\/\d+\/)?vids\/)/;
 
-  if (isEmbed) {
+function tryParseEmbedWidget(url: string): PasteResult | null {
+  if (EMBED_PROVIDERS.test(url)) {
     return {
       action: 'create-widget',
       type: 'embed',
