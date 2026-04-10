@@ -188,6 +188,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./BloomsTaxonomy/Widget'),
     'BloomsTaxonomyWidget'
   ),
+  'blooms-detail': lazyNamed(
+    () => import('./BloomsTaxonomy/DetailWidget'),
+    'BloomsDetailWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -859,6 +863,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'blooms-taxonomy': {
     baseWidth: 450,
     baseHeight: 550,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'blooms-detail': {
+    baseWidth: 450,
+    baseHeight: 300,
     canSpread: true,
     skipScaling: true,
     padding: 0,
