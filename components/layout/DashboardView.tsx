@@ -343,9 +343,10 @@ export const DashboardView: React.FC = () => {
       }
     });
 
-    if (!batch.length) return;
     updateWidgets(batch);
-    addToast('Layout scaled to fit this screen', 'info');
+    if (batch.length) {
+      addToast('Layout scaled to fit this screen', 'info');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
   }, [activeDashboard?.id]);
 
