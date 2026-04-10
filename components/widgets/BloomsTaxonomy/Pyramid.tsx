@@ -7,9 +7,10 @@ import {
 } from './constants';
 
 interface PyramidProps {
-  onTierClick: (level: BloomsLevel, event: React.MouseEvent) => void;
-  onTierKeyboardActivate: (level: BloomsLevel, element: HTMLElement) => void;
+  onTierClick: (level: BloomsLevel) => void;
+  onTierKeyboardActivate: (level: BloomsLevel) => void;
   onTierDragStart: (level: BloomsLevel, event: React.DragEvent) => void;
+  activeLevel?: BloomsLevel | null;
 }
 
 /**
@@ -18,21 +19,23 @@ interface PyramidProps {
  * Index 0 = bottom (remember), index 5 = top (create).
  */
 const TIER_CLIP_PATHS = [
-  'polygon(0% 0%, 100% 0%, 92% 100%, 8% 100%)',
-  'polygon(8% 0%, 92% 0%, 84% 100%, 16% 100%)',
-  'polygon(16% 0%, 84% 0%, 76% 100%, 24% 100%)',
-  'polygon(24% 0%, 76% 0%, 68% 100%, 32% 100%)',
-  'polygon(32% 0%, 68% 0%, 60% 100%, 40% 100%)',
-  'polygon(40% 0%, 60% 0%, 52% 100%, 48% 100%)',
+  'polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%)',
+  'polygon(16% 0%, 84% 0%, 92% 100%, 8% 100%)',
+  'polygon(24% 0%, 76% 0%, 84% 100%, 16% 100%)',
+  'polygon(32% 0%, 68% 0%, 76% 100%, 24% 100%)',
+  'polygon(40% 0%, 60% 0%, 68% 100%, 32% 100%)',
+  'polygon(48% 0%, 52% 0%, 60% 100%, 40% 100%)',
 ];
 
 export const Pyramid: React.FC<PyramidProps> = ({
   onTierClick,
   onTierKeyboardActivate,
   onTierDragStart,
+  activeLevel = null,
 }) => {
   // Render levels top-to-bottom visually: create at top, remember at bottom
   const reversedLevels = [...BLOOMS_LEVELS].reverse();
+  const isDimmed = activeLevel !== null;
 
   return (
     <div
@@ -52,25 +55,30 @@ export const Pyramid: React.FC<PyramidProps> = ({
           const clipPath = TIER_CLIP_PATHS[tierIndex];
           const color = BLOOMS_COLORS[level];
           const label = BLOOMS_LABELS[level];
+          const isActive = level === activeLevel;
+          const tierOpacity = isDimmed && !isActive ? 0.45 : 1;
 
           return (
             <div
               key={level}
               role="button"
               tabIndex={0}
+              aria-pressed={isActive}
+              aria-label={`${label}${isActive ? ' (selected)' : ''}`}
               draggable
               className="relative flex items-center justify-center cursor-pointer transition-all duration-150"
               style={{
                 clipPath,
                 backgroundColor: color,
                 height: 'min(60px, 13cqmin)',
+                opacity: tierOpacity,
               }}
-              onClick={(e) => onTierClick(level, e)}
+              onClick={() => onTierClick(level)}
               onDragStart={(e) => onTierDragStart(level, e)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onTierKeyboardActivate(level, e.currentTarget as HTMLElement);
+                  onTierKeyboardActivate(level);
                 }
               }}
               onMouseEnter={(e) => {
