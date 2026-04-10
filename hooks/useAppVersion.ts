@@ -33,6 +33,7 @@ export const useAppVersion = (checkIntervalMs = 60000) => {
       try {
         const response = await fetch(`/version.json?t=${Date.now()}`, {
           signal,
+          cache: 'no-store',
         });
         if (!response.ok) return null;
         const data = (await response.json()) as VersionInfo;
