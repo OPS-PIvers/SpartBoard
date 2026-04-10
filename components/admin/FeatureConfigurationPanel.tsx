@@ -6,8 +6,6 @@ import {
   InternalToolType,
   WeatherGlobalConfig,
   WeatherTemperatureRange,
-  RecessGearGlobalConfig,
-  RecessGearTemperatureRange,
   ExpectationsGlobalConfig,
   TalkingToolGlobalConfig,
   ToolMetadata,
@@ -53,6 +51,7 @@ import { MagicConfigurationPanel } from './MagicConfigurationPanel';
 import { RecordConfigurationPanel } from './RecordConfigurationPanel';
 import { SeatingChartConfigurationPanel } from './SeatingChartConfigurationPanel';
 import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
+import { RecessGearConfigurationPanel } from './RecessGearConfigurationPanel';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
 import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
@@ -64,6 +63,7 @@ import { Toggle } from '../common/Toggle';
 
 // Shared prop shape for all "building-defaults" config panels
 type BuildingConfigPanel = React.ComponentType<{
+  uploadWeatherImage?: (rangeId: string, file: File) => Promise<string>;
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
 }>;
@@ -122,6 +122,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   'seating-chart':
     SeatingChartConfigurationPanel as unknown as BuildingConfigPanel,
   'reveal-grid': RevealGridConfigurationPanel as unknown as BuildingConfigPanel,
+  recessGear: RecessGearConfigurationPanel as unknown as BuildingConfigPanel,
   classes: ClassesConfigurationPanel as unknown as BuildingConfigPanel,
   smartNotebook:
     SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
@@ -208,82 +209,6 @@ export const FeatureConfigurationPanel: React.FC<
         temperatureRanges: ranges.filter((r) => r.id !== rangeId),
       },
     });
-  };
-
-  const addRecessGearRange = (widgetType: WidgetType | InternalToolType) => {
-    const config = (permission.config ?? {
-      fetchingStrategy: 'client',
-      updateFrequencyMinutes: 15,
-      temperatureRanges: [],
-    }) as unknown as RecessGearGlobalConfig;
-
-    const newRange: RecessGearTemperatureRange = {
-      id: crypto.randomUUID(),
-      min: 0,
-      max: 100,
-      label: 'New Item',
-      category: 'clothing',
-    };
-
-    updatePermission(widgetType, {
-      config: {
-        ...config,
-        temperatureRanges: [...(config.temperatureRanges ?? []), newRange],
-      },
-    });
-  };
-
-  const updateRecessGearRange = (
-    widgetType: WidgetType | InternalToolType,
-    rangeId: string,
-    updates: Partial<RecessGearTemperatureRange>
-  ) => {
-    const config = (permission.config ??
-      {}) as unknown as RecessGearGlobalConfig;
-    const ranges = config.temperatureRanges ?? [];
-
-    const newRanges = ranges.map((r) =>
-      r.id === rangeId ? { ...r, ...updates } : r
-    );
-
-    updatePermission(widgetType, {
-      config: { ...config, temperatureRanges: newRanges },
-    });
-  };
-
-  const removeRecessGearRange = (
-    widgetType: WidgetType | InternalToolType,
-    rangeId: string
-  ) => {
-    const config = (permission.config ??
-      {}) as unknown as RecessGearGlobalConfig;
-    const ranges = config.temperatureRanges ?? [];
-
-    updatePermission(widgetType, {
-      config: {
-        ...config,
-        temperatureRanges: ranges.filter((r) => r.id !== rangeId),
-      },
-    });
-  };
-
-  const handleRecessGearImageUpload = async (
-    widgetType: WidgetType | InternalToolType,
-    rangeId: string,
-    file: File
-  ) => {
-    if (!file) return;
-    setUploadingRangeId(rangeId);
-    try {
-      const url = await uploadWeatherImage(rangeId, file);
-      updateRecessGearRange(widgetType, rangeId, { imageUrl: url });
-      showMessage('success', 'Image uploaded');
-    } catch (e) {
-      console.error(e);
-      showMessage('error', 'Upload failed');
-    } finally {
-      setUploadingRangeId(null);
-    }
   };
 
   const handleWeatherImageUpload = async (
@@ -686,371 +611,6 @@ export const FeatureConfigurationPanel: React.FC<
         </div>
       )}
 
-      {tool.type === 'recessGear' && (
-        <div className="space-y-4">
-          {(() => {
-            const config = (permission.config ?? {
-              fetchingStrategy: 'client',
-              updateFrequencyMinutes: 15,
-              temperatureRanges: [],
-            }) as unknown as RecessGearGlobalConfig;
-
-            return (
-              <>
-                <div>
-                  <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                    Weather Fetching Strategy
-                  </label>
-                  <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                    <button
-                      onClick={() =>
-                        updatePermission(tool.type, {
-                          config: {
-                            ...config,
-                            fetchingStrategy: 'client',
-                          },
-                        })
-                      }
-                      className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                        config.fetchingStrategy === 'client' ||
-                        !config.fetchingStrategy
-                          ? 'bg-brand-blue-primary text-white shadow-sm'
-                          : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      Client (Direct)
-                    </button>
-                    <button
-                      onClick={() =>
-                        updatePermission(tool.type, {
-                          config: {
-                            ...config,
-                            fetchingStrategy: 'admin_proxy',
-                          },
-                        })
-                      }
-                      className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                        config.fetchingStrategy === 'admin_proxy'
-                          ? 'bg-brand-blue-primary text-white shadow-sm'
-                          : 'text-slate-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      Admin Proxy
-                    </button>
-                  </div>
-                </div>
-
-                {config.fetchingStrategy === 'admin_proxy' && (
-                  <div className="space-y-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div>
-                      <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                        Weather Data Source
-                      </label>
-                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                        <button
-                          onClick={() =>
-                            updatePermission(tool.type, {
-                              config: {
-                                ...config,
-                                source: 'openweather',
-                              },
-                            })
-                          }
-                          className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                            config.source === 'openweather' || !config.source
-                              ? 'bg-brand-blue-primary text-white shadow-sm'
-                              : 'text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          OpenWeather
-                        </button>
-                        <button
-                          onClick={() =>
-                            updatePermission(tool.type, {
-                              config: {
-                                ...config,
-                                source: 'earth_networks',
-                              },
-                            })
-                          }
-                          className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                            config.source === 'earth_networks'
-                              ? 'bg-brand-blue-primary text-white shadow-sm'
-                              : 'text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          Earth Networks
-                        </button>
-                      </div>
-                    </div>
-
-                    {(config.source === 'openweather' || !config.source) && (
-                      <div>
-                        <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
-                          City (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Default: Local Station"
-                          value={config.city ?? ''}
-                          onChange={(e) =>
-                            updatePermission(tool.type, {
-                              config: {
-                                ...config,
-                                city: e.target.value,
-                              },
-                            })
-                          }
-                          className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
-                  <span className="text-xxs font-bold text-slate-500 uppercase">
-                    Use &quot;Feels Like&quot; Temperature
-                  </span>
-                  <Toggle
-                    checked={config.useFeelsLike ?? false}
-                    onChange={(checked) =>
-                      updatePermission(tool.type, {
-                        config: {
-                          ...config,
-                          useFeelsLike: checked,
-                        },
-                      })
-                    }
-                    size="xs"
-                    showLabels={false}
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xxs font-bold text-slate-500 uppercase block">
-                      Recess Gear Temperature Ranges
-                    </label>
-                    <button
-                      onClick={() => addRecessGearRange(tool.type)}
-                      className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> Add Item
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {(config.temperatureRanges || []).map((range) => (
-                      <div
-                        key={range.id}
-                        className="bg-white border border-slate-200 rounded-lg p-3 space-y-3"
-                      >
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={range.type ?? 'range'}
-                            onChange={(e) =>
-                              updateRecessGearRange(tool.type, range.id, {
-                                type: e.target
-                                  .value as RecessGearTemperatureRange['type'],
-                              })
-                            }
-                            className="text-xxs font-bold border border-slate-200 rounded px-1 py-1"
-                          >
-                            <option value="range">Range</option>
-                            <option value="above">Above</option>
-                            <option value="below">Below</option>
-                          </select>
-
-                          {(range.type === 'range' || !range.type) && (
-                            <>
-                              <input
-                                type="number"
-                                placeholder="Min"
-                                value={range.min}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  updateRecessGearRange(tool.type, range.id, {
-                                    min: isNaN(val) ? 0 : val,
-                                  });
-                                }}
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
-                                title="Min Temp"
-                              />
-                              <span className="text-slate-400 text-xs">-</span>
-                              <input
-                                type="number"
-                                placeholder="Max"
-                                value={range.max}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  updateRecessGearRange(tool.type, range.id, {
-                                    max: isNaN(val) ? 0 : val,
-                                  });
-                                }}
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
-                                title="Max Temp"
-                              />
-                            </>
-                          )}
-
-                          {range.type === 'above' && (
-                            <div className="flex items-center gap-2 flex-1">
-                              <span className="text-xxs font-bold text-slate-400 uppercase">
-                                Above
-                              </span>
-                              <input
-                                type="number"
-                                placeholder="Temp"
-                                value={range.min}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  updateRecessGearRange(tool.type, range.id, {
-                                    min: isNaN(val) ? 0 : val,
-                                  });
-                                }}
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
-                              />
-                            </div>
-                          )}
-
-                          {range.type === 'below' && (
-                            <div className="flex items-center gap-2 flex-1">
-                              <span className="text-xxs font-bold text-slate-400 uppercase">
-                                Below
-                              </span>
-                              <input
-                                type="number"
-                                placeholder="Temp"
-                                value={range.max}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  updateRecessGearRange(tool.type, range.id, {
-                                    max: isNaN(val) ? 0 : val,
-                                  });
-                                }}
-                                className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
-                              />
-                            </div>
-                          )}
-
-                          <select
-                            value={range.category}
-                            onChange={(e) =>
-                              updateRecessGearRange(tool.type, range.id, {
-                                category: e.target
-                                  .value as RecessGearTemperatureRange['category'],
-                              })
-                            }
-                            className="text-xxs font-bold border border-slate-200 rounded px-1 py-1"
-                          >
-                            <option value="clothing">Clothing</option>
-                            <option value="footwear">Footwear</option>
-                            <option value="accessory">Accessory</option>
-                          </select>
-
-                          <div className="flex-1" />
-                          <button
-                            onClick={() =>
-                              removeRecessGearRange(tool.type, range.id)
-                            }
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder="Gear Label (e.g. Winter Coat)..."
-                            value={range.label}
-                            onChange={(e) =>
-                              updateRecessGearRange(tool.type, range.id, {
-                                label: e.target.value,
-                              })
-                            }
-                            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Emoji Icon..."
-                            value={range.icon ?? ''}
-                            onChange={(e) =>
-                              updateRecessGearRange(tool.type, range.id, {
-                                icon: e.target.value,
-                              })
-                            }
-                            className="w-20 px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none text-center"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {range.imageUrl ? (
-                            <div className="relative w-10 h-10 rounded bg-slate-100 overflow-hidden shrink-0 group">
-                              <img
-                                src={range.imageUrl}
-                                alt="Range"
-                                className="w-full h-full object-cover"
-                              />
-                              <button
-                                onClick={() =>
-                                  updateRecessGearRange(tool.type, range.id, {
-                                    imageUrl: undefined,
-                                  })
-                                }
-                                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded bg-slate-50 border border-dashed border-slate-300 flex items-center justify-center shrink-0">
-                              <ImageIcon className="w-4 h-4 text-slate-300" />
-                            </div>
-                          )}
-
-                          <div className="flex-1">
-                            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded px-3 py-1.5 transition-colors w-max">
-                              {uploadingRangeId === range.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-blue-primary" />
-                              ) : (
-                                <Upload className="w-3.5 h-3.5 text-slate-500" />
-                              )}
-                              <span className="text-xxs font-bold text-slate-600 uppercase">
-                                {range.imageUrl
-                                  ? 'Change Image'
-                                  : 'Upload Image'}
-                              </span>
-                              <input
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    void handleRecessGearImageUpload(
-                                      tool.type,
-                                      range.id,
-                                      file
-                                    );
-                                  }
-                                }}
-                                disabled={!!uploadingRangeId}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
-
       {tool.type === 'talking-tool' && (
         <div className="space-y-4">
           <TalkingToolConfigurationPanel
@@ -1103,6 +663,7 @@ export const FeatureConfigurationPanel: React.FC<
         return (
           <div className="space-y-4">
             <BuildingPanel
+              uploadWeatherImage={uploadWeatherImage}
               config={
                 permission.config ?? {
                   buildingDefaults: {},

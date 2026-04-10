@@ -402,20 +402,18 @@ Config: `components/admin/RandomConfigurationPanel.tsx` _(dedicated panel via `B
 
 ---
 
-[X] Recess Gear — Type: `recessGear` | Label: "Recess Gear"
-Config: Inline in `components/admin/FeatureConfigurationPanel.tsx` — no dedicated file. To extract,
-create `components/admin/RecessGearConfigurationPanel.tsx` and register in `BUILDING_CONFIG_PANELS`.
-
-- **User-level Defaults:**
-  - None.
-- **Admin-only Settings:**
-  - `fetchingStrategy`: `'client'` vs `'admin_proxy'`.
-  - `updateFrequencyMinutes`: Refresh interval.
-  - `temperatureRanges`: CRUD gear items with icons, images, and categories.
-  - `source`: OpenWeather vs Earth Networks.
-  - `city`: Default city for weather data.
-  - `useFeelsLike`: Toggle feels-like temperature usage.
-  - `dockDefaults`: Per-building dock visibility.
+[x] Recess Gear — Type: `recessGear` | Label: "Recess Gear"
+Config: `components/admin/RecessGearConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
+    - [Default User-Level Settings]
+        -- None natively configurable.
+    - [Admin-Only Settings]
+        -- fetchingStrategy: 'client' vs 'admin_proxy'.
+        -- updateFrequencyMinutes: Refresh interval.
+        -- temperatureRanges: CRUD gear items with icons, images, and categories.
+        -- source: OpenWeather vs Earth Networks.
+        -- city: Default city for weather data.
+        -- useFeelsLike: Toggle feels-like temperature usage.
+        -- dockDefaults: Per-building dock visibility.
 
 ---
 
