@@ -114,6 +114,15 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('does not treat Google Drive folder URLs as embeddable', () => {
+    const input =
+      'https://drive.google.com/drive/folders/1aBcDeFgHiJkLmNoPqRsT';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    expect(result?.action).toBe('prompt-url-or-qr');
+  });
+
   it('detects other URLs and returns prompt-url-or-qr action', () => {
     const input = 'https://google.com';
     const result = detectWidgetType(input);

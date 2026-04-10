@@ -140,7 +140,7 @@ function tryParseImageWidget(url: string): PasteResult | null {
 }
 
 const EMBED_PROVIDERS =
-  /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com|drive\.google\.com|vids\.google\.com)/;
+  /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com|drive\.google\.com\/(?:file\/d\/|open\?(?:.*&)?id=)|vids\.google\.com\/(?:u\/\d+\/)?vids\/)/;
 
 function tryParseEmbedWidget(url: string): PasteResult | null {
   if (EMBED_PROVIDERS.test(url)) {
