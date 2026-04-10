@@ -15,6 +15,7 @@ export interface BackgroundPresetItem {
   label: string;
   thumbnailUrl?: string;
   category: string;
+  featured: boolean;
 }
 
 export const useBackgrounds = () => {
@@ -121,11 +122,17 @@ export const useBackgrounds = () => {
     return () => unsubscribes.forEach((unsub) => unsub());
   }, [user, isAdmin]);
 
-  // Preload the first 20 thumbnails into the browser cache so the sidebar
-  // feels instant when opened. This is a legitimate external side-effect
-  // (warming the HTTP cache) rather than derived state.
+  // Preload featured thumbnails first, then fill up to 20 with non-featured.
+  // This ensures the sidebar overview (which only shows featured) feels instant.
   useEffect(() => {
-    const toPreload = managedBackgrounds.slice(0, 20);
+    const featured = managedBackgrounds
+      .filter((bg) => bg.featured)
+      .slice(0, 20);
+    const nonFeatured = managedBackgrounds.filter((bg) => !bg.featured);
+    const toPreload = [
+      ...featured,
+      ...nonFeatured.slice(0, Math.max(0, 20 - featured.length)),
+    ].slice(0, 20);
     toPreload.forEach((bg) => {
       const src = bg.thumbnailUrl ?? bg.url;
       if (src?.startsWith('http')) {
@@ -141,6 +148,7 @@ export const useBackgrounds = () => {
       label: bg.label,
       thumbnailUrl: bg.thumbnailUrl,
       category: resolveCategory(bg.label, bg.category),
+      featured: bg.featured ?? false,
     }));
   }, [managedBackgrounds]);
 
