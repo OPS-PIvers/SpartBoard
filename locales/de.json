@@ -121,6 +121,13 @@
       "sidebarUtility": "Seitenleiste",
       "doubleSidebarUtility": "Doppelte Seitenleiste"
     },
+    "group": {
+      "tapToAdd": "Widgets antippen, um sie zur Gruppe hinzuzufügen",
+      "groupCount": "Gruppieren ({{count}})",
+      "widgetsGrouped": "Widgets gruppiert",
+      "ungroup": "Gruppierung aufheben",
+      "groupWith": "Gruppieren mit..."
+    },
     "clearEntireBoard": "Bist du sicher, dass du die gesamte Tafel löschen möchtest?",
     "clearBoardTitle": "Tafel löschen"
   },

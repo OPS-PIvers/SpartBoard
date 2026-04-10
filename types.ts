@@ -2384,6 +2384,8 @@ export interface WidgetData {
   annotation?: DrawingConfig;
   /** Override which building's admin defaults this widget uses (falls back to user's primary building) */
   buildingId?: string;
+  /** Widgets sharing the same groupId form a group — they move and resize together */
+  groupId?: string;
   config: WidgetConfig;
 
   // Universal style properties

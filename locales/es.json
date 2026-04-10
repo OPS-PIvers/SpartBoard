@@ -130,6 +130,13 @@
       "sidebarUtility": "Barra Lateral",
       "doubleSidebarUtility": "Doble Barra Lateral"
     },
+    "group": {
+      "tapToAdd": "Toca widgets para agregar al grupo",
+      "groupCount": "Agrupar ({{count}})",
+      "widgetsGrouped": "Widgets agrupados",
+      "ungroup": "Desagrupar",
+      "groupWith": "Agrupar con..."
+    },
     "clearEntireBoard": "¿Estás seguro de que deseas borrar todo el tablero?",
     "clearBoardTitle": "Borrar Tablero"
   },

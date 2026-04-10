@@ -188,6 +188,24 @@ const mockDashboard: DashboardContextValue = {
   setSelectedWidgetId: () => {
     // No-op
   },
+  // Widget grouping mocks
+  groupWidgets: () => {
+    // No-op
+  },
+  ungroupWidgets: () => {
+    // No-op
+  },
+  updateWidgets: () => {
+    // No-op
+  },
+  selectedWidgetIds: [],
+  setSelectedWidgetIds: () => {
+    // No-op
+  },
+  groupBuildMode: false,
+  setGroupBuildMode: () => {
+    // No-op
+  },
   addFolder: () => {
     // No-op
   },

@@ -121,6 +121,13 @@
       "sidebarUtility": "Barre latérale",
       "doubleSidebarUtility": "Double barre latérale"
     },
+    "group": {
+      "tapToAdd": "Appuyez sur les widgets pour les ajouter au groupe",
+      "groupCount": "Grouper ({{count}})",
+      "widgetsGrouped": "Widgets groupés",
+      "ungroup": "Dégrouper",
+      "groupWith": "Grouper avec..."
+    },
     "clearEntireBoard": "Êtes-vous sûr de vouloir effacer l'intégralité du tableau ?",
     "clearBoardTitle": "Effacer le Tableau"
   },

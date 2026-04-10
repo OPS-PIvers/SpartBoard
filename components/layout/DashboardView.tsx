@@ -16,6 +16,7 @@ import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
+import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
 import { BoardZoomControl } from './BoardZoomControl';
@@ -142,6 +143,13 @@ export const DashboardView: React.FC = () => {
     setZoom,
     pendingQuizShareId,
     clearPendingQuizShare,
+    // Widget grouping
+    groupWidgets,
+    groupBuildMode,
+    setGroupBuildMode,
+    selectedWidgetIds,
+    setSelectedWidgetIds,
+    selectedWidgetId,
   } = useDashboard();
 
   const { importSharedQuiz } = useQuiz(user?.uid);
@@ -679,6 +687,14 @@ export const DashboardView: React.FC = () => {
   // Keyboard Navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape: Exit group-build mode first (highest priority modal state)
+      if (e.key === 'Escape' && groupBuildMode) {
+        e.preventDefault();
+        setGroupBuildMode(false);
+        setSelectedWidgetIds([]);
+        return;
+      }
+
       // Escape: Close top-most widget or blur input
       if (e.key === 'Escape') {
         const activeElement = document.activeElement as HTMLElement;
@@ -792,6 +808,9 @@ export const DashboardView: React.FC = () => {
     deleteAllWidgets,
     showConfirm,
     t,
+    groupBuildMode,
+    setGroupBuildMode,
+    setSelectedWidgetIds,
   ]);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1162,8 +1181,66 @@ export const DashboardView: React.FC = () => {
               />
             );
           })}
+          {/* Group Bounding Box — rendered when a grouped widget is selected */}
+          {(() => {
+            const selectedGroupId = selectedWidgetId
+              ? activeDashboard.widgets.find((w) => w.id === selectedWidgetId)
+                  ?.groupId
+              : undefined;
+            if (!selectedGroupId) return null;
+            const members = activeDashboard.widgets.filter(
+              (w) =>
+                w.groupId === selectedGroupId &&
+                !w.minimized &&
+                !w.isLocked &&
+                !w.isPinned
+            );
+            return <GroupBoundingBox groupWidgets={members} zoom={zoom} />;
+          })()}
         </div>
       </div>
+
+      {/* Group-building mode floating action bar */}
+      {groupBuildMode &&
+        createPortal(
+          <>
+            {/* Instruction banner */}
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-toast px-6 py-3 bg-blue-600/90 backdrop-blur-xl text-white rounded-full shadow-2xl font-sans text-sm font-medium pointer-events-none">
+              {t('widgetWindow.group.tapToAdd')}
+            </div>
+            {/* Action bar */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-toast flex items-center gap-3 px-6 py-3 bg-white/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/50">
+              <button
+                onClick={() => {
+                  setGroupBuildMode(false);
+                  setSelectedWidgetIds([]);
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                disabled={selectedWidgetIds.length < 2}
+                onClick={() => {
+                  groupWidgets(selectedWidgetIds);
+                  setGroupBuildMode(false);
+                  setSelectedWidgetIds([]);
+                  addToast(t('widgetWindow.group.widgetsGrouped'));
+                }}
+                className={`px-5 py-2 text-sm font-semibold rounded-full transition-colors ${
+                  selectedWidgetIds.length >= 2
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {t('widgetWindow.group.groupCount', {
+                  count: selectedWidgetIds.length,
+                })}
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* FIXED UI: Outside the zoom container */}
       <Sidebar />

@@ -139,6 +139,13 @@
       "sidebarUtility": "Sidebar",
       "doubleSidebarUtility": "Double Sidebar"
     },
+    "group": {
+      "tapToAdd": "Tap widgets to add to group",
+      "groupCount": "Group ({{count}})",
+      "widgetsGrouped": "Widgets grouped",
+      "ungroup": "Ungroup",
+      "groupWith": "Group with..."
+    },
     "clearEntireBoard": "Are you sure you want to clear the entire board?",
     "clearBoardTitle": "Clear Board"
   },
