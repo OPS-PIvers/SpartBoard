@@ -22,21 +22,25 @@ import {
   Outdent,
   Type,
   Palette,
-  Highlighter,
   Link as LinkIcon,
   ChevronDown,
   Minus,
   Plus,
+  MoreHorizontal,
 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { FONT_COLORS } from '@/config/fonts';
-import { PASTEL_PALETTE } from '@/config/colors';
+import { PASTEL_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
 
 interface FormattingToolbarProps {
   editorRef: React.RefObject<HTMLDivElement | null>;
   verticalAlign: 'top' | 'center' | 'bottom';
   onVerticalAlignChange: (value: 'top' | 'center' | 'bottom') => void;
+  suppressInputRef: React.MutableRefObject<boolean>;
+  onContentChange: () => void;
+  bgColor: string;
+  onBgColorChange: (color: string) => void;
 }
 
 const TOOLBAR_FONTS = [
@@ -151,14 +155,29 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   editorRef,
   verticalAlign,
   onVerticalAlignChange,
+  suppressInputRef,
+  onContentChange,
+  bgColor,
+  onBgColorChange,
 }) => {
   const { showPrompt } = useDialog();
   const [showFontMenu, setShowFontMenu] = useState(false);
   const [showColorMenu, setShowColorMenu] = useState(false);
-  const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const [showAlignMenu, setShowAlignMenu] = useState(false);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState(16);
   const [fontSizeInput, setFontSizeInput] = useState('16');
+  const [visibleCount, setVisibleCount] = useState(6);
   const savedRangeRef = useRef<Range | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const closeAllMenus = useCallback(() => {
+    setShowFontMenu(false);
+    setShowColorMenu(false);
+    setShowAlignMenu(false);
+    setShowOverflowMenu(false);
+  }, []);
 
   /** Read the computed font-size of the current selection anchor */
   const detectFontSize = useCallback(() => {
@@ -219,7 +238,8 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     }
   }, [editorRef]);
 
-  const exec = useCallback(
+  /** Run a document.execCommand with styleWithCSS enabled. */
+  const runCommand = useCallback(
     (command: string, value: string = '') => {
       restoreSelection();
       document.execCommand('styleWithCSS', false, 'true');
@@ -229,7 +249,10 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     [restoreSelection, editorRef]
   );
 
-  /** Apply an arbitrary pixel font size using the marker-replacement technique */
+  /** Apply an arbitrary pixel font size using the marker-replacement technique.
+   *  Suppresses the parent's handleInput during the multi-step DOM mutation
+   *  (execCommand creates <font size="7"> markers, then we replace them with
+   *  <span style="font-size:…">), and explicitly saves content afterward. */
   const applyFontSize = useCallback(
     (size: number) => {
       const clamped = Math.max(8, Math.min(96, Math.round(size)));
@@ -245,6 +268,9 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         ancestor?.nodeType === Node.ELEMENT_NODE
           ? ancestor
           : (ancestor?.parentElement ?? null);
+
+      // Suppress handleInput while we mutate the DOM in two steps
+      suppressInputRef.current = true;
 
       restoreSelection();
       document.execCommand('styleWithCSS', false, 'true');
@@ -268,9 +294,14 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           el.replaceWith(span);
         });
       }
+
+      // Re-enable input handling and persist the final DOM state
+      suppressInputRef.current = false;
+      onContentChange();
+
       editor?.focus();
     },
-    [editorRef, restoreSelection]
+    [editorRef, restoreSelection, suppressInputRef, onContentChange]
   );
 
   const handleLink = async () => {
@@ -278,42 +309,98 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       placeholder: 'https://example.com',
     });
     if (url) {
-      exec('createLink', url);
+      runCommand('createLink', url);
     }
   };
 
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
-      setShowFontMenu(false);
-      setShowColorMenu(false);
-      setShowHighlightMenu(false);
+      closeAllMenus();
     };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
+  }, [closeAllMenus]);
+
+  // ResizeObserver: collapse lower-priority groups into overflow menu
+  useEffect(() => {
+    const container = toolbarRef.current;
+    if (!container) return;
+
+    const overflowBtnWidth = 36;
+    const hysteresis = 8;
+
+    const measure = () => {
+      const containerWidth = container.offsetWidth;
+      const padding = 8; // p-1 = 4px each side
+      const available = containerWidth - padding;
+      let total = 0;
+      let count = 0;
+
+      for (let i = 0; i < 6; i++) {
+        const el = groupRefs.current[i];
+        if (!el) continue;
+        const groupWidth = el.offsetWidth;
+        const needed = total + groupWidth + overflowBtnWidth;
+
+        if (needed <= available + hysteresis) {
+          total += groupWidth;
+          count = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      setVisibleCount((prev) => {
+        const next = Math.max(1, count);
+        return next === prev ? prev : next;
+      });
+    };
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(container);
+    requestAnimationFrame(measure);
+
+    return () => ro.disconnect();
   }, []);
+
+  const setGroupRef = useCallback(
+    (index: number) => (el: HTMLDivElement | null) => {
+      groupRefs.current[index] = el;
+    },
+    []
+  );
+
+  const stickyColors = Object.values(STICKY_NOTE_COLORS);
 
   return (
     <div
-      className="flex flex-col gap-0.5 p-1 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm rounded-t-lg"
+      ref={toolbarRef}
+      className="flex items-center gap-0.5 p-1 bg-white/95 backdrop-blur-sm border border-slate-200 shadow-md rounded-lg overflow-hidden"
       onMouseDown={(e) => {
         if ((e.target as HTMLElement).tagName !== 'INPUT') {
           e.preventDefault();
         }
       }}
     >
-      {/* Row 1: Text formatting */}
-      <div className="flex items-center gap-0.5">
-        {/* Typeface */}
+      {/* Group 0: Font Family */}
+      <div
+        ref={setGroupRef(0)}
+        className="flex items-center"
+        style={
+          visibleCount <= 0
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
         <MenuButton
           icon={<Type className="w-3.5 h-3.5 text-slate-600" />}
           label="Font Family"
           isOpen={showFontMenu}
           onClick={() => {
             const wasOpen = showFontMenu;
-            setShowFontMenu(!wasOpen);
-            setShowColorMenu(false);
-            setShowHighlightMenu(false);
+            closeAllMenus();
+            if (!wasOpen) setShowFontMenu(true);
           }}
         >
           <div className="flex flex-col gap-0.5 max-h-64 overflow-y-auto custom-scrollbar">
@@ -328,7 +415,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                           editorRef.current ?? document.body
                         ).fontFamily
                       : f.family;
-                  exec('fontName', family);
+                  runCommand('fontName', family);
                   setShowFontMenu(false);
                 }}
                 className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 whitespace-nowrap"
@@ -339,8 +426,18 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             ))}
           </div>
         </MenuButton>
+      </div>
 
-        {/* Font Size - Numeric Stepper */}
+      {/* Group 1: Font Size - Numeric Stepper */}
+      <div
+        ref={setGroupRef(1)}
+        className="flex items-center"
+        style={
+          visibleCount <= 1
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
         <div className="flex items-center gap-0 rounded border border-slate-200 mx-0.5">
           <button
             onMouseDown={(e) => e.preventDefault()}
@@ -384,108 +481,346 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             <Plus className="w-2.5 h-2.5 text-slate-500" />
           </button>
         </div>
+      </div>
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+      {visibleCount >= 2 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-        {/* Basic Formatting */}
-        <IconButton
-          icon={<Bold className="w-3.5 h-3.5" />}
-          label="Bold"
-          onClick={() => exec('bold')}
-          size="sm"
-          variant="ghost"
+      {/* Group 2: Text Style — B / I / U as segmented control */}
+      <div
+        ref={setGroupRef(2)}
+        className="flex items-center"
+        style={
+          visibleCount <= 2
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
+        <button
           onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<Italic className="w-3.5 h-3.5" />}
-          label="Italic"
-          onClick={() => exec('italic')}
-          size="sm"
-          variant="ghost"
+          onClick={() => runCommand('bold')}
+          className="flex items-center justify-center w-7 h-7 rounded-l border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
+          title="Bold"
+          aria-label="Bold"
+        >
+          <Bold className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+        <button
           onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<Underline className="w-3.5 h-3.5" />}
-          label="Underline"
-          onClick={() => exec('underline')}
-          size="sm"
-          variant="ghost"
+          onClick={() => runCommand('italic')}
+          className="flex items-center justify-center w-7 h-7 border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
+          title="Italic"
+          aria-label="Italic"
+        >
+          <Italic className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+        <button
           onMouseDown={(e) => e.preventDefault()}
-        />
+          onClick={() => runCommand('underline')}
+          className="flex items-center justify-center w-7 h-7 rounded-r border border-slate-200 hover:bg-slate-100 transition-colors"
+          title="Underline"
+          aria-label="Underline"
+        >
+          <Underline className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+      </div>
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+      {visibleCount >= 3 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-        {/* Colors */}
+      {/* Group 3: Alignment & Layout */}
+      <div
+        ref={setGroupRef(3)}
+        className="flex items-center"
+        style={
+          visibleCount <= 3
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
         <MenuButton
-          icon={<Palette className="w-3.5 h-3.5" />}
-          label="Font Color"
+          icon={<AlignLeft className="w-3.5 h-3.5 text-slate-600" />}
+          label="Alignment & Layout"
+          isOpen={showAlignMenu}
+          onClick={() => {
+            const wasOpen = showAlignMenu;
+            closeAllMenus();
+            if (!wasOpen) setShowAlignMenu(true);
+          }}
+        >
+          <div className="w-40 p-1.5 space-y-1.5">
+            {/* Justify */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Justify
+              </div>
+              <div className="flex gap-0.5">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('justifyLeft');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Align Left"
+                >
+                  <AlignLeft className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('justifyCenter');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Align Center"
+                >
+                  <AlignCenter className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('justifyRight');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Align Right"
+                >
+                  <AlignRight className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Vertical */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Vertical
+              </div>
+              <div className="flex gap-0.5">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onVerticalAlignChange('top');
+                    setShowAlignMenu(false);
+                  }}
+                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
+                  title="Align Top"
+                >
+                  <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onVerticalAlignChange('center');
+                    setShowAlignMenu(false);
+                  }}
+                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
+                  title="Align Middle"
+                >
+                  <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onVerticalAlignChange('bottom');
+                    setShowAlignMenu(false);
+                  }}
+                  className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
+                  title="Align Bottom"
+                >
+                  <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Indent */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Indent
+              </div>
+              <div className="flex gap-0.5">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('outdent');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Decrease Indent"
+                >
+                  <Outdent className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('indent');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Increase Indent"
+                >
+                  <Indent className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Lists */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Lists
+              </div>
+              <div className="flex gap-0.5">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('insertUnorderedList');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Bulleted List"
+                >
+                  <List className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('insertOrderedList');
+                    setShowAlignMenu(false);
+                  }}
+                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                  title="Numbered List"
+                >
+                  <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </MenuButton>
+      </div>
+
+      {visibleCount >= 4 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
+
+      {/* Group 4: Colors */}
+      <div
+        ref={setGroupRef(4)}
+        className="flex items-center"
+        style={
+          visibleCount <= 4
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
+        <MenuButton
+          icon={<Palette className="w-3.5 h-3.5 text-slate-600" />}
+          label="Colors"
           isOpen={showColorMenu}
           onClick={() => {
             const wasOpen = showColorMenu;
-            setShowColorMenu(!wasOpen);
-            setShowFontMenu(false);
-            setShowHighlightMenu(false);
+            closeAllMenus();
+            if (!wasOpen) setShowColorMenu(true);
           }}
         >
-          <div className="grid grid-cols-4 gap-1 p-1">
-            {FONT_COLORS.map((c) => (
-              <button
-                key={c}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  exec('foreColor', c);
-                  setShowColorMenu(false);
-                }}
-                className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                style={{ backgroundColor: c }}
-                title={c}
-              />
-            ))}
+          <div className="w-44 p-1.5 space-y-1.5">
+            {/* Font Color */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Font Color
+              </div>
+              <div className="grid grid-cols-4 gap-1 p-1">
+                {FONT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('foreColor', c);
+                      setShowColorMenu(false);
+                    }}
+                    className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Highlight */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Highlight
+              </div>
+              <div className="grid grid-cols-4 gap-1 p-1">
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    runCommand('hiliteColor', 'transparent');
+                    setShowColorMenu(false);
+                  }}
+                  className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
+                  title="None"
+                >
+                  <div className="w-px h-4 bg-red-500 rotate-45" />
+                </button>
+                {PASTEL_PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('hiliteColor', c);
+                      setShowColorMenu(false);
+                    }}
+                    className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100" />
+
+            {/* Background */}
+            <div>
+              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                Background
+              </div>
+              <div className="flex gap-1 p-1 flex-wrap">
+                {stickyColors.map((c) => (
+                  <button
+                    key={c}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onBgColorChange(c);
+                      setShowColorMenu(false);
+                    }}
+                    className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </MenuButton>
+      </div>
 
-        <MenuButton
-          icon={<Highlighter className="w-3.5 h-3.5" />}
-          label="Highlight"
-          isOpen={showHighlightMenu}
-          onClick={() => {
-            const wasOpen = showHighlightMenu;
-            setShowHighlightMenu(!wasOpen);
-            setShowFontMenu(false);
-            setShowColorMenu(false);
-          }}
-        >
-          <div className="grid grid-cols-4 gap-1 p-1">
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                exec('hiliteColor', 'transparent');
-                setShowHighlightMenu(false);
-              }}
-              className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
-              title="None"
-            >
-              <div className="w-px h-4 bg-red-500 rotate-45" />
-            </button>
-            {PASTEL_PALETTE.map((c) => (
-              <button
-                key={c}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  exec('hiliteColor', c);
-                  setShowHighlightMenu(false);
-                }}
-                className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                style={{ backgroundColor: c }}
-                title={c}
-              />
-            ))}
-          </div>
-        </MenuButton>
+      {visibleCount >= 5 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-
-        {/* Link */}
+      {/* Group 5: Link */}
+      <div
+        ref={setGroupRef(5)}
+        className="flex items-center"
+        style={
+          visibleCount <= 5
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
         <IconButton
           icon={<LinkIcon className="w-3.5 h-3.5" />}
           label="Hyperlink (Ctrl+K)"
@@ -496,104 +831,275 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         />
       </div>
 
-      {/* Row 2: Layout formatting */}
-      <div className="flex items-center gap-0.5">
-        {/* Alignment */}
-        <IconButton
-          icon={<AlignLeft className="w-3.5 h-3.5" />}
-          label="Align Left"
-          onClick={() => exec('justifyLeft')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<AlignCenter className="w-3.5 h-3.5" />}
-          label="Align Center"
-          onClick={() => exec('justifyCenter')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<AlignRight className="w-3.5 h-3.5" />}
-          label="Align Right"
-          onClick={() => exec('justifyRight')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
+      {/* Overflow "..." button — shown when some groups are hidden */}
+      {visibleCount < 6 && (
+        <MenuButton
+          icon={<MoreHorizontal className="w-3.5 h-3.5 text-slate-600" />}
+          label="More options"
+          isOpen={showOverflowMenu}
+          onClick={() => {
+            const wasOpen = showOverflowMenu;
+            closeAllMenus();
+            if (!wasOpen) setShowOverflowMenu(true);
+          }}
+        >
+          <div className="w-44 p-1.5 space-y-1.5">
+            {/* Text Style section — shown when B/I/U group is hidden */}
+            {visibleCount <= 2 && (
+              <div>
+                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                  Text Style
+                </div>
+                <div className="flex gap-0.5">
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('bold');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    title="Bold"
+                    aria-label="Bold"
+                  >
+                    <Bold className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('italic');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    title="Italic"
+                    aria-label="Italic"
+                  >
+                    <Italic className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('underline');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
+                    title="Underline"
+                    aria-label="Underline"
+                  >
+                    <Underline className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
+            {/* Alignment section — shown when alignment group is hidden */}
+            {visibleCount <= 3 && (
+              <div>
+                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                  Alignment
+                </div>
+                <div className="flex gap-0.5 flex-wrap">
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('justifyLeft');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Align Left"
+                  >
+                    <AlignLeft className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('justifyCenter');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Align Center"
+                  >
+                    <AlignCenter className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('justifyRight');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Align Right"
+                  >
+                    <AlignRight className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onVerticalAlignChange('top');
+                      setShowOverflowMenu(false);
+                    }}
+                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
+                    title="Align Top"
+                  >
+                    <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onVerticalAlignChange('center');
+                      setShowOverflowMenu(false);
+                    }}
+                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
+                    title="Align Middle"
+                  >
+                    <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onVerticalAlignChange('bottom');
+                      setShowOverflowMenu(false);
+                    }}
+                    className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
+                    title="Align Bottom"
+                  >
+                    <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('outdent');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Decrease Indent"
+                  >
+                    <Outdent className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('indent');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Increase Indent"
+                  >
+                    <Indent className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('insertUnorderedList');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Bulleted List"
+                  >
+                    <List className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('insertOrderedList');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Numbered List"
+                  >
+                    <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
 
-        <IconButton
-          icon={<AlignVerticalJustifyStart className="w-3.5 h-3.5" />}
-          label="Align Top"
-          onClick={() => onVerticalAlignChange('top')}
-          active={verticalAlign === 'top'}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<AlignVerticalJustifyCenter className="w-3.5 h-3.5" />}
-          label="Align Middle"
-          onClick={() => onVerticalAlignChange('center')}
-          active={verticalAlign === 'center'}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<AlignVerticalJustifyEnd className="w-3.5 h-3.5" />}
-          label="Align Bottom"
-          onClick={() => onVerticalAlignChange('bottom')}
-          active={verticalAlign === 'bottom'}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
+            {/* Colors section — shown when colors group is hidden */}
+            {visibleCount <= 4 && (
+              <div>
+                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                  Colors
+                </div>
+                <div className="grid grid-cols-4 gap-1 p-1">
+                  {FONT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        runCommand('foreColor', c);
+                        setShowOverflowMenu(false);
+                      }}
+                      className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <div className="grid grid-cols-4 gap-1 p-1">
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('hiliteColor', 'transparent');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
+                    title="No Highlight"
+                  >
+                    <div className="w-px h-4 bg-red-500 rotate-45" />
+                  </button>
+                  {PASTEL_PALETTE.map((c) => (
+                    <button
+                      key={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        runCommand('hiliteColor', c);
+                        setShowOverflowMenu(false);
+                      }}
+                      className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1 p-1 flex-wrap">
+                  {stickyColors.map((c) => (
+                    <button
+                      key={c}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onBgColorChange(c);
+                        setShowOverflowMenu(false);
+                      }}
+                      className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-
-        {/* Lists */}
-        <IconButton
-          icon={<List className="w-3.5 h-3.5" />}
-          label="Bulleted List"
-          onClick={() => exec('insertUnorderedList')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<ListOrdered className="w-3.5 h-3.5" />}
-          label="Numbered List"
-          onClick={() => exec('insertOrderedList')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-
-        <div className="w-px h-4 bg-slate-200 mx-1" />
-
-        {/* Indentation */}
-        <IconButton
-          icon={<Outdent className="w-3.5 h-3.5" />}
-          label="Decrease Indent"
-          onClick={() => exec('outdent')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-        <IconButton
-          icon={<Indent className="w-3.5 h-3.5" />}
-          label="Increase Indent"
-          onClick={() => exec('indent')}
-          size="sm"
-          variant="ghost"
-          onMouseDown={(e) => e.preventDefault()}
-        />
-      </div>
+            {/* Link section — shown when link group is hidden */}
+            {visibleCount <= 5 && (
+              <div>
+                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                  Link
+                </div>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setShowOverflowMenu(false);
+                    void handleLink();
+                  }}
+                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded hover:bg-slate-100 text-xs text-slate-700"
+                  title="Insert Link"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  Insert Link
+                </button>
+              </div>
+            )}
+          </div>
+        </MenuButton>
+      )}
     </div>
   );
 };

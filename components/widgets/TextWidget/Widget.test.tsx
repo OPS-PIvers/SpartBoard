@@ -69,16 +69,20 @@ describe('TextWidget', () => {
     expect(screen.getByText('Hello World')).toBeInTheDocument();
   });
 
-  it('shows toolbar when selected', () => {
+  it('shows toolbar when selected', async () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,
       selectedWidgetId: 'test-widget',
     });
     render(<TextWidget widget={mockWidget} />);
-    expect(screen.getByTitle('Bold')).toBeInTheDocument();
+    // Toolbar renders via portal and depends on RAF-based position tracking.
+    // In jsdom getBoundingClientRect returns zeros, so we wait for the RAF to fire.
+    await waitFor(() => {
+      expect(screen.getByTitle('Bold')).toBeInTheDocument();
+    });
   });
 
-  it('updates vertical alignment from the toolbar', () => {
+  it('updates vertical alignment from the toolbar', async () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       ...mockDashboardContext,
       selectedWidgetId: 'test-widget',
@@ -86,6 +90,13 @@ describe('TextWidget', () => {
 
     render(<TextWidget widget={mockWidget} />);
 
+    // Wait for toolbar to appear via portal
+    await waitFor(() => {
+      expect(screen.getByTitle('Alignment & Layout')).toBeInTheDocument();
+    });
+
+    // Open alignment popout first (Align Bottom is inside it now)
+    fireEvent.click(screen.getByTitle('Alignment & Layout'));
     fireEvent.click(screen.getByTitle('Align Bottom'));
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {

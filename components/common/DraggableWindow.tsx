@@ -807,6 +807,29 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     window.addEventListener('pointercancel', onPointerUp);
   };
 
+  /** Inner edge drag zones sit on top of widget content. Before starting a drag,
+   *  check whether an interactive element (button, input, contenteditable, etc.)
+   *  exists beneath the overlay. If so, pass the event through instead of dragging. */
+  const handleInnerDragStart = (e: React.PointerEvent) => {
+    const overlayEl = e.currentTarget as HTMLElement;
+    const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
+    for (const el of elementsAtPoint) {
+      if (el === overlayEl) continue;
+      if (
+        (el as HTMLElement).matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
+        (el as HTMLElement).closest?.(INTERACTIVE_ELEMENTS_SELECTOR)
+      ) {
+        // Let the click fall through to the interactive element beneath
+        overlayEl.style.pointerEvents = 'none';
+        requestAnimationFrame(() => {
+          overlayEl.style.pointerEvents = '';
+        });
+        return;
+      }
+    }
+    handleDragStart(e);
+  };
+
   const handleResizeStart = (e: React.PointerEvent, direction: string) => {
     if (isMaximized) return;
     if (isLocked || isPinned) return;
@@ -1500,7 +1523,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
           {/* Inner edge drag zones — invisible grab strips along the inside perimeter
               so users can drag full-interactive widgets (embed, text, etc.) from within
-              the visible widget boundary instead of only from outside it. */}
+              the visible widget boundary instead of only from outside it.
+              Uses handleInnerDragStart which checks elementsFromPoint before dragging
+              so that interactive elements beneath (buttons, inputs) remain clickable. */}
           {!isMaximized && !isAnnotating && !isPinned && !isLocked && (
             <>
               {/* Top */}
@@ -1517,7 +1542,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   cursor: 'grab',
                   pointerEvents: 'auto',
                 }}
-                onPointerDown={handleDragStart}
+                onPointerDown={handleInnerDragStart}
               />
               {/* Bottom */}
               <div
@@ -1533,7 +1558,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   cursor: 'grab',
                   pointerEvents: 'auto',
                 }}
-                onPointerDown={handleDragStart}
+                onPointerDown={handleInnerDragStart}
               />
               {/* Left */}
               <div
@@ -1549,7 +1574,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   cursor: 'grab',
                   pointerEvents: 'auto',
                 }}
-                onPointerDown={handleDragStart}
+                onPointerDown={handleInnerDragStart}
               />
               {/* Right */}
               <div
@@ -1565,7 +1590,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   cursor: 'grab',
                   pointerEvents: 'auto',
                 }}
-                onPointerDown={handleDragStart}
+                onPointerDown={handleInnerDragStart}
               />
             </>
           )}

@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, TextConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { STICKY_NOTE_COLORS } from '@/config/colors';
@@ -39,9 +40,45 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const isSelected = selectedWidgetId === widget.id;
 
   const editorRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
   const lastExternalContent = useRef(content);
   const didInit = useRef(false);
+  // When true, handleInput skips saving — used by toolbar font-size operations
+  // that mutate the DOM in multiple steps (execCommand + span replacement).
+  const suppressInputRef = useRef(false);
+  const [toolbarPos, setToolbarPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  // Track container position so the portal toolbar can be placed above the widget.
+  // Uses a lightweight RAF loop while selected to stay in sync during drag/resize.
+  useEffect(() => {
+    if (!isSelected || !containerRef.current) return;
+    let rafId = 0;
+    let prevTop = NaN;
+    let prevLeft = NaN;
+    let prevWidth = NaN;
+    const tick = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const top = Math.round(rect.top);
+        const left = Math.round(rect.left);
+        const width = Math.round(rect.width);
+        if (top !== prevTop || left !== prevLeft || width !== prevWidth) {
+          prevTop = top;
+          prevLeft = left;
+          prevWidth = width;
+          setToolbarPos({ top, left, width });
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isSelected]);
 
   // On first render, set initial content. On subsequent renders, sync external
   // content changes into the DOM only when not actively editing and only when
@@ -96,7 +133,22 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [widget.id, config, updateWidget, readEditorContent]);
 
   const handleInput = useCallback(() => {
+    // Skip save when the toolbar is performing a multi-step DOM mutation
+    // (e.g. execCommand + span replacement for font-size changes).
+    if (suppressInputRef.current) return;
     // Save on every input for immediate persistence (debounced by DashboardContext)
+    const content = readEditorContent();
+    lastExternalContent.current = content;
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        content,
+      } as TextConfig,
+    });
+  }, [widget.id, config, updateWidget, readEditorContent]);
+
+  /** Called by the toolbar after completing multi-step DOM operations. */
+  const saveEditorContent = useCallback(() => {
     const content = readEditorContent();
     lastExternalContent.current = content;
     updateWidget(widget.id, {
@@ -130,24 +182,48 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="relative h-full w-full">
-          {/* Floating formatting toolbar */}
-          {isSelected && (
-            <div className="absolute top-0 left-0 right-0 z-widget-internal-overlay">
-              <FormattingToolbar
-                editorRef={editorRef}
-                verticalAlign={verticalAlign}
-                onVerticalAlignChange={(value) =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      verticalAlign: value,
-                    } as TextConfig,
-                  })
-                }
-              />
-            </div>
-          )}
+        <div ref={containerRef} className="relative h-full w-full">
+          {/* Floating formatting toolbar — rendered via portal overlapping the widget top edge */}
+          {isSelected &&
+            toolbarPos &&
+            createPortal(
+              <div
+                data-click-outside-ignore="true"
+                style={{
+                  position: 'fixed',
+                  top: toolbarPos.top,
+                  left: toolbarPos.left,
+                  width: toolbarPos.width,
+                  zIndex: 11000,
+                  pointerEvents: 'auto',
+                }}
+              >
+                <FormattingToolbar
+                  editorRef={editorRef}
+                  verticalAlign={verticalAlign}
+                  onVerticalAlignChange={(value) =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        verticalAlign: value,
+                      } as TextConfig,
+                    })
+                  }
+                  suppressInputRef={suppressInputRef}
+                  onContentChange={saveEditorContent}
+                  bgColor={bgColor}
+                  onBgColorChange={(color) =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        bgColor: color,
+                      } as TextConfig,
+                    })
+                  }
+                />
+              </div>,
+              document.body
+            )}
 
           <div
             className={`h-full w-full ${fontClass} outline-none transition-colors overflow-y-auto custom-scrollbar bg-transparent relative flex flex-col`}
@@ -173,9 +249,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   ref={editorRef}
                   className="w-full outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400/60 empty:before:pointer-events-none"
                   style={{
-                    padding: isSelected
-                      ? 'min(80px, 15cqmin) min(16px, 3.5cqmin) min(16px, 3.5cqmin)'
-                      : 'min(16px, 3.5cqmin)',
+                    padding: 'min(16px, 3.5cqmin)',
                     color: fontColor,
                     fontSize: `min(${resolvedFontSize}px, ${resolvedFontSize * 0.5}cqmin)`,
                     lineHeight: 1.5,
