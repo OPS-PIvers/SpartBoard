@@ -41,7 +41,7 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
       qrBox.y + qrBox.height / 2
     );
     await page.mouse.down();
-    await page.mouse.move(qrBox.x + 400, qrBox.y + 100); // Move right
+    await page.mouse.move(qrBox.x + 600, qrBox.y + 100); // Move right
     await page.mouse.up();
   }
 
