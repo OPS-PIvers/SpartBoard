@@ -7,10 +7,18 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { sanitizeHtml } from '@/utils/security';
 import { getFontClass } from '@/utils/styles';
 import { useDialog } from '@/context/useDialog';
+import { Z_INDEX } from '@/config/zIndex';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
 import { PLACEHOLDER_TEXT } from './constants';
+
+/** Gap (px) between the toolbar and the widget edge. */
+const TOOLBAR_GAP = 8;
+/** Minimum space above the widget (px) needed to show the toolbar above it.
+ *  Roughly toolbar height (~36px) + gap. When less space is available the
+ *  toolbar flips below the widget instead. */
+const TOOLBAR_FLIP_THRESHOLD = 50;
 
 export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
@@ -200,18 +208,19 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 data-click-outside-ignore="true"
                 style={{
                   position: 'fixed',
-                  // Position above the widget; if not enough space, show below
+                  // Position above the widget; if not enough space, show below.
+                  // TOOLBAR_FLIP_THRESHOLD ≈ toolbar height (~36px) + gap (8px).
                   top:
-                    toolbarPos.top > 50
+                    toolbarPos.top > TOOLBAR_FLIP_THRESHOLD
                       ? toolbarPos.top
                       : toolbarPos.top + toolbarPos.height,
                   left: toolbarPos.left,
                   width: toolbarPos.width,
                   transform:
-                    toolbarPos.top > 50
-                      ? 'translateY(calc(-100% - 8px))'
-                      : 'translateY(8px)',
-                  zIndex: 11000,
+                    toolbarPos.top > TOOLBAR_FLIP_THRESHOLD
+                      ? `translateY(calc(-100% - ${TOOLBAR_GAP}px))`
+                      : `translateY(${TOOLBAR_GAP}px)`,
+                  zIndex: Z_INDEX.popover,
                   pointerEvents: 'auto',
                 }}
               >
