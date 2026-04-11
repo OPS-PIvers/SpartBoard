@@ -559,7 +559,6 @@ export interface BloomsTaxonomyConfig {
   enabledCategories?: BloomsCategoryKey[];
   aiTopic?: string;
   themeColor?: string;
-  detailWidgetId?: string;
 }
 
 export interface BloomsDetailConfig {

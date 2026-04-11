@@ -38,6 +38,7 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'liveQuizWidgetId',
   'linkedWeatherWidgetId',
   'externalTrigger',
+  'parentWidgetId',
 
   // Instance-specific runtime data
   'isActive',

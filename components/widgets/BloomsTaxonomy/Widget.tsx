@@ -57,21 +57,17 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
     return enabledCategories.includes(cat);
   });
 
-  // Check if companion detail widget still exists
-  const detailWidget = config.detailWidgetId
-    ? activeDashboard?.widgets.find((w) => w.id === config.detailWidgetId)
-    : null;
+  // Find companion detail widget by parentWidgetId back-reference
+  const detailWidget =
+    activeDashboard?.widgets.find(
+      (w) =>
+        w.type === 'blooms-detail' &&
+        (w.config as BloomsDetailConfig).parentWidgetId === widget.id
+    ) ?? null;
   const detailConfig = detailWidget?.config as BloomsDetailConfig | undefined;
   const activeLevel: BloomsLevel | null = detailWidget
     ? (detailConfig?.level as BloomsLevel)
     : null;
-
-  // If detail widget was removed externally, clear the stale reference
-  if (config.detailWidgetId && !detailWidget) {
-    updateWidget(widget.id, {
-      config: { ...config, detailWidgetId: undefined },
-    });
-  }
 
   // AI state
   const [aiTopic, setAiTopic] = useState('');
@@ -112,9 +108,6 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
       // Toggle off: clicking the same active tier removes the detail
       if (activeLevel === level && detailWidget) {
         removeWidget(detailWidget.id);
-        updateWidget(widget.id, {
-          config: { ...config, detailWidgetId: undefined },
-        });
         return;
       }
 
@@ -131,9 +124,7 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
       }
 
       // Spawn new detail widget below the pyramid
-      const newId = crypto.randomUUID();
       addWidget('blooms-detail', {
-        id: newId,
         x: widget.x,
         y: widget.y + widget.h + 10,
         w: widget.w,
@@ -143,16 +134,12 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
           level,
         } satisfies BloomsDetailConfig,
       });
-      updateWidget(widget.id, {
-        config: { ...config, detailWidgetId: newId },
-      });
     },
     [
       tryAiGeneration,
       activeCategories.length,
       activeLevel,
       detailWidget,
-      config,
       widget,
       buildingId,
       addWidget,

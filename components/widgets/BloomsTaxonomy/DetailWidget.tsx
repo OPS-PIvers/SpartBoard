@@ -28,8 +28,7 @@ type DetailView =
 export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { addWidget, updateWidget, removeWidget, addToast, activeDashboard } =
-    useDashboard();
+  const { addWidget, removeWidget, addToast, activeDashboard } = useDashboard();
   const { featurePermissions } = useAuth();
 
   const config = widget.config as BloomsDetailConfig;
@@ -86,15 +85,6 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
   const label = BLOOMS_LABELS[level];
 
   const handleClose = () => {
-    // Clear parent's detailWidgetId reference
-    const parent = activeDashboard?.widgets.find(
-      (w) => w.id === parentWidgetId
-    );
-    if (parent) {
-      updateWidget(parentWidgetId, {
-        config: { ...parent.config, detailWidgetId: undefined },
-      });
-    }
     removeWidget(widget.id);
   };
 
