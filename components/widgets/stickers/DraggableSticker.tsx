@@ -36,6 +36,14 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   const nodeRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  // Clean up any active window listeners on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   useClickOutside(nodeRef, () => {
     if (!isDragging) {
@@ -105,17 +113,19 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     let hasMoved = false;
     const startPointerId = e.pointerId;
     let rafId: number | null = null;
+    let latestX = origX;
+    let latestY = origY;
 
     const onPointerMove = (ev: PointerEvent) => {
       if (ev.pointerId !== startPointerId) return;
       hasMoved = true;
       setIsDragging(true);
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      latestX = origX + (ev.clientX - startX);
+      latestY = origY + (ev.clientY - startY);
+      if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        updateWidget(widget.id, { x: origX + dx, y: origY + dy });
+        updateWidget(widget.id, { x: latestX, y: latestY });
       });
     };
 
@@ -125,23 +135,30 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      // Flush final position so the last frame is never dropped
+      if (hasMoved) {
+        updateWidget(widget.id, { x: latestX, y: latestY });
+      }
       setIsDragging(false);
       try {
         captureTarget.releasePointerCapture(startPointerId);
       } catch {
         /* already released */
       }
+      cleanup();
+    };
+
+    const cleanup = () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
-      if (!hasMoved) {
-        // Just a click
-      }
+      cleanupRef.current = null;
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+    cleanupRef.current = cleanup;
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
@@ -191,16 +208,17 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     const captureTarget = e.currentTarget as HTMLElement;
     captureTarget.setPointerCapture(e.pointerId);
     let rafId: number | null = null;
+    let latestDeg = rotation;
 
     const onPointerMove = (ev: PointerEvent) => {
       if (ev.pointerId !== startPointerId) return;
       const angle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX);
-      const deg = angle * (180 / Math.PI) + 90;
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      latestDeg = angle * (180 / Math.PI) + 90;
+      if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
         updateWidget(widget.id, {
-          config: { ...config, rotation: deg },
+          config: { ...config, rotation: latestDeg },
         });
       });
     };
@@ -211,6 +229,10 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      // Flush final rotation
+      updateWidget(widget.id, {
+        config: { ...config, rotation: latestDeg },
+      });
       try {
         captureTarget.releasePointerCapture(startPointerId);
       } catch {
@@ -238,6 +260,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     const captureTarget = e.currentTarget as HTMLElement;
     captureTarget.setPointerCapture(e.pointerId);
     let rafId: number | null = null;
+    let latestW = startW;
+    let latestH = startH;
 
     // Rotation in radians
     const rad = (rotation * Math.PI) / 180;
@@ -250,19 +274,15 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
       const dy = ev.clientY - startY;
 
       // Project screen delta onto local axes
-      // For 0 deg (cos=1, sin=0): localDx = dx, localDy = dy.
-      // For 90 deg (cos=0, sin=1): localDx = dy, localDy = -dx.
-
       const localDx = dx * cos + dy * sin;
       const localDy = -dx * sin + dy * cos;
 
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      latestW = Math.max(50, startW + localDx);
+      latestH = Math.max(50, startH + localDy);
+      if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        updateWidget(widget.id, {
-          w: Math.max(50, startW + localDx),
-          h: Math.max(50, startH + localDy),
-        });
+        updateWidget(widget.id, { w: latestW, h: latestH });
       });
     };
 
@@ -272,6 +292,8 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      // Flush final dimensions
+      updateWidget(widget.id, { w: latestW, h: latestH });
       try {
         captureTarget.releasePointerCapture(startPointerId);
       } catch {

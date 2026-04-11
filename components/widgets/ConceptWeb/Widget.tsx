@@ -44,8 +44,10 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   // rAF batching refs for drag and resize performance
   const dragRafRef = useRef<number | null>(null);
   const dragPosRef = useRef<{ x: number; y: number } | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
   const resizeRafRef = useRef<number | null>(null);
   const resizeDimRef = useRef<{ w: number; h: number } | null>(null);
+  const resizePointerIdRef = useRef<number | null>(null);
 
   // Default dimensions
   const DEFAULT_WIDTH = config.defaultNodeWidth ?? 15;
@@ -123,6 +125,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     dragPosRef.current = { x: node.x, y: node.y };
+    dragPointerIdRef.current = e.pointerId;
     setActiveNodeId(node.id);
     setActiveNodePos({ x: node.x, y: node.y });
   };
@@ -132,17 +135,19 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       !activeNodeId ||
       isStudentView ||
       !dragPosRef.current ||
-      !containerRef.current
+      !containerRef.current ||
+      e.pointerId !== dragPointerIdRef.current
     )
       return;
     e.stopPropagation();
 
+    const pos = dragPosRef.current;
     const rect = containerRef.current.getBoundingClientRect();
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    dragPosRef.current.x += movementXPct;
-    dragPosRef.current.y += movementYPct;
+    pos.x += movementXPct;
+    pos.y += movementYPct;
 
     if (dragRafRef.current !== null) return;
     dragRafRef.current = requestAnimationFrame(() => {
@@ -154,7 +159,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleNodePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!activeNodeId || isStudentView || !dragPosRef.current) return;
+    if (
+      !activeNodeId ||
+      isStudentView ||
+      !dragPosRef.current ||
+      e.pointerId !== dragPointerIdRef.current
+    )
+      return;
     e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
 
@@ -163,8 +174,9 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       dragRafRef.current = null;
     }
 
-    const finalPos = dragPosRef.current;
+    const finalPos = { ...dragPosRef.current };
     dragPosRef.current = null;
+    dragPointerIdRef.current = null;
 
     const updated = nodes.map((n) =>
       n.id === activeNodeId ? { ...n, x: finalPos.x, y: finalPos.y } : n
@@ -187,6 +199,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       w: node.width ?? DEFAULT_WIDTH,
       h: node.height ?? DEFAULT_HEIGHT,
     };
+    resizePointerIdRef.current = e.pointerId;
     setResizingNodeId(node.id);
     setResizingNodeDim({
       w: node.width ?? DEFAULT_WIDTH,
@@ -199,17 +212,19 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       !resizingNodeId ||
       isStudentView ||
       !resizeDimRef.current ||
-      !containerRef.current
+      !containerRef.current ||
+      e.pointerId !== resizePointerIdRef.current
     )
       return;
     e.stopPropagation();
 
+    const dim = resizeDimRef.current;
     const rect = containerRef.current.getBoundingClientRect();
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    resizeDimRef.current.w = Math.max(5, resizeDimRef.current.w + movementXPct);
-    resizeDimRef.current.h = Math.max(5, resizeDimRef.current.h + movementYPct);
+    dim.w = Math.max(5, dim.w + movementXPct);
+    dim.h = Math.max(5, dim.h + movementYPct);
 
     if (resizeRafRef.current !== null) return;
     resizeRafRef.current = requestAnimationFrame(() => {
@@ -221,7 +236,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleResizePointerUp = (e: React.PointerEvent<HTMLElement>) => {
-    if (!resizingNodeId || isStudentView || !resizeDimRef.current) return;
+    if (
+      !resizingNodeId ||
+      isStudentView ||
+      !resizeDimRef.current ||
+      e.pointerId !== resizePointerIdRef.current
+    )
+      return;
     e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
 
@@ -230,8 +251,9 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       resizeRafRef.current = null;
     }
 
-    const finalDim = resizeDimRef.current;
+    const finalDim = { ...resizeDimRef.current };
     resizeDimRef.current = null;
+    resizePointerIdRef.current = null;
 
     const updated = nodes.map((n) =>
       n.id === resizingNodeId
