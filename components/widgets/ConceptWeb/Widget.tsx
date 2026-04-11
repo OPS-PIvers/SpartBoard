@@ -41,6 +41,14 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     y: number;
   } | null>(null);
 
+  // rAF batching refs for drag and resize performance
+  const dragRafRef = useRef<number | null>(null);
+  const dragPosRef = useRef<{ x: number; y: number } | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const resizeRafRef = useRef<number | null>(null);
+  const resizeDimRef = useRef<{ w: number; h: number } | null>(null);
+  const resizePointerIdRef = useRef<number | null>(null);
+
   // Default dimensions
   const DEFAULT_WIDTH = config.defaultNodeWidth ?? 15;
   const DEFAULT_HEIGHT = config.defaultNodeHeight ?? 15;
@@ -116,6 +124,8 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     bringToFront(widget.id);
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    dragPosRef.current = { x: node.x, y: node.y };
+    dragPointerIdRef.current = e.pointerId;
     setActiveNodeId(node.id);
     setActiveNodePos({ x: node.x, y: node.y });
   };
@@ -124,30 +134,52 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     if (
       !activeNodeId ||
       isStudentView ||
-      !activeNodePos ||
-      !containerRef.current
+      !dragPosRef.current ||
+      !containerRef.current ||
+      e.pointerId !== dragPointerIdRef.current
     )
       return;
     e.stopPropagation();
 
+    const pos = dragPosRef.current;
     const rect = containerRef.current.getBoundingClientRect();
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    setActiveNodePos((prev) =>
-      prev ? { x: prev.x + movementXPct, y: prev.y + movementYPct } : null
-    );
+    pos.x += movementXPct;
+    pos.y += movementYPct;
+
+    if (dragRafRef.current !== null) return;
+    dragRafRef.current = requestAnimationFrame(() => {
+      dragRafRef.current = null;
+      if (dragPosRef.current) {
+        setActiveNodePos({ ...dragPosRef.current });
+      }
+    });
   };
 
   const handleNodePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!activeNodeId || isStudentView || !activeNodePos) return;
+    if (
+      !activeNodeId ||
+      isStudentView ||
+      !dragPosRef.current ||
+      e.pointerId !== dragPointerIdRef.current
+    )
+      return;
     e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
 
+    if (dragRafRef.current !== null) {
+      cancelAnimationFrame(dragRafRef.current);
+      dragRafRef.current = null;
+    }
+
+    const finalPos = { ...dragPosRef.current };
+    dragPosRef.current = null;
+    dragPointerIdRef.current = null;
+
     const updated = nodes.map((n) =>
-      n.id === activeNodeId
-        ? { ...n, x: activeNodePos.x, y: activeNodePos.y }
-        : n
+      n.id === activeNodeId ? { ...n, x: finalPos.x, y: finalPos.y } : n
     );
     updateWidget(widget.id, { config: { ...config, nodes: updated } });
 
@@ -163,6 +195,11 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     if (isStudentView) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    resizeDimRef.current = {
+      w: node.width ?? DEFAULT_WIDTH,
+      h: node.height ?? DEFAULT_HEIGHT,
+    };
+    resizePointerIdRef.current = e.pointerId;
     setResizingNodeId(node.id);
     setResizingNodeDim({
       w: node.width ?? DEFAULT_WIDTH,
@@ -171,31 +208,56 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleResizePointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (!resizingNodeId || isStudentView || !containerRef.current) return;
+    if (
+      !resizingNodeId ||
+      isStudentView ||
+      !resizeDimRef.current ||
+      !containerRef.current ||
+      e.pointerId !== resizePointerIdRef.current
+    )
+      return;
     e.stopPropagation();
 
+    const dim = resizeDimRef.current;
     const rect = containerRef.current.getBoundingClientRect();
     const movementXPct = (e.movementX / rect.width) * 100;
     const movementYPct = (e.movementY / rect.height) * 100;
 
-    setResizingNodeDim((prev) =>
-      prev
-        ? {
-            w: Math.max(5, prev.w + movementXPct),
-            h: Math.max(5, prev.h + movementYPct),
-          }
-        : null
-    );
+    dim.w = Math.max(5, dim.w + movementXPct);
+    dim.h = Math.max(5, dim.h + movementYPct);
+
+    if (resizeRafRef.current !== null) return;
+    resizeRafRef.current = requestAnimationFrame(() => {
+      resizeRafRef.current = null;
+      if (resizeDimRef.current) {
+        setResizingNodeDim({ ...resizeDimRef.current });
+      }
+    });
   };
 
   const handleResizePointerUp = (e: React.PointerEvent<HTMLElement>) => {
-    if (!resizingNodeId || isStudentView || !resizingNodeDim) return;
+    if (
+      !resizingNodeId ||
+      isStudentView ||
+      !resizeDimRef.current ||
+      e.pointerId !== resizePointerIdRef.current
+    )
+      return;
     e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
 
+    if (resizeRafRef.current !== null) {
+      cancelAnimationFrame(resizeRafRef.current);
+      resizeRafRef.current = null;
+    }
+
+    const finalDim = { ...resizeDimRef.current };
+    resizeDimRef.current = null;
+    resizePointerIdRef.current = null;
+
     const updated = nodes.map((n) =>
       n.id === resizingNodeId
-        ? { ...n, width: resizingNodeDim.w, height: resizingNodeDim.h }
+        ? { ...n, width: finalDim.w, height: finalDim.h }
         : n
     );
     updateWidget(widget.id, { config: { ...config, nodes: updated } });
@@ -414,6 +476,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               backgroundColor: node.bgColor,
               fontFamily: 'inherit',
               containerType: 'size',
+              touchAction: 'none',
             }}
           >
             <textarea
@@ -464,6 +527,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
                     transform: 'translateX(-50%)',
                     padding: 'min(4px, 1cqmin)',
                     borderRadius: '9999px',
+                    touchAction: 'none',
                   }}
                   onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
                   onPointerMove={handleHandlePointerMove}
@@ -485,6 +549,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
                   className="resize-handle absolute bottom-0 right-0 cursor-nwse-resize text-slate-300 hover:text-indigo-500 transition-colors"
                   style={{
                     padding: 'min(4px, 1cqmin)',
+                    touchAction: 'none',
                   }}
                   onPointerDown={(e) => handleResizePointerDown(e, node)}
                   onPointerMove={handleResizePointerMove}

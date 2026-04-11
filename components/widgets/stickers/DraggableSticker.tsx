@@ -36,6 +36,14 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   const nodeRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  // Clean up any active window listeners on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
 
   useClickOutside(nodeRef, () => {
     if (!isDragging) {
@@ -90,7 +98,9 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     e.stopPropagation();
 
     // Explicitly focus the sticker so it can receive keyboard events
-    (e.currentTarget as HTMLElement).focus();
+    const captureTarget = e.currentTarget as HTMLElement;
+    captureTarget.focus();
+    captureTarget.setPointerCapture(e.pointerId);
 
     setIsSelected(true);
     // Select and bring this sticker to the front on click or drag start.
@@ -101,26 +111,54 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     const origX = widget.x;
     const origY = widget.y;
     let hasMoved = false;
+    const startPointerId = e.pointerId;
+    let rafId: number | null = null;
+    let latestX = origX;
+    let latestY = origY;
 
     const onPointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== startPointerId) return;
       hasMoved = true;
       setIsDragging(true);
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      updateWidget(widget.id, { x: origX + dx, y: origY + dy });
+      latestX = origX + (ev.clientX - startX);
+      latestY = origY + (ev.clientY - startY);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateWidget(widget.id, { x: latestX, y: latestY });
+      });
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== startPointerId) return;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      // Flush final position so the last frame is never dropped
+      if (hasMoved) {
+        updateWidget(widget.id, { x: latestX, y: latestY });
+      }
       setIsDragging(false);
+      try {
+        captureTarget.releasePointerCapture(startPointerId);
+      } catch {
+        /* already released */
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
-      if (!hasMoved) {
-        // Just a click
-      }
+      window.removeEventListener('pointercancel', onPointerUp);
+      cleanupRef.current = null;
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    cleanupRef.current = cleanup;
   };
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
@@ -166,22 +204,48 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
 
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
+    const startPointerId = e.pointerId;
+    const captureTarget = e.currentTarget as HTMLElement;
+    captureTarget.setPointerCapture(e.pointerId);
+    let rafId: number | null = null;
+    let latestDeg = rotation;
 
     const onPointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== startPointerId) return;
       const angle = Math.atan2(ev.clientY - centerY, ev.clientX - centerX);
-      const deg = angle * (180 / Math.PI) + 90;
-      updateWidget(widget.id, {
-        config: { ...config, rotation: deg },
+      latestDeg = angle * (180 / Math.PI) + 90;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateWidget(widget.id, {
+          config: { ...config, rotation: latestDeg },
+        });
       });
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== startPointerId) return;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      // Flush final rotation
+      updateWidget(widget.id, {
+        config: { ...config, rotation: latestDeg },
+      });
+      try {
+        captureTarget.releasePointerCapture(startPointerId);
+      } catch {
+        /* already released */
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
@@ -192,6 +256,12 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     const startH = widget.h;
     const startX = e.clientX;
     const startY = e.clientY;
+    const startPointerId = e.pointerId;
+    const captureTarget = e.currentTarget as HTMLElement;
+    captureTarget.setPointerCapture(e.pointerId);
+    let rafId: number | null = null;
+    let latestW = startW;
+    let latestH = startH;
 
     // Rotation in radians
     const rad = (rotation * Math.PI) / 180;
@@ -199,29 +269,44 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
     const sin = Math.sin(rad);
 
     const onPointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== startPointerId) return;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
 
       // Project screen delta onto local axes
-      // For 0 deg (cos=1, sin=0): localDx = dx, localDy = dy.
-      // For 90 deg (cos=0, sin=1): localDx = dy, localDy = -dx.
-
       const localDx = dx * cos + dy * sin;
       const localDy = -dx * sin + dy * cos;
 
-      updateWidget(widget.id, {
-        w: Math.max(50, startW + localDx),
-        h: Math.max(50, startH + localDy),
+      latestW = Math.max(50, startW + localDx);
+      latestH = Math.max(50, startH + localDy);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateWidget(widget.id, { w: latestW, h: latestH });
       });
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== startPointerId) return;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      // Flush final dimensions
+      updateWidget(widget.id, { w: latestW, h: latestH });
+      try {
+        captureTarget.releasePointerCapture(startPointerId);
+      } catch {
+        /* already released */
+      }
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
   return (

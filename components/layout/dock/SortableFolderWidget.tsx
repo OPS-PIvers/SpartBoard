@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { X } from 'lucide-react';
+import { useLongPress } from '@/hooks/useLongPress';
 import { DockIcon } from './DockIcon';
 import { Z_INDEX } from '@/config/zIndex';
 import { WidgetType, ToolMetadata, InternalToolType } from '@/types';
@@ -39,22 +40,10 @@ export const SortableFolderWidget = React.memo(
       disabled: !isEditMode,
     });
 
-    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-
-    const handlePointerDown = (e: React.PointerEvent) => {
-      listeners?.onPointerDown?.(e);
-      if (isEditMode) return;
-      longPressTimer.current = setTimeout(() => {
-        onLongPress();
-      }, 600);
-    };
-
-    const handlePointerUp = () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-    };
+    const longPress = useLongPress(onLongPress, {
+      disabled: isEditMode,
+      onPointerDown: listeners?.onPointerDown,
+    });
 
     const style = {
       transform: CSS.Translate.toString(transform),
@@ -78,9 +67,10 @@ export const SortableFolderWidget = React.memo(
               if (isEditMode) return;
               onAdd();
             }}
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerDown={longPress.onPointerDown}
+            onPointerUp={longPress.onPointerUp}
+            onPointerLeave={longPress.onPointerUp}
+            onPointerMove={longPress.onPointerMove}
             className={`relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing'

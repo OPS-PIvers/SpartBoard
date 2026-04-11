@@ -4,6 +4,7 @@ import { RefreshCcw, Trash2, Plus, X } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useLongPress } from '@/hooks/useLongPress';
 import { GlassCard } from '@/components/common/GlassCard';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
@@ -65,7 +66,6 @@ export const ToolDockItem = React.memo(
     });
 
     const [showPopover, setShowPopover] = useState(false);
-    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const internalButtonRef = useRef<HTMLButtonElement>(null);
     const buttonRef = externalButtonRef ?? internalButtonRef;
@@ -74,23 +74,13 @@ export const ToolDockItem = React.memo(
       bottom: number;
     } | null>(null);
 
+    const longPress = useLongPress(onLongPress, {
+      disabled: isEditMode,
+      onPointerDown: listeners?.onPointerDown,
+    });
+
     // Close popover when clicking outside
     useClickOutside(popoverRef, () => setShowPopover(false), [buttonRef]);
-
-    const handlePointerDown = (e: React.PointerEvent) => {
-      listeners?.onPointerDown?.(e);
-      if (isEditMode) return;
-      longPressTimer.current = setTimeout(() => {
-        onLongPress();
-      }, 600); // 600ms long press threshold
-    };
-
-    const handlePointerUp = () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-    };
 
     const handleClick = (e: React.MouseEvent) => {
       if (isEditMode) {
@@ -241,9 +231,10 @@ export const ToolDockItem = React.memo(
             ref={buttonRef}
             {...attributes}
             {...listeners}
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerDown={longPress.onPointerDown}
+            onPointerUp={longPress.onPointerUp}
+            onPointerLeave={longPress.onPointerUp}
+            onPointerMove={longPress.onPointerMove}
             onClick={handleClick}
             data-tool-id={tool.type}
             className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${

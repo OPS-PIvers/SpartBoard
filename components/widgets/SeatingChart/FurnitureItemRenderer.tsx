@@ -111,6 +111,7 @@ export const FurnitureItemRenderer = memo(
           width: displayW,
           height: displayH,
           transform: `rotate(${item.rotation}deg)`,
+          touchAction: 'none',
         }}
         className={`${furnitureClassName} ${
           mode === 'setup' ? 'cursor-move' : ''
