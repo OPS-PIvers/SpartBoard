@@ -1,8 +1,8 @@
-# [Category Name] — Scheduled Task Journal
+# Admin Config & Settings Alignment — Scheduled Task Journal
 
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
-_Audit cadence: [daily / weekly — day]_
+_Audit cadence: weekly — Thursday_
 _Last audited: never_
 _Last action: never_
 
