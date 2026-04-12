@@ -1022,8 +1022,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             widgets: [],
             createdAt: Date.now(),
           };
-          void saveDashboard(defaultDb)
-            .then(() => {
+          void (async () => {
+            try {
+              await saveDashboard(defaultDb);
               setToasts((prev) => [
                 ...prev,
                 {
@@ -1032,8 +1033,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   type: 'info' as const,
                 },
               ]);
-            })
-            .catch(console.error);
+            } catch (err) {
+              console.error(err);
+            }
+          })();
         }
 
         setLoading(false);
@@ -1043,8 +1046,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Migrate localStorage data on first sign-in
     const localData = localStorage.getItem('classroom_dashboards');
     if (localData && !migrated) {
-      migrateLocalStorageToFirestore(user.uid, saveDashboard)
-        .then((count) => {
+      void (async () => {
+        try {
+          const count = await migrateLocalStorageToFirestore(user.uid, saveDashboard);
           if (count > 0) {
             setToasts((prev) => [
               ...prev,
@@ -1056,8 +1060,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             ]);
           }
           setMigrated(true);
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error('Migration error:', err);
           setToasts((prev) => [
             ...prev,
@@ -1067,7 +1070,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               type: 'error' as const,
             },
           ]);
-        });
+        }
+      })();
     }
 
     return () => {
@@ -1174,8 +1178,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.length;
-      saveDashboard(active)
-        .then(() => {
+      void (async () => {
+        try {
+          await saveDashboard(active);
           lastSavedDataRef.current = savedData;
           lastSavedFieldsRef.current = savedFields;
           pendingSaveCountRef.current = Math.max(
@@ -1191,8 +1196,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           }, 300);
           auxTimers.add(delayTimer);
-        })
-        .catch((err) => {
+        } catch (err) {
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -1209,7 +1213,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               type: 'error' as const,
             },
           ]);
-        });
+        }
+      })();
     }, debounceMs);
 
     return () => {
@@ -1239,9 +1244,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
 
     driveSyncTimerRef.current = setTimeout(() => {
-      void driveService
-        .exportDashboard(active)
-        .then((newFileId) => {
+      void (async () => {
+        try {
+          const newFileId = await driveService.exportDashboard(active);
           lastExportedDataRef.current = currentData;
           // If we got a new ID (e.g. first sync), save it back to Firestore silently
           if (newFileId !== active.driveFileId) {
@@ -1251,8 +1256,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               driveFileId: newFileId,
             });
           }
-        })
-        .catch((err: unknown) => {
+        } catch (err: unknown) {
           console.error('[Drive Sync] Background export failed:', err);
           if (err instanceof Error && err.message.includes('expired')) {
             addToast(
@@ -1271,7 +1275,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             );
           }
-        });
+        }
+      })();
     }, 5000);
 
     return () => {
@@ -1308,9 +1313,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Use a static query string to avoid query injection, then filter by exact
     // filename client-side
-    void driveService
-      .listFiles("name contains '-pii.json'")
-      .then(async (files) => {
+    void (async () => {
+      try {
+        const files = await driveService.listFiles("name contains '-pii.json'");
         const piiFile = files.find((f) => f.name === expectedFileName);
         if (!piiFile) {
           // No supplement found — clear any stale cached ID for this dashboard
@@ -1327,8 +1332,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         setDashboards((prev) =>
           prev.map((d) => (d.id === currentId ? mergeDashboardPII(d, pii) : d))
         );
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         // Clear stale file ID if Drive returns 404 (file was manually deleted)
         const isNotFound = err instanceof Error && err.message.includes('404');
         const isExpired =
@@ -1358,7 +1362,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // Silent for other errors — Drive may be unavailable or no supplement exists yet
           console.warn('[PII Restore] Could not load supplement:', err);
         }
-      });
+      }
+    })();
   }, [activeId, loading, driveService, addToast, refreshGoogleToken]);
 
   // Flush pending saves on page refresh/close

@@ -139,3 +139,8 @@
 **Weed:** .then().catch() chains where async/await would be cleaner.
 **Root Cause:** Legacy artifacts where Promise chains were used instead of modern async/await syntax.
 **Plan:** Refactored createNewDashboard, saveCurrentDashboard, deleteDashboard, duplicateDashboard, and renameDashboard in context/DashboardContext.tsx to use async/await with try/catch blocks for improved readability.
+## 2026-04-12 - Refactored promises to async/await in DashboardContext
+
+**Weed:** .then().catch() chains where async/await would be cleaner.
+**Root Cause:** Legacy artifacts where Promise chains were used instead of modern async/await syntax.
+**Plan:** Refactored multiple occurrences in context/DashboardContext.tsx to use self-invoking async functions with try/catch blocks for improved readability.
