@@ -362,7 +362,7 @@ export const Sidebar: React.FC = () => {
               >
                 {/* WORKSPACE Section */}
                 <div className="px-5 mb-1.5 mt-1">
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.nav.workspace')}
                   </span>
                 </div>
@@ -374,7 +374,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <SquareSquare className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.boards')}
                     </span>
                     <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
@@ -389,7 +389,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-pink-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <Paintbrush className="w-4 h-4 text-pink-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.backgrounds')}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
@@ -400,7 +400,7 @@ export const Sidebar: React.FC = () => {
 
                 {/* CUSTOMIZE Section */}
                 <div className="px-5 mb-1.5">
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.nav.configuration', {
                       defaultValue: 'Customize',
                     })}
@@ -414,7 +414,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <Palette className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.globalStyle')}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
@@ -426,7 +426,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <Zap className="w-4 h-4 text-amber-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.quickAccess', {
                         defaultValue: 'Quick Access',
                       })}
@@ -445,7 +445,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-teal-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <Building2 className="w-4 h-4 text-teal-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.buildings', {
                         defaultValue: 'My Building(s)',
                       })}
@@ -458,7 +458,7 @@ export const Sidebar: React.FC = () => {
 
                 {/* ACCOUNT Section */}
                 <div className="px-5 mb-1.5">
-                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.nav.account', { defaultValue: 'Account' })}
                   </span>
                 </div>
@@ -470,7 +470,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <GoogleDriveIcon className="w-4 h-4" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.googleDrive', {
                         defaultValue: 'Google Drive',
                       })}
@@ -487,7 +487,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-violet-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <Globe className="w-4 h-4 text-violet-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.languageRegion', {
                         defaultValue: 'Language & Region',
                       })}
@@ -501,7 +501,7 @@ export const Sidebar: React.FC = () => {
                     <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
                       <SlidersHorizontal className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
                     </div>
-                    <span className="flex-grow text-[13px]">
+                    <span className="flex-grow text-sm">
                       {t('sidebar.nav.preferences', {
                         defaultValue: 'Preferences',
                       })}
@@ -621,7 +621,7 @@ export const Sidebar: React.FC = () => {
                 />
               </div>
               <div className="px-4 pb-3 flex justify-between items-center">
-                <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                   v2.0.4-stable
                 </span>
               </div>

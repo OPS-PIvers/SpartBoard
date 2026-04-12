@@ -565,7 +565,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 pendingStyle={pendingStyle}
                 background={activeDashboard?.background}
               />
-              <p className="mt-6 text-xxs font-bold text-white/60 uppercase tracking-[0.2em] text-center drop-shadow-md">
+              <p className="mt-6 text-xxs font-bold text-white/60 uppercase tracking-widest text-center drop-shadow-md">
                 Preview updates live as you adjust settings
               </p>
             </div>
