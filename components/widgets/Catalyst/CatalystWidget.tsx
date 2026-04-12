@@ -10,7 +10,7 @@ import {
   playCleanUp,
   getAudioCtx,
 } from '@/components/widgets/StarterPack/audioUtils';
-import confetti from 'canvas-confetti';
+import { triggerConfetti } from '@/utils/confetti';
 import { CatalystSettings } from './CatalystSettings';
 
 export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
@@ -37,7 +37,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
     executeRoutine(routine, addWidget);
 
     playCleanUp();
-    void confetti({
+    void triggerConfetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
@@ -88,6 +88,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
                 onClick={() => setActiveSetId(null)}
                 className="rounded-full hover:bg-slate-200 transition-colors text-slate-600 mr-2"
                 style={{ padding: 'min(4px, 1cqmin)' }}
+                aria-label="Back to sets"
               >
                 <ChevronLeft
                   style={{

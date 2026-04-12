@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useStarterPacks } from '@/hooks/useStarterPacks';
 import { WidgetComponentProps, StarterPack } from '@/types';
 import * as LucideIcons from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { triggerConfetti } from '@/utils/confetti';
 import { playCleanUp, getAudioCtx } from './audioUtils';
 
 export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
@@ -29,7 +29,7 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
 
     // Audio and visual cues
     playCleanUp();
-    void confetti({
+    void triggerConfetti({
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },

@@ -30,7 +30,7 @@ Touch targets as small as 12px on dock close buttons (WCAG minimum: 44px)
 No dark-mode variants -- 668 bg-white instances would break under theme switching
 Detailed Findings by Severity
 P0 -- Blocking
-[P0] No prefers-reduced-motion support
+[P0] No prefers-reduced-motion support [Fixed on April 12, 2026]
 
 Location: Entire codebase (0 instances of the media query)
 Category: Accessibility
@@ -38,7 +38,7 @@ Impact: Users with vestibular disorders or motion sensitivity cannot disable ani
 WCAG: 2.3.3 Animation from Interactions (AAA), but practically expected for AA compliance
 Recommendation: Add a global CSS rule @media (prefers-reduced-motion: reduce) that disables non-essential animations. Wrap confetti/canvas-confetti calls in a motion check.
 Suggested command: /harden
-[P0] Missing aria-label on icon-only buttons
+[P0] Missing aria-label on icon-only buttons [Fixed on April 12, 2026]
 
 Location: CatalystWidget.tsx:87, DraggableWindow.tsx:1304 (color picker buttons)
 Category: Accessibility
