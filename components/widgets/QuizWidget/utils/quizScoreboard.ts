@@ -9,6 +9,7 @@ import {
   ClassRoster,
   ScoreboardTeam,
   QuizSession,
+  QuizLeaderboardEntry,
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
@@ -150,6 +151,39 @@ export function buildPinToNameMap(
     }
   }
   return map;
+}
+
+/**
+ * Build a student-facing live leaderboard snapshot from the teacher's view of
+ * responses. Called from QuizLiveMonitor and written to
+ * session.liveLeaderboard so students can read it (they can't read other
+ * students' response docs directly).
+ *
+ * Skips students still in 'joined' status (haven't answered anything yet).
+ * Returns entries sorted by score descending, limited to `limit` (default 10).
+ */
+export function buildLiveLeaderboard(
+  responses: QuizResponse[],
+  questions: QuizQuestion[],
+  session: QuizSession | null | undefined,
+  pinToName: Record<string, string>,
+  limit = 10
+): QuizLeaderboardEntry[] {
+  return responses
+    .filter((r) => r.status !== 'joined')
+    .map((r) => ({
+      pin: r.pin,
+      name: pinToName[r.pin],
+      score: getDisplayScore(r, questions, session),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry, i) => ({
+      pin: entry.pin,
+      ...(entry.name ? { name: entry.name } : {}),
+      score: entry.score,
+      rank: i + 1,
+    }));
 }
 
 /**
