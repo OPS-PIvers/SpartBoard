@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-12_
+_Last audited: 2026-04-13_
 _Last action: never_
 
 ---
@@ -17,6 +17,7 @@ _Nothing currently in progress._
 ## Open
 
 ### MEDIUM node_modules not installed — type-check and lint cannot run in this environment
+
 - **Detected:** 2026-04-12
 - **File:** N/A (environment-level)
 - **Detail:** Running `pnpm run type-check` fails with:
