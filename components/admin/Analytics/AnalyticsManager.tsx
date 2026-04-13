@@ -1362,9 +1362,7 @@ export const AnalyticsManager: React.FC = () => {
       if (!user) throw new Error('Not authenticated');
 
       const token = await user.getIdToken();
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string;
-      const url = `https://us-central1-${projectId}.cloudfunctions.net/adminAnalytics`;
-      const response = await fetch(url, {
+      const response = await fetch('/api/admin-analytics', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -148,39 +148,46 @@ vi.mock('firebase-admin', () => {
   };
 });
 
-// Mock firebase-functions/v2
-vi.mock('firebase-functions/v2', () => ({
-  https: {
-    onCall: <T>(
-      _options: unknown,
-      handler: (request: {
-        data: T;
-        auth?: { token: { email: string }; uid: string };
-      }) => Promise<unknown>
-    ) => handler,
-    HttpsError: class extends Error {
-      constructor(code: string, message: string) {
-        super(message);
-        this.name = code;
-      }
-    },
+// Mock firebase-functions/v2/https
+// onCall returns a wrapper that accepts the legacy v1 (data, context)
+// invocation pattern used by the existing tests and translates it into the
+// v2 { data, auth } request shape that the real handlers now expect.
+vi.mock('firebase-functions/v2/https', () => ({
+  onCall: <T>(
+    _options: unknown,
+    handler: (request: {
+      data: T;
+      auth?: { token: { email: string }; uid: string };
+    }) => Promise<unknown>
+  ) => {
+    return (
+      data: T,
+      context?: { auth?: { token: { email: string }; uid: string } }
+    ) => handler({ data, auth: context?.auth });
+  },
+  onRequest: <Req, Res>(
+    _options: unknown,
+    handler: (req: Req, res: Res) => unknown
+  ) => handler,
+  HttpsError: class extends Error {
+    constructor(code: string, message: string) {
+      super(message);
+      this.name = code;
+    }
   },
 }));
 
-// Mock firebase-functions/v1
-vi.mock('firebase-functions/v1', () => ({
-  runWith: vi.fn().mockReturnThis(),
-  region: vi.fn().mockReturnThis(),
-  https: {
-    onCall: vi.fn().mockImplementation((handler: unknown) => handler),
-    onRequest: vi.fn().mockImplementation((handler: unknown) => handler),
-    HttpsError: class extends Error {
-      constructor(code: string, message: string) {
-        super(message);
-        this.name = code;
-      }
-    },
-  },
+// Mock firebase-functions/v2 (setGlobalOptions)
+vi.mock('firebase-functions/v2', () => ({
+  setGlobalOptions: vi.fn(),
+}));
+
+// Mock firebase-functions/params (defineSecret)
+vi.mock('firebase-functions/params', () => ({
+  defineSecret: (name: string) => ({
+    value: () => process.env[name] ?? `mock-${name}`,
+    name,
+  }),
 }));
 
 // Mock axios

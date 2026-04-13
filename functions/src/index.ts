@@ -1,19 +1,27 @@
-import * as functionsV1 from 'firebase-functions/v1';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { setGlobalOptions } from 'firebase-functions/v2';
+import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
-import cors from 'cors';
 
-const ALLOWED_ORIGINS = [
+setGlobalOptions({ region: 'us-central1' });
+
+const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
+const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
+const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
+const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
+
+const ALLOWED_ORIGINS: (string | RegExp)[] = [
   'https://spartboard.web.app',
   'https://spartboard.firebaseapp.com',
   /^https:\/\/spartboard--[\w-]+\.web\.app$/,
   /^http:\/\/localhost(:\d+)?$/,
 ];
-const corsHandler = cors({ origin: ALLOWED_ORIGINS });
+
 admin.initializeApp();
 
 interface ClassLinkUser {
@@ -290,152 +298,147 @@ function getOAuthHeaders(
   return oauth.toHeader(oauth.authorize(request_data));
 }
 
-// Keep ClassLink on v1 for now as it's working
-export const getClassLinkRosterV1 = functionsV1
-  .runWith({
+export const getClassLinkRosterV1 = onCall(
+  {
+    memory: '256MiB',
     secrets: [
-      'CLASSLINK_CLIENT_ID',
-      'CLASSLINK_CLIENT_SECRET',
-      'CLASSLINK_TENANT_URL',
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
     ],
-    memory: '256MB',
-  })
-  .https.onCall(
-    async (data: unknown, context: functionsV1.https.CallableContext) => {
-      if (!context.auth) {
-        throw new functionsV1.https.HttpsError(
-          'unauthenticated',
-          'The function must be called while authenticated.'
-        );
-      }
-
-      const userEmail = context.auth.token.email;
-      if (!userEmail) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'User must have an email associated with their account.'
-        );
-      }
-
-      const clientId = process.env.CLASSLINK_CLIENT_ID;
-      const clientSecret = process.env.CLASSLINK_CLIENT_SECRET;
-      const tenantUrl = process.env.CLASSLINK_TENANT_URL;
-
-      if (!clientId || !clientSecret || !tenantUrl) {
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'ClassLink configuration is missing on the server.'
-        );
-      }
-
-      const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
-
-      try {
-        const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
-        const userParams = { filter: `email='${userEmail}'` };
-
-        const userHeaders = getOAuthHeaders(
-          usersBaseUrl,
-          userParams,
-          'GET',
-          clientId,
-          clientSecret
-        );
-
-        const userResponse = await axios.get<{ users: ClassLinkUser[] }>(
-          usersBaseUrl,
-          {
-            params: userParams,
-            headers: { ...userHeaders },
-          }
-        );
-
-        const users = userResponse.data.users;
-
-        if (!users || users.length === 0) {
-          return { classes: [], studentsByClass: {} };
-        }
-
-        const teacherSourcedId = users[0].sourcedId;
-
-        const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${teacherSourcedId}/classes`;
-        const classesHeaders = getOAuthHeaders(
-          classesUrl,
-          {},
-          'GET',
-          clientId,
-          clientSecret
-        );
-
-        const classesResponse = await axios.get<{ classes: ClassLinkClass[] }>(
-          classesUrl,
-          { headers: { ...classesHeaders } }
-        );
-        const classes = classesResponse.data.classes;
-
-        const studentsByClass: Record<string, ClassLinkStudent[]> = {};
-
-        await Promise.all(
-          classes.map(async (cls: ClassLinkClass) => {
-            const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
-            const studentsHeaders = getOAuthHeaders(
-              studentsUrl,
-              {},
-              'GET',
-              clientId,
-              clientSecret
-            );
-            try {
-              const studentsResponse = await axios.get<{
-                users: ClassLinkStudent[];
-              }>(studentsUrl, { headers: { ...studentsHeaders } });
-              studentsByClass[cls.sourcedId] =
-                studentsResponse.data.users ?? [];
-            } catch {
-              studentsByClass[cls.sourcedId] = [];
-            }
-          })
-        );
-
-        return {
-          classes,
-          studentsByClass,
-        };
-      } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-          const axiosError = error as AxiosError;
-          throw new functionsV1.https.HttpsError(
-            'internal',
-            `Failed to fetch data from ClassLink: ${axiosError.message}`
-          );
-        }
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'Failed to fetch data from ClassLink'
-        );
-      }
-    }
-  );
-
-// Use v1 for generateWithAI to match the client SDK's expected URL format and ensure reliable CORS
-export const generateWithAI = functionsV1
-  .runWith({
-    secrets: ['GEMINI_API_KEY'],
-    memory: '512MB',
-  })
-  .https.onCall(async (data: AIData, context) => {
-    if (!context.auth) {
-      throw new functionsV1.https.HttpsError(
+    invoker: 'public',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
         'unauthenticated',
         'The function must be called while authenticated.'
       );
     }
 
-    const uid = context.auth.uid;
-    const email = context.auth.token.email;
+    const userEmail = request.auth.token.email;
+    if (!userEmail) {
+      throw new HttpsError(
+        'invalid-argument',
+        'User must have an email associated with their account.'
+      );
+    }
+
+    const clientId = CLASSLINK_CLIENT_ID.value();
+    const clientSecret = CLASSLINK_CLIENT_SECRET.value();
+    const tenantUrl = CLASSLINK_TENANT_URL.value();
+
+    if (!clientId || !clientSecret || !tenantUrl) {
+      throw new HttpsError(
+        'internal',
+        'ClassLink configuration is missing on the server.'
+      );
+    }
+
+    const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
+
+    try {
+      const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const userParams = { filter: `email='${userEmail}'` };
+
+      const userHeaders = getOAuthHeaders(
+        usersBaseUrl,
+        userParams,
+        'GET',
+        clientId,
+        clientSecret
+      );
+
+      const userResponse = await axios.get<{ users: ClassLinkUser[] }>(
+        usersBaseUrl,
+        {
+          params: userParams,
+          headers: { ...userHeaders },
+        }
+      );
+
+      const users = userResponse.data.users;
+
+      if (!users || users.length === 0) {
+        return { classes: [], studentsByClass: {} };
+      }
+
+      const teacherSourcedId = users[0].sourcedId;
+
+      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${teacherSourcedId}/classes`;
+      const classesHeaders = getOAuthHeaders(
+        classesUrl,
+        {},
+        'GET',
+        clientId,
+        clientSecret
+      );
+
+      const classesResponse = await axios.get<{ classes: ClassLinkClass[] }>(
+        classesUrl,
+        { headers: { ...classesHeaders } }
+      );
+      const classes = classesResponse.data.classes;
+
+      const studentsByClass: Record<string, ClassLinkStudent[]> = {};
+
+      await Promise.all(
+        classes.map(async (cls: ClassLinkClass) => {
+          const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
+          const studentsHeaders = getOAuthHeaders(
+            studentsUrl,
+            {},
+            'GET',
+            clientId,
+            clientSecret
+          );
+          try {
+            const studentsResponse = await axios.get<{
+              users: ClassLinkStudent[];
+            }>(studentsUrl, { headers: { ...studentsHeaders } });
+            studentsByClass[cls.sourcedId] = studentsResponse.data.users ?? [];
+          } catch {
+            studentsByClass[cls.sourcedId] = [];
+          }
+        })
+      );
+
+      return {
+        classes,
+        studentsByClass,
+      };
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        throw new HttpsError(
+          'internal',
+          `Failed to fetch data from ClassLink: ${axiosError.message}`
+        );
+      }
+      throw new HttpsError('internal', 'Failed to fetch data from ClassLink');
+    }
+  }
+);
+
+export const generateWithAI = onCall(
+  {
+    memory: '512MiB',
+    secrets: [GEMINI_API_KEY],
+  },
+  async (request) => {
+    const data = request.data as AIData;
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
 
     if (!email) {
-      throw new functionsV1.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'User must have an email associated with their account.'
       );
@@ -500,7 +503,7 @@ export const generateWithAI = functionsV1
             : null;
 
           if (globalPerm && !globalPerm.enabled) {
-            throw new functionsV1.https.HttpsError(
+            throw new HttpsError(
               'permission-denied',
               'Gemini functions are currently disabled by an administrator.'
             );
@@ -509,7 +512,7 @@ export const generateWithAI = functionsV1
           if (globalPerm) {
             const { accessLevel, betaUsers = [] } = globalPerm;
             if (accessLevel === 'admin') {
-              throw new functionsV1.https.HttpsError(
+              throw new HttpsError(
                 'permission-denied',
                 'Gemini functions are currently restricted to administrators.'
               );
@@ -518,7 +521,7 @@ export const generateWithAI = functionsV1
               accessLevel === 'beta' &&
               !betaUsers.includes(email.toLowerCase())
             ) {
-              throw new functionsV1.https.HttpsError(
+              throw new HttpsError(
                 'permission-denied',
                 'You do not have access to Gemini beta functions.'
               );
@@ -530,7 +533,7 @@ export const generateWithAI = functionsV1
           const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
 
           if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
-            throw new functionsV1.https.HttpsError(
+            throw new HttpsError(
               'resource-exhausted',
               `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
             );
@@ -548,7 +551,7 @@ export const generateWithAI = functionsV1
               const specificLimit = specPerm.config?.dailyLimit ?? 20;
 
               if (specLimitEnabled && currentSpecificUsage >= specificLimit) {
-                throw new functionsV1.https.HttpsError(
+                throw new HttpsError(
                   'resource-exhausted',
                   `Daily limit for ${specificFeatureId} reached (${specificLimit} per day). Please try again tomorrow.`
                 );
@@ -581,7 +584,7 @@ export const generateWithAI = functionsV1
         }
       });
     } catch (error) {
-      if (error instanceof functionsV1.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
       console.error('Usage tracking error:', error);
@@ -592,10 +595,10 @@ export const generateWithAI = functionsV1
     // Read model config from Firestore (for both admins and non-admins)
     const geminiConfig = await getGeminiModelConfig(db);
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = GEMINI_API_KEY.value();
     if (!apiKey) {
       console.error('CRITICAL: GEMINI_API_KEY is missing');
-      throw new functionsV1.https.HttpsError(
+      throw new HttpsError(
         'internal',
         'Gemini API Key is missing on the server.'
       );
@@ -610,13 +613,13 @@ export const generateWithAI = functionsV1
 
       // Input size guards
       if (data?.prompt && String(data.prompt).length > 10000) {
-        throw new functionsV1.https.HttpsError(
+        throw new HttpsError(
           'invalid-argument',
           'Prompt exceeds maximum length of 10,000 characters.'
         );
       }
       if (data?.image && String(data.image).length > 5 * 1024 * 1024) {
-        throw new functionsV1.https.HttpsError(
+        throw new HttpsError(
           'invalid-argument',
           'Image exceeds maximum size of 5MB.'
         );
@@ -817,7 +820,7 @@ export const generateWithAI = functionsV1
           'CRITICAL: Invalid generation type encountered:',
           JSON.stringify(debugData)
         );
-        throw new functionsV1.https.HttpsError(
+        throw new HttpsError(
           'invalid-argument',
           `V3 ERROR: Invalid generation type: "${data?.type}". Received keys: ${Object.keys(data || {}).join(', ')}`
         );
@@ -899,21 +902,20 @@ export const generateWithAI = functionsV1
       }
 
       const detail = error instanceof Error ? error.message : 'unknown error';
-      throw new functionsV1.https.HttpsError(
-        'internal',
-        `AI generation failed: ${detail}`
-      );
+      throw new HttpsError('internal', `AI generation failed: ${detail}`);
     }
-  });
+  }
+);
 
-export const fetchWeatherProxy = functionsV1
-  .runWith({
-    memory: '128MB',
+export const fetchWeatherProxy = onCall(
+  {
+    memory: '128MiB',
     timeoutSeconds: 30,
-  })
-  .https.onCall(async (data: { url: string }, context) => {
-    if (!context.auth) {
-      throw new functionsV1.https.HttpsError(
+  },
+  async (request) => {
+    const data = request.data as { url: string };
+    if (!request.auth) {
+      throw new HttpsError(
         'unauthenticated',
         'The function must be called while authenticated.'
       );
@@ -929,7 +931,7 @@ export const fetchWeatherProxy = functionsV1
         throw new Error('Invalid host or protocol');
       }
     } catch {
-      throw new functionsV1.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
       );
@@ -942,155 +944,154 @@ export const fetchWeatherProxy = functionsV1
       console.error('Weather Proxy Error:', error);
       const msg =
         error instanceof Error ? error.message : 'Weather fetch failed';
-      throw new functionsV1.https.HttpsError('internal', msg);
+      throw new HttpsError('internal', msg);
     }
-  });
+  }
+);
 
-export const archiveActivityWallPhoto = functionsV1
-  .runWith({
-    memory: '512MB',
+export const archiveActivityWallPhoto = onCall(
+  {
+    memory: '512MiB',
     timeoutSeconds: 120,
-  })
-  .https.onCall(
-    async (
-      data: ArchiveActivityWallPhotoData,
-      context: functionsV1.https.CallableContext
-    ) => {
-      if (!context.auth) {
-        throw new functionsV1.https.HttpsError(
-          'unauthenticated',
-          'The function must be called while authenticated.'
-        );
+  },
+  async (request) => {
+    const data = request.data as ArchiveActivityWallPhotoData;
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
+      );
+    }
+
+    const accessToken = data.accessToken?.trim();
+    const sessionId = data.sessionId?.trim();
+    const submissionId = data.submissionId?.trim();
+    const activityId = data.activityId?.trim();
+    const status = data.status === 'pending' ? 'pending' : 'approved';
+
+    if (!accessToken || !sessionId || !submissionId || !activityId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Missing required archive parameters.'
+      );
+    }
+
+    if (!sessionId.startsWith(`${request.auth.uid}_`)) {
+      throw new HttpsError(
+        'permission-denied',
+        'You can only archive your own Activity Wall submissions.'
+      );
+    }
+
+    const submissionRef = admin
+      .firestore()
+      .collection('activity_wall_sessions')
+      .doc(sessionId)
+      .collection('submissions')
+      .doc(submissionId);
+
+    await submissionRef.set(
+      {
+        status,
+        archiveStatus: 'syncing',
+        archiveStartedAt: Date.now(),
+        archiveError: admin.firestore.FieldValue.delete(),
+      },
+      { merge: true }
+    );
+
+    try {
+      const submissionSnap = await submissionRef.get();
+      if (!submissionSnap.exists) {
+        throw new Error('Submission not found');
       }
 
-      const accessToken = data.accessToken?.trim();
-      const sessionId = data.sessionId?.trim();
-      const submissionId = data.submissionId?.trim();
-      const activityId = data.activityId?.trim();
-      const status = data.status === 'pending' ? 'pending' : 'approved';
+      const submission = submissionSnap.data() as {
+        storagePath?: unknown;
+      };
+      const storagePath =
+        typeof submission.storagePath === 'string'
+          ? submission.storagePath
+          : null;
 
-      if (!accessToken || !sessionId || !submissionId || !activityId) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'Missing required archive parameters.'
-        );
+      if (!storagePath) {
+        throw new Error('Missing Firebase storage path for photo submission');
       }
 
-      if (!sessionId.startsWith(`${context.auth.uid}_`)) {
-        throw new functionsV1.https.HttpsError(
-          'permission-denied',
-          'You can only archive your own Activity Wall submissions.'
-        );
-      }
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(storagePath);
+      const [fileBuffer] = await file.download();
+      const [metadata] = await file.getMetadata();
+      const mimeType = metadata.contentType || 'image/jpeg';
+      const extension =
+        mimeType === 'image/png'
+          ? 'png'
+          : mimeType === 'image/gif'
+            ? 'gif'
+            : mimeType === 'image/webp'
+              ? 'webp'
+              : 'jpg';
 
-      const submissionRef = admin
-        .firestore()
-        .collection('activity_wall_sessions')
-        .doc(sessionId)
-        .collection('submissions')
-        .doc(submissionId);
+      const driveFile = await uploadBlobToDrive(
+        accessToken,
+        fileBuffer,
+        mimeType,
+        `${submissionId}.${extension}`,
+        `Activity Wall/${activityId}`
+      );
+      await makeDriveFilePublic(accessToken, driveFile.id);
+
+      const driveUrl = `https://lh3.googleusercontent.com/d/${driveFile.id}`;
 
       await submissionRef.set(
         {
+          content: driveUrl,
           status,
-          archiveStatus: 'syncing',
-          archiveStartedAt: Date.now(),
+          archiveStatus: 'archived',
+          archiveStartedAt: admin.firestore.FieldValue.delete(),
+          driveFileId: driveFile.id,
+          archivedAt: Date.now(),
+          storagePath: admin.firestore.FieldValue.delete(),
           archiveError: admin.firestore.FieldValue.delete(),
         },
         { merge: true }
       );
 
-      try {
-        const submissionSnap = await submissionRef.get();
-        if (!submissionSnap.exists) {
-          throw new Error('Submission not found');
-        }
+      await file.delete({ ignoreNotFound: true });
 
-        const submission = submissionSnap.data() as {
-          storagePath?: unknown;
-        };
-        const storagePath =
-          typeof submission.storagePath === 'string'
-            ? submission.storagePath
-            : null;
+      return {
+        archiveStatus: 'archived',
+        driveFileId: driveFile.id,
+        driveUrl,
+      };
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Drive archive failed';
 
-        if (!storagePath) {
-          throw new Error('Missing Firebase storage path for photo submission');
-        }
+      await submissionRef.set(
+        {
+          status,
+          archiveStatus: 'failed',
+          archiveStartedAt: admin.firestore.FieldValue.delete(),
+          archiveError: message.slice(0, 180),
+        },
+        { merge: true }
+      );
 
-        const bucket = admin.storage().bucket();
-        const file = bucket.file(storagePath);
-        const [fileBuffer] = await file.download();
-        const [metadata] = await file.getMetadata();
-        const mimeType = metadata.contentType || 'image/jpeg';
-        const extension =
-          mimeType === 'image/png'
-            ? 'png'
-            : mimeType === 'image/gif'
-              ? 'gif'
-              : mimeType === 'image/webp'
-                ? 'webp'
-                : 'jpg';
-
-        const driveFile = await uploadBlobToDrive(
-          accessToken,
-          fileBuffer,
-          mimeType,
-          `${submissionId}.${extension}`,
-          `Activity Wall/${activityId}`
-        );
-        await makeDriveFilePublic(accessToken, driveFile.id);
-
-        const driveUrl = `https://lh3.googleusercontent.com/d/${driveFile.id}`;
-
-        await submissionRef.set(
-          {
-            content: driveUrl,
-            status,
-            archiveStatus: 'archived',
-            archiveStartedAt: admin.firestore.FieldValue.delete(),
-            driveFileId: driveFile.id,
-            archivedAt: Date.now(),
-            storagePath: admin.firestore.FieldValue.delete(),
-            archiveError: admin.firestore.FieldValue.delete(),
-          },
-          { merge: true }
-        );
-
-        await file.delete({ ignoreNotFound: true });
-
-        return {
-          archiveStatus: 'archived',
-          driveFileId: driveFile.id,
-          driveUrl,
-        };
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ? error.message : 'Drive archive failed';
-
-        await submissionRef.set(
-          {
-            status,
-            archiveStatus: 'failed',
-            archiveStartedAt: admin.firestore.FieldValue.delete(),
-            archiveError: message.slice(0, 180),
-          },
-          { merge: true }
-        );
-
-        throw new functionsV1.https.HttpsError('internal', message);
-      }
+      throw new HttpsError('internal', message);
     }
-  );
+  }
+);
 
-export const checkUrlCompatibility = functionsV1
-  .runWith({
-    memory: '128MB',
+export const checkUrlCompatibility = onCall(
+  {
+    memory: '128MiB',
     timeoutSeconds: 20,
-  })
-  .https.onCall(async (data: { url: string }, context) => {
-    if (!context.auth) {
-      throw new functionsV1.https.HttpsError(
+  },
+  async (request) => {
+    const data = request.data as { url: string };
+    if (!request.auth) {
+      throw new HttpsError(
         'unauthenticated',
         'The function must be called while authenticated.'
       );
@@ -1101,17 +1102,11 @@ export const checkUrlCompatibility = functionsV1
     try {
       parsedUrl = new URL(data.url);
     } catch {
-      throw new functionsV1.https.HttpsError(
-        'invalid-argument',
-        'Invalid URL provided.'
-      );
+      throw new HttpsError('invalid-argument', 'Invalid URL provided.');
     }
 
     if (parsedUrl.protocol !== 'https:') {
-      throw new functionsV1.https.HttpsError(
-        'invalid-argument',
-        'Only HTTPS URLs are allowed.'
-      );
+      throw new HttpsError('invalid-argument', 'Only HTTPS URLs are allowed.');
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
@@ -1128,7 +1123,7 @@ export const checkUrlCompatibility = functionsV1
       /metadata\.google\.internal/,
     ];
     if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
-      throw new functionsV1.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'URLs pointing to private or reserved IP ranges are not allowed.'
       );
@@ -1183,7 +1178,8 @@ export const checkUrlCompatibility = functionsV1
         uncertain: true,
       };
     }
-  });
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Video Activity: Caption-based AI question generation
@@ -1211,141 +1207,132 @@ interface GeneratedVideoActivity {
  * Uses Gemini's multimodal video understanding to analyze a YouTube video
  * and generate timestamped multiple-choice questions.
  */
-export const generateVideoActivity = functionsV1
-  .region('us-central1')
-  .runWith({
-    secrets: ['GEMINI_API_KEY'],
-    memory: '1GB',
+export const generateVideoActivity = onCall(
+  {
+    memory: '1GiB',
     timeoutSeconds: 300,
-  })
-  .https.onCall(
-    async (
-      data: VideoActivityRequestData,
-      context
-    ): Promise<GeneratedVideoActivity> => {
-      if (!context.auth) {
-        throw new functionsV1.https.HttpsError(
-          'unauthenticated',
-          'The function must be called while authenticated.'
-        );
-      }
-
-      const uid = context.auth.uid;
-      const email = context.auth.token.email;
-
-      if (!email) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'User must have an email associated with their account.'
-        );
-      }
-
-      const { url, questionCount } = data;
-
-      if (!url || typeof url !== 'string') {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'A valid YouTube URL is required.'
-        );
-      }
-
-      const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
-
-      // Extract video ID from URL
-      const videoIdMatch = url.match(
-        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+    secrets: [GEMINI_API_KEY],
+  },
+  async (request): Promise<GeneratedVideoActivity> => {
+    const data = request.data as VideoActivityRequestData;
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
       );
-      const videoId = videoIdMatch?.[1];
+    }
 
-      if (!videoId) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'Could not extract a video ID from the provided URL. Please paste a valid YouTube link.'
-        );
-      }
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
 
-      const db = admin.firestore();
+    if (!email) {
+      throw new HttpsError(
+        'invalid-argument',
+        'User must have an email associated with their account.'
+      );
+    }
 
-      // Check if user is an admin (unlimited)
-      const adminDoc = await db
-        .collection('admins')
-        .doc(email.toLowerCase())
-        .get();
-      const isAdmin = adminDoc.exists;
+    const { url, questionCount } = data;
 
-      if (!isAdmin) {
-        // --- Check Overall Gemini Limit ---
-        const today = new Date().toISOString().split('T')[0];
-        const overallUsageRef = db
-          .collection('ai_usage')
-          .doc(`${uid}_${today}`);
+    if (!url || typeof url !== 'string') {
+      throw new HttpsError(
+        'invalid-argument',
+        'A valid YouTube URL is required.'
+      );
+    }
 
-        try {
-          await db.runTransaction(async (transaction) => {
-            const globalPermDoc = await transaction.get(
-              db.collection('global_permissions').doc('gemini-functions')
-            );
-            const globalPerm = globalPermDoc.data() as
-              | GlobalPermission
-              | undefined;
+    const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
 
-            if (globalPerm && !globalPerm.enabled) {
-              throw new functionsV1.https.HttpsError(
-                'permission-denied',
-                'Gemini functions are currently disabled by an administrator.'
-              );
-            }
+    // Extract video ID from URL
+    const videoIdMatch = url.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+    );
+    const videoId = videoIdMatch?.[1];
 
-            const overallLimitEnabled =
-              globalPerm?.config?.dailyLimitEnabled !== false;
-            const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+    if (!videoId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Could not extract a video ID from the provided URL. Please paste a valid YouTube link.'
+      );
+    }
 
-            const overallUsageDoc = await transaction.get(overallUsageRef);
-            const currentOverallUsage =
-              (overallUsageDoc.data()?.count as number) || 0;
+    const db = admin.firestore();
 
-            if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
-              throw new functionsV1.https.HttpsError(
-                'resource-exhausted',
-                `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
-              );
-            }
+    // Check if user is an admin (unlimited)
+    const adminDoc = await db
+      .collection('admins')
+      .doc(email.toLowerCase())
+      .get();
+    const isAdmin = adminDoc.exists;
 
-            transaction.set(
-              overallUsageRef,
-              {
-                count: currentOverallUsage + 1,
-                email,
-                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          });
-        } catch (error) {
-          if (error instanceof functionsV1.https.HttpsError) throw error;
-          console.error('Usage check error:', error);
-          throw new functionsV1.https.HttpsError(
-            'internal',
-            'Failed to verify AI usage limits.'
+    if (!isAdmin) {
+      // --- Check Overall Gemini Limit ---
+      const today = new Date().toISOString().split('T')[0];
+      const overallUsageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          const globalPermDoc = await transaction.get(
+            db.collection('global_permissions').doc('gemini-functions')
           );
-        }
+          const globalPerm = globalPermDoc.data() as
+            | GlobalPermission
+            | undefined;
+
+          if (globalPerm && !globalPerm.enabled) {
+            throw new HttpsError(
+              'permission-denied',
+              'Gemini functions are currently disabled by an administrator.'
+            );
+          }
+
+          const overallLimitEnabled =
+            globalPerm?.config?.dailyLimitEnabled !== false;
+          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+
+          const overallUsageDoc = await transaction.get(overallUsageRef);
+          const currentOverallUsage =
+            (overallUsageDoc.data()?.count as number) || 0;
+
+          if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
+            throw new HttpsError(
+              'resource-exhausted',
+              `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
+            );
+          }
+
+          transaction.set(
+            overallUsageRef,
+            {
+              count: currentOverallUsage + 1,
+              email,
+              lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error('Usage check error:', error);
+        throw new HttpsError('internal', 'Failed to verify AI usage limits.');
       }
+    }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'Gemini API Key is missing on the server.'
-        );
-      }
+    const apiKey = GEMINI_API_KEY.value();
+    if (!apiKey) {
+      throw new HttpsError(
+        'internal',
+        'Gemini API Key is missing on the server.'
+      );
+    }
 
-      // Read model config from Firestore
-      const geminiConfig = await getGeminiModelConfig(db);
-      const videoModel = geminiConfig.standardModel;
+    // Read model config from Firestore
+    const geminiConfig = await getGeminiModelConfig(db);
+    const videoModel = geminiConfig.standardModel;
 
-      const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey });
 
-      const systemPrompt = `You are an expert teacher creating a video comprehension activity.
+    const systemPrompt = `You are an expert teacher creating a video comprehension activity.
 Watch the provided YouTube video and generate exactly ${count} multiple-choice questions that check understanding of key concepts.
 
 CRITICAL RULES:
@@ -1371,50 +1358,50 @@ Return JSON in this exact format:
   ]
 }`;
 
-      try {
-        const result = await ai.models.generateContent({
-          model: videoModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: systemPrompt },
-                {
-                  fileData: {
-                    fileUri: `https://www.youtube.com/watch?v=${videoId}`,
-                    mimeType: 'video/mp4',
-                  },
+    try {
+      const result = await ai.models.generateContent({
+        model: videoModel,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: systemPrompt },
+              {
+                fileData: {
+                  fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+                  mimeType: 'video/mp4',
                 },
-              ],
-            },
-          ],
-          config: { responseMimeType: 'application/json' },
-        });
+              },
+            ],
+          },
+        ],
+        config: { responseMimeType: 'application/json' },
+      });
 
-        const text = result.text;
-        if (!text) throw new Error('Empty response from AI');
+      const text = result.text;
+      if (!text) throw new Error('Empty response from AI');
 
-        const parsed = JSON.parse(text) as GeneratedVideoActivity;
+      const parsed = JSON.parse(text) as GeneratedVideoActivity;
 
-        if (
-          !parsed.title ||
-          !Array.isArray(parsed.questions) ||
-          parsed.questions.length === 0
-        ) {
-          throw new Error('Invalid response structure from AI');
-        }
-
-        return parsed;
-      } catch (error: unknown) {
-        console.error('[generateVideoActivity] Gemini error:', error);
-        const detail = error instanceof Error ? error.message : 'unknown error';
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          `AI generation failed (model: ${videoModel}): ${detail}`
-        );
+      if (
+        !parsed.title ||
+        !Array.isArray(parsed.questions) ||
+        parsed.questions.length === 0
+      ) {
+        throw new Error('Invalid response structure from AI');
       }
+
+      return parsed;
+    } catch (error: unknown) {
+      console.error('[generateVideoActivity] Gemini error:', error);
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      throw new HttpsError(
+        'internal',
+        `AI generation failed (model: ${videoModel}): ${detail}`
+      );
     }
-  );
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Video Activity: Admin-gated Gemini audio transcription fallback
@@ -1450,191 +1437,185 @@ interface AudioTranscriptionPerm {
  * Service. This feature is disabled by default and must be explicitly enabled
  * by an administrator who accepts the associated risk.
  */
-export const transcribeVideoWithGemini = functionsV1
-  .runWith({
-    secrets: ['GEMINI_API_KEY'],
-    memory: '1GB',
+export const transcribeVideoWithGemini = onCall(
+  {
+    memory: '1GiB',
     timeoutSeconds: 300,
-  })
-  .https.onCall(
-    async (
-      data: AudioTranscriptionRequestData,
-      context
-    ): Promise<GeneratedVideoActivity> => {
-      if (!context.auth) {
-        throw new functionsV1.https.HttpsError(
-          'unauthenticated',
-          'The function must be called while authenticated.'
-        );
-      }
-
-      const uid = context.auth.uid;
-      const email = context.auth.token.email;
-
-      if (!email) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'User must have an email associated with their account.'
-        );
-      }
-
-      const db = admin.firestore();
-
-      // Check feature permission — admin-gated, off by default
-      const permDoc = await db
-        .collection('global_permissions')
-        .doc('video-activity-audio-transcription')
-        .get();
-
-      if (!permDoc.exists) {
-        throw new functionsV1.https.HttpsError(
-          'permission-denied',
-          'Gemini audio transcription is not enabled. An administrator must enable it in Feature Permissions.'
-        );
-      }
-
-      const perm = permDoc.data() as AudioTranscriptionPerm;
-
-      if (!perm.enabled) {
-        throw new functionsV1.https.HttpsError(
-          'permission-denied',
-          'Gemini audio transcription is currently disabled.'
-        );
-      }
-
-      // Check admin status
-      const adminDoc = await db
-        .collection('admins')
-        .doc(email.toLowerCase())
-        .get();
-      const isAdmin = adminDoc.exists;
-
-      if (!isAdmin) {
-        if (perm.accessLevel === 'admin') {
-          throw new functionsV1.https.HttpsError(
-            'permission-denied',
-            'Gemini audio transcription is restricted to administrators.'
-          );
-        }
-        if (
-          perm.accessLevel === 'beta' &&
-          !perm.betaUsers?.includes(email.toLowerCase())
-        ) {
-          throw new functionsV1.https.HttpsError(
-            'permission-denied',
-            'You do not have access to Gemini audio transcription.'
-          );
-        }
-      }
-
-      if (!isAdmin) {
-        // --- Dual Limit Check (Overall + Specific) ---
-        const today = new Date().toISOString().split('T')[0];
-        const overallUsageRef = db
-          .collection('ai_usage')
-          .doc(`${uid}_${today}`);
-        const specificUsageRef = db
-          .collection('ai_usage')
-          .doc(`${uid}_video-activity-audio-transcription_${today}`);
-
-        try {
-          await db.runTransaction(async (transaction) => {
-            // 1. Check Overall Limit
-            const globalPermDoc = await transaction.get(
-              db.collection('global_permissions').doc('gemini-functions')
-            );
-            const globalPerm = globalPermDoc.data() as
-              | GlobalPermission
-              | undefined;
-            const overallLimitEnabled =
-              globalPerm?.config?.dailyLimitEnabled !== false;
-            const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
-
-            const overallUsageDoc = await transaction.get(overallUsageRef);
-            const currentOverallUsage =
-              (overallUsageDoc.data()?.count as number) || 0;
-
-            if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
-              throw new functionsV1.https.HttpsError(
-                'resource-exhausted',
-                `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
-              );
-            }
-
-            // 2. Check Specific Transcription Limit
-            const specLimitEnabled = perm.config?.dailyLimitEnabled !== false;
-            const specLimit = perm.config?.dailyLimit ?? 5;
-
-            const specUsageDoc = await transaction.get(specificUsageRef);
-            const currentSpecUsage =
-              (specUsageDoc.data()?.count as number) || 0;
-
-            if (specLimitEnabled && currentSpecUsage >= specLimit) {
-              throw new functionsV1.https.HttpsError(
-                'resource-exhausted',
-                `Daily audio transcription limit reached (${specLimit} per day). Please try again tomorrow.`
-              );
-            }
-
-            // 3. Increment Both
-            transaction.set(
-              overallUsageRef,
-              {
-                count: currentOverallUsage + 1,
-                email,
-                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-
-            transaction.set(
-              specificUsageRef,
-              {
-                count: currentSpecUsage + 1,
-                email,
-                lastUsed: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          });
-        } catch (error) {
-          if (error instanceof functionsV1.https.HttpsError) throw error;
-          console.error('Transcription usage check error:', error);
-          throw new functionsV1.https.HttpsError(
-            'internal',
-            'Failed to verify audio transcription usage limits.'
-          );
-        }
-      }
-
-      const { url, questionCount } = data;
-      const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
-
-      const videoIdMatch = url.match(
-        /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+    secrets: [GEMINI_API_KEY],
+  },
+  async (request): Promise<GeneratedVideoActivity> => {
+    const data = request.data as AudioTranscriptionRequestData;
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'The function must be called while authenticated.'
       );
-      const videoId = videoIdMatch?.[1];
+    }
 
-      if (!videoId) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'Could not extract a video ID from the provided URL.'
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
+
+    if (!email) {
+      throw new HttpsError(
+        'invalid-argument',
+        'User must have an email associated with their account.'
+      );
+    }
+
+    const db = admin.firestore();
+
+    // Check feature permission — admin-gated, off by default
+    const permDoc = await db
+      .collection('global_permissions')
+      .doc('video-activity-audio-transcription')
+      .get();
+
+    if (!permDoc.exists) {
+      throw new HttpsError(
+        'permission-denied',
+        'Gemini audio transcription is not enabled. An administrator must enable it in Feature Permissions.'
+      );
+    }
+
+    const perm = permDoc.data() as AudioTranscriptionPerm;
+
+    if (!perm.enabled) {
+      throw new HttpsError(
+        'permission-denied',
+        'Gemini audio transcription is currently disabled.'
+      );
+    }
+
+    // Check admin status
+    const adminDoc = await db
+      .collection('admins')
+      .doc(email.toLowerCase())
+      .get();
+    const isAdmin = adminDoc.exists;
+
+    if (!isAdmin) {
+      if (perm.accessLevel === 'admin') {
+        throw new HttpsError(
+          'permission-denied',
+          'Gemini audio transcription is restricted to administrators.'
         );
       }
+      if (
+        perm.accessLevel === 'beta' &&
+        !perm.betaUsers?.includes(email.toLowerCase())
+      ) {
+        throw new HttpsError(
+          'permission-denied',
+          'You do not have access to Gemini audio transcription.'
+        );
+      }
+    }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new functionsV1.https.HttpsError(
+    if (!isAdmin) {
+      // --- Dual Limit Check (Overall + Specific) ---
+      const today = new Date().toISOString().split('T')[0];
+      const overallUsageRef = db.collection('ai_usage').doc(`${uid}_${today}`);
+      const specificUsageRef = db
+        .collection('ai_usage')
+        .doc(`${uid}_video-activity-audio-transcription_${today}`);
+
+      try {
+        await db.runTransaction(async (transaction) => {
+          // 1. Check Overall Limit
+          const globalPermDoc = await transaction.get(
+            db.collection('global_permissions').doc('gemini-functions')
+          );
+          const globalPerm = globalPermDoc.data() as
+            | GlobalPermission
+            | undefined;
+          const overallLimitEnabled =
+            globalPerm?.config?.dailyLimitEnabled !== false;
+          const overallLimit = globalPerm?.config?.dailyLimit ?? 20;
+
+          const overallUsageDoc = await transaction.get(overallUsageRef);
+          const currentOverallUsage =
+            (overallUsageDoc.data()?.count as number) || 0;
+
+          if (overallLimitEnabled && currentOverallUsage >= overallLimit) {
+            throw new HttpsError(
+              'resource-exhausted',
+              `Daily AI usage limit reached (${overallLimit} generations). Please try again tomorrow.`
+            );
+          }
+
+          // 2. Check Specific Transcription Limit
+          const specLimitEnabled = perm.config?.dailyLimitEnabled !== false;
+          const specLimit = perm.config?.dailyLimit ?? 5;
+
+          const specUsageDoc = await transaction.get(specificUsageRef);
+          const currentSpecUsage = (specUsageDoc.data()?.count as number) || 0;
+
+          if (specLimitEnabled && currentSpecUsage >= specLimit) {
+            throw new HttpsError(
+              'resource-exhausted',
+              `Daily audio transcription limit reached (${specLimit} per day). Please try again tomorrow.`
+            );
+          }
+
+          // 3. Increment Both
+          transaction.set(
+            overallUsageRef,
+            {
+              count: currentOverallUsage + 1,
+              email,
+              lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          transaction.set(
+            specificUsageRef,
+            {
+              count: currentSpecUsage + 1,
+              email,
+              lastUsed: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error('Transcription usage check error:', error);
+        throw new HttpsError(
           'internal',
-          'Gemini API Key is missing on the server.'
+          'Failed to verify audio transcription usage limits.'
         );
       }
+    }
 
-      // Use the YouTube video URL directly with Gemini's video understanding
-      const model = perm.config?.model ?? 'gemini-3.1-flash-lite-preview';
-      const ai = new GoogleGenAI({ apiKey });
+    const { url, questionCount } = data;
+    const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
 
-      const systemPrompt = `You are an expert teacher creating a video comprehension activity.
+    const videoIdMatch = url.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
+    );
+    const videoId = videoIdMatch?.[1];
+
+    if (!videoId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Could not extract a video ID from the provided URL.'
+      );
+    }
+
+    const apiKey = GEMINI_API_KEY.value();
+    if (!apiKey) {
+      throw new HttpsError(
+        'internal',
+        'Gemini API Key is missing on the server.'
+      );
+    }
+
+    // Use the YouTube video URL directly with Gemini's video understanding
+    const model = perm.config?.model ?? 'gemini-3.1-flash-lite-preview';
+    const ai = new GoogleGenAI({ apiKey });
+
+    const systemPrompt = `You are an expert teacher creating a video comprehension activity.
 Watch the provided YouTube video and generate exactly ${count} multiple-choice questions.
 
 CRITICAL RULES:
@@ -1660,48 +1641,48 @@ Return JSON:
   ]
 }`;
 
-      try {
-        const result = await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: systemPrompt },
-                {
-                  fileData: {
-                    fileUri: `https://www.youtube.com/watch?v=${videoId}`,
-                    mimeType: 'video/mp4',
-                  },
+    try {
+      const result = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: systemPrompt },
+              {
+                fileData: {
+                  fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+                  mimeType: 'video/mp4',
                 },
-              ],
-            },
-          ],
-          config: { responseMimeType: 'application/json' },
-        });
+              },
+            ],
+          },
+        ],
+        config: { responseMimeType: 'application/json' },
+      });
 
-        const text = result.text;
-        if (!text) throw new Error('Empty response from AI');
+      const text = result.text;
+      if (!text) throw new Error('Empty response from AI');
 
-        const parsed = JSON.parse(text) as GeneratedVideoActivity;
+      const parsed = JSON.parse(text) as GeneratedVideoActivity;
 
-        if (
-          !parsed.title ||
-          !Array.isArray(parsed.questions) ||
-          parsed.questions.length === 0
-        ) {
-          throw new Error('Invalid response structure from AI');
-        }
-
-        return parsed;
-      } catch (error: unknown) {
-        console.error('[transcribeVideoWithGemini] Gemini error:', error);
-        const detail = error instanceof Error ? error.message : 'unknown error';
-        const msg = `AI generation failed (model: ${model}): ${detail}`;
-        throw new functionsV1.https.HttpsError('internal', msg);
+      if (
+        !parsed.title ||
+        !Array.isArray(parsed.questions) ||
+        parsed.questions.length === 0
+      ) {
+        throw new Error('Invalid response structure from AI');
       }
+
+      return parsed;
+    } catch (error: unknown) {
+      console.error('[transcribeVideoWithGemini] Gemini error:', error);
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      const msg = `AI generation failed (model: ${model}): ${detail}`;
+      throw new HttpsError('internal', msg);
     }
-  );
+  }
+);
 
 // ─── Guided Learning Generation (Admin Only) ─────────────────────────────────
 
@@ -1734,69 +1715,67 @@ interface GeneratedGuidedLearning {
   steps: GuidedLearningStep[];
 }
 
-export const generateGuidedLearning = functionsV1
-  .runWith({
-    secrets: ['GEMINI_API_KEY'],
-    memory: '512MB',
+export const generateGuidedLearning = onCall(
+  {
+    memory: '512MiB',
     timeoutSeconds: 120,
-  })
-  .https.onCall(
-    async (
-      data: { imageBase64: string; mimeType: string; prompt?: string },
-      context
-    ) => {
-      // Admin only
-      const uid = context.auth?.uid;
-      if (!uid) {
-        throw new functionsV1.https.HttpsError(
-          'unauthenticated',
-          'Must be authenticated to use this feature.'
-        );
-      }
+    secrets: [GEMINI_API_KEY],
+  },
+  async (request) => {
+    const data = request.data as {
+      imageBase64: string;
+      mimeType: string;
+      prompt?: string;
+    };
+    // Admin only
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'Must be authenticated to use this feature.'
+      );
+    }
 
-      const userEmail = context.auth?.token.email;
-      if (!userEmail) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'Authenticated user must have an email address.'
-        );
-      }
-      const db = admin.firestore();
-      const adminDoc = await db
-        .collection('admins')
-        .doc(userEmail.toLowerCase())
-        .get();
-      if (!adminDoc.exists) {
-        throw new functionsV1.https.HttpsError(
-          'permission-denied',
-          'Admin access required to use AI generation.'
-        );
-      }
+    const userEmail = request.auth?.token.email;
+    if (!userEmail) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Authenticated user must have an email address.'
+      );
+    }
+    const db = admin.firestore();
+    const adminDoc = await db
+      .collection('admins')
+      .doc(userEmail.toLowerCase())
+      .get();
+    if (!adminDoc.exists) {
+      throw new HttpsError(
+        'permission-denied',
+        'Admin access required to use AI generation.'
+      );
+    }
 
-      const { imageBase64, mimeType, prompt } = data;
-      if (!imageBase64 || !mimeType) {
-        throw new functionsV1.https.HttpsError(
-          'invalid-argument',
-          'imageBase64 and mimeType are required.'
-        );
-      }
+    const { imageBase64, mimeType, prompt } = data;
+    if (!imageBase64 || !mimeType) {
+      throw new HttpsError(
+        'invalid-argument',
+        'imageBase64 and mimeType are required.'
+      );
+    }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new functionsV1.https.HttpsError(
-          'internal',
-          'AI service is not configured.'
-        );
-      }
+    const apiKey = GEMINI_API_KEY.value();
+    if (!apiKey) {
+      throw new HttpsError('internal', 'AI service is not configured.');
+    }
 
-      // Read model config from Firestore
-      const geminiConfig = await getGeminiModelConfig(db);
-      const guidedLearningModel = geminiConfig.advancedModel;
+    // Read model config from Firestore
+    const geminiConfig = await getGeminiModelConfig(db);
+    const guidedLearningModel = geminiConfig.advancedModel;
 
-      try {
-        const ai = new GoogleGenAI({ apiKey });
+    try {
+      const ai = new GoogleGenAI({ apiKey });
 
-        const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
+      const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
 Analyze the provided image and generate a guided learning experience as a JSON object.
 
 Return ONLY valid JSON with this exact structure:
@@ -1838,58 +1817,59 @@ Guidelines:
 - Make content educational and age-appropriate
 - Set autoAdvanceDuration to 5-15 seconds for non-question steps in guided mode`;
 
-        const userPrompt = prompt
-          ? `Additional instructions: ${sanitizePrompt(prompt)}`
-          : 'Analyze this educational image and create an engaging guided learning experience.';
+      const userPrompt = prompt
+        ? `Additional instructions: ${sanitizePrompt(prompt)}`
+        : 'Analyze this educational image and create an engaging guided learning experience.';
 
-        const response = await ai.models.generateContent({
-          model: guidedLearningModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: userPrompt },
-                {
-                  inlineData: {
-                    mimeType,
-                    data: imageBase64,
-                  },
+      const response = await ai.models.generateContent({
+        model: guidedLearningModel,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: userPrompt },
+              {
+                inlineData: {
+                  mimeType,
+                  data: imageBase64,
                 },
-              ],
-            },
-          ],
-          config: {
-            systemInstruction,
-            responseMimeType: 'application/json',
+              },
+            ],
           },
-        });
+        ],
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+        },
+      });
 
-        const rawText = response.text ?? '';
-        const parsed = JSON.parse(rawText) as GeneratedGuidedLearning;
+      const rawText = response.text ?? '';
+      const parsed = JSON.parse(rawText) as GeneratedGuidedLearning;
 
-        if (
-          !parsed.suggestedTitle ||
-          !Array.isArray(parsed.steps) ||
-          parsed.steps.length === 0
-        ) {
-          throw new Error('Invalid response structure from AI');
-        }
-
-        // Ensure all steps have IDs
-        parsed.steps = parsed.steps.map((step, i) => ({
-          ...step,
-          id: step.id || `step-${i + 1}-${Date.now()}`,
-        }));
-
-        return parsed;
-      } catch (error: unknown) {
-        console.error('[generateGuidedLearning] Gemini error:', error);
-        const detail = error instanceof Error ? error.message : 'unknown error';
-        const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
-        throw new functionsV1.https.HttpsError('internal', msg);
+      if (
+        !parsed.suggestedTitle ||
+        !Array.isArray(parsed.steps) ||
+        parsed.steps.length === 0
+      ) {
+        throw new Error('Invalid response structure from AI');
       }
+
+      // Ensure all steps have IDs
+      parsed.steps = parsed.steps.map((step, i) => ({
+        ...step,
+        id: step.id || `step-${i + 1}-${Date.now()}`,
+      }));
+
+      return parsed;
+    } catch (error: unknown) {
+      console.error('[generateGuidedLearning] Gemini error:', error);
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
+      throw new HttpsError('internal', msg);
     }
-  );
+  }
+);
+
 interface DashboardData {
   updatedAt?: number;
   widgets?: { type: string }[];
@@ -1910,13 +1890,15 @@ interface EngagementCounts {
  * Bumps memory and timeout to handle unbounded collection reads
  * while a more scalable (paginated/aggregated) solution is developed.
  */
-export const adminAnalytics = functionsV1
-  .runWith({
+export const adminAnalytics = onRequest(
+  {
+    memory: '4GiB',
     timeoutSeconds: 540,
-    memory: '4GB',
-  })
-  .https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
+    cors: ALLOWED_ORIGINS,
+    invoker: 'public',
+  },
+  async (req, res) => {
+    {
       console.log('[getAdminAnalytics] Function started');
 
       // 1. Verify caller is authenticated via Bearer token
@@ -2441,5 +2423,6 @@ export const adminAnalytics = functionsV1
             : 'An internal error occurred fetching analytics.';
         res.status(500).json({ error: 'internal', message: errorMessage });
       }
-    });
-  });
+    }
+  }
+);
