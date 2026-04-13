@@ -2553,23 +2553,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           d.widgets.forEach((w) => {
             if (idSet.has(w.id) && w.groupId) affectedGroupIds.add(w.groupId);
           });
-          let widgets = d.widgets.filter((w) => !idSet.has(w.id));
-          // Auto-dissolve groups with <=1 remaining member
+          const widgets = d.widgets.filter((w) => !idSet.has(w.id));
+
+          if (affectedGroupIds.size === 0) return { ...d, widgets };
+
+          // Count remaining members for each affected group
+          const groupCounts = new Map<string, number>();
+          widgets.forEach((w) => {
+            if (w.groupId && affectedGroupIds.has(w.groupId)) {
+              groupCounts.set(w.groupId, (groupCounts.get(w.groupId) ?? 0) + 1);
+            }
+          });
+
+          // Identify groups with <= 1 remaining member
+          const groupsToDissolve = new Set<string>();
           for (const gid of affectedGroupIds) {
-            const remaining = widgets.filter((w) => w.groupId === gid);
-            if (remaining.length <= 1) {
-              widgets = widgets.map((w) =>
-                w.groupId === gid ? { ...w, groupId: undefined } : w
-              );
+            if ((groupCounts.get(gid) ?? 0) <= 1) {
+              groupsToDissolve.add(gid);
             }
           }
-          return { ...d, widgets };
+
+          // Auto-dissolve identified groups
+          const finalWidgets =
+            groupsToDissolve.size > 0
+              ? widgets.map((w) =>
+                  w.groupId && groupsToDissolve.has(w.groupId)
+                    ? { ...w, groupId: undefined }
+                    : w
+                )
+              : widgets;
+
+          return { ...d, widgets: finalWidgets };
         })
       );
     },
     [activeId]
   );
-
   const clearAllStickers = useCallback(() => {
     if (!activeDashboard) return;
     const stickerWidgetIds = activeDashboard.widgets
