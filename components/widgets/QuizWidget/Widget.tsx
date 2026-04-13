@@ -57,6 +57,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     removeStudent,
     revealAnswer,
     hideAnswer,
+    broadcastLiveLeaderboard,
   } = useQuizSessionTeacher(user?.uid);
 
   // Local state for views that need loaded data
@@ -557,6 +558,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onRemoveStudent={removeStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
+        onBroadcastLiveLeaderboard={broadcastLiveLeaderboard}
       />
     );
   }
