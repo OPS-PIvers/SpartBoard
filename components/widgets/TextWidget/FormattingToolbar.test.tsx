@@ -101,13 +101,120 @@ describe('FormattingToolbar', () => {
     );
   });
 
-  it('increments font size via stepper button', () => {
-    render(<FormattingToolbar {...defaultProps} />);
-    const increaseButton = screen.getByTitle('Increase font size');
-    fireEvent.click(increaseButton);
+  it('wraps selection in <span style="font-size:Xpx"> when + is clicked', () => {
+    // Build an editor with a text node and select it
+    const editor = document.createElement('div');
+    const text = document.createTextNode('hello world');
+    editor.appendChild(text);
+    document.body.appendChild(editor);
 
-    // The marker-replacement technique calls fontSize with '7' as a marker
-    expect(execCommandMock).toHaveBeenCalledWith('fontSize', false, '7');
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const range = document.createRange();
+    range.selectNodeContents(text);
+
+    const mockSelection = {
+      anchorNode: text,
+      rangeCount: 1,
+      getRangeAt: () => range,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn(),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(
+      <FormattingToolbar
+        {...defaultProps}
+        editorRef={editorRef}
+        configFontSize={18}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Increase font size'));
+
+    // The selection should now be wrapped in a pixel-valued span
+    const span = editor.querySelector<HTMLSpanElement>(
+      'span[style*="font-size"]'
+    );
+    expect(span).not.toBeNull();
+    expect(span?.style.fontSize).toBe('19px');
+    expect(span?.textContent).toBe('hello world');
+    // No legacy <font> markers should leak into the DOM
+    expect(editor.querySelector('font')).toBeNull();
+    expect(mockOnContentChange).toHaveBeenCalled();
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('successive + clicks increment by 1px each (not jump to 48)', () => {
+    // Regression: previously the marker-replacement hack left selections
+    // stuck at <span style="font-size: xx-large"> (~48px) because
+    // styleWithCSS=true + fontSize='7' emits CSS, not <font size="7">.
+    const editor = document.createElement('div');
+    const text = document.createTextNode('abc');
+    editor.appendChild(text);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    // Selection mock: honours addRange so each click's applyFontSize can
+    // restore the selection it saved at the end of the previous click. For
+    // the very first click, seed the range to cover the editor's initial
+    // text node.
+    const initialRange = document.createRange();
+    initialRange.selectNodeContents(text);
+    let activeRange: Range = initialRange;
+
+    const mockSelection = {
+      get anchorNode() {
+        return activeRange.startContainer;
+      },
+      rangeCount: 1,
+      getRangeAt: () => activeRange,
+      removeAllRanges: () => {
+        /* noop */
+      },
+      addRange: (r: Range) => {
+        activeRange = r;
+      },
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(
+      <FormattingToolbar
+        {...defaultProps}
+        editorRef={editorRef}
+        configFontSize={18}
+      />
+    );
+
+    const increase = screen.getByTitle('Increase font size');
+    fireEvent.click(increase); // 18 -> 19
+    // Wait for React to commit so the stepper re-reads currentFontSize=19
+    // before the next click fires (the button's onClick closure captures it).
+    expect(screen.getByLabelText('Font size')).toHaveValue('19');
+    fireEvent.click(increase); // 19 -> 20
+    expect(screen.getByLabelText('Font size')).toHaveValue('20');
+
+    // The innermost span should reflect the final size.
+    const spans = editor.querySelectorAll<HTMLSpanElement>(
+      'span[style*="font-size"]'
+    );
+    expect(spans.length).toBeGreaterThan(0);
+    const innermost = spans[spans.length - 1];
+    expect(innermost.style.fontSize).toBe('20px');
+    // Critically, no element should have been sized to 48px or xx-large.
+    const allSizes = Array.from(spans).map((s) => s.style.fontSize);
+    expect(allSizes).not.toContain('48px');
+    expect(allSizes).not.toContain('xx-large');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
   });
 
   it('calls showPrompt when link button is clicked', async () => {
