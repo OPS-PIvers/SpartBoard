@@ -61,7 +61,7 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    match /admin_weather/{rangeId}/{fileName} {
+    match /admin_weather/{allPaths=**} {
       allow get: if request.auth != null; // Authenticated users can fetch images
       allow list: if isAdmin();           // Only admins can enumerate all images
       allow write: if isAdmin();
@@ -85,7 +85,7 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    match /catalyst/images/{routineId}/{fileName} {
+    match /catalyst/images/{allPaths=**} {
       allow get: if request.auth != null;
       allow list: if isAdmin();
       allow write: if isAdmin();
