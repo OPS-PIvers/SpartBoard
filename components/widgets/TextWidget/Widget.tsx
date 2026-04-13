@@ -49,7 +49,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const toolbarRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
   const lastExternalContent = useRef(content);
   const didInit = useRef(false);
@@ -66,8 +65,8 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Track container position so the portal toolbar can be placed above the widget.
   // Uses a lightweight RAF loop while selected to stay in sync during drag/resize.
   // Also broadcasts a `widget-toolbar-reservation` event so the containing
-  // DraggableWindow can stack its own floating toolbar outside the formatting
-  // toolbar (instead of overlapping on top of it).
+  // DraggableWindow can place its own tool menu on the opposite side instead
+  // of overlapping on top of the formatting toolbar.
   useEffect(() => {
     if (!isSelected || !containerRef.current) {
       return;
@@ -79,7 +78,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     let prevWidth = NaN;
     let prevHeight = NaN;
     let prevSide: 'above' | 'below' | null = null;
-    let prevToolbarHeight = NaN;
     const tick = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -101,13 +99,11 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         const side: 'above' | 'below' =
           top > TOOLBAR_FLIP_THRESHOLD ? 'above' : 'below';
-        const toolbarHeight = toolbarRef.current?.offsetHeight ?? 0;
-        if (side !== prevSide || toolbarHeight !== prevToolbarHeight) {
+        if (side !== prevSide) {
           prevSide = side;
-          prevToolbarHeight = toolbarHeight;
           window.dispatchEvent(
             new CustomEvent('widget-toolbar-reservation', {
-              detail: { widgetId, side, height: toolbarHeight },
+              detail: { widgetId, side },
             })
           );
         }
@@ -233,7 +229,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             toolbarPos &&
             createPortal(
               <div
-                ref={toolbarRef}
                 data-click-outside-ignore="true"
                 style={{
                   position: 'fixed',
