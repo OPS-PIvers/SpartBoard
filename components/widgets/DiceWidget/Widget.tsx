@@ -102,47 +102,31 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       content={
-        <>
-          <style>
-            {`
-              @keyframes dice-jitter {
-                0% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
-                25% { transform: scale(1.1) rotate(5deg) translate(2%, -2%); }
-                50% { transform: scale(1.1) rotate(-5deg) translate(-2%, 2%); }
-                75% { transform: scale(1.1) rotate(3deg) translate(1%, 1%); }
-                100% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
-              }
-              .animate-dice-jitter {
-                animation: dice-jitter 0.15s infinite linear;
-              }
-            `}
-          </style>
-          <div
-            className={[
-              'grid',
-              getGridCols(),
-              'justify-items-center',
-              'items-center',
-              'w-full',
-              'h-full',
-              'overflow-hidden',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={{ gap: '4cqmin', padding: '6cqmin' }}
-          >
-            {values.map((v, i) => (
-              <DiceFace
-                key={i}
-                value={v}
-                isRolling={isRolling}
-                diceColor={diceColor}
-                dotColor={dotColor}
-                size={getDiceSize()}
-              />
-            ))}
-          </div>
-        </>
+        <div
+          className={[
+            'grid',
+            getGridCols(),
+            'justify-items-center',
+            'items-center',
+            'w-full',
+            'h-full',
+            'overflow-hidden',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={{ gap: '4cqmin', padding: '6cqmin' }}
+        >
+          {values.map((v, i) => (
+            <DiceFace
+              key={i}
+              value={v}
+              isRolling={isRolling}
+              diceColor={diceColor}
+              dotColor={dotColor}
+              size={getDiceSize()}
+            />
+          ))}
+        </div>
       }
       footer={
         <div className="px-3 pb-3">

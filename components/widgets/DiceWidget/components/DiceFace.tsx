@@ -30,7 +30,7 @@ export const DiceFace: React.FC<DiceFaceProps> = ({
       className={`
         relative rounded-[22%] flex items-center justify-center
         transition-all duration-300
-        ${isRolling ? 'animate-dice-jitter shadow-2xl scale-110' : 'scale-100 rotate-0 shadow-lg'}
+        ${isRolling ? 'animate-dice-jitter shadow-2xl' : 'scale-100 rotate-0 shadow-lg'}
       `}
       style={{
         width: size,
