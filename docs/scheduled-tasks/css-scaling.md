@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-04-13_
-_Last action: 2026-04-12_
+_Last action: 2026-04-13_
 
 ---
 
@@ -72,16 +72,21 @@ _Nothing currently in progress._
 - **Detail:** A hover tooltip uses `className="... text-xs ..."`. Widget has `skipScaling: true`. Even though this is a hover-only element, it should scale consistently with the widget.
 - **Fix:** Replace `text-xs` with `style={{ fontSize: 'min(11px, 3.5cqmin)' }}`.
 
-### HIGH GraphicOrganizerWidget uses hardcoded Tailwind text sizes throughout content
-
-- **Detected:** 2026-04-12 (expanded 2026-04-13)
-- **File:** components/widgets/GraphicOrganizer/Widget.tsx:135, :150, :270, :286, :304, :319-320, :334-335, :349-350
-- **Detail:** Node type labels use `text-xs` (lines 135, 150). Node content text uses `text-sm` (lines 270, 286, 304). Node primary display uses `text-3xl` (lines 319-320, 334-335, 349-350). Widget has `skipScaling: true` — all these fixed Tailwind classes produce non-scaling text regardless of widget size.
-- **Fix:** Replace all Tailwind text-size classes with inline cqmin styles: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-3xl` → `style={{ fontSize: 'min(30px, 12cqmin)' }}`.
-
 ---
 
 ## Completed
+
+### HIGH GraphicOrganizerWidget uses hardcoded Tailwind text sizes throughout content
+
+- **Detected:** 2026-04-12 (expanded 2026-04-13)
+- **Completed:** 2026-04-13
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx
+- **Detail:** Node type labels used `text-xs` (Frayer corner labels x4), Venn content used `text-sm` (left/center/right), and KWL used `text-3xl` for K/W/L letters plus `text-sm` for captions. Widget has `skipScaling: true` — all these fixed Tailwind classes produced non-scaling text regardless of widget size.
+- **Resolution:** Converted all hardcoded text-size classes to inline `cqmin` styles:
+  - `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}` (4 Frayer corner labels)
+  - `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}` (3 Venn content nodes, 3 KWL captions)
+  - `text-3xl` → `style={{ fontSize: 'min(30px, 12cqmin)' }}` (3 KWL letter displays)
+  - Added `style?: React.CSSProperties` prop to the internal `EditableNode` component so contentEditable nodes can receive inline font-size without wrapping. All 1094 unit tests pass; `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` all clean.
 
 ### MEDIUM ClockWidget uses `cqh`/`cqw` separately instead of `cqmin`
 
