@@ -64,13 +64,20 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Track container position so the portal toolbar can be placed above the widget.
   // Uses a lightweight RAF loop while selected to stay in sync during drag/resize.
+  // Also broadcasts a `widget-toolbar-reservation` event so the containing
+  // DraggableWindow can place its own tool menu on the opposite side instead
+  // of overlapping on top of the formatting toolbar.
   useEffect(() => {
-    if (!isSelected || !containerRef.current) return;
+    if (!isSelected || !containerRef.current) {
+      return;
+    }
+    const widgetId = widget.id;
     let rafId = 0;
     let prevTop = NaN;
     let prevLeft = NaN;
     let prevWidth = NaN;
     let prevHeight = NaN;
+    let prevSide: 'above' | 'below' | null = null;
     const tick = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -90,12 +97,29 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           prevHeight = height;
           setToolbarPos({ top, left, width, height });
         }
+        const side: 'above' | 'below' =
+          top > TOOLBAR_FLIP_THRESHOLD ? 'above' : 'below';
+        if (side !== prevSide) {
+          prevSide = side;
+          window.dispatchEvent(
+            new CustomEvent('widget-toolbar-reservation', {
+              detail: { widgetId, side },
+            })
+          );
+        }
       }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [isSelected]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.dispatchEvent(
+        new CustomEvent('widget-toolbar-reservation', {
+          detail: { widgetId, side: null },
+        })
+      );
+    };
+  }, [isSelected, widget.id]);
 
   // On first render, set initial content. On subsequent renders, sync external
   // content changes into the DOM only when not actively editing and only when

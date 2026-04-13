@@ -1063,6 +1063,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // always call the current version without being in its dependency array.
   const updatePositionRef = useRef<(() => void) | null>(null);
 
+  // Widget-local floating toolbar reservation (e.g. TextWidget's rich-text
+  // toolbar). When set, this tool menu flips to the opposite side of the
+  // widget so the two toolbars don't overlap.
+  const toolbarReservationRef = useRef<'above' | 'below' | null>(null);
+
   useLayoutEffect(() => {
     if (showTools && windowRef.current) {
       const updatePosition = () => {
@@ -1096,8 +1101,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // and clamp to keep the toolbar on-screen.
         const spaceAbove = effectiveTop;
         const spaceBelow = window.innerHeight - effectiveBottom;
-        const showBelow =
-          spaceAbove < menuHeight + MARGIN && spaceBelow >= spaceAbove;
+        // If the widget has reserved a side for its own floating toolbar
+        // (e.g. TextWidget's formatting toolbar), prefer the opposite side
+        // so the two don't overlap. Fall back to the reserved side if the
+        // opposite is too tight; if neither fits, pick whichever has more
+        // room. With no reservation, prefer above and flip below only when
+        // above is tight and below has more room.
+        const reservation = toolbarReservationRef.current;
+        const needed = menuHeight + MARGIN;
+        const fitsAbove = spaceAbove >= needed;
+        const fitsBelow = spaceBelow >= needed;
+        let showBelow: boolean;
+        if (reservation === 'above') {
+          showBelow = fitsBelow || (!fitsAbove && spaceBelow >= spaceAbove);
+        } else if (reservation === 'below') {
+          showBelow = !fitsAbove && (fitsBelow || spaceBelow >= spaceAbove);
+        } else {
+          showBelow = !fitsAbove && spaceBelow >= spaceAbove;
+        }
         const rawTopPos = showBelow
           ? effectiveBottom + MARGIN
           : effectiveTop - menuHeight - MARGIN;
@@ -1226,6 +1247,32 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     window.addEventListener('board-pan', handlePan);
     return () => window.removeEventListener('board-pan', handlePan);
   }, [showTools]);
+
+  // Listen for widget-local toolbar reservations so this tool menu can flip
+  // to the opposite side of (not overlap) a widget's own floating toolbar
+  // (e.g. TextWidget). Only reservations for this widget's id are honored.
+  useEffect(() => {
+    const widgetId = widget.id;
+    const handleReservation = (e: Event) => {
+      const detail = (
+        e as CustomEvent<{
+          widgetId: string;
+          side: 'above' | 'below' | null;
+        }>
+      ).detail;
+      if (!detail || detail.widgetId !== widgetId) return;
+      if (toolbarReservationRef.current === detail.side) return;
+      toolbarReservationRef.current = detail.side;
+      updatePositionRef.current?.();
+    };
+    window.addEventListener('widget-toolbar-reservation', handleReservation);
+    return () => {
+      window.removeEventListener(
+        'widget-toolbar-reservation',
+        handleReservation
+      );
+    };
+  }, [widget.id]);
 
   useEffect(() => {
     const handleCustomKeyboard = (e: Event) => {
