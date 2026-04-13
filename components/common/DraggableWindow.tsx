@@ -1443,6 +1443,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         isMaximized ? 'border-none !shadow-none' : ''
       } ${isGroupActive || isGroupBuildSelected ? 'ring-2 ring-brand-blue-light/60' : ''}`}
       bgClass={widget.backgroundColor}
+      bgHex={
+        (widget.config as Record<string, unknown>)?.cardColor as
+          | string
+          | undefined
+      }
       style={{
         left: isMaximized
           ? 0

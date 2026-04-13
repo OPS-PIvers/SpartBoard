@@ -14,7 +14,6 @@ import { Calendar, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
-import { hexToRgba } from '@/utils/styles';
 
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 const parseTime = (t: string | undefined): number => {
@@ -80,8 +79,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     fontFamily = 'global',
     fontColor = '#334155',
     textSizePreset,
-    cardColor = '#ffffff',
-    cardOpacity = 1,
+
     specialistClass = '',
     recurringItems = [],
   } = config;
@@ -292,8 +290,8 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 parseTime(item.endTime ?? item.startTime) <
                   now.getHours() * 60 + now.getMinutes();
               const bgColor = isPast
-                ? hexToRgba('#cbd5e1', cardOpacity)
-                : hexToRgba(cardColor, cardOpacity);
+                ? 'rgba(203, 213, 225, 0.4)'
+                : 'transparent';
 
               return (
                 <div

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Circle, CheckCircle2 } from 'lucide-react';
-import { hexToRgba } from '@/utils/styles';
 
 interface ChecklistCardProps {
   id: string;
@@ -11,8 +10,7 @@ interface ChecklistCardProps {
   iconSize: string;
   cardPadding: string;
   cardGap: string;
-  cardColor: string;
-  cardOpacity: number;
+
   fontColor: string;
 }
 
@@ -26,8 +24,7 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
     iconSize,
     cardPadding,
     cardGap,
-    cardColor,
-    cardOpacity,
+
     fontColor,
   }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -39,10 +36,10 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
 
     // Use the user-selected card color. Completed items get a neutral gray tint.
     const bgColor = isCompleted
-      ? hexToRgba('#cbd5e1', cardOpacity) // slate-300
-      : hexToRgba(cardColor, cardOpacity);
+      ? 'rgba(203, 213, 225, 0.4)' // slate-300
+      : 'transparent';
 
-    const borderColor = hexToRgba('#e2e8f0', cardOpacity); // slate-200
+    const borderColor = 'rgba(226, 232, 240, 1)'; // slate-200
 
     return (
       <div
@@ -56,9 +53,7 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
           gap: cardGap,
           padding: cardPadding,
           backgroundColor: bgColor,
-          borderColor: isCompleted
-            ? hexToRgba('#e2e8f0', cardOpacity * 0.5)
-            : borderColor,
+          borderColor: isCompleted ? 'rgba(226, 232, 240, 0.5)' : borderColor,
         }}
       >
         <div className="shrink-0 transition-transform active:scale-90">

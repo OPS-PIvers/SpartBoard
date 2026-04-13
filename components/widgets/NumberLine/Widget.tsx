@@ -3,7 +3,6 @@ import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, NumberLineConfig, NumberLineMarker } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
-import { hexToRgba } from '@/utils/styles';
 
 function fractionLabel(num: number, denom: number): string {
   const sign = num < 0 ? -1 : 1;
@@ -40,8 +39,6 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     markers = [],
     jumps = [],
     showArrows,
-    cardColor = '#ffffff',
-    cardOpacity = 1,
   } = config;
 
   useEffect(() => {
@@ -127,7 +124,6 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
         <div
           ref={containerRef}
           className="h-full w-full flex flex-col relative rounded-xl overflow-hidden"
-          style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
         >
           <div className="flex-1 overflow-visible">
             <svg

@@ -8,7 +8,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { getFontClass, hexToRgba } from '@/utils/styles';
+import { getFontClass } from '@/utils/styles';
 
 const EditableNode: React.FC<{
   id: string;
@@ -112,9 +112,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   const currentFontFamily = config.fontFamily ?? templateFontFamily ?? 'global';
   const fontClass = getFontClass(currentFontFamily, globalStyle.fontFamily);
   const nodes = config.nodes ?? {};
-  const cardColor = config.cardColor ?? '#ffffff';
-  const cardOpacity = config.cardOpacity ?? 1;
-  const cellBg = hexToRgba(cardColor, cardOpacity);
+
+  const cellBg = 'transparent';
 
   const handleUpdate = (id: string, text: string) => {
     updateWidget(widget.id, {

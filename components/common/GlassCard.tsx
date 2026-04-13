@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { DEFAULT_GLOBAL_STYLE, GlobalStyle } from '@/types';
+import { hexToRgba } from '@/utils/styles';
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   selected?: boolean;
   disableBlur?: boolean;
   bgClass?: string;
+  bgHex?: string;
 }
 
 export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
@@ -27,6 +29,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       selected = false,
       allowInvisible: _allowInvisible,
       bgClass,
+      bgHex,
       style,
       ...props
     },
@@ -56,7 +59,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
         style={{
           backgroundColor: bgClass
             ? undefined
-            : `rgba(255, 255, 255, ${finalTransparency})`,
+            : hexToRgba(bgHex, finalTransparency),
           border: `1px solid rgba(255, 255, 255, ${Math.min(1, 0.3 * factor)})`,
           boxShadow: selected
             ? `0 0 0 2px rgba(99, 102, 241, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.25)`
