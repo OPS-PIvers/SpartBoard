@@ -62,37 +62,44 @@ service firebase.storage {
     }
 
     match /admin_weather/{rangeId}/{fileName} {
-      allow read: if true; // Weather images are public
+      allow get: if request.auth != null; // Authenticated users can fetch images
+      allow list: if isAdmin();           // Only admins can enumerate all images
       allow write: if isAdmin();
     }
 
     match /admin_stickers/{fileName} {
-      allow read: if true;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     match /admin_work_symbols/{fileName} {
-      allow read: if true;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     match /admin_catalyst_icons/{allPaths=**} {
-      allow read: if true;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     match /catalyst/images/{routineId}/{fileName} {
-      allow read: if true;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     match /admin_music_thumbnails/{allPaths=**} {
-      allow read: if true;
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
       allow write: if isAdmin();
     }
 
     match /admin_logos/{fileName} {
-      allow read: if true; // Logo should be public for all users
+      allow get: if true;        // Logo remains public for fetching (e.g. login screen)
+      allow list: if isAdmin();   // Only admins can enumerate the logos directory
       allow write: if isAdmin();
     }
 
