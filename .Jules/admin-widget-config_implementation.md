@@ -620,7 +620,8 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
         -- video-activity-audio-transcription: Admin-only global toggle to allow Gemini AI audio transcription for uncaptioned videos.
         -- dockDefaults: Per-building dock visibility.
 
-[x] Guided Learning
+[x] Guided Learning — Type: `guided-learning` | Label: "Guided Learning"
+Config: `components/admin/GuidedLearningConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
     - [Default User-Level Settings]
         -- None natively configurable. Settings are configured per-set inside the editor.
     - [Admin-Only Settings]
@@ -632,7 +633,8 @@ create `components/admin/WebcamConfigurationPanel.tsx` and register in `BUILDING
     - [Admin-Only Settings]
         -- None added currently.
 
-[x] Remote
+[x] Remote — Type: `remote` | Label: "Remote"
+Config: `components/admin/RemoteConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
     - [Default User-Level Settings]
         -- None natively configurable.
     - [Admin-Only Settings]
@@ -654,7 +656,8 @@ Config: `components/admin/UrlConfigurationPanel.tsx` _(dedicated panel via `BUIL
     - [Admin-Only Settings]
         -- dockDefaults: Per-building dock visibility.
 
-[x] First 5
+[x] First 5 — Type: `first-5` | Label: "First 5"
+Config: `components/admin/First5ConfigurationPanel.tsx` _(dedicated panel via `BUILDING_CONFIG_PANELS`)_
     - [Default User-Level Settings]
         -- None natively configurable.
     - [Admin-Only Settings]
@@ -687,4 +690,22 @@ Config: `components/admin/RecordConfigurationPanel.tsx` _(dedicated panel via `B
     - [Admin-Only Settings]
         -- maxDurationMinutes: Maximum allowed duration for screen recordings.
         -- maxResolution: Maximum resolution cap for recordings.
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Work Symbols — Type: `work-symbols` | Label: "Work Symbols"
+Config: `components/admin/WorkSymbolsConfigurationModal.tsx` _(separate modal)_
+    - [Default User-Level Settings]
+        -- None natively configurable per building.
+    - [Admin-Only Settings]
+        -- symbols: Global library of symbols assigned to buildings.
+        -- dockDefaults: Per-building dock visibility.
+
+[x] Bloom's Taxonomy — Type: `blooms-taxonomy` | Label: "Bloom's Taxonomy"
+Config: `components/admin/BloomsTaxonomyConfigurationModal.tsx` _(separate modal)_
+    - [Default User-Level Settings]
+        -- enabledCategories: Default selected content categories when widget is added.
+    - [Admin-Only Settings]
+        -- availableCategories: Which categories are available per building.
+        -- aiEnabled: Toggle for AI content generation per building.
+        -- customContent: Overridden content items per level and category.
         -- dockDefaults: Per-building dock visibility.
