@@ -4,14 +4,18 @@ import { useState, useCallback } from 'react';
 import { useNutrislice } from './useNutrislice';
 import { LunchCountConfig, WidgetData } from '@/types';
 
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(),
+  getFunctions: vi.fn(),
+}));
+import { httpsCallable } from 'firebase/functions';
+
 describe('useNutrislice', () => {
   const mockUpdateWidget = vi.fn((id: string, updates: Partial<WidgetData>) => {
-    // Mock implementation
     return { id, updates };
   });
   const mockAddToast = vi.fn(
     (message: string, type?: 'info' | 'success' | 'error') => {
-      // Mock implementation
       return { message, type };
     }
   );
@@ -50,7 +54,6 @@ describe('useNutrislice', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    global.fetch = vi.fn();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2023-10-27T12:00:00Z'));
   });
@@ -89,23 +92,18 @@ describe('useNutrislice', () => {
   };
 
   it('should sync menu when data is missing or outdated', async () => {
-    (global.fetch as Mock).mockImplementation(async () => {
-      await new Promise((r) => setTimeout(r, 10));
-      return {
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify(mockMenuData)),
-      };
-    });
+    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
 
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(mockProxy).toHaveBeenCalledTimes(1);
     });
 
-    const fetchUrl = (global.fetch as Mock).mock.calls[0][0] as string;
+    const lastCall = mockProxy.mock.calls[0][0] as { url: string };
+    const fetchUrl = lastCall.url;
     expect(fetchUrl).toContain('schumann-elementary');
-    // URL is encoded, so we check for encoded date parts or just verify logic
     expect(fetchUrl).toContain('2023');
     expect(fetchUrl).toContain('10');
     expect(fetchUrl).toContain('27');
@@ -114,16 +112,14 @@ describe('useNutrislice', () => {
       expect(mockUpdateWidget).toHaveBeenCalledWith(
         mockWidgetId,
         expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           config: expect.objectContaining({
             cachedMenu: {
               hotLunch: 'Cheese Pizza',
               bentoBox: 'Veggie Bento Box',
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              date: expect.any(String),
+              date: expect.any(String) as string,
             },
             syncError: null,
-          }),
+          }) as unknown,
         })
       );
     });
@@ -134,53 +130,10 @@ describe('useNutrislice', () => {
     );
   });
 
-  it('should try fallback proxies if first one fails', async () => {
-    // First proxy fails, then success
-    let callCount = 0;
-    (global.fetch as Mock).mockImplementation(async () => {
-      await new Promise((r) => setTimeout(r, 10));
-      callCount++;
-      if (callCount === 1) {
-        throw new Error('Network Error');
-      }
-      return {
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify(mockMenuData)),
-      };
-    });
+  it('should handle proxy failure', async () => {
+    const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
 
-    render(<TestComponent />);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-
-    await waitFor(() => {
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        mockWidgetId,
-        expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          config: expect.objectContaining({
-            cachedMenu: {
-              hotLunch: 'Cheese Pizza',
-              bentoBox: 'Veggie Bento Box',
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              date: expect.any(String),
-            },
-          }),
-        })
-      );
-    });
-  });
-
-  it('should handle all proxies failing', async () => {
-    // All proxies fail
-    (global.fetch as Mock).mockImplementation(async () => {
-      await new Promise((r) => setTimeout(r, 10));
-      throw new Error('Fail');
-    });
-
-    // Mock console.error to suppress expected error output
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
@@ -191,19 +144,16 @@ describe('useNutrislice', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      // Should try 3 proxies and then stop because syncError is set
-      expect(global.fetch).toHaveBeenCalledTimes(3);
+      expect(mockProxy).toHaveBeenCalledTimes(1);
     });
 
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       mockWidgetId,
       expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         config: expect.objectContaining({
           syncError: 'E-SYNC-404',
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          lastSyncDate: expect.any(String),
-        }),
+          lastSyncDate: expect.any(String) as string,
+        }) as unknown,
       })
     );
 
@@ -216,7 +166,7 @@ describe('useNutrislice', () => {
   it('should not sync if data is up-to-date', async () => {
     const freshConfig: LunchCountConfig = {
       ...mockConfig,
-      lastSyncDate: new Date().toISOString(), // Same as mocked system time
+      lastSyncDate: new Date().toISOString(),
       cachedMenu: {
         hotLunch: 'Old Lunch',
         bentoBox: 'Old Bento',
@@ -224,12 +174,14 @@ describe('useNutrislice', () => {
       },
     };
 
+    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
     render(<TestComponent initialConfig={freshConfig} />);
 
-    // Advance fake timers a bit to ensure no async calls happen
     await vi.advanceTimersByTimeAsync(100);
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockProxy).not.toHaveBeenCalled();
   });
 
   it('should parse Bento Box correctly', async () => {
@@ -244,20 +196,15 @@ describe('useNutrislice', () => {
             },
             {
               section_name: 'Special',
-              food: { name: 'Teriyaki Bento' }, // Should be picked up
+              food: { name: 'Teriyaki Bento' },
             },
           ],
         },
       ],
     };
 
-    (global.fetch as Mock).mockImplementation(async () => {
-      await new Promise((r) => setTimeout(r, 10));
-      return {
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify(bentoData)),
-      };
-    });
+    const mockProxy = vi.fn().mockResolvedValue({ data: bentoData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
 
     render(<TestComponent />);
 
@@ -265,15 +212,13 @@ describe('useNutrislice', () => {
       expect(mockUpdateWidget).toHaveBeenCalledWith(
         mockWidgetId,
         expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           config: expect.objectContaining({
             cachedMenu: {
               hotLunch: 'Chicken Nuggets',
               bentoBox: 'Teriyaki Bento',
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              date: expect.any(String),
+              date: expect.any(String) as string,
             },
-          }),
+          }) as unknown,
         })
       );
     });

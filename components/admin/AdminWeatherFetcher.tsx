@@ -94,45 +94,11 @@ export const AdminWeatherFetcher: React.FC = () => {
             const result = await fetchProxy({ url });
             data = result.data;
             console.warn('[AdminWeatherFetcher] Fetched via Cloud Proxy');
-          } catch (_proxyErr) {
-            console.warn(
-              '[AdminWeatherFetcher] Cloud Proxy failed, trying public proxies'
+          } catch (proxyErr) {
+            console.error(
+              '[AdminWeatherFetcher] Cloud Proxy failed:',
+              proxyErr
             );
-            const proxies = [
-              (u: string) =>
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-              (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-              (u: string) =>
-                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-            ];
-
-            for (const getProxyUrl of proxies) {
-              try {
-                const res = await fetch(getProxyUrl(url), {
-                  signal: abortController.signal,
-                });
-                if (!res.ok) continue;
-                const text = await res.text();
-                const trimmed = text.trim();
-                if (
-                  !trimmed ||
-                  trimmed.startsWith('<') ||
-                  trimmed.toLowerCase().startsWith('<!doctype')
-                ) {
-                  continue;
-                }
-                data = JSON.parse(trimmed) as EarthNetworksResponse;
-                if (data && data.o) break;
-              } catch (innerErr) {
-                if (
-                  innerErr instanceof Error &&
-                  innerErr.name === 'AbortError'
-                ) {
-                  return;
-                }
-                /* try next proxy */
-              }
-            }
           }
 
           if (data?.o) {
