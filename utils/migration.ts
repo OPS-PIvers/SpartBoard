@@ -127,9 +127,7 @@ export const migrateLocalStorageToFirestore = async (
   try {
     const dashboards = JSON.parse(localData) as Dashboard[];
 
-    for (const dashboard of dashboards) {
-      await saveDashboard(dashboard);
-    }
+    await Promise.all(dashboards.map((dashboard) => saveDashboard(dashboard)));
 
     // Clear localStorage after successful migration
     localStorage.removeItem('classroom_dashboards');
