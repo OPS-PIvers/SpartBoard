@@ -46,12 +46,18 @@ import { SettingsPanel } from './SettingsPanel';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
-import { WIDGET_PALETTE } from '@/config/colors';
+import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { useDialog } from '@/context/useDialog';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
 const SCREENSHOT_BLACKLIST: WidgetType[] = ['webcam', 'embed'];
+
+// Hex → human-readable color name, for screen-reader aria-labels on the
+// annotation palette. Falls back to the raw hex when unknown.
+const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(STANDARD_COLORS).map(([name, hex]) => [hex, name])
+);
 
 // Custom size picker grid dimensions
 const GRID_COLS = 8;
@@ -1634,7 +1640,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         e.stopPropagation();
                         setAnnotationColor(c);
                       }}
-                      aria-label={`Select annotation color ${c}`}
+                      aria-label={`Select annotation color ${COLOR_HEX_TO_NAME[c] ?? c}`}
                       aria-pressed={annotationColor === c}
                       className={`relative w-5 h-5 rounded-full border border-slate-100 transition-transform touch-target-expand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${annotationColor === c ? 'scale-125 ring-2 ring-slate-400 z-10' : 'hover:scale-110'}`}
                       style={{ backgroundColor: c }}

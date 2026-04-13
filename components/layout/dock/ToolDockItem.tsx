@@ -174,7 +174,7 @@ export const ToolDockItem = React.memo(
                         onDelete(widget.id);
                         if (minimizedWidgets.length <= 1) setShowPopover(false);
                       }}
-                      className="p-1 text-slate-500 hover:text-red-600 hover:bg-red-50/50 rounded-md transition-[color,background-color,opacity] opacity-0 group-hover:opacity-100 touch-target-expand"
+                      className="relative p-1 text-slate-500 hover:text-red-600 hover:bg-red-50/50 rounded-md transition-[color,background-color,opacity] opacity-0 group-hover:opacity-100 touch-target-expand"
                       aria-label="Close Widget"
                       title="Close Widget"
                     >
