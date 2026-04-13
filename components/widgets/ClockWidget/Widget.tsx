@@ -59,7 +59,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       padding="p-0"
       content={
         <div
-          className={`flex flex-col items-center justify-center h-full w-full gap-[0.5cqh] transition-all duration-500 ${
+          className={`flex flex-col items-center justify-center h-full w-full gap-[0.5cqmin] transition-all duration-500 ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
         >
@@ -67,7 +67,9 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             data-testid="clock-time-container"
             className={`flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()}`}
             style={{
-              fontSize: showSeconds ? 'min(82cqh, 20cqw)' : 'min(82cqh, 25cqw)',
+              fontSize: showSeconds
+                ? 'clamp(24px, 40cqmin, 160px)'
+                : 'clamp(24px, 50cqmin, 200px)',
               color: themeColor,
               textShadow: glow
                 ? `0 0 0.1em ${themeColor}, 0 0 0.25em ${themeColor}66`
@@ -122,7 +124,7 @@ export const ClockWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
           <div
             className={`opacity-60 uppercase tracking-[0.2em] text-slate-900 ${getFontClass()}`}
-            style={{ fontSize: 'min(12cqh, 80cqw)', fontWeight: 900 }}
+            style={{ fontSize: 'clamp(10px, 12cqmin, 28px)', fontWeight: 900 }}
           >
             {time.toLocaleDateString(i18n.language, {
               weekday: 'long',

@@ -15,8 +15,9 @@ const EditableNode: React.FC<{
   initialText: string;
   onUpdate: (id: string, text: string) => void;
   className?: string;
+  style?: React.CSSProperties;
   placeholder?: string;
-}> = ({ id, initialText, onUpdate, className, placeholder }) => {
+}> = ({ id, initialText, onUpdate, className, style, placeholder }) => {
   const contentEditableRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onUpdateRef = useRef(onUpdate);
@@ -73,6 +74,7 @@ const EditableNode: React.FC<{
       onInput={handleInput}
       onBlur={handleBlur}
       className={`outline-none min-h-[50px] whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
+      style={style}
       data-placeholder={placeholder}
     />
   );
@@ -132,7 +134,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         className="border-2 border-slate-300 rounded p-4 relative"
         style={{ backgroundColor: cellBg }}
       >
-        <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
+        <div
+          className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
+          style={{ fontSize: 'min(11px, 4cqmin)' }}
+        >
           {selectedTemplate?.defaultNodes?.topLeft ?? 'Definition'}
         </div>
         <EditableNode
@@ -147,7 +152,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         className="border-2 border-slate-300 rounded p-4 relative"
         style={{ backgroundColor: cellBg }}
       >
-        <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
+        <div
+          className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
+          style={{ fontSize: 'min(11px, 4cqmin)' }}
+        >
           {selectedTemplate?.defaultNodes?.topRight ?? 'Characteristics'}
         </div>
         <EditableNode
@@ -162,7 +170,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         className="border-2 border-slate-300 rounded p-4 relative"
         style={{ backgroundColor: cellBg }}
       >
-        <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
+        <div
+          className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
+          style={{ fontSize: 'min(11px, 4cqmin)' }}
+        >
           {selectedTemplate?.defaultNodes?.bottomLeft ?? 'Examples'}
         </div>
         <EditableNode
@@ -177,7 +188,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         className="border-2 border-slate-300 rounded p-4 relative"
         style={{ backgroundColor: cellBg }}
       >
-        <div className="absolute top-2 left-2 text-xs font-bold text-slate-500 uppercase">
+        <div
+          className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
+          style={{ fontSize: 'min(11px, 4cqmin)' }}
+        >
           {selectedTemplate?.defaultNodes?.bottomRight ?? 'Non-Examples'}
         </div>
         <EditableNode
@@ -267,7 +281,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="left"
             initialText={nodes['left']?.text ?? ''}
             onUpdate={handleUpdate}
-            className="text-sm"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
             placeholder="Unique to A"
           />
         </div>
@@ -283,7 +297,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="center"
             initialText={nodes['center']?.text ?? ''}
             onUpdate={handleUpdate}
-            className="text-sm"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
             placeholder="Shared"
           />
         </div>
@@ -301,7 +315,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="right"
             initialText={nodes['right']?.text ?? ''}
             onUpdate={handleUpdate}
-            className="text-sm"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
             placeholder="Unique to B"
           />
         </div>
@@ -316,8 +330,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
     >
       <div className="border-r-2 border-slate-300 flex flex-col h-full">
         <div className="bg-blue-100 p-3 text-center border-b-2 border-slate-300">
-          <div className="text-3xl font-black text-blue-800">K</div>
-          <div className="text-sm font-bold text-blue-600 uppercase">
+          <div
+            className="font-black text-blue-800"
+            style={{ fontSize: 'min(30px, 12cqmin)' }}
+          >
+            K
+          </div>
+          <div
+            className="font-bold text-blue-600 uppercase"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
             {selectedTemplate?.defaultNodes?.k ?? 'What I Know'}
           </div>
         </div>
@@ -331,8 +353,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
       </div>
       <div className="border-r-2 border-slate-300 flex flex-col h-full">
         <div className="bg-amber-100 p-3 text-center border-b-2 border-slate-300">
-          <div className="text-3xl font-black text-amber-800">W</div>
-          <div className="text-sm font-bold text-amber-600 uppercase">
+          <div
+            className="font-black text-amber-800"
+            style={{ fontSize: 'min(30px, 12cqmin)' }}
+          >
+            W
+          </div>
+          <div
+            className="font-bold text-amber-600 uppercase"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
             {selectedTemplate?.defaultNodes?.w ?? 'What I Wonder'}
           </div>
         </div>
@@ -346,8 +376,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
       </div>
       <div className="flex flex-col h-full">
         <div className="bg-green-100 p-3 text-center border-b-2 border-slate-300">
-          <div className="text-3xl font-black text-green-800">L</div>
-          <div className="text-sm font-bold text-green-600 uppercase">
+          <div
+            className="font-black text-green-800"
+            style={{ fontSize: 'min(30px, 12cqmin)' }}
+          >
+            L
+          </div>
+          <div
+            className="font-bold text-green-600 uppercase"
+            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          >
             {selectedTemplate?.defaultNodes?.l ?? 'What I Learned'}
           </div>
         </div>
