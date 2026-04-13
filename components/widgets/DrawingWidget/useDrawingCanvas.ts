@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Point, Path } from '@/types';
+import { DrawableObject, PathObject, Point } from '@/types';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   color: string;
   width: number;
-  paths: Path[];
-  onPathComplete: (path: Path) => void;
+  objects: DrawableObject[];
+  onObjectComplete: (obj: DrawableObject) => void;
   /** CSS transform scale applied to the canvas by a parent ScalableWidget.
    *  Pass `1` for full-viewport overlays where no parent scaling applies. */
   scale?: number;
@@ -14,6 +14,12 @@ interface UseDrawingCanvasOptions {
   disabled?: boolean;
   /** Internal canvas resolution. Re-applies on change. */
   canvasSize: { width: number; height: number };
+  /** Generate an id for a newly-completed path object. Injected so tests can
+   *  produce deterministic output without mocking crypto. */
+  generateId?: () => string;
+  /** Next z-index to assign to the completed path object. Owned by caller so
+   *  this hook stays stateless w.r.t. object history. */
+  nextZ: number;
 }
 
 interface UseDrawingCanvasResult {
@@ -25,18 +31,21 @@ interface UseDrawingCanvasResult {
 
 /**
  * Shared canvas-drawing logic for the DrawingWidget and the AnnotationOverlay.
- * Handles stroke rendering, pointer handling, and history-on-path-complete.
- * The caller owns the paths state and history semantics.
+ * Renders a polymorphic list of DrawableObjects and captures freehand strokes
+ * as new PathObjects (Phase 2a: path-only rendering; shape/text/image kinds
+ * are recognized by the dispatcher but render nothing until their PRs land).
  */
 export const useDrawingCanvas = ({
   canvasRef,
   color,
   width,
-  paths,
-  onPathComplete,
+  objects,
+  onObjectComplete,
   scale = 1,
   disabled = false,
   canvasSize,
+  generateId = () => crypto.randomUUID(),
+  nextZ,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const currentPathRef = useRef<Point[]>([]);
@@ -58,41 +67,26 @@ export const useDrawingCanvas = ({
   );
 
   const draw = useCallback(
-    (ctx: CanvasRenderingContext2D, allPaths: Path[], current: Point[]) => {
+    (
+      ctx: CanvasRenderingContext2D,
+      allObjects: DrawableObject[],
+      current: Point[]
+    ) => {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-      const renderPath = (p: Path) => {
-        if (p.points.length < 2) return;
-        ctx.beginPath();
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+      // Render in z-order so later PRs (shapes, images, text) can layer cleanly
+      // without needing to touch this call site.
+      const sorted = [...allObjects].sort((a, b) => a.z - b.z);
+      sorted.forEach((obj) => renderObject(ctx, obj));
 
-        if (p.color === 'eraser') {
-          ctx.globalCompositeOperation = 'destination-out';
-          ctx.strokeStyle = 'rgba(0,0,0,1)';
-        } else {
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.strokeStyle = p.color;
-        }
-
-        ctx.lineWidth = p.width;
-        ctx.moveTo(p.points[0].x, p.points[0].y);
-        for (let i = 1; i < p.points.length; i++) {
-          ctx.lineTo(p.points[i].x, p.points[i].y);
-        }
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-      };
-
-      allPaths.forEach(renderPath);
       if (current.length > 1) {
-        renderPath({ points: current, color, width });
+        renderPathPoints(ctx, current, color, width);
       }
     },
     [color, width]
   );
 
-  // Apply canvas resolution + redraw on size or paths change
+  // Apply canvas resolution + redraw on size / object-list change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -102,8 +96,8 @@ export const useDrawingCanvas = ({
     if (canvas.width !== canvasSize.width) canvas.width = canvasSize.width;
     if (canvas.height !== canvasSize.height) canvas.height = canvasSize.height;
 
-    draw(ctx, paths, currentPathRef.current);
-  }, [canvasRef, canvasSize.width, canvasSize.height, paths, draw]);
+    draw(ctx, objects, currentPathRef.current);
+  }, [canvasRef, canvasSize.width, canvasSize.height, objects, draw]);
 
   const getPos = useCallback(
     (e: React.PointerEvent): Point => {
@@ -158,14 +152,66 @@ export const useDrawingCanvas = ({
     if (!isDrawing) return;
     setIsDrawing(false);
     if (currentPathRef.current.length > 1) {
-      onPathComplete({
+      const completed: PathObject = {
+        id: generateId(),
+        kind: 'path',
+        z: nextZ,
         points: currentPathRef.current,
         color,
         width,
-      });
+      };
+      onObjectComplete(completed);
     }
     currentPathRef.current = [];
-  }, [isDrawing, onPathComplete, color, width]);
+  }, [isDrawing, onObjectComplete, color, width, generateId, nextZ]);
 
   return { handleStart, handleMove, handleEnd, isDrawing };
+};
+
+// --- Object dispatcher ---
+// Phase 2a only renders `path` objects. Later PRs fill in the remaining
+// `kind` branches (rect, ellipse, line, arrow, text, image).
+
+const renderObject = (
+  ctx: CanvasRenderingContext2D,
+  obj: DrawableObject
+): void => {
+  switch (obj.kind) {
+    case 'path':
+      renderPathPoints(ctx, obj.points, obj.color, obj.width);
+      return;
+    case 'rect':
+    case 'ellipse':
+    case 'line':
+    case 'arrow':
+    case 'text':
+    case 'image':
+      return;
+  }
+};
+
+const renderPathPoints = (
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  color: string,
+  width: number
+): void => {
+  if (points.length < 2) return;
+  ctx.beginPath();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (color === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = color;
+  }
+  ctx.lineWidth = width;
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
 };

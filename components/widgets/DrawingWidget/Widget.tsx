@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DrawingConfig, Path, TextConfig } from '@/types';
+import { WidgetData, DrawableObject, DrawingConfig, TextConfig } from '@/types';
 import { Pencil, Eraser, Trash2, Undo2, Type } from 'lucide-react';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
@@ -8,6 +8,7 @@ import { Button } from '@/components/common/Button';
 import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
+import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
 
 export const DrawingWidget: React.FC<{
   widget: WidgetData;
@@ -17,11 +18,17 @@ export const DrawingWidget: React.FC<{
   const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
   const { canAccessFeature } = useAuth();
 
-  const config = widget.config as DrawingConfig;
+  // Defensive migration — the canonical migration happens during dashboard
+  // hydration, but widgets constructed in tests or edge cases may still
+  // carry the legacy `paths[]` shape.
+  const config = useMemo(
+    () => migrateDrawingConfig(widget.config as DrawingConfig),
+    [widget.config]
+  );
   const {
     color = STANDARD_COLORS.slate,
     width = DRAWING_DEFAULTS.WIDTH,
-    paths = [],
+    objects,
     customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
   } = config;
 
@@ -38,11 +45,11 @@ export const DrawingWidget: React.FC<{
     return { width: widget.w, height: Math.max(widget.h - 40, 0) };
   }, [isStudentView, widget.w, widget.h]);
 
-  const appendPath = (path: Path) => {
+  const appendObject = (obj: DrawableObject) => {
     updateWidget(widget.id, {
       config: {
         ...config,
-        paths: [...paths, path],
+        objects: [...objects, obj],
       } as DrawingConfig,
     });
   };
@@ -51,22 +58,23 @@ export const DrawingWidget: React.FC<{
     canvasRef,
     color,
     width,
-    paths,
-    onPathComplete: appendPath,
+    objects,
+    onObjectComplete: appendObject,
     scale,
     disabled: isStudentView,
     canvasSize,
+    nextZ: nextZ(objects),
   });
 
   const clear = () => {
     updateWidget(widget.id, {
-      config: { ...config, paths: [] } as DrawingConfig,
+      config: { ...config, objects: [] } as DrawingConfig,
     });
   };
 
   const undo = () => {
     updateWidget(widget.id, {
-      config: { ...config, paths: paths.slice(0, -1) } as DrawingConfig,
+      config: { ...config, objects: objects.slice(0, -1) } as DrawingConfig,
     });
   };
 
@@ -215,7 +223,7 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0"
           style={{ touchAction: 'none' }}
         />
-        {paths.length === 0 && !isDrawing && (
+        {objects.length === 0 && !isDrawing && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
             <Pencil className="w-8 h-8 opacity-20" />
           </div>

@@ -269,7 +269,7 @@ const mockDashboard: DashboardContextValue = {
   // Annotation (app-level overlay) — not applicable in student view
   annotationActive: false,
   annotationState: {
-    paths: [],
+    objects: [],
     color: '#000000',
     width: 4,
     customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
@@ -283,7 +283,7 @@ const mockDashboard: DashboardContextValue = {
   updateAnnotationState: () => {
     // No-op
   },
-  addAnnotationPath: () => {
+  addAnnotationObject: () => {
     // No-op
   },
   undoAnnotation: () => {

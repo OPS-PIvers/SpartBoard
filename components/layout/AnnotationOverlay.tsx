@@ -23,13 +23,19 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
-import { TextConfig } from '@/types';
+import { DrawableObject, TextConfig } from '@/types';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
+import { nextZ } from '@/utils/migrateDrawingConfig';
 
-const FALLBACK_ANNOTATION_STATE = {
-  paths: [],
+const FALLBACK_ANNOTATION_STATE: {
+  objects: DrawableObject[];
+  color: string;
+  width: number;
+  customColors: string[];
+} = {
+  objects: [],
   color: STANDARD_COLORS.slate,
   width: DRAWING_DEFAULTS.WIDTH,
   customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
@@ -49,7 +55,7 @@ export const AnnotationOverlay: React.FC = () => {
     annotationActive,
     closeAnnotation,
     updateAnnotationState,
-    addAnnotationPath,
+    addAnnotationObject,
     undoAnnotation,
     clearAnnotation,
     activeDashboard,
@@ -122,10 +128,11 @@ export const AnnotationOverlay: React.FC = () => {
     canvasRef,
     color: annotationState.color,
     width: annotationState.width,
-    paths: annotationState.paths,
-    onPathComplete: addAnnotationPath,
+    objects: annotationState.objects,
+    onObjectComplete: addAnnotationObject,
     scale: 1,
     canvasSize,
+    nextZ: nextZ(annotationState.objects),
   });
 
   const capturePng = useCallback(async (): Promise<string | null> => {
@@ -238,7 +245,7 @@ export const AnnotationOverlay: React.FC = () => {
 
   if (!annotationActive || !portalTarget) return null;
 
-  const { color, width, customColors, paths } = annotationState;
+  const { color, width, customColors, objects } = annotationState;
 
   return createPortal(
     <div
@@ -318,7 +325,7 @@ export const AnnotationOverlay: React.FC = () => {
           title="Undo"
           variant="ghost"
           size="icon"
-          disabled={paths.length === 0}
+          disabled={objects.length === 0}
           icon={<Undo2 className="w-4 h-4" />}
         />
         <Button
@@ -326,7 +333,7 @@ export const AnnotationOverlay: React.FC = () => {
           title="Clear all"
           variant="ghost-danger"
           size="icon"
-          disabled={paths.length === 0}
+          disabled={objects.length === 0}
           icon={<Trash2 className="w-4 h-4" />}
         />
 

@@ -13,11 +13,11 @@ import {
   Student,
   AddWidgetOverrides,
   GridPosition,
-  Path,
+  DrawableObject,
 } from '../types';
 
 export interface AnnotationState {
-  paths: Path[];
+  objects: DrawableObject[];
   color: string;
   width: number;
   customColors: string[];
@@ -81,7 +81,7 @@ export interface DashboardContextValue {
   openAnnotation: () => void;
   closeAnnotation: () => void;
   updateAnnotationState: (updates: Partial<AnnotationState>) => void;
-  addAnnotationPath: (path: Path) => void;
+  addAnnotationObject: (obj: DrawableObject) => void;
   undoAnnotation: () => void;
   clearAnnotation: () => void;
 

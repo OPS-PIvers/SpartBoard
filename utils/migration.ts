@@ -1,5 +1,6 @@
 import {
   Dashboard,
+  DrawingConfig,
   WidgetData,
   TimeToolConfig,
   TextConfig,
@@ -8,6 +9,7 @@ import {
 } from '../types';
 import { sanitizeHtml } from './security';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+import { migrateDrawingConfig } from './migrateDrawingConfig';
 
 // Minimum dimension threshold: widgets smaller than this were likely
 // created with a bug where pixel dimensions were recorded as single digits
@@ -93,6 +95,21 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
       ...w,
       type: 'expectations',
     };
+  }
+
+  // Phase 2a: migrate legacy drawing configs (paths[]) forward to the
+  // polymorphic objects[] model. The widget also does this defensively, but
+  // hydrating into the canonical shape avoids spurious Firestore re-writes.
+  if (type === 'drawing') {
+    const raw = w.config as DrawingConfig;
+    const migrated = migrateDrawingConfig(raw);
+    // Only replace the config object when a meaningful change occurred to
+    // keep React reference equality stable for already-migrated widgets.
+    const hadLegacyPaths = Array.isArray(raw?.paths);
+    const hadLegacyMode = typeof raw?.mode === 'string';
+    if (hadLegacyPaths || hadLegacyMode || !Array.isArray(raw?.objects)) {
+      return { ...w, config: migrated };
+    }
   }
 
   // Ensure poll options have stable IDs (legacy data may lack them)

@@ -22,7 +22,7 @@ import {
   GridPosition,
   FeaturePermission,
   MaterialsGlobalConfig,
-  Path,
+  DrawableObject,
 } from '../types';
 import { useAuth } from './useAuth';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
@@ -157,7 +157,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [annotationActive, setAnnotationActive] = useState(false);
   const [annotationState, setAnnotationState] = useState<AnnotationState>(
     () => ({
-      paths: [],
+      objects: [],
       color: STANDARD_COLORS.slate,
       width: DRAWING_DEFAULTS.WIDTH,
       customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
@@ -170,7 +170,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setZoom(1);
     // Auto-close annotation when switching dashboards — annotations are board-local
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, paths: [] }));
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
@@ -820,7 +820,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   if (la === sa) return false;
                   if (!la || !sa) return true;
                   if (la.mode !== sa.mode) return true;
-                  if (la.paths.length !== sa.paths.length) return true;
+                  if ((la.paths?.length ?? 0) !== (sa.paths?.length ?? 0))
+                    return true;
                   return JSON.stringify(la) !== JSON.stringify(sa);
                 })();
 
@@ -3028,7 +3029,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       customColors?: string[];
     };
     setAnnotationState((prev) => ({
-      paths: [],
+      objects: [],
       color: prev.color,
       width: adminConfig.width ?? DRAWING_DEFAULTS.WIDTH,
       customColors: adminConfig.customColors ?? [
@@ -3040,7 +3041,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const closeAnnotation = useCallback(() => {
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, paths: [] }));
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const updateAnnotationState = useCallback(
@@ -3050,16 +3051,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
 
-  const addAnnotationPath = useCallback((path: Path) => {
-    setAnnotationState((prev) => ({ ...prev, paths: [...prev.paths, path] }));
+  const addAnnotationObject = useCallback((obj: DrawableObject) => {
+    setAnnotationState((prev) => ({
+      ...prev,
+      objects: [...prev.objects, obj],
+    }));
   }, []);
 
   const undoAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({ ...prev, paths: prev.paths.slice(0, -1) }));
+    setAnnotationState((prev) => ({
+      ...prev,
+      objects: prev.objects.slice(0, -1),
+    }));
   }, []);
 
   const clearAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({ ...prev, paths: [] }));
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const contextValue = useMemo(
@@ -3144,7 +3151,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       openAnnotation,
       closeAnnotation,
       updateAnnotationState,
-      addAnnotationPath,
+      addAnnotationObject,
       undoAnnotation,
       clearAnnotation,
     }),
@@ -3229,7 +3236,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       openAnnotation,
       closeAnnotation,
       updateAnnotationState,
-      addAnnotationPath,
+      addAnnotationObject,
       undoAnnotation,
       clearAnnotation,
     ]

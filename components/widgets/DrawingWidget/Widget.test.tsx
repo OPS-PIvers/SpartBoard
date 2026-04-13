@@ -94,7 +94,7 @@ describe('DrawingWidget', () => {
     config: {
       color: '#000000',
       width: 4,
-      paths: [],
+      objects: [],
       customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
     } as DrawingConfig,
   };
@@ -118,13 +118,16 @@ describe('DrawingWidget', () => {
     expect(container.textContent).not.toMatch(/ANNOTATE|EXIT/);
   });
 
-  it('draws existing paths on mount', () => {
-    const widgetWithPaths: WidgetData = {
+  it('draws existing path objects on mount', () => {
+    const widgetWithObjects: WidgetData = {
       ...widget,
       config: {
         ...widget.config,
-        paths: [
+        objects: [
           {
+            id: 'obj-1',
+            kind: 'path',
+            z: 0,
             color: '#ff0000',
             width: 5,
             points: [
@@ -135,9 +138,34 @@ describe('DrawingWidget', () => {
         ],
       } as DrawingConfig,
     };
-    render(<DrawingWidget widget={widgetWithPaths} />);
+    render(<DrawingWidget widget={widgetWithObjects} />);
     expect(mockContext.moveTo).toHaveBeenCalledWith(10, 10);
     expect(mockContext.lineTo).toHaveBeenCalledWith(20, 20);
+    expect(mockContext.stroke).toHaveBeenCalled();
+  });
+
+  it('migrates legacy paths[] config forward and renders strokes', () => {
+    const legacyWidget: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        // Legacy shape — objects omitted, paths present. The widget's
+        // defensive migration should wrap these as PathObjects at render.
+        paths: [
+          {
+            color: '#0000ff',
+            width: 3,
+            points: [
+              { x: 5, y: 5 },
+              { x: 15, y: 15 },
+            ],
+          },
+        ],
+      } as unknown as DrawingConfig,
+    };
+    render(<DrawingWidget widget={legacyWidget} />);
+    expect(mockContext.moveTo).toHaveBeenCalledWith(5, 5);
+    expect(mockContext.lineTo).toHaveBeenCalledWith(15, 15);
     expect(mockContext.stroke).toHaveBeenCalled();
   });
 
@@ -174,15 +202,21 @@ describe('DrawingWidget', () => {
       new PointerEvent('pointerup', { bubbles: true, cancelable: true })
     );
 
-    // Should update widget with new path
+    // Should update widget with new object
     expect(mockUpdateWidget).toHaveBeenCalled();
     const args = mockUpdateWidget.mock.calls[0];
     expect(args[0]).toBe(widget.id);
     const newConfig = (args[1] as Partial<WidgetData>).config as DrawingConfig;
-    expect(newConfig.paths).toHaveLength(1);
-    expect(newConfig.paths[0].points).toEqual([
-      { x: 10, y: 10 },
-      { x: 20, y: 20 },
-    ]);
+    const objects = newConfig.objects ?? [];
+    expect(objects).toHaveLength(1);
+    const created = objects[0];
+    expect(created.kind).toBe('path');
+    expect(typeof created.id).toBe('string');
+    if (created.kind === 'path') {
+      expect(created.points).toEqual([
+        { x: 10, y: 10 },
+        { x: 20, y: 20 },
+      ]);
+    }
   });
 });
