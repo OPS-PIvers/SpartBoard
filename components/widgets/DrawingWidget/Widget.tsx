@@ -47,7 +47,7 @@ export const DrawingWidget: React.FC<{
     });
   };
 
-  const { handleStart, handleMove, handleEnd } = useDrawingCanvas({
+  const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
     color,
     width,
@@ -215,7 +215,7 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0"
           style={{ touchAction: 'none' }}
         />
-        {paths.length === 0 && (
+        {paths.length === 0 && !isDrawing && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
             <Pencil className="w-8 h-8 opacity-20" />
           </div>

@@ -99,8 +99,15 @@ export const useGoogleDrive = () => {
 
   /**
    * Upload a drawing/annotation PNG to the user's Drive "Drawings" folder and
-   * return a shareable Drive URL. Uses the same public-sharing pattern as
-   * background uploads so the link works across contexts.
+   * return a shareable Drive viewer URL.
+   *
+   * NOTE: Returns a `drive.google.com/file/d/.../view` URL — intended for
+   * teachers clicking through to open the saved annotation in Drive's
+   * native viewer. This is **different** from `uploadBackgroundToDrive`,
+   * which returns a `lh3.googleusercontent.com/d/...` URL so the image can
+   * be rendered via CSS `background-image` (requires CORS-friendly headers).
+   * Annotations are teacher-facing artifacts, not embedded images, so the
+   * viewer URL is the appropriate return value.
    */
   const saveDrawingToDrive = useCallback(
     async (blob: Blob, fileName: string): Promise<string> => {

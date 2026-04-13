@@ -26,6 +26,7 @@ import { extractTextWithGemini } from '@/utils/ai';
 import { TextConfig } from '@/types';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
+import { Z_INDEX } from '@/config/zIndex';
 
 const FALLBACK_ANNOTATION_STATE = {
   paths: [],
@@ -242,7 +243,7 @@ export const AnnotationOverlay: React.FC = () => {
   return createPortal(
     <div
       className="fixed inset-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: 9910 }}
+      style={{ zIndex: Z_INDEX.overlay }}
     >
       <canvas
         ref={canvasRef}
