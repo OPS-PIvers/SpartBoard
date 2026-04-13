@@ -1636,7 +1636,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                       }}
                       aria-label={`Select annotation color ${c}`}
                       aria-pressed={annotationColor === c}
-                      className={`w-5 h-5 rounded-full border border-slate-100 transition-transform touch-target-expand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${annotationColor === c ? 'scale-125 ring-2 ring-slate-400 z-10' : 'hover:scale-110'}`}
+                      className={`relative w-5 h-5 rounded-full border border-slate-100 transition-transform touch-target-expand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${annotationColor === c ? 'scale-125 ring-2 ring-slate-400 z-10' : 'hover:scale-110'}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
