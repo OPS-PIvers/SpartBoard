@@ -99,20 +99,47 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       content={
-        <div
-          className={`grid ${getGridCols()} justify-items-center items-center gap-[4cqmin] w-full h-full overflow-hidden p-[6cqmin]`}
-        >
-          {values.map((v, i) => (
-            <DiceFace
-              key={i}
-              value={v}
-              isRolling={isRolling}
-              diceColor={diceColor}
-              dotColor={dotColor}
-              size={getDiceSize()}
-            />
-          ))}
-        </div>
+        <>
+          <style>
+            {`
+              @keyframes dice-jitter {
+                0% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
+                25% { transform: scale(1.1) rotate(5deg) translate(2%, -2%); }
+                50% { transform: scale(1.1) rotate(-5deg) translate(-2%, 2%); }
+                75% { transform: scale(1.1) rotate(3deg) translate(1%, 1%); }
+                100% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
+              }
+              .animate-dice-jitter {
+                animation: dice-jitter 0.15s infinite linear;
+              }
+            `}
+          </style>
+          <div
+            className={[
+              'grid',
+              getGridCols(),
+              'justify-items-center',
+              'items-center',
+              'w-full',
+              'h-full',
+              'overflow-hidden',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ gap: '4cqmin', padding: '6cqmin' }}
+          >
+            {values.map((v, i) => (
+              <DiceFace
+                key={i}
+                value={v}
+                isRolling={isRolling}
+                diceColor={diceColor}
+                dotColor={dotColor}
+                size={getDiceSize()}
+              />
+            ))}
+          </div>
+        </>
       }
       footer={
         <div className="px-3 pb-3">
@@ -129,7 +156,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-90 hover:shadow-purple-500/30'
             }
           `}
-            style={{ fontSize: 'min(20px, 5cqmin)' }}
+            style={{ fontSize: '20px' }}
           >
             <RefreshCw
               style={{ width: '1.2em', height: '1.2em' }}

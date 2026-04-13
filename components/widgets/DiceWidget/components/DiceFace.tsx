@@ -42,20 +42,6 @@ export const DiceFace: React.FC<DiceFaceProps> = ({
           : `0 10px 25px -5px rgba(0,0,0,0.3), inset 0 -4px 8px rgba(0,0,0,0.15), inset 0 4px 8px rgba(255,255,255,0.4)`,
       }}
     >
-      <style>
-        {`
-          @keyframes dice-jitter {
-            0% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
-            25% { transform: scale(1.1) rotate(5deg) translate(2%, -2%); }
-            50% { transform: scale(1.1) rotate(-5deg) translate(-2%, 2%); }
-            75% { transform: scale(1.1) rotate(3deg) translate(1%, 1%); }
-            100% { transform: scale(1.1) rotate(0deg) translate(0, 0); }
-          }
-          .animate-dice-jitter {
-            animation: dice-jitter 0.15s infinite linear;
-          }
-        `}
-      </style>
       <div
         className="grid grid-cols-3 grid-rows-3 w-full h-full"
         style={{ gap: 'min(6px, 1.5cqmin)', padding: '18%' }}
