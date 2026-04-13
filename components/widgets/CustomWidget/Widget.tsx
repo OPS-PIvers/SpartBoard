@@ -86,11 +86,12 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
 
   const adminSettings = config.adminSettings;
 
+  const activeConnections = activeGrid?.connections;
   // ⚡ Performance Optimization: Pre-calculate connection lookup map
   const connLookup = React.useMemo(
     () =>
-      activeGrid ? buildConnectionLookup(activeGrid.connections) : undefined,
-    [activeGrid]
+      activeConnections ? buildConnectionLookup(activeConnections) : undefined,
+    [activeConnections]
   );
 
   const [state, dispatch] = useReducer(
