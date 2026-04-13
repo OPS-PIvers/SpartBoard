@@ -17,6 +17,9 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
+  const diceColorId = `dice-color-${widget.id}`;
+  const dotColorId = `dot-color-${widget.id}`;
+
   return (
     <div className="space-y-6">
       <div>
@@ -46,9 +49,12 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <SettingsLabel icon={Palette}>Die Color</SettingsLabel>
+          <SettingsLabel icon={Palette} htmlFor={diceColorId}>
+            Die Color
+          </SettingsLabel>
           <div className="relative group">
             <input
+              id={diceColorId}
               type="color"
               value={diceColor}
               onChange={(e) => updateConfig({ diceColor: e.target.value })}
@@ -62,9 +68,12 @@ export const DiceSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         </div>
         <div>
-          <SettingsLabel icon={Circle}>Pip Color</SettingsLabel>
+          <SettingsLabel icon={Circle} htmlFor={dotColorId}>
+            Pip Color
+          </SettingsLabel>
           <div className="relative group">
             <input
+              id={dotColorId}
               type="color"
               value={dotColor}
               onChange={(e) => updateConfig({ dotColor: e.target.value })}

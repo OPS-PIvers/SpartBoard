@@ -21,7 +21,10 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [prevDiceCount, setPrevDiceCount] = useState(diceCount);
   const [isRolling, setIsRolling] = useState(false);
   const isRollingRef = useRef(false);
-  isRollingRef.current = isRolling;
+
+  useEffect(() => {
+    isRollingRef.current = isRolling;
+  }, [isRolling]);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -156,7 +159,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-90 hover:shadow-purple-500/30'
             }
           `}
-            style={{ fontSize: '20px' }}
+            style={{ fontSize: 'min(20px, 5.5cqmin)' }}
           >
             <RefreshCw
               style={{ width: '1.2em', height: '1.2em' }}
