@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: never_
+_Last audited: 2026-04-14_
 _Last action: never_
 
 ---
@@ -16,7 +16,95 @@ _Nothing currently in progress._
 
 ## Open
 
-_No open items. Awaiting first audit run._
+### HIGH `axios` direct dependency has CRITICAL CVEs — upgrade to >=1.15.0
+
+- **Detected:** 2026-04-14
+- **File:** package.json (`"axios": "^1.13.4"` locked at 1.13.4), functions/package.json (axios@1.13.3)
+- **Detail:** Three CVEs affect axios <1.15.0:
+  - **CRITICAL** GHSA-jr5f-v2jv-69x6: NO_PROXY hostname normalization bypass — attacker-controlled subdomains can bypass NO_PROXY configuration, leaking requests to unintended hosts.
+  - **CRITICAL** GHSA-wf5p-g6vw-rhxx: Unrestricted Cloud Metadata Exfiltration via SSRF — in environments with cloud metadata endpoints (AWS, GCP, Azure), requests can be redirected to extract instance metadata.
+  - **HIGH** GHSA-jr5f-v2jv-69x6: DoS via `__proto__` pollution in response headers.
+    axios is a **direct** dependency in both root (for Gemini/API calls) and functions/. Fix is a simple version bump with no breaking API changes.
+- **Fix:** `pnpm up axios@^1.15.0` in root and `pnpm up axios@^1.15.0` in functions/. Verify all Gemini integration calls in utils/ai.ts still work. Update lockfile and commit.
+
+### HIGH `vite` dev server has HIGH arbitrary file read vulnerability
+
+- **Detected:** 2026-04-14
+- **File:** package.json (`"vite": "^6.4.1"` locked at 6.4.1)
+- **Detail:** HIGH vulnerability in the Vite dev server allows arbitrary file reads via path traversal in certain server configurations. While this only affects the dev server (not production builds), it affects the development environment and CI preview builds.
+- **Fix:** `pnpm up vite@latest` within the ^6.x range, or upgrade to vite 7+ if a patched version is available. Also check rollup (locked at 4.55.1) — HIGH path traversal in rollup >=4.0.0 <4.59.0, fix: rollup@>=4.59.0. Running `pnpm up vite` should pull in the updated rollup as a transitive dep.
+
+### HIGH `hono` has authorization bypass and arbitrary file access vulnerabilities
+
+- **Detected:** 2026-04-14
+- **File:** package.json (`"hono": "^4.11.4"`), locked at 4.11.x
+- **Detail:** Two HIGH CVEs:
+  - `@hono/node-server` has authorization bypass for certain request patterns.
+  - Hono vulnerable to arbitrary file access via path traversal in static file serving.
+    Current locked version 4.11.x is affected; latest is 4.12.12 which patches both.
+- **Fix:** `pnpm up hono@^4.12.12` — semver-compatible within the ^4 range. Review any static file serving configuration in hono routes after upgrade.
+
+### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
+
+- **Detected:** 2026-04-14
+- **File:** package.json (devDependency `firebase-tools`)
+- **Detail:** firebase-tools pulls in several vulnerable transitive packages:
+  - `basic-ftp` <5.2.0: CRITICAL path traversal in `downloadToDir()` (via proxy-agent)
+  - `tar` <7.5.7 and <7.5.8: HIGH arbitrary file write (two CVEs) (via superstatic > re2 > node-gyp)
+  - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
+  - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
+    All via firebase-tools devDependency chain. These do not affect production runtime.
+    Current: 15.8.0, Latest: 15.14.0 — updating may resolve several transitively.
+- **Fix:** `pnpm up firebase-tools@^15.14.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+
+### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
+
+- **Detected:** 2026-04-14
+- **File:** package.json (firebase, firebase-admin transitive), functions/package.json (firebase-admin@13.6.0)
+- **Detail:**
+  - `fast-xml-parser` via `firebase-admin > @google-cloud/storage`:
+    - **CRITICAL** entity encoding bypass via regex injection in DOCTYPE entity names (>=4.1.3 <4.5.4)
+    - **HIGH** DoS through entity expansion
+    - **HIGH** numeric entity expansion
+  - `node-forge` via `firebase-admin` (functions only):
+    - **HIGH** basicConstraints bypass (<=1.3.3)
+    - **HIGH** signature forgery in Ed25519 (<1.4.0)
+    - **HIGH** DoS via Infinite Loop (<1.4.0)
+    - **HIGH** RSA-PKCS signature forgery (<1.4.0)
+      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.8.0.
+- **Fix:** Update `firebase` in root to latest (12.12.0) and `firebase-admin` in functions/ to 13.8.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
+
+### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak via `@google/genai`
+
+- **Detected:** 2026-04-14
+- **File:** package.json (transitive via `@google/genai`)
+- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.0.
+- **Fix:** `pnpm up @google/genai@^1.50.0` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
+
+### MEDIUM Functions: `lodash` code injection via `firebase-functions-test`
+
+- **Detected:** 2026-04-14
+- **File:** functions/package.json (devDependency `firebase-functions-test`)
+- **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
+- **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
+
+### LOW Major version updates available — require planned migration
+
+- **Detected:** 2026-04-14
+- **File:** package.json
+- **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
+  - `tailwindcss`: 3.4.19 → **4.2.2** (major — config format changed completely)
+  - `vite`: 6.4.1 → **8.0.8** (2 majors ahead, but focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.2.0** (major — verify flat config compatibility)
+  - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
+  - `typescript`: 5.9.3 → **6.0.2** (major — strict mode changes)
+  - `i18next`: 25.8.13 → **26.0.4** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.2** (paired with i18next)
+  - `lucide-react`: 0.563.0 → **1.8.0** (first stable major — icon API changes possible)
+  - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
+  - `jsdom` (test): 27.4.0 → **29.0.2** (2 majors)
+    These should not be done in a single commit — each needs its own migration PR with testing.
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix.
 
 ---
 
