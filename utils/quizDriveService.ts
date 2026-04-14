@@ -539,21 +539,52 @@ export class QuizDriveService {
       '# Answered',
       '% Correct',
     ]);
+    const statsMap = new Map<string, { answered: number; correct: number }>();
     for (const q of questions) {
-      const answered = responses.filter((r) =>
-        r.answers.some((a) => a.questionId === q.id)
-      ).length;
-      const correct = responses.filter((r) =>
-        r.answers.some((a) => a.questionId === q.id && gradeAnswer(q, a.answer))
-      ).length;
-      const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+      statsMap.set(q.id, { answered: 0, correct: 0 });
+    }
+
+    const questionMap = new Map<string, QuizQuestion>(
+      questions.map((q) => [q.id, q])
+    );
+
+    for (const r of responses) {
+      const answeredSet = new Set<string>();
+      const correctSet = new Set<string>();
+
+      for (const a of r.answers) {
+        const q = questionMap.get(a.questionId);
+        if (!q) continue;
+
+        answeredSet.add(a.questionId);
+        if (gradeAnswer(q, a.answer)) {
+          correctSet.add(a.questionId);
+        }
+      }
+
+      for (const qId of answeredSet) {
+        const stats = statsMap.get(qId);
+        if (stats) stats.answered++;
+      }
+      for (const qId of correctSet) {
+        const stats = statsMap.get(qId);
+        if (stats) stats.correct++;
+      }
+    }
+
+    for (const q of questions) {
+      const stats = statsMap.get(q.id) ?? { answered: 0, correct: 0 };
+      const pct =
+        stats.answered > 0
+          ? Math.round((stats.correct / stats.answered) * 100)
+          : 0;
       statsRows.push([
         q.text.substring(0, 60),
         q.type,
         String(q.points ?? 1),
         q.correctAnswer.substring(0, 40),
-        String(correct),
-        String(answered),
+        String(stats.correct),
+        String(stats.answered),
         `${pct}%`,
       ]);
     }
