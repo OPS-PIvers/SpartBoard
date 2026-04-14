@@ -14,6 +14,7 @@ import {
   AddWidgetOverrides,
   GridPosition,
   DrawableObject,
+  ShapeTool,
 } from '../types';
 
 export interface AnnotationState {
@@ -21,6 +22,8 @@ export interface AnnotationState {
   color: string;
   width: number;
   customColors: string[];
+  activeTool: ShapeTool;
+  shapeFill: boolean;
 }
 
 export interface DashboardContextValue {

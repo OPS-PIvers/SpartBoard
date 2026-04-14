@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, DrawingConfig } from '@/types';
-import { Pencil, Palette } from 'lucide-react';
+import { Pencil, Palette, Square } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DRAWING_DEFAULTS } from './constants';
 
@@ -12,6 +12,7 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as DrawingConfig;
   const width = config.width ?? DRAWING_DEFAULTS.WIDTH;
   const customColors = config.customColors ?? DRAWING_DEFAULTS.CUSTOM_COLORS;
+  const shapeFill = config.shapeFill ?? false;
 
   const handleColorChange = (index: number, newColor: string) => {
     const nextColors = [...customColors];
@@ -70,6 +71,28 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
             {width}px
           </span>
         </div>
+      </div>
+
+      <div>
+        <SettingsLabel icon={Square}>Shape Fill</SettingsLabel>
+        <label className="flex items-center gap-3 px-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={shapeFill}
+            onChange={(e) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  shapeFill: e.target.checked,
+                } as DrawingConfig,
+              })
+            }
+            className="accent-indigo-600 w-4 h-4 rounded"
+          />
+          <span className="text-sm text-slate-700">
+            Fill shapes with current color
+          </span>
+        </label>
       </div>
 
       <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">

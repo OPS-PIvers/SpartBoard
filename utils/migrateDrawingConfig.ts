@@ -1,27 +1,74 @@
-import { DrawableObject, DrawingConfig, Path, PathObject } from '../types';
+import {
+  DrawableObject,
+  DrawingConfig,
+  Path,
+  PathObject,
+  ShapeTool,
+} from '../types';
 
 /** DrawingConfig with `objects` guaranteed non-optional. Post-migration shape. */
 export type MigratedDrawingConfig = DrawingConfig & {
   objects: DrawableObject[];
+  activeTool: ShapeTool;
+  shapeFill: boolean;
+};
+
+const VALID_TOOLS: readonly ShapeTool[] = [
+  'pen',
+  'eraser',
+  'rect',
+  'ellipse',
+  'line',
+  'arrow',
+];
+
+/**
+ * Normalize activeTool and shapeFill from a raw config object.
+ * Handles:
+ * - Legacy `color === 'eraser'` overload → activeTool: 'eraser', color cleared
+ * - Missing or invalid activeTool → 'pen'
+ * - Missing shapeFill → false
+ */
+const normalizeToolFields = (
+  raw: DrawingConfig
+): { activeTool: ShapeTool; shapeFill: boolean; color?: string } => {
+  let activeTool: ShapeTool = 'pen';
+  let color = raw.color;
+
+  if (color === 'eraser') {
+    // Legacy overload: the string 'eraser' was stuffed into color to toggle
+    // eraser mode. Promote to activeTool and clear the overloaded color.
+    activeTool = 'eraser';
+    color = undefined;
+  } else if (
+    raw.activeTool !== undefined &&
+    VALID_TOOLS.includes(raw.activeTool)
+  ) {
+    activeTool = raw.activeTool;
+  }
+
+  const shapeFill = typeof raw.shapeFill === 'boolean' ? raw.shapeFill : false;
+
+  return { activeTool, shapeFill, color };
 };
 
 /**
- * Forward-migrate a DrawingConfig to the Phase-2 object-model shape.
+ * Forward-migrate a DrawingConfig to the Phase-2.1b object-model shape.
  *
  * Legacy (Phase 1) shape: `{ paths: Path[]; mode?; color?; width?; customColors? }`.
- * Canonical (Phase 2a) shape: `{ objects: DrawableObject[]; ... }`.
+ * Phase 2a shape: `{ objects: DrawableObject[]; ... }`.
+ * Phase 2.1b shape: adds `activeTool: ShapeTool` and `shapeFill: boolean`.
  *
  * Behavior:
  * - If `objects[]` is non-empty, it's the source of truth — we keep it and
  *   drop any lingering legacy `paths`/`mode`.
  * - If `objects` is missing or empty AND `paths` has content, each legacy
  *   Path is wrapped as a `PathObject` with a fresh UUID and sequential z.
- *   Preferring `paths` in this edge case prevents data loss when a widget is
- *   halfway through migration (shouldn't happen in production, but defensive
- *   behavior is cheap).
  * - If neither has content, `objects` becomes `[]`.
- * - Malformed `paths` entries (missing points array, empty points, etc.) are
- *   dropped rather than crashing the widget.
+ * - Malformed `paths` entries are dropped rather than crashing the widget.
+ * - Legacy `color === 'eraser'` is promoted to `activeTool: 'eraser'`.
+ * - Missing/invalid `activeTool` defaults to `'pen'`.
+ * - Missing `shapeFill` defaults to `false`.
  *
  * This function is pure and idempotent — calling it on an already-migrated
  * config returns an equivalent config.
@@ -30,14 +77,15 @@ export const migrateDrawingConfig = (
   raw: DrawingConfig | undefined | null
 ): MigratedDrawingConfig => {
   if (!raw || typeof raw !== 'object') {
-    return { objects: [] };
+    return { objects: [], activeTool: 'pen', shapeFill: false };
   }
 
-  const { paths, mode: _mode, ...rest } = raw;
+  const { paths, mode: _mode, activeTool: _at, shapeFill: _sf, ...rest } = raw;
+  const { activeTool, shapeFill, color } = normalizeToolFields(raw);
 
   if (Array.isArray(raw.objects) && raw.objects.length > 0) {
     // Already migrated with content — strip legacy fields and return.
-    return { ...rest, objects: raw.objects };
+    return { ...rest, color, objects: raw.objects, activeTool, shapeFill };
   }
 
   const migratedFromPaths: PathObject[] = Array.isArray(paths)
@@ -56,12 +104,24 @@ export const migrateDrawingConfig = (
     : [];
 
   if (migratedFromPaths.length > 0) {
-    return { ...rest, objects: migratedFromPaths };
+    return {
+      ...rest,
+      color,
+      objects: migratedFromPaths,
+      activeTool,
+      shapeFill,
+    };
   }
 
   // Nothing to migrate — preserve existing `objects` (even if empty) so that
   // intentional resets like `clear()` round-trip correctly.
-  return { ...rest, objects: Array.isArray(raw.objects) ? raw.objects : [] };
+  return {
+    ...rest,
+    color,
+    objects: Array.isArray(raw.objects) ? raw.objects : [],
+    activeTool,
+    shapeFill,
+  };
 };
 
 const isValidLegacyPath = (p: unknown): p is Path => {
@@ -80,6 +140,8 @@ const isValidLegacyPath = (p: unknown): p is Path => {
  */
 export const emptyDrawingConfig = (): MigratedDrawingConfig => ({
   objects: [],
+  activeTool: 'pen',
+  shapeFill: false,
 });
 
 /**
