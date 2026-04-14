@@ -300,6 +300,30 @@ export function buildInitialState(
 // Connection processing helper
 // ---------------------------------------------------------------------------
 
+/** Map structure for fast connection lookups: sourceBlockId -> event -> connections[] */
+export type ConnectionLookup = Map<string, Map<string, BlockConnection[]>>;
+
+/** Build a connection lookup map from a list of connections */
+export function buildConnectionLookup(
+  connections: BlockConnection[]
+): ConnectionLookup {
+  const lookup: ConnectionLookup = new Map();
+  for (const c of connections) {
+    let eventMap = lookup.get(c.sourceBlockId);
+    if (!eventMap) {
+      eventMap = new Map();
+      lookup.set(c.sourceBlockId, eventMap);
+    }
+    let list = eventMap.get(c.event);
+    if (!list) {
+      list = [];
+      eventMap.set(c.event, list);
+    }
+    list.push(c);
+  }
+  return lookup;
+}
+
 /**
  * Apply all state-changing connections for a given (sourceId, event) pair.
  * play-sound and show-toast are no-ops here (side effects handled in Widget.tsx).
@@ -309,18 +333,21 @@ function processEventConnections(
   state: WidgetBlockState,
   sourceId: string,
   event: string,
-  gridDefinition: CustomGridDefinition
+  gridDefinition: CustomGridDefinition,
+  connLookup?: ConnectionLookup
 ): WidgetBlockState {
-  const connections = gridDefinition.connections.filter(
-    (c) => c.sourceBlockId === sourceId && c.event === event
-  );
+  // Use pre-calculated lookup or build a temporary one if not provided
+  const lookup =
+    connLookup ?? buildConnectionLookup(gridDefinition.connections);
 
-  if (connections.length === 0) return state;
+  const initialConnections = lookup.get(sourceId)?.get(event) ?? [];
+
+  if (initialConnections.length === 0) return state;
 
   let nextState = { ...state };
   const pendingEvents: Array<{ sourceId: string; event: string }> = [];
 
-  for (const conn of connections) {
+  for (const conn of initialConnections) {
     if (!conditionPasses(conn.condition, nextState)) continue;
 
     if (conn.action === 'reset-all') {
@@ -351,9 +378,7 @@ function processEventConnections(
 
   // Process threshold events (one level deep to avoid infinite loops)
   for (const evt of pendingEvents) {
-    const thresholdConns = gridDefinition.connections.filter(
-      (c) => c.sourceBlockId === evt.sourceId && c.event === evt.event
-    );
+    const thresholdConns = lookup.get(evt.sourceId)?.get(evt.event) ?? [];
     for (const conn of thresholdConns) {
       if (!conditionPasses(conn.condition, nextState)) continue;
       if (conn.action === 'reset-all') {
@@ -384,7 +409,8 @@ function processEventConnections(
 export function blockReducer(
   state: WidgetBlockState,
   action: WidgetAction,
-  gridDefinition?: CustomGridDefinition
+  gridDefinition?: CustomGridDefinition,
+  connLookup?: ConnectionLookup
 ): WidgetBlockState {
   switch (action.type) {
     case 'INIT':
@@ -412,7 +438,8 @@ export function blockReducer(
           timerDoneState,
           action.blockId,
           'on-timer-end',
-          gridDefinition
+          gridDefinition,
+          connLookup
         );
       }
       return timerDoneState;
@@ -424,7 +451,8 @@ export function blockReducer(
         state,
         action.sourceId,
         action.event,
-        gridDefinition
+        gridDefinition,
+        connLookup
       );
     }
 
