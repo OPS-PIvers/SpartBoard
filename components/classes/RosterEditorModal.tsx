@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle } from 'lucide-react';
 import { Student, ClassRoster } from '@/types';
 import { Modal } from '@/components/common/Modal';
@@ -24,6 +25,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { t } = useTranslation();
   const {
     name,
     setName,
@@ -55,13 +57,19 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       maxWidth="max-w-2xl"
       className="max-h-[85vh]"
       contentClassName="px-6 pb-6 flex flex-col"
-      title={roster ? 'Edit Class' : 'New Class'}
+      title={
+        roster
+          ? t('sidebar.classes.editClassTitle', { defaultValue: 'Edit Class' })
+          : t('sidebar.classes.newClassTitle', { defaultValue: 'New Class' })
+      }
     >
       <div className="flex flex-col h-full gap-3 min-h-0">
         <div className="flex items-center gap-3 shrink-0">
           <input
             className="flex-1 min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold"
-            placeholder="Class Name"
+            placeholder={t('sidebar.classes.classNamePlaceholder', {
+              defaultValue: 'Class Name',
+            })}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -71,7 +79,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             disabled={!name.trim()}
             className="bg-brand-blue-primary text-white px-4 py-2 rounded-xl flex gap-1.5 items-center text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save size={14} /> Save
+            <Save size={14} /> {t('common.save', { defaultValue: 'Save' })}
           </button>
         </div>
 

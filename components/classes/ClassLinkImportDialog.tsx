@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Download, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { ClassLinkClass, ClassRoster, Student } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { classLinkService } from '@/utils/classlinkService';
@@ -30,6 +31,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   mode,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
 
   const [loading, setLoading] = useState(false);
@@ -133,12 +135,22 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 
   const title =
     mode.kind === 'new'
-      ? 'Import from ClassLink'
-      : `Sync "${mode.rosterName}" with ClassLink`;
+      ? t('sidebar.classes.classLinkImportTitle', {
+          defaultValue: 'Import from ClassLink',
+        })
+      : t('sidebar.classes.classLinkMergeTitle', {
+          defaultValue: 'Sync "{{name}}" with ClassLink',
+          name: mode.rosterName,
+        });
   const subtitle =
     mode.kind === 'new'
-      ? 'Pick a class to import as a new roster.'
-      : 'Pick the ClassLink class whose students should be pulled in. Existing students are preserved.';
+      ? t('sidebar.classes.classLinkImportSubtitle', {
+          defaultValue: 'Pick a class to import as a new roster.',
+        })
+      : t('sidebar.classes.classLinkMergeSubtitle', {
+          defaultValue:
+            'Pick the ClassLink class whose students should be pulled in. Existing students are preserved.',
+        });
 
   return (
     <Modal
@@ -154,7 +166,9 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         <div className="flex flex-col items-center justify-center gap-3 py-10 text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin text-brand-blue-primary" />
           <p className="text-xxs font-bold uppercase tracking-widest">
-            Connecting to ClassLink…
+            {t('sidebar.classes.classLinkConnecting', {
+              defaultValue: 'Connecting to ClassLink…',
+            })}
           </p>
         </div>
       )}
@@ -168,7 +182,9 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 
       {!loading && !error && classes.length === 0 && (
         <div className="py-10 text-center text-slate-400 text-sm italic">
-          No classes found in ClassLink.
+          {t('sidebar.classes.classLinkNoClasses', {
+            defaultValue: 'No classes found in ClassLink.',
+          })}
         </div>
       )}
 
@@ -187,7 +203,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                     {cls.title}
                   </div>
                   <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                    {count} Students
+                    {t('sidebar.classes.studentCount', {
+                      count,
+                      defaultValue: '{{count}} Student',
+                      defaultValue_other: '{{count}} Students',
+                    })}
                     {cls.classCode ? ` · ${cls.classCode}` : ''}
                   </div>
                 </div>
@@ -202,10 +222,18 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                 >
                   {isPending ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : mode.kind === 'new' ? (
+                    <Download className="w-3 h-3" />
                   ) : (
                     <RefreshCw className="w-3 h-3" />
                   )}
-                  {mode.kind === 'new' ? 'Import' : 'Merge'}
+                  {mode.kind === 'new'
+                    ? t('sidebar.classes.classLinkImport', {
+                        defaultValue: 'Import',
+                      })
+                    : t('sidebar.classes.classLinkMerge', {
+                        defaultValue: 'Merge',
+                      })}
                 </button>
               </div>
             );

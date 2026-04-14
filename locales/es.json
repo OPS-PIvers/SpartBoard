@@ -80,7 +80,20 @@
       "syncClassLink": "Sincronizar con ClassLink",
       "delete": "Eliminar Clase",
       "confirmDelete": "¿Eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
-      "confirmDeleteTitle": "Eliminar Clase"
+      "confirmDeleteTitle": "Eliminar Clase",
+      "editClassTitle": "Editar Clase",
+      "newClassTitle": "Nueva Clase",
+      "classNamePlaceholder": "Nombre de la Clase",
+      "studentCount_one": "{{count}} Estudiante",
+      "studentCount_other": "{{count}} Estudiantes",
+      "classLinkImportTitle": "Importar desde ClassLink",
+      "classLinkMergeTitle": "Sincronizar \"{{name}}\" con ClassLink",
+      "classLinkImportSubtitle": "Elige una clase para importar como nueva lista.",
+      "classLinkMergeSubtitle": "Elige la clase de ClassLink cuyos estudiantes quieres incorporar. Los estudiantes existentes se conservan.",
+      "classLinkConnecting": "Conectando con ClassLink…",
+      "classLinkNoClasses": "No se encontraron clases en ClassLink.",
+      "classLinkImport": "Importar",
+      "classLinkMerge": "Fusionar"
     },
     "widgets": {
       "gradeFilter": "Filtro por Grado",

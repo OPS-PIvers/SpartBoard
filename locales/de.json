@@ -77,7 +77,20 @@
       "syncClassLink": "Mit ClassLink synchronisieren",
       "delete": "Klasse löschen",
       "confirmDelete": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
-      "confirmDeleteTitle": "Klasse löschen"
+      "confirmDeleteTitle": "Klasse löschen",
+      "editClassTitle": "Klasse bearbeiten",
+      "newClassTitle": "Neue Klasse",
+      "classNamePlaceholder": "Klassenname",
+      "studentCount_one": "{{count}} Schüler/in",
+      "studentCount_other": "{{count}} Schüler/innen",
+      "classLinkImportTitle": "Aus ClassLink importieren",
+      "classLinkMergeTitle": "„{{name}}“ mit ClassLink synchronisieren",
+      "classLinkImportSubtitle": "Wähle eine Klasse, die als neue Klassenliste importiert wird.",
+      "classLinkMergeSubtitle": "Wähle die ClassLink-Klasse, deren Schüler/innen übernommen werden sollen. Bestehende Einträge bleiben erhalten.",
+      "classLinkConnecting": "Verbinde mit ClassLink…",
+      "classLinkNoClasses": "Keine Klassen in ClassLink gefunden.",
+      "classLinkImport": "Importieren",
+      "classLinkMerge": "Zusammenführen"
     },
     "widgets": {
       "gradeFilter": "Klassenstufen-Filter",

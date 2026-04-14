@@ -77,7 +77,20 @@
       "syncClassLink": "Synchroniser avec ClassLink",
       "delete": "Supprimer la classe",
       "confirmDelete": "Supprimer « {{name}} » ? Cette action est irréversible.",
-      "confirmDeleteTitle": "Supprimer la classe"
+      "confirmDeleteTitle": "Supprimer la classe",
+      "editClassTitle": "Modifier la classe",
+      "newClassTitle": "Nouvelle classe",
+      "classNamePlaceholder": "Nom de la classe",
+      "studentCount_one": "{{count}} élève",
+      "studentCount_other": "{{count}} élèves",
+      "classLinkImportTitle": "Importer depuis ClassLink",
+      "classLinkMergeTitle": "Synchroniser « {{name}} » avec ClassLink",
+      "classLinkImportSubtitle": "Choisis une classe à importer comme nouvelle liste.",
+      "classLinkMergeSubtitle": "Choisis la classe ClassLink dont les élèves doivent être ajoutés. Les élèves existants sont conservés.",
+      "classLinkConnecting": "Connexion à ClassLink…",
+      "classLinkNoClasses": "Aucune classe trouvée dans ClassLink.",
+      "classLinkImport": "Importer",
+      "classLinkMerge": "Fusionner"
     },
     "widgets": {
       "gradeFilter": "Filtre par niveau",

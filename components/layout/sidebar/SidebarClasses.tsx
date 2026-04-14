@@ -230,8 +230,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                             {r.name}
                           </div>
                           <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                            {r.students.length}{' '}
-                            {r.students.length === 1 ? 'Student' : 'Students'}
+                            {t('sidebar.classes.studentCount', {
+                              count: r.students.length,
+                              defaultValue: '{{count}} Student',
+                              defaultValue_other: '{{count}} Students',
+                            })}
                           </div>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">

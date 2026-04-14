@@ -88,7 +88,20 @@
       "syncClassLink": "Sync with ClassLink",
       "delete": "Delete Class",
       "confirmDelete": "Delete \"{{name}}\"? This cannot be undone.",
-      "confirmDeleteTitle": "Delete Class"
+      "confirmDeleteTitle": "Delete Class",
+      "editClassTitle": "Edit Class",
+      "newClassTitle": "New Class",
+      "classNamePlaceholder": "Class Name",
+      "studentCount_one": "{{count}} Student",
+      "studentCount_other": "{{count}} Students",
+      "classLinkImportTitle": "Import from ClassLink",
+      "classLinkMergeTitle": "Sync \"{{name}}\" with ClassLink",
+      "classLinkImportSubtitle": "Pick a class to import as a new roster.",
+      "classLinkMergeSubtitle": "Pick the ClassLink class whose students should be pulled in. Existing students are preserved.",
+      "classLinkConnecting": "Connecting to ClassLink…",
+      "classLinkNoClasses": "No classes found in ClassLink.",
+      "classLinkImport": "Import",
+      "classLinkMerge": "Merge"
     },
     "widgets": {
       "gradeFilter": "Grade Filter",

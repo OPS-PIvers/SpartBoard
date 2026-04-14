@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/context/useAuth';
+import { ClassesGlobalConfig } from '@/types';
 
 /**
  * Resolves whether ClassLink sync should be visible for a given building.
@@ -13,13 +14,7 @@ export function useClassLinkEnabled(buildingId?: string): boolean {
   return useMemo(() => {
     if (!buildingId) return true;
     const perm = featurePermissions.find((p) => p.widgetType === 'classes');
-    const defaults = (
-      perm?.config as
-        | {
-            buildingDefaults?: Record<string, { classLinkEnabled?: boolean }>;
-          }
-        | undefined
-    )?.buildingDefaults?.[buildingId];
-    return defaults?.classLinkEnabled ?? true;
+    const config = perm?.config as Partial<ClassesGlobalConfig> | undefined;
+    return config?.buildingDefaults?.[buildingId]?.classLinkEnabled ?? true;
   }, [featurePermissions, buildingId]);
 }
