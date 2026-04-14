@@ -22,6 +22,7 @@ import {
   GridPosition,
   FeaturePermission,
   MaterialsGlobalConfig,
+  DrawableObject,
 } from '../types';
 import { useAuth } from './useAuth';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
@@ -43,6 +44,9 @@ import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { DashboardContext } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
+import { AnnotationState } from './DashboardContextValue';
+import { DRAWING_DEFAULTS } from '../components/widgets/DrawingWidget/constants';
+import { STANDARD_COLORS } from '../config/colors';
 
 // Helper to migrate legacy visibleTools to dockItems
 const migrateToDockItems = (
@@ -149,10 +153,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
+  // --- Annotation (ephemeral full-screen draw-over overlay; NOT a widget) ---
+  const [annotationActive, setAnnotationActive] = useState(false);
+  const [annotationState, setAnnotationState] = useState<AnnotationState>(
+    () => ({
+      objects: [],
+      color: STANDARD_COLORS.slate,
+      width: DRAWING_DEFAULTS.WIDTH,
+      customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+    })
+  );
+
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
   const updateActiveId = useCallback((id: string | null) => {
     setActiveId(id);
     setZoom(1);
+    // Auto-close annotation when switching dashboards — annotations are board-local
+    setAnnotationActive(false);
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
@@ -802,7 +820,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   if (la === sa) return false;
                   if (!la || !sa) return true;
                   if (la.mode !== sa.mode) return true;
-                  if (la.paths.length !== sa.paths.length) return true;
+                  if ((la.paths?.length ?? 0) !== (sa.paths?.length ?? 0))
+                    return true;
                   return JSON.stringify(la) !== JSON.stringify(sa);
                 })();
 
@@ -2194,9 +2213,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (typeof raw.count === 'number') out.count = raw.count;
           break;
         case 'drawing':
-          if (raw.mode === 'window' || raw.mode === 'overlay') {
-            out.mode = raw.mode;
-          }
+          // Note: `mode` is no longer configurable per-building — annotation
+          // vs windowed whiteboard is now an explicit runtime choice via the
+          // Dock popover. Only width/colors remain as building defaults.
           if (typeof raw.width === 'number') {
             const roundedWidth = Math.round(raw.width);
             if (roundedWidth >= 1 && roundedWidth <= 20) {
@@ -3000,6 +3019,56 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, []);
 
+  // --- Annotation actions ---
+  const openAnnotation = useCallback(() => {
+    // Seed from admin building defaults for width + color palette.
+    // `color` is not configurable at the admin level — keep the user's
+    // previously-chosen color across sessions.
+    const adminConfig = getAdminBuildingConfig('drawing') as {
+      width?: number;
+      customColors?: string[];
+    };
+    setAnnotationState((prev) => ({
+      objects: [],
+      color: prev.color,
+      width: adminConfig.width ?? DRAWING_DEFAULTS.WIDTH,
+      customColors: adminConfig.customColors ?? [
+        ...DRAWING_DEFAULTS.CUSTOM_COLORS,
+      ],
+    }));
+    setAnnotationActive(true);
+  }, [getAdminBuildingConfig]);
+
+  const closeAnnotation = useCallback(() => {
+    setAnnotationActive(false);
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
+  }, []);
+
+  const updateAnnotationState = useCallback(
+    (updates: Partial<AnnotationState>) => {
+      setAnnotationState((prev) => ({ ...prev, ...updates }));
+    },
+    []
+  );
+
+  const addAnnotationObject = useCallback((obj: DrawableObject) => {
+    setAnnotationState((prev) => ({
+      ...prev,
+      objects: [...prev.objects, obj],
+    }));
+  }, []);
+
+  const undoAnnotation = useCallback(() => {
+    setAnnotationState((prev) => ({
+      ...prev,
+      objects: prev.objects.slice(0, -1),
+    }));
+  }, []);
+
+  const clearAnnotation = useCallback(() => {
+    setAnnotationState((prev) => ({ ...prev, objects: [] }));
+  }, []);
+
   const contextValue = useMemo(
     () => ({
       dashboards,
@@ -3077,6 +3146,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearPendingQuizShare,
       zoom,
       setZoom,
+      annotationActive,
+      annotationState,
+      openAnnotation,
+      closeAnnotation,
+      updateAnnotationState,
+      addAnnotationObject,
+      undoAnnotation,
+      clearAnnotation,
     }),
     [
       dashboards,
@@ -3154,6 +3231,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearPendingQuizShare,
       zoom,
       setZoom,
+      annotationActive,
+      annotationState,
+      openAnnotation,
+      closeAnnotation,
+      updateAnnotationState,
+      addAnnotationObject,
+      undoAnnotation,
+      clearAnnotation,
     ]
   );
 

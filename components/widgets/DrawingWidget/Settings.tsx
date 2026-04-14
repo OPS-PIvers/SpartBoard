@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, DrawingConfig } from '@/types';
-import { Pencil, Palette, Minimize, Maximize } from 'lucide-react';
+import { Pencil, Palette } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DRAWING_DEFAULTS } from './constants';
 
@@ -73,29 +73,11 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-        <h4 className="text-xxs  text-indigo-700 uppercase mb-2">
-          Modes Guide
-        </h4>
-        <div className="space-y-3">
-          <div className="flex gap-3">
-            <div className="w-5 h-5 bg-white rounded-md flex items-center justify-center shadow-sm shrink-0">
-              <Minimize className="w-3 h-3 text-indigo-600" />
-            </div>
-            <p className="text-xxs text-indigo-600 ">
-              <b>Window:</b> Standard canvas inside the widget box. Best for
-              quick sketches and notes.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <div className="w-5 h-5 bg-indigo-600 rounded-md flex items-center justify-center shadow-sm shrink-0">
-              <Maximize className="w-3 h-3 text-white" />
-            </div>
-            <p className="text-xxs text-indigo-600 ">
-              <b>Overlay:</b> Hides the window and moves the toolbar to the top
-              of your screen. Perfect for drawing over other content!
-            </p>
-          </div>
-        </div>
+        <p className="text-xxs text-indigo-600 leading-relaxed">
+          <b>Tip:</b> To annotate over your whole dashboard, click the Draw icon
+          in the Dock and choose <b>Annotate screen</b>. The whiteboard widget
+          here is best for persistent sketches and notes.
+        </p>
       </div>
     </div>
   );

@@ -101,13 +101,96 @@ describe('FormattingToolbar', () => {
     );
   });
 
-  it('increments font size via stepper button', () => {
-    render(<FormattingToolbar {...defaultProps} />);
+  it('wraps selection in <span style="font-size:Xpx"> when + is clicked', () => {
+    const editor = document.createElement('div');
+    const text = document.createTextNode('hello');
+    editor.appendChild(text);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const initialRange = document.createRange();
+    initialRange.selectNodeContents(text);
+
+    let currentRange: Range = initialRange;
+    const mockSelection = {
+      get anchorNode() {
+        return currentRange.startContainer;
+      },
+      get rangeCount() {
+        return 1;
+      },
+      getRangeAt: () => currentRange,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn((r: Range) => {
+        currentRange = r;
+      }),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    fireEvent.click(screen.getByTitle('Increase font size'));
+
+    const span = editor.querySelector<HTMLElement>('span[style*="font-size"]');
+    expect(span).not.toBeNull();
+    expect(span?.style.fontSize).toBe('19px');
+    expect(span?.textContent).toBe('hello');
+    expect(mockOnContentChange).toHaveBeenCalled();
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('increments by +1px per click, not to xx-large', () => {
+    const editor = document.createElement('div');
+    const text = document.createTextNode('hello');
+    editor.appendChild(text);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const initialRange = document.createRange();
+    initialRange.selectNodeContents(text);
+
+    let currentRange: Range = initialRange;
+    const mockSelection = {
+      get anchorNode() {
+        return currentRange.startContainer;
+      },
+      get rangeCount() {
+        return 1;
+      },
+      getRangeAt: () => currentRange,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn((r: Range) => {
+        currentRange = r;
+      }),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
     const increaseButton = screen.getByTitle('Increase font size');
     fireEvent.click(increaseButton);
+    fireEvent.click(increaseButton);
+    fireEvent.click(increaseButton);
 
-    // The marker-replacement technique calls fontSize with '7' as a marker
-    expect(execCommandMock).toHaveBeenCalledWith('fontSize', false, '7');
+    const spans = editor.querySelectorAll<HTMLElement>(
+      'span[style*="font-size"]'
+    );
+    expect(spans.length).toBeGreaterThan(0);
+    const innermost = spans[spans.length - 1];
+    expect(innermost.style.fontSize).toBe('21px');
+    expect(innermost.textContent).toBe('hello');
+    expect(editor.innerHTML).not.toContain('xx-large');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
   });
 
   it('calls showPrompt when link button is clicked', async () => {

@@ -49,6 +49,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const toolbarPortalRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
   const lastExternalContent = useRef(content);
   const didInit = useRef(false);
@@ -78,6 +79,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     let prevWidth = NaN;
     let prevHeight = NaN;
     let prevSide: 'above' | 'below' | null = null;
+    let prevToolbarH = NaN;
     const tick = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
@@ -99,11 +101,18 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         const side: 'above' | 'below' =
           top > TOOLBAR_FLIP_THRESHOLD ? 'above' : 'below';
-        if (side !== prevSide) {
+        const toolbarH = toolbarPortalRef.current?.offsetHeight ?? 0;
+        if (side !== prevSide || toolbarH !== prevToolbarH) {
           prevSide = side;
+          prevToolbarH = toolbarH;
           window.dispatchEvent(
             new CustomEvent('widget-toolbar-reservation', {
-              detail: { widgetId, side },
+              detail: {
+                widgetId,
+                side,
+                height: toolbarH,
+                gap: TOOLBAR_GAP,
+              },
             })
           );
         }
@@ -229,6 +238,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             toolbarPos &&
             createPortal(
               <div
+                ref={toolbarPortalRef}
                 data-click-outside-ignore="true"
                 style={{
                   position: 'fixed',

@@ -4,6 +4,7 @@ import { GoogleDriveService } from '../utils/googleDriveService';
 import { APP_NAME } from '../config/constants';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
+const DRAWINGS_FOLDER = 'Drawings';
 const LEGACY_FOLDER_NAME = 'SPART Board';
 const MIGRATION_COMPLETED_FLAG = 'true';
 const migrationKey = (uid: string) => `spart_drive_folder_migrated_v2_${uid}`;
@@ -97,6 +98,44 @@ export const useGoogleDrive = () => {
   }, [driveService]);
 
   /**
+   * Upload a drawing/annotation PNG to the user's Drive "Drawings" folder and
+   * return a shareable Drive viewer URL.
+   *
+   * Sharing: when the user is on a Google Workspace domain, the file is
+   * shared with that domain (so only colleagues at the same school can open
+   * it). Consumer accounts (gmail.com etc.) fall back to "anyone with the
+   * link" automatically — `makePublic` handles the consumer-domain case.
+   * Annotations can contain classroom info, so domain-restricted sharing
+   * is the safer default when available.
+   *
+   * NOTE: Returns a `drive.google.com/file/d/.../view` URL — intended for
+   * teachers clicking through to open the saved annotation in Drive's
+   * native viewer. This is **different** from `uploadBackgroundToDrive`,
+   * which returns a `lh3.googleusercontent.com/d/...` URL so the image can
+   * be rendered via CSS `background-image` (requires CORS-friendly headers).
+   * Annotations are teacher-facing artifacts, not embedded images, so the
+   * viewer URL is the appropriate return value.
+   */
+  const saveDrawingToDrive = useCallback(
+    async (blob: Blob, fileName: string): Promise<string> => {
+      if (!driveService) {
+        throw new Error('Google Drive is not connected. Please sign in again.');
+      }
+
+      const driveFile = await driveService.uploadFile(
+        blob,
+        fileName,
+        DRAWINGS_FOLDER
+      );
+
+      await driveService.makePublic(driveFile.id, userDomain);
+
+      return `https://drive.google.com/file/d/${driveFile.id}/view`;
+    },
+    [driveService, userDomain]
+  );
+
+  /**
    * Attempts to extract text content from a Google Drive file if it is a supported type (Docs, Slides, Sheets, Text).
    */
   const getDriveFileTextContent = useCallback(
@@ -126,5 +165,6 @@ export const useGoogleDrive = () => {
     uploadBackgroundToDrive,
     getUserBackgroundsFromDrive,
     getDriveFileTextContent,
+    saveDrawingToDrive,
   };
 };

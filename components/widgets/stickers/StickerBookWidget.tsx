@@ -29,6 +29,7 @@ import { WidgetData, StickerBookConfig, StickerGlobalConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 const DEFAULT_STICKERS = [
   // Star
@@ -406,6 +407,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
 
       if (active.id !== over?.id && over) {
@@ -638,7 +640,9 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={beginWidgetDrag}
             onDragEnd={handleDragEnd}
+            onDragCancel={endWidgetDrag}
           >
             <div className="mb-8">
               <SortableContext

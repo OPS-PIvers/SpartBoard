@@ -16,7 +16,6 @@ describe('DrawingConfigurationPanel', () => {
     buildingDefaults: {
       b1: {
         buildingId: 'b1',
-        mode: 'window',
         width: 5,
         customColors: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'],
       },
@@ -43,24 +42,14 @@ describe('DrawingConfigurationPanel', () => {
     // Check initial values
     const widthInput = screen.getByRole('slider');
     expect(widthInput).toHaveValue('5');
-
-    const windowModeButton = screen.getByText('Window').closest('button');
-    expect(windowModeButton).toBeInTheDocument();
   });
 
-  it('updates mode when clicked', () => {
+  it('does not render mode toggle (mode is now picked at click-time)', () => {
     render(
       <DrawingConfigurationPanel config={mockConfig} onChange={mockOnChange} />
     );
-
-    const overlayButton = screen
-      .getByText('Overlay (Annotate)')
-      .closest('button');
-    if (overlayButton) fireEvent.click(overlayButton);
-
-    expect(mockOnChange).toHaveBeenCalled();
-    const lastCall = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
-    expect(lastCall.buildingDefaults['b1']?.mode).toBe('overlay');
+    expect(screen.queryByText('Overlay (Annotate)')).toBeNull();
+    expect(screen.queryByText('Default Mode')).toBeNull();
   });
 
   it('updates width when changed', () => {

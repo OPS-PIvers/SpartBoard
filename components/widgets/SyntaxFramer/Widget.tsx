@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDashboard } from '@/context/useDashboard';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -159,6 +160,7 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
 
       if (over && active.id !== over.id) {
@@ -226,7 +228,9 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={beginWidgetDrag}
             onDragEnd={handleDragEnd}
+            onDragCancel={endWidgetDrag}
           >
             <SortableContext
               items={tokens.map((t) => t.id)}

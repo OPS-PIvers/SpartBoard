@@ -3,7 +3,7 @@ import { BUILDINGS } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { DrawingGlobalConfig, BuildingDrawingDefaults } from '@/types';
 import { WIDGET_PALETTE } from '@/config/colors';
-import { Maximize, Minimize, Pencil, Palette } from 'lucide-react';
+import { Pencil, Palette } from 'lucide-react';
 import { Card } from '@/components/common/Card';
 
 interface DrawingConfigurationPanelProps {
@@ -40,7 +40,6 @@ export const DrawingConfigurationPanel: React.FC<
 
   const NUM_COLOR_PRESETS = 5;
 
-  const activeMode = currentBuildingConfig.mode ?? 'window';
   const activeWidth = currentBuildingConfig.width ?? 4;
 
   // Normalize palette to exactly 5 colors
@@ -80,35 +79,6 @@ export const DrawingConfigurationPanel: React.FC<
           <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
           it to their dashboard.
         </p>
-
-        {/* Default Mode */}
-        <div>
-          <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-1.5">
-            <Maximize className="w-3 h-3" /> Default Mode
-          </label>
-          <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-            <button
-              onClick={() => handleUpdateBuilding({ mode: 'window' })}
-              className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors flex items-center justify-center gap-1.5 ${
-                activeMode === 'window'
-                  ? 'bg-brand-blue-primary text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <Minimize className="w-3 h-3" /> Window
-            </button>
-            <button
-              onClick={() => handleUpdateBuilding({ mode: 'overlay' })}
-              className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors flex items-center justify-center gap-1.5 ${
-                activeMode === 'overlay'
-                  ? 'bg-brand-blue-primary text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <Maximize className="w-3 h-3" /> Overlay (Annotate)
-            </button>
-          </div>
-        </div>
 
         {/* Default Brush Thickness */}
         <div>

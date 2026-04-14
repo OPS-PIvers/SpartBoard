@@ -2,7 +2,6 @@ import React, { memo, Suspense, useMemo, useCallback } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   WidgetData,
-  DrawingConfig,
   WidgetConfig,
   LiveStudent,
   LiveSession,
@@ -185,26 +184,21 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     return null;
   };
 
-  const isDrawingOverlay =
-    widget.type === 'drawing' &&
-    (widget.config as DrawingConfig).mode === 'overlay';
   // When spotlighted we switch to position:fixed so the element escapes all
   // parent stacking contexts (will-change:transform / container-type:size on
   // DraggableWindow both create stacking contexts that would otherwise trap
   // the widget below the backdrop overlay). position:fixed is relative to the
   // viewport, and the dashboard is always full-screen, so widget.x / widget.y
   // map 1:1 to viewport coordinates — the widget stays visually in place.
-  const customStyle: React.CSSProperties = isDrawingOverlay
-    ? { display: 'none' }
-    : isSpotlighted
-      ? {
-          position: 'fixed',
-          zIndex: Z_INDEX.backdrop + 1,
-          outline: '3px solid #facc15', // yellow-400 ring
-          outlineOffset: '2px',
-          boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
-        }
-      : {};
+  const customStyle: React.CSSProperties = isSpotlighted
+    ? {
+        position: 'fixed',
+        zIndex: Z_INDEX.backdrop + 1,
+        outline: '3px solid #facc15', // yellow-400 ring
+        outlineOffset: '2px',
+        boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
+      }
+    : {};
 
   const scaling = WIDGET_SCALING_CONFIG[widget.type];
   const effectiveWidth = widget.maximized ? windowSize.width : widget.w;

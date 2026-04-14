@@ -15,6 +15,7 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
+import { AnnotationOverlay } from './AnnotationOverlay';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
@@ -150,6 +151,7 @@ export const DashboardView: React.FC = () => {
     selectedWidgetIds,
     setSelectedWidgetIds,
     selectedWidgetId,
+    annotationActive,
   } = useDashboard();
 
   const { importSharedQuiz } = useQuiz(user?.uid);
@@ -1272,7 +1274,8 @@ export const DashboardView: React.FC = () => {
 
       {/* FIXED UI: Outside the zoom container */}
       <Sidebar />
-      <Dock />
+      {!annotationActive && <Dock />}
+      <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
       <BoardZoomControl />

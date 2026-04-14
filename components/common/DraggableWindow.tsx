@@ -40,6 +40,7 @@ import {
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
+import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
 import { GlassCard } from './GlassCard';
 import { SettingsPanel } from './SettingsPanel';
@@ -60,8 +61,8 @@ const COLOR_HEX_TO_NAME: Record<string, string> = Object.fromEntries(
 );
 
 // Custom size picker grid dimensions
-const GRID_COLS = 8;
-const GRID_ROWS = 6;
+const GRID_COLS = 10;
+const GRID_ROWS = 10;
 
 // Widgets that require real-time position updates for inter-widget functionality
 const POSITION_AWARE_WIDGETS: WidgetType[] = [
@@ -187,6 +188,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
 
   const [showSnapMenu, setShowSnapMenu] = useState(false);
+  const windowSize = useWindowSize(showSnapMenu);
   const [snapPreviewZone, setSnapPreviewZone] = useState<
     SnapZone | 'maximize' | 'minimize' | null
   >(null);
@@ -200,6 +202,46 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   }>({ start: null, end: null, selecting: false });
   const customGridRef = useRef(customGrid);
   customGridRef.current = customGrid;
+  const occupiedCells = useMemo(() => {
+    const set = new Set<string>();
+    if (!showSnapMenu || !activeDashboard) return set;
+
+    const { PADDING } = SNAP_LAYOUT_CONSTANTS;
+    const safeWidth = Math.max(1, windowSize.width - PADDING * 2);
+    const safeHeight = Math.max(1, windowSize.height - PADDING * 2);
+
+    for (const w of activeDashboard.widgets) {
+      if (w.id === widget.id) continue; // ignore self
+      if (w.minimized || w.maximized) continue; // not visible on canvas
+
+      const nx = (w.x - PADDING) / safeWidth;
+      const ny = (w.y - PADDING) / safeHeight;
+      const nr = (w.x + w.w - PADDING) / safeWidth;
+      const nb = (w.y + w.h - PADDING) / safeHeight;
+
+      const c0 = Math.max(
+        0,
+        Math.min(GRID_COLS - 1, Math.floor(nx * GRID_COLS))
+      );
+      const r0 = Math.max(
+        0,
+        Math.min(GRID_ROWS - 1, Math.floor(ny * GRID_ROWS))
+      );
+      const c1 = Math.max(
+        0,
+        Math.min(GRID_COLS - 1, Math.ceil(nr * GRID_COLS) - 1)
+      );
+      const r1 = Math.max(
+        0,
+        Math.min(GRID_ROWS - 1, Math.ceil(nb * GRID_ROWS) - 1)
+      );
+
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) set.add(`${c},${r}`);
+      }
+    }
+    return set;
+  }, [showSnapMenu, activeDashboard, widget.id, windowSize]);
 
   // Pre-cached zones for edge detection optimization
   const splitLayout = useMemo(
@@ -1065,8 +1107,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   // Widget-local floating toolbar reservation (e.g. TextWidget's rich-text
   // toolbar). When set, this tool menu flips to the opposite side of the
-  // widget so the two toolbars don't overlap.
-  const toolbarReservationRef = useRef<'above' | 'below' | null>(null);
+  // widget so the two toolbars don't overlap. The reserved footprint
+  // (height + gap) is subtracted from that side's available space, and — if
+  // this tool menu is forced onto the same side — it is offset past that
+  // footprint so the two stack instead of overlapping.
+  const toolbarReservationRef = useRef<{
+    side: 'above' | 'below';
+    height: number;
+    gap: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     if (showTools && windowRef.current) {
@@ -1099,29 +1148,36 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // Vertical: prefer above; flip below only when space above is tight AND
         // there is room below. If neither side fits, pick whichever has more space
         // and clamp to keep the toolbar on-screen.
-        const spaceAbove = effectiveTop;
-        const spaceBelow = window.innerHeight - effectiveBottom;
         // If the widget has reserved a side for its own floating toolbar
         // (e.g. TextWidget's formatting toolbar), prefer the opposite side
-        // so the two don't overlap. Fall back to the reserved side if the
-        // opposite is too tight; if neither fits, pick whichever has more
-        // room. With no reservation, prefer above and flip below only when
-        // above is tight and below has more room.
+        // so the two don't overlap. The reserved footprint is subtracted from
+        // that side's available space, and — if this tool menu is forced onto
+        // the same side — it is offset past that footprint so the two stack.
         const reservation = toolbarReservationRef.current;
+        const reservedAbove =
+          reservation?.side === 'above'
+            ? reservation.height + reservation.gap
+            : 0;
+        const reservedBelow =
+          reservation?.side === 'below'
+            ? reservation.height + reservation.gap
+            : 0;
+        const spaceAbove = effectiveTop - reservedAbove;
+        const spaceBelow = window.innerHeight - effectiveBottom - reservedBelow;
         const needed = menuHeight + MARGIN;
         const fitsAbove = spaceAbove >= needed;
         const fitsBelow = spaceBelow >= needed;
         let showBelow: boolean;
-        if (reservation === 'above') {
+        if (reservation?.side === 'above') {
           showBelow = fitsBelow || (!fitsAbove && spaceBelow >= spaceAbove);
-        } else if (reservation === 'below') {
+        } else if (reservation?.side === 'below') {
           showBelow = !fitsAbove && (fitsBelow || spaceBelow >= spaceAbove);
         } else {
           showBelow = !fitsAbove && spaceBelow >= spaceAbove;
         }
         const rawTopPos = showBelow
-          ? effectiveBottom + MARGIN
-          : effectiveTop - menuHeight - MARGIN;
+          ? effectiveBottom + reservedBelow + MARGIN
+          : effectiveTop - reservedAbove - menuHeight - MARGIN;
         const clampedTop = Math.max(
           MARGIN,
           Math.min(rawTopPos, window.innerHeight - menuHeight - MARGIN)
@@ -1258,11 +1314,29 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         e as CustomEvent<{
           widgetId: string;
           side: 'above' | 'below' | null;
+          height?: number;
+          gap?: number;
         }>
       ).detail;
       if (!detail || detail.widgetId !== widgetId) return;
-      if (toolbarReservationRef.current === detail.side) return;
-      toolbarReservationRef.current = detail.side;
+      const next =
+        detail.side === null
+          ? null
+          : {
+              side: detail.side,
+              height: detail.height ?? 0,
+              gap: detail.gap ?? 0,
+            };
+      const current = toolbarReservationRef.current;
+      const unchanged =
+        (current === null && next === null) ||
+        (current !== null &&
+          next !== null &&
+          current.side === next.side &&
+          current.height === next.height &&
+          current.gap === next.gap);
+      if (unchanged) return;
+      toolbarReservationRef.current = next;
       updatePositionRef.current?.();
     };
     window.addEventListener('widget-toolbar-reservation', handleReservation);
@@ -2243,11 +2317,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                     customGrid.start.row,
                                     customGrid.end.row
                                   );
+                              const isOccupied = occupiedCells.has(
+                                `${col},${row}`
+                              );
+                              const cellClassName = selected
+                                ? 'bg-brand-blue-light'
+                                : isOccupied
+                                  ? 'bg-brand-blue-primary'
+                                  : 'bg-slate-300';
                               return (
                                 <div
                                   key={i}
-                                  className={`rounded-[2px] transition-colors ${selected ? 'bg-brand-blue-light' : 'bg-slate-300'}`}
+                                  className={`rounded-[2px] transition-colors ${cellClassName}`}
                                   style={{ height: '14px' }}
+                                  aria-label={
+                                    isOccupied
+                                      ? 'Cell occupied by another widget'
+                                      : undefined
+                                  }
                                 />
                               );
                             }

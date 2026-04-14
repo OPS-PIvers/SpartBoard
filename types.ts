@@ -160,6 +160,108 @@ export interface Path {
   width: number;
 }
 
+// --- Whiteboard object model (Phase 2a) ---
+// DrawableObject is a polymorphic union that replaces the pen-only `Path[]`
+// model used in Phase 1. All objects share an id + z + optional rotation;
+// each kind adds its own geometry/style fields. Rendering dispatches on
+// `kind` (see components/widgets/DrawingWidget/useDrawingCanvas.ts).
+
+export type DrawableObjectKind =
+  | 'path'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'image';
+
+export interface BaseDrawableObject {
+  id: string;
+  kind: DrawableObjectKind;
+  z: number;
+  rotation?: number;
+}
+
+export interface PathObject extends BaseDrawableObject {
+  kind: 'path';
+  points: Point[];
+  color: string;
+  width: number;
+}
+
+export interface RectObject extends BaseDrawableObject {
+  kind: 'rect';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  stroke: string;
+  strokeWidth: number;
+  fill?: string;
+}
+
+export interface EllipseObject extends BaseDrawableObject {
+  kind: 'ellipse';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  stroke: string;
+  strokeWidth: number;
+  fill?: string;
+}
+
+export interface LineObject extends BaseDrawableObject {
+  kind: 'line';
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface ArrowObject extends BaseDrawableObject {
+  kind: 'arrow';
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface TextObject extends BaseDrawableObject {
+  kind: 'text';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  content: string;
+  fontFamily: string;
+  fontSize: number;
+  color: string;
+}
+
+export interface ImageObject extends BaseDrawableObject {
+  kind: 'image';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  src: string;
+  assetId?: string;
+}
+
+export type DrawableObject =
+  | PathObject
+  | RectObject
+  | EllipseObject
+  | LineObject
+  | ArrowObject
+  | TextObject
+  | ImageObject;
+
 export interface ChecklistItem {
   id: string;
   text: string;
@@ -342,8 +444,24 @@ export interface SoundConfig {
 }
 
 export interface DrawingConfig {
-  mode: 'window' | 'overlay';
-  paths: Path[];
+  /**
+   * @deprecated Annotation mode is now an app-level overlay (not a widget).
+   * Legacy widgets may have this set; it is otherwise unused and kept only
+   * for backward compatibility.
+   */
+  mode?: 'window' | 'overlay';
+  /**
+   * Legacy pen-only stroke list. Still used by the per-widget annotation
+   * feature on DraggableWindow (`widget.annotation.paths`). The DrawingWidget
+   * migrates this to `objects[]` on read via `migrateDrawingConfig`.
+   */
+  paths?: Path[];
+  /**
+   * Canonical whiteboard content for the DrawingWidget: a polymorphic list
+   * of drawable objects. Optional so the per-widget annotation feature can
+   * continue storing only `paths`.
+   */
+  objects?: DrawableObject[];
   color?: string;
   width?: number;
   customColors?: string[];
@@ -824,7 +942,6 @@ export interface ScoreboardGlobalConfig {
 // --- Drawing Global Config ---
 export interface BuildingDrawingDefaults {
   buildingId: string;
-  mode?: 'window' | 'overlay';
   width?: number;
   customColors?: string[];
 }

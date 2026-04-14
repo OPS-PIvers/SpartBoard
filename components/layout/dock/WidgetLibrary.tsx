@@ -33,6 +33,7 @@ import { WidgetType, GlobalStyle, InternalToolType } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 // O(1) Lookup Map for TOOLS optimization.
 // Extracted outside the component to prevent recreating the map on every mount.
@@ -196,6 +197,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
 
     const handleDragEnd = useCallback(
       (event: DragEndEvent) => {
+        endWidgetDrag();
         const { active, over } = event;
         if (over && active.id !== over.id) {
           const oldIndex = effectiveOrder.indexOf(
@@ -314,7 +316,9 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={beginWidgetDrag}
                 onDragEnd={handleDragEnd}
+                onDragCancel={endWidgetDrag}
               >
                 <SortableContext
                   items={availableTools.map((t) => t.type)}

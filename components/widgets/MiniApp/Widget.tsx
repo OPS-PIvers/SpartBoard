@@ -57,6 +57,7 @@ import { AssignmentsModal } from './components/AssignmentsModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
 import { useDialog } from '@/context/useDialog';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 // --- ASSIGN MODAL ---
 interface MiniAppAssignModalProps {
@@ -554,6 +555,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
       if (!user || !over || active.id === over.id) return;
 
@@ -1085,7 +1087,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
+                    onDragStart={beginWidgetDrag}
                     onDragEnd={handleDragEnd}
+                    onDragCancel={endWidgetDrag}
                   >
                     <SortableContext
                       items={library.map((item) => item.id)}

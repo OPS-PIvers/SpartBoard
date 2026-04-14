@@ -277,57 +277,49 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     [restoreSelection, editorRef]
   );
 
-  /** Apply an arbitrary pixel font size using the marker-replacement technique.
-   *  Suppresses the parent's handleInput during the multi-step DOM mutation
-   *  (execCommand creates <font size="7"> markers, then we replace them with
-   *  <span style="font-size:…">), and explicitly saves content afterward. */
+  /** Apply an arbitrary pixel font size to the current selection by wrapping it
+   *  in <span style="font-size:Xpx">. Uses Range.extractContents/insertNode to
+   *  handle selections that cross inline-element boundaries. Suppresses the
+   *  parent's handleInput during the mutation, then explicitly persists. */
   const applyFontSize = useCallback(
     (size: number) => {
       const clamped = Math.max(8, Math.min(96, Math.round(size)));
       setCurrentFontSize(clamped);
       setFontSizeInput(String(clamped));
 
-      // Capture the selection scope before execCommand mutates the DOM
-      const sel = window.getSelection();
-      const range =
-        sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
-      const ancestor = range?.commonAncestorContainer ?? null;
-      const scopeEl =
-        ancestor?.nodeType === Node.ELEMENT_NODE
-          ? ancestor
-          : (ancestor?.parentElement ?? null);
-
-      // Suppress handleInput while we mutate the DOM in two steps
-      suppressInputRef.current = true;
+      const editor = editorRef.current;
+      if (!editor) return;
 
       restoreSelection();
-      document.execCommand('styleWithCSS', false, 'true');
-      document.execCommand('fontSize', false, '7');
 
-      // Replace <font size="7"> markers scoped to the selection area
-      const editor = editorRef.current;
-      if (editor) {
-        const searchRoot: Element =
-          scopeEl instanceof Element && editor.contains(scopeEl)
-            ? scopeEl
-            : editor;
-        const fontElements =
-          searchRoot.querySelectorAll<HTMLElement>('font[size="7"]');
-        fontElements.forEach((el) => {
-          const span = document.createElement('span');
-          span.style.fontSize = `${clamped}px`;
-          while (el.firstChild) {
-            span.appendChild(el.firstChild);
-          }
-          el.replaceWith(span);
-        });
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+
+      // Act only on ranges inside this editor, and only for non-collapsed
+      // selections (cursor-only is a no-op — better than the xx-large lock).
+      if (!editor.contains(range.commonAncestorContainer) || range.collapsed) {
+        editor.focus();
+        return;
       }
 
-      // Re-enable input handling and persist the final DOM state
+      suppressInputRef.current = true;
+
+      const span = document.createElement('span');
+      span.style.fontSize = `${clamped}px`;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+
+      // Re-select the wrapped span so repeated +/- clicks keep targeting it.
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      savedRangeRef.current = newRange.cloneRange();
+
       suppressInputRef.current = false;
       onContentChange();
-
-      editor?.focus();
+      editor.focus();
     },
     [editorRef, restoreSelection, suppressInputRef, onContentChange]
   );
