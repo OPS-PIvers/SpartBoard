@@ -5,6 +5,7 @@ interface Props {
   step: GuidedLearningPublicStep;
   containerWidth: number;
   containerHeight: number;
+  panZoomActive?: boolean;
 }
 
 /**
@@ -16,9 +17,14 @@ export const SpotlightInteraction: React.FC<Props> = ({
   step,
   containerWidth,
   containerHeight,
+  panZoomActive = false,
 }) => {
-  const cx = (step.xPct / 100) * containerWidth;
-  const cy = (step.yPct / 100) * containerHeight;
+  const cx = panZoomActive
+    ? containerWidth / 2
+    : (step.xPct / 100) * containerWidth;
+  const cy = panZoomActive
+    ? containerHeight / 2
+    : (step.yPct / 100) * containerHeight;
   // Radius as % of the smaller container dimension
   const radiusPct = step.spotlightRadius ?? 25;
   const radius = (Math.min(containerWidth, containerHeight) * radiusPct) / 100;

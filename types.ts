@@ -2236,6 +2236,10 @@ export interface GuidedLearningStep {
   hideStepNumber?: boolean;
   /** Overlay style for pan-zoom/spotlight interactions */
   showOverlay?: GuidedLearningOverlayType;
+  /** Tooltip anchor relative to hotspot (default 'auto') */
+  tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
+  /** Distance in px from hotspot to tooltip edge (default 12) */
+  tooltipOffset?: number;
   /** Content for text-popover and tooltip */
   text?: string;
   /** Firebase Storage URL for audio */
@@ -2248,6 +2252,8 @@ export interface GuidedLearningStep {
   panZoomScale?: number;
   /** Spotlight radius as % of container cqmin (default 25) */
   spotlightRadius?: number;
+  /** Banner color tone for banner overlay (default 'blue') */
+  bannerTone?: 'blue' | 'red' | 'neutral';
   question?: GuidedLearningQuestion;
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
@@ -2297,11 +2303,14 @@ export interface GuidedLearningPublicStep {
   interactionType: GuidedLearningInteractionType;
   hideStepNumber?: boolean;
   showOverlay?: GuidedLearningOverlayType;
+  tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
+  tooltipOffset?: number;
   text?: string;
   audioUrl?: string;
   videoUrl?: string;
   panZoomScale?: number;
   spotlightRadius?: number;
+  bannerTone?: 'blue' | 'red' | 'neutral';
   question?: {
     type: GuidedLearningQuestionType;
     text: string;

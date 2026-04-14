@@ -35,6 +35,15 @@ const QUESTION_TYPES: { value: GuidedLearningQuestionType; label: string }[] = [
   { value: 'sorting', label: 'Sorting' },
 ];
 
+const TOOLTIP_POSITIONS: NonNullable<GuidedLearningStep['tooltipPosition']>[] =
+  ['auto', 'above', 'below', 'left', 'right'];
+
+const BANNER_TONES: NonNullable<GuidedLearningStep['bannerTone']>[] = [
+  'blue',
+  'red',
+  'neutral',
+];
+
 export const GuidedLearningStepEditor: React.FC<Props> = ({
   step,
   imageCount,
@@ -191,7 +200,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               onChange={(e) => update({ hideStepNumber: e.target.checked })}
               className="accent-indigo-500"
             />
-            Hide step number on hotspot
+            Hide hotspot pin
           </label>
 
           {/* Text content */}
@@ -215,6 +224,58 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                   fontSize: 'clamp(12px, 3.2cqmin, 16px)',
                 }}
               />
+            </div>
+          )}
+
+          {step.interactionType === 'tooltip' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label
+                  className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                  style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
+                >
+                  Tooltip Position
+                </label>
+                <select
+                  value={step.tooltipPosition ?? 'auto'}
+                  onChange={(e) =>
+                    update({
+                      tooltipPosition: e.target
+                        .value as GuidedLearningStep['tooltipPosition'],
+                    })
+                  }
+                  className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                  style={{
+                    padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                    fontSize: 'clamp(12px, 3.2cqmin, 16px)',
+                  }}
+                >
+                  {TOOLTIP_POSITIONS.map((position) => (
+                    <option key={position} value={position}>
+                      {position[0].toUpperCase() + position.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                  style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
+                >
+                  Tooltip Offset ({step.tooltipOffset ?? 12}px)
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={48}
+                  step={2}
+                  value={step.tooltipOffset ?? 12}
+                  onChange={(e) =>
+                    update({ tooltipOffset: parseInt(e.target.value, 10) })
+                  }
+                  className="w-full accent-indigo-500"
+                />
+              </div>
             </div>
           )}
 
@@ -372,6 +433,89 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                       fontSize: 'clamp(12px, 3.2cqmin, 16px)',
                     }}
                   />
+                </div>
+              )}
+
+              {step.showOverlay === 'tooltip' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label
+                      className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                      style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
+                    >
+                      Tooltip Position
+                    </label>
+                    <select
+                      value={step.tooltipPosition ?? 'auto'}
+                      onChange={(e) =>
+                        update({
+                          tooltipPosition: e.target
+                            .value as GuidedLearningStep['tooltipPosition'],
+                        })
+                      }
+                      className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                      style={{
+                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                        fontSize: 'clamp(12px, 3.2cqmin, 16px)',
+                      }}
+                    >
+                      {TOOLTIP_POSITIONS.map((position) => (
+                        <option key={position} value={position}>
+                          {position[0].toUpperCase() + position.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                      style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
+                    >
+                      Tooltip Offset ({step.tooltipOffset ?? 12}px)
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={48}
+                      step={2}
+                      value={step.tooltipOffset ?? 12}
+                      onChange={(e) =>
+                        update({ tooltipOffset: parseInt(e.target.value, 10) })
+                      }
+                      className="w-full accent-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {step.showOverlay === 'banner' && (
+                <div>
+                  <label
+                    className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
+                    style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
+                  >
+                    Banner Tone
+                  </label>
+                  <select
+                    value={step.bannerTone ?? 'blue'}
+                    onChange={(e) =>
+                      update({
+                        bannerTone: e.target
+                          .value as GuidedLearningStep['bannerTone'],
+                      })
+                    }
+                    className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                    style={{
+                      padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                      fontSize: 'clamp(12px, 3.2cqmin, 16px)',
+                    }}
+                  >
+                    {BANNER_TONES.map((tone) => (
+                      <option key={tone} value={tone}>
+                        {tone[0].toUpperCase() + tone.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
             </>

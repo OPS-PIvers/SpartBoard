@@ -15,32 +15,110 @@ export const TooltipInteraction: React.FC<Props> = ({
 }) => {
   const x = (step.xPct / 100) * containerWidth;
   const y = (step.yPct / 100) * containerHeight;
+  const tooltipWidth = Math.min(280, containerWidth * 0.42);
+  const tooltipHeight = Math.max(68, containerHeight * 0.15);
+  const viewportPadding = 16;
+  const offset = Math.max(0, step.tooltipOffset ?? 12);
+  const desiredPosition = step.tooltipPosition ?? 'auto';
 
-  // Determine tooltip offset direction so it stays inside the container
-  const offsetX = step.xPct > 60 ? -8 : 12;
-  const offsetY = step.yPct > 70 ? -40 : 8;
-  const alignRight = step.xPct > 60;
+  let position = desiredPosition;
+  if (desiredPosition === 'auto') {
+    const roomBelow = containerHeight - y;
+    const roomAbove = y;
+    const roomRight = containerWidth - x;
+    const roomLeft = x;
+    const requiredVerticalSpace = tooltipHeight + offset + viewportPadding;
+    const requiredHorizontalSpace = tooltipWidth + offset + viewportPadding;
+
+    if (roomBelow >= requiredVerticalSpace) {
+      position = 'below';
+    } else if (roomAbove >= requiredVerticalSpace) {
+      position = 'above';
+    } else if (roomRight >= requiredHorizontalSpace) {
+      position = 'right';
+    } else if (roomLeft >= requiredHorizontalSpace) {
+      position = 'left';
+    } else {
+      const availableSpaceByPosition = [
+        { position: 'below' as const, space: roomBelow },
+        { position: 'above' as const, space: roomAbove },
+        { position: 'right' as const, space: roomRight },
+        { position: 'left' as const, space: roomLeft },
+      ];
+      position = availableSpaceByPosition.reduce((best, current) =>
+        current.space > best.space ? current : best
+      ).position;
+    }
+  }
+
+  const anchorStyles: Record<
+    NonNullable<GuidedLearningPublicStep['tooltipPosition']>,
+    React.CSSProperties
+  > = {
+    above: {
+      left: x,
+      top: y - offset,
+      transform: 'translate(-50%, -100%)',
+      transformOrigin: '50% 100%',
+    },
+    below: {
+      left: x,
+      top: y + offset,
+      transform: 'translate(-50%, 0)',
+      transformOrigin: '50% 0%',
+    },
+    left: {
+      left: x - offset,
+      top: y,
+      transform: 'translate(-100%, -50%)',
+      transformOrigin: '100% 50%',
+    },
+    right: {
+      left: x + offset,
+      top: y,
+      transform: 'translate(0, -50%)',
+      transformOrigin: '0% 50%',
+    },
+    auto: {},
+  };
+
+  type ResolvedTooltipPosition = 'above' | 'below' | 'left' | 'right';
+  const resolvedPosition: ResolvedTooltipPosition =
+    position === 'auto' ? 'below' : position;
+  const bubbleAlignment =
+    resolvedPosition === 'left'
+      ? 'items-end text-right'
+      : 'items-start text-left';
+  const arrowClassByPosition = {
+    above:
+      'absolute left-1/2 -bottom-[5px] -translate-x-1/2 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-black/80',
+    below:
+      'absolute left-1/2 -top-[5px] -translate-x-1/2 border-l-[6px] border-r-[6px] border-b-[6px] border-l-transparent border-r-transparent border-b-black/80',
+    left: 'absolute top-1/2 -right-[5px] -translate-y-1/2 border-y-[6px] border-l-[6px] border-y-transparent border-l-black/80',
+    right:
+      'absolute top-1/2 -left-[5px] -translate-y-1/2 border-y-[6px] border-r-[6px] border-y-transparent border-r-black/80',
+  } as const;
 
   return (
     <div
       className="absolute pointer-events-none z-20"
       style={{
-        left: x + offsetX,
-        top: y + offsetY,
-        maxWidth: 'min(200px, 40cqw)',
+        ...anchorStyles[resolvedPosition],
+        maxWidth: 'min(280px, 42cqw)',
       }}
     >
       <div
-        className={`bg-black/70 backdrop-blur-sm text-white rounded-lg leading-relaxed shadow-lg border border-white/10 ${alignRight ? 'text-right' : 'text-left'}`}
+        className={`relative flex flex-col ${bubbleAlignment} bg-black/80 backdrop-blur-md text-white rounded-xl leading-relaxed shadow-xl border border-white/15`}
         style={{
-          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-          fontSize: 'min(12px, 3cqmin)',
+          padding: 'min(10px, 2.3cqmin) min(12px, 3cqmin)',
+          fontSize: 'min(13px, 3.1cqmin)',
         }}
       >
+        <span className={arrowClassByPosition[resolvedPosition]} />
         {step.label && (
           <div
             className="font-bold mb-0.5"
-            style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+            style={{ fontSize: 'min(12px, 3.3cqmin)' }}
           >
             {step.label}
           </div>
