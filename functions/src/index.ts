@@ -926,14 +926,15 @@ export const fetchWeatherProxy = onCall(
       if (
         parsedUrl.protocol !== 'https:' ||
         (parsedUrl.hostname !== 'api.openweathermap.org' &&
-          parsedUrl.hostname !== 'owc.enterprise.earthnetworks.com')
+          parsedUrl.hostname !== 'owc.enterprise.earthnetworks.com' &&
+          parsedUrl.hostname !== 'orono.api.nutrislice.com')
       ) {
         throw new Error('Invalid host or protocol');
       }
     } catch {
       throw new HttpsError(
         'invalid-argument',
-        'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
+        'Invalid proxy URL. Only https://api.openweathermap.org, https://owc.enterprise.earthnetworks.com, and https://orono.api.nutrislice.com are allowed.'
       );
     }
 
