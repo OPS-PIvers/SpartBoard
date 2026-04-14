@@ -33,9 +33,16 @@ const pathObject = (overrides: Partial<PathObject> = {}): PathObject => ({
 });
 
 describe('migrateDrawingConfig', () => {
-  it('returns an empty config when input is null or undefined', () => {
-    expect(migrateDrawingConfig(null)).toEqual({ objects: [] });
-    expect(migrateDrawingConfig(undefined)).toEqual({ objects: [] });
+  it('returns an empty config with defaults when input is null or undefined', () => {
+    const nullResult = migrateDrawingConfig(null);
+    expect(nullResult.objects).toEqual([]);
+    expect(nullResult.activeTool).toBe('pen');
+    expect(nullResult.shapeFill).toBe(false);
+
+    const undefinedResult = migrateDrawingConfig(undefined);
+    expect(undefinedResult.objects).toEqual([]);
+    expect(undefinedResult.activeTool).toBe('pen');
+    expect(undefinedResult.shapeFill).toBe(false);
   });
 
   it('passes through an already-migrated config unchanged', () => {
@@ -54,6 +61,20 @@ describe('migrateDrawingConfig', () => {
     expect(out.color).toBe('#ff0000');
     expect(out.width).toBe(6);
     expect(out.customColors).toEqual(['#111', '#222']);
+    // New 2.1b fields default correctly
+    expect(out.activeTool).toBe('pen');
+    expect(out.shapeFill).toBe(false);
+  });
+
+  it('preserves explicit activeTool and shapeFill when already set', () => {
+    const input: DrawingConfig = {
+      objects: [pathObject()],
+      activeTool: 'rect',
+      shapeFill: true,
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('rect');
+    expect(out.shapeFill).toBe(true);
   });
 
   it('strips deprecated `paths` and `mode` even from migrated configs', () => {
@@ -137,6 +158,39 @@ describe('migrateDrawingConfig', () => {
     expect(twice.objects).toEqual(once.objects);
     expect(twice.color).toBe(once.color);
     expect(twice.width).toBe(once.width);
+    expect(twice.activeTool).toBe(once.activeTool);
+    expect(twice.shapeFill).toBe(once.shapeFill);
+  });
+
+  // --- 2.1b: activeTool and shapeFill migration ---
+
+  it('promotes legacy color === "eraser" to activeTool: "eraser" and clears color', () => {
+    const input = {
+      objects: [pathObject()],
+      color: 'eraser',
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('eraser');
+    // color should be cleared (undefined) so callers fall back to palette default
+    expect(out.color).toBeUndefined();
+  });
+
+  it('defaults activeTool to "pen" when field is missing', () => {
+    const input: DrawingConfig = {
+      objects: [pathObject()],
+      color: '#abc',
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('pen');
+  });
+
+  it('defaults activeTool to "pen" when value is not a valid ShapeTool', () => {
+    const input = {
+      objects: [pathObject()],
+      activeTool: 'select', // future tool not yet valid
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('pen');
   });
 });
 
@@ -171,10 +225,12 @@ describe('nextZ', () => {
 });
 
 describe('emptyDrawingConfig', () => {
-  it('returns a fresh empty config each call', () => {
+  it('returns a fresh empty config with defaults each call', () => {
     const a = emptyDrawingConfig();
     const b = emptyDrawingConfig();
-    expect(a).toEqual({ objects: [] });
+    expect(a.objects).toEqual([]);
+    expect(a.activeTool).toBe('pen');
+    expect(a.shapeFill).toBe(false);
     expect(a).not.toBe(b);
   });
 });
