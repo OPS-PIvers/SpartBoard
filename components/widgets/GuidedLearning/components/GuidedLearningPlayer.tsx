@@ -210,6 +210,46 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     };
   }, [mode, playing, currentIdx, startTimer]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        setActiveStepId(null);
+        return;
+      }
+
+      if (mode === 'structured') {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          goPrev();
+          return;
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          goNext();
+          return;
+        }
+      }
+
+      if (mode === 'guided' && event.code === 'Space') {
+        event.preventDefault();
+        setPlaying((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [goNext, goPrev, mode]);
+
   const handlePinClick = (step: GuidedLearningPublicStep) => {
     if (mode === 'explore') {
       setExploreImageIndex(step.imageIndex ?? 0);
@@ -239,9 +279,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       containerSize.w / 2 - (step.xPct / 100) * containerSize.w * scale;
     const ty =
       containerSize.h / 2 - (step.yPct / 100) * containerSize.h * scale;
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     return {
       transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
-      transition: 'transform 0.6s ease-in-out',
+      transition: reduceMotion ? 'none' : 'transform 0.6s ease-in-out',
       transformOrigin: '0 0',
     };
   };
@@ -318,6 +363,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       );
     }
 
+    if (type === 'tooltip') {
+      return activeStepInContainer ? (
+        <TooltipInteraction
+          step={activeStepInContainer}
+          containerWidth={containerSize.w}
+          containerHeight={containerSize.h}
+        />
+      ) : null;
+    }
+
     if (
       type === 'pan-zoom' ||
       type === 'spotlight' ||
@@ -340,7 +395,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             </div>
           </div>
         ) : activeStep.showOverlay === 'banner' ? (
-          <BannerInteraction step={activeStep} />
+          <BannerInteraction
+            step={activeStep}
+            onClose={() => setActiveStepId(null)}
+          />
         ) : null;
 
       if (
@@ -353,6 +411,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               step={activeStepInContainer}
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
+              panZoomActive={Boolean(panZoomActive)}
             />
             {overlay}
           </>
@@ -364,25 +423,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
     return null;
   };
-
-  // Tooltip — rendered separately (not in overlay, directly on canvas)
-  const renderTooltip = () => {
-    if (
-      !activeStepInContainer ||
-      activeStepInContainer.interactionType !== 'tooltip'
-    ) {
-      return null;
-    }
-
-    return (
-      <TooltipInteraction
-        step={activeStepInContainer}
-        containerWidth={containerSize.w}
-        containerHeight={containerSize.h}
-      />
-    );
-  };
-
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {/* Controls bar */}
@@ -419,38 +459,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             className="flex items-center"
             style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            <button
-              onClick={goPrev}
-              disabled={currentIdx === 0}
-              className="text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-              aria-label="Previous"
-            >
-              <ChevronLeft
-                style={{
-                  width: 'min(20px, 5cqmin)',
-                  height: 'min(20px, 5cqmin)',
-                }}
-              />
-            </button>
             <span
               className="text-slate-300 font-bold"
               style={{ fontSize: 'min(11px, 3cqmin)' }}
             >
               {currentIdx + 1} / {steps.length}
             </span>
-            <button
-              onClick={goNext}
-              disabled={currentIdx === steps.length - 1}
-              className="text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-              aria-label="Next"
-            >
-              <ChevronRight
-                style={{
-                  width: 'min(20px, 5cqmin)',
-                  height: 'min(20px, 5cqmin)',
-                }}
-              />
-            </button>
           </div>
         )}
 
@@ -552,7 +566,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           className="w-full h-full relative flex items-center justify-center"
         >
           {/* Image with optional pan-zoom transform */}
-          <div className="w-full h-full relative" style={getPanZoomStyle()}>
+          <div
+            className="w-full h-full relative motion-reduce:transition-none"
+            style={getPanZoomStyle()}
+          >
             {currentImageUrl && (
               <img
                 ref={imgRef}
@@ -570,7 +587,13 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               const isActive = activeStepId === step.id;
               const isCurrentStructured =
                 mode !== 'explore' && step.id === currentStep?.id;
-              const showPin = mode === 'explore' || isCurrentStructured;
+              const hidePinInStructured =
+                mode !== 'explore' &&
+                isCurrentStructured &&
+                Boolean(step.hideStepNumber);
+              const showPin =
+                (mode === 'explore' || isCurrentStructured) &&
+                !hidePinInStructured;
 
               if (!showPin) return null;
 
@@ -592,10 +615,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 >
                   <button
                     onClick={() => handlePinClick(step)}
-                    className={`relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none ${
+                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
                       isActive
                         ? 'bg-indigo-600 scale-125 shadow-indigo-500/60'
-                        : 'bg-white/20 hover:bg-white/30 animate-pulse'
+                        : 'bg-white/25 hover:bg-white/35'
                     }`}
                     style={{
                       width: 'min(32px, 8cqmin)',
@@ -603,20 +626,62 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                     }}
                     aria-label={step.label ?? `Step ${idx + 1}`}
                   >
+                    {!isActive && (
+                      <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
+                    )}
                     <span
-                      className="text-white font-bold select-none"
+                      className="pointer-events-none absolute rounded-full bg-white/95"
+                      style={{
+                        width: 'min(7px, 1.8cqmin)',
+                        height: 'min(7px, 1.8cqmin)',
+                      }}
+                    />
+                    <span
+                      className="relative text-white font-bold select-none"
                       style={{ fontSize: 'min(12px, 3cqmin)' }}
                     >
-                      {step.hideStepNumber ? '' : idx + 1}
+                      {mode === 'explore' && step.hideStepNumber ? '' : idx + 1}
                     </span>
                   </button>
                 </div>
               );
             })}
-
-            {/* Tooltip (rendered inline with image) */}
-            {renderTooltip()}
           </div>
+
+          {mode === 'structured' && steps.length > 0 && (
+            <>
+              <button
+                onClick={goPrev}
+                disabled={currentIdx === 0}
+                aria-label="Previous step"
+                className="absolute top-1/2 left-3 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'clamp(40px, 8cqmin, 72px)',
+                  height: 'clamp(40px, 8cqmin, 72px)',
+                }}
+              >
+                <ChevronLeft
+                  className="mx-auto text-white"
+                  style={{ width: '60%', height: '60%' }}
+                />
+              </button>
+              <button
+                onClick={goNext}
+                disabled={currentIdx === steps.length - 1}
+                aria-label="Next step"
+                className="absolute top-1/2 right-3 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                style={{
+                  width: 'clamp(40px, 8cqmin, 72px)',
+                  height: 'clamp(40px, 8cqmin, 72px)',
+                }}
+              >
+                <ChevronRight
+                  className="mx-auto text-white"
+                  style={{ width: '60%', height: '60%' }}
+                />
+              </button>
+            </>
+          )}
 
           {/* Interaction overlays */}
           {renderInteraction()}
@@ -643,8 +708,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               }`}
               style={{
                 width:
-                  i === currentIdx ? 'min(16px, 4cqmin)' : 'min(8px, 2cqmin)',
-                height: 'min(8px, 2cqmin)',
+                  i === currentIdx
+                    ? 'clamp(20px, 5cqmin, 36px)'
+                    : 'clamp(8px, 2cqmin, 14px)',
+                height: 'clamp(8px, 2cqmin, 14px)',
               }}
               aria-label={`Go to step ${i + 1}`}
             />

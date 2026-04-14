@@ -75,7 +75,9 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 /** Convert a full step to a student-safe public step (strips answer keys, shuffles choices) */
-function toPublicStep(step: GuidedLearningStep): GuidedLearningPublicStep {
+export function toPublicStep(
+  step: GuidedLearningStep
+): GuidedLearningPublicStep {
   const base: GuidedLearningPublicStep = {
     id: step.id,
     xPct: step.xPct,
@@ -85,11 +87,14 @@ function toPublicStep(step: GuidedLearningStep): GuidedLearningPublicStep {
     interactionType: step.interactionType,
     hideStepNumber: step.hideStepNumber,
     showOverlay: step.showOverlay,
+    tooltipPosition: step.tooltipPosition,
+    tooltipOffset: step.tooltipOffset,
     text: step.text,
     audioUrl: step.audioUrl,
     videoUrl: step.videoUrl,
     panZoomScale: step.panZoomScale,
     spotlightRadius: step.spotlightRadius,
+    bannerTone: step.bannerTone,
     autoAdvanceDuration: step.autoAdvanceDuration,
   };
 
