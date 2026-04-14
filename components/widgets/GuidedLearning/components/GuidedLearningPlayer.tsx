@@ -53,6 +53,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    )
+      return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
 
   // Track previous mode to reset step index when mode changes (adjusting state while rendering)
   const [prevMode, setPrevMode] = useState(mode);
@@ -211,7 +219,29 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   }, [mode, playing, currentIdx, startTimer]);
 
   useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    )
+      return;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches);
+    };
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const container = containerRef.current;
+      const activeElement = document.activeElement;
+      const hasKeyboardFocus = Boolean(
+        container && activeElement && container.contains(activeElement)
+      );
+      const isHovered = Boolean(container?.matches(':hover'));
+      if (!hasKeyboardFocus && !isHovered) return;
+
       const target = event.target as HTMLElement | null;
       if (
         target &&
@@ -279,14 +309,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       containerSize.w / 2 - (step.xPct / 100) * containerSize.w * scale;
     const ty =
       containerSize.h / 2 - (step.yPct / 100) * containerSize.h * scale;
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     return {
       transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
-      transition: reduceMotion ? 'none' : 'transform 0.6s ease-in-out',
+      transition: prefersReducedMotion ? 'none' : 'transform 0.6s ease-in-out',
       transformOrigin: '0 0',
     };
   };
@@ -564,6 +590,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         <div
           ref={containerRef}
           className="w-full h-full relative flex items-center justify-center"
+          tabIndex={0}
         >
           {/* Image with optional pan-zoom transform */}
           <div
@@ -655,10 +682,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 disabled={currentIdx === 0}
                 aria-label="Previous step"
                 className="absolute top-1/2 left-3 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-                style={{
-                  width: 'clamp(40px, 8cqmin, 72px)',
-                  height: 'clamp(40px, 8cqmin, 72px)',
-                }}
+                style={{ width: '56px', height: '56px' }}
               >
                 <ChevronLeft
                   className="mx-auto text-white"
@@ -670,10 +694,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 disabled={currentIdx === steps.length - 1}
                 aria-label="Next step"
                 className="absolute top-1/2 right-3 -translate-y-1/2 z-30 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 disabled:opacity-40 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-                style={{
-                  width: 'clamp(40px, 8cqmin, 72px)',
-                  height: 'clamp(40px, 8cqmin, 72px)',
-                }}
+                style={{ width: '56px', height: '56px' }}
               >
                 <ChevronRight
                   className="mx-auto text-white"

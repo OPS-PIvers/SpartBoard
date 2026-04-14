@@ -228,10 +228,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           )}
 
           {step.interactionType === 'tooltip' && (
-            <div
-              className="grid grid-cols-2"
-              style={{ gap: 'min(8px, 2cqmin)' }}
-            >
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <label
                   className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
@@ -440,10 +437,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               )}
 
               {step.showOverlay === 'tooltip' && (
-                <div
-                  className="grid grid-cols-2"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label
                       className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
