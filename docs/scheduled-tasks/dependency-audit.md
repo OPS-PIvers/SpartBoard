@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-04-14_
-_Last action: never_
+_Last action: 2026-04-14_
 
 ---
 
@@ -15,17 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### HIGH `axios` direct dependency has CRITICAL CVEs — upgrade to >=1.15.0
-
-- **Detected:** 2026-04-14
-- **File:** package.json (`"axios": "^1.13.4"` locked at 1.13.4), functions/package.json (axios@1.13.3)
-- **Detail:** Three CVEs affect axios <1.15.0:
-  - **CRITICAL** GHSA-jr5f-v2jv-69x6: NO_PROXY hostname normalization bypass — attacker-controlled subdomains can bypass NO_PROXY configuration, leaking requests to unintended hosts.
-  - **CRITICAL** GHSA-wf5p-g6vw-rhxx: Unrestricted Cloud Metadata Exfiltration via SSRF — in environments with cloud metadata endpoints (AWS, GCP, Azure), requests can be redirected to extract instance metadata.
-  - **HIGH** GHSA-jr5f-v2jv-69x6: DoS via `__proto__` pollution in response headers.
-    axios is a **direct** dependency in both root (for Gemini/API calls) and functions/. Fix is a simple version bump with no breaking API changes.
-- **Fix:** `pnpm up axios@^1.15.0` in root and `pnpm up axios@^1.15.0` in functions/. Verify all Gemini integration calls in utils/ai.ts still work. Update lockfile and commit.
 
 ### HIGH `vite` dev server has HIGH arbitrary file read vulnerability
 
@@ -110,4 +99,21 @@ _Nothing currently in progress._
 
 ## Completed
 
-_No completed items yet._
+### HIGH `axios` direct dependency has CRITICAL CVEs — upgrade to >=1.15.0
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-14
+- **File:** package.json, functions/package.json
+- **Detail:** Three CVEs affected axios <1.15.0:
+  - **CRITICAL** GHSA-jr5f-v2jv-69x6: NO_PROXY hostname normalization bypass
+  - **CRITICAL** GHSA-wf5p-g6vw-rhxx: Unrestricted Cloud Metadata Exfiltration via SSRF
+  - **HIGH** DoS via `__proto__` pollution in response headers
+- **Resolution:** Ran `pnpm up axios@^1.15.0` in both root and `functions/`. Both now resolve to `axios@1.15.0`. Verified:
+  - `pnpm run type-check` (root) — clean
+  - `pnpm -C functions run type-check` — clean
+  - `pnpm run lint` — 0 errors, 0 warnings
+  - `pnpm run format:check` — clean
+  - `pnpm run test` — all 1094 unit tests pass
+  - `pnpm run build` — production build succeeds
+  - `pnpm -C functions run build` — functions TypeScript compile succeeds
+  - Functions tests involving axios mocks pass (sanitize/embeddability/classlink). Five pre-existing adminAnalytics test failures are unrelated to axios (confirmed by stash/compare). Only functions/ uses axios directly (root axios is devDep not imported).
