@@ -90,7 +90,19 @@
       "classLinkConnecting": "Connexion à ClassLink…",
       "classLinkNoClasses": "Aucune classe trouvée dans ClassLink.",
       "classLinkImport": "Importer",
-      "classLinkMerge": "Fusionner"
+      "classLinkMerge": "Fusionner",
+      "duplicatePins": "PIN en double : {{pins}}",
+      "namesOnePerLine": "Noms (un par ligne)",
+      "firstNames": "Prénoms",
+      "lastNames": "Noms",
+      "quizPin": "PIN du quiz",
+      "addLastName": "+ Nom",
+      "addQuizPin": "+ PIN du quiz",
+      "remove": "Retirer",
+      "hide": "Masquer",
+      "pasteFullNames": "Collez les noms complets ou les noms de groupe ici...",
+      "pasteFirstNames": "Collez les prénoms...",
+      "pasteLastNames": "Collez les noms..."
     },
     "widgets": {
       "gradeFilter": "Filtre par niveau",
@@ -176,7 +188,18 @@
     "invalidBoardData": "Données du tableau invalides",
     "imageTooLarge": "Image trop grande (max. 5 Mo)",
     "backgroundUploaded": "Arrière-plan personnalisé téléchargé dans le cloud",
-    "settingsSaved": "Paramètres enregistrés avec succès"
+    "settingsSaved": "Paramètres enregistrés avec succès",
+    "classLink": {
+      "fetchFailed": "Échec de la récupération depuis ClassLink. Consultez la console.",
+      "imported": "{{name}} importée",
+      "importFailed": "Échec de l'import de {{name}}",
+      "targetMissing": "La classe cible n'existe plus",
+      "noStudents": "Aucun élève trouvé dans {{name}}",
+      "allAlreadyPresent": "Les {{count}} élèves sont déjà dans {{name}}",
+      "addedStudents_one": "{{count}} élève ajouté à {{name}}",
+      "addedStudents_other": "{{count}} élèves ajoutés à {{name}}",
+      "syncFailed": "Échec de la synchronisation de {{name}}"
+    }
   },
   "dock": {
     "uploadingToDrive": "Téléchargement de l'enregistrement sur Google Drive...",

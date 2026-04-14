@@ -93,7 +93,19 @@
       "classLinkConnecting": "Conectando con ClassLink…",
       "classLinkNoClasses": "No se encontraron clases en ClassLink.",
       "classLinkImport": "Importar",
-      "classLinkMerge": "Fusionar"
+      "classLinkMerge": "Fusionar",
+      "duplicatePins": "PIN duplicados: {{pins}}",
+      "namesOnePerLine": "Nombres (uno por línea)",
+      "firstNames": "Nombres",
+      "lastNames": "Apellidos",
+      "quizPin": "PIN de Quiz",
+      "addLastName": "+ Apellido",
+      "addQuizPin": "+ PIN de Quiz",
+      "remove": "Quitar",
+      "hide": "Ocultar",
+      "pasteFullNames": "Pega nombres completos o nombres de grupo aquí...",
+      "pasteFirstNames": "Pega los nombres...",
+      "pasteLastNames": "Pega los apellidos..."
     },
     "widgets": {
       "gradeFilter": "Filtro por Grado",
@@ -185,7 +197,18 @@
     "invalidBoardData": "Datos del tablero no válidos",
     "imageTooLarge": "Imagen demasiado grande (máx. 5 MB)",
     "backgroundUploaded": "Fondo personalizado subido a la nube",
-    "settingsSaved": "Configuración guardada con éxito"
+    "settingsSaved": "Configuración guardada con éxito",
+    "classLink": {
+      "fetchFailed": "Error al obtener datos de ClassLink. Revisa la consola.",
+      "imported": "{{name}} importada",
+      "importFailed": "Error al importar {{name}}",
+      "targetMissing": "La clase de destino ya no existe",
+      "noStudents": "No se encontraron estudiantes en {{name}}",
+      "allAlreadyPresent": "Los {{count}} estudiantes ya están en {{name}}",
+      "addedStudents_one": "Se añadió {{count}} estudiante a {{name}}",
+      "addedStudents_other": "Se añadieron {{count}} estudiantes a {{name}}",
+      "syncFailed": "Error al sincronizar {{name}}"
+    }
   },
   "dock": {
     "uploadingToDrive": "Subiendo grabación a Google Drive...",

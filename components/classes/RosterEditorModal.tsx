@@ -86,7 +86,10 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         {duplicatePins.size > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-xxs font-semibold shrink-0">
             <AlertTriangle size={12} className="text-yellow-600 shrink-0" />
-            Duplicate PINs: {[...duplicatePins].join(', ')}
+            {t('sidebar.classes.duplicatePins', {
+              defaultValue: 'Duplicate PINs: {{pins}}',
+              pins: [...duplicatePins].join(', '),
+            })}
           </div>
         )}
 
@@ -104,7 +107,13 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
           <div className="flex flex-col h-full min-h-0">
             <div className="flex justify-between items-end mb-1">
               <label className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
-                {showLastNames ? 'First Names' : 'Names (One per line)'}
+                {showLastNames
+                  ? t('sidebar.classes.firstNames', {
+                      defaultValue: 'First Names',
+                    })
+                  : t('sidebar.classes.namesOnePerLine', {
+                      defaultValue: 'Names (One per line)',
+                    })}
               </label>
               <div className="flex gap-2">
                 {!showLastNames && (
@@ -112,7 +121,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     onClick={handleToggleToLastNames}
                     className="text-xxs text-blue-600 hover:text-blue-700 font-black uppercase tracking-wider"
                   >
-                    + Last Name
+                    {t('sidebar.classes.addLastName', {
+                      defaultValue: '+ Last Name',
+                    })}
                   </button>
                 )}
                 {!showPins && (
@@ -120,7 +131,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     onClick={() => setShowPins(true)}
                     className="text-xxs text-violet-600 hover:text-violet-700 font-black uppercase tracking-wider"
                   >
-                    + Quiz PIN
+                    {t('sidebar.classes.addQuizPin', {
+                      defaultValue: '+ Quiz PIN',
+                    })}
                   </button>
                 )}
               </div>
@@ -131,8 +144,12 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               onChange={(e) => setFirsts(e.target.value)}
               placeholder={
                 showLastNames
-                  ? 'Paste first names...'
-                  : 'Paste full names or group names here...'
+                  ? t('sidebar.classes.pasteFirstNames', {
+                      defaultValue: 'Paste first names...',
+                    })
+                  : t('sidebar.classes.pasteFullNames', {
+                      defaultValue: 'Paste full names or group names here...',
+                    })
               }
             />
           </div>
@@ -140,20 +157,24 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             <div className="flex flex-col h-full min-h-0">
               <div className="flex justify-between items-end mb-1">
                 <label className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
-                  Last Names
+                  {t('sidebar.classes.lastNames', {
+                    defaultValue: 'Last Names',
+                  })}
                 </label>
                 <button
                   onClick={handleToggleToSingleField}
                   className="text-xxs text-slate-400 hover:text-red-500 font-black uppercase tracking-wider transition-colors"
                 >
-                  Remove
+                  {t('sidebar.classes.remove', { defaultValue: 'Remove' })}
                 </button>
               </div>
               <textarea
                 className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                 value={lasts}
                 onChange={(e) => setLasts(e.target.value)}
-                placeholder="Paste last names..."
+                placeholder={t('sidebar.classes.pasteLastNames', {
+                  defaultValue: 'Paste last names...',
+                })}
               />
             </div>
           )}
@@ -161,13 +182,13 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             <div className="flex flex-col h-full min-h-0 w-24">
               <div className="flex justify-between items-end mb-1">
                 <label className="text-xxs font-bold text-slate-500 uppercase tracking-widest">
-                  Quiz PIN
+                  {t('sidebar.classes.quizPin', { defaultValue: 'Quiz PIN' })}
                 </label>
                 <button
                   onClick={() => setShowPins(false)}
                   className="text-xxs text-slate-400 hover:text-red-500 font-black uppercase tracking-wider transition-colors"
                 >
-                  Hide
+                  {t('sidebar.classes.hide', { defaultValue: 'Hide' })}
                 </button>
               </div>
               <textarea
@@ -181,8 +202,11 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
         </div>
 
         <div className="text-xxs text-slate-400 font-medium shrink-0">
-          {previewStudents.length}{' '}
-          {previewStudents.length === 1 ? 'student' : 'students'}
+          {t('sidebar.classes.studentCount', {
+            count: previewStudents.length,
+            defaultValue: '{{count}} Student',
+            defaultValue_other: '{{count}} Students',
+          })}
         </div>
       </div>
     </Modal>

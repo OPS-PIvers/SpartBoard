@@ -58,7 +58,11 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       } catch (err) {
         if (cancelled) return;
         console.error('Failed to fetch from ClassLink', err);
-        setError('Failed to fetch from ClassLink. Check console.');
+        setError(
+          t('toasts.classLink.fetchFailed', {
+            defaultValue: 'Failed to fetch from ClassLink. Check console.',
+          })
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -66,7 +70,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   const handleImportNew = async (cls: ClassLinkClass) => {
     setPendingId(cls.sourcedId);
@@ -84,11 +88,23 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
       const displayName = `${subjectPrefix}${cls.title}${codeSuffix}`;
       await addRoster(displayName, students);
-      addToast(`Imported ${cls.title}`, 'success');
+      addToast(
+        t('toasts.classLink.imported', {
+          defaultValue: 'Imported {{name}}',
+          name: cls.title,
+        }),
+        'success'
+      );
       onClose();
     } catch (err) {
       console.error(err);
-      addToast(`Failed to import ${cls.title}`, 'error');
+      addToast(
+        t('toasts.classLink.importFailed', {
+          defaultValue: 'Failed to import {{name}}',
+          name: cls.title,
+        }),
+        'error'
+      );
     } finally {
       setPendingId(null);
     }
@@ -102,7 +118,12 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         (r) => r.id === mode.rosterId
       );
       if (!target) {
-        addToast('Target class no longer exists', 'error');
+        addToast(
+          t('toasts.classLink.targetMissing', {
+            defaultValue: 'Target class no longer exists',
+          }),
+          'error'
+        );
         onClose();
         return;
       }
@@ -112,22 +133,43 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       );
       await updateRoster(mode.rosterId, { students: result.students });
       if (result.addedCount === 0 && result.matchedCount === 0) {
-        addToast(`No students found in ${cls.title}`, 'info');
+        addToast(
+          t('toasts.classLink.noStudents', {
+            defaultValue: 'No students found in {{name}}',
+            name: cls.title,
+          }),
+          'info'
+        );
       } else if (result.addedCount === 0) {
         addToast(
-          `All ${result.matchedCount} students already in ${target.name}`,
+          t('toasts.classLink.allAlreadyPresent', {
+            count: result.matchedCount,
+            defaultValue: 'All {{count}} students already in {{name}}',
+            name: target.name,
+          }),
           'info'
         );
       } else {
         addToast(
-          `Added ${result.addedCount} student${result.addedCount === 1 ? '' : 's'} to ${target.name}`,
+          t('toasts.classLink.addedStudents', {
+            count: result.addedCount,
+            defaultValue: 'Added {{count}} student to {{name}}',
+            defaultValue_other: 'Added {{count}} students to {{name}}',
+            name: target.name,
+          }),
           'success'
         );
       }
       onClose();
     } catch (err) {
       console.error(err);
-      addToast(`Failed to sync ${cls.title}`, 'error');
+      addToast(
+        t('toasts.classLink.syncFailed', {
+          defaultValue: 'Failed to sync {{name}}',
+          name: cls.title,
+        }),
+        'error'
+      );
     } finally {
       setPendingId(null);
     }

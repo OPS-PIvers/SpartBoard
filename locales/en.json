@@ -101,7 +101,19 @@
       "classLinkConnecting": "Connecting to ClassLink…",
       "classLinkNoClasses": "No classes found in ClassLink.",
       "classLinkImport": "Import",
-      "classLinkMerge": "Merge"
+      "classLinkMerge": "Merge",
+      "duplicatePins": "Duplicate PINs: {{pins}}",
+      "namesOnePerLine": "Names (One per line)",
+      "firstNames": "First Names",
+      "lastNames": "Last Names",
+      "quizPin": "Quiz PIN",
+      "addLastName": "+ Last Name",
+      "addQuizPin": "+ Quiz PIN",
+      "remove": "Remove",
+      "hide": "Hide",
+      "pasteFullNames": "Paste full names or group names here...",
+      "pasteFirstNames": "Paste first names...",
+      "pasteLastNames": "Paste last names..."
     },
     "widgets": {
       "gradeFilter": "Grade Filter",
@@ -194,7 +206,18 @@
     "invalidBoardData": "Invalid board data",
     "imageTooLarge": "Image too large (Max 5MB)",
     "backgroundUploaded": "Custom background uploaded to cloud",
-    "settingsSaved": "Settings saved successfully"
+    "settingsSaved": "Settings saved successfully",
+    "classLink": {
+      "fetchFailed": "Failed to fetch from ClassLink. Check console.",
+      "imported": "Imported {{name}}",
+      "importFailed": "Failed to import {{name}}",
+      "targetMissing": "Target class no longer exists",
+      "noStudents": "No students found in {{name}}",
+      "allAlreadyPresent": "All {{count}} students already in {{name}}",
+      "addedStudents_one": "Added {{count}} student to {{name}}",
+      "addedStudents_other": "Added {{count}} students to {{name}}",
+      "syncFailed": "Failed to sync {{name}}"
+    }
   },
   "dock": {
     "uploadingToDrive": "Uploading recording to Google Drive...",
