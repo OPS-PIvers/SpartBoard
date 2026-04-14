@@ -4,22 +4,29 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
-## 2026-04-13
+## 2026-04-14
 
 - PRs reviewed:
-  - #1269 — render-optimization audit entry clarification
-  - #1270 — fix: missing test coverage for `migrateAppFolderName`
-  - #1271 — accessibility: confetti `prefers-reduced-motion` guard + aria-labels
-  - #1272 — unifier: Sidebar text & tracking standardization
-  - #1273 — bolt: optimize find loops in Schedule settings
-  - #1274 — refactor: DashboardContext async/await + catch-var typing
-  - #1275 — scheduled-tasks: widget-registry & firestore-rules audit entries
-- Comments processed: 14 total — 12 fixed, 2 explained
+  - #1285 — large in-flight refactor (ref-in-render pattern discussion)
+  - #1287 — focused refactor (memoization key suggestion)
+  - #1288 — author actively iterating (google-labs-jules)
+  - #1291 — dev-paul branch (read-only, comment-only scope)
+  - #1292 — fetchWeatherProxy host-whitelist hardening
+  - #1293 — quiz session live-leaderboard (BLOCKING: missing `broadcastLiveLeaderboard`)
+  - #1294 — widget transparency centralization (bgHex threading)
+  - #1295 — Weather test cleanup (duplicate of #1296)
+  - #1296 — Weather test cleanup (duplicate of #1295)
+  - #1297 — DashboardContext.removeWidgets O(N+M) refactor
+  - #1298 — quizDriveService O(N+M) stats refactor
+  - #1299 — Firestore batched reads via Promise.all
+  - #1300 — Firebase Storage rules tightening (get/list split)
+- Comments processed: 20 total — 1 fixed, 19 explained
 - Fixes pushed:
-  - PR #1274 → `refactor-dashboard-context-async-await-375349511876078931`: annotate 3 `catch` blocks with `err: unknown` + apply prettier
-  - PR #1273 → `bolt-optimize-find-loops-2801017536769350091`: add `.filter(Boolean)` on `DAYS_BY_ID` lookup in Schedule settings
-  - PR #1275 → `scheduled-tasks-10354271503087044077`: reformat widget-registry + firestore-rules audit entries; correct clock/traffic/text false positive
-  - PR #1272 → `unifier-sidebar-standardization-11336452206072867577`: restore lost `.Jules/unifier.md` history and append new Sidebar entry
-  - PR #1270 → `fix-missing-test-coverage-migrateappfoldername-2480316830639334718`: rewrite three `migrateAppFolderName` tests to assert `q` param contains `name = '…'` + `'root' in parents`
-  - PR #1269 → `scheduled-tasks-16096548463993239238`: correct render-optimization metrics and call out `ToastContext` / `RosterContext` as primary extraction candidates
-- Reviews posted: 7
+  - PR #1300 → `dependabot/...` branch cleanup: deleted 6 temporary `validate_status*.txt` artifacts via individual commits (`fix(pr-1300): remove temporary validate_status_N.txt artifact`)
+- Reviews posted: 13
+- Notes:
+  - PR #1293 flagged as BLOCKING — `broadcastLiveLeaderboard` referenced in diff but not implemented in `hooks/useQuizSession.ts` on the head branch; consumers would crash at runtime.
+  - PRs #1295 and #1296 are near-duplicates — recommended closing one.
+  - PR #1291 is on `dev-paul` (dev-* branch); per branch-safety policy, comments posted but no pushes.
+  - PR #1294 touches `DraggableWindow` and `GlassCard` — visual QA pass recommended across representative widget set before merge.
+  - Node modules were not installed locally; no `pnpm validate` runs possible. All fixes were low-risk file deletions or review comments that did not require local verification.
