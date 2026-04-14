@@ -33,6 +33,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { SortableRow } from './components/SortableRow';
 import { useDialog } from '@/context/useDialog';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addToast } = useDashboard();
@@ -154,6 +155,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
       if (!user || !over || active.id === over.id) return;
 
@@ -320,7 +322,9 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={beginWidgetDrag}
               onDragEnd={handleDragEnd}
+              onDragCancel={endWidgetDrag}
             >
               <SortableContext
                 items={library.map((p) => p.id)}

@@ -26,6 +26,7 @@ import { SortableDashboardItem } from './SortableDashboardItem';
 import { useDialog } from '@/context/useDialog';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { db as firestoreDb, isAuthBypass } from '@/config/firebase';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 const TEMPLATES_COLLECTION = 'dashboard_templates';
 
@@ -122,6 +123,7 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
 
       if (over && active.id !== over.id) {
@@ -271,7 +273,9 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={beginWidgetDrag}
               onDragEnd={handleDragEnd}
+              onDragCancel={endWidgetDrag}
             >
               <SortableContext
                 items={dashboards.map((d) => d.id)}

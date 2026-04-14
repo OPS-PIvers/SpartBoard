@@ -45,6 +45,7 @@ import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
 import { getTodayStr } from './utils';
 import { SortableScheduleItem } from './components/SortableScheduleItem';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 const DAYS = [
   { id: 0, label: 'Su', fullName: 'Sunday' },
@@ -358,6 +359,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   const handleDragEnd = useCallback(
     (scheduleId: string, event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
       if (!over || active.id === over.id) return;
       const items = getScheduleItems(scheduleId);
@@ -564,7 +566,9 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
+                  onDragStart={beginWidgetDrag}
                   onDragEnd={(e) => handleDragEnd(selectedSchedule.id, e)}
+                  onDragCancel={endWidgetDrag}
                 >
                   <SortableContext
                     items={validItems.map((i) => i.id)}

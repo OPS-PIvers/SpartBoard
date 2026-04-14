@@ -27,6 +27,7 @@ import { SubmitReportModal } from './SubmitReportModal';
 import { useNutrislice } from './useNutrislice';
 import { DraggableStudent } from './components/DraggableStudent';
 import { DroppableZone } from './components/DroppableZone';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { hexToRgba } from '@/utils/styles';
@@ -224,11 +225,13 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    beginWidgetDrag();
     setActiveId(event.active.id as string);
   }, []);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
       setActiveId(null);
 
@@ -243,6 +246,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     },
     [assignments, updateAssignment]
   );
+
+  const handleDragCancel = useCallback(() => {
+    endWidgetDrag();
+    setActiveId(null);
+  }, []);
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
     const { submissionUrl, schumannSheetId, intermediateSheetId } =
@@ -446,6 +454,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <WidgetLayout
         padding="p-0"

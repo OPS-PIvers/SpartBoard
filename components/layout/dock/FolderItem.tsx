@@ -31,6 +31,7 @@ import {
   WidgetData,
   InternalToolType,
 } from '@/types';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 interface FolderItemProps {
   folder: DockFolder;
@@ -96,6 +97,7 @@ export const FolderItem = React.memo(
 
     const handleDragEnd = useCallback(
       (event: DragEndEvent) => {
+        endWidgetDrag();
         const { active, over } = event;
         if (active.id !== over?.id) {
           const oldIndex = folder.items.indexOf(
@@ -149,7 +151,9 @@ export const FolderItem = React.memo(
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={beginWidgetDrag}
                 onDragEnd={handleDragEnd}
+                onDragCancel={endWidgetDrag}
               >
                 <SortableContext
                   items={folder.items}

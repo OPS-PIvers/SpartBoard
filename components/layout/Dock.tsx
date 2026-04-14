@@ -76,6 +76,7 @@ import { QuickAccessButton } from './dock/QuickAccessButton';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -494,7 +495,13 @@ export const Dock: React.FC = () => {
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    beginWidgetDrag();
     setActiveItemId(event.active.id as string);
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    endWidgetDrag();
+    setActiveItemId(null);
   }, []);
 
   /**
@@ -530,6 +537,7 @@ export const Dock: React.FC = () => {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      endWidgetDrag();
       const { active, over } = event;
       setActiveItemId(null);
 
@@ -901,6 +909,7 @@ export const Dock: React.FC = () => {
                   collisionDetection={customCollisionDetection}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
                 >
                   <SortableContext
                     items={dockItems.map((item) =>
