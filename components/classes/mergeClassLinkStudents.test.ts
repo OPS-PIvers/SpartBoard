@@ -136,6 +136,20 @@ describe('mergeClassLinkStudents', () => {
     expect(result.students[1].pin).toBe('');
   });
 
+  it('matches across trailing/leading whitespace in either name component', () => {
+    const existing = [
+      makeLocal({ firstName: 'Ada ', lastName: ' Lovelace', pin: '01' }),
+    ];
+    const cl = [
+      makeCL({ sourcedId: 'cl-ada', givenName: 'Ada', familyName: 'Lovelace' }),
+    ];
+    const result = mergeClassLinkStudents(existing, cl);
+    expect(result.matchedCount).toBe(1);
+    expect(result.addedCount).toBe(0);
+    expect(result.students[0].classLinkSourcedId).toBe('cl-ada');
+    expect(result.students[0].pin).toBe('01');
+  });
+
   it('sourcedId match wins even if a different local row has matching name', () => {
     const existing = [
       makeLocal({

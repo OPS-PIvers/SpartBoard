@@ -76,7 +76,7 @@
       "edit": "Klasse bearbeiten",
       "syncClassLink": "Mit ClassLink synchronisieren",
       "delete": "Klasse löschen",
-      "confirmDelete": "„{{name}}\" löschen? Dies kann nicht rückgängig gemacht werden.",
+      "confirmDelete": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
       "confirmDeleteTitle": "Klasse löschen"
     },
     "widgets": {

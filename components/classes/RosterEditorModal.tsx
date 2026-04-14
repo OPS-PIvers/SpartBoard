@@ -53,7 +53,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-2xl"
-      className="h-[85vh]"
+      className="max-h-[85vh]"
       contentClassName="px-6 pb-6 flex flex-col"
       title={roster ? 'Edit Class' : 'New Class'}
     >

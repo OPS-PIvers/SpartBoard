@@ -56,7 +56,7 @@ export const mergeNames = (firsts: string, lasts: string): string[] => {
 
 /**
  * Generates a list of Student objects from first and last names,
- * preserving IDs from an existing list if possible.
+ * preserving IDs (and `classLinkSourcedId`) from an existing list if possible.
  */
 export const generateStudentsList = (
   firsts: string,
@@ -74,14 +74,19 @@ export const generateStudentsList = (
       const last = lList[i] ? lList[i].trim() : '';
       if (!first && !last) return null;
 
-      // Try to find an existing student at this position to preserve ID
+      // Try to find an existing student at this position to preserve ID,
+      // pin, and ClassLink link (keeps re-sync stable after manual edits).
       const existing = existingStudents[i];
       const id = existing ? existing.id : crypto.randomUUID();
       const pin = pList
         ? (pList[i]?.trim() ?? existing?.pin ?? '')
         : (existing?.pin ?? '');
 
-      return { id, firstName: first, lastName: last, pin };
+      const student: Student = { id, firstName: first, lastName: last, pin };
+      if (existing?.classLinkSourcedId !== undefined) {
+        student.classLinkSourcedId = existing.classLinkSourcedId;
+      }
+      return student;
     })
     .filter((s): s is Student => s !== null);
 };

@@ -152,6 +152,27 @@ describe('rosterUtils', () => {
       const result = generateStudentsList('Alice', 'A', existing);
       expect(result[0].pin).toBe('05');
     });
+
+    it('preserves classLinkSourcedId on existing rows so re-sync stays stable', () => {
+      const existing = [
+        {
+          id: '1',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          pin: '01',
+          classLinkSourcedId: 'cl-ada',
+        },
+        { id: '2', firstName: 'Manual', lastName: 'Kid', pin: '02' },
+      ];
+      // Simulates saving the editor after a manual rename (no pin changes).
+      const result = generateStudentsList(
+        'Ada Renamed\nManual',
+        'Lovelace\nKid',
+        existing
+      );
+      expect(result[0].classLinkSourcedId).toBe('cl-ada');
+      expect(result[1].classLinkSourcedId).toBeUndefined();
+    });
   });
 
   describe('findDuplicatePins', () => {

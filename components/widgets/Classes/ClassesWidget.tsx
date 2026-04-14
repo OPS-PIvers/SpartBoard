@@ -21,7 +21,7 @@ interface Props {
  * `open-sidebar` CustomEvent with `detail.section: 'classes'`, which the
  * Sidebar listens for.
  */
-const ClassesWidget: React.FC<Props> = () => {
+const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
 
   const activeRoster = rosters.find((r) => r.id === activeRosterId) ?? null;

@@ -12,7 +12,7 @@ export interface MergeClassLinkResult {
 }
 
 const normalizeNameKey = (first: string, last: string): string =>
-  `${first}|${last}`.toLowerCase().trim();
+  `${first.trim()}|${last.trim()}`.toLowerCase();
 
 /**
  * Additive-only merge of ClassLink students into an existing local roster.

@@ -290,12 +290,15 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         </div>
       </div>
 
-      <RosterEditorModal
-        isOpen={editingRosterId !== null}
-        roster={editingRoster}
-        onClose={() => setEditingRosterId(null)}
-        onSave={handleSaveRoster}
-      />
+      {editingRosterId !== null && (
+        <RosterEditorModal
+          key={editingRosterId}
+          isOpen
+          roster={editingRoster}
+          onClose={() => setEditingRosterId(null)}
+          onSave={handleSaveRoster}
+        />
+      )}
 
       {classLinkMode && (
         <ClassLinkImportDialog
