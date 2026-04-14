@@ -36,7 +36,9 @@ vi.mock('../hooks/useFirestore', () => ({
     deleteDashboard: vi.fn().mockResolvedValue(undefined),
     subscribeToDashboards: vi.fn((cb: SnapshotCb) => {
       capturedSnapshotCb = cb;
-      return () => {};
+      return () => {
+        // cleanup
+      };
     }),
     shareDashboard: vi.fn(),
     loadSharedDashboard: vi.fn().mockResolvedValue(null),
@@ -102,10 +104,14 @@ function makeWidget(id: string, groupId?: string): WidgetData {
   return {
     id,
     type: 'text',
-    x: 0, y: 0, w: 1, h: 1, z: 1,
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    z: 1,
     flipped: false,
     groupId,
-    config: { text: 'test' } as any,
+    config: { text: 'test' } as WidgetData['config'],
   };
 }
 
@@ -122,8 +128,9 @@ function makeDashboard(widgets: WidgetData[]): Dashboard {
 
 async function pushSnapshot(dashboards: Dashboard[]): Promise<void> {
   if (!capturedSnapshotCb) throw new Error('Provider not mounted');
+  const cb = capturedSnapshotCb;
   await act(async () => {
-    capturedSnapshotCb!(dashboards, false);
+    cb(dashboards, false);
     await Promise.resolve();
   });
 }
@@ -144,7 +151,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const w2 = makeWidget('w2');
     await pushSnapshot([makeDashboard([w1, w2])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets(['w1']);
     });
 
@@ -161,7 +168,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const w2 = makeWidget('w2', 'group-1');
     await pushSnapshot([makeDashboard([w1, w2])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets(['w1']);
     });
 
@@ -180,14 +187,14 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const w3 = makeWidget('w3', 'group-1');
     await pushSnapshot([makeDashboard([w1, w2, w3])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets(['w1']);
     });
 
     await waitFor(() => {
       const widgets = stateRef.current?.activeDashboard?.widgets;
       expect(widgets?.length).toBe(2);
-      expect(widgets?.every(w => w.groupId === 'group-1')).toBe(true);
+      expect(widgets?.every((w) => w.groupId === 'group-1')).toBe(true);
     });
   });
 
@@ -205,7 +212,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
 
     await pushSnapshot([makeDashboard([wA1, wA2, wB1, wB2, wB3, wC1])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets(['wA1', 'wB1', 'wC1']);
     });
 
@@ -213,9 +220,9 @@ describe('DashboardContext removeWidgets regression tests', () => {
       const widgets = stateRef.current?.activeDashboard?.widgets;
       expect(widgets?.length).toBe(3);
 
-      const resA2 = widgets?.find(w => w.id === 'wA2');
-      const resB2 = widgets?.find(w => w.id === 'wB2');
-      const resB3 = widgets?.find(w => w.id === 'wB3');
+      const resA2 = widgets?.find((w) => w.id === 'wA2');
+      const resB2 = widgets?.find((w) => w.id === 'wB2');
+      const resB3 = widgets?.find((w) => w.id === 'wB3');
 
       expect(resA2?.groupId).toBeUndefined(); // Dissolved
       expect(resB2?.groupId).toBe('group-B'); // Preserved
@@ -232,14 +239,14 @@ describe('DashboardContext removeWidgets regression tests', () => {
 
     await pushSnapshot([makeDashboard([wA1, wA2, wB1, wB2])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets(['wA1', 'wB1']);
     });
 
     await waitFor(() => {
       const widgets = stateRef.current?.activeDashboard?.widgets;
       expect(widgets?.length).toBe(2);
-      expect(widgets?.every(w => w.groupId === undefined)).toBe(true);
+      expect(widgets?.every((w) => w.groupId === undefined)).toBe(true);
     });
   });
 
@@ -248,7 +255,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const w1 = makeWidget('w1');
     await pushSnapshot([makeDashboard([w1])]);
 
-    await act(async () => {
+    act(() => {
       stateRef.current?.removeWidgets([]);
     });
 
