@@ -90,8 +90,6 @@ describe('WeatherWidget', () => {
       config: { ...baseWidget.config, temp: 72 } as WeatherConfig,
     };
     render(<WeatherWidget widget={widget} />);
-    // Default clothing for 72 is Short Sleeves (temp < 75 is Long Sleeves actually)
-    // Code: if (temp < 75) return { label: 'Long Sleeves', icon: '👕' };
     expect(screen.getByText(/Long Sleeves/i)).toBeInTheDocument();
   });
 
@@ -113,17 +111,6 @@ describe('WeatherWidget', () => {
     };
     render(<WeatherWidget widget={widget} />);
     expect(screen.getByText('It is hot!')).toBeInTheDocument();
-    // Should fallback to default icon logic since no imageUrl provided in range
-    // But logic says: "if (match.imageUrl) { displayImage = ... }"
-    // So if no imageUrl, it keeps default displayImage (clothing icon)
-    // Default for 90 is Short Sleeves.
-    // The message is replaced, but the image is NOT replaced if match.imageUrl is undefined?
-    // Let's check logic:
-    // let displayImage = <span ...>{clothing.icon}</span>;
-    // if (match.imageUrl) { displayImage = ... }
-    // So yes, it shows clothing icon.
-    // We can't easily test the icon character rendering in jsdom without inspecting text content.
-    // But we know 'It is hot!' is there.
   });
 
   it('hides clothing container when hideClothing is true', () => {
