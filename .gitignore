@@ -53,6 +53,7 @@ coverage/
 .gemini/
 gha-creds-*.json
 eslint-output.txt
+.claude/scheduled_tasks.lock
 
 # Verification / QA test artifacts
 verification/
