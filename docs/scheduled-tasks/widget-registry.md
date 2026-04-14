@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-13_
+_Last audited: 2026-04-14_
 _Last action: never_
 
 ---
@@ -36,6 +36,13 @@ _Nothing currently in progress._
 - **File:** config/tools.ts, types.ts
 - **Detail:** These three WidgetTypes are fully registered in all other locations (WIDGET_COMPONENTS, widgetDefaults.ts, widgetGradeLevels.ts) but are absent from config/tools.ts because they cannot be directly added from the Dock. `mathTool` is spawned by mathTools, `onboarding` is a one-time system widget, `custom-widget` is created via the Custom Widget system. This is intentional but undocumented.
 - **Fix:** Add a comment block in config/tools.ts documenting which WidgetTypes are intentionally excluded from the dock and why.
+
+### LOW `stickers` missing from `WIDGET_SETTINGS_COMPONENTS`
+
+- **Detected:** 2026-04-14
+- **File:** components/widgets/WidgetRegistry.ts
+- **Detail:** `stickers` (StickerBook) has entries in `WIDGET_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG`, `widgetDefaults.ts`, `widgetGradeLevels.ts`, and `tools.ts`, but is absent from `WIDGET_SETTINGS_COMPONENTS`. `stickers/StickerBookSettings.tsx` exports `StickerBookAppearanceSettings` (wired into appearance panel), but there is no flip-panel settings component registered. As a result flipping the stickers widget shows no settings tab — only the appearance tab. May be intentional if stickers has no non-appearance settings, but is undocumented.
+- **Fix:** Either (a) confirm this is intentional and add a JSDoc comment in `WIDGET_SETTINGS_COMPONENTS` noting stickers has appearance-only settings, or (b) create a `StickerBookSettings` component and register it if any non-appearance settings (e.g. lock/reset) are desired.
 
 ---
 
