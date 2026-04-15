@@ -765,7 +765,13 @@ export const Dock: React.FC = () => {
             const [url, sourceDims] = await Promise.all([
               processAndUploadImage(file, { skipProcessing }),
               skipProcessing
-                ? getImageDimensionsFromFile(file).catch(() => null)
+                ? getImageDimensionsFromFile(file).catch((err) => {
+                    console.warn(
+                      'Failed to read pasted image dimensions; using default widget size.',
+                      err
+                    );
+                    return null;
+                  })
                 : Promise.resolve(null),
             ]);
 

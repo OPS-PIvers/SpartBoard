@@ -104,6 +104,15 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       contentRef.current?.closest<HTMLElement>(
         `[data-widget-id="${widget.id}"]`
       ) ?? null;
+    if (!el && contentRef.current) {
+      // The floating toolbar anchors to the nearest [data-widget-id] ancestor.
+      // If an EmbedWidget is ever rendered outside DraggableWindow (preview
+      // surfaces, starter-pack thumbnails, etc.) the toolbar silently won't
+      // render — this warns so the gap is discoverable.
+      console.warn(
+        `[EmbedWidget] No [data-widget-id="${widget.id}"] ancestor found; floating toolbar will not render.`
+      );
+    }
     setWidgetEl(el);
     if (el) setRect(el.getBoundingClientRect());
   }, [widget.id]);
@@ -117,33 +126,37 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (!widgetEl) return;
     updateRect();
 
-    const resizeObserver = new ResizeObserver(() => updateRect());
-    resizeObserver.observe(widgetEl);
-
-    const mutationObserver = new MutationObserver(() => updateRect());
-    mutationObserver.observe(widgetEl, {
-      attributes: true,
-      attributeFilter: ['style'],
-    });
-
-    // Throttle scroll/resize handling to one update per animation frame.
-    // Scroll can fire 60+ times/sec on complex pages; rAF coalesces them.
+    // Coalesce all rect updates (observers + scroll/resize) into one per
+    // animation frame. DraggableWindow updates inline `transform`/`left`/`top`
+    // on every pointermove during drag, which would otherwise trigger a
+    // synchronous getBoundingClientRect + setState + re-render at pointer
+    // rate (~120+Hz on high-DPI).
     let rafId: number | null = null;
-    const onScrollOrResize = () => {
+    const scheduleUpdate = () => {
       if (rafId != null) return;
       rafId = window.requestAnimationFrame(() => {
         rafId = null;
         updateRect();
       });
     };
-    window.addEventListener('scroll', onScrollOrResize, true);
-    window.addEventListener('resize', onScrollOrResize);
+
+    const resizeObserver = new ResizeObserver(scheduleUpdate);
+    resizeObserver.observe(widgetEl);
+
+    const mutationObserver = new MutationObserver(scheduleUpdate);
+    mutationObserver.observe(widgetEl, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+
+    window.addEventListener('scroll', scheduleUpdate, true);
+    window.addEventListener('resize', scheduleUpdate);
 
     return () => {
       resizeObserver.disconnect();
       mutationObserver.disconnect();
-      window.removeEventListener('scroll', onScrollOrResize, true);
-      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      window.removeEventListener('resize', scheduleUpdate);
       if (rafId != null) window.cancelAnimationFrame(rafId);
     };
   }, [widgetEl, updateRect]);
@@ -180,14 +193,14 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
   }, [widgetEl, showToolbar, scheduleHide]);
 
-  // Reset hover/focus state whenever the widget minimizes or restores so the
-  // toolbar doesn't pop back up after restore just because isHot was left
-  // true from a pre-minimize hover.
+  // Reset hover/focus state whenever the widget minimizes/restores or flips
+  // to/from the settings face so the toolbar doesn't pop back up afterwards
+  // just because isHot was left true from a pre-transition hover.
   useEffect(() => {
     cancelPendingHide();
     setIsHot(false);
     setFocusCount(0);
-  }, [widget.minimized, cancelPendingHide]);
+  }, [widget.minimized, widget.flipped, cancelPendingHide]);
 
   const sanitizedUrl = ensureProtocol(url);
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
@@ -355,7 +368,11 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const hasContent =
     (displayMode === 'url' && url.trim().length > 0) ||
     (displayMode === 'code' && html.trim().length > 0);
-  const toolbarVisible = !widget.minimized && (isHot || focusCount > 0);
+  // Hide toolbar when flipped to settings — the settings panel sits at the
+  // same z-index and hover on the card edge would otherwise show the iframe
+  // toolbar overlapping the settings UI.
+  const toolbarVisible =
+    !widget.minimized && !widget.flipped && (isHot || focusCount > 0);
   const flipAbove =
     rect != null &&
     rect.bottom + ESTIMATED_TOOLBAR_HEIGHT + TOOLBAR_GAP > window.innerHeight;

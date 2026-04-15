@@ -220,7 +220,9 @@ export const useRosters = (user: User | null) => {
 
   const loadStudentsFromDrive = useCallback(
     async (driveFileId: string): Promise<Student[]> => {
-      if (!driveService) return [];
+      if (!driveService) {
+        throw new Error('Drive service not available');
+      }
       // Throw on failure so the caller can distinguish "genuinely empty
       // roster" from "load failed — retry later". Silently returning [] here
       // poisons the per-roster cache (see buildRosters) and blocks retries
@@ -252,6 +254,7 @@ export const useRosters = (user: User | null) => {
       return Promise.all(
         metaList.map(async (meta) => {
           let students: Student[] = [];
+          let loadError: string | undefined;
           if (meta.driveFileId) {
             const cached = studentsCacheRef.current.get(meta.id);
             if (cached) {
@@ -270,12 +273,25 @@ export const useRosters = (user: User | null) => {
                   err
                 );
                 // Do NOT cache the failure. Next snapshot / token refresh /
-                // re-subscription will retry automatically.
+                // re-subscription will retry automatically. Surface the
+                // failure on the roster so the UI can distinguish "0
+                // students" from "students unavailable — check Drive".
                 students = [];
+                loadError =
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to load roster from Drive';
               }
+            } else {
+              // Drive service unavailable (not yet signed in / token loading).
+              // Flag the failure so the UI doesn't show a misleading empty
+              // roster; next snapshot once driveService is ready will retry.
+              loadError = 'Google Drive not available — sign in to load roster';
             }
           }
-          return { ...meta, students };
+          const roster: ClassRoster = { ...meta, students };
+          if (loadError) roster.loadError = loadError;
+          return roster;
         })
       );
     },

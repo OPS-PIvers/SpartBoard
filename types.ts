@@ -115,6 +115,12 @@ export interface ClassRosterMeta {
  */
 export interface ClassRoster extends ClassRosterMeta {
   students: Student[];
+  /**
+   * Present when the Drive student-list load failed for this roster.
+   * Distinguishes "genuinely empty roster" from "load failed, students
+   * unknown" so the UI can show a retry banner instead of "0 students".
+   */
+  loadError?: string;
 }
 
 // --- LIVE SESSION TYPES ---

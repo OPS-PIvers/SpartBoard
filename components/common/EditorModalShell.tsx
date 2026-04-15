@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
 
 interface EditorModalShellProps {
   isOpen: boolean;
@@ -19,6 +20,11 @@ interface EditorModalShellProps {
   maxWidth?: string;
   className?: string;
   bodyClassName?: string;
+  /**
+   * Message shown via toast when `onSave` rejects. Set `false` to suppress
+   * the toast when the caller surfaces its own error UI (e.g. inline banner).
+   */
+  saveErrorMessage?: string | false;
   children: React.ReactNode;
 }
 
@@ -49,9 +55,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   maxWidth = 'max-w-5xl',
   className = 'h-[85vh]',
   bodyClassName = 'px-6 py-5',
+  saveErrorMessage = 'Could not save your changes. Please try again.',
   children,
 }) => {
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
 
   const requestClose = useCallback(async () => {
     if (isSaving) return;
@@ -80,9 +88,19 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     try {
       await onSave();
     } catch (error) {
+      // Catch here prevents an unhandled promise rejection from the
+      // `void handleSave()` click handler below. We surface it via toast
+      // so callers that don't wrap onSave themselves still fail loudly.
       console.error('Failed to save editor modal changes.', error);
+      if (saveErrorMessage !== false) {
+        const detail = error instanceof Error ? error.message : null;
+        addToast(
+          detail ? `${saveErrorMessage} (${detail})` : saveErrorMessage,
+          'error'
+        );
+      }
     }
-  }, [saveDisabled, isSaving, onSave]);
+  }, [saveDisabled, isSaving, onSave, saveErrorMessage, addToast]);
 
   const customHeader = (
     <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">

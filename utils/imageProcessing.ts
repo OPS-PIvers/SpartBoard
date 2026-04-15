@@ -240,5 +240,12 @@ export const computeWidgetSizeForImage = (
     w = h * aspectRatio;
   }
 
+  // Extreme aspect ratios (e.g. 20:1 panoramic banners) can push the
+  // opposite axis past maxDim once we bump the smaller side up to minDim.
+  // Cap both axes so the widget never overflows the dashboard — the
+  // sticker's `object-contain` will letterbox inside the frame.
+  w = Math.min(w, maxDim);
+  h = Math.min(h, maxDim);
+
   return { w: Math.round(w), h: Math.round(h) };
 };

@@ -43,6 +43,23 @@ export const getItemDurationSeconds = (item: ScheduleItem): number => {
   ) {
     return item.durationSeconds;
   }
+  // In dev, flag timer-mode items whose durationSeconds is present but unusable
+  // (NaN, negative, zero, Infinity). Falling through to endTime inference still
+  // lets the item render, but a silent 0-second countdown is a data bug worth
+  // surfacing to whoever created/edited the item.
+  if (
+    item.mode === 'timer' &&
+    item.durationSeconds !== undefined &&
+    (typeof item.durationSeconds !== 'number' ||
+      !isFinite(item.durationSeconds) ||
+      item.durationSeconds <= 0) &&
+    import.meta.env.DEV
+  ) {
+    console.warn(
+      `[Schedule] Timer item "${item.task?.trim() ? item.task : (item.id ?? '(unnamed)')}" has invalid durationSeconds:`,
+      item.durationSeconds
+    );
+  }
   const startSec = parseScheduleTimeSeconds(item.startTime ?? item.time);
   const endSec = parseScheduleTimeSeconds(item.endTime);
   if (startSec !== -1 && endSec !== -1 && endSec > startSec) {

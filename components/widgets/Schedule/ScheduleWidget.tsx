@@ -36,7 +36,7 @@ const GAP_STYLE = 'min(10px, 2cqmin)';
 export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard, addWidget } = useDashboard();
+  const { updateWidget, activeDashboard, addWidget, addToast } = useDashboard();
   const buildingId = useWidgetBuildingId(widget);
   const { subscribeToPermission } = useFeaturePermissions();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
@@ -296,8 +296,23 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       // configured duration (not wall-clock endTime). This lets a teacher
       // start the first idle timer manually even with no clock anchor.
       let remainingSeconds = 0;
+      let isIdleTimerLaunch = false;
       if (item.mode === 'timer') {
         remainingSeconds = getItemDurationSeconds(item);
+        if (remainingSeconds <= 0) {
+          addToast(
+            'This event has no duration set — edit it to add one.',
+            'info'
+          );
+          return;
+        }
+        // Idle timer items (no valid chain anchor) can't be progressed by the
+        // auto-progress loop, so a manual launch is the user's explicit signal
+        // that they've started this event. Mark it done so the UI reflects
+        // that and doesn't leave the item visually stuck.
+        const itemIdx = displayItems.indexOf(item);
+        const eff = itemIdx !== -1 ? effectiveTimes[itemIdx] : undefined;
+        isIdleTimerLaunch = !!eff?.isIdle;
       } else {
         if (!item.endTime) return;
         const endMinutes = parseScheduleTime(item.endTime);
@@ -306,8 +321,11 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         const nowSec =
           now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
         remainingSeconds = Math.max(0, endMinutes * 60 - nowSec);
+        if (remainingSeconds <= 0) {
+          addToast('This event has already ended.', 'info');
+          return;
+        }
       }
-      if (remainingSeconds <= 0) return;
       const spawnNow = Date.now();
 
       addWidget('time-tool', {
@@ -323,8 +341,22 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           selectedSound: 'Gong',
         },
       });
+
+      if (isIdleTimerLaunch && !item.done) {
+        const idx = displayItems.indexOf(item);
+        if (idx !== -1) toggle(idx);
+      }
     },
-    [addWidget, widget.x, widget.y, widget.w]
+    [
+      addWidget,
+      addToast,
+      toggle,
+      displayItems,
+      effectiveTimes,
+      widget.x,
+      widget.y,
+      widget.w,
+    ]
   );
 
   // Issue 1 fix: auto-launch linked widgets when an event's start time arrives.
