@@ -228,7 +228,15 @@ export const useRosters = (user: User | null) => {
       const blob = await driveService.downloadFile(driveFileId);
       const text = await blob.text();
       const parsed = JSON.parse(text) as unknown;
-      if (!Array.isArray(parsed)) return [];
+      // A non-array payload means the Drive file is corrupt or has been
+      // replaced with something unexpected. Treat it as a failure rather
+      // than a zero-student roster so buildRosters' catch path skips the
+      // cache write and retries on the next snapshot.
+      if (!Array.isArray(parsed)) {
+        throw new Error(
+          `Drive roster file ${driveFileId} is not an array of students`
+        );
+      }
       const students = (parsed as unknown[])
         .map(parseRawStudent)
         .filter((s): s is Student => s !== null);
