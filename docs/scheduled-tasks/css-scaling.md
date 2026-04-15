@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-04-15_
-_Last action: 2026-04-13_
+_Last action: 2026-04-15_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM BreathingWidget uses `text-4xl` / `text-6xl` hardcoded Tailwind text sizes
-
-- **Detected:** 2026-04-14
-- **File:** components/widgets/Breathing/BreathingWidget.tsx:53, :59
-- **Detail:** The primary phase label (`text-4xl`) and the breathing timer number (`text-6xl`) use hardcoded Tailwind text size classes. Widget has `skipScaling: true`. These are the two most prominent content elements — the ones most critical to classroom legibility at distance — but they do not scale with widget size.
-- **Fix:** Replace `text-4xl` with `style={{ fontSize: 'min(36px, 15cqmin)' }}` and `text-6xl` with `style={{ fontSize: 'min(60px, 25cqmin)' }}`. Convert `mb-2` and `p-4` footer spacing to inline `cqmin` equivalents.
 
 ### MEDIUM ExpectationsWidget uses `text-xs` on the empty-state content area
 
@@ -79,6 +72,20 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM BreathingWidget uses `text-4xl` / `text-6xl` hardcoded Tailwind text sizes
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-15
+- **File:** components/widgets/Breathing/BreathingWidget.tsx:53, :59
+- **Detail:** The primary phase label (`text-4xl`) and the breathing timer number (`text-6xl`) used hardcoded Tailwind text size classes. Widget has `skipScaling: true`. These are the two most prominent content elements — the ones most critical to classroom legibility at distance — but they did not scale with widget size. Footer controls also used hardcoded `p-4` and `gap-4`, and the phase label used hardcoded `mb-2`.
+- **Resolution:** Converted all hardcoded Tailwind sizing classes in front-face content to inline `cqmin` styles:
+  - `text-4xl` (phase label) → `style={{ fontSize: 'min(36px, 15cqmin)' }}`
+  - `text-6xl` (breathing timer) → `style={{ fontSize: 'min(60px, 25cqmin)' }}`
+  - `mb-2` → `marginBottom: 'min(8px, 2cqmin)'`
+  - `p-4` (footer container) → `padding: 'min(16px, 3.5cqmin)'`
+  - `gap-4` (footer container) → `gap: 'min(16px, 3.5cqmin)'`
+    All 1094 unit tests pass; `pnpm type-check`, `pnpm lint --max-warnings 0`, and prettier check on changed files all clean.
 
 ### HIGH GraphicOrganizerWidget uses hardcoded Tailwind text sizes throughout content
 

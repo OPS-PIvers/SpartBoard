@@ -50,14 +50,21 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
             {/* Overlay Text */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 text-slate-800 dark:text-slate-100 mix-blend-difference drop-shadow-md">
               <span
-                className="text-4xl font-bold tracking-widest uppercase mb-2"
-                style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
+                className="font-bold tracking-widest uppercase"
+                style={{
+                  fontSize: 'min(36px, 15cqmin)',
+                  marginBottom: 'min(8px, 2cqmin)',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                }}
               >
                 {getPhaseText()}
               </span>
               <span
-                className="text-6xl font-black font-mono tabular-nums opacity-90"
-                style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
+                className="font-black font-mono tabular-nums opacity-90"
+                style={{
+                  fontSize: 'min(60px, 25cqmin)',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                }}
               >
                 {isActive ? formatTime(timeLeft) : ''}
               </span>
@@ -65,7 +72,13 @@ export const BreathingWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           {/* Controls */}
-          <div className="shrink-0 p-4 w-full flex justify-center gap-4 backdrop-blur-sm z-20">
+          <div
+            className="shrink-0 w-full flex justify-center backdrop-blur-sm z-20"
+            style={{
+              padding: 'min(16px, 3.5cqmin)',
+              gap: 'min(16px, 3.5cqmin)',
+            }}
+          >
             <button
               onClick={toggleActive}
               className={`flex items-center justify-center rounded-2xl transition-all shadow-md active:scale-95 ${
