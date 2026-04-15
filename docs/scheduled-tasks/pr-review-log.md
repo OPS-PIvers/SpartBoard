@@ -27,6 +27,25 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - PR #1293 flagged as BLOCKING — `broadcastLiveLeaderboard` referenced in diff but not implemented in `hooks/useQuizSession.ts` on the head branch; consumers would crash at runtime.
   - PRs #1295 and #1296 are near-duplicates — recommended closing one.
-  - PR #1291 is on `dev-paul` (dev-* branch); per branch-safety policy, comments posted but no pushes.
+  - PR #1291 is on `dev-paul` (dev-\* branch); per branch-safety policy, comments posted but no pushes.
   - PR #1294 touches `DraggableWindow` and `GlassCard` — visual QA pass recommended across representative widget set before merge.
   - Node modules were not installed locally; no `pnpm validate` runs possible. All fixes were low-risk file deletions or review comments that did not require local verification.
+
+## 2026-04-15
+
+- PRs reviewed:
+  - #1285 — Dice Widget 10x UI Enhancement (head `dice-widget-10x-ui-enhancement-...`, base `dev-paul`)
+  - #1305 — Dev paul (head `dev-paul`, base `main`) — read-only for pushes per branch-safety
+- Comments processed: 15 total — 0 new fixes, 15 already addressed by prior runs
+  - PR #1305: 1 inline thread (resolved) + 1 prior summary comment (3 issues still open at HEAD)
+  - PR #1285: 14 inline threads, all replied to by previous runs; no new reviewer activity
+- Fixes pushed: none
+  - PR #1305 is on `dev-paul` (dev-\* branch) — pushes prohibited by branch-safety policy
+  - PR #1285 had no new reviewer feedback requiring action; all prior threads already explained
+- Reviews posted: 2
+  - PR #1305: full structured review (CI green; 3 carryover items — `fetchWeatherProxy` misnomer, dead background div in `LunchCount/Widget.tsx:329`, hardcoded English in `StudentLeaderboard.tsx`)
+  - PR #1285: refresher confirming HEAD unchanged since 2026-04-14 review, no new regressions
+- Notes:
+  - PR #1305 head SHA `d38c2270` — CI green across type-check, lint, unit tests, E2E, build, CodeQL, Docker build
+  - PR #1285 head SHA `986f7dc6` — unchanged since last review; duplicate review was minimized to a brief refresher to avoid noise
+  - No new PRs opened since last run
