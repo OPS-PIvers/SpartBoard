@@ -135,7 +135,7 @@ Location: `components/widgets/MiniApp/`
 
 1. MiniApp editor body is HTML/config-centric — structurally unlike Quiz questions. Wrap the body in `EditorModalShell`; don't try to reuse `QuestionEditor`.
 2. Dirty-check: deep-compare `{ title, html }` against the originals. The `collectResults` / `googleSheetId` toggles live on the **widget's** `config` (not the `MiniAppItem` in Firestore); treat those as separate from the modal's dirty state — they are widget-instance settings, not library-item content.
-3. **Import: none.** MiniApp has no native import format. Leave the header as a single `+ New App` button; the AI "Magic Generator" remains embedded inside the editor body.
+3. **Import/export: existing JSON format.** MiniApp already supports personal-library `Export` and `Import` actions in the header (`Widget.tsx:610-659` + header buttons at `Widget.tsx:1001-1042`); import loads a `.json` file into Firestore. Preserve those header actions during the modal migration (alongside `+ New App`). The AI "Magic Generator" remains embedded inside the editor body.
 4. Data shape: `MiniAppItem = { id: string; title: string; html: string; createdAt: number; order?: number }`.
 5. Verify the 6 flows. No back-face to regress.
 
@@ -145,7 +145,7 @@ Location: `components/widgets/MiniApp/`
 
 Location: `components/widgets/GuidedLearning/`
 
-**Important:** GL has its own drive service (`utils/guidedLearningDriveService.ts`) — it does **not** share with Quiz. So a new mock is required. Personal sets persist to Drive + Firestore metadata; "Building" sets (admin-authored, community-shared) persist to Firestore only — `useGuidedLearning.saveSet` already branches internally, so the modal just passes the draft through. Back-face (`Settings.tsx`, 35 lines) only holds a "Go to Library" button — nothing to preserve.
+**Important:** GL has its own drive service (`utils/guidedLearningDriveService.ts`) — it does **not** share with Quiz. So a new mock is required. Personal sets persist via `useGuidedLearning.saveSet` (Drive + Firestore metadata, l.129). "Building" sets (admin-authored, community-shared) persist to Firestore only via a **separate** `useGuidedLearning.saveBuildingSet` function (l.186). The modal must route saves to the correct function based on tab — `saveSet` does not branch internally. Back-face (`Settings.tsx`, 35 lines) only holds a "Go to Library" button — nothing to preserve.
 
 ### Files to create
 
@@ -164,7 +164,7 @@ Location: `components/widgets/GuidedLearning/`
 1. GL has nested steps (2 levels: set → step → optional question) and image uploads. **Do not refactor the body** during this migration — move it into the modal as-is. Refactoring can happen later in its own PR.
 2. Dirty-check: structural compare on `{ title, description, mode, imageUrls, steps }`. Steps need a small recursive helper (each step may carry `question: { type, text, choices?, correctAnswer?, matchingPairs?, sortingItems? }`).
 3. **Images are Firebase Storage URLs** (`imageUrls: string[]`), not data URIs — uploaded via `useStorage().uploadHotspotImage()`. A plain string-array compare suffices; the earlier draft's warning about data-URI equality doesn't apply.
-4. Save signature already matches — `saveSet(set, existingDriveFileId?)`. For Building-tab sets, `existingDriveFileId` stays `undefined` (the hook branches to Firestore-only internally).
+4. Save path must branch by tab: personal sets call `saveSet(set, existingDriveFileId?)`; Building-tab sets call `saveBuildingSet(set)`. Do **not** route Building saves through `saveSet` (that would push a Drive write). The branching already exists in `GuidedLearningWidget.handleSave` today — keep it there when it moves to the modal's save callback.
 5. Do this phase last so the shell is battle-tested by the simpler editors.
 6. Verify: step reordering, image upload, nested question types (`multiple-choice` / `matching` / `sorting`), and the Building-vs-personal save paths all work inside the modal. Plus the standard 6 flows.
 
