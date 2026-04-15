@@ -7,6 +7,7 @@ import {
   formatScheduleTime,
   parseScheduleTimeSeconds,
 } from '@/components/widgets/Schedule/utils';
+import { hexToRgba } from '@/utils/styles';
 
 interface CountdownDisplayProps {
   startTime?: string;
@@ -73,7 +74,8 @@ export interface ScheduleRowProps {
   index: number;
   onToggle: (idx: number) => void;
   onStartTimer?: (item: ScheduleItem) => void;
-
+  cardOpacity: number;
+  cardColor: string;
   /** Whether to display times in 24-hour format. Mirrors the linked Clock widget setting; defaults to false (12-hour). */
   format24: boolean;
   /** Seconds since midnight from the parent's shared ticker. */
@@ -93,7 +95,8 @@ const areScheduleRowPropsEqual = (
   if (prev.isActive !== next.isActive) return false;
   if (prev.onToggle !== next.onToggle) return false;
   if (prev.onStartTimer !== next.onStartTimer) return false;
-
+  if (prev.cardOpacity !== next.cardOpacity) return false;
+  if (prev.cardColor !== next.cardColor) return false;
   if (prev.format24 !== next.format24) return false;
   if (prev.textScale !== next.textScale) return false;
   if (prev.fontColor !== next.fontColor) return false;
@@ -139,7 +142,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   index,
   onToggle,
   onStartTimer,
-
+  cardOpacity,
+  cardColor,
   format24,
   nowSeconds,
   isActive,
@@ -150,8 +154,8 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
 
   // Use the user-selected card color. Done items get a neutral gray tint.
   const bgColor = item.done
-    ? 'rgba(203, 213, 225, 0.4)' // slate-300
-    : 'transparent';
+    ? hexToRgba('#cbd5e1', cardOpacity) // slate-300
+    : hexToRgba(cardColor, cardOpacity);
 
   // Show live countdown only when mode is 'timer', endTime is set, and item isn't done.
   const showCountdown = item.mode === 'timer' && !!item.endTime && !item.done;

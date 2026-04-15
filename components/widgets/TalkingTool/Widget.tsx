@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { Quote } from 'lucide-react';
-import { WidgetComponentProps, TalkingToolGlobalConfig } from '@/types';
+import {
+  WidgetComponentProps,
+  TalkingToolGlobalConfig,
+  TalkingToolConfig,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { getIcon } from './constants';
+import { hexToRgba } from '@/utils/styles';
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
-  widget: _widget,
+  widget,
 }) => {
   const { featurePermissions } = useAuth();
-
-  const surfaceBg = 'transparent';
+  const widgetConfig = widget.config as TalkingToolConfig;
+  const cardColor = widgetConfig.cardColor ?? '#ffffff';
+  const cardOpacity = widgetConfig.cardOpacity ?? 1;
+  const surfaceBg = hexToRgba(cardColor, cardOpacity);
 
   // Get config from feature permissions
   const permission = featurePermissions.find(

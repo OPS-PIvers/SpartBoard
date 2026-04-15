@@ -23,7 +23,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     completedNames = [],
     scaleMultiplier = 1,
     fontFamily = 'global',
-
+    cardColor = '#ffffff',
+    cardOpacity = 1,
     fontColor = '#334155',
     textSizePreset,
   } = config;
@@ -203,6 +204,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                       iconSize={iconSize}
                       cardPadding={cardPadding}
                       cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
                       fontColor={fontColor}
                     />
                   </div>
@@ -226,6 +229,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                       iconSize={iconSize}
                       cardPadding={cardPadding}
                       cardGap={cardGap}
+                      cardColor={cardColor}
+                      cardOpacity={cardOpacity}
                       fontColor={fontColor}
                     />
                   </div>

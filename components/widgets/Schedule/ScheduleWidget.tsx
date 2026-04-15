@@ -93,7 +93,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     fontFamily = 'global',
     autoProgress = false,
     autoScroll = false,
-
+    cardOpacity = 1,
+    cardColor = '#ffffff',
     textSizePreset,
     fontColor = '#334155',
   } = config;
@@ -503,6 +504,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 item={item}
                 onToggle={toggle}
                 onStartTimer={handleStartTimer}
+                cardOpacity={cardOpacity}
+                cardColor={cardColor}
                 format24={format24}
                 nowSeconds={nowSeconds}
                 isActive={i === activeIndex}

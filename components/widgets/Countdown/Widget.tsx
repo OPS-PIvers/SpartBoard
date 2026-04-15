@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { WidgetData, CountdownConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
-import { getFontClass } from '@/utils/styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 import { useDashboard } from '@/context/useDashboard';
 
 interface CountdownDay {
@@ -37,7 +37,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     includeWeekends,
     countToday,
     viewMode,
-
+    cardColor = '#ffffff',
+    cardOpacity = 1,
     fontColor = '#1e293b',
     fontFamily = 'global',
     eventColor = '#2d3f89',
@@ -135,6 +136,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
           style={{
             containerType: 'size',
             padding: 'min(16px, 4cqmin)',
+            backgroundColor: hexToRgba(cardColor, cardOpacity),
           }}
         >
           {viewMode === 'number' ? (
@@ -208,7 +210,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                             ? undefined
                             : item.isToday
                               ? undefined
-                              : undefined,
+                              : hexToRgba(cardColor, cardOpacity),
                       }}
                     >
                       {item.isPast && !item.isEvent && (
