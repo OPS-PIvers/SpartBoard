@@ -230,6 +230,13 @@
     "fr": "Français"
   },
   "widgets": {
+    "quiz": {
+      "leaderboard": {
+        "title": "Tabla en Vivo",
+        "emptyState": "Responde una pregunta para aparecer en la tabla de clasificación.",
+        "youSuffix": "(Tú)"
+      }
+    },
     "clock": {
       "format24": "Formato 24H",
       "showSeconds": "Mostrar Segundos",

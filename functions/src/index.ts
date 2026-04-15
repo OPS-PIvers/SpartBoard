@@ -907,7 +907,7 @@ export const generateWithAI = onCall(
   }
 );
 
-export const fetchWeatherProxy = onCall(
+export const fetchExternalProxy = onCall(
   {
     memory: '128MiB',
     timeoutSeconds: 30,
@@ -942,9 +942,9 @@ export const fetchWeatherProxy = onCall(
       const response = await axios.get<unknown>(data.url);
       return response.data;
     } catch (error: unknown) {
-      console.error('Weather Proxy Error:', error);
+      console.error('External Proxy Error:', error);
       const msg =
-        error instanceof Error ? error.message : 'Weather fetch failed';
+        error instanceof Error ? error.message : 'External fetch failed';
       throw new HttpsError('internal', msg);
     }
   }

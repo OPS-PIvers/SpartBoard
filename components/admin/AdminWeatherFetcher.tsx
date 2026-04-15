@@ -86,7 +86,7 @@ export const AdminWeatherFetcher: React.FC = () => {
           const fetchProxy = httpsCallable<
             { url: string },
             EarthNetworksResponse
-          >(functions, 'fetchWeatherProxy');
+          >(functions, 'fetchExternalProxy');
 
           let data: EarthNetworksResponse | null = null;
 

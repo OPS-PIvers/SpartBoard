@@ -371,9 +371,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         content={
           <div className="flex flex-col items-center justify-center h-full w-full relative group transition-colors duration-500 overflow-hidden">
-            {/* Subtle background — respects cardColor/cardOpacity settings */}
-            <div className="absolute inset-0 -z-10" style={{}} />
-
             {/* Subtle Refresh Button - only visible on hover */}
             <Button
               onClick={() => void fetchNutrislice()}

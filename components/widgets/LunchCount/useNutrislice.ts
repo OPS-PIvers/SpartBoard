@@ -49,7 +49,7 @@ export const useNutrislice = ({
   const fetchWithFallback = async (url: string) => {
     const fetchProxy = httpsCallable<{ url: string }, NutrisliceWeek>(
       functions,
-      'fetchWeatherProxy'
+      'fetchExternalProxy'
     );
     try {
       const result = await fetchProxy({ url });

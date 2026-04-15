@@ -195,12 +195,12 @@ vi.mock('axios');
 
 // Import the function under test
 import {
-  fetchWeatherProxy,
+  fetchExternalProxy,
   checkUrlCompatibility,
   adminAnalytics,
 } from './index';
 
-describe('fetchWeatherProxy', () => {
+describe('fetchExternalProxy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFirestoreState.admins = new Set<string>();
@@ -210,7 +210,7 @@ describe('fetchWeatherProxy', () => {
   });
 
   it('should throw unauthenticated error if no auth context', async () => {
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<unknown>;
@@ -220,7 +220,7 @@ describe('fetchWeatherProxy', () => {
   });
 
   it('should throw invalid-argument for invalid host', async () => {
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<unknown>;
@@ -232,7 +232,7 @@ describe('fetchWeatherProxy', () => {
   });
 
   it('should throw invalid-argument for invalid protocol', async () => {
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<unknown>;
@@ -250,7 +250,7 @@ describe('fetchWeatherProxy', () => {
     const mockGet = vi.mocked(axios.get);
     mockGet.mockResolvedValue({ data: { temp: 72 } });
 
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<{ temp: number }>;
@@ -269,7 +269,7 @@ describe('fetchWeatherProxy', () => {
     const mockGet = vi.mocked(axios.get);
     mockGet.mockResolvedValue({ data: { o: { t: 72, ic: 0 } } });
 
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<{ o: { t: number; ic: number } }>;
@@ -290,7 +290,7 @@ describe('fetchWeatherProxy', () => {
     const mockGet = vi.mocked(axios.get);
     mockGet.mockRejectedValue(new Error('Network error'));
 
-    const handler = fetchWeatherProxy as unknown as (
+    const handler = fetchExternalProxy as unknown as (
       req: unknown,
       context: unknown
     ) => Promise<unknown>;

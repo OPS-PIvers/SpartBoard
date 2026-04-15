@@ -1,5 +1,6 @@
 import React from 'react';
 import { Medal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { QuizLeaderboardEntry } from '@/types';
 
 interface StudentLeaderboardProps {
@@ -19,10 +20,12 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
   myPin,
   scoreSuffix,
 }) => {
+  const { t } = useTranslation();
+
   if (entries.length === 0) {
     return (
       <div className="w-full max-w-sm p-4 bg-slate-800/70 border border-slate-700 rounded-2xl text-slate-400 text-sm">
-        Answer a question to appear on the leaderboard.
+        {t('widgets.quiz.leaderboard.emptyState')}
       </div>
     );
   }
@@ -39,7 +42,7 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
   return (
     <div className="w-full max-w-sm p-4 bg-slate-800/70 border border-slate-700 rounded-2xl text-left">
       <p className="text-xs text-slate-400 uppercase tracking-widest mb-3">
-        Live Leaderboard
+        {t('widgets.quiz.leaderboard.title')}
       </p>
       <div className="space-y-2">
         {rows.map((entry, index) => {
@@ -67,7 +70,7 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
                 )}
                 <span className="flex-1 text-sm font-semibold text-white truncate">
                   {entry.name ?? `PIN ${entry.pin}`}
-                  {isMine ? ' (You)' : ''}
+                  {isMine ? ` ${t('widgets.quiz.leaderboard.youSuffix')}` : ''}
                 </span>
                 <span className="text-amber-300 text-sm font-black">
                   {entry.score}

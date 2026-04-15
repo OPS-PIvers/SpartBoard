@@ -221,6 +221,13 @@
     "fr": "Français"
   },
   "widgets": {
+    "quiz": {
+      "leaderboard": {
+        "title": "Classement en Direct",
+        "emptyState": "Répondez à une question pour apparaître dans le classement.",
+        "youSuffix": "(Vous)"
+      }
+    },
     "onboarding": {
       "title": "Bien démarrer",
       "allDone": "Tout est prêt !",

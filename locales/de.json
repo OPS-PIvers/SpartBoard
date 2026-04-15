@@ -221,6 +221,13 @@
     "fr": "Français"
   },
   "widgets": {
+    "quiz": {
+      "leaderboard": {
+        "title": "Live-Bestenliste",
+        "emptyState": "Beantworte eine Frage, um in der Bestenliste zu erscheinen.",
+        "youSuffix": "(Du)"
+      }
+    },
     "onboarding": {
       "title": "Erste Schritte",
       "allDone": "Alles erledigt!",

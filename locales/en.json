@@ -250,6 +250,13 @@
       "noBentoBox": "No Bento Box Listed",
       "hotLunch": "Hot Lunch"
     },
+    "quiz": {
+      "leaderboard": {
+        "title": "Live Leaderboard",
+        "emptyState": "Answer a question to appear on the leaderboard.",
+        "youSuffix": "(You)"
+      }
+    },
     "seatingChart": {
       "emptyStateFreeform": "Add furniture from the sidebar.",
       "emptyStateTemplate": "Pick a template and click Apply Layout."

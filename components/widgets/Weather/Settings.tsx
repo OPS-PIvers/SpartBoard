@@ -92,7 +92,7 @@ export const WeatherSettings: React.FC<{ widget: WidgetData }> = ({
       // Use our own Cloud Function proxy to avoid CORS issues entirely
       const fetchProxy = httpsCallable<{ url: string }, EarthNetworksResponse>(
         functions,
-        'fetchWeatherProxy'
+        'fetchExternalProxy'
       );
 
       let data: EarthNetworksResponse | null = null;
