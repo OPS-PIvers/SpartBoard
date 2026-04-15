@@ -214,16 +214,22 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     backgroundColor: bgColor,
   };
 
-  // Timer-start icon: preserve existing behavior. For timer-mode items we
-  // require a positive duration (not an endTime) before offering the launch
-  // button.
+  // Timer-start icon: strictly mode-aware so the button only appears when
+  // handleStartTimer can actually launch something. Clock-mode needs a valid
+  // endTime (remaining = endTime - now). Timer-mode needs a positive
+  // duration. Without this check a stale `durationSeconds` left on a
+  // clock-mode item would render a clickable button that does nothing.
   const canLaunchStandaloneTimer =
-    !!onStartTimer && (!!item.endTime || durationSeconds > 0);
-  const timerLaunchLabel = item.endTime
-    ? t('widgets.schedule.startTimerUntil', { time: item.endTime })
-    : t('widgets.schedule.startTimerUntil', {
-        time: formatCountdown(durationSeconds),
-      });
+    !!onStartTimer &&
+    (item.mode === 'timer' ? durationSeconds > 0 : !!item.endTime);
+  const timerLaunchLabel =
+    item.mode === 'timer'
+      ? t('widgets.schedule.startTimerUntil', {
+          time: formatCountdown(durationSeconds),
+        })
+      : t('widgets.schedule.startTimerUntil', {
+          time: item.endTime ?? '',
+        });
 
   return (
     <div

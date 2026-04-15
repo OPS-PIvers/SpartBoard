@@ -10,6 +10,11 @@ import {
 } from '@/components/widgets/Schedule/utils';
 import { Z_INDEX } from '@/config/zIndex';
 
+/** Upper bound for the minutes field on a timer-mode duration input. */
+const MAX_TIMER_MINUTES = 180;
+/** Upper bound for the seconds field on a timer-mode duration input. */
+const MAX_TIMER_SECONDS = 59;
+
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
   { type: 'clock', label: 'Clock' },
@@ -131,11 +136,11 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
               const writeDuration = (mins: number, secs: number) => {
                 const safeMins = Math.max(
                   0,
-                  Math.min(180, Math.floor(mins) || 0)
+                  Math.min(MAX_TIMER_MINUTES, Math.floor(mins) || 0)
                 );
                 const safeSecs = Math.max(
                   0,
-                  Math.min(59, Math.floor(secs) || 0)
+                  Math.min(MAX_TIMER_SECONDS, Math.floor(secs) || 0)
                 );
                 onUpdate(item.id, {
                   durationSeconds: safeMins * 60 + safeSecs,
@@ -150,7 +155,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    max={180}
+                    max={MAX_TIMER_MINUTES}
                     value={minutes}
                     onChange={(e) =>
                       writeDuration(Number(e.target.value), seconds)
@@ -165,7 +170,7 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    max={59}
+                    max={MAX_TIMER_SECONDS}
                     value={seconds.toString().padStart(2, '0')}
                     onChange={(e) =>
                       writeDuration(minutes, Number(e.target.value))
