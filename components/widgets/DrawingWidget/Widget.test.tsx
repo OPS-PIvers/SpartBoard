@@ -62,16 +62,19 @@ describe('DrawingWidget', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
       mockContext as unknown as CanvasRenderingContext2D
     );
+    // The widget sets canvas internal resolution from canvasSize =
+    // { w: widget.w, h: widget.h - 40 } → 400x260 for the test widget below.
+    // Mock the rect to match so pointer coords translate 1:1 (no CSS scaling).
     vi.spyOn(
       HTMLCanvasElement.prototype,
       'getBoundingClientRect'
     ).mockReturnValue({
       left: 0,
       top: 0,
-      width: 800,
-      height: 600,
-      right: 800,
-      bottom: 600,
+      width: 400,
+      height: 260,
+      right: 400,
+      bottom: 260,
       x: 0,
       y: 0,
       toJSON: () => ({}),

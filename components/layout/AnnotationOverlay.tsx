@@ -130,7 +130,6 @@ export const AnnotationOverlay: React.FC = () => {
     width: annotationState.width,
     objects: annotationState.objects,
     onObjectComplete: addAnnotationObject,
-    scale: 1,
     canvasSize,
     nextZ: nextZ(annotationState.objects),
   });

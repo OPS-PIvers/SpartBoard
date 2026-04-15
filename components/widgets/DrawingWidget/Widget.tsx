@@ -13,8 +13,7 @@ import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
 export const DrawingWidget: React.FC<{
   widget: WidgetData;
   isStudentView?: boolean;
-  scale?: number;
-}> = ({ widget, isStudentView = false, scale = 1 }) => {
+}> = ({ widget, isStudentView = false }) => {
   const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
   const { canAccessFeature } = useAuth();
 
@@ -60,7 +59,6 @@ export const DrawingWidget: React.FC<{
     width,
     objects,
     onObjectComplete: appendObject,
-    scale,
     disabled: isStudentView,
     canvasSize,
     nextZ: nextZ(objects),

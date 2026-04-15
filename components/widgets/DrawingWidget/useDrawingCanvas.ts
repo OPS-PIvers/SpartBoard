@@ -7,9 +7,6 @@ interface UseDrawingCanvasOptions {
   width: number;
   objects: DrawableObject[];
   onObjectComplete: (obj: DrawableObject) => void;
-  /** CSS transform scale applied to the canvas by a parent ScalableWidget.
-   *  Pass `1` for full-viewport overlays where no parent scaling applies. */
-  scale?: number;
   /** If true, pointer events are ignored (e.g. student read-only view). */
   disabled?: boolean;
   /** Internal canvas resolution. Re-applies on change. */
@@ -41,7 +38,6 @@ export const useDrawingCanvas = ({
   width,
   objects,
   onObjectComplete,
-  scale = 1,
   disabled = false,
   canvasSize,
   generateId = () => crypto.randomUUID(),
@@ -99,17 +95,24 @@ export const useDrawingCanvas = ({
     draw(ctx, objects, currentPathRef.current);
   }, [canvasRef, canvasSize.width, canvasSize.height, objects, draw]);
 
+  // Translate a pointer event's client coords into the canvas's internal
+  // resolution (which is also the coordinate space stored on PathObjects).
+  // Using the DOM-measured ratio of internal resolution to on-screen CSS size
+  // handles any parent CSS `transform: scale()` and any internal-vs-CSS size
+  // mismatch in a single step — matching the pattern used by SeatingChart.
   const getPos = useCallback(
     (e: React.PointerEvent): Point => {
       const canvas = canvasRef.current;
       if (!canvas) return { x: 0, y: 0 };
       const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       return {
-        x: (e.clientX - rect.left) / scale,
-        y: (e.clientY - rect.top) / scale,
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
       };
     },
-    [canvasRef, scale]
+    [canvasRef]
   );
 
   const handleStart = useCallback(

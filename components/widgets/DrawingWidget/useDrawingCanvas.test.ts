@@ -300,7 +300,25 @@ describe('useDrawingCanvas', () => {
     expect(result.current.isDrawing).toBe(false);
   });
 
-  it('divides pointer coordinates by the supplied scale factor', () => {
+  it('scales pointer coordinates by the DOM-measured internal-to-CSS ratio', () => {
+    // Canvas internal resolution 800x600, but CSS-rendered at half size
+    // (e.g. via a parent `transform: scale(0.5)`). Pointer coords should be
+    // multiplied by canvas.width/rect.width = 2 to land in canvas space.
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 300,
+      right: 400,
+      bottom: 300,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
     const canvas = makeCanvas();
     const canvasRef = { current: canvas };
     const onObjectComplete = vi.fn();
@@ -312,7 +330,38 @@ describe('useDrawingCanvas', () => {
         width: 4,
         objects: [],
         onObjectComplete,
-        scale: 2, // half the on-screen coords
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 0,
+      })
+    );
+
+    const mkEvent = (x: number, y: number) =>
+      ({ clientX: x, clientY: y }) as unknown as React.PointerEvent;
+    act(() => result.current.handleStart(mkEvent(50, 100)));
+    act(() => result.current.handleMove(mkEvent(150, 200)));
+    act(() => result.current.handleEnd());
+
+    const emitted = onObjectComplete.mock.calls[0][0] as PathObject;
+    expect(emitted.points).toEqual([
+      { x: 100, y: 200 },
+      { x: 300, y: 400 },
+    ]);
+  });
+
+  it('uses a 1:1 ratio when canvas internal resolution matches CSS size', () => {
+    // Default mocked rect is 800x600, matching canvas.width/height — so
+    // pointer coords should pass through unchanged (minus rect offset).
+    const canvas = makeCanvas();
+    const canvasRef = { current: canvas };
+    const onObjectComplete = vi.fn();
+
+    const { result } = renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects: [],
+        onObjectComplete,
         canvasSize: { width: 800, height: 600 },
         nextZ: 0,
       })
@@ -326,8 +375,8 @@ describe('useDrawingCanvas', () => {
 
     const emitted = onObjectComplete.mock.calls[0][0] as PathObject;
     expect(emitted.points).toEqual([
-      { x: 50, y: 100 },
-      { x: 150, y: 200 },
+      { x: 100, y: 200 },
+      { x: 300, y: 400 },
     ]);
   });
 });
