@@ -126,7 +126,16 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       attributeFilter: ['style'],
     });
 
-    const onScrollOrResize = () => updateRect();
+    // Throttle scroll/resize handling to one update per animation frame.
+    // Scroll can fire 60+ times/sec on complex pages; rAF coalesces them.
+    let rafId: number | null = null;
+    const onScrollOrResize = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateRect();
+      });
+    };
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
 
@@ -135,6 +144,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       mutationObserver.disconnect();
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
     };
   }, [widgetEl, updateRect]);
 

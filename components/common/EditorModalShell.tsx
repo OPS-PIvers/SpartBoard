@@ -77,7 +77,11 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
 
   const handleSave = useCallback(async () => {
     if (saveDisabled || isSaving) return;
-    await onSave();
+    try {
+      await onSave();
+    } catch (error) {
+      console.error('Failed to save editor modal changes.', error);
+    }
   }, [saveDisabled, isSaving, onSave]);
 
   const customHeader = (
