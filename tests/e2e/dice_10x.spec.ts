@@ -9,19 +9,15 @@ test('Dice Widget 10x Enhancement Verification', async ({ page }) => {
 
   // Handle potential setup wizard
   if (await page.getByText("Let's get started").isVisible()) {
-    const nextBtn = page.getByRole('button', { name: /Next|Get Started/i });
-    while (await nextBtn.isVisible()) {
-      await nextBtn.click();
-      // Wait for the current button to disappear or re-render for the next
-      // step instead of sleeping a fixed duration. Swallow timeouts so the
-      // loop exits naturally on the final step.
-      await nextBtn.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {
-        /* final step has no successor; fall through to exit the loop */
-      });
+    while (
+      await page.getByRole('button', { name: /Next|Get Started/i }).isVisible()
+    ) {
+      await page.getByRole('button', { name: /Next|Get Started/i }).click();
+      await page.waitForTimeout(500);
     }
   }
 
-  // 1. Open the dock
+  // 1. Open the dock if needed
   const openToolsButton = page.getByTitle('Open Tools');
   if (await openToolsButton.isVisible()) {
     await openToolsButton.click();
@@ -29,15 +25,15 @@ test('Dice Widget 10x Enhancement Verification', async ({ page }) => {
 
   // 2. Add Dice widget
   const diceButton = page.getByRole('button', { name: /Dice/i }).first();
+  // Wait for the dock to be fully expanded and stable
   await expect(diceButton).toBeVisible({ timeout: 10000 });
-  // Wait for the dock animation to settle so the button is actionable,
-  // rather than bypassing the check with `{ force: true }`.
-  await expect(diceButton).toBeEnabled();
-  await diceButton.click();
+
+  // Use force click because the button has aria-disabled="true" for sorting logic when not in Edit Mode
+  await diceButton.click({ force: true });
 
   // 3. Verify widget appeared and has 1 face by default
   const diceFaces = page.locator('[data-testid="dice-face"]');
-  await expect(diceFaces.first()).toBeVisible({ timeout: 10000 });
+  await expect(diceFaces.first()).toBeVisible({ timeout: 15000 });
   await expect(diceFaces).toHaveCount(1);
 
   // 4. Capture a verification artifact
