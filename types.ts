@@ -1706,7 +1706,7 @@ export interface VideoActivityMetadata {
   updatedAt: number;
 }
 
-export type VideoActivityView = 'manager' | 'create' | 'editor' | 'results';
+export type VideoActivityView = 'manager' | 'create' | 'results';
 
 /** Widget configuration for the video activity widget (teacher side). */
 export interface VideoActivityConfig {

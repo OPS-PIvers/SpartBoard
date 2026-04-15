@@ -9,6 +9,7 @@ import React, { useState, useCallback } from 'react';
 import {
   WidgetData,
   VideoActivityConfig,
+  VideoActivityView,
   VideoActivityMetadata,
   VideoActivityData,
   VideoActivitySessionSettings,
@@ -186,7 +187,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
 
   // ─── Views ─────────────────────────────────────────────────────────────────
 
-  const view = config.view ?? 'manager';
+  // Normalize legacy `view: 'editor'` persisted by pre-Phase 2 dashboards back
+  // to 'manager' since editing now happens in a modal rather than a sub-view.
+  // `view` is stripped by `stripTransientKeys` on any subsequent save, so stale
+  // values will clean themselves up without a proactive Firestore write.
+  const rawView = config.view as VideoActivityView | 'editor' | undefined;
+  const view: VideoActivityView =
+    rawView === 'editor' || !rawView ? 'manager' : rawView;
   const defaultSessionSettings: VideoActivitySessionSettings = {
     autoPlay: config.autoPlay ?? false,
     requireCorrectAnswer: config.requireCorrectAnswer ?? true,

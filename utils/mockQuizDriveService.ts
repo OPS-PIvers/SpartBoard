@@ -70,7 +70,7 @@ export class MockQuizDriveService implements QuizDriveLike {
     );
   }
 
-  createVideoActivityTemplate(): Promise<string> {
+  createVideoActivityTemplate(_title: string): Promise<string> {
     return Promise.reject(
       new Error(
         'Template creation requires Google Drive. Not available in auth-bypass mode.'
