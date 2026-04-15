@@ -125,6 +125,22 @@ vi.mock('@/utils/ai', () => ({
   generateMiniAppCode: vi.fn(),
 }));
 
+// The toolbar (zoom + mini-app + open-in-new-tab) now renders via createPortal,
+// anchored to the nearest `[data-widget-id]` ancestor. Production provides this
+// via DraggableWindow; tests must provide it explicitly. The toolbar only
+// becomes interactive while the widget is hovered, so we fire a pointerEnter
+// on the wrapper so the portaled buttons are clickable in tests.
+const renderEmbedWidget = (widget: WidgetData) => {
+  const utils = render(
+    <div data-testid={`widget-wrapper-${widget.id}`} data-widget-id={widget.id}>
+      <EmbedWidget widget={widget} />
+    </div>
+  );
+  const wrapper = utils.getByTestId(`widget-wrapper-${widget.id}`);
+  fireEvent.pointerEnter(wrapper);
+  return utils;
+};
+
 describe('EmbedWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -266,7 +282,7 @@ describe('EmbedWidget', () => {
     };
 
     it('renders the generate mini app button', () => {
-      render(<EmbedWidget widget={validWidget} />);
+      renderEmbedWidget(validWidget);
       const btn = screen.getByRole('button', {
         name: /generate interactive mini app/i,
       });
@@ -283,7 +299,7 @@ describe('EmbedWidget', () => {
       };
       vi.mocked(aiModule.generateMiniAppCode).mockResolvedValueOnce(mockResult);
 
-      render(<EmbedWidget widget={validWidget} />);
+      renderEmbedWidget(validWidget);
       const btn = screen.getByRole('button', {
         name: /generate interactive mini app/i,
       });
@@ -332,7 +348,7 @@ describe('EmbedWidget', () => {
         new Error('AI failed')
       );
 
-      render(<EmbedWidget widget={validWidget} />);
+      renderEmbedWidget(validWidget);
       const btn = screen.getByRole('button', {
         name: /generate interactive mini app/i,
       });

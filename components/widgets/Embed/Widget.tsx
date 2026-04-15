@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { WidgetData, EmbedConfig, MiniAppConfig } from '@/types';
 import {
   Globe,
@@ -24,10 +25,13 @@ import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
+import { Z_INDEX } from '@/config/zIndex';
 
 import { applyAutoplay } from './applyAutoplay';
 
 const NEW_WIDGET_SPACING = 20;
+const TOOLBAR_GAP = 6;
+const ESTIMATED_TOOLBAR_HEIGHT = 44;
 
 export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget, addToast, updateWidget } = useDashboard();
@@ -81,6 +85,91 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     e.stopPropagation();
     updateWidget(widget.id, { config: { ...config, zoom: 1.0 } });
   };
+
+  // Track the outer widget element so we can anchor the floating toolbar
+  // just outside the widget's frame (bottom-left). The toolbar lives in a
+  // portal under <body> so it never overlaps full-bleed iframe content
+  // (Google Docs tabs, YouTube chrome, etc.).
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [widgetEl, setWidgetEl] = useState<HTMLElement | null>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [isHot, setIsHot] = useState(false);
+  const [focusCount, setFocusCount] = useState(0);
+  // Delayed-hide timer so the pointer can cross the small gap between the
+  // widget and the portaled toolbar without the toolbar flickering off.
+  const hideTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el =
+      contentRef.current?.closest<HTMLElement>(
+        `[data-widget-id="${widget.id}"]`
+      ) ?? null;
+    setWidgetEl(el);
+    if (el) setRect(el.getBoundingClientRect());
+  }, [widget.id]);
+
+  const updateRect = useCallback(() => {
+    if (!widgetEl) return;
+    setRect(widgetEl.getBoundingClientRect());
+  }, [widgetEl]);
+
+  useEffect(() => {
+    if (!widgetEl) return;
+    updateRect();
+
+    const resizeObserver = new ResizeObserver(() => updateRect());
+    resizeObserver.observe(widgetEl);
+
+    const mutationObserver = new MutationObserver(() => updateRect());
+    mutationObserver.observe(widgetEl, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+
+    const onScrollOrResize = () => updateRect();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [widgetEl, updateRect]);
+
+  const cancelPendingHide = useCallback(() => {
+    if (hideTimerRef.current != null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const showToolbar = useCallback(() => {
+    cancelPendingHide();
+    setIsHot(true);
+  }, [cancelPendingHide]);
+
+  const scheduleHide = useCallback(() => {
+    cancelPendingHide();
+    hideTimerRef.current = window.setTimeout(() => {
+      hideTimerRef.current = null;
+      setIsHot(false);
+    }, 150);
+  }, [cancelPendingHide]);
+
+  useEffect(() => () => cancelPendingHide(), [cancelPendingHide]);
+
+  useEffect(() => {
+    if (!widgetEl) return;
+    widgetEl.addEventListener('pointerenter', showToolbar);
+    widgetEl.addEventListener('pointerleave', scheduleHide);
+    return () => {
+      widgetEl.removeEventListener('pointerenter', showToolbar);
+      widgetEl.removeEventListener('pointerleave', scheduleHide);
+    };
+  }, [widgetEl, showToolbar, scheduleHide]);
+
   const sanitizedUrl = ensureProtocol(url);
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
 
@@ -244,120 +333,121 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
+  const hasContent =
+    (displayMode === 'url' && url.trim().length > 0) ||
+    (displayMode === 'code' && html.trim().length > 0);
+  const toolbarVisible = !widget.minimized && (isHot || focusCount > 0);
+  const flipAbove =
+    rect != null &&
+    rect.bottom + ESTIMATED_TOOLBAR_HEIGHT + TOOLBAR_GAP > window.innerHeight;
+
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="w-full h-full bg-transparent flex flex-col overflow-hidden relative group/embed-content">
-          {((displayMode === 'url' && url.trim()) ||
-            (displayMode === 'code' && html.trim())) && (
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-1 opacity-0 group-hover/embed-content:opacity-100 focus-within:opacity-100 transition-opacity">
-              <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
-                <button
-                  onClick={handleZoomOut}
-                  disabled={!canZoomOut}
-                  className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  style={{ padding: 'min(8px, 2cqmin)' }}
-                  title="Zoom out"
-                >
-                  <ZoomOut
-                    style={{
-                      width: 'clamp(14px, 4cqmin, 18px)',
-                      height: 'clamp(14px, 4cqmin, 18px)',
-                    }}
-                  />
-                </button>
-                <span title={isDefaultZoom ? 'Current zoom' : undefined}>
+        <div
+          ref={contentRef}
+          className="w-full h-full bg-transparent flex flex-col overflow-hidden relative"
+        >
+          {hasContent &&
+            rect &&
+            typeof document !== 'undefined' &&
+            createPortal(
+              <div
+                data-settings-exclude
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onPointerEnter={showToolbar}
+                onPointerLeave={scheduleHide}
+                onFocus={() => {
+                  cancelPendingHide();
+                  setFocusCount((c) => c + 1);
+                }}
+                onBlur={() => setFocusCount((c) => (c > 0 ? c - 1 : 0))}
+                style={{
+                  position: 'fixed',
+                  left: rect.left,
+                  top: flipAbove
+                    ? rect.top - TOOLBAR_GAP
+                    : rect.bottom + TOOLBAR_GAP,
+                  transform: flipAbove ? 'translateY(-100%)' : undefined,
+                  zIndex: Z_INDEX.popover,
+                  opacity: toolbarVisible ? 1 : 0,
+                  pointerEvents: toolbarVisible ? 'auto' : 'none',
+                  transition: 'opacity 150ms ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
                   <button
-                    onClick={handleZoomReset}
-                    disabled={isDefaultZoom}
-                    className="text-slate-600 font-mono font-bold select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
-                    style={{
-                      fontSize: 'clamp(10px, 3cqmin, 13px)',
-                      minWidth: '3em',
-                      padding: '0 min(4px, 1cqmin)',
-                    }}
-                    title={isDefaultZoom ? undefined : 'Reset to 100%'}
+                    onClick={handleZoomOut}
+                    disabled={!canZoomOut}
+                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom out"
                   >
-                    {Math.round(effectiveZoom * 100)}%
+                    <ZoomOut className="w-4 h-4" />
                   </button>
-                </span>
-                <button
-                  onClick={handleZoomIn}
-                  disabled={!canZoomIn}
-                  className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  style={{ padding: 'min(8px, 2cqmin)' }}
-                  title="Zoom in"
-                >
-                  <ZoomIn
-                    style={{
-                      width: 'clamp(14px, 4cqmin, 18px)',
-                      height: 'clamp(14px, 4cqmin, 18px)',
-                    }}
-                  />
-                </button>
-                {!isDefaultZoom && (
+                  <span title={isDefaultZoom ? 'Current zoom' : undefined}>
+                    <button
+                      onClick={handleZoomReset}
+                      disabled={isDefaultZoom}
+                      className="px-1 text-xs font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
+                      style={{ minWidth: '3em' }}
+                      title={isDefaultZoom ? undefined : 'Reset to 100%'}
+                    >
+                      {Math.round(effectiveZoom * 100)}%
+                    </button>
+                  </span>
                   <button
-                    onClick={handleZoomReset}
-                    className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
-                    style={{ padding: 'min(8px, 2cqmin)' }}
-                    title="Reset zoom to 100%"
+                    onClick={handleZoomIn}
+                    disabled={!canZoomIn}
+                    className="p-2 text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Zoom in"
                   >
-                    <RotateCcw
-                      style={{
-                        width: 'clamp(12px, 3.5cqmin, 15px)',
-                        height: 'clamp(12px, 3.5cqmin, 15px)',
-                      }}
-                    />
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  {!isDefaultZoom && (
+                    <button
+                      onClick={handleZoomReset}
+                      className="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
+                      title="Reset zoom to 100%"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {canAccessFeature('embed-mini-app') && (
+                  <button
+                    onClick={handleGenerateMiniApp}
+                    disabled={isGeneratingApp}
+                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    title="Generate Interactive Mini App"
+                    aria-label="Generate Interactive Mini App"
+                  >
+                    {isGeneratingApp ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-4 h-4" />
+                    )}
                   </button>
                 )}
-              </div>
-              {canAccessFeature('embed-mini-app') && (
-                <button
-                  onClick={handleGenerateMiniApp}
-                  disabled={isGeneratingApp}
-                  className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  style={{ padding: 'min(8px, 2cqmin)' }}
-                  title="Generate Interactive Mini App"
-                  aria-label="Generate Interactive Mini App"
-                >
-                  {isGeneratingApp ? (
-                    <Loader2
-                      className="animate-spin"
-                      style={{
-                        width: 'clamp(14px, 4cqmin, 18px)',
-                        height: 'clamp(14px, 4cqmin, 18px)',
-                      }}
-                    />
-                  ) : (
-                    <Wand2
-                      style={{
-                        width: 'clamp(14px, 4cqmin, 18px)',
-                        height: 'clamp(14px, 4cqmin, 18px)',
-                      }}
-                    />
-                  )}
-                </button>
-              )}
-              {displayMode === 'url' && sanitizedUrl && (
-                <a
-                  href={sanitizedUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg p-2 transition-colors flex items-center justify-center"
-                  title="Open in new tab"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'clamp(14px, 4cqmin, 18px)',
-                      height: 'clamp(14px, 4cqmin, 18px)',
-                    }}
-                  />
-                </a>
-              )}
-            </div>
-          )}
+                {displayMode === 'url' && sanitizedUrl && (
+                  <a
+                    href={sanitizedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-blue-500 shadow-sm border border-slate-200/50 rounded-lg transition-colors flex items-center justify-center"
+                    title="Open in new tab"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                )}
+              </div>,
+              document.body
+            )}
           {displayMode === 'url' && isActuallyEmbeddable === false ? (
             <div className="flex-1 flex flex-col items-center justify-center p-[6cqmin] text-center bg-slate-50">
               <div
