@@ -136,6 +136,12 @@ const areScheduleRowPropsEqual = (
   // Only re-render if the item is actively ticking (timer mode, within its
   // chained window, not idle, not done). Otherwise `nowSeconds` changes
   // have no visual effect and can be safely ignored.
+  //
+  // We allow one extra second past `effectiveEndSec` so a browser-throttled
+  // tick can still drive the final "0:00" frame: if the previous render
+  // landed at `effectiveEndSec - 1` (showing "0:01") and the next tick
+  // arrives at `effectiveEndSec + 1`, we still need to re-render to clear
+  // the stale countdown.
   const isActivelyTicking =
     next.item.mode === 'timer' &&
     !next.item.done &&
@@ -143,7 +149,7 @@ const areScheduleRowPropsEqual = (
     next.effectiveStartSec !== -1 &&
     next.effectiveEndSec !== -1 &&
     next.nowSeconds >= next.effectiveStartSec &&
-    next.nowSeconds <= next.effectiveEndSec;
+    next.nowSeconds <= next.effectiveEndSec + 1;
 
   if (isActivelyTicking) {
     return prev.nowSeconds === next.nowSeconds;
