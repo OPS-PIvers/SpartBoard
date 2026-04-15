@@ -287,7 +287,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               type="range"
               min="2"
-              max="10"
+              max="20"
               step="1"
               value={groupSize}
               onChange={(e) =>
