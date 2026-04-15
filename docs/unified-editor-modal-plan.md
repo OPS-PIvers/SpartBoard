@@ -6,7 +6,7 @@ Shared full-screen modal editor for library-style widgets (Quiz, Video Activity,
 
 - [x] **Phase 0** — Shared primitives (EditorModalShell, auth-bypass plumbing)
 - [x] **Phase 1** — Quiz
-- [ ] **Phase 2** — Video Activity
+- [x] **Phase 2** — Video Activity
 - [ ] **Phase 3** — MiniApp
 - [ ] **Phase 4** — Guided Learning
 
@@ -84,7 +84,7 @@ Structural stand-in for `QuizDriveService` used in bypass mode (no Google access
 
 ---
 
-## Phase 2 — Video Activity (Pending)
+## Phase 2 — Video Activity (Complete)
 
 Location: `components/widgets/VideoActivityWidget/`
 

@@ -1,6 +1,8 @@
 /**
  * VideoActivityWidget — main orchestrator component.
- * Manages view state (manager / create / editor / results) and hooks.
+ * Manages view state (manager / create / results) and the editor modal.
+ * The question-authoring editor lives in VideoActivityEditorModal, rendered
+ * as a sibling of the Manager library view.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -19,8 +21,8 @@ import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { Manager } from './components/Manager';
 import { Creator } from './components/Creator';
-import { Editor } from './components/Editor';
 import { Results } from './components/Results';
+import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 
 export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
@@ -60,15 +62,18 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     unsubscribeFromSession,
   } = useVideoActivitySessionTeacher();
 
-  const [loadedActivity, setLoadedActivity] =
-    useState<VideoActivityData | null>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
-  const [selectedMeta, setSelectedMeta] =
-    useState<VideoActivityMetadata | null>(null);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
   const [resultsActivity, setResultsActivity] =
     useState<VideoActivityMetadata | null>(null);
+
+  // Editor modal state — ephemeral, not persisted to Firestore.
+  const [editingActivity, setEditingActivity] =
+    useState<VideoActivityData | null>(null);
+  const [editingMeta, setEditingMeta] = useState<VideoActivityMetadata | null>(
+    null
+  );
 
   // Get global AI generation permission from feature permissions
   const videoActivityPerm = featurePermissions.find(
@@ -95,8 +100,6 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       setLoadingActivity(true);
       try {
         const data = await loadActivityData(meta.driveFileId);
-        setLoadedActivity(data);
-        setSelectedMeta(meta);
         return data;
       } catch (err) {
         const msg =
@@ -214,24 +217,6 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  if (view === 'editor' && loadedActivity) {
-    return (
-      <Editor
-        activity={loadedActivity}
-        onBack={() => {
-          setLoadedActivity(null);
-          setView('manager');
-        }}
-        onSave={async (updated) => {
-          await saveActivity(updated, selectedMeta?.driveFileId);
-          setLoadedActivity(updated);
-          addToast('Activity updated!', 'success');
-          setView('manager');
-        }}
-      />
-    );
-  }
-
   if (view === 'results' && selectedSession) {
     return (
       <Results
@@ -252,94 +237,130 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  // Default: manager view
+  // Default: manager view (with editor modal rendered as sibling)
   return (
-    <Manager
-      activities={activities}
-      loading={loading}
-      error={error}
-      onNew={() => setView('create')}
-      onEdit={async (meta) => {
-        const data = await loadActivity(meta);
-        if (data) setView('editor');
-      }}
-      sessionResultsActivity={resultsActivity}
-      activitySessions={sessions}
-      sessionsLoading={sessionsLoading}
-      onResults={(meta) => {
-        setResultsActivity(meta);
-        subscribeToActivitySessions(meta.id, user.uid);
-      }}
-      onCloseResults={() => {
-        setResultsActivity(null);
-        unsubscribeFromActivitySessions();
-      }}
-      onOpenSessionResults={(session) => {
-        subscribeToSession(session.id);
-        setSelectedSession(session);
-        setResultsActivity(null);
-        unsubscribeFromActivitySessions();
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            view: 'results',
-            selectedActivityId: session.activityId,
-            selectedActivityTitle: session.activityTitle,
-            resultsSessionId: session.id,
-          } as VideoActivityConfig,
-        });
-      }}
-      onRenameSession={renameSession}
-      onEndSession={endSession}
-      defaultSessionSettings={defaultSessionSettings}
-      onAssign={async (meta, sessionSettings, assignmentName) => {
-        // Use loadActivityData directly to avoid setting loadingActivity
-        // which would cause the Manager component to unmount and destroy the modal
-        const data = await loadActivityData(meta.driveFileId);
-        if (!data) throw new Error('Failed to load activity data');
-        const sessionId = await createSession(
-          data,
-          user.uid,
-          [],
-          sessionSettings,
-          assignmentName
-        );
-        updateWidget(widget.id, {
-          config: {
-            ...config,
-            resultsSessionId: sessionId,
-          } as VideoActivityConfig,
-        });
-
-        const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
-        if (typeof navigator !== 'undefined' && navigator.clipboard) {
-          void navigator.clipboard
-            .writeText(url)
-            .then(() =>
-              addToast('Assignment link copied to clipboard!', 'success')
-            )
-            .catch(() =>
-              addToast(
-                'Assignment created, but link could not be copied.',
-                'info'
-              )
-            );
-        } else {
-          addToast('Assignment created, but link could not be copied.', 'info');
-        }
-        return sessionId;
-      }}
-      onDelete={async (meta) => {
-        try {
-          await deleteActivity(meta.id, meta.driveFileId);
-          addToast('Activity deleted.', 'success');
-        } catch (err) {
-          addToast(
-            err instanceof Error ? err.message : 'Delete failed',
-            'error'
+    <>
+      <Manager
+        activities={activities}
+        loading={loading}
+        error={error}
+        onNew={() => {
+          const now = Date.now();
+          setEditingActivity({
+            id: crypto.randomUUID(),
+            title: '',
+            youtubeUrl: '',
+            questions: [],
+            createdAt: now,
+            updatedAt: now,
+          });
+          setEditingMeta(null);
+        }}
+        onImport={() => setView('create')}
+        onEdit={async (meta) => {
+          const data = await loadActivity(meta);
+          if (data) {
+            setEditingActivity(data);
+            setEditingMeta(meta);
+          }
+        }}
+        sessionResultsActivity={resultsActivity}
+        activitySessions={sessions}
+        sessionsLoading={sessionsLoading}
+        onResults={(meta) => {
+          setResultsActivity(meta);
+          subscribeToActivitySessions(meta.id, user.uid);
+        }}
+        onCloseResults={() => {
+          setResultsActivity(null);
+          unsubscribeFromActivitySessions();
+        }}
+        onOpenSessionResults={(session) => {
+          subscribeToSession(session.id);
+          setSelectedSession(session);
+          setResultsActivity(null);
+          unsubscribeFromActivitySessions();
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'results',
+              selectedActivityId: session.activityId,
+              selectedActivityTitle: session.activityTitle,
+              resultsSessionId: session.id,
+            } as VideoActivityConfig,
+          });
+        }}
+        onRenameSession={renameSession}
+        onEndSession={endSession}
+        defaultSessionSettings={defaultSessionSettings}
+        onAssign={async (meta, sessionSettings, assignmentName) => {
+          // Use loadActivityData directly to avoid setting loadingActivity
+          // which would cause the Manager component to unmount and destroy the modal
+          const data = await loadActivityData(meta.driveFileId);
+          if (!data) throw new Error('Failed to load activity data');
+          const sessionId = await createSession(
+            data,
+            user.uid,
+            [],
+            sessionSettings,
+            assignmentName
           );
-        }
-      }}
-    />
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              resultsSessionId: sessionId,
+            } as VideoActivityConfig,
+          });
+
+          const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            void navigator.clipboard
+              .writeText(url)
+              .then(() =>
+                addToast('Assignment link copied to clipboard!', 'success')
+              )
+              .catch(() =>
+                addToast(
+                  'Assignment created, but link could not be copied.',
+                  'info'
+                )
+              );
+          } else {
+            addToast(
+              'Assignment created, but link could not be copied.',
+              'info'
+            );
+          }
+          return sessionId;
+        }}
+        onDelete={async (meta) => {
+          try {
+            await deleteActivity(meta.id, meta.driveFileId);
+            addToast('Activity deleted.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+      />
+      <VideoActivityEditorModal
+        isOpen={!!editingActivity}
+        activity={editingActivity}
+        onClose={() => {
+          setEditingActivity(null);
+          setEditingMeta(null);
+        }}
+        onSave={async (updated) => {
+          const isNew = !editingMeta;
+          await saveActivity(updated, editingMeta?.driveFileId);
+          addToast(
+            isNew ? 'Activity created!' : 'Activity updated!',
+            'success'
+          );
+        }}
+      />
+    </>
   );
 };

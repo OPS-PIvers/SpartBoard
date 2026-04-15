@@ -20,6 +20,7 @@ import {
   Pencil,
   Ban,
   Clock3,
+  FileUp,
 } from 'lucide-react';
 import {
   VideoActivityMetadata,
@@ -34,6 +35,7 @@ interface ManagerProps {
   loading: boolean;
   error: string | null;
   onNew: () => void;
+  onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
   onResults: (activity: VideoActivityMetadata) => void;
   onCloseResults: () => void;
@@ -561,6 +563,7 @@ export const Manager: React.FC<ManagerProps> = ({
   loading,
   error,
   onNew,
+  onImport,
   onEdit,
   onResults,
   onCloseResults,
@@ -708,23 +711,46 @@ export const Manager: React.FC<ManagerProps> = ({
             </span>
           </div>
         </div>
-        <button
-          onClick={onNew}
-          className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-brand-blue-primary/20"
-          style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
-            fontSize: 'clamp(11px, 3cqmin, 12px)',
-          }}
+        <div
+          className="flex items-center"
+          style={{ gap: 'min(6px, 1.5cqmin)' }}
         >
-          <Plus
+          <button
+            onClick={onImport}
+            className="flex items-center bg-white hover:bg-brand-blue-lighter/40 text-brand-blue-primary font-bold rounded-xl transition-all active:scale-95 shadow-sm border border-brand-blue-primary/20"
             style={{
-              width: 'min(14px, 3.5cqmin)',
-              height: 'min(14px, 3.5cqmin)',
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'clamp(11px, 3cqmin, 12px)',
             }}
-          />
-          New
-        </button>
+            title="Import from CSV, Google Sheet, or AI"
+          >
+            <FileUp
+              style={{
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
+              }}
+            />
+            Import
+          </button>
+          <button
+            onClick={onNew}
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-brand-blue-primary/20"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
+              fontSize: 'clamp(11px, 3cqmin, 12px)',
+            }}
+          >
+            <Plus
+              style={{
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
+              }}
+            />
+            New
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
