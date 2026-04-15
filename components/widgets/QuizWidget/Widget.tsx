@@ -15,7 +15,7 @@ import {
 } from '@/hooks/useQuizSession';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { QuizImporter } from './components/QuizImporter';
-import { QuizEditor } from './components/QuizEditor';
+import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import {
@@ -63,7 +63,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
-  const [selectedMeta, setSelectedMeta] = useState<QuizMetadata | null>(null);
+
+  // Editor modal state — ephemeral, not persisted to Firestore.
+  const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
+  const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
 
   const setView = useCallback(
     (view: QuizConfig['view']) => {
@@ -79,7 +82,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       try {
         const data = await loadQuizData(meta.driveFileId);
         setLoadedQuizData(data);
-        setSelectedMeta(meta);
         return data;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load quiz';
@@ -472,24 +474,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
-  if (view === 'editor' && loadedQuizData) {
-    return (
-      <QuizEditor
-        quiz={loadedQuizData}
-        onBack={() => {
-          setLoadedQuizData(null);
-          setView('manager');
-        }}
-        onSave={async (updated) => {
-          await saveQuiz(updated, selectedMeta?.driveFileId);
-          setLoadedQuizData(updated);
-          addToast('Quiz updated!', 'success');
-          setView('manager');
-        }}
-      />
-    );
-  }
-
   if (view === 'preview' && loadedQuizData) {
     return (
       <QuizPreview
@@ -561,112 +545,141 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
-  // Default: manager view
+  // Default: manager view (with editor modal rendered as sibling)
   return (
-    <QuizManager
-      quizzes={quizzes}
-      loading={quizzesLoading}
-      error={quizzesError ?? dataError}
-      hasActiveSession={!!(liveSession && liveSession.status !== 'ended')}
-      activeQuizId={liveSession?.quizId ?? null}
-      onImport={() => setView('import')}
-      onResume={() => setView('monitor')}
-      onEndSession={async () => {
-        await endQuizSession();
-        addToast('Session ended.', 'success');
-      }}
-      onEdit={async (meta) => {
-        const data = await loadQuiz(meta);
-        if (data) setView('editor');
-      }}
-      onPreview={async (meta) => {
-        const data = await loadQuiz(meta);
-        if (data) setView('preview');
-      }}
-      rosters={rosters}
-      config={config}
-      onAssign={async (
-        meta,
-        mode,
-        plcOptions: PlcOptions,
-        sessionOptions: QuizSessionOptions
-      ) => {
-        const data = await loadQuiz(meta);
-        if (!data) return;
-        try {
-          const code = await startQuizSession(data, mode, sessionOptions);
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'monitor',
-              selectedQuizId: meta.id,
-              selectedQuizTitle: meta.title,
-              activeLiveSessionCode: code,
-              plcMode: plcOptions.plcMode,
-              teacherName: plcOptions.teacherName ?? '',
-              periodName: plcOptions.periodName ?? '',
-              plcSheetUrl: plcOptions.plcSheetUrl ?? '',
-            } as QuizConfig,
+    <>
+      <QuizManager
+        quizzes={quizzes}
+        loading={quizzesLoading}
+        error={quizzesError ?? dataError}
+        hasActiveSession={!!(liveSession && liveSession.status !== 'ended')}
+        activeQuizId={liveSession?.quizId ?? null}
+        onNew={() => {
+          const now = Date.now();
+          setEditingQuiz({
+            id: crypto.randomUUID(),
+            title: '',
+            questions: [],
+            createdAt: now,
+            updatedAt: now,
           });
-          const url = `${window.location.origin}/quiz?code=${code}`;
-          if (typeof navigator !== 'undefined' && navigator.clipboard) {
-            void navigator.clipboard
-              .writeText(url)
-              .then(() =>
-                addToast('Assignment link copied to clipboard!', 'success')
-              )
-              .catch(() =>
-                addToast(
-                  'Assignment created, but link could not be copied.',
-                  'info'
+          setEditingMeta(null);
+        }}
+        onImport={() => setView('import')}
+        onResume={() => setView('monitor')}
+        onEndSession={async () => {
+          await endQuizSession();
+          addToast('Session ended.', 'success');
+        }}
+        onEdit={async (meta) => {
+          const data = await loadQuiz(meta);
+          if (data) {
+            setEditingQuiz(data);
+            setEditingMeta(meta);
+          }
+        }}
+        onPreview={async (meta) => {
+          const data = await loadQuiz(meta);
+          if (data) setView('preview');
+        }}
+        rosters={rosters}
+        config={config}
+        onAssign={async (
+          meta,
+          mode,
+          plcOptions: PlcOptions,
+          sessionOptions: QuizSessionOptions
+        ) => {
+          const data = await loadQuiz(meta);
+          if (!data) return;
+          try {
+            const code = await startQuizSession(data, mode, sessionOptions);
+            updateWidget(widget.id, {
+              config: {
+                ...config,
+                view: 'monitor',
+                selectedQuizId: meta.id,
+                selectedQuizTitle: meta.title,
+                activeLiveSessionCode: code,
+                plcMode: plcOptions.plcMode,
+                teacherName: plcOptions.teacherName ?? '',
+                periodName: plcOptions.periodName ?? '',
+                plcSheetUrl: plcOptions.plcSheetUrl ?? '',
+              } as QuizConfig,
+            });
+            const url = `${window.location.origin}/quiz?code=${code}`;
+            if (typeof navigator !== 'undefined' && navigator.clipboard) {
+              void navigator.clipboard
+                .writeText(url)
+                .then(() =>
+                  addToast('Assignment link copied to clipboard!', 'success')
                 )
+                .catch(() =>
+                  addToast(
+                    'Assignment created, but link could not be copied.',
+                    'info'
+                  )
+                );
+            } else {
+              addToast(
+                'Assignment created, but link could not be copied.',
+                'info'
               );
-          } else {
+            }
+          } catch (err) {
             addToast(
-              'Assignment created, but link could not be copied.',
-              'info'
+              err instanceof Error ? err.message : 'Failed to start session',
+              'error'
             );
           }
-        } catch (err) {
-          addToast(
-            err instanceof Error ? err.message : 'Failed to start session',
-            'error'
-          );
-        }
-      }}
-      onResults={async (meta) => {
-        const data = await loadQuiz(meta);
-        if (data) setView('results');
-      }}
-      onDelete={async (meta) => {
-        try {
-          await deleteQuiz(meta.id, meta.driveFileId);
-          addToast('Quiz deleted.', 'success');
-        } catch (err) {
-          addToast(
-            err instanceof Error ? err.message : 'Delete failed',
-            'error'
-          );
-        }
-      }}
-      onShare={async (meta) => {
-        let url: string;
-        try {
-          url = await shareQuiz(meta);
-        } catch (err) {
-          addToast(
-            err instanceof Error ? err.message : 'Share failed',
-            'error'
-          );
-          return;
-        }
-        try {
-          await navigator.clipboard.writeText(url);
-          addToast('Share link copied to clipboard!', 'success');
-        } catch {
-          addToast(`Share link: ${url}`, 'info');
-        }
-      }}
-    />
+        }}
+        onResults={async (meta) => {
+          const data = await loadQuiz(meta);
+          if (data) setView('results');
+        }}
+        onDelete={async (meta) => {
+          try {
+            await deleteQuiz(meta.id, meta.driveFileId);
+            addToast('Quiz deleted.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+        onShare={async (meta) => {
+          let url: string;
+          try {
+            url = await shareQuiz(meta);
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Share failed',
+              'error'
+            );
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(url);
+            addToast('Share link copied to clipboard!', 'success');
+          } catch {
+            addToast(`Share link: ${url}`, 'info');
+          }
+        }}
+      />
+      <QuizEditorModal
+        isOpen={!!editingQuiz}
+        quiz={editingQuiz}
+        onClose={() => {
+          setEditingQuiz(null);
+          setEditingMeta(null);
+        }}
+        onSave={async (updated) => {
+          await saveQuiz(updated, editingMeta?.driveFileId);
+          setLoadedQuizData(updated);
+          addToast('Quiz updated!', 'success');
+        }}
+      />
+    </>
   );
 };

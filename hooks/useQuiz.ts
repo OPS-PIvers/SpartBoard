@@ -17,12 +17,16 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from '../context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import { useQuizSessionTeacher } from './useQuizSession';
 import { QuizData, QuizMetadata } from '../types';
 import { QuizDriveService } from '../utils/quizDriveService';
+import {
+  MockQuizDriveService,
+  QuizDriveLike,
+} from '../utils/mockQuizDriveService';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -95,14 +99,18 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     return unsub;
   }, [userId]);
 
-  const getDriveService = useCallback((): QuizDriveService => {
+  const getDriveService = useCallback((): QuizDriveLike => {
+    if (isAuthBypass) {
+      if (!userId) throw new Error('Not authenticated');
+      return new MockQuizDriveService(userId);
+    }
     if (!googleAccessToken) {
       throw new Error(
         'Not connected to Google Drive. Please sign in again to grant access.'
       );
     }
     return new QuizDriveService(googleAccessToken);
-  }, [googleAccessToken]);
+  }, [googleAccessToken, userId]);
 
   const saveQuiz = useCallback(
     async (
@@ -258,6 +266,6 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     createQuizTemplate,
     shareQuiz,
     importSharedQuiz,
-    isDriveConnected: isConnected,
+    isDriveConnected: isAuthBypass || isConnected,
   };
 };

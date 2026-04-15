@@ -8,6 +8,7 @@ import React, {
 import {
   User,
   signInWithPopup,
+  signInAnonymously,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   GoogleAuthProvider,
@@ -141,12 +142,30 @@ const MOCK_USER = {
   toJSON: () => ({}),
 } as unknown as User;
 
+/**
+ * Wraps a real anonymous Firebase User so it presents mock email/displayName
+ * to the UI while preserving the real uid and auth methods. The real uid is
+ * critical: Firestore security rules enforce `request.auth.uid == userId`,
+ * so data paths like `/users/{uid}/...` must match the anonymous user's uid.
+ */
+const makeHybridBypassUser = (anonUser: User): User =>
+  new Proxy(anonUser, {
+    get(target, prop, receiver) {
+      if (prop === 'email') return MOCK_USER.email;
+      if (prop === 'displayName') return MOCK_USER.displayName;
+      const value: unknown = Reflect.get(target, prop, receiver);
+      return typeof value === 'function'
+        ? (value as (...args: unknown[]) => unknown).bind(target)
+        : value;
+    },
+  });
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(
-    isAuthBypass ? MOCK_USER : null
-  );
+  // In bypass mode, start with no user until anonymous Firebase auth completes.
+  // This keeps `user.uid` consistent with `request.auth.uid` for Firestore rules.
+  const [user, setUser] = useState<User | null>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
     () => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
@@ -166,10 +185,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return token;
     }
   );
-  // Note: In bypass mode we initialize `loading` to false because the mock user
-  // and admin status are set synchronously above. This makes the auth state
-  // appear "ready" immediately for faster local development and testing.
-  const [loading, setLoading] = useState(!isAuthBypass);
+  // Even in bypass mode, start loading=true until anonymous Firebase auth
+  // resolves so `user.uid` is ready before any Firestore reads fire.
+  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(
     isAuthBypass ? true : null
   ); // null = not yet checked
@@ -876,6 +894,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return unsubscribe;
   }, []);
 
+  // Bypass mode: sign in anonymously so `request.auth.uid` is a real Firebase
+  // uid that satisfies Firestore security rules. Wrap the resulting user in a
+  // proxy that still presents mock email/displayName for UI continuity.
+  useEffect(() => {
+    if (!isAuthBypass) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { user: anonUser } = await signInAnonymously(auth);
+        if (cancelled) return;
+        setUser(makeHybridBypassUser(anonUser));
+      } catch (err) {
+        console.error(
+          '[AuthContext] Anonymous sign-in failed in bypass mode. ' +
+            'Enable Anonymous provider in Firebase Console > Authentication.',
+          err
+        );
+        if (!cancelled) setUser(MOCK_USER);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Helper for checking if a user has beta access
   const isBetaUser = useCallback(
     (betaUsers: string[], email: string | null | undefined) => {
@@ -961,7 +1006,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signInWithGoogle = async () => {
     if (isAuthBypass) {
       console.warn('Bypassing Google Sign In');
-      setUser(MOCK_USER);
+      try {
+        const { user: anonUser } = await signInAnonymously(auth);
+        setUser(makeHybridBypassUser(anonUser));
+      } catch (err) {
+        console.error('[AuthContext] Anonymous sign-in failed:', err);
+        setUser(MOCK_USER);
+      }
       setGoogleAccessToken(MOCK_ACCESS_TOKEN);
       localStorage.setItem(
         GOOGLE_TOKEN_EXPIRY_KEY,

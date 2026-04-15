@@ -45,6 +45,7 @@ interface QuizManagerProps {
   quizzes: QuizMetadata[];
   loading: boolean;
   error: string | null;
+  onNew: () => void;
   onImport: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
@@ -69,6 +70,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   quizzes,
   loading,
   error,
+  onNew,
   onImport,
   onEdit,
   onPreview,
@@ -486,20 +488,46 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             </span>
           </div>
         </div>
-        <button
-          onClick={onImport}
-          className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all shadow-sm active:scale-95"
-          style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-            fontSize: 'min(12px, 3.5cqmin)',
-          }}
+        <div
+          className="flex items-center"
+          style={{ gap: 'min(6px, 1.5cqmin)' }}
         >
-          <Plus
-            style={{ width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' }}
-          />
-          New Quiz
-        </button>
+          <button
+            onClick={onImport}
+            className="flex items-center bg-white hover:bg-brand-blue-lighter/40 text-brand-blue-primary font-bold rounded-xl transition-all shadow-sm active:scale-95 border border-brand-blue-primary/20"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(12px, 3.5cqmin)',
+            }}
+            title="Import from CSV or Google Sheet"
+          >
+            <FileUp
+              style={{
+                width: 'min(14px, 4cqmin)',
+                height: 'min(14px, 4cqmin)',
+              }}
+            />
+            Import
+          </button>
+          <button
+            onClick={onNew}
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all shadow-sm active:scale-95"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(12px, 3.5cqmin)',
+            }}
+          >
+            <Plus
+              style={{
+                width: 'min(14px, 4cqmin)',
+                height: 'min(14px, 4cqmin)',
+              }}
+            />
+            New Quiz
+          </button>
+        </div>
       </div>
 
       {/* Active Session Banner */}

@@ -1,26 +1,26 @@
 /**
- * QuizEditor — inline editor for quiz questions.
- * Teachers can add, edit, reorder, and delete questions.
+ * QuizEditorModal — full-screen modal editor for quiz questions.
+ * Launched from the QuizManager library view. Wraps the shared
+ * EditorModalShell so it stays visually aligned with other content
+ * editors (Video Activity, Guided Learning, MiniApp).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  ArrowLeft,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
   Plus,
   Trash2,
-  ChevronUp,
-  ChevronDown,
-  Save,
-  Loader2,
-  AlertCircle,
-  GripVertical,
-  Edit,
 } from 'lucide-react';
 import { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
+import { EditorModalShell } from '@/components/common/EditorModalShell';
 
-interface QuizEditorProps {
-  quiz: QuizData;
-  onBack: () => void;
+interface QuizEditorModalProps {
+  isOpen: boolean;
+  quiz: QuizData | null;
+  onClose: () => void;
   onSave: (updatedQuiz: QuizData) => Promise<void>;
 }
 
@@ -60,26 +60,66 @@ const blankQuestion = (): QuizQuestion => ({
   incorrectAnswers: ['', ''],
 });
 
-export const QuizEditor: React.FC<QuizEditorProps> = ({
+const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const qa = a[i];
+    const qb = b[i];
+    if (
+      qa.id !== qb.id ||
+      qa.text !== qb.text ||
+      qa.type !== qb.type ||
+      qa.correctAnswer !== qb.correctAnswer ||
+      qa.timeLimit !== qb.timeLimit ||
+      (qa.points ?? 1) !== (qb.points ?? 1) ||
+      qa.incorrectAnswers.length !== qb.incorrectAnswers.length
+    ) {
+      return false;
+    }
+    for (let j = 0; j < qa.incorrectAnswers.length; j++) {
+      if (qa.incorrectAnswers[j] !== qb.incorrectAnswers[j]) return false;
+    }
+  }
+  return true;
+};
+
+export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
+  isOpen,
   quiz,
-  onBack,
+  onClose,
   onSave,
 }) => {
-  const [questions, setQuestions] = useState<QuizQuestion[]>(() =>
-    quiz.questions.map((q) => ({ ...q }))
+  // Snapshot the quiz when the modal opens so `isDirty` compares against the
+  // original. Reset via `key` prop on the parent when switching quizzes.
+  const originalQuestions = useMemo(
+    () => (quiz ? quiz.questions.map((q) => ({ ...q })) : []),
+    [quiz]
   );
+  const originalTitle = quiz?.title ?? '';
+  const [title, setTitle] = useState<string>(originalTitle);
+  const [questions, setQuestions] = useState<QuizQuestion[]>(originalQuestions);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(
-    quiz.questions.length === 0 ? null : (quiz.questions[0]?.id ?? null)
+    originalQuestions[0]?.id ?? null
   );
 
-  // Auto-expand newly added questions
-  useEffect(() => {
-    if (questions.length > quiz.questions.length) {
-      setExpandedId(questions[questions.length - 1].id);
-    }
-  }, [questions, quiz.questions.length]);
+  // Reset local state when the `quiz` prop identity changes (new quiz loaded).
+  const [prevQuiz, setPrevQuiz] = useState<QuizData | null>(quiz);
+  if (quiz !== prevQuiz) {
+    setPrevQuiz(quiz);
+    setTitle(originalTitle);
+    setQuestions(originalQuestions);
+    setError(null);
+    setSaving(false);
+    setExpandedId(originalQuestions[0]?.id ?? null);
+  }
+
+  const isDirty = useMemo(
+    () =>
+      title !== originalTitle || !questionsEqual(questions, originalQuestions),
+    [title, originalTitle, questions, originalQuestions]
+  );
 
   const updateQuestion = (id: string, updates: Partial<QuizQuestion>) => {
     setQuestions((prev) =>
@@ -131,8 +171,17 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     if (expandedId === id) setExpandedId(null);
   };
 
+  const addQuestion = () => {
+    const q = blankQuestion();
+    setQuestions((prev) => [...prev, q]);
+    setExpandedId(q.id);
+  };
+
   const handleSave = async () => {
+    if (!quiz) return;
     const errors: string[] = [];
+    if (!title.trim()) errors.push('Quiz title is required');
+    if (questions.length === 0) errors.push('Add at least one question');
     questions.forEach((q, i) => {
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
       if (!q.correctAnswer.trim())
@@ -145,7 +194,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ ...quiz, questions, updatedAt: Date.now() });
+      await onSave({
+        ...quiz,
+        title: title.trim(),
+        questions,
+        updatedAt: Date.now(),
+      });
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -153,95 +208,70 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
     }
   };
 
+  if (!quiz) return null;
+
   return (
-    <div className="flex flex-col h-full font-sans">
-      {/* Header */}
-      <div
-        className="flex items-center gap-3 border-b border-brand-blue-primary/10"
-        style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
-      >
-        <button
-          onClick={onBack}
-          className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Edit className="w-3.5 h-3.5 text-brand-blue-primary" />
-            <span
-              className="font-bold text-brand-blue-dark truncate"
-              style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-            >
-              {quiz.title}
-            </span>
+    <EditorModalShell
+      isOpen={isOpen}
+      title={title.trim() || (originalTitle ? 'Edit Quiz' : 'New Quiz')}
+      subtitle={
+        <span>
+          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+        </span>
+      }
+      isDirty={isDirty}
+      isSaving={saving}
+      onSave={handleSave}
+      onClose={onClose}
+      saveLabel="Save Quiz"
+      bodyClassName="px-6 py-5 bg-slate-50/50"
+    >
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+            Quiz Title
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Science Unit 4 Review"
+            className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
+          />
+        </div>
+
+        {error && (
+          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
           </div>
-          <p
-            className="text-brand-blue-primary/60 font-bold"
-            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-          >
-            {questions.length} Questions
-          </p>
-        </div>
-        <button
-          onClick={() => void handleSave()}
-          disabled={saving}
-          className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-brand-gray-lighter text-white font-black rounded-xl transition-all shadow-md active:scale-95"
-          style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
-            fontSize: 'min(12px, 3.5cqmin)',
-          }}
-        >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          SAVE
-        </button>
-      </div>
+        )}
 
-      {error && (
-        <div
-          className="mx-4 mt-3 p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-brand-red-dark font-bold"
-          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-        >
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {/* Question list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
         {questions.map((q, i) => (
           <div
             key={q.id}
-            className={`bg-white border rounded-2xl overflow-hidden transition-all shadow-sm ${expandedId === q.id ? 'border-brand-blue-primary/30 ring-2 ring-brand-blue-primary/5 shadow-md' : 'border-brand-blue-primary/10 hover:border-brand-blue-primary/20'}`}
+            className={`bg-white border rounded-2xl overflow-hidden transition-all shadow-sm ${
+              expandedId === q.id
+                ? 'border-brand-blue-primary/30 ring-2 ring-brand-blue-primary/5 shadow-md'
+                : 'border-brand-blue-primary/10 hover:border-brand-blue-primary/20'
+            }`}
           >
-            {/* Question header (collapsed) */}
             <div
               className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
               onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}
             >
               <GripVertical className="w-4 h-4 text-brand-blue-primary/20 shrink-0" />
-              <span
-                className="font-black text-brand-blue-primary/40 w-5 shrink-0"
-                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-              >
+              <span className="font-black text-brand-blue-primary/40 w-5 shrink-0 text-xs">
                 {i + 1}.
               </span>
-              <span
-                className="flex-1 font-bold text-brand-blue-dark truncate"
-                style={{ fontSize: 'min(13px, 4cqmin)' }}
-              >
+              <span className="flex-1 font-bold text-brand-blue-dark truncate text-sm">
                 {q.text || (
                   <span className="italic opacity-40">Untitled question</span>
                 )}
               </span>
 
               <span
-                className={`font-black rounded-md px-1.5 py-0.5 shrink-0 uppercase tracking-wider ${
+                className={`font-black rounded-md px-1.5 py-0.5 shrink-0 uppercase tracking-wider text-xxs ${
                   q.type === 'MC'
                     ? 'bg-blue-100 text-blue-700'
                     : q.type === 'FIB'
@@ -250,12 +280,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                         ? 'bg-purple-100 text-purple-700'
                         : 'bg-teal-100 text-teal-700'
                 }`}
-                style={{ fontSize: 'min(9px, 2.5cqmin)' }}
               >
                 {q.type}
               </span>
 
-              {/* Action row buttons */}
               <div className="flex items-center gap-1 ml-1 border-l border-brand-blue-primary/5 pl-1">
                 <button
                   onClick={(e) => {
@@ -264,6 +292,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                   }}
                   disabled={i === 0}
                   className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
+                  aria-label="Move up"
                 >
                   <ChevronUp className="w-4 h-4" />
                 </button>
@@ -274,6 +303,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                   }}
                   disabled={i === questions.length - 1}
                   className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
+                  aria-label="Move down"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -283,22 +313,18 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     deleteQuestion(q.id);
                   }}
                   className="p-1 text-brand-red-primary hover:bg-brand-red-lighter rounded transition-colors"
+                  aria-label="Delete question"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Expanded form */}
             {expandedId === q.id && (
               <div className="px-4 pb-4 space-y-4 border-t border-brand-blue-primary/5 pt-4 bg-brand-blue-lighter/10">
-                {/* Type + time limit + points */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label
-                      className="block font-bold text-brand-blue-dark mb-1"
-                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                    >
+                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
                       Question Type
                     </label>
                     <select
@@ -310,8 +336,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                             e.target.value === 'MC' ? ['', ''] : [],
                         })
                       }
-                      className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm"
-                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
                     >
                       {QUESTION_TYPES.map((t) => (
                         <option key={t.value} value={t.value}>
@@ -321,10 +346,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label
-                      className="block font-bold text-brand-blue-dark mb-1"
-                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                    >
+                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
                       Time Limit (Seconds)
                     </label>
                     <div className="relative">
@@ -338,22 +360,15 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                             timeLimit: parseInt(e.target.value, 10) || 0,
                           })
                         }
-                        className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm"
-                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                        className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
                       />
-                      <span
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
-                      >
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold text-xxs">
                         SEC
                       </span>
                     </div>
                   </div>
                   <div>
-                    <label
-                      className="block font-bold text-brand-blue-dark mb-1"
-                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                    >
+                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
                       Points
                     </label>
                     <div className="relative">
@@ -370,38 +385,26 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                             ),
                           })
                         }
-                        className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm"
-                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                        className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
                       />
-                      <span
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold"
-                        style={{ fontSize: 'min(10px, 3cqmin)' }}
-                      >
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold text-xxs">
                         PT
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Hint for special formats */}
                 {(q.type === 'Matching' || q.type === 'Ordering') && (
                   <div className="flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-xl shadow-sm">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <p
-                      className="font-medium"
-                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                    >
+                    <p className="font-medium text-xs">
                       {QUESTION_TYPES.find((t) => t.value === q.type)?.hint}
                     </p>
                   </div>
                 )}
 
-                {/* Question text */}
                 <div>
-                  <label
-                    className="block font-bold text-brand-blue-dark mb-1"
-                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                  >
+                  <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
                     Question Prompt
                   </label>
                   <textarea
@@ -410,18 +413,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                       updateQuestion(q.id, { text: e.target.value })
                     }
                     rows={2}
-                    className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium resize-none focus:outline-none focus:border-brand-blue-primary shadow-sm"
-                    style={{ fontSize: 'min(13px, 4cqmin)' }}
+                    className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium resize-none focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
                     placeholder="e.g. What is the capital of France?"
                   />
                 </div>
 
-                {/* Correct answer */}
                 <div>
-                  <label
-                    className="block font-bold text-emerald-700 mb-1"
-                    style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                  >
+                  <label className="block font-bold text-emerald-700 mb-1 text-xs">
                     Correct Answer
                   </label>
                   <input
@@ -430,8 +428,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                     onChange={(e) =>
                       updateQuestion(q.id, { correctAnswer: e.target.value })
                     }
-                    className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm"
-                    style={{ fontSize: 'min(13px, 4cqmin)' }}
+                    className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
                     placeholder={
                       q.type === 'Matching'
                         ? 'term1:def1|term2:def2'
@@ -442,13 +439,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                   />
                 </div>
 
-                {/* Incorrect answers (MC only) */}
                 {q.type === 'MC' && (
                   <div className="space-y-2">
-                    <label
-                      className="block font-bold text-brand-red-primary mb-1"
-                      style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                    >
+                    <label className="block font-bold text-brand-red-primary mb-1 text-xs">
                       Distractors (Incorrect Options)
                     </label>
                     <div className="grid gap-2">
@@ -461,13 +454,13 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                               updateIncorrect(q.id, idx, e.target.value)
                             }
                             placeholder={`Distractor ${idx + 1}`}
-                            className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/10 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm"
-                            style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                            className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/10 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
                           />
                           {q.incorrectAnswers.length > 1 && (
                             <button
                               onClick={() => removeIncorrect(q.id, idx)}
                               className="p-2 text-brand-red-primary hover:bg-brand-red-lighter rounded-xl transition-colors"
+                              aria-label={`Remove distractor ${idx + 1}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -477,8 +470,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
                       {q.incorrectAnswers.length < 4 && (
                         <button
                           onClick={() => addIncorrect(q.id)}
-                          className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-brand-blue-primary/10 hover:border-brand-blue-primary/30 rounded-xl text-brand-blue-primary font-bold transition-all"
-                          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                          className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-brand-blue-primary/10 hover:border-brand-blue-primary/30 rounded-xl text-brand-blue-primary font-bold transition-all text-xs"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           Add Choice
@@ -492,19 +484,16 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({
           </div>
         ))}
 
-        {/* Add question button */}
         <button
-          onClick={() => setQuestions((prev) => [...prev, blankQuestion()])}
+          onClick={addQuestion}
           className="w-full py-4 border-2 border-dashed border-brand-blue-primary/20 hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/30 rounded-2xl text-brand-blue-primary font-black flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
         >
           <div className="bg-brand-blue-primary text-white rounded-full p-1 shadow-sm">
             <Plus className="w-5 h-5" />
           </div>
-          <span style={{ fontSize: 'min(14px, 4.5cqmin)' }}>
-            ADD NEW QUESTION
-          </span>
+          <span className="text-sm">ADD NEW QUESTION</span>
         </button>
       </div>
-    </div>
+    </EditorModalShell>
   );
 };
