@@ -5,42 +5,35 @@ import { Circle, CheckCircle2, Timer } from 'lucide-react';
 import {
   formatCountdown,
   formatScheduleTime,
-  parseScheduleTimeSeconds,
 } from '@/components/widgets/Schedule/utils';
 import { hexToRgba } from '@/utils/styles';
 
 interface CountdownDisplayProps {
-  startTime?: string;
-  endTime: string;
-  /** Seconds since midnight, driven by the parent's single shared interval. */
-  nowSeconds: number;
+  /** Seconds remaining to display. Pass the full duration to render a frozen "waiting" state. */
+  remainingSeconds: number;
+  /** Full duration of the countdown in seconds (used for the progress bar). */
+  totalSeconds: number;
+  /** When true, the progress bar is shown at 100% and marked idle (no live tick). */
+  isIdle?: boolean;
 }
 
 /**
- * Pure countdown display – no internal timer, driven by parent's nowSeconds.
+ * Pure countdown display – no internal timer, driven by parent-computed
+ * `remainingSeconds`. When the parent passes the full duration (e.g. because
+ * the event hasn't become active yet), the display stays frozen.
  *
  * NOTE: Cross-midnight events (e.g. startTime "23:00" → endTime "01:00") are
  * not supported. The Schedule widget is designed for same-day classroom
  * schedules where all times fall within a single calendar day.
  */
 export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
-  startTime,
-  endTime,
-  nowSeconds,
+  remainingSeconds,
+  totalSeconds,
+  isIdle = false,
 }) => {
-  const endSec = parseScheduleTimeSeconds(endTime);
-  if (endSec === -1) return null;
-
-  const rem = Math.max(0, endSec - nowSeconds);
-
-  const startSec = parseScheduleTimeSeconds(startTime);
-  let progress: number;
-  if (startSec !== -1 && endSec > startSec) {
-    const total = endSec - startSec;
-    progress = total > 0 ? rem / total : 0;
-  } else {
-    progress = rem > 0 ? 1 : 0;
-  }
+  const rem = Math.max(0, remainingSeconds);
+  const total = Math.max(0, totalSeconds);
+  const progress = total > 0 ? rem / total : 0;
 
   return (
     <div className="flex flex-col w-full" style={{ gap: 'min(4px, 0.8cqmin)' }}>
@@ -49,6 +42,7 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
         style={{
           fontSize: 'min(24px, 6cqmin)',
           fontVariantNumeric: 'tabular-nums',
+          opacity: isIdle ? 0.6 : 1,
         }}
       >
         {formatCountdown(rem)}
@@ -62,6 +56,7 @@ export const CountdownDisplay: React.FC<CountdownDisplayProps> = ({
           style={{
             width: `${Math.max(0, Math.min(100, progress * 100))}%`,
             transition: 'width 1s linear',
+            opacity: isIdle ? 0.5 : 1,
           }}
         />
       </div>
@@ -82,6 +77,14 @@ export interface ScheduleRowProps {
   nowSeconds: number;
   /** Whether this is the currently active schedule item. */
   isActive: boolean;
+  /** Computed effective start time (seconds since midnight); -1 if idle. */
+  effectiveStartSec: number;
+  /** Computed effective end time (seconds since midnight); -1 if idle. */
+  effectiveEndSec: number;
+  /** True when a timer-mode item has no anchor to chain from. */
+  isIdle: boolean;
+  /** Duration in seconds for timer-mode items (ignored for clock-mode items). */
+  durationSeconds: number;
   textScale?: number;
   fontColor?: string;
 }
@@ -100,6 +103,10 @@ const areScheduleRowPropsEqual = (
   if (prev.format24 !== next.format24) return false;
   if (prev.textScale !== next.textScale) return false;
   if (prev.fontColor !== next.fontColor) return false;
+  if (prev.effectiveStartSec !== next.effectiveStartSec) return false;
+  if (prev.effectiveEndSec !== next.effectiveEndSec) return false;
+  if (prev.isIdle !== next.isIdle) return false;
+  if (prev.durationSeconds !== next.durationSeconds) return false;
 
   // Optimized manual comparison for `item` object (ScheduleItem) instead of JSON.stringify
   // to avoid serialization overhead on every tick.
@@ -113,6 +120,7 @@ const areScheduleRowPropsEqual = (
   if (prevItem.mode !== nextItem.mode) return false;
   if (prevItem.startTime !== nextItem.startTime) return false;
   if (prevItem.endTime !== nextItem.endTime) return false;
+  if (prevItem.durationSeconds !== nextItem.durationSeconds) return false;
 
   // Compare linkedWidgets array shallowly
   if (prevItem.linkedWidgets !== nextItem.linkedWidgets) {
@@ -125,12 +133,19 @@ const areScheduleRowPropsEqual = (
   }
 
   // Optimized check for `nowSeconds`:
-  // Only re-render if the item is in active timer mode.
-  // If not in timer mode, `nowSeconds` changes should be ignored.
-  const isTimerActive =
-    next.item.mode === 'timer' && !!next.item.endTime && !next.item.done;
+  // Only re-render if the item is actively ticking (timer mode, within its
+  // chained window, not idle, not done). Otherwise `nowSeconds` changes
+  // have no visual effect and can be safely ignored.
+  const isActivelyTicking =
+    next.item.mode === 'timer' &&
+    !next.item.done &&
+    !next.isIdle &&
+    next.effectiveStartSec !== -1 &&
+    next.effectiveEndSec !== -1 &&
+    next.nowSeconds >= next.effectiveStartSec &&
+    next.nowSeconds <= next.effectiveEndSec;
 
-  if (isTimerActive) {
+  if (isActivelyTicking) {
     return prev.nowSeconds === next.nowSeconds;
   }
 
@@ -147,6 +162,10 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   format24,
   nowSeconds,
   isActive,
+  effectiveStartSec,
+  effectiveEndSec,
+  isIdle,
+  durationSeconds,
   textScale = 1,
   fontColor = '#334155',
 }) {
@@ -157,8 +176,35 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     ? hexToRgba('#cbd5e1', cardOpacity) // slate-300
     : hexToRgba(cardColor, cardOpacity);
 
-  // Show live countdown only when mode is 'timer', endTime is set, and item isn't done.
-  const showCountdown = item.mode === 'timer' && !!item.endTime && !item.done;
+  // Timer-mode: show a countdown-style display whenever the item is a timer
+  // and not yet marked done. We display the duration frozen until the chain
+  // reaches this item, then tick live until the chain moves past it.
+  const isTimerMode = item.mode === 'timer' && !item.done;
+  const hasAnchor =
+    !isIdle && effectiveStartSec !== -1 && effectiveEndSec !== -1;
+  const isBeforeActive = hasAnchor && nowSeconds < effectiveStartSec;
+  const isAfterEnd = hasAnchor && nowSeconds >= effectiveEndSec;
+
+  let countdownRemaining = durationSeconds;
+  let countdownIsIdle = true;
+  if (isTimerMode && hasAnchor) {
+    if (isBeforeActive) {
+      countdownRemaining = durationSeconds;
+      countdownIsIdle = true;
+    } else if (isAfterEnd) {
+      countdownRemaining = 0;
+      countdownIsIdle = false;
+    } else {
+      countdownRemaining = Math.max(0, effectiveEndSec - nowSeconds);
+      countdownIsIdle = false;
+    }
+  } else if (isTimerMode && !hasAnchor) {
+    // Idle timer-mode (no anchor): show full duration frozen.
+    countdownRemaining = durationSeconds;
+    countdownIsIdle = true;
+  }
+
+  const showCountdown = isTimerMode && durationSeconds > 0;
 
   // Rows size to their content so all events are visible when the widget is
   // tall enough. Auto-scroll keeps the active item in view.
@@ -167,6 +213,23 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
     minHeight: 'min(72px, 18cqmin)',
     backgroundColor: bgColor,
   };
+
+  // Timer-start icon: strictly mode-aware so the button only appears when
+  // handleStartTimer can actually launch something. Clock-mode needs a valid
+  // endTime (remaining = endTime - now). Timer-mode needs a positive
+  // duration. Without this check a stale `durationSeconds` left on a
+  // clock-mode item would render a clickable button that does nothing.
+  const canLaunchStandaloneTimer =
+    !!onStartTimer &&
+    (item.mode === 'timer' ? durationSeconds > 0 : !!item.endTime);
+  const timerLaunchLabel =
+    item.mode === 'timer'
+      ? t('widgets.schedule.startTimerUntil', {
+          time: formatCountdown(durationSeconds),
+        })
+      : t('widgets.schedule.startTimerUntil', {
+          time: item.endTime ?? '',
+        });
 
   return (
     <div
@@ -214,9 +277,9 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
         <div className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0">
           {showCountdown ? (
             <CountdownDisplay
-              startTime={item.startTime}
-              endTime={item.endTime ?? ''}
-              nowSeconds={nowSeconds}
+              remainingSeconds={countdownRemaining}
+              totalSeconds={durationSeconds}
+              isIdle={countdownIsIdle}
             />
           ) : (
             <span
@@ -240,20 +303,16 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
           </span>
         </div>
       </button>
-      {item.endTime && onStartTimer && (
+      {canLaunchStandaloneTimer && (
         <button
-          onClick={() => onStartTimer(item)}
+          onClick={() => onStartTimer?.(item)}
           className="shrink-0 text-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
           style={{
             padding: 'min(4px, 1cqmin)',
             marginRight: 'min(12px, 2.5cqmin)',
           }}
-          title={t('widgets.schedule.startTimerUntil', {
-            time: item.endTime,
-          })}
-          aria-label={t('widgets.schedule.startTimerUntil', {
-            time: item.endTime,
-          })}
+          title={timerLaunchLabel}
+          aria-label={timerLaunchLabel}
         >
           <Timer
             className="shrink-0"

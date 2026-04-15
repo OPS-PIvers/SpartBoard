@@ -3,8 +3,17 @@ import { ScheduleItem, WidgetType } from '@/types';
 import { GripVertical, Trash2, Timer, Link, CheckCircle2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { getTodayStr } from '@/components/widgets/Schedule/utils';
+import {
+  getTodayStr,
+  getItemDurationSeconds,
+  parseScheduleTimeSeconds,
+} from '@/components/widgets/Schedule/utils';
 import { Z_INDEX } from '@/config/zIndex';
+
+/** Upper bound for the minutes field on a timer-mode duration input. */
+const MAX_TIMER_MINUTES = 180;
+/** Upper bound for the seconds field on a timer-mode duration input. */
+const MAX_TIMER_SECONDS = 59;
 
 const AVAILABLE_WIDGETS: { type: WidgetType; label: string }[] = [
   { type: 'time-tool', label: 'Timer' },
@@ -117,32 +126,112 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
-        {/* Row 2: times + toggles (indented to align with task input) */}
+        {/* Row 2: times (clock) OR duration (timer) + toggles */}
         <div className="flex items-center gap-1.5 px-2 pb-2 pl-9">
-          <input
-            type="time"
-            value={item.startTime ?? item.time ?? ''}
-            onChange={(e) =>
-              onUpdate(item.id, {
-                startTime: e.target.value,
-                time: e.target.value,
-              })
-            }
-            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
-          />
-          <input
-            type="time"
-            value={item.endTime ?? ''}
-            onChange={(e) => onUpdate(item.id, { endTime: e.target.value })}
-            className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
-          />
+          {item.mode === 'timer' ? (
+            (() => {
+              const total = getItemDurationSeconds(item);
+              const minutes = Math.floor(total / 60);
+              const seconds = total % 60;
+              const writeDuration = (mins: number, secs: number) => {
+                const safeMins = Math.max(
+                  0,
+                  Math.min(MAX_TIMER_MINUTES, Math.floor(mins) || 0)
+                );
+                const safeSecs = Math.max(
+                  0,
+                  Math.min(MAX_TIMER_SECONDS, Math.floor(secs) || 0)
+                );
+                onUpdate(item.id, {
+                  durationSeconds: safeMins * 60 + safeSecs,
+                });
+              };
+              return (
+                <div
+                  className="flex-1 min-w-0 flex items-center gap-1"
+                  title="Timer duration (minutes : seconds)"
+                >
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={MAX_TIMER_MINUTES}
+                    value={minutes}
+                    onChange={(e) =>
+                      writeDuration(Number(e.target.value), seconds)
+                    }
+                    aria-label="Timer minutes"
+                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
+                  />
+                  <span className="text-xs text-slate-400 font-semibold select-none">
+                    :
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={MAX_TIMER_SECONDS}
+                    value={seconds.toString().padStart(2, '0')}
+                    onChange={(e) =>
+                      writeDuration(minutes, Number(e.target.value))
+                    }
+                    aria-label="Timer seconds"
+                    className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
+                  />
+                  <span className="text-xxs text-slate-400 uppercase tracking-wide ml-1">
+                    min:sec
+                  </span>
+                </div>
+              );
+            })()
+          ) : (
+            <>
+              <input
+                type="time"
+                value={item.startTime ?? item.time ?? ''}
+                onChange={(e) =>
+                  onUpdate(item.id, {
+                    startTime: e.target.value,
+                    time: e.target.value,
+                  })
+                }
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+              />
+              <input
+                type="time"
+                value={item.endTime ?? ''}
+                onChange={(e) => onUpdate(item.id, { endTime: e.target.value })}
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
+              />
+            </>
+          )}
           <button
             type="button"
-            onClick={() =>
-              onUpdate(item.id, {
-                mode: item.mode === 'timer' ? 'clock' : 'timer',
-              })
-            }
+            onClick={() => {
+              if (item.mode === 'timer') {
+                // Timer → Clock: preserve existing startTime/endTime if present.
+                onUpdate(item.id, { mode: 'clock' });
+              } else {
+                // Clock → Timer: seed durationSeconds from endTime-startTime if
+                // unset so switching doesn't lose the user's prior window.
+                const updates: Partial<ScheduleItem> = { mode: 'timer' };
+                if (
+                  typeof item.durationSeconds !== 'number' ||
+                  item.durationSeconds <= 0
+                ) {
+                  const startSec = parseScheduleTimeSeconds(
+                    item.startTime ?? item.time
+                  );
+                  const endSec = parseScheduleTimeSeconds(item.endTime);
+                  if (startSec !== -1 && endSec !== -1 && endSec > startSec) {
+                    updates.durationSeconds = endSec - startSec;
+                  } else {
+                    updates.durationSeconds = 0;
+                  }
+                }
+                onUpdate(item.id, updates);
+              }
+            }}
             className={`p-1.5 rounded transition-colors shrink-0 ${
               item.mode === 'timer'
                 ? 'text-indigo-500 bg-indigo-50'
