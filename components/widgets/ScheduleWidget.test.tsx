@@ -141,8 +141,45 @@ describe('ScheduleWidget', () => {
     expect(screen.getByText('08:00')).toBeInTheDocument();
   });
 
-  it('shows countdown instead of clock time for a timer-mode item', () => {
-    // 08:30 — 30 minutes remain until endTime 09:00 → displays "30:00"
+  it('shows countdown for a timer-mode item chained after a preceding clock-mode item', () => {
+    // Timer-mode items chain off the previous item's effective end. The first
+    // item here is a clock-mode event that ended at 08:00; the timer item
+    // (60-minute duration) therefore runs 08:00–09:00, and at 08:30 has 30:00
+    // remaining.
+    const date = new Date();
+    date.setHours(8, 30, 0, 0);
+    vi.setSystemTime(date);
+
+    const widget = createWidget({
+      items: [
+        {
+          id: 'item-0',
+          time: '07:00',
+          task: 'Warmup',
+          done: true,
+          mode: 'clock' as const,
+          startTime: '07:00',
+          endTime: '08:00',
+        },
+        {
+          id: 'item-1',
+          task: 'Math',
+          done: false,
+          mode: 'timer' as const,
+          durationSeconds: 3600,
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+
+    // Chained countdown: effective end = 09:00, now = 8:30 → rem 30:00
+    expect(screen.getByText('30:00')).toBeInTheDocument();
+  });
+
+  it('shows a first-item timer-mode event as idle (frozen full duration)', () => {
+    // First-item timer has no predecessor to chain from → stays idle and
+    // displays the full duration. Teacher can launch it manually via the
+    // timer-start icon (covered elsewhere).
     const date = new Date();
     date.setHours(8, 30, 0, 0);
     vi.setSystemTime(date);
@@ -151,20 +188,18 @@ describe('ScheduleWidget', () => {
       items: [
         {
           id: 'item-1',
-          time: '08:00',
           task: 'Math',
           done: false,
-          mode: 'timer',
-          startTime: '08:00',
-          endTime: '09:00',
+          mode: 'timer' as const,
+          durationSeconds: 1800, // 30 minutes
         },
       ],
     });
     render(<ScheduleWidget widget={widget} />);
 
-    // Countdown: endTime 09:00 = 32400s, now = 8:30:00 = 30600s, rem = 1800s = 30:00
+    // Duration (not live countdown) is shown; idle display is frozen at full.
     expect(screen.getByText('30:00')).toBeInTheDocument();
-    // Clock-format time should NOT appear
+    // Clock-format time should NOT appear (it's a timer item).
     expect(screen.queryByText('8:00 AM')).not.toBeInTheDocument();
   });
 

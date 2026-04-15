@@ -24,6 +24,123 @@ export const parseScheduleTimeSeconds = (t: string | undefined): number => {
   return h * 3600 + m * 60;
 };
 
+/**
+ * Returns the duration (in seconds) for a schedule item.
+ *
+ * - For timer-mode items: prefers the explicit `durationSeconds` field when set.
+ * - Legacy / fallback: infers duration from `endTime - startTime` when both are
+ *   valid HH:MM strings. This lets older timer-mode items (that used the old
+ *   start/end model) keep rendering a sensible countdown without a data
+ *   migration.
+ *
+ * Returns 0 when no duration can be determined.
+ */
+export const getItemDurationSeconds = (item: ScheduleItem): number => {
+  if (
+    typeof item.durationSeconds === 'number' &&
+    isFinite(item.durationSeconds) &&
+    item.durationSeconds > 0
+  ) {
+    return item.durationSeconds;
+  }
+  const startSec = parseScheduleTimeSeconds(item.startTime ?? item.time);
+  const endSec = parseScheduleTimeSeconds(item.endTime);
+  if (startSec !== -1 && endSec !== -1 && endSec > startSec) {
+    return endSec - startSec;
+  }
+  return 0;
+};
+
+/**
+ * An item's computed position in the schedule's time chain.
+ *
+ * Clock-mode items anchor to their explicit startTime/endTime. Timer-mode
+ * items chain off the previous item's `endSec` and add their own duration.
+ * If a timer-mode item has no valid predecessor to anchor to (e.g. it is the
+ * first item), it is marked `isIdle` — the widget face shows its duration
+ * frozen and the countdown does not run.
+ */
+export interface EffectiveTime {
+  /** Seconds since midnight when this item effectively begins. -1 if idle. */
+  startSec: number;
+  /** Seconds since midnight when this item effectively ends. -1 if idle. */
+  endSec: number;
+  /** True when the item has no anchor (timer-mode with no preceding event). */
+  isIdle: boolean;
+}
+
+/**
+ * Computes effective start/end seconds for each item in `items`, in order.
+ *
+ * - Clock-mode items use their explicit `startTime` (and `endTime`, falling
+ *   back to the next clock-mode item's start — matching the existing
+ *   activeIndex inference logic).
+ * - Timer-mode items chain off the previous item's `endSec`. They add
+ *   `getItemDurationSeconds(item)` to produce their `endSec`.
+ * - Items without a computable anchor are `isIdle: true`.
+ *
+ * Returns an array parallel to `items`.
+ */
+export const computeEffectiveTimes = (
+  items: ScheduleItem[]
+): EffectiveTime[] => {
+  const result: EffectiveTime[] = [];
+
+  // Precompute clock-mode starts so we can infer endSec for clock items
+  // that lack an explicit endTime (by looking at the next clock-mode start).
+  const clockStartSecByIndex: number[] = items.map((item) => {
+    if (item.mode === 'timer') return -1;
+    return parseScheduleTimeSeconds(item.startTime ?? item.time);
+  });
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const prev: EffectiveTime | undefined = i > 0 ? result[i - 1] : undefined;
+
+    if (item.mode === 'timer') {
+      const duration = getItemDurationSeconds(item);
+      if (!prev || prev.isIdle || prev.endSec === -1 || duration <= 0) {
+        result[i] = { startSec: -1, endSec: -1, isIdle: true };
+      } else {
+        const startSec = prev.endSec;
+        result[i] = {
+          startSec,
+          endSec: startSec + duration,
+          isIdle: false,
+        };
+      }
+      continue;
+    }
+
+    // Clock mode (default).
+    const startSec = clockStartSecByIndex[i];
+    if (startSec === -1) {
+      result[i] = { startSec: -1, endSec: -1, isIdle: true };
+      continue;
+    }
+    let endSec = parseScheduleTimeSeconds(item.endTime);
+    if (endSec === -1) {
+      // Infer from the nearest later clock-mode start (matches the existing
+      // inference in ScheduleWidget.activeIndex so behavior stays consistent).
+      let nearest = -1;
+      for (let j = 0; j < items.length; j++) {
+        const s = clockStartSecByIndex[j];
+        if (s > startSec && (nearest === -1 || s < nearest)) {
+          nearest = s;
+        }
+      }
+      endSec = nearest;
+    }
+    result[i] = {
+      startSec,
+      endSec,
+      isIdle: false,
+    };
+  }
+
+  return result;
+};
+
 /** Formats a total-seconds value into M:SS or H:MM:SS. */
 export const formatCountdown = (totalSeconds: number): string => {
   const s = Math.max(0, Math.round(totalSeconds));

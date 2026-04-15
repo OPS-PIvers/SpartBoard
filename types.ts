@@ -288,6 +288,12 @@ export interface ScheduleItem {
   done?: boolean;
   startTime?: string;
   endTime?: string;
+  /**
+   * Duration in seconds for timer-mode items. When set (and mode === 'timer'),
+   * the item chains off the previous item's effective end time rather than
+   * running off a fixed wall-clock window.
+   */
+  durationSeconds?: number;
   mode?: 'clock' | 'timer';
   linkedWidgets?: WidgetType[];
   spawnedWidgetIds?: string[];

@@ -25,6 +25,8 @@ import {
   resolveActiveSchedule,
   getActiveScheduleId,
   parseScheduleTime,
+  computeEffectiveTimes,
+  getItemDurationSeconds,
 } from '@/components/widgets/Schedule/utils';
 import { ScheduleRow } from '@/components/widgets/Schedule/components/ScheduleRow';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
@@ -145,58 +147,50 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   // Scroll container ref used for programmatic auto-scroll.
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Compute each item's effective start/end seconds once per displayItems
+  // change. Clock-mode items anchor to their explicit times; timer-mode items
+  // chain off the previous item's effective end. This is the single source of
+  // truth for "when does this event run?" and is reused by the row renderer,
+  // activeIndex, auto-progress, and auto-launch.
+  const effectiveTimes = useMemo(
+    () => computeEffectiveTimes(displayItems),
+    [displayItems]
+  );
+
   /**
    * Derive the index of the currently active schedule item.
    *
-   * An item is "active" when: startTime <= now < endTime.
-   * If an explicit `endTime` is not set, we infer it as the nearest start time
-   * (by clock time) among all other items that begins after this one.
-   * This search is performed over the whole items array so the result is correct
-   * regardless of whether items happen to be stored in chronological array order
-   * (e.g. the user may have used the manual up/down move buttons in Settings).
+   * An item is "active" when: effectiveStartSec <= now < effectiveEndSec.
+   * Clock-mode items use their explicit times; timer-mode items use the
+   * chained effective window. Idle items (timer-mode with no anchor) are
+   * never considered active.
    *
    * Returns -1 when no item is active (e.g. before the first item starts).
    */
   const activeIndex = useMemo(() => {
     if (displayItems.length === 0) return -1;
-    const nowMinutes = Math.floor(nowSeconds / 60);
-
-    // Precompute start minutes once to avoid repeated string parsing.
-    const startMinutes = displayItems.map((item) =>
-      parseScheduleTime(item.startTime ?? item.time)
-    );
 
     let bestIndex = -1;
+    let bestStart = -1;
 
     for (let i = 0; i < displayItems.length; i++) {
-      const startMin = startMinutes[i];
-      if (startMin === -1 || nowMinutes < startMin) continue;
+      const eff = effectiveTimes[i];
+      if (!eff || eff.isIdle) continue;
+      if (eff.startSec === -1 || nowSeconds < eff.startSec) continue;
 
-      // Resolve end boundary: explicit endTime → nearest later start → no bound.
-      let endMin = parseScheduleTime(displayItems[i].endTime ?? '');
-      if (endMin === -1) {
-        let nearestLater = -1;
-        for (let j = 0; j < displayItems.length; j++) {
-          const s = startMinutes[j];
-          if (s > startMin && (nearestLater === -1 || s < nearestLater)) {
-            nearestLater = s;
-          }
-        }
-        endMin = nearestLater;
-      }
-
-      const isActive = endMin === -1 ? true : nowMinutes < endMin;
+      const isActive = eff.endSec === -1 ? true : nowSeconds < eff.endSec;
       if (isActive) {
         // When items overlap, prefer the one with the latest start time
         // (the most recently started event is the most specific match).
-        if (bestIndex === -1 || startMin > startMinutes[bestIndex]) {
+        if (bestIndex === -1 || eff.startSec > bestStart) {
           bestIndex = i;
+          bestStart = eff.startSec;
         }
       }
     }
 
     return bestIndex;
-  }, [displayItems, nowSeconds]);
+  }, [displayItems, effectiveTimes, nowSeconds]);
 
   /**
    * Scroll the list so that the previously-completed item is at the top,
@@ -298,15 +292,22 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
   const handleStartTimer = useCallback(
     (item: ScheduleItem) => {
-      if (!item.endTime) return;
-      const endMinutes = parseScheduleTime(item.endTime);
-      if (endMinutes < 0) return;
-
-      const now = new Date();
-      const nowSeconds =
-        now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-      const endSeconds = endMinutes * 60;
-      const remainingSeconds = Math.max(0, endSeconds - nowSeconds);
+      // For timer-mode items, launch a standalone countdown using the item's
+      // configured duration (not wall-clock endTime). This lets a teacher
+      // start the first idle timer manually even with no clock anchor.
+      let remainingSeconds = 0;
+      if (item.mode === 'timer') {
+        remainingSeconds = getItemDurationSeconds(item);
+      } else {
+        if (!item.endTime) return;
+        const endMinutes = parseScheduleTime(item.endTime);
+        if (endMinutes < 0) return;
+        const now = new Date();
+        const nowSec =
+          now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        remainingSeconds = Math.max(0, endMinutes * 60 - nowSec);
+      }
+      if (remainingSeconds <= 0) return;
       const spawnNow = Date.now();
 
       addWidget('time-tool', {
@@ -317,8 +318,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           visualType: 'digital',
           duration: remainingSeconds,
           elapsedTime: remainingSeconds,
-          isRunning: remainingSeconds > 0,
-          startTime: remainingSeconds > 0 ? spawnNow : null,
+          isRunning: true,
+          startTime: spawnNow,
           selectedSound: 'Gong',
         },
       });
@@ -331,12 +332,21 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   // re-launch on every interval tick.
   const launchedItemsRef = useRef<Set<string>>(new Set());
 
+  // Keep the latest effective times accessible to the auto-launch interval
+  // (which runs on a 10s tick but wants the current chain).
+  const effectiveTimesRef = useRef(effectiveTimes);
+  useEffect(() => {
+    effectiveTimesRef.current = effectiveTimes;
+  }, [effectiveTimes]);
+
   useEffect(() => {
     const checkAutoLaunch = () => {
       const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowSec =
+        now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
       const today = now.toISOString().slice(0, 10);
       const currentItems = itemsRef.current;
+      const currentEffective = effectiveTimesRef.current;
       const w = widgetRef.current;
 
       // Prune keys from previous days so the Set doesn't grow across long sessions.
@@ -353,21 +363,12 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         const itemKey = `${baseKey}-${today}`;
         if (launchedItemsRef.current.has(itemKey)) return;
 
-        const startMin = parseScheduleTime(item.startTime ?? item.time);
-        if (startMin === -1 || nowMinutes < startMin) return;
-
-        // Check the event is still within its active time window.
-        const endMin = parseScheduleTime(item.endTime);
-        if (endMin !== -1 && nowMinutes >= endMin) return; // past this event
-
-        // If no endTime, use the next item's start as the upper bound.
-        if (endMin === -1 && index < currentItems.length - 1) {
-          const nextItem = currentItems[index + 1];
-          const nextMin = parseScheduleTime(
-            nextItem.startTime ?? nextItem.time
-          );
-          if (nextMin !== -1 && nowMinutes >= nextMin) return;
-        }
+        // Use effective start/end from the chain so timer-mode events fire
+        // when the chain reaches them (not at a non-existent wall-clock time).
+        const eff = currentEffective[index];
+        if (!eff || eff.isIdle) return;
+        if (eff.startSec === -1 || nowSec < eff.startSec) return;
+        if (eff.endSec !== -1 && nowSec >= eff.endSec) return;
 
         // Mark as launched and spawn each linked widget.
         launchedItemsRef.current.add(itemKey);
@@ -391,37 +392,40 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
 
     const checkTime = () => {
       const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const nowSec =
+        now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const nowMinutes = Math.floor(nowSec / 60);
       // Use displayItems for completion logic so ordering/inference is correct.
       const currentDisplayItems = itemsRef.current;
       // Use scheduleItems for the write-back so hidden one-off items are preserved.
       const currentScheduleItems = scheduleItemsRef.current;
       const currentConfig = configRef.current;
+      const currentEffective = effectiveTimesRef.current;
 
       // Compute updated done-states for visible items using display ordering.
       let changed = false;
       const newDisplayItems = currentDisplayItems.map((item, index) => {
         let isDone = false;
-        let completionTime = -1;
 
-        const itemEndTime = parseScheduleTime(item.endTime);
-        if (itemEndTime !== -1) {
-          // Prioritize the item's own end time when available.
-          completionTime = itemEndTime;
+        // Prefer chain-computed effective end. This handles timer-mode items
+        // naturally (end = previous end + duration) and matches the countdown
+        // the user sees on the widget face.
+        const eff = currentEffective[index];
+        if (eff && !eff.isIdle && eff.endSec !== -1) {
+          if (nowSec >= eff.endSec) isDone = true;
         } else if (index < currentDisplayItems.length - 1) {
-          // Fall back to the next item's start time.
+          // No usable chain entry and not the last item: fall back to the
+          // next item's start time (legacy behavior).
           const nextItem = currentDisplayItems[index + 1];
-          completionTime = parseScheduleTime(
+          const nextMin = parseScheduleTime(
             nextItem.startTime ?? nextItem.time
           );
+          if (nextMin !== -1 && nowMinutes >= nextMin) isDone = true;
         } else {
           // Last item with no end time: assume a 60-minute duration.
           const myTime = parseScheduleTime(item.startTime ?? item.time);
-          if (myTime !== -1) completionTime = myTime + 60;
+          if (myTime !== -1 && nowMinutes >= myTime + 60) isDone = true;
         }
-
-        if (completionTime !== -1 && nowMinutes >= completionTime)
-          isDone = true;
 
         if (item.done !== isDone) {
           changed = true;
@@ -497,22 +501,33 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               msOverflowStyle: 'none',
             }}
           >
-            {displayItems.map((item: ScheduleItem, i: number) => (
-              <ScheduleRow
-                key={item.id ?? `${item.task}-${item.startTime ?? item.time}`}
-                index={i}
-                item={item}
-                onToggle={toggle}
-                onStartTimer={handleStartTimer}
-                cardOpacity={cardOpacity}
-                cardColor={cardColor}
-                format24={format24}
-                nowSeconds={nowSeconds}
-                isActive={i === activeIndex}
-                textScale={textScale}
-                fontColor={fontColor}
-              />
-            ))}
+            {displayItems.map((item: ScheduleItem, i: number) => {
+              const eff = effectiveTimes[i] ?? {
+                startSec: -1,
+                endSec: -1,
+                isIdle: true,
+              };
+              return (
+                <ScheduleRow
+                  key={item.id ?? `${item.task}-${item.startTime ?? item.time}`}
+                  index={i}
+                  item={item}
+                  onToggle={toggle}
+                  onStartTimer={handleStartTimer}
+                  cardOpacity={cardOpacity}
+                  cardColor={cardColor}
+                  format24={format24}
+                  nowSeconds={nowSeconds}
+                  isActive={i === activeIndex}
+                  effectiveStartSec={eff.startSec}
+                  effectiveEndSec={eff.endSec}
+                  isIdle={eff.isIdle}
+                  durationSeconds={getItemDurationSeconds(item)}
+                  textScale={textScale}
+                  fontColor={fontColor}
+                />
+              );
+            })}
             {displayItems.length === 0 && (
               <ScaledEmptyState
                 icon={Clock}
