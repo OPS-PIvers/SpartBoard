@@ -83,6 +83,28 @@ describe('stripTransientKeys', () => {
     expect(config).toEqual(original);
   });
 
+  it('strips text widget content so new instances start blank while styling carries over', () => {
+    const config = {
+      content: 'notes from the previous instance',
+      bgColor: '#60a5fa',
+      fontSize: 18,
+      fontFamily: 'handwritten',
+      fontColor: '#ffffff',
+      textSizePreset: 'large',
+    } as Partial<WidgetConfig>;
+
+    const result = stripTransientKeys(config);
+
+    expect(result).toEqual({
+      bgColor: '#60a5fa',
+      fontSize: 18,
+      fontFamily: 'handwritten',
+      fontColor: '#ffffff',
+      textSizePreset: 'large',
+    });
+    expect(result).not.toHaveProperty('content');
+  });
+
   it('strips PII fields so student data never reaches Firestore', () => {
     const config = {
       firstNames: 'Alice\nBob',
