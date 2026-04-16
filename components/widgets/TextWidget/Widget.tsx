@@ -294,7 +294,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="absolute inset-0 pointer-events-none opacity-20"
               style={{ backgroundColor: bgColor }}
             />
-            <div className="relative z-content flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
+            <div className="relative z-content flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar select-text">
               <div
                 className="flex min-h-full w-full flex-col"
                 style={{

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { FONT_COLORS } from '@/config/fonts';
-import { PASTEL_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
+import { HIGHLIGHT_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
 
 interface FormattingToolbarProps {
@@ -744,13 +744,13 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             if (!wasOpen) setShowColorMenu(true);
           }}
         >
-          <div className="w-44 p-1.5 space-y-1.5">
+          <div className="w-56 p-1.5 space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar">
             {/* Font Color */}
             <div>
               <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
                 Font Color
               </div>
-              <div className="grid grid-cols-4 gap-1 p-1">
+              <div className="grid grid-cols-7 gap-1 p-1">
                 {FONT_COLORS.map((c) => (
                   <button
                     key={c}
@@ -759,11 +759,28 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('foreColor', c);
                       setShowColorMenu(false);
                     }}
-                    className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                    className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
                     style={{ backgroundColor: c }}
                     title={c}
                   />
                 ))}
+                <label
+                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                  title="Custom color"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <span className="text-[8px] text-slate-400 font-bold leading-none">
+                    +
+                  </span>
+                  <input
+                    type="color"
+                    className="sr-only"
+                    onChange={(e) => {
+                      runCommand('foreColor', e.target.value);
+                      setShowColorMenu(false);
+                    }}
+                  />
+                </label>
               </div>
             </div>
 
@@ -774,19 +791,19 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
               <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
                 Highlight
               </div>
-              <div className="grid grid-cols-4 gap-1 p-1">
+              <div className="grid grid-cols-7 gap-1 p-1">
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     runCommand('hiliteColor', 'transparent');
                     setShowColorMenu(false);
                   }}
-                  className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
+                  className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
                   title="None"
                 >
-                  <div className="w-px h-4 bg-red-500 rotate-45" />
+                  <div className="w-px h-3 bg-red-500 rotate-45" />
                 </button>
-                {PASTEL_PALETTE.map((c) => (
+                {HIGHLIGHT_PALETTE.map((c) => (
                   <button
                     key={c}
                     onMouseDown={(e) => e.preventDefault()}
@@ -794,11 +811,28 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       runCommand('hiliteColor', c);
                       setShowColorMenu(false);
                     }}
-                    className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                    className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
                     style={{ backgroundColor: c }}
                     title={c}
                   />
                 ))}
+                <label
+                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                  title="Custom highlight color"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <span className="text-[8px] text-slate-400 font-bold leading-none">
+                    +
+                  </span>
+                  <input
+                    type="color"
+                    className="sr-only"
+                    onChange={(e) => {
+                      runCommand('hiliteColor', e.target.value);
+                      setShowColorMenu(false);
+                    }}
+                  />
+                </label>
               </div>
             </div>
 
@@ -809,7 +843,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
               <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
                 Background
               </div>
-              <div className="flex gap-1 p-1 flex-wrap">
+              <div className="grid grid-cols-7 gap-1 p-1">
                 {stickyColors.map((c) => (
                   <button
                     key={c}
@@ -818,11 +852,28 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       onBgColorChange(c);
                       setShowColorMenu(false);
                     }}
-                    className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
+                    className={`w-5 h-5 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
                     style={{ backgroundColor: c }}
                     title={c}
                   />
                 ))}
+                <label
+                  className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                  title="Custom background color"
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <span className="text-[8px] text-slate-400 font-bold leading-none">
+                    +
+                  </span>
+                  <input
+                    type="color"
+                    className="sr-only"
+                    onChange={(e) => {
+                      onBgColorChange(e.target.value);
+                      setShowColorMenu(false);
+                    }}
+                  />
+                </label>
               </div>
             </div>
           </div>
@@ -1034,65 +1085,128 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
             {/* Colors section — shown when colors group is hidden */}
             {visibleCount <= 4 && (
-              <div>
-                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                  Colors
+              <div className="space-y-1.5">
+                <div>
+                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                    Font Color
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 p-1">
+                    {FONT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          runCommand('foreColor', c);
+                          setShowOverflowMenu(false);
+                        }}
+                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                    <label
+                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                      title="Custom color"
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      <span className="text-[8px] text-slate-400 font-bold leading-none">
+                        +
+                      </span>
+                      <input
+                        type="color"
+                        className="sr-only"
+                        onChange={(e) => {
+                          runCommand('foreColor', e.target.value);
+                          setShowOverflowMenu(false);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 gap-1 p-1">
-                  {FONT_COLORS.map((c) => (
+                <div>
+                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                    Highlight
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 p-1">
                     <button
-                      key={c}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        runCommand('foreColor', c);
+                        runCommand('hiliteColor', 'transparent');
                         setShowOverflowMenu(false);
                       }}
-                      className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                      style={{ backgroundColor: c }}
-                      title={c}
-                    />
-                  ))}
-                </div>
-                <div className="grid grid-cols-4 gap-1 p-1">
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      runCommand('hiliteColor', 'transparent');
-                      setShowOverflowMenu(false);
-                    }}
-                    className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
-                    title="No Highlight"
-                  >
-                    <div className="w-px h-4 bg-red-500 rotate-45" />
-                  </button>
-                  {PASTEL_PALETTE.map((c) => (
-                    <button
-                      key={c}
+                      className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
+                      title="No Highlight"
+                    >
+                      <div className="w-px h-3 bg-red-500 rotate-45" />
+                    </button>
+                    {HIGHLIGHT_PALETTE.map((c) => (
+                      <button
+                        key={c}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          runCommand('hiliteColor', c);
+                          setShowOverflowMenu(false);
+                        }}
+                        className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                    <label
+                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                      title="Custom highlight color"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        runCommand('hiliteColor', c);
-                        setShowOverflowMenu(false);
-                      }}
-                      className="w-6 h-6 rounded-full border border-slate-200 hover:scale-110 transition-transform"
-                      style={{ backgroundColor: c }}
-                      title={c}
-                    />
-                  ))}
+                    >
+                      <span className="text-[8px] text-slate-400 font-bold leading-none">
+                        +
+                      </span>
+                      <input
+                        type="color"
+                        className="sr-only"
+                        onChange={(e) => {
+                          runCommand('hiliteColor', e.target.value);
+                          setShowOverflowMenu(false);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
-                <div className="flex gap-1 p-1 flex-wrap">
-                  {stickyColors.map((c) => (
-                    <button
-                      key={c}
+                <div>
+                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                    Background
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 p-1">
+                    {stickyColors.map((c) => (
+                      <button
+                        key={c}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onBgColorChange(c);
+                          setShowOverflowMenu(false);
+                        }}
+                        className={`w-5 h-5 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
+                        style={{ backgroundColor: c }}
+                        title={c}
+                      />
+                    ))}
+                    <label
+                      className="w-5 h-5 rounded-full border border-dashed border-slate-300 hover:scale-110 transition-transform cursor-pointer flex items-center justify-center"
+                      title="Custom background color"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        onBgColorChange(c);
-                        setShowOverflowMenu(false);
-                      }}
-                      className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${bgColor === c ? 'border-blue-500 scale-110' : 'border-slate-200'}`}
-                      style={{ backgroundColor: c }}
-                      title={c}
-                    />
-                  ))}
+                    >
+                      <span className="text-[8px] text-slate-400 font-bold leading-none">
+                        +
+                      </span>
+                      <input
+                        type="color"
+                        className="sr-only"
+                        onChange={(e) => {
+                          onBgColorChange(e.target.value);
+                          setShowOverflowMenu(false);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
             )}

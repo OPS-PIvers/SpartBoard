@@ -41,6 +41,29 @@ export const PASTEL_PALETTE = [
   '#2DD4BF', // teal-400
 ];
 
+export const HIGHLIGHT_PALETTE = [
+  '#fca5a5', // red-300
+  '#fdba74', // orange-300
+  '#fcd34d', // amber-300
+  '#fde047', // yellow-300
+  '#bef264', // lime-300
+  '#86efac', // green-300
+  '#5eead4', // teal-300
+  '#7dd3fc', // sky-300
+  '#93c5fd', // blue-300
+  '#a5b4fc', // indigo-300
+  '#c4b5fd', // violet-300
+  '#d8b4fe', // purple-300
+  '#f0abfc', // fuchsia-300
+  '#f9a8d4', // pink-300
+  '#fda4af', // rose-300
+  '#fed7aa', // orange-200
+  '#fef08a', // yellow-200
+  '#bbf7d0', // green-200
+  '#bae6fd', // sky-200
+  '#e9d5ff', // purple-200
+];
+
 // For TextWidget (Sticky Notes) background colors
 export const STICKY_NOTE_COLORS = {
   yellow: '#fef9c3', // yellow-100
@@ -48,6 +71,13 @@ export const STICKY_NOTE_COLORS = {
   blue: '#dbeafe', // blue-100
   pink: '#fce7f3', // pink-100
   gray: '#f3f4f6', // gray-100
+  orange: '#ffedd5', // orange-100
+  purple: '#f3e8ff', // purple-100
+  teal: '#ccfbf1', // teal-100
+  rose: '#ffe4e6', // rose-100
+  amber: '#fef3c7', // amber-100
+  indigo: '#e0e7ff', // indigo-100
+  white: '#ffffff', // white
 } as const;
 
 export const ROUTINE_COLORS = [
