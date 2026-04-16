@@ -739,17 +739,21 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         }
         content={
-          <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 overflow-hidden">
+          <div
+            className={`flex-1 flex flex-col w-full h-full self-stretch min-h-0 overflow-hidden ${
+              mode === 'single' ? 'items-center justify-center' : ''
+            }`}
+          >
             {mode === 'single' ? (
               renderSinglePick()
             ) : (
               <div
-                className="w-full h-full flex flex-col min-h-0"
+                className="w-full flex-1 min-h-0 flex flex-col"
                 style={{ padding: '0 min(8px, 2cqmin)' }}
               >
                 {mode === 'shuffle' ? (
                   <div
-                    className="flex-1 overflow-y-auto w-full custom-scrollbar flex flex-col"
+                    className="flex-1 overflow-hidden w-full flex flex-col min-h-0"
                     style={{
                       padding: 'min(4px, 1cqmin) 0',
                       gap: 'min(4px, 1cqmin)',
@@ -763,21 +767,23 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     ).map((name: string, i: number) => (
                       <div
                         key={i}
-                        className="flex items-center bg-white rounded-xl border border-slate-200 transition-all hover:bg-slate-50 shadow-sm"
+                        className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm min-h-0 overflow-hidden"
                         style={{
-                          gap: 'min(12px, 3cqmin)',
-                          padding: 'min(8px, 2cqmin)',
+                          flex: '1 1 0',
+                          gap: 'min(12px, 4cqmin)',
+                          padding: '0 min(12px, 3cqmin)',
+                          containerType: 'size',
                         }}
                       >
                         <span
-                          className="font-mono font-black text-slate-400"
-                          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+                          className="font-mono font-black text-slate-400 flex-shrink-0"
+                          style={{ fontSize: 'clamp(12px, 25cqh, 28px)' }}
                         >
                           {i + 1}
                         </span>
                         <span
-                          className="leading-none font-bold text-slate-700"
-                          style={{ fontSize: 'min(24px, 6cqmin)' }}
+                          className="leading-none font-bold text-slate-700 truncate min-w-0"
+                          style={{ fontSize: 'clamp(16px, 60cqh, 80px)' }}
                         >
                           {name}
                         </span>
@@ -862,14 +868,18 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               onClick={handlePick}
               disabled={isSpinning}
               className="flex-1 h-12"
+              aria-label={isSpinning ? 'Picking' : 'Randomize'}
+              title={isSpinning ? 'Picking...' : 'Randomize'}
               icon={
                 <RefreshCw
-                  className={`w-4 h-4 ${isSpinning ? 'animate-spin' : ''}`}
+                  className={isSpinning ? 'animate-spin' : ''}
+                  style={{
+                    width: 'min(28px, 8cqmin)',
+                    height: 'min(28px, 8cqmin)',
+                  }}
                 />
               }
-            >
-              {isSpinning ? 'Picking...' : 'Randomize'}
-            </Button>
+            />
           </div>
         }
       />
