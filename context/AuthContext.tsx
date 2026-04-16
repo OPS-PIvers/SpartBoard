@@ -897,7 +897,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // of stale tokens silently failing to load rosters and Drive data.
         const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
         if (lastActivity) {
-          const elapsed = Date.now() - parseInt(lastActivity, 10);
+          const lastActivityTime = parseInt(lastActivity, 10);
+          // Treat corrupted/unparseable values as stale — safer to force
+          // re-login than to silently skip the inactivity check.
+          const elapsed = Number.isFinite(lastActivityTime)
+            ? Date.now() - lastActivityTime
+            : INACTIVITY_TIMEOUT_MS + 1;
           if (elapsed > INACTIVITY_TIMEOUT_MS) {
             localStorage.removeItem(LAST_ACTIVITY_KEY);
             localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
