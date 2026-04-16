@@ -134,7 +134,17 @@
       "noClassSelected": "No Class Selected",
       "pickClass": "Pick a class below",
       "clearActive": "Clear active class",
-      "noActive": "No active class"
+      "noActive": "No active class",
+      "addRestrictions": "+ Restrictions",
+      "hideRestrictions": "− Restrictions",
+      "restrictionsHeader": "Restricted from working with",
+      "restrictionsNone": "No restrictions",
+      "restrictionsCount_one": "{{count}} restricted",
+      "restrictionsCount_other": "{{count}} restricted",
+      "restrictionsFilter": "Search classmates…",
+      "restrictionsEmptyRoster": "Add more students to set restrictions.",
+      "restrictionsNoMatches": "No matches.",
+      "restrictionsFooter": "Restrictions apply to both students automatically."
     },
     "widgets": {
       "gradeFilter": "Grade Filter",
@@ -282,7 +292,20 @@
     "random": {
       "sendToScoreboard": "Send to Scoreboard",
       "scoreboardUpdated": "Updated scoreboard with {{count}} teams!",
-      "scoreboardCreated": "Created scoreboard with {{count}} teams!"
+      "scoreboardCreated": "Created scoreboard with {{count}} teams!",
+      "absent": {
+        "buttonLabel": "Mark absent students",
+        "title": "Mark absent — {{date}}",
+        "summary": "{{present}} present · {{absent}} absent",
+        "clearAll": "Clear all (everyone present)",
+        "emptyRoster": "This class has no students yet.",
+        "unnamedStudent": "Unnamed student",
+        "footer": "Absent marks apply to every Randomizer using this class. Resets automatically tomorrow."
+      },
+      "everyoneAbsentTitle": "Everyone is marked absent",
+      "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
+      "updateAttendance": "Update attendance",
+      "restrictionsUnsatisfied": "Couldn't satisfy all restrictions — try again or adjust group size."
     },
     "clock": {
       "format24": "24H Format",

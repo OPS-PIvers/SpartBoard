@@ -14,6 +14,7 @@ import { User } from 'firebase/auth';
 import { ClassRoster, ClassRosterMeta, Student } from '../types';
 import { db, isAuthBypass } from '../config/firebase';
 import { useGoogleDrive } from './useGoogleDrive';
+import { getLocalIsoDate } from '../utils/localDate';
 
 /**
  * Assigns zero-padded sequential PINs to students that don't have one yet.
@@ -49,6 +50,12 @@ function parseRawStudent(raw: unknown): Student | null {
   };
   if (typeof s.classLinkSourcedId === 'string') {
     base.classLinkSourcedId = s.classLinkSourcedId;
+  }
+  if (Array.isArray(s.restrictedStudentIds)) {
+    const ids = s.restrictedStudentIds.filter(
+      (id): id is string => typeof id === 'string'
+    );
+    if (ids.length > 0) base.restrictedStudentIds = ids;
   }
   return base;
 }
@@ -120,6 +127,17 @@ class MockRosterStore {
     }
   }
 
+  setAbsent(id: string, studentIds: string[]): void {
+    const index = this.rosters.findIndex((r) => r.id === id);
+    if (index >= 0) {
+      this.rosters[index] = {
+        ...this.rosters[index],
+        absent: { date: getLocalIsoDate(), studentIds },
+      };
+      this.notifyListeners();
+    }
+  }
+
   deleteRoster(id: string): void {
     const index = this.rosters.findIndex((r) => r.id === id);
     if (index >= 0) {
@@ -163,13 +181,27 @@ const validateRosterMeta = (
   const d = data as Record<string, unknown>;
   if (typeof d.name !== 'string') return null;
 
-  return {
+  const meta: ClassRosterMeta = {
     id,
     name: d.name,
     driveFileId: typeof d.driveFileId === 'string' ? d.driveFileId : null,
     studentCount: typeof d.studentCount === 'number' ? d.studentCount : 0,
     createdAt: typeof d.createdAt === 'number' ? d.createdAt : Date.now(),
   };
+  if (d.absent && typeof d.absent === 'object') {
+    const a = d.absent as Record<string, unknown>;
+    if (
+      typeof a.date === 'string' &&
+      Array.isArray(a.studentIds) &&
+      a.studentIds.every((id) => typeof id === 'string')
+    ) {
+      meta.absent = {
+        date: a.date,
+        studentIds: a.studentIds,
+      };
+    }
+  }
+  return meta;
 };
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
@@ -572,6 +604,30 @@ export const useRosters = (user: User | null) => {
     [user, driveService, uploadStudentsToDrive]
   );
 
+  const setAbsentStudents = useCallback(
+    async (rosterId: string, studentIds: string[]) => {
+      if (!user) return;
+
+      const payload = { date: getLocalIsoDate(), studentIds };
+
+      if (isAuthBypass) {
+        mockRosterStore.setAbsent(rosterId, studentIds);
+        return;
+      }
+
+      // Optimistically update local state so the modal reflects the change
+      // immediately, before the Firestore snapshot round-trips.
+      setRosters((prev) =>
+        prev.map((r) => (r.id === rosterId ? { ...r, absent: payload } : r))
+      );
+
+      await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
+        absent: payload,
+      });
+    },
+    [user]
+  );
+
   const setActiveRoster = useCallback((id: string | null) => {
     setActiveRosterIdState(id);
     if (id) localStorage.setItem('spart_active_roster_id', id);
@@ -611,6 +667,7 @@ export const useRosters = (user: User | null) => {
       updateRoster,
       deleteRoster,
       setActiveRoster,
+      setAbsentStudents,
     }),
     [
       rosters,
@@ -619,6 +676,7 @@ export const useRosters = (user: User | null) => {
       updateRoster,
       deleteRoster,
       setActiveRoster,
+      setAbsentStudents,
     ]
   );
 };

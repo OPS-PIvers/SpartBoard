@@ -4,6 +4,7 @@ import {
   splitNames,
   findDuplicatePins,
 } from '@/components/widgets/Classes/rosterUtils';
+import { normalizeRestrictions } from '@/utils/rosterRestrictions';
 
 export interface DraftRow {
   id: string;
@@ -11,6 +12,7 @@ export interface DraftRow {
   lastName: string;
   pin: string;
   classLinkSourcedId?: string;
+  restrictedStudentIds?: string[];
 }
 
 /**
@@ -34,6 +36,7 @@ export function useRosterRowsState(roster: ClassRoster | null) {
         lastName: s.lastName,
         pin: s.pin,
         classLinkSourcedId: s.classLinkSourcedId,
+        restrictedStudentIds: s.restrictedStudentIds,
       })) ?? []
   );
   const [showLastNames, setShowLastNames] = useState(
@@ -41,6 +44,10 @@ export function useRosterRowsState(roster: ClassRoster | null) {
   );
   const [showPins, setShowPins] = useState(
     roster?.students.some((s) => s.pin.trim() !== '') ?? false
+  );
+  const [showRestrictions, setShowRestrictions] = useState(
+    roster?.students.some((s) => (s.restrictedStudentIds?.length ?? 0) > 0) ??
+      false
   );
 
   const addRow = useCallback(() => {
@@ -55,8 +62,52 @@ export function useRosterRowsState(roster: ClassRoster | null) {
   }, []);
 
   const deleteRow = useCallback((id: string) => {
-    setRows((rs) => rs.filter((r) => r.id !== id));
+    setRows((rs) =>
+      rs
+        .filter((r) => r.id !== id)
+        .map((r) => {
+          if (!r.restrictedStudentIds?.includes(id)) return r;
+          const next = r.restrictedStudentIds.filter((x) => x !== id);
+          return {
+            ...r,
+            restrictedStudentIds: next.length > 0 ? next : undefined,
+          };
+        })
+    );
   }, []);
+
+  /**
+   * Toggle a mutual restriction between two students. Mirrors the change
+   * on both sides so the in-memory invariant matches what the normalizer
+   * will emit on save.
+   */
+  const toggleRestriction = useCallback(
+    (studentId: string, otherId: string) => {
+      if (studentId === otherId) return;
+      setRows((rs) => {
+        const aRow = rs.find((r) => r.id === studentId);
+        if (!aRow) return rs;
+        const currentlyRestricted =
+          aRow.restrictedStudentIds?.includes(otherId) ?? false;
+        const mutate = (row: DraftRow, peerId: string): DraftRow => {
+          const existing = row.restrictedStudentIds ?? [];
+          const next = currentlyRestricted
+            ? existing.filter((id) => id !== peerId)
+            : [...new Set([...existing, peerId])];
+          return {
+            ...row,
+            restrictedStudentIds: next.length > 0 ? next : undefined,
+          };
+        };
+        return rs.map((r) => {
+          if (r.id === studentId) return mutate(r, otherId);
+          if (r.id === otherId) return mutate(r, studentId);
+          return r;
+        });
+      });
+    },
+    []
+  );
 
   /**
    * Multi-line paste into a first-name input. First line replaces the target
@@ -154,23 +205,28 @@ export function useRosterRowsState(roster: ClassRoster | null) {
    */
   const validStudents = useMemo<Student[]>(
     () =>
-      rows
-        .map((r) => {
-          const firstName = r.firstName.trim();
-          const lastName = r.lastName.trim();
-          if (!firstName && !lastName) return null;
-          const student: Student = {
-            id: r.id,
-            firstName,
-            lastName,
-            pin: showPins ? r.pin.trim() : r.pin,
-          };
-          if (r.classLinkSourcedId !== undefined) {
-            student.classLinkSourcedId = r.classLinkSourcedId;
-          }
-          return student;
-        })
-        .filter((s): s is Student => s !== null),
+      normalizeRestrictions(
+        rows
+          .map((r) => {
+            const firstName = r.firstName.trim();
+            const lastName = r.lastName.trim();
+            if (!firstName && !lastName) return null;
+            const student: Student = {
+              id: r.id,
+              firstName,
+              lastName,
+              pin: showPins ? r.pin.trim() : r.pin,
+            };
+            if (r.classLinkSourcedId !== undefined) {
+              student.classLinkSourcedId = r.classLinkSourcedId;
+            }
+            if (r.restrictedStudentIds && r.restrictedStudentIds.length > 0) {
+              student.restrictedStudentIds = r.restrictedStudentIds;
+            }
+            return student;
+          })
+          .filter((s): s is Student => s !== null)
+      ),
     [rows, showPins]
   );
 
@@ -191,6 +247,9 @@ export function useRosterRowsState(roster: ClassRoster | null) {
     handleToggleLastNames,
     showPins,
     setShowPins,
+    showRestrictions,
+    setShowRestrictions,
+    toggleRestriction,
     validStudents,
     duplicatePins,
   };
