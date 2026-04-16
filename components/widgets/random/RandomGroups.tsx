@@ -124,13 +124,13 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
             >
               {groupNames.map((name, ni) => {
                 const n = Math.max(groupNames.length, 1);
-                const cqhPerLine = Math.max(10, Math.floor(62 / n));
+                const cqminPerLine = Math.max(10, Math.floor(62 / n));
                 return (
                   <div
                     key={ni}
                     className="text-slate-700 font-bold whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{
-                      fontSize: `clamp(12px, min(${cqhPerLine}cqh, 18cqw), 64px)`,
+                      fontSize: `clamp(12px, ${cqminPerLine}cqmin, 64px)`,
                     }}
                   >
                     {name}

@@ -777,13 +777,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       >
                         <span
                           className="font-mono font-black text-slate-400 flex-shrink-0"
-                          style={{ fontSize: 'clamp(12px, 25cqh, 28px)' }}
+                          style={{ fontSize: 'clamp(12px, 25cqmin, 28px)' }}
                         >
                           {i + 1}
                         </span>
                         <span
                           className="leading-none font-bold text-slate-700 truncate min-w-0"
-                          style={{ fontSize: 'clamp(16px, 60cqh, 80px)' }}
+                          style={{ fontSize: 'clamp(16px, 60cqmin, 80px)' }}
                         >
                           {name}
                         </span>

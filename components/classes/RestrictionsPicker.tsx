@@ -9,7 +9,6 @@ export interface RestrictionsPickerCandidate {
 }
 
 interface RestrictionsPickerProps {
-  studentId: string;
   candidates: RestrictionsPickerCandidate[];
   selectedIds: string[];
   onToggle: (otherId: string) => void;

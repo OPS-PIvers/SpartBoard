@@ -348,19 +348,18 @@ const RosterRow: React.FC<RosterRowProps> = ({
     }
   };
 
-  const candidates = useMemo<RestrictionsPickerCandidate[]>(
-    () =>
-      allRows
-        .filter((r) => r.id !== row.id)
-        .map((r) => ({
-          id: r.id,
-          label:
-            `${r.firstName} ${r.lastName}`.trim() ||
-            `(unnamed #${allRows.indexOf(r) + 1})`,
-        }))
-        .filter((c) => c.label.length > 0),
-    [allRows, row.id]
-  );
+  const candidates = useMemo<RestrictionsPickerCandidate[]>(() => {
+    const idToIndex = new Map(allRows.map((r, i) => [r.id, i + 1]));
+    return allRows
+      .filter((r) => r.id !== row.id)
+      .map((r) => ({
+        id: r.id,
+        label:
+          `${r.firstName} ${r.lastName}`.trim() ||
+          `(unnamed #${idToIndex.get(r.id)})`,
+      }))
+      .filter((c) => c.label.length > 0);
+  }, [allRows, row.id]);
 
   return (
     <li
@@ -407,7 +406,6 @@ const RosterRow: React.FC<RosterRowProps> = ({
       )}
       {showRestrictions && (
         <RestrictionsPicker
-          studentId={row.id}
           candidates={candidates}
           selectedIds={row.restrictedStudentIds ?? []}
           onToggle={onToggleRestriction}

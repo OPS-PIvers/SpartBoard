@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserX, Check, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -27,13 +27,27 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
   const { setAbsentStudents } = useDashboard();
 
   const today = getLocalIsoDate();
-  const absentIds = useMemo(
+
+  const rosterAbsentIds = useMemo(
     () =>
       roster.absent?.date === today
         ? new Set(roster.absent.studentIds)
         : new Set<string>(),
     [roster.absent, today]
   );
+
+  const [localAbsentIds, setLocalAbsentIds] = useState<Set<string>>(
+    () => rosterAbsentIds
+  );
+
+  // Sync local state when roster prop changes (e.g. from Firestore)
+  const [prevRosterAbsent, setPrevRosterAbsent] = useState(roster.absent);
+  if (roster.absent !== prevRosterAbsent) {
+    setPrevRosterAbsent(roster.absent);
+    setLocalAbsentIds(rosterAbsentIds);
+  }
+
+  const absentIds = localAbsentIds;
 
   const sortedStudents = useMemo(
     () =>
@@ -45,29 +59,32 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
     [roster.students]
   );
 
-  const toggleStudent = (studentId: string) => {
-    const next = new Set(absentIds);
-    if (next.has(studentId)) {
-      next.delete(studentId);
-    } else {
-      next.add(studentId);
-    }
-    void setAbsentStudents(roster.id, [...next]);
-  };
-
-  const clearAll = () => {
-    void setAbsentStudents(roster.id, []);
-  };
-
-  const formattedDate = useMemo(
-    () =>
-      new Date().toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      }),
-    []
+  const toggleStudent = useCallback(
+    (studentId: string) => {
+      setLocalAbsentIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(studentId)) {
+          next.delete(studentId);
+        } else {
+          next.add(studentId);
+        }
+        void setAbsentStudents(roster.id, [...next]);
+        return next;
+      });
+    },
+    [roster.id, setAbsentStudents]
   );
+
+  const clearAll = useCallback(() => {
+    setLocalAbsentIds(new Set());
+    void setAbsentStudents(roster.id, []);
+  }, [roster.id, setAbsentStudents]);
+
+  const formattedDate = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const presentCount = roster.students.length - absentIds.size;
 
