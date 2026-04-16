@@ -2344,6 +2344,103 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             out.classLinkEnabled = raw.classLinkEnabled;
           }
           break;
+        case 'url':
+          if (Array.isArray(raw.urls) && raw.urls.length > 0) {
+            out.urls = (
+              raw.urls as Array<{
+                url: string;
+                title?: string;
+                color?: string;
+              }>
+            ).map((item) => ({
+              id: crypto.randomUUID(),
+              url: typeof item.url === 'string' ? item.url : '',
+              ...(typeof item.title === 'string' ? { title: item.title } : {}),
+              ...(typeof item.color === 'string' ? { color: item.color } : {}),
+            }));
+          }
+          break;
+        case 'soundboard': {
+          const soundIds: string[] = [];
+          if (Array.isArray(raw.availableSounds)) {
+            for (const s of raw.availableSounds as Array<{ id?: string }>) {
+              if (typeof s.id === 'string') soundIds.push(s.id);
+            }
+          }
+          if (Array.isArray(raw.enabledLibrarySoundIds)) {
+            for (const id of raw.enabledLibrarySoundIds as string[]) {
+              if (typeof id === 'string') soundIds.push(id);
+            }
+          }
+          if (Array.isArray(raw.enabledCustomSoundIds)) {
+            for (const id of raw.enabledCustomSoundIds as string[]) {
+              if (typeof id === 'string') soundIds.push(id);
+            }
+          }
+          if (soundIds.length > 0) out.selectedSoundIds = soundIds;
+          break;
+        }
+        case 'schedule': {
+          if (Array.isArray(raw.schedules) && raw.schedules.length > 0) {
+            out.schedules = (
+              raw.schedules as Array<{
+                name?: string;
+                items?: Array<Record<string, unknown>>;
+                days?: number[];
+              }>
+            ).map((sched) => ({
+              ...sched,
+              id: crypto.randomUUID(),
+              items: Array.isArray(sched.items)
+                ? sched.items.map((item) => ({
+                    ...item,
+                    id: crypto.randomUUID(),
+                  }))
+                : [],
+            }));
+          }
+          if (Array.isArray(raw.items) && raw.items.length > 0) {
+            out.items = (raw.items as Array<Record<string, unknown>>).map(
+              (item) => ({
+                ...item,
+                id: crypto.randomUUID(),
+              })
+            );
+          }
+          break;
+        }
+        case 'embed':
+          // Building embed defaults (hideUrlField, whitelistUrls) are
+          // admin-level constraints consumed by the EmbedWidget via direct
+          // permission config lookup, not widget config fields.
+          break;
+        case 'qr':
+          if (
+            typeof raw.defaultUrl === 'string' &&
+            raw.defaultUrl.trim() !== ''
+          )
+            out.url = raw.defaultUrl;
+          if (typeof raw.qrColor === 'string' && raw.qrColor.trim() !== '')
+            out.qrColor = raw.qrColor;
+          if (typeof raw.qrBgColor === 'string' && raw.qrBgColor.trim() !== '')
+            out.qrBgColor = raw.qrBgColor;
+          break;
+        case 'countdown': {
+          const validViewModes = ['number', 'grid'] as const;
+          if (typeof raw.title === 'string') out.title = raw.title;
+          if (typeof raw.startDate === 'string') out.startDate = raw.startDate;
+          if (typeof raw.eventDate === 'string') out.eventDate = raw.eventDate;
+          if (typeof raw.includeWeekends === 'boolean')
+            out.includeWeekends = raw.includeWeekends;
+          if (typeof raw.countToday === 'boolean')
+            out.countToday = raw.countToday;
+          if (
+            typeof raw.viewMode === 'string' &&
+            (validViewModes as readonly string[]).includes(raw.viewMode)
+          )
+            out.viewMode = raw.viewMode;
+          break;
+        }
         default:
           break;
       }

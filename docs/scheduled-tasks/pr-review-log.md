@@ -49,3 +49,22 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1305 head SHA `d38c2270` — CI green across type-check, lint, unit tests, E2E, build, CodeQL, Docker build
   - PR #1285 head SHA `986f7dc6` — unchanged since last review; duplicate review was minimized to a brief refresher to avoid noise
   - No new PRs opened since last run
+
+## 2026-04-16
+
+- PRs reviewed:
+  - #1318 — fix(admin): wire 6 widget building defaults into getAdminBuildingConfig (head `scheduled-tasks`, base `main`)
+  - #1311 — Implement full-screen editor modal and address review feedback (head `dev-paul`, base `main`) — read-only for pushes per branch-safety
+- Comments processed: 4 total — 0 fixed, 4 explained
+  - PR #1318: 1 inline thread (gemini-code-assist style suggestion re: functional array methods) — replied explaining no fix needed (style preference, not correctness issue)
+  - PR #1311: 3 inline threads, all already replied to by OPS-PIvers in prior conversation — no action needed
+- Fixes pushed: none
+  - PR #1318: the one comment was a style preference, not a bug or lint issue
+  - PR #1311: on `dev-paul` (dev-\* branch) — pushes prohibited by branch-safety policy; all comments already addressed by author
+- Reviews posted: 2
+  - PR #1318: Ready with minor notes — clean code following existing patterns, fills genuine gap (dead admin UI for 6 widgets). One open style comment is non-blocking.
+  - PR #1311: Needs changes — large PR (51 files, +4766/-1588) with 3 items to address before merge: (1) verify QuizSession.id semantics change doesn't break consumers, (2) fix DiceWidget Roll button scaling regression, (3) confirm composite Firestore index for allocateJoinCode. Also noted ~1,500 lines of new Quiz Assignment code with no test coverage.
+- Notes:
+  - PR #1318 head SHA `53d22f4c` — mergeable state clean
+  - PR #1311 head SHA `8ead5797` — mergeable state clean; Firestore rules changes are well-secured with proper auth checks and ownership enforcement
+  - PR #1311 has HIGH regression risk around QuizSession.id changing from teacher UID to session UUID
