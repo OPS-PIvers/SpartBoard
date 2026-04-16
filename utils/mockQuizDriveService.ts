@@ -16,7 +16,7 @@ import { QuizData, QuizQuestion } from '../types';
 
 const STORAGE_PREFIX = 'mock_quiz_drive';
 
-/** Structural surface of QuizDriveService consumed by useQuiz. */
+/** Structural surface of QuizDriveService consumed by useQuiz / useVideoActivity. */
 export interface QuizDriveLike {
   saveQuiz(quiz: QuizData, existingFileId?: string): Promise<string>;
   loadQuiz(fileId: string): Promise<QuizData>;
@@ -26,6 +26,7 @@ export interface QuizDriveLike {
     sheetName?: string
   ): Promise<QuizQuestion[]>;
   createQuizTemplate(): Promise<string>;
+  createVideoActivityTemplate(title: string): Promise<string>;
 }
 
 export class MockQuizDriveService implements QuizDriveLike {
@@ -62,6 +63,14 @@ export class MockQuizDriveService implements QuizDriveLike {
   }
 
   createQuizTemplate(): Promise<string> {
+    return Promise.reject(
+      new Error(
+        'Template creation requires Google Drive. Not available in auth-bypass mode.'
+      )
+    );
+  }
+
+  createVideoActivityTemplate(_title: string): Promise<string> {
     return Promise.reject(
       new Error(
         'Template creation requires Google Drive. Not available in auth-bypass mode.'

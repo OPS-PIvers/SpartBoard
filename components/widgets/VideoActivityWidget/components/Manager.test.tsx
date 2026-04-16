@@ -60,6 +60,7 @@ const baseProps = {
   loading: false,
   error: null,
   onNew: vi.fn(),
+  onImport: vi.fn(),
   onEdit: vi.fn(),
   onResults: vi.fn(),
   onCloseResults: vi.fn(),
