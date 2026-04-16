@@ -15,11 +15,15 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
+import {
+  GuidedLearningDriveLike,
+  MockGuidedLearningDriveService,
+} from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 
 const GL_COLLECTION = 'guided_learning';
@@ -117,14 +121,18 @@ export const useGuidedLearning = (
     return unsub;
   }, []);
 
-  const getDriveService = useCallback((): GuidedLearningDriveService => {
+  const getDriveService = useCallback((): GuidedLearningDriveLike => {
+    if (isAuthBypass) {
+      if (!userId) throw new Error('Not authenticated');
+      return new MockGuidedLearningDriveService(userId);
+    }
     if (!googleAccessToken) {
       throw new Error(
         'Not connected to Google Drive. Please sign in again to grant access.'
       );
     }
     return new GuidedLearningDriveService(googleAccessToken);
-  }, [googleAccessToken]);
+  }, [googleAccessToken, userId]);
 
   const saveSet = useCallback(
     async (
@@ -210,7 +218,7 @@ export const useGuidedLearning = (
     loading,
     buildingLoading,
     error,
-    isDriveConnected: isConnected,
+    isDriveConnected: isAuthBypass || isConnected,
     saveSet,
     loadSetData,
     deleteSet,

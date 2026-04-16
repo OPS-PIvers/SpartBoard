@@ -28,6 +28,16 @@ import { useStorage } from '@/hooks/useStorage';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
 
+/** State emitted by `onStateChange` so a parent modal can track dirty state. */
+export interface GuidedLearningEditorState {
+  title: string;
+  description: string;
+  mode: GuidedLearningMode;
+  imageUrls: string[];
+  steps: GuidedLearningStep[];
+  uploading: boolean;
+}
+
 interface Props {
   /** Existing set to edit, or null for new */
   existingSet: GuidedLearningSet | null;
@@ -35,6 +45,10 @@ interface Props {
   onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
   onCancel: () => void;
   saving: boolean;
+  /** When true, hides the built-in header (Cancel/Save bar) — the parent modal provides chrome. */
+  headless?: boolean;
+  /** Fires whenever editable fields change so a parent modal can compute isDirty. */
+  onStateChange?: (state: GuidedLearningEditorState) => void;
 }
 
 const MODE_OPTIONS: {
@@ -57,6 +71,8 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   onSave,
   onCancel,
   saving,
+  headless,
+  onStateChange,
 }) => {
   const { user } = useAuth();
   const { uploading, uploadHotspotImage } = useStorage();
@@ -78,6 +94,11 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
   const [addingStep, setAddingStep] = useState(false);
+
+  // Notify parent modal of state changes for dirty-check computation
+  useEffect(() => {
+    onStateChange?.({ title, description, mode, imageUrls, steps, uploading });
+  }, [title, description, mode, imageUrls, steps, uploading, onStateChange]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
@@ -287,59 +308,64 @@ export const GuidedLearningEditor: React.FC<Props> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-900">
-      <div
-        className="flex items-center border-b border-white/10 flex-shrink-0"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        <button
-          onClick={onCancel}
-          className="text-slate-400 hover:text-white transition-colors"
-          aria-label="Cancel"
-        >
-          <X
-            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
-          />
-        </button>
-        <span
-          className="text-white font-bold flex-1 truncate"
-          style={{ fontSize: 'min(14px, 4cqmin)' }}
-        >
-          {existingSet ? 'Edit Set' : 'New Set'}
-        </span>
-        <button
-          onClick={handleSave}
-          disabled={
-            saving || uploading || !title.trim() || imageUrls.length === 0
-          }
-          className="flex items-center bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-lg transition-all active:scale-95"
+      {!headless && (
+        <div
+          className="flex items-center border-b border-white/10 flex-shrink-0"
           style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-            fontSize: 'clamp(11px, 3cqmin, 16px)',
+            gap: 'min(8px, 2cqmin)',
+            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
           }}
         >
-          {saving || uploading ? (
-            <Loader2
-              className="animate-spin"
+          <button
+            onClick={onCancel}
+            className="text-slate-400 hover:text-white transition-colors"
+            aria-label="Cancel"
+          >
+            <X
               style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
               }}
             />
-          ) : (
-            <Save
-              style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
-              }}
-            />
-          )}
-          Save
-        </button>
-      </div>
+          </button>
+          <span
+            className="text-white font-bold flex-1 truncate"
+            style={{ fontSize: 'min(14px, 4cqmin)' }}
+          >
+            {existingSet ? 'Edit Set' : 'New Set'}
+          </span>
+          <button
+            onClick={handleSave}
+            disabled={
+              saving || uploading || !title.trim() || imageUrls.length === 0
+            }
+            className="flex items-center bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-lg transition-all active:scale-95"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              fontSize: 'clamp(11px, 3cqmin, 16px)',
+            }}
+          >
+            {saving || uploading ? (
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+            ) : (
+              <Save
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+            )}
+            Save
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="space-y-3" style={{ padding: 'min(12px, 3cqmin)' }}>

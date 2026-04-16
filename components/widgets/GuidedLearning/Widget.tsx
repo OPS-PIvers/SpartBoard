@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   WidgetData,
   GuidedLearningConfig,
@@ -11,7 +11,7 @@ import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { GuidedLearningLibrary } from './components/GuidedLearningLibrary';
-import { GuidedLearningEditor } from './components/GuidedLearningEditor';
+import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
 import { GuidedLearningResults } from './components/GuidedLearningResults';
 import { Loader2 } from 'lucide-react';
@@ -25,7 +25,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
-  const config = widget.config as GuidedLearningConfig;
+  const rawConfig = widget.config as GuidedLearningConfig;
+  // Normalize legacy 'editor' view — the inline editor is removed; use the modal instead
+  const config = useMemo<GuidedLearningConfig>(
+    () =>
+      rawConfig.view === 'editor'
+        ? { ...rawConfig, view: 'library' }
+        : rawConfig,
+    [rawConfig]
+  );
 
   const {
     sets,
@@ -48,7 +56,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
-  const [saving, setSaving] = useState(false);
   const [showAIGen, setShowAIGen] = useState(false);
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
@@ -113,27 +120,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       setEditingSet(data);
       setEditingMeta(meta);
     }
-    setView('editor');
   };
 
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
-    setSaving(true);
-    try {
-      if (set.isBuilding) {
-        await saveBuildingSet(set);
-        addToast('Building set saved.', 'success');
-      } else {
-        await saveSet(set, driveFileId);
-        addToast('Set saved to Drive.', 'success');
-      }
-      setEditingSet(null);
-      setEditingMeta(null);
-      setView('library');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save';
-      addToast(msg, 'error');
-    } finally {
-      setSaving(false);
+    if (set.isBuilding) {
+      await saveBuildingSet(set);
+      addToast('Building set saved.', 'success');
+    } else {
+      await saveSet(set, driveFileId);
+      addToast('Set saved to Drive.', 'success');
     }
   };
 
@@ -200,18 +195,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     });
   };
 
-  const handleCreateNew = () => {
-    setEditingSet(null);
-    setEditingMeta(null);
-    setView('editor');
-  };
-
-  const handleCreateNewBuilding = () => {
-    setEditingSet({ ...emptySet(), isBuilding: true });
-    setEditingMeta(null);
-    setView('editor');
-  };
-
   const emptySet = (): GuidedLearningSet => ({
     id: crypto.randomUUID(),
     title: '',
@@ -222,6 +205,16 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     updatedAt: Date.now(),
     authorUid: user?.uid,
   });
+
+  const handleCreateNew = () => {
+    setEditingSet(emptySet());
+    setEditingMeta(null);
+  };
+
+  const handleCreateNewBuilding = () => {
+    setEditingSet({ ...emptySet(), isBuilding: true });
+    setEditingMeta(null);
+  };
 
   if (loadingSet) {
     return (
@@ -236,85 +229,82 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   }
 
   return (
-    <WidgetLayout
-      padding="p-0"
-      contentClassName="flex-1 min-h-0"
-      content={
-        <div className="h-full w-full">
-          {config.view === 'library' && (
-            <GuidedLearningLibrary
-              widget={widget}
-              sets={sets}
-              buildingSets={buildingSets}
-              loading={loading}
-              buildingLoading={buildingLoading}
-              isDriveConnected={isDriveConnected}
-              onPlay={handlePlay}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onDeleteBuilding={handleDeleteBuilding}
-              onAssign={handleAssign}
-              onCreateNew={handleCreateNew}
-              onCreateNewBuilding={handleCreateNewBuilding}
-              onViewResults={handleViewResults}
-              onGenerateWithAI={() => setShowAIGen(true)}
-              recentSessionIds={recentSessionIds}
-            />
-          )}
-
-          {config.view === 'editor' && (
-            <GuidedLearningEditor
-              existingSet={editingSet}
-              existingMeta={editingMeta}
-              onSave={handleSave}
-              onCancel={() => {
-                setEditingSet(null);
-                setEditingMeta(null);
-                setView('library');
-              }}
-              saving={saving}
-            />
-          )}
-
-          {config.view === 'player' && activeSet && (
-            <GuidedLearningPlayer
-              set={activeSet}
-              onClose={() => setView('library')}
-              teacherMode
-            />
-          )}
-
-          {config.view === 'results' &&
-            config.resultsSessionId &&
-            activeSet && (
-              <GuidedLearningResults
-                set={activeSet}
-                sessionId={config.resultsSessionId}
-                onClose={() =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      view: 'library',
-                      resultsSessionId: null,
-                    } as GuidedLearningConfig,
-                  })
-                }
+    <>
+      <WidgetLayout
+        padding="p-0"
+        contentClassName="flex-1 min-h-0"
+        content={
+          <div className="h-full w-full">
+            {config.view === 'library' && (
+              <GuidedLearningLibrary
+                widget={widget}
+                sets={sets}
+                buildingSets={buildingSets}
+                loading={loading}
+                buildingLoading={buildingLoading}
+                isDriveConnected={isDriveConnected}
+                onPlay={handlePlay}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDeleteBuilding={handleDeleteBuilding}
+                onAssign={handleAssign}
+                onCreateNew={handleCreateNew}
+                onCreateNewBuilding={handleCreateNewBuilding}
+                onViewResults={handleViewResults}
+                onGenerateWithAI={() => setShowAIGen(true)}
+                recentSessionIds={recentSessionIds}
               />
             )}
 
-          {showAIGen && (
-            <GuidedLearningAIGenerator
-              onClose={() => setShowAIGen(false)}
-              onGenerated={(set) => {
-                setEditingSet({ ...set, isBuilding: true });
-                setEditingMeta(null);
-                setShowAIGen(false);
-                setView('editor');
-              }}
-            />
-          )}
-        </div>
-      }
-    />
+            {config.view === 'player' && activeSet && (
+              <GuidedLearningPlayer
+                set={activeSet}
+                onClose={() => setView('library')}
+                teacherMode
+              />
+            )}
+
+            {config.view === 'results' &&
+              config.resultsSessionId &&
+              activeSet && (
+                <GuidedLearningResults
+                  set={activeSet}
+                  sessionId={config.resultsSessionId}
+                  onClose={() =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        view: 'library',
+                        resultsSessionId: null,
+                      } as GuidedLearningConfig,
+                    })
+                  }
+                />
+              )}
+
+            {showAIGen && (
+              <GuidedLearningAIGenerator
+                onClose={() => setShowAIGen(false)}
+                onGenerated={(set) => {
+                  setEditingSet({ ...set, isBuilding: true });
+                  setEditingMeta(null);
+                  setShowAIGen(false);
+                }}
+              />
+            )}
+          </div>
+        }
+      />
+      <GuidedLearningEditorModal
+        isOpen={!!editingSet}
+        set={editingSet}
+        meta={editingMeta}
+        onClose={() => {
+          setEditingSet(null);
+          setEditingMeta(null);
+        }}
+        onSave={handleSave}
+      />
+    </>
   );
 };
