@@ -11,6 +11,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as DiceConfig;
   const diceCount = config.count ?? 1;
+  const { diceColor = '#ffffff', dotColor = '#1e293b' } = config;
 
   const [values, setValues] = useState<number[]>(() =>
     config.lastRoll?.length === diceCount
@@ -25,7 +26,6 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const isRollingRef = useRef(false);
   isRollingRef.current = isRolling;
 
-  // Track the interval so we can clean it up on unmount
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,6 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
   }, []);
 
-  // Sync board display when a remote roll is persisted to widget config
   useEffect(() => {
     if (!isRollingRef.current && config.lastRoll?.length === diceCount) {
       setValues(config.lastRoll);
@@ -51,7 +50,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
     setIsRolling(true);
     let rolls = 0;
-    const maxRolls = 10;
+    const maxRolls = 12;
 
     intervalRef.current = setInterval(() => {
       setValues((prev) => prev.map(() => Math.floor(Math.random() * 6) + 1));
@@ -73,10 +72,9 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         });
         setIsRolling(false);
       }
-    }, 100);
+    }, 80);
   };
 
-  // Derived state pattern: Reset values if count changes in settings or values arrays goes out of sync
   if (diceCount !== prevDiceCount || values.length !== diceCount) {
     if (diceCount !== prevDiceCount) setPrevDiceCount(diceCount);
     setValues(
@@ -84,23 +82,48 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   }
 
+  const getGridCols = () => {
+    if (diceCount === 1) return 'grid-cols-1';
+    if (diceCount === 2) return 'grid-cols-2';
+    if (diceCount === 3) return 'grid-cols-3';
+    if (diceCount === 4) return 'grid-cols-2';
+    return 'grid-cols-3';
+  };
+
+  const getDiceSize = () => {
+    if (diceCount === 1) return '75cqmin';
+    if (diceCount === 2) return '50cqmin';
+    if (diceCount === 3) return '38cqmin';
+    if (diceCount === 4) return '42cqmin';
+    return '30cqmin';
+  };
+
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="flex flex-wrap justify-center items-center gap-[6cqmin] w-full h-full overflow-hidden p-[4cqmin]">
+        <div
+          className={[
+            'grid',
+            getGridCols(),
+            'justify-items-center',
+            'items-center',
+            'w-full',
+            'h-full',
+            'overflow-hidden',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={{ gap: '4cqmin', padding: '6cqmin' }}
+        >
           {values.map((v, i) => (
             <DiceFace
               key={i}
               value={v}
               isRolling={isRolling}
-              size={
-                diceCount === 1
-                  ? '75cqmin'
-                  : diceCount === 2
-                    ? '55cqmin'
-                    : '42cqmin'
-              }
+              diceColor={diceColor}
+              dotColor={dotColor}
+              size={getDiceSize()}
             />
           ))}
         </div>
@@ -117,10 +140,10 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ${
               isRolling
                 ? 'bg-slate-100 text-slate-400'
-                : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-95'
+                : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-90 hover:shadow-purple-500/30'
             }
           `}
-            style={{ fontSize: 'min(20px, 5cqmin)' }}
+            style={{ fontSize: '20px' }}
           >
             <RefreshCw
               style={{ width: '1.2em', height: '1.2em' }}
