@@ -1662,8 +1662,8 @@ export interface QuizGlobalConfig {
 /** Widget configuration for the quiz widget (teacher side) */
 export interface QuizConfig {
   view: 'manager' | 'import' | 'editor' | 'preview' | 'results' | 'monitor';
-  /** Tab within the manager view (library of saved quizzes vs archive of past assignments). */
-  managerTab?: 'library' | 'archive';
+  /** Tab within the manager view: library of saved quizzes, in-progress assignments, or archived (inactive) assignments. */
+  managerTab?: 'library' | 'active' | 'archive';
   selectedQuizId: string | null;
   selectedQuizTitle: string | null;
   /** Assignment currently opened in monitor/results views. */

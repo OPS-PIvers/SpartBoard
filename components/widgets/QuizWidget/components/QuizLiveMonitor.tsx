@@ -35,6 +35,7 @@ import {
   Medal,
   Pause,
   Play,
+  ArrowLeft,
 } from 'lucide-react';
 import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import {
@@ -81,6 +82,8 @@ interface QuizLiveMonitorProps {
   onRemoveStudent?: (studentUid: string) => Promise<void>;
   onRevealAnswer?: (questionId: string, correctAnswer: string) => Promise<void>;
   onHideAnswer?: (questionId: string) => Promise<void>;
+  /** Navigate back to the manager view without ending the quiz. */
+  onBack?: () => void;
 }
 
 export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
@@ -97,6 +100,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onRemoveStudent,
   onRevealAnswer,
   onHideAnswer,
+  onBack,
 }) => {
   const pinToName = useMemo(
     () => buildPinToNameMap(rosters, config.periodName),
@@ -397,6 +401,25 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             className="flex items-center"
             style={{ gap: 'min(8px, 2cqmin)' }}
           >
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="flex items-center justify-center rounded-lg text-brand-blue-dark/70 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
+                style={{
+                  width: 'min(28px, 7cqmin)',
+                  height: 'min(28px, 7cqmin)',
+                }}
+                title="Back to assignments"
+                aria-label="Back to assignments"
+              >
+                <ArrowLeft
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              </button>
+            )}
             <div
               className="rounded-full bg-brand-red-primary animate-pulse shadow-[0_0_8px_rgba(173,33,34,0.5)]"
               style={{

@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Link2,
   Archive as ArchiveIcon,
+  Activity,
 } from 'lucide-react';
 import {
   QuizMetadata,
@@ -64,14 +65,16 @@ interface QuizManagerProps {
   rosters: ClassRoster[];
   config: QuizConfig;
 
-  // ─── Archive tab ───────────────────────────────────────────────────────────
+  // ─── Tabs ───────────────────────────────────────────────────────────────────
   /** Which manager tab is currently active. Defaults to `'library'`. */
-  managerTab?: 'library' | 'archive';
-  onTabChange?: (tab: 'library' | 'archive') => void;
+  managerTab?: 'library' | 'active' | 'archive';
+  onTabChange?: (tab: 'library' | 'active' | 'archive') => void;
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
   onArchiveMonitor?: (assignment: QuizAssignment) => void;
+  /** Start a paused assignment: resume + navigate to monitor. */
+  onArchiveStart?: (assignment: QuizAssignment) => void;
   onArchiveResults?: (assignment: QuizAssignment) => void;
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
   onArchiveShare?: (assignment: QuizAssignment) => void;
@@ -100,6 +103,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   assignmentsLoading = false,
   onArchiveCopyUrl,
   onArchiveMonitor,
+  onArchiveStart,
   onArchiveResults,
   onArchiveEditSettings,
   onArchiveShare,
@@ -487,42 +491,65 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
-          <div
-            className="bg-brand-blue-primary text-white flex items-center justify-center rounded-lg"
-            style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
-          >
-            {managerTab === 'archive' ? (
-              <ArchiveIcon
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-            ) : (
-              <BookOpen
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-            )}
-          </div>
-          <div className="flex flex-col">
-            <span
-              className="font-bold text-brand-blue-dark leading-none"
-              style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-            >
-              {managerTab === 'archive' ? 'Assignment Archive' : 'Quiz Library'}
-            </span>
-            <span
-              className="text-brand-blue-primary/70 font-medium"
-              style={{ fontSize: 'min(11px, 3cqmin)' }}
-            >
-              {managerTab === 'archive'
-                ? `${assignments.length} ${assignments.length === 1 ? 'assignment' : 'assignments'}`
-                : `${quizzes.length} saved ${quizzes.length === 1 ? 'quiz' : 'quizzes'}`}
-            </span>
-          </div>
+          {(() => {
+            const activeAssignments = assignments.filter(
+              (a) => a.status !== 'inactive'
+            );
+            const inactiveAssignments = assignments.filter(
+              (a) => a.status === 'inactive'
+            );
+            const iconStyle = {
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            };
+            const headerIcon =
+              managerTab === 'archive' ? (
+                <ArchiveIcon style={iconStyle} />
+              ) : managerTab === 'active' ? (
+                <Activity style={iconStyle} />
+              ) : (
+                <BookOpen style={iconStyle} />
+              );
+            const headerTitle =
+              managerTab === 'archive'
+                ? 'Archive'
+                : managerTab === 'active'
+                  ? 'In Progress'
+                  : 'Quiz Library';
+            const headerSub =
+              managerTab === 'archive'
+                ? `${inactiveAssignments.length} ended`
+                : managerTab === 'active'
+                  ? `${activeAssignments.length} ${activeAssignments.length === 1 ? 'assignment' : 'assignments'}`
+                  : `${quizzes.length} saved ${quizzes.length === 1 ? 'quiz' : 'quizzes'}`;
+            return (
+              <>
+                <div
+                  className="bg-brand-blue-primary text-white flex items-center justify-center rounded-lg"
+                  style={{
+                    width: 'min(24px, 6cqmin)',
+                    height: 'min(24px, 6cqmin)',
+                  }}
+                >
+                  {headerIcon}
+                </div>
+                <div className="flex flex-col">
+                  <span
+                    className="font-bold text-brand-blue-dark leading-none"
+                    style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                  >
+                    {headerTitle}
+                  </span>
+                  <span
+                    className="text-brand-blue-primary/70 font-medium"
+                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                  >
+                    {headerSub}
+                  </span>
+                </div>
+              </>
+            );
+          })()}
         </div>
         {managerTab === 'library' && (
           <div
@@ -568,56 +595,125 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         )}
       </div>
 
-      {/* Tab switcher — Library / Archive */}
-      <div
-        className="flex border-b border-brand-blue-primary/10 bg-brand-blue-lighter/10"
-        style={{
-          padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin) 0',
-          gap: 'min(4px, 1cqmin)',
-        }}
-      >
-        {(['library', 'archive'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => onTabChange?.(tab)}
-            className={`font-black uppercase tracking-widest rounded-t-xl transition-all flex items-center ${
-              managerTab === tab
-                ? 'bg-white text-brand-blue-primary border-x border-t border-brand-blue-primary/10'
-                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-            }`}
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(14px, 3.5cqmin)',
-              fontSize: 'min(10px, 3cqmin)',
-            }}
-          >
-            {tab === 'library' ? (
+      {/* Tab switcher — Library / In Progress / Archive */}
+      {(() => {
+        const activeCount = assignments.filter(
+          (a) => a.status !== 'inactive'
+        ).length;
+        const tabs: {
+          key: 'library' | 'active' | 'archive';
+          label: string;
+          icon: React.ReactNode;
+          badge?: number;
+        }[] = [
+          {
+            key: 'library',
+            label: 'Library',
+            icon: (
               <BookOpen
                 style={{
                   width: 'min(12px, 3cqmin)',
                   height: 'min(12px, 3cqmin)',
                 }}
               />
-            ) : (
+            ),
+          },
+          {
+            key: 'active',
+            label: 'In Progress',
+            icon: (
+              <Activity
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+            ),
+            badge: activeCount > 0 ? activeCount : undefined,
+          },
+          {
+            key: 'archive',
+            label: 'Archive',
+            icon: (
               <ArchiveIcon
                 style={{
                   width: 'min(12px, 3cqmin)',
                   height: 'min(12px, 3cqmin)',
                 }}
               />
-            )}
-            {tab}
-          </button>
-        ))}
-      </div>
+            ),
+          },
+        ];
 
-      {/* Archive tab content */}
-      {managerTab === 'archive' && (
+        return (
+          <div
+            className="flex border-b border-brand-blue-primary/10 bg-brand-blue-lighter/10"
+            style={{
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin) 0',
+              gap: 'min(2px, 0.5cqmin)',
+            }}
+          >
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => onTabChange?.(tab.key)}
+                className={`font-black uppercase tracking-widest rounded-t-xl transition-all flex items-center ${
+                  managerTab === tab.key
+                    ? 'bg-white text-brand-blue-primary border-x border-t border-brand-blue-primary/10'
+                    : 'text-brand-blue-primary/40 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                }`}
+                style={{
+                  gap: 'min(4px, 1cqmin)',
+                  padding: 'min(7px, 1.75cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'min(9px, 2.75cqmin)',
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.badge != null && (
+                  <span
+                    className="bg-emerald-500 text-white rounded-full font-bold leading-none"
+                    style={{
+                      padding: 'min(1px, 0.25cqmin) min(5px, 1.25cqmin)',
+                      fontSize: 'min(8px, 2.25cqmin)',
+                    }}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* In Progress tab content — active/paused assignments */}
+      {managerTab === 'active' && (
         <QuizAssignmentArchive
-          assignments={assignments}
+          assignments={assignments.filter((a) => a.status !== 'inactive')}
           loading={assignmentsLoading}
+          mode="active"
           onCopyUrl={onArchiveCopyUrl ?? noop}
           onMonitor={onArchiveMonitor ?? noop}
+          onStart={onArchiveStart ?? noop}
+          onResults={onArchiveResults ?? noop}
+          onEditSettings={onArchiveEditSettings ?? noop}
+          onShare={onArchiveShare ?? noop}
+          onPauseResume={onArchivePauseResume ?? noop}
+          onDeactivate={onArchiveDeactivate ?? noop}
+          onDelete={onArchiveDelete ?? noop}
+        />
+      )}
+
+      {/* Archive tab content — inactive assignments */}
+      {managerTab === 'archive' && (
+        <QuizAssignmentArchive
+          assignments={assignments.filter((a) => a.status === 'inactive')}
+          loading={assignmentsLoading}
+          mode="archive"
+          onCopyUrl={onArchiveCopyUrl ?? noop}
+          onMonitor={onArchiveMonitor ?? noop}
+          onStart={onArchiveStart ?? noop}
           onResults={onArchiveResults ?? noop}
           onEditSettings={onArchiveEditSettings ?? noop}
           onShare={onArchiveShare ?? noop}

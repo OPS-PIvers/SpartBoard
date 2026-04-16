@@ -163,7 +163,7 @@ export const DashboardView: React.FC = () => {
   // Helper: open (or create) a Quiz widget and set its managerTab.
   // Used by pending-share effects to surface the imported content to the user.
   const openQuizWidgetToTab = React.useCallback(
-    (tab: 'library' | 'archive') => {
+    (tab: 'library' | 'active' | 'archive') => {
       const quizWidget = activeDashboard?.widgets.find(
         (w) => w.type === 'quiz'
       );
@@ -233,8 +233,11 @@ export const DashboardView: React.FC = () => {
       return { id: meta.id, driveFileId: meta.driveFileId };
     })
       .then(() => {
-        addToast('Shared assignment imported (paused).', 'success');
-        openQuizWidgetToTab('archive');
+        addToast(
+          'Shared assignment imported! Click Start to begin.',
+          'success'
+        );
+        openQuizWidgetToTab('active');
       })
       .catch((err: unknown) => {
         const msg =

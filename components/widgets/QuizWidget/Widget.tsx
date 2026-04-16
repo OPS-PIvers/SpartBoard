@@ -563,7 +563,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           } else {
             await endQuizSession();
           }
-          setView('manager');
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'manager',
+              managerTab: 'archive',
+            } as QuizConfig,
+          });
         }}
         onPause={
           config.activeAssignmentId
@@ -591,6 +597,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onRemoveStudent={removeStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
+        onBack={() => {
+          // Navigate back to the In Progress tab without ending the quiz.
+          // The assignment stays active/paused — students are unaffected.
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'manager',
+              managerTab: 'active',
+            } as QuizConfig,
+          });
+        }}
       />
     );
   }
@@ -657,6 +674,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               config: {
                 ...config,
                 view: 'monitor',
+                managerTab: 'active',
                 selectedQuizId: meta.id,
                 selectedQuizTitle: meta.title,
                 activeAssignmentId: assignmentId,
@@ -777,6 +795,42 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
           const data = await loadQuiz(meta);
           if (!data) return;
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'monitor',
+              selectedQuizId: a.quizId,
+              selectedQuizTitle: a.quizTitle,
+              activeAssignmentId: a.id,
+              activeLiveSessionCode: a.code,
+              periodName: a.periodName ?? '',
+              teacherName: a.teacherName ?? '',
+              plcMode: a.plcMode,
+              plcSheetUrl: a.plcSheetUrl ?? '',
+            } as QuizConfig,
+          });
+        }}
+        onArchiveStart={async (a) => {
+          // Resume the paused assignment, then open the monitor view.
+          const meta = quizzes.find((q) => q.id === a.quizId);
+          if (!meta) {
+            addToast(
+              'Quiz is no longer in your library — cannot start.',
+              'error'
+            );
+            return;
+          }
+          const data = await loadQuiz(meta);
+          if (!data) return;
+          try {
+            await resumeAssignment(a.id);
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to resume',
+              'error'
+            );
+            return;
+          }
           updateWidget(widget.id, {
             config: {
               ...config,
