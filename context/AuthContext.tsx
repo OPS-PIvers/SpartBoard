@@ -902,17 +902,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.removeItem(LAST_ACTIVITY_KEY);
             localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
             localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
+            // Transition UI to signed-out immediately so the login screen
+            // shows without waiting for the async firebaseSignOut round-trip.
+            setUser(null);
+            setGoogleAccessToken(null);
+            rootDocSyncedRef.current = false;
+            setLoading(false);
             void firebaseSignOut(auth).catch((err: unknown) => {
               console.error(
                 '[AuthContext] Error signing out stale session:',
                 err
               );
-              // Force local state to signed-out even if Firebase sign-out fails
-              setUser(null);
-              setGoogleAccessToken(null);
-              setLoading(false);
             });
-            return; // onAuthStateChanged will fire again with user = null
+            return;
           }
         }
         // Session is fresh (or first visit) — record activity
@@ -1140,6 +1142,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     try {
       localStorage.removeItem(LAST_ACTIVITY_KEY);
+      localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+      localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
       await firebaseSignOut(auth);
       setGoogleAccessToken(null);
     } catch (error) {
