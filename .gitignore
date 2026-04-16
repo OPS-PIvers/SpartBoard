@@ -54,6 +54,7 @@ coverage/
 gha-creds-*.json
 eslint-output.txt
 .claude/scheduled_tasks.lock
+.claude/worktrees/
 
 # Verification / QA test artifacts
 verification/

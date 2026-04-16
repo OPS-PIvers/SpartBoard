@@ -123,7 +123,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       await onSave(patch);
       onClose();
     } catch (err) {
-      console.error('[QuizAssignmentSettingsModal] save failed:', err);
+      if (import.meta.env.DEV)
+        console.error('[QuizAssignmentSettingsModal] save failed:', err);
     } finally {
       setSaving(false);
     }

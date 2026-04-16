@@ -157,7 +157,9 @@ export const useQuizAssignments = (
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setAssignments(snap.docs.map((d) => d.data() as QuizAssignment));
+        setAssignments(
+          snap.docs.map((d) => ({ ...d.data(), id: d.id }) as QuizAssignment)
+        );
         setLoading(false);
       },
       (err) => {

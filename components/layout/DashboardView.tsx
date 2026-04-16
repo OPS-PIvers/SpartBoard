@@ -225,7 +225,7 @@ export const DashboardView: React.FC = () => {
 
   // Handle pending shared assignment import from URL/paste.
   // Imports copy the quiz into the user's library and create a paused
-  // assignment, then surface the Quiz widget to the Archive tab.
+  // assignment, then surface the Quiz widget to the Active tab.
   useEffect(() => {
     if (!pendingAssignmentShareId || !user) return;
     void importSharedAssignment(pendingAssignmentShareId, async (quiz) => {

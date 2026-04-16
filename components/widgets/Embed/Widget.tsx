@@ -109,9 +109,11 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // If an EmbedWidget is ever rendered outside DraggableWindow (preview
       // surfaces, starter-pack thumbnails, etc.) the toolbar silently won't
       // render — this warns so the gap is discoverable.
-      console.warn(
-        `[EmbedWidget] No [data-widget-id="${widget.id}"] ancestor found; floating toolbar will not render.`
-      );
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[EmbedWidget] No [data-widget-id="${widget.id}"] ancestor found; floating toolbar will not render.`
+        );
+      }
     }
     setWidgetEl(el);
     if (el) setRect(el.getBoundingClientRect());
