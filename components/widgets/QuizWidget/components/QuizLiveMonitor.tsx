@@ -410,6 +410,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   height: 'min(28px, 7cqmin)',
                 }}
                 title="Back to assignments"
+                aria-label="Back to assignments"
               >
                 <ArrowLeft
                   style={{

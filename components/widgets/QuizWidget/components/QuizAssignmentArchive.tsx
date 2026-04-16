@@ -120,6 +120,9 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ items }) => {
           height: 'min(28px, 7cqmin)',
         }}
         title="More actions"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <MoreHorizontal
           style={{
@@ -356,9 +359,7 @@ export const QuizAssignmentArchive: React.FC<QuizAssignmentArchiveProps> = ({
           }
 
           // Remove the primary action from the overflow menu to avoid duplication
-          // For paused-active assignments, "Resume" is primary; for active "Monitor" is primary.
-          // We keep "Monitor" in overflow for active cards since primary IS monitor.
-          // Actually, let's just filter out exact duplicates by label:
+          // by filtering out any menu item whose label matches the primary action.
           const filteredMenu = menuItems.filter(
             (m) => m.label !== primaryLabel
           );
