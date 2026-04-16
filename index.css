@@ -155,7 +155,8 @@ body.is-dragging-widget video {
   .animate-pulse,
   .animate-jiggle,
   .animate-shimmer,
-  .animate-marquee {
+  .animate-marquee,
+  .animate-dice-jitter {
     animation: none !important;
   }
 

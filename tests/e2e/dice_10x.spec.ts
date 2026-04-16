@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { mkdirSync } from 'fs';
 
 test('Dice Widget 10x Enhancement Verification', async ({ page }) => {
+  mkdirSync('verification', { recursive: true });
   await page.goto('/');
 
   // Wait for the app to be ready - Open Menu is a good indicator

@@ -143,7 +143,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 : 'bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:scale-90 hover:shadow-purple-500/30'
             }
           `}
-            style={{ fontSize: '20px' }}
+            style={{ fontSize: 'min(20px, 5cqmin)' }}
           >
             <RefreshCw
               style={{ width: '1.2em', height: '1.2em' }}
