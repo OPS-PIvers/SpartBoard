@@ -318,7 +318,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   data-placeholder={PLACEHOLDER_TEXT}
                   contentEditable
                   suppressContentEditableWarning
-                  spellCheck={isSelected}
+                  spellCheck={true}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
                   onInput={handleInput}
