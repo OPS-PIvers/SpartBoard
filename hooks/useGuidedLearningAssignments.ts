@@ -15,7 +15,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -199,10 +198,6 @@ export const useGuidedLearningAssignments = (
     },
     [userId]
   );
-
-  // `deleteDoc` is imported indirectly (firestore batch handles deletes), but
-  // kept here to make per-single deletes trivial if needed later.
-  void deleteDoc;
 
   return {
     assignments,

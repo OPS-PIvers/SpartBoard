@@ -155,10 +155,12 @@ const MODE_LABELS: Record<GuidedLearningSet['mode'], string> = {
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
+// Non-admins still see building sets (they're shared with the whole
+// building), so we always concatenate; only the toolbar "Source" filter
+// affordance is admin-gated (handled at the component level).
 const buildLibraryEntries = (
   sets: GuidedLearningSetMetadata[],
-  buildingSets: GuidedLearningSet[],
-  isAdmin: boolean
+  buildingSets: GuidedLearningSet[]
 ): LibraryEntry[] => {
   const personal: LibraryEntry[] = sets.map((meta) => ({
     id: `personal:${meta.id}`,
@@ -170,9 +172,7 @@ const buildLibraryEntries = (
     imageUrl: meta.imageUrl,
     updatedAt: meta.updatedAt,
     createdAt: meta.createdAt,
-    // `order` is optional on GuidedLearningSetMetadata today — read as unknown
-    // to stay forward-compatible when the field is added.
-    order: (meta as GuidedLearningSetMetadata & { order?: number }).order,
+    order: meta.order,
     driveFileId: meta.driveFileId,
   }));
 
@@ -189,10 +189,6 @@ const buildLibraryEntries = (
     buildingSet: set,
   }));
 
-  // Non-admins still see building sets (they're shared with the whole
-  // building), so we always concatenate; only the filter affordance is
-  // admin-gated.
-  void isAdmin;
   return [...personal, ...building];
 };
 
@@ -234,8 +230,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   const allEntries = useMemo(
-    () => buildLibraryEntries(sets, buildingSets, isAdmin),
-    [sets, buildingSets, isAdmin]
+    () => buildLibraryEntries(sets, buildingSets),
+    [sets, buildingSets]
   );
 
   // ─── Toolbar state (search/sort/filter) via useLibraryView ────────────────
@@ -473,7 +469,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     a: GuidedLearningAssignment,
     mode: 'active' | 'archive'
   ): React.ReactElement => {
-    const studentLink = `${window.location.origin}/guided-learning?session=${a.sessionId}`;
+    // Matches the path form produced by useGuidedLearningSession.createSession
+    // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
+    const studentLink = `${window.location.origin}/guided-learning/${a.sessionId}`;
 
     const badges: LibraryBadge[] =
       mode === 'active'

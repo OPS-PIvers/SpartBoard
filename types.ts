@@ -2419,6 +2419,11 @@ export interface GuidedLearningSetMetadata {
   driveFileId: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Optional manual sort order, written by the Library "Manual order" reorder
+   * flow. Omitted for sets that have never been manually reordered.
+   */
+  order?: number;
 }
 
 /**

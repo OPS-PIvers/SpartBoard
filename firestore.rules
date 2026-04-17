@@ -464,8 +464,13 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.resource.data.teacherUid == request.auth.uid;
-      // Sessions are immutable after creation
-      allow update, delete: if false;
+      // Sessions are otherwise immutable; only the owning teacher (or admin)
+      // may delete — used by the Wave 2-GL "Delete permanently" action in the
+      // Assignment archive to clean up the session along with the per-teacher
+      // assignment doc.
+      allow update: if false;
+      allow delete: if request.auth != null &&
+        (resource.data.teacherUid == request.auth.uid || isAdmin());
 
       match /responses/{studentUid} {
         // Teacher can read all responses; students can only read their own
@@ -490,7 +495,12 @@ service cloud.firestore {
           request.resource.data.score == resource.data.score &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt', 'pin']) &&
           request.resource.data.answers.size() >= resource.data.answers.size();
-        allow delete: if false;
+        // Owning teacher (or admin) may delete responses — used when the
+        // teacher permanently deletes an assignment.
+        allow delete: if request.auth != null && (
+          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          isAdmin()
+        );
       }
     }
 
@@ -558,7 +568,7 @@ service cloud.firestore {
     // === Guided Learning assignments (Wave 2-GL) ===
     // Per-teacher archive of guided learning assignments. Owner-only read/write.
     match /users/{userId}/guided_learning_assignments/{id} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Default deny all other collections

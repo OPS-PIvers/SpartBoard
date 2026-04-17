@@ -249,7 +249,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleAssignmentCopyLink = async (
     assignment: GuidedLearningAssignment
   ) => {
-    const url = `${window.location.origin}/guided-learning?session=${assignment.sessionId}`;
+    // Path form matches useGuidedLearningSession.createSession() and the
+    // student-app route (App.tsx mounts on /guided-learning/:sessionId).
+    const url = `${window.location.origin}/guided-learning/${assignment.sessionId}`;
     try {
       await navigator.clipboard.writeText(url);
       addToast('Student link copied!', 'success');
