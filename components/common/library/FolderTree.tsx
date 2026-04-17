@@ -172,7 +172,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
   return (
     <div
       ref={enableDrop ? droppable.setNodeRef : undefined}
-      className={`group relative flex items-center gap-1 rounded-lg text-sm font-medium cursor-pointer select-none transition-colors ${
+      className={`group relative flex items-center gap-1 rounded-lg text-sm font-medium select-none transition-colors ${
         isSelected
           ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
           : 'text-slate-700 hover:bg-slate-100'
@@ -182,25 +182,6 @@ const FolderRow: React.FC<FolderRowProps> = ({
           : ''
       }`}
       style={{ paddingLeft: depth * INDENT_PX + 4 }}
-      onClick={() => onSelectFolder(folder.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelectFolder(folder.id);
-        } else if (e.key === 'ArrowRight' && hasChildren && !isExpanded) {
-          e.preventDefault();
-          onToggleExpanded(folder.id);
-        } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
-          e.preventDefault();
-          onToggleExpanded(folder.id);
-        } else if (e.key === 'F2') {
-          e.preventDefault();
-          onStartRename(folder.id);
-        }
-      }}
-      tabIndex={0}
-      role="button"
-      aria-label={`${folder.name}, ${count} items`}
     >
       {/* Expand/collapse chevron. */}
       <button
@@ -222,24 +203,56 @@ const FolderRow: React.FC<FolderRowProps> = ({
         ) : null}
       </button>
 
-      {/* Folder icon. */}
-      <span className="shrink-0 text-brand-blue-primary/80">
-        {isExpanded && hasChildren ? (
-          <FolderOpen size={14} />
-        ) : (
-          <Folder size={14} />
-        )}
-      </span>
-
-      {/* Folder name (or inline rename input). */}
+      {/* Primary select action — a real <button> wrapping the folder icon +
+          name. Kept distinct from the outer container so the chevron and
+          overflow menu buttons aren't nested inside another interactive
+          element (HTML spec + screen-reader clarity). During inline rename
+          we render the input in its place to avoid nesting an <input> inside
+          a <button>, which is invalid HTML. */}
       {isRenaming ? (
-        <RenameInput
-          initial={folder.name}
-          onCommit={(next) => onCommitRename(folder.id, next)}
-          onCancel={onCancelRename}
-        />
+        <span className="flex-1 min-w-0 flex items-center gap-1 py-1">
+          <span className="shrink-0 text-brand-blue-primary/80">
+            {isExpanded && hasChildren ? (
+              <FolderOpen size={14} />
+            ) : (
+              <Folder size={14} />
+            )}
+          </span>
+          <RenameInput
+            initial={folder.name}
+            onCommit={(next) => onCommitRename(folder.id, next)}
+            onCancel={onCancelRename}
+          />
+        </span>
       ) : (
-        <span className="flex-1 min-w-0 truncate py-1">{folder.name}</span>
+        <button
+          type="button"
+          onClick={() => onSelectFolder(folder.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' && hasChildren && !isExpanded) {
+              e.preventDefault();
+              onToggleExpanded(folder.id);
+            } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
+              e.preventDefault();
+              onToggleExpanded(folder.id);
+            } else if (e.key === 'F2') {
+              e.preventDefault();
+              onStartRename(folder.id);
+            }
+          }}
+          className="flex-1 min-w-0 flex items-center gap-1 py-1 text-left cursor-pointer"
+          aria-label={`${folder.name}, ${count} items`}
+          aria-pressed={isSelected}
+        >
+          <span className="shrink-0 text-brand-blue-primary/80">
+            {isExpanded && hasChildren ? (
+              <FolderOpen size={14} />
+            ) : (
+              <Folder size={14} />
+            )}
+          </span>
+          <span className="flex-1 min-w-0 truncate">{folder.name}</span>
+        </button>
       )}
 
       {/* Item count badge. */}
