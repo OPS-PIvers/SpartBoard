@@ -1160,6 +1160,11 @@ export interface MiniAppItem {
   html: string;
   createdAt: number;
   order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/miniapp_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 /**
@@ -1518,6 +1523,11 @@ export interface QuizMetadata {
   questionCount: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/quiz_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -1817,6 +1827,11 @@ export interface VideoActivityMetadata {
   updatedAt: number;
   /** Optional manual ordering index for drag-reorder in the Library view. */
   order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/video_activity_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results';
@@ -2424,6 +2439,11 @@ export interface GuidedLearningSetMetadata {
    * flow. Omitted for sets that have never been manually reordered.
    */
   order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/guided_learning_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 /**
@@ -3580,4 +3600,59 @@ export interface GuidedLearningAssignment {
   archivedAt?: number | null;
   /** Optional origin set: 'personal' (Drive) or 'building' (Firestore). */
   source?: 'personal' | 'building';
+}
+
+// === Library folders (Wave 3) ===
+//
+// Folder organization for the four library-style widgets (Quiz, Video
+// Activity, Guided Learning, MiniApp). Each widget has its OWN folders
+// collection — folders are never shared across widgets.
+//
+// Storage shape: a flat per-widget collection at
+//   /users/{userId}/{widget}_folders/{folderId}
+// where `{widget}` is one of `quiz`, `video_activity`, `guided_learning`,
+// `miniapp`. Nested folders are modeled via `parentId` (string id of
+// the parent, or `null` for root) rather than nested subcollection paths.
+//
+// Why flat-collection-with-`parentId` instead of nested paths:
+//   - Firestore cannot query across subcollection segments. A flat
+//     collection lets us list all folders for a widget in one snapshot
+//     and build the tree client-side, and lets us reorder / move between
+//     folders with a single-field update.
+//   - Library items (quizzes, activities, sets, miniapps) stay in their
+//     existing metadata collections; each item gains an optional
+//     `folderId` pointer. `null` / missing means root.
+//
+// Implementation lands in Wave 3-B. This schema PR only introduces the
+// types, the Firestore security rules, and empty stubs for the consumer
+// hook + UI components.
+
+/** Which library the folders belong to. Folders never cross widgets. */
+export type LibraryFolderWidget =
+  | 'quiz'
+  | 'video_activity'
+  | 'guided_learning'
+  | 'miniapp';
+
+/**
+ * A folder record stored at
+ * `/users/{userId}/{widget}_folders/{folderId}`.
+ *
+ * Siblings within a given `parentId` are ordered by the `order` field
+ * (ascending); ties break by `createdAt`. `parentId: null` = root-level
+ * folder. Folder-name uniqueness is NOT enforced by the schema — the UI
+ * layer may append " (2)" on collision, but two sibling folders are
+ * allowed to share a name if the user really wants that.
+ */
+export interface LibraryFolder {
+  id: string;
+  name: string;
+  /** Parent folder id, or `null` for root-level folders. */
+  parentId: string | null;
+  /** Sort order among siblings (ascending). */
+  order: number;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
+  updatedAt?: number;
 }

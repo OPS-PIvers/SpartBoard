@@ -580,6 +580,25 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // === Library folders (Wave 3) ===
+    // Per-teacher folder tree for each library-style widget (Quiz, Video
+    // Activity, Guided Learning, MiniApp). Folders never cross widgets —
+    // each widget has its own collection. Owner-only read/write, matching
+    // the *_assignments pattern above. Wave 3-A ships the rules + schema;
+    // Wave 3-B wires the UI.
+    match /users/{userId}/quiz_folders/{folderId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/video_activity_folders/{folderId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/guided_learning_folders/{folderId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/miniapp_folders/{folderId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;
