@@ -93,6 +93,12 @@ export interface Student {
    * name changes upstream. Undefined for manually created students.
    */
   classLinkSourcedId?: string;
+  /**
+   * Stable IDs of classmates this student must never be grouped with in the
+   * Randomizer's group-maker mode. Maintained bidirectionally: if B is in A's
+   * list, A is in B's list.
+   */
+  restrictedStudentIds?: string[];
 }
 
 /**
@@ -107,6 +113,13 @@ export interface ClassRosterMeta {
   /** Denormalised count for UI display without loading Drive */
   studentCount: number;
   createdAt: number;
+  /**
+   * Daily absent list. The Randomizer excludes these students from picks,
+   * shuffles, and groups on the matching date. Treated as empty when `date`
+   * does not equal today in the teacher's local timezone — so stale entries
+   * from prior days are auto-ignored without needing cleanup.
+   */
+  absent?: { date: string; studentIds: string[] };
 }
 
 /**

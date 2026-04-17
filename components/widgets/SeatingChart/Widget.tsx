@@ -28,6 +28,7 @@ import {
 } from './constants';
 import { useDialog } from '@/context/useDialog';
 import { shuffleArray, getRandomInt } from '@/utils/randomHelpers';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 // Drag state tracks current positions for all items being dragged simultaneously
 type DragPositions = Map<string, { x: number; y: number }>;
@@ -956,28 +957,32 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           })}
 
           {furniture.length === 0 && mode !== 'setup' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
-              <LayoutGrid className="w-12 h-12 opacity-20 mb-2" />
-              <p className="text-sm font-bold uppercase tracking-widest">
-                Empty Classroom
-              </p>
-              <p className="text-xs">
-                Switch to &quot;Setup&quot; to arrange furniture.
-              </p>
+            <div
+              data-testid="seating-chart-empty-assign"
+              className="absolute inset-0 pointer-events-none"
+            >
+              <ScaledEmptyState
+                icon={LayoutGrid}
+                title={t('widgets.seatingChart.emptyStateAssignTitle')}
+                subtitle={t('widgets.seatingChart.emptyStateAssignSubtitle')}
+              />
             </div>
           )}
 
           {furniture.length === 0 && mode === 'setup' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
-              <LayoutTemplate className="w-12 h-12 opacity-20 mb-2" />
-              <p className="text-sm font-bold uppercase tracking-widest">
-                No Furniture
-              </p>
-              <p className="text-xs">
-                {template === 'freeform'
-                  ? t('widgets.seatingChart.emptyStateFreeform')
-                  : t('widgets.seatingChart.emptyStateTemplate')}
-              </p>
+            <div
+              data-testid="seating-chart-empty-setup"
+              className="absolute inset-0 pointer-events-none"
+            >
+              <ScaledEmptyState
+                icon={LayoutTemplate}
+                title={t('widgets.seatingChart.emptyStateSetupTitle')}
+                subtitle={
+                  template === 'freeform'
+                    ? t('widgets.seatingChart.emptyStateFreeform')
+                    : t('widgets.seatingChart.emptyStateTemplate')
+                }
+              />
             </div>
           )}
         </div>

@@ -77,6 +77,7 @@ vi.mock('../hooks/useRosters', () => ({
     updateRoster: vi.fn(),
     deleteRoster: vi.fn(),
     setActiveRoster: vi.fn(),
+    setAbsentStudents: vi.fn(),
   }),
 }));
 

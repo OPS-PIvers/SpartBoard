@@ -276,6 +276,9 @@ const mockDashboard: DashboardContextValue = {
   setActiveRoster: () => {
     // No-op
   },
+  setAbsentStudents: async () => {
+    // No-op — student view doesn't edit attendance
+  },
   // Annotation (app-level overlay) — not applicable in student view
   annotationActive: false,
   annotationState: {

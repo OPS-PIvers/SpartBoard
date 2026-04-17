@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, AlertTriangle, X, Plus, Users } from 'lucide-react';
 import { Student, ClassRoster } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
+import {
+  RestrictionsPicker,
+  RestrictionsPickerCandidate,
+} from './RestrictionsPicker';
 
 interface RosterEditorModalProps {
   isOpen: boolean;
@@ -39,6 +43,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     handleToggleLastNames,
     showPins,
     setShowPins,
+    showRestrictions,
+    setShowRestrictions,
+    toggleRestriction,
     validStudents,
     duplicatePins,
   } = useRosterRowsState(roster);
@@ -122,6 +129,22 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     defaultValue: '+ Quiz PIN',
                   })}
             </button>
+            <button
+              onClick={() => setShowRestrictions((v) => !v)}
+              className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                showRestrictions
+                  ? 'text-slate-400 hover:text-red-500'
+                  : 'text-amber-600 hover:text-amber-700'
+              }`}
+            >
+              {showRestrictions
+                ? t('sidebar.classes.hideRestrictions', {
+                    defaultValue: '− Restrictions',
+                  })
+                : t('sidebar.classes.addRestrictions', {
+                    defaultValue: '+ Restrictions',
+                  })}
+            </button>
           </div>
           <p className="text-xs text-slate-400 italic">
             {t('sidebar.classes.bulkPasteTip', {
@@ -160,6 +183,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               <RosterHeader
                 showLastNames={showLastNames}
                 showPins={showPins}
+                showRestrictions={showRestrictions}
                 firstLabel={
                   showLastNames
                     ? t('sidebar.classes.firstName', {
@@ -175,6 +199,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 pinLabel={t('sidebar.classes.quizPin', {
                   defaultValue: 'Quiz PIN',
                 })}
+                restrictionsLabel={t('sidebar.classes.restrictionsHeader', {
+                  defaultValue: 'Restricted from working with',
+                })}
               />
               <ul className="flex flex-col divide-y divide-slate-100">
                 {rows.map((row, idx) => (
@@ -184,6 +211,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     index={idx}
                     showLastNames={showLastNames}
                     showPins={showPins}
+                    showRestrictions={showRestrictions}
+                    allRows={rows}
                     isDuplicatePin={
                       !!row.pin.trim() && duplicatePins.has(row.pin.trim())
                     }
@@ -211,6 +240,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     onBulkPaste={(text) =>
                       bulkPasteInto(row.id, text, showLastNames)
                     }
+                    onToggleRestriction={(otherId) =>
+                      toggleRestriction(row.id, otherId)
+                    }
                   />
                 ))}
               </ul>
@@ -236,29 +268,38 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 interface RosterHeaderProps {
   showLastNames: boolean;
   showPins: boolean;
+  showRestrictions: boolean;
   firstLabel: string;
   lastLabel: string;
   pinLabel: string;
+  restrictionsLabel: string;
 }
 
 const RosterHeader: React.FC<RosterHeaderProps> = ({
   showLastNames,
   showPins,
+  showRestrictions,
   firstLabel,
   lastLabel,
   pinLabel,
+  restrictionsLabel,
 }) => {
   return (
     <div
       className="hidden md:grid items-center gap-3 px-3 py-2 bg-slate-100/60 border-b border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-widest sticky top-0 z-10"
       style={{
-        gridTemplateColumns: buildGridTemplate(showLastNames, showPins),
+        gridTemplateColumns: buildGridTemplate(
+          showLastNames,
+          showPins,
+          showRestrictions
+        ),
       }}
     >
       <span className="text-right pr-1">#</span>
       {showPins && <span>{pinLabel}</span>}
       <span>{firstLabel}</span>
       {showLastNames && <span>{lastLabel}</span>}
+      {showRestrictions && <span>{restrictionsLabel}</span>}
       <span />
     </div>
   );
@@ -269,6 +310,8 @@ interface RosterRowProps {
   index: number;
   showLastNames: boolean;
   showPins: boolean;
+  showRestrictions: boolean;
+  allRows: DraftRow[];
   isDuplicatePin: boolean;
   firstNamePlaceholder: string;
   lastNamePlaceholder: string;
@@ -277,6 +320,7 @@ interface RosterRowProps {
   onChange: (patch: Partial<DraftRow>) => void;
   onDelete: () => void;
   onBulkPaste: (text: string) => void;
+  onToggleRestriction: (otherId: string) => void;
 }
 
 const RosterRow: React.FC<RosterRowProps> = ({
@@ -284,6 +328,8 @@ const RosterRow: React.FC<RosterRowProps> = ({
   index,
   showLastNames,
   showPins,
+  showRestrictions,
+  allRows,
   isDuplicatePin,
   firstNamePlaceholder,
   lastNamePlaceholder,
@@ -292,6 +338,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
   onChange,
   onDelete,
   onBulkPaste,
+  onToggleRestriction,
 }) => {
   const handleFirstNamePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const text = e.clipboardData.getData('text');
@@ -301,11 +348,28 @@ const RosterRow: React.FC<RosterRowProps> = ({
     }
   };
 
+  const candidates = useMemo<RestrictionsPickerCandidate[]>(() => {
+    const idToIndex = new Map(allRows.map((r, i) => [r.id, i + 1]));
+    return allRows
+      .filter((r) => r.id !== row.id)
+      .map((r) => ({
+        id: r.id,
+        label:
+          `${r.firstName} ${r.lastName}`.trim() ||
+          `(unnamed #${idToIndex.get(r.id)})`,
+      }))
+      .filter((c) => c.label.length > 0);
+  }, [allRows, row.id]);
+
   return (
     <li
       className="grid items-center gap-3 px-3 py-2 hover:bg-white transition-colors"
       style={{
-        gridTemplateColumns: buildGridTemplate(showLastNames, showPins),
+        gridTemplateColumns: buildGridTemplate(
+          showLastNames,
+          showPins,
+          showRestrictions
+        ),
       }}
     >
       <span className="text-xs text-slate-400 font-mono text-right pr-1">
@@ -338,6 +402,13 @@ const RosterRow: React.FC<RosterRowProps> = ({
           value={row.lastName}
           onChange={(e) => onChange({ lastName: e.target.value })}
           placeholder={lastNamePlaceholder}
+        />
+      )}
+      {showRestrictions && (
+        <RestrictionsPicker
+          candidates={candidates}
+          selectedIds={row.restrictedStudentIds ?? []}
+          onToggle={onToggleRestriction}
         />
       )}
       <button
@@ -385,13 +456,18 @@ const RosterEmptyState: React.FC<RosterEmptyStateProps> = ({
 );
 
 /**
- * Grid columns: [#] [PIN?] [First] [Last?] [Delete]
+ * Grid columns: [#] [PIN?] [First] [Last?] [Restrictions?] [Delete]
  */
-function buildGridTemplate(showLastNames: boolean, showPins: boolean): string {
+function buildGridTemplate(
+  showLastNames: boolean,
+  showPins: boolean,
+  showRestrictions: boolean
+): string {
   const parts = ['2rem'];
   if (showPins) parts.push('5rem');
   parts.push('minmax(0, 1fr)');
   if (showLastNames) parts.push('minmax(0, 1fr)');
+  if (showRestrictions) parts.push('minmax(9rem, 14rem)');
   parts.push('2rem');
   return parts.join(' ');
 }

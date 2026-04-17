@@ -9,6 +9,7 @@ import {
   RandomGroup,
   SharedGroup,
   ScoreboardTeam,
+  Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
 import {
@@ -18,8 +19,12 @@ import {
   Target,
   RotateCcw,
   Trophy,
+  UserX,
 } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
+import { getLocalIsoDate } from '@/utils/localDate';
+import { makeNameGroups, makeRestrictedGroups } from './groupMaker';
+import { AbsentStudentsModal } from './AbsentStudentsModal';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
@@ -120,9 +125,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [rosters, activeRosterId]
   );
 
+  const presentClassStudents = useMemo<Student[]>(() => {
+    if (rosterMode !== 'class' || !activeRoster) return [];
+    const today = getLocalIsoDate();
+    const absentIds =
+      activeRoster.absent?.date === today
+        ? new Set(activeRoster.absent.studentIds)
+        : new Set<string>();
+    return activeRoster.students.filter((s) => !absentIds.has(s.id));
+  }, [activeRoster, rosterMode]);
+
   const students = useMemo(() => {
     if (rosterMode === 'class' && activeRoster) {
-      return activeRoster.students.map((s) =>
+      return presentClassStudents.map((s) =>
         `${s.firstName} ${s.lastName}`.trim()
       );
     }
@@ -146,7 +161,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       if (name) combined.push(name);
     }
     return combined;
-  }, [firstNames, lastNames, activeRoster, rosterMode]);
+  }, [firstNames, lastNames, activeRoster, rosterMode, presentClassStudents]);
+
+  const absentCount = useMemo(() => {
+    if (rosterMode !== 'class' || !activeRoster) return 0;
+    const today = getLocalIsoDate();
+    if (activeRoster.absent?.date !== today) return 0;
+    return activeRoster.absent.studentIds.length;
+  }, [activeRoster, rosterMode]);
+
+  const [absentModalOpen, setAbsentModalOpen] = useState(false);
 
   const shuffle = <T,>(array: T[]): T[] => {
     const newArr = [...array];
@@ -425,18 +449,26 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     } else {
       setTimeout(() => {
-        let result;
+        let result: string[] | RandomGroup[];
         if (mode === 'shuffle') {
           result = shuffle(students);
-        } else {
-          const shuffled = shuffle(students);
-          result = [];
-          for (let i = 0; i < shuffled.length; i += groupSize) {
-            result.push({
-              id: crypto.randomUUID(),
-              names: shuffled.slice(i, i + groupSize),
-            });
+        } else if (rosterMode === 'class' && activeRoster) {
+          const { groups, unsatisfied } = makeRestrictedGroups(
+            presentClassStudents,
+            groupSize
+          );
+          result = groups;
+          if (unsatisfied > 0) {
+            addToast(
+              t('widgets.random.restrictionsUnsatisfied', {
+                defaultValue:
+                  "Couldn't satisfy all restrictions — try again or adjust group size.",
+              }),
+              'warning'
+            );
           }
+        } else {
+          result = makeNameGroups(students, groupSize);
         }
         setDisplayResult(result);
         if (soundEnabled) playWinner();
@@ -520,244 +552,338 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     );
   };
 
+  const absentModal =
+    activeRoster && rosterMode === 'class' ? (
+      <AbsentStudentsModal
+        isOpen={absentModalOpen}
+        onClose={() => setAbsentModalOpen(false)}
+        roster={activeRoster}
+      />
+    ) : null;
+
   if (students.length === 0) {
+    const everyoneAbsent =
+      rosterMode === 'class' &&
+      activeRoster &&
+      activeRoster.students.length > 0 &&
+      absentCount >= activeRoster.students.length;
+
     return (
-      <div
-        className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
-        style={{
-          padding: 'min(24px, 5cqmin)',
-          gap: 'min(12px, 3cqmin)',
-        }}
-      >
-        <Users
-          className="opacity-20"
+      <>
+        <div
+          className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
           style={{
-            width: 'min(48px, 12cqmin)',
-            height: 'min(48px, 12cqmin)',
+            padding: 'min(24px, 5cqmin)',
+            gap: 'min(12px, 3cqmin)',
           }}
-        />
-        <div>
-          <p
-            className="uppercase tracking-widest font-bold"
+        >
+          <Users
+            className="opacity-20"
             style={{
-              fontSize: 'min(14px, 3.5cqmin)',
-              marginBottom: 'min(4px, 1cqmin)',
+              width: 'min(48px, 12cqmin)',
+              height: 'min(48px, 12cqmin)',
             }}
-          >
-            No Names Provided
-          </p>
-          <p style={{ fontSize: 'min(12px, 3cqmin)' }}>
-            Flip this widget to enter your student roster.
-          </p>
+          />
+          <div>
+            <p
+              className="uppercase tracking-widest font-bold"
+              style={{
+                fontSize: 'min(14px, 3.5cqmin)',
+                marginBottom: 'min(4px, 1cqmin)',
+              }}
+            >
+              {everyoneAbsent
+                ? t('widgets.random.everyoneAbsentTitle', {
+                    defaultValue: 'Everyone Absent Today',
+                  })
+                : t('widgets.random.noNamesTitle', {
+                    defaultValue: 'No Names Provided',
+                  })}
+            </p>
+            <p style={{ fontSize: 'min(12px, 3cqmin)' }}>
+              {everyoneAbsent
+                ? t('widgets.random.everyoneAbsentSubtitle', {
+                    defaultValue: 'Tap below to update attendance.',
+                  })
+                : t('widgets.random.noNamesSubtitle', {
+                    defaultValue:
+                      'Flip this widget to enter your student roster.',
+                  })}
+            </p>
+          </div>
+          {everyoneAbsent && (
+            <button
+              onClick={() => setAbsentModalOpen(true)}
+              className="mt-2 flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-full text-sm font-bold hover:bg-brand-blue-dark transition-colors"
+            >
+              <UserX size={14} />
+              {t('widgets.random.updateAttendance', {
+                defaultValue: 'Update attendance',
+              })}
+            </button>
+          )}
         </div>
-      </div>
+        {absentModal}
+      </>
     );
   }
 
   return (
-    <WidgetLayout
-      padding="p-0"
-      header={
-        <div
-          className="flex justify-between items-center w-full"
-          style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin) 0' }}
-        >
+    <>
+      <WidgetLayout
+        padding="p-0"
+        header={
           <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)' }}
+            className="flex justify-between items-center w-full"
+            style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin) 0' }}
           >
-            {mode === 'single' && (
-              <>
-                <button
-                  onClick={handleReset}
-                  disabled={
-                    isSpinning ||
-                    (remainingStudents.length === 0 && !displayResult)
-                  }
-                  className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
-                  style={{ padding: 'min(6px, 1.5cqmin)' }}
-                  title="Reset student pool"
-                >
-                  <RotateCcw
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                </button>
-                {remainingStudents.length > 0 && (
-                  <span
-                    className="font-black text-slate-500 uppercase tracking-tight bg-slate-50 rounded border border-slate-200"
-                    style={{
-                      fontSize: 'min(9px, 2.2cqmin)',
-                      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                    }}
+            <div
+              className="flex items-center"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              {mode === 'single' && (
+                <>
+                  <button
+                    onClick={handleReset}
+                    disabled={
+                      isSpinning ||
+                      (remainingStudents.length === 0 && !displayResult)
+                    }
+                    className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
+                    style={{ padding: 'min(6px, 1.5cqmin)' }}
+                    title="Reset student pool"
                   >
-                    {remainingStudents.length} Left
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-          {activeRoster && rosterMode === 'class' && (
-            <div
-              className="flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-              }}
-            >
-              <Target
-                className="text-brand-blue-primary"
-                style={{
-                  width: 'min(10px, 2.5cqmin)',
-                  height: 'min(10px, 2.5cqmin)',
-                }}
-              />
-              <span
-                className="font-black uppercase text-brand-blue-primary tracking-wider"
-                style={{ fontSize: 'min(9px, 2.2cqmin)' }}
-              >
-                {activeRoster.name}
-              </span>
-            </div>
-          )}
-        </div>
-      }
-      content={
-        <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 overflow-hidden">
-          {mode === 'single' ? (
-            renderSinglePick()
-          ) : (
-            <div
-              className="w-full h-full flex flex-col min-h-0"
-              style={{ padding: '0 min(8px, 2cqmin)' }}
-            >
-              {mode === 'shuffle' ? (
-                <div
-                  className="flex-1 overflow-y-auto w-full custom-scrollbar flex flex-col"
-                  style={{
-                    padding: 'min(4px, 1cqmin) 0',
-                    gap: 'min(4px, 1cqmin)',
-                  }}
-                >
-                  {(Array.isArray(displayResult) &&
-                  (displayResult.length === 0 ||
-                    !Array.isArray(displayResult[0]))
-                    ? (displayResult as string[])
-                    : []
-                  ).map((name: string, i: number) => (
-                    <div
-                      key={i}
-                      className="flex items-center bg-white rounded-xl border border-slate-200 transition-all hover:bg-slate-50 shadow-sm"
+                    <RotateCcw
                       style={{
-                        gap: 'min(12px, 3cqmin)',
-                        padding: 'min(8px, 2cqmin)',
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
+                      }}
+                    />
+                  </button>
+                  {remainingStudents.length > 0 && (
+                    <span
+                      className="font-black text-slate-500 uppercase tracking-tight bg-slate-50 rounded border border-slate-200"
+                      style={{
+                        fontSize: 'min(9px, 2.2cqmin)',
+                        padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
                       }}
                     >
-                      <span
-                        className="font-mono font-black text-slate-400"
-                        style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span
-                        className="leading-none font-bold text-slate-700"
-                        style={{ fontSize: 'min(24px, 6cqmin)' }}
-                      >
-                        {name}
-                      </span>
-                    </div>
-                  ))}
-                  {(!displayResult ||
-                    !Array.isArray(displayResult) ||
-                    (displayResult.length > 0 &&
-                      Array.isArray(displayResult[0]))) && (
-                    <div
-                      className="flex-1 flex flex-col items-center justify-center text-slate-300 italic"
-                      style={{
-                        padding: 'min(40px, 8cqmin) 0',
-                        gap: 'min(8px, 2cqmin)',
-                      }}
-                    >
-                      <Layers
-                        className="opacity-20"
-                        style={{
-                          width: 'min(32px, 8cqmin)',
-                          height: 'min(32px, 8cqmin)',
-                        }}
-                      />
-                      <span
-                        className="font-bold"
-                        style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-                      >
-                        Click Randomize to Shuffle
-                      </span>
-                    </div>
+                      {remainingStudents.length} Left
+                    </span>
                   )}
-                </div>
-              ) : (
-                <RandomGroups
-                  displayResult={displayResult}
-                  sharedGroups={activeDashboard?.sharedGroups}
-                />
+                </>
               )}
             </div>
-          )}
-        </div>
-      }
-      footer={
-        <div
-          className="w-full px-2 pb-2 flex"
-          style={{ gap: 'min(8px, 2cqmin)' }}
-        >
-          {mode === 'groups' &&
-            Array.isArray(displayResult) &&
-            displayResult.length > 0 &&
-            ((typeof displayResult[0] === 'object' &&
-              displayResult[0] !== null &&
-              'names' in displayResult[0]) ||
-              Array.isArray(displayResult[0])) && (
-              <Button
-                variant="secondary"
-                shape="pill"
-                onClick={handleSendToScoreboard}
-                aria-label={t('widgets.random.sendToScoreboard')}
-                style={{
-                  width: 'min(48px, 12cqmin)',
-                  height: 'min(48px, 12cqmin)',
-                  padding: 0,
-                }}
-                className="flex-shrink-0"
-                title={t('widgets.random.sendToScoreboard')}
-                icon={
-                  <Trophy
+            {activeRoster && rosterMode === 'class' && (
+              <div
+                className="flex items-center"
+                style={{ gap: 'min(6px, 1.5cqmin)' }}
+              >
+                <button
+                  onClick={() => setAbsentModalOpen(true)}
+                  title={t('widgets.random.absent.buttonLabel', {
+                    defaultValue: 'Mark absent students',
+                  })}
+                  aria-label={t('widgets.random.absent.ariaLabel', {
+                    defaultValue:
+                      'Open attendance — {{count}} marked absent today',
+                    count: absentCount,
+                  })}
+                  className="relative flex items-center bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-brand-blue-primary transition-colors"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
+                  }}
+                >
+                  <UserX
                     style={{
-                      width: 'min(20px, 5cqmin)',
-                      height: 'min(20px, 5cqmin)',
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
                     }}
-                    className="text-amber-500"
                   />
-                }
-              />
+                  {absentCount > 0 && (
+                    <span
+                      className="font-black bg-red-500 text-white rounded-full leading-none tabular-nums"
+                      style={{
+                        fontSize: 'min(9px, 2.2cqmin)',
+                        padding: 'min(2px, 0.5cqmin) min(5px, 1.2cqmin)',
+                      }}
+                    >
+                      {absentCount}
+                    </span>
+                  )}
+                </button>
+                <div
+                  className="flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                  }}
+                >
+                  <Target
+                    className="text-brand-blue-primary"
+                    style={{
+                      width: 'min(10px, 2.5cqmin)',
+                      height: 'min(10px, 2.5cqmin)',
+                    }}
+                  />
+                  <span
+                    className="font-black uppercase text-brand-blue-primary tracking-wider"
+                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
+                  >
+                    {activeRoster.name}
+                  </span>
+                </div>
+              </div>
             )}
-          <Button
-            variant="hero"
-            size="lg"
-            shape="pill"
-            onClick={handlePick}
-            disabled={isSpinning}
-            className="flex-1 h-12"
-            icon={
-              <RefreshCw
-                className={`w-4 h-4 ${isSpinning ? 'animate-spin' : ''}`}
-              />
-            }
+          </div>
+        }
+        content={
+          <div
+            className={`flex-1 flex flex-col w-full h-full self-stretch min-h-0 overflow-hidden ${
+              mode === 'single' ? 'items-center justify-center' : ''
+            }`}
           >
-            {isSpinning ? 'Picking...' : 'Randomize'}
-          </Button>
-        </div>
-      }
-    />
+            {mode === 'single' ? (
+              renderSinglePick()
+            ) : (
+              <div
+                className="w-full flex-1 min-h-0 flex flex-col"
+                style={{ padding: '0 min(8px, 2cqmin)' }}
+              >
+                {mode === 'shuffle' ? (
+                  <div
+                    className="flex-1 overflow-hidden w-full flex flex-col min-h-0"
+                    style={{
+                      padding: 'min(4px, 1cqmin) 0',
+                      gap: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    {(Array.isArray(displayResult) &&
+                    (displayResult.length === 0 ||
+                      !Array.isArray(displayResult[0]))
+                      ? (displayResult as string[])
+                      : []
+                    ).map((name: string, i: number) => (
+                      <div
+                        key={i}
+                        className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm min-h-0 overflow-hidden"
+                        style={{
+                          flex: '1 1 0',
+                          gap: 'min(12px, 4cqmin)',
+                          padding: '0 min(12px, 3cqmin)',
+                          containerType: 'size',
+                        }}
+                      >
+                        <span
+                          className="font-mono font-black text-slate-400 flex-shrink-0"
+                          style={{ fontSize: 'clamp(12px, 25cqmin, 28px)' }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span
+                          className="leading-none font-bold text-slate-700 truncate min-w-0"
+                          style={{ fontSize: 'clamp(16px, 60cqmin, 80px)' }}
+                        >
+                          {name}
+                        </span>
+                      </div>
+                    ))}
+                    {(!displayResult ||
+                      !Array.isArray(displayResult) ||
+                      (displayResult.length > 0 &&
+                        Array.isArray(displayResult[0]))) && (
+                      <div
+                        className="flex-1 flex flex-col items-center justify-center text-slate-300 italic"
+                        style={{
+                          padding: 'min(40px, 8cqmin) 0',
+                          gap: 'min(8px, 2cqmin)',
+                        }}
+                      >
+                        <Layers
+                          className="opacity-20"
+                          style={{
+                            width: 'min(32px, 8cqmin)',
+                            height: 'min(32px, 8cqmin)',
+                          }}
+                        />
+                        <span
+                          className="font-bold"
+                          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+                        >
+                          Click Randomize to Shuffle
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <RandomGroups
+                    displayResult={displayResult}
+                    sharedGroups={activeDashboard?.sharedGroups}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        }
+        footer={
+          <div
+            className="w-full px-2 pb-2 flex"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
+            {mode === 'groups' &&
+              Array.isArray(displayResult) &&
+              displayResult.length > 0 &&
+              ((typeof displayResult[0] === 'object' &&
+                displayResult[0] !== null &&
+                'names' in displayResult[0]) ||
+                Array.isArray(displayResult[0])) && (
+                <Button
+                  variant="secondary"
+                  shape="pill"
+                  onClick={handleSendToScoreboard}
+                  aria-label={t('widgets.random.sendToScoreboard')}
+                  style={{
+                    width: 'min(48px, 12cqmin)',
+                    height: 'min(48px, 12cqmin)',
+                    padding: 0,
+                  }}
+                  className="flex-shrink-0"
+                  title={t('widgets.random.sendToScoreboard')}
+                  icon={
+                    <Trophy
+                      style={{
+                        width: 'min(20px, 5cqmin)',
+                        height: 'min(20px, 5cqmin)',
+                      }}
+                      className="text-amber-500"
+                    />
+                  }
+                />
+              )}
+            <Button
+              variant="hero"
+              size="lg"
+              shape="pill"
+              onClick={handlePick}
+              disabled={isSpinning}
+              className="flex-1 h-12"
+              aria-label={isSpinning ? 'Picking' : 'Randomize'}
+              title={isSpinning ? 'Picking...' : 'Randomize'}
+              icon={
+                <RefreshCw
+                  className={isSpinning ? 'animate-spin' : ''}
+                  style={{
+                    width: 'min(28px, 8cqmin)',
+                    height: 'min(28px, 8cqmin)',
+                  }}
+                />
+              }
+            />
+          </div>
+        }
+      />
+      {absentModal}
+    </>
   );
 };

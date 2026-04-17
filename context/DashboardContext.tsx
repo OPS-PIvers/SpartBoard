@@ -460,6 +460,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     updateRoster,
     deleteRoster,
     setActiveRoster,
+    setAbsentStudents,
   } = useRosters(user);
 
   // Refs to prevent race conditions
@@ -3263,6 +3264,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateRoster,
       deleteRoster,
       setActiveRoster,
+      setAbsentStudents,
       addFolder,
       createFolderWithItems,
       renameFolder,
@@ -3352,6 +3354,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateRoster,
       deleteRoster,
       setActiveRoster,
+      setAbsentStudents,
       addFolder,
       createFolderWithItems,
       renameFolder,
