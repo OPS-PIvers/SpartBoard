@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useLibraryView } from '../../components/common/library/useLibraryView';
-import type { LibrarySortDir } from '../../components/common/library/types';
+import { useLibraryView } from '@/components/common/library/useLibraryView';
+import type { LibrarySortDir } from '@/components/common/library/types';
 
 interface Item {
   id: string;

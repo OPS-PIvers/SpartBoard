@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useSortableReorder } from '../../components/common/library/useSortableReorder';
+import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 
 interface Item {
   id: string;

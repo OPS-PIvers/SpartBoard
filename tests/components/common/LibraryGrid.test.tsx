@@ -1,8 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
-import { LibraryGrid } from '../../../components/common/library/LibraryGrid';
-import { LibraryItemCard } from '../../../components/common/library/LibraryItemCard';
+import { LibraryGrid } from '@/components/common/library/LibraryGrid';
+import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 
 interface Item {
   id: string;

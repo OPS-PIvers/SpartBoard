@@ -180,11 +180,16 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   return (
     <div
       onClick={onClick ? handleBodyClick : undefined}
-      className={`group relative flex rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-shadow hover:shadow-md ${
-        isList ? 'flex-row items-center gap-3 p-3' : 'flex-col gap-3 p-4'
-      } ${onClick ? 'cursor-pointer' : ''} ${
-        isDragging ? 'opacity-50' : ''
-      } ${isDragOverlay ? 'pointer-events-none ring-2 ring-brand-blue-primary/30' : ''}`}
+      className={[
+        'group relative flex rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-shadow hover:shadow-md',
+        isList ? 'flex-row items-center gap-3 p-3' : 'flex-col gap-3 p-4',
+        onClick && 'cursor-pointer',
+        isDragging && 'opacity-50',
+        isDragOverlay &&
+          'pointer-events-none ring-2 ring-brand-blue-primary/30',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-hidden={isDragOverlay}
     >
       {/* Drag handle (left edge) */}
@@ -204,8 +209,9 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
       {/* Main body */}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h3
-          className="truncate font-black text-slate-800"
-          style={{ fontSize: isList ? '14px' : '15px' }}
+          className={`truncate font-black text-slate-800 ${
+            isList ? 'text-sm' : 'text-[15px]'
+          }`}
         >
           {title}
         </h3>
