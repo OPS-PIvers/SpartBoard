@@ -427,7 +427,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           <div
             className="h-full w-full flex items-center justify-center text-slate-400 font-bold uppercase tracking-widest text-center"
             style={{
-              fontSize: 'min(11px, 4cqmin)',
+              fontSize: 'min(12px, 4cqmin)',
               padding: 'min(24px, 5cqmin)',
             }}
           >
