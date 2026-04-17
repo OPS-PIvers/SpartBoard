@@ -26,7 +26,7 @@
  * session lifecycle lives in the parent Widget.tsx.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -53,8 +53,11 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import { useFolders } from '@/hooks/useFolders';
 import type {
   LibraryTab,
   LibrarySortDir,
@@ -69,6 +72,8 @@ import type {
 export type MiniAppSource = 'personal' | 'global';
 
 export interface MiniAppManagerProps {
+  /** Teacher's Firebase UID — scopes the folders subcollection. */
+  userId?: string;
   /** Which tab is active. Parent owns this so it can persist across flips. */
   tab: LibraryTab;
   onTabChange: (tab: LibraryTab) => void;
@@ -191,6 +196,7 @@ const LIBRARY_FILTER_PREDICATES = {
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
+  userId,
   tab,
   onTabChange,
   personalLibrary,
@@ -223,10 +229,34 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [assignments]
   );
 
+  /* ── Folder navigation (Wave 3-B-3) ────────────────────────────────── */
+  const folderState = useFolders(userId, 'miniapp');
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+
+  // Count personal apps per folder id (+ `root` for unfoldered items) for the
+  // sidebar badges. Global apps never live in a teacher's folder.
+  const folderItemCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of personalLibrary) {
+      const key = item.folderId ?? 'root';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [personalLibrary]);
+
+  // Filter BEFORE building rows so search/sort only operate on the currently
+  // selected folder's apps.
+  const folderFilteredPersonal = useMemo(() => {
+    if (selectedFolderId === null) return personalLibrary;
+    return personalLibrary.filter(
+      (item) => (item.folderId ?? null) === selectedFolderId
+    );
+  }, [personalLibrary, selectedFolderId]);
+
   /* ── Unified rows (sorted by source + ordering) ─────────────────────── */
   const personalRows = useMemo<UnifiedRow[]>(
-    () => personalLibrary.map((item) => ({ kind: 'personal', item })),
-    [personalLibrary]
+    () => folderFilteredPersonal.map((item) => ({ kind: 'personal', item })),
+    [folderFilteredPersonal]
   );
   const globalRows = useMemo<UnifiedRow[]>(
     () => globalLibrary.map((item) => ({ kind: 'global', item })),
@@ -291,6 +321,44 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       disabledReason: 'Your library is empty.',
     },
   ];
+
+  /* ── Drop-to-folder handler (Wave 3-B-3) ─────────────────────────────── */
+  const { moveItem } = folderState;
+  const handleDropOnFolder = useCallback(
+    async (itemId: string, folderId: string | null): Promise<void> => {
+      if (!userId) return;
+      // Row ids are prefixed `personal:` or `global:`. Only personal rows
+      // participate in folders; global cards are `sortable={false}` so drops
+      // from them shouldn't fire, but guard defensively.
+      if (!itemId.startsWith('personal:')) return;
+      const rawId = itemId.slice('personal:'.length);
+      try {
+        await moveItem(rawId, folderId);
+      } catch (err) {
+        console.error('[MiniAppManager] moveItem failed:', err);
+      }
+    },
+    [userId, moveItem]
+  );
+
+  /* ── Folder sidebar (Library tab only) ───────────────────────────────── */
+  const folderSidebarSlot =
+    tab === 'library' && userId ? (
+      <FolderSidebar
+        widget="miniapp"
+        folders={folderState.folders}
+        loading={folderState.loading}
+        error={folderState.error}
+        selectedFolderId={selectedFolderId}
+        onSelectFolder={setSelectedFolderId}
+        itemCounts={folderItemCounts}
+        onCreateFolder={folderState.createFolder}
+        onRenameFolder={folderState.renameFolder}
+        onMoveFolder={folderState.moveFolder}
+        onDeleteFolder={folderState.deleteFolder}
+        enableDrop
+      />
+    ) : undefined;
 
   /* ── Card builders ────────────────────────────────────────────────────── */
 
@@ -584,7 +652,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   } else {
     /* Library tab */
     const empty = isGlobalView ? globalEmpty : personalEmpty;
-    tabContent = (
+    // Enable card drag when a teacher is signed in so drag-to-folder works.
+    // In the Global view we keep drag disabled — global items are read-only
+    // and never move between folders.
+    const enableCardDrag = Boolean(userId) && !isGlobalView;
+    const gridEl = (
       <LibraryGrid<UnifiedRow>
         items={view.visibleItems}
         getId={getRowId}
@@ -596,9 +668,55 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         reorderLocked={!isGlobalView && view.reorderLocked}
         reorderLockedReason={view.reorderLockedReason}
         layout={view.state.viewMode}
+        useExternalDndContext={enableCardDrag}
         emptyState={empty}
       />
     );
+
+    if (enableCardDrag) {
+      const orderedIds = view.visibleItems.map(getRowId);
+      const renderDragOverlay = (activeId: string): React.ReactNode => {
+        const row = view.visibleItems.find((r) => getRowId(r) === activeId);
+        if (!row || row.kind !== 'personal') return null;
+        const app = row.item;
+        return (
+          <LibraryItemCard<MiniAppItem>
+            id={getRowId(row)}
+            title={app.title}
+            subtitle={
+              <span className="font-mono">
+                {(app.html.length / 1024).toFixed(1)} KB
+              </span>
+            }
+            thumbnail={
+              <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                HTML
+              </div>
+            }
+            primaryAction={{
+              label: 'Assign',
+              icon: Link2,
+              onClick: () => undefined,
+            }}
+            viewMode={view.state.viewMode}
+            sortable={false}
+            isDragOverlay
+          />
+        );
+      };
+      tabContent = (
+        <LibraryDndContext
+          itemIds={orderedIds}
+          onDropOnFolder={handleDropOnFolder}
+          onReorder={(ids) => reorderHook.handleReorder(ids)}
+          renderOverlay={renderDragOverlay}
+        >
+          {gridEl}
+        </LibraryDndContext>
+      );
+    } else {
+      tabContent = gridEl;
+    }
   }
 
   /* ── Toolbar is only meaningful on the Library tab ────────────────────── */
@@ -631,6 +749,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       }}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
+      filterSidebarSlot={folderSidebarSlot}
       toolbarSlot={toolbarSlot}
     >
       {tabContent}

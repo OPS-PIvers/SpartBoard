@@ -12,8 +12,10 @@
 
 import React, { useMemo, useState } from 'react';
 import { FolderPlus, Inbox, X, AlertTriangle } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder, LibraryFolderWidget } from '@/types';
 import { FolderTree } from './FolderTree';
+import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
 
@@ -39,6 +41,13 @@ export interface FolderSidebarProps {
 
   loading?: boolean;
   error?: string | null;
+
+  /**
+   * When true, folder rows (and the "All items" root) become drop targets via
+   * `useDroppable`. Must be rendered inside a `LibraryDndContext`. The parent
+   * context is responsible for routing drops to `useFolders.moveItem(...)`.
+   */
+  enableDrop?: boolean;
 }
 
 export const FolderSidebar: React.FC<FolderSidebarProps> = ({
@@ -52,7 +61,18 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onDeleteFolder,
   loading = false,
   error = null,
+  enableDrop = false,
 }) => {
+  const rootDropData = useMemo<FolderDropData>(
+    () => ({ type: 'folder', folderId: null }),
+    []
+  );
+  const rootDroppable = useDroppable({
+    id: folderDroppableId(null),
+    data: rootDropData,
+    disabled: !enableDrop,
+  });
+  const isRootOver = enableDrop && rootDroppable.isOver;
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -175,12 +195,17 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
 
       {/* Root / "All items" entry */}
       <button
+        ref={enableDrop ? rootDroppable.setNodeRef : undefined}
         type="button"
         onClick={() => onSelectFolder(null)}
         className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm font-semibold text-left transition-colors ${
           selectedFolderId === null
             ? 'bg-brand-blue-primary text-white'
             : 'text-brand-blue-dark hover:bg-white'
+        } ${
+          isRootOver
+            ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
+            : ''
         }`}
       >
         <Inbox className="w-4 h-4" />
@@ -229,6 +254,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         folders={folders}
         parentId={null}
         depth={0}
+        enableDrop={enableDrop}
         selectedFolderId={selectedFolderId}
         onSelectFolder={onSelectFolder}
         expanded={expanded}

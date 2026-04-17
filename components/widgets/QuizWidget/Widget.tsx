@@ -624,6 +624,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <>
       <QuizManager
+        userId={user?.uid}
         quizzes={quizzes}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}

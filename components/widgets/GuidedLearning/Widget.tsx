@@ -360,6 +360,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           <div className="h-full w-full">
             {config.view === 'library' && (
               <GuidedLearningManager
+                userId={user?.uid}
                 sets={sets}
                 buildingSets={buildingSets}
                 assignments={assignments}

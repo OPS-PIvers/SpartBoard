@@ -281,6 +281,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <>
       <VideoActivityManager
+        userId={user?.uid}
         activities={activities}
         loading={loading}
         error={error}

@@ -20,7 +20,9 @@ import {
   ChevronDown,
   MoreHorizontal,
 } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder } from '@/types';
+import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -57,6 +59,13 @@ export interface FolderTreeProps {
   onCreateChild: (parentId: string) => void;
   /** Move a folder up to the root (null parent). */
   onMoveToRoot: (folderId: string) => void;
+
+  /**
+   * When true, each folder row becomes a `useDroppable` target. Must be
+   * rendered inside a `DndContext` (see `LibraryDndContext`). Drops fire via
+   * the parent context's `onDropOnFolder` callback, not through this prop.
+   */
+  enableDrop?: boolean;
 }
 
 const INDENT_PX = 14;
@@ -104,6 +113,229 @@ const RenameInput: React.FC<{
   );
 };
 
+interface FolderRowProps {
+  folder: LibraryFolder;
+  depth: number;
+  hasChildren: boolean;
+  isExpanded: boolean;
+  isSelected: boolean;
+  isMenuOpen: boolean;
+  isRenaming: boolean;
+  count: number;
+  enableDrop: boolean;
+  onSelectFolder: (folderId: string | null) => void;
+  onToggleExpanded: (folderId: string) => void;
+  onOpenMenu: (folderId: string | null) => void;
+  onStartRename: (folderId: string) => void;
+  onCommitRename: (folderId: string, nextName: string) => void;
+  onCancelRename: () => void;
+  onRequestDelete: (folder: LibraryFolder) => void;
+  onCreateChild: (parentId: string) => void;
+  onMoveToRoot: (folderId: string) => void;
+}
+
+/**
+ * Single folder row. Extracted into a component so we can call the
+ * `useDroppable` hook per-row without violating the Rules of Hooks.
+ */
+const FolderRow: React.FC<FolderRowProps> = ({
+  folder,
+  depth,
+  hasChildren,
+  isExpanded,
+  isSelected,
+  isMenuOpen,
+  isRenaming,
+  count,
+  enableDrop,
+  onSelectFolder,
+  onToggleExpanded,
+  onOpenMenu,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
+  onRequestDelete,
+  onCreateChild,
+  onMoveToRoot,
+}) => {
+  const dropData = useMemo<FolderDropData>(
+    () => ({ type: 'folder', folderId: folder.id }),
+    [folder.id]
+  );
+  const droppable = useDroppable({
+    id: folderDroppableId(folder.id),
+    data: dropData,
+    disabled: !enableDrop,
+  });
+  const isOver = enableDrop && droppable.isOver;
+
+  return (
+    <div
+      ref={enableDrop ? droppable.setNodeRef : undefined}
+      className={`group relative flex items-center gap-1 rounded-lg text-sm font-medium cursor-pointer select-none transition-colors ${
+        isSelected
+          ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
+          : 'text-slate-700 hover:bg-slate-100'
+      } ${
+        isOver
+          ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
+          : ''
+      }`}
+      style={{ paddingLeft: depth * INDENT_PX + 4 }}
+      onClick={() => onSelectFolder(folder.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelectFolder(folder.id);
+        } else if (e.key === 'ArrowRight' && hasChildren && !isExpanded) {
+          e.preventDefault();
+          onToggleExpanded(folder.id);
+        } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
+          e.preventDefault();
+          onToggleExpanded(folder.id);
+        } else if (e.key === 'F2') {
+          e.preventDefault();
+          onStartRename(folder.id);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`${folder.name}, ${count} items`}
+    >
+      {/* Expand/collapse chevron. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (hasChildren) onToggleExpanded(folder.id);
+        }}
+        className="shrink-0 w-4 h-5 flex items-center justify-center text-slate-400"
+        aria-label={isExpanded ? 'Collapse' : 'Expand'}
+        tabIndex={-1}
+      >
+        {hasChildren ? (
+          isExpanded ? (
+            <ChevronDown size={12} />
+          ) : (
+            <ChevronRight size={12} />
+          )
+        ) : null}
+      </button>
+
+      {/* Folder icon. */}
+      <span className="shrink-0 text-brand-blue-primary/80">
+        {isExpanded && hasChildren ? (
+          <FolderOpen size={14} />
+        ) : (
+          <Folder size={14} />
+        )}
+      </span>
+
+      {/* Folder name (or inline rename input). */}
+      {isRenaming ? (
+        <RenameInput
+          initial={folder.name}
+          onCommit={(next) => onCommitRename(folder.id, next)}
+          onCancel={onCancelRename}
+        />
+      ) : (
+        <span className="flex-1 min-w-0 truncate py-1">{folder.name}</span>
+      )}
+
+      {/* Item count badge. */}
+      {!isRenaming && count > 0 && (
+        <span
+          className={`shrink-0 inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none ${
+            isSelected
+              ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
+              : 'bg-slate-200 text-slate-600'
+          }`}
+        >
+          {count}
+        </span>
+      )}
+
+      {/* Overflow menu trigger. */}
+      {!isRenaming && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenMenu(isMenuOpen ? null : folder.id);
+          }}
+          aria-label={`Actions for ${folder.name}`}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          className={`shrink-0 p-1 rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 ${
+            isMenuOpen
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+          }`}
+          tabIndex={-1}
+        >
+          <MoreHorizontal size={14} />
+        </button>
+      )}
+
+      {/* Overflow menu popover. */}
+      {isMenuOpen && (
+        <div
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-1 top-full mt-1 z-20 min-w-[160px] rounded-xl bg-white shadow-xl border border-slate-200 p-1 text-sm"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+            onClick={() => {
+              onOpenMenu(null);
+              onStartRename(folder.id);
+            }}
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+            onClick={() => {
+              onOpenMenu(null);
+              onCreateChild(folder.id);
+            }}
+          >
+            New subfolder
+          </button>
+          {folder.parentId != null && (
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+              onClick={() => {
+                onOpenMenu(null);
+                onMoveToRoot(folder.id);
+              }}
+            >
+              Move to root
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-brand-red-lighter/40 text-brand-red-dark"
+            onClick={() => {
+              onOpenMenu(null);
+              onRequestDelete(folder);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const FolderTree: React.FC<FolderTreeProps> = ({
   folders,
   parentId = null,
@@ -122,6 +354,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   onRequestDelete,
   onCreateChild,
   onMoveToRoot,
+  enableDrop = false,
 }) => {
   // Group children by parentId once per render. Sorted input is expected
   // (the hook orders by `order` asc); still, sort defensively.
@@ -147,171 +380,26 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 
         return (
           <li key={folder.id} role="treeitem" aria-expanded={isExpanded}>
-            <div
-              className={`group relative flex items-center gap-1 rounded-lg text-sm font-medium cursor-pointer select-none transition-colors ${
-                isSelected
-                  ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-              style={{ paddingLeft: depth * INDENT_PX + 4 }}
-              onClick={() => onSelectFolder(folder.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelectFolder(folder.id);
-                } else if (
-                  e.key === 'ArrowRight' &&
-                  hasChildren &&
-                  !isExpanded
-                ) {
-                  e.preventDefault();
-                  onToggleExpanded(folder.id);
-                } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
-                  e.preventDefault();
-                  onToggleExpanded(folder.id);
-                } else if (e.key === 'F2') {
-                  e.preventDefault();
-                  onStartRename(folder.id);
-                }
-              }}
-              tabIndex={0}
-              role="button"
-              aria-label={`${folder.name}, ${count} items`}
-            >
-              {/* Expand/collapse chevron (placeholder width when no children keeps alignment). */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hasChildren) onToggleExpanded(folder.id);
-                }}
-                className="shrink-0 w-4 h-5 flex items-center justify-center text-slate-400"
-                aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                tabIndex={-1}
-              >
-                {hasChildren ? (
-                  isExpanded ? (
-                    <ChevronDown size={12} />
-                  ) : (
-                    <ChevronRight size={12} />
-                  )
-                ) : null}
-              </button>
-
-              {/* Folder icon. */}
-              <span className="shrink-0 text-brand-blue-primary/80">
-                {isExpanded && hasChildren ? (
-                  <FolderOpen size={14} />
-                ) : (
-                  <Folder size={14} />
-                )}
-              </span>
-
-              {/* Folder name (or inline rename input). */}
-              {isRenaming ? (
-                <RenameInput
-                  initial={folder.name}
-                  onCommit={(next) => onCommitRename(folder.id, next)}
-                  onCancel={onCancelRename}
-                />
-              ) : (
-                <span className="flex-1 min-w-0 truncate py-1">
-                  {folder.name}
-                </span>
-              )}
-
-              {/* Item count badge. */}
-              {!isRenaming && count > 0 && (
-                <span
-                  className={`shrink-0 inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none ${
-                    isSelected
-                      ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {count}
-                </span>
-              )}
-
-              {/* Overflow menu trigger. */}
-              {!isRenaming && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenMenu(isMenuOpen ? null : folder.id);
-                  }}
-                  aria-label={`Actions for ${folder.name}`}
-                  aria-haspopup="menu"
-                  aria-expanded={isMenuOpen}
-                  className={`shrink-0 p-1 rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 ${
-                    isMenuOpen
-                      ? 'opacity-100'
-                      : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-                  }`}
-                  tabIndex={-1}
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-              )}
-
-              {/* Overflow menu popover. */}
-              {isMenuOpen && (
-                <div
-                  role="menu"
-                  onClick={(e) => e.stopPropagation()}
-                  className="absolute right-1 top-full mt-1 z-20 min-w-[160px] rounded-xl bg-white shadow-xl border border-slate-200 p-1 text-sm"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
-                    onClick={() => {
-                      onOpenMenu(null);
-                      onStartRename(folder.id);
-                    }}
-                  >
-                    Rename
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
-                    onClick={() => {
-                      onOpenMenu(null);
-                      onCreateChild(folder.id);
-                    }}
-                  >
-                    New subfolder
-                  </button>
-                  {folder.parentId != null && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
-                      onClick={() => {
-                        onOpenMenu(null);
-                        onMoveToRoot(folder.id);
-                      }}
-                    >
-                      Move to root
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-brand-red-lighter/40 text-brand-red-dark"
-                    onClick={() => {
-                      onOpenMenu(null);
-                      onRequestDelete(folder);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-
+            <FolderRow
+              folder={folder}
+              depth={depth}
+              hasChildren={hasChildren}
+              isExpanded={isExpanded}
+              isSelected={isSelected}
+              isMenuOpen={isMenuOpen}
+              isRenaming={isRenaming}
+              count={count}
+              enableDrop={enableDrop}
+              onSelectFolder={onSelectFolder}
+              onToggleExpanded={onToggleExpanded}
+              onOpenMenu={onOpenMenu}
+              onStartRename={onStartRename}
+              onCommitRename={onCommitRename}
+              onCancelRename={onCancelRename}
+              onRequestDelete={onRequestDelete}
+              onCreateChild={onCreateChild}
+              onMoveToRoot={onMoveToRoot}
+            />
             {/* Recurse into children when expanded. */}
             {isExpanded && hasChildren && (
               <FolderTree
@@ -332,6 +420,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onRequestDelete={onRequestDelete}
                 onCreateChild={onCreateChild}
                 onMoveToRoot={onMoveToRoot}
+                enableDrop={enableDrop}
               />
             )}
           </li>

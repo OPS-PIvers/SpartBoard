@@ -11,6 +11,12 @@
  * — this is surfaced to cards via `LibraryGridLockContext`.
  *
  * The grid renders `emptyState` in place of the list when `items.length === 0`.
+ *
+ * Wave 3-B-3 adds an opt-in `useExternalDndContext` mode. When true, the grid
+ * renders only the `SortableContext` and defers `DndContext` + `DragOverlay`
+ * ownership to the parent (typically `LibraryDndContext`). This is what the
+ * folder-drag-drop flow uses to share a single DndContext across both the
+ * grid and the `FolderSidebar` so that cards can be dropped on folders.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -34,7 +40,18 @@ import {
 import type { LibraryGridProps } from './types';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 
-export function LibraryGrid<TItem>(props: LibraryGridProps<TItem>) {
+interface LibraryGridExtraProps {
+  /**
+   * When true, the grid skips creating its own `DndContext` + `DragOverlay`
+   * and relies on a parent `DndContext` (e.g. `LibraryDndContext`). In this
+   * mode `onReorder` is ignored — the parent owns drag-end routing.
+   */
+  useExternalDndContext?: boolean;
+}
+
+export function LibraryGrid<TItem>(
+  props: LibraryGridProps<TItem> & LibraryGridExtraProps
+) {
   const {
     items,
     getId,
@@ -45,6 +62,7 @@ export function LibraryGrid<TItem>(props: LibraryGridProps<TItem>) {
     reorderLockedReason,
     layout = 'grid',
     emptyState,
+    useExternalDndContext = false,
   } = props;
 
   const sensors = useSensors(
@@ -118,6 +136,18 @@ export function LibraryGrid<TItem>(props: LibraryGridProps<TItem>) {
   const containerClass = isListLayout
     ? 'flex flex-col gap-3'
     : 'grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+
+  if (useExternalDndContext) {
+    return (
+      <LibraryGridLockContext.Provider value={lockState}>
+        <SortableContext items={ids} strategy={strategy}>
+          <div className={containerClass} data-testid="library-grid">
+            {items.map((item, index) => renderCard(item, index))}
+          </div>
+        </SortableContext>
+      </LibraryGridLockContext.Provider>
+    );
+  }
 
   return (
     <LibraryGridLockContext.Provider value={lockState}>

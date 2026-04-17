@@ -847,6 +847,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         content={
           <div className="relative flex flex-col w-full h-full min-h-0">
             <MiniAppManager
+              userId={user?.uid}
               tab={managerTab}
               onTabChange={setManagerTab}
               personalLibrary={library}
