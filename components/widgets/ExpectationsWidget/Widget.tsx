@@ -424,7 +424,13 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="h-full w-full flex items-center justify-center text-slate-400 font-bold uppercase tracking-widest text-xs p-6 text-center">
+          <div
+            className="h-full w-full flex items-center justify-center text-slate-400 font-bold uppercase tracking-widest text-center"
+            style={{
+              fontSize: 'min(12px, 4cqmin)',
+              padding: 'min(24px, 5cqmin)',
+            }}
+          >
             No expectation categories enabled for this building.
           </div>
         }

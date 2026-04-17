@@ -36,6 +36,7 @@ import {
   WidgetConfig,
   UserRolesConfig,
   AppSettings,
+  DockPosition,
 } from '../types';
 import { AuthContext } from './AuthContextValue';
 import { getBuildingGradeLevels } from '../config/buildings';
@@ -219,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [disableCloseConfirmation, setDisableCloseConfirmationState] =
     useState(false);
   const [remoteControlEnabled, setRemoteControlEnabledState] = useState(true);
+  const [dockPosition, setDockPositionState] = useState<DockPosition>('bottom');
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -598,6 +600,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSavedWidgetConfigs({});
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
+      setDockPositionState('bottom');
 
       if (!user) {
         setSelectedBuildingsState([]);
@@ -685,6 +688,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             // Default to true if not explicitly set
             setRemoteControlEnabledState(true);
+          }
+          if (
+            'dockPosition' in data &&
+            (data.dockPosition === 'bottom' ||
+              data.dockPosition === 'left' ||
+              data.dockPosition === 'right')
+          ) {
+            setDockPositionState(data.dockPosition);
+          } else {
+            setDockPositionState('bottom');
           }
 
           setProfileLoaded(true);
@@ -801,6 +814,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     async (updates: {
       disableCloseConfirmation?: boolean;
       remoteControlEnabled?: boolean;
+      dockPosition?: DockPosition;
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -808,11 +822,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.remoteControlEnabled !== undefined) {
         setRemoteControlEnabledState(updates.remoteControlEnabled);
       }
+      if (updates.dockPosition !== undefined) {
+        setDockPositionState(updates.dockPosition);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
         disableCloseConfirmation?: boolean;
         remoteControlEnabled?: boolean;
+        dockPosition?: DockPosition;
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -820,6 +838,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (typeof updates.remoteControlEnabled === 'boolean') {
         sanitizedUpdates.remoteControlEnabled = updates.remoteControlEnabled;
+      }
+      if (
+        updates.dockPosition === 'bottom' ||
+        updates.dockPosition === 'left' ||
+        updates.dockPosition === 'right'
+      ) {
+        sanitizedUpdates.dockPosition = updates.dockPosition;
       }
 
       if (!user || isAuthBypass || Object.keys(sanitizedUpdates).length === 0) {
@@ -1188,6 +1213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         completeSetup,
         disableCloseConfirmation,
         remoteControlEnabled,
+        dockPosition,
         updateAccountPreferences,
       }}
     >

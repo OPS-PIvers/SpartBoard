@@ -61,11 +61,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ? config.remainingStudents
     : [];
 
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [displayResult, setDisplayResult] = useState<
-    string | string[] | string[][] | RandomGroup[]
-  >(() => {
-    const raw = config.lastResult;
+  const normalizeLastResult = (
+    raw: RandomConfig['lastResult']
+  ): string | string[] | string[][] | RandomGroup[] => {
     if (
       Array.isArray(raw) &&
       raw.length > 0 &&
@@ -76,29 +74,30 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       return raw as RandomGroup[];
     }
     return (raw as string | string[] | string[][]) ?? '';
-  });
+  };
+
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [displayResult, setDisplayResult] = useState<
+    string | string[] | string[][] | RandomGroup[]
+  >(() => normalizeLastResult(config.lastResult));
   const [rotation, setRotation] = useState(0);
+
+  // Sync displayResult when config.lastResult changes (e.g. mode switch clears
+  // it) using the "adjusting state while rendering" pattern. Doing this in a
+  // useEffect would leave displayResult stale for one render, which crashed
+  // RandomFlash when the old value was RandomGroup[] and the new mode is
+  // 'single'.
+  const [prevLastResult, setPrevLastResult] = useState(config.lastResult);
+  if (config.lastResult !== prevLastResult) {
+    setPrevLastResult(config.lastResult);
+    setDisplayResult(normalizeLastResult(config.lastResult));
+  }
 
   // Track active roster to only clear when it actually changes
   const lastRosterRef = useRef<{ id: string | null; mode: string }>({
     id: activeRosterId,
     mode: rosterMode,
   });
-
-  useEffect(() => {
-    const rawResult = config.lastResult;
-    if (
-      Array.isArray(rawResult) &&
-      rawResult.length > 0 &&
-      typeof rawResult[0] === 'object' &&
-      rawResult[0] !== null &&
-      'names' in rawResult[0]
-    ) {
-      setDisplayResult(rawResult as RandomGroup[]);
-    } else {
-      setDisplayResult((rawResult as string | string[] | string[][]) ?? '');
-    }
-  }, [config.lastResult]);
 
   // Clear session data when active roster changes to avoid cross-contamination
   useEffect(() => {
@@ -614,9 +613,20 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           {everyoneAbsent && (
             <button
               onClick={() => setAbsentModalOpen(true)}
-              className="mt-2 flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-full text-sm font-bold hover:bg-brand-blue-dark transition-colors"
+              className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
+              style={{
+                marginTop: 'min(8px, 2cqmin)',
+                gap: 'min(8px, 2cqmin)',
+                padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+                fontSize: 'min(14px, 3.5cqmin)',
+              }}
             >
-              <UserX size={14} />
+              <UserX
+                style={{
+                  width: 'min(14px, 3.5cqmin)',
+                  height: 'min(14px, 3.5cqmin)',
+                }}
+              />
               {t('widgets.random.updateAttendance', {
                 defaultValue: 'Update attendance',
               })}

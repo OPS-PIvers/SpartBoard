@@ -67,6 +67,7 @@ const mockAuthContext = (
   },
   disableCloseConfirmation: false,
   remoteControlEnabled: true,
+  dockPosition: 'bottom',
   updateAccountPreferences: async () => {
     /* mock */
   },

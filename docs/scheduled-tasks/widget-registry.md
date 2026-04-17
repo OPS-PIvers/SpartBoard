@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-16_
+_Last audited: 2026-04-17_
 _Last action: never_
 
 ---
@@ -43,6 +43,13 @@ _Nothing currently in progress._
 - **File:** components/widgets/WidgetRegistry.ts
 - **Detail:** `stickers` (StickerBook) has entries in `WIDGET_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG`, `widgetDefaults.ts`, `widgetGradeLevels.ts`, and `tools.ts`, but is absent from `WIDGET_SETTINGS_COMPONENTS`. `stickers/StickerBookSettings.tsx` exports `StickerBookAppearanceSettings` (wired into appearance panel), but there is no flip-panel settings component registered. As a result flipping the stickers widget shows no settings tab — only the appearance tab. May be intentional if stickers has no non-appearance settings, but is undocumented.
 - **Fix:** Either (a) confirm this is intentional and add a JSDoc comment in `WIDGET_SETTINGS_COMPONENTS` noting stickers has appearance-only settings, or (b) create a `StickerBookSettings` component and register it if any non-appearance settings (e.g. lock/reset) are desired.
+
+### LOW `blooms-detail` missing from `WIDGET_SETTINGS_COMPONENTS`
+
+- **Detected:** 2026-04-17
+- **File:** components/widgets/WidgetRegistry.ts, components/widgets/BloomsTaxonomy/DetailWidget.tsx
+- **Detail:** `blooms-detail` is registered in `WIDGET_COMPONENTS` (line 191) and `WIDGET_SCALING_CONFIG`, but has no entry in `WIDGET_SETTINGS_COMPONENTS`. `BloomsTaxonomy/DetailWidget.tsx` exports no Settings component. Because `blooms-detail` is a programmatically-spawned companion widget (not user-selectable from the Dock), having no settings panel may be intentional — but it is undocumented. Flipping a blooms-detail widget card will show an empty settings area with no controls.
+- **Fix:** Either (a) add a JSDoc comment in `WIDGET_SETTINGS_COMPONENTS` noting that `blooms-detail` intentionally has no settings panel (it is read-only, managed by the parent `blooms-taxonomy` widget), or (b) create a minimal `BloomsDetailSettings` component for any future per-instance configuration needs.
 
 ---
 

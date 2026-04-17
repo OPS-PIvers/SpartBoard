@@ -10,7 +10,7 @@ import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
 import { getTitle } from '@/utils/widgetHelpers';
 import { Z_INDEX } from '@/config/zIndex';
-import { ToolMetadata, WidgetData, GlobalStyle } from '@/types';
+import { ToolMetadata, WidgetData, GlobalStyle, DockPosition } from '@/types';
 
 interface ToolDockItemProps {
   tool: ToolMetadata;
@@ -28,6 +28,7 @@ interface ToolDockItemProps {
   customColor?: string;
   onClickOverride?: (e: React.MouseEvent) => void;
   buttonRef?: React.RefObject<HTMLButtonElement | null>;
+  dockPosition?: DockPosition;
 }
 
 // Tool Item with Popover Logic
@@ -48,6 +49,7 @@ export const ToolDockItem = React.memo(
     customColor,
     onClickOverride,
     buttonRef: externalButtonRef,
+    dockPosition = 'bottom',
   }: ToolDockItemProps) => {
     const Icon = customIcon ?? tool.icon;
     const label = customLabel ?? tool.label;
@@ -241,7 +243,9 @@ export const ToolDockItem = React.memo(
             className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'
-                : 'touch-pan-x'
+                : dockPosition === 'left' || dockPosition === 'right'
+                  ? 'touch-pan-y'
+                  : 'touch-pan-x'
             }`}
           >
             <DockIcon

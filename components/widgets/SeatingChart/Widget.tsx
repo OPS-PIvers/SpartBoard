@@ -963,8 +963,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
             >
               <ScaledEmptyState
                 icon={LayoutGrid}
-                title={t('widgets.seatingChart.emptyStateAssignTitle')}
-                subtitle={t('widgets.seatingChart.emptyStateAssignSubtitle')}
+                title={t('widgets.seatingChart.emptyStateAssignTitle', {
+                  defaultValue: 'Empty Classroom',
+                })}
+                subtitle={t('widgets.seatingChart.emptyStateAssignSubtitle', {
+                  defaultValue: 'Switch to "Setup" to arrange furniture.',
+                })}
               />
             </div>
           )}
@@ -976,11 +980,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
             >
               <ScaledEmptyState
                 icon={LayoutTemplate}
-                title={t('widgets.seatingChart.emptyStateSetupTitle')}
+                title={t('widgets.seatingChart.emptyStateSetupTitle', {
+                  defaultValue: 'No Furniture',
+                })}
                 subtitle={
                   template === 'freeform'
-                    ? t('widgets.seatingChart.emptyStateFreeform')
-                    : t('widgets.seatingChart.emptyStateTemplate')
+                    ? t('widgets.seatingChart.emptyStateFreeform', {
+                        defaultValue: 'Add furniture from the sidebar.',
+                      })
+                    : t('widgets.seatingChart.emptyStateTemplate', {
+                        defaultValue: 'Pick a template and click Apply Layout.',
+                      })
                 }
               />
             </div>

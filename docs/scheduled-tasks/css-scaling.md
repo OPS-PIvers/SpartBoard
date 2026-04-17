@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-16_
-_Last action: 2026-04-15_
+_Last audited: 2026-04-17_
+_Last action: 2026-04-17_
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM ExpectationsWidget uses `text-xs` on the empty-state content area
-
-- **Detected:** 2026-04-14
-- **File:** components/widgets/ExpectationsWidget/Widget.tsx:427
-- **Detail:** The empty-state container uses `text-xs` and `p-6` as hardcoded classes. Widget has `skipScaling: true`. While empty-state is not the primary content view, it is shown when no expectations are configured and is the first thing a teacher sees after adding the widget — it must remain legible on a projected screen.
-- **Fix:** Replace `text-xs` with `style={{ fontSize: 'min(11px, 4cqmin)' }}` and `p-6` with `style={{ padding: 'min(24px, 5cqmin)' }}`.
 
 ### MEDIUM MathToolsWidget uses `h-32` to cap an empty-state content container
 
@@ -78,6 +71,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM ExpectationsWidget uses `text-xs` on the empty-state content area
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-17
+- **File:** components/widgets/ExpectationsWidget/Widget.tsx:427
+- **Detail:** The empty-state container (shown when no expectation categories are enabled for the building) used `text-xs` and `p-6` as hardcoded Tailwind classes. Widget has `skipScaling: true`, so these did not respond to widget size. Teachers see this empty state first after adding the widget if their building has all three categories disabled — it must remain legible on a projected screen.
+- **Resolution:** Removed `text-xs` and `p-6` Tailwind classes from the empty-state container and replaced them with inline `cqmin` styles: `fontSize: 'min(12px, 4cqmin)'` and `padding: 'min(24px, 5cqmin)'`. `pnpm type-check` and `pnpm lint --max-warnings 0` both clean; prettier check on changed files passes.
 
 ### MEDIUM BreathingWidget uses `text-4xl` / `text-6xl` hardcoded Tailwind text sizes
 

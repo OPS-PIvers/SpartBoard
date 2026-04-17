@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserX, Check, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -40,6 +46,13 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
     () => rosterAbsentIds
   );
 
+  // Ref mirrors localAbsentIds so rapid taps inside the same frame see the
+  // freshest value without waiting for React to flush the state update.
+  const localAbsentIdsRef = useRef(localAbsentIds);
+  useEffect(() => {
+    localAbsentIdsRef.current = localAbsentIds;
+  }, [localAbsentIds]);
+
   // Sync local state when roster prop changes (e.g. from Firestore)
   const [prevRosterAbsent, setPrevRosterAbsent] = useState(roster.absent);
   if (roster.absent !== prevRosterAbsent) {
@@ -61,19 +74,14 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
 
   const toggleStudent = useCallback(
     (studentId: string) => {
-      // Use the updater to read the latest state (survives rapid taps),
-      // capture the next value, then fire the Firestore write OUTSIDE the
-      // updater so the write doesn't double-fire under StrictMode.
-      let nextIds!: Set<string>;
-      setLocalAbsentIds((prev) => {
-        nextIds = new Set(prev);
-        if (nextIds.has(studentId)) {
-          nextIds.delete(studentId);
-        } else {
-          nextIds.add(studentId);
-        }
-        return nextIds;
-      });
+      const nextIds = new Set(localAbsentIdsRef.current);
+      if (nextIds.has(studentId)) {
+        nextIds.delete(studentId);
+      } else {
+        nextIds.add(studentId);
+      }
+      localAbsentIdsRef.current = nextIds;
+      setLocalAbsentIds(nextIds);
       void setAbsentStudents(roster.id, [...nextIds]);
     },
     [roster.id, setAbsentStudents]

@@ -146,6 +146,11 @@
       "skipConfirmation": "Ignorer la confirmation lors de la fermeture des widgets.",
       "quickAccessWidgets": "Widgets d'accès rapide",
       "quickAccessDescription": "Sélectionnez jusqu'à 2 widgets à afficher lorsque le dock est réduit.",
+      "dockPosition": "Position du dock",
+      "dockPositionDescription": "Choisissez où le dock apparaît à l'écran.",
+      "dockBottom": "Bas",
+      "dockLeft": "Gauche",
+      "dockRight": "Droite",
       "language": "Langue de l'interface",
       "languageDescription": "Choisissez votre langue d'affichage préférée pour l'ensemble du tableau.",
       "saveAllChanges": "Enregistrer toutes les modifications"

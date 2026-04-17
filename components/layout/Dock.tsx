@@ -32,6 +32,7 @@ import {
   arrayMove,
   SortableContext,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -116,7 +117,9 @@ export const Dock: React.FC = () => {
     userGradeLevels,
     selectedBuildings,
     featurePermissions,
+    dockPosition,
   } = useAuth();
+  const isVerticalDock = dockPosition === 'left' || dockPosition === 'right';
   const { driveService } = useGoogleDrive();
   const { sets: catalystSets, executeRoutine } = useCatalystSets();
   const { customWidgets } = useCustomWidgets();
@@ -236,47 +239,60 @@ export const Dock: React.FC = () => {
   );
   const [imagePastePending, setImagePastePending] = useState<File | null>(null);
 
-  // Drag-to-collapse state
-  const [dragY, setDragY] = useState(0);
-  const [isDraggingDown, setIsDraggingDown] = useState(false);
+  // Drag-to-collapse state — `dragOffset` is the magnitude moved along the
+  // collapse axis (down for bottom dock, left/right for side docks).
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragCollapsing, setIsDragCollapsing] = useState(false);
   const startY = useRef(0);
   const startX = useRef(0);
   const hasCaptured = useRef(false);
   const threshold = 80; // Distance to trigger collapse
 
+  // Sign of the collapse direction along the primary axis.
+  // bottom: +Y moves dock off-screen; left: -X; right: +X.
+  const collapseSign =
+    dockPosition === 'left' ? -1 : dockPosition === 'right' ? 1 : 1;
+
   const handleDockPointerDown = (e: React.PointerEvent) => {
     if (!isExpanded || isEditMode) return;
 
-    setIsDraggingDown(true);
+    setIsDragCollapsing(true);
     startY.current = e.clientY;
     startX.current = e.clientX;
     hasCaptured.current = false;
   };
 
   const handleDockPointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingDown) return;
-    const deltaY = e.clientY - startY.current;
-    const deltaX = Math.abs(e.clientX - startX.current);
+    if (!isDragCollapsing) return;
+    const rawDeltaX = e.clientX - startX.current;
+    const rawDeltaY = e.clientY - startY.current;
+
+    // Primary = movement along collapse axis (signed toward "off-screen").
+    // Secondary = orthogonal movement (cancels the gesture if it dominates).
+    const primaryDelta = isVerticalDock ? rawDeltaX * collapseSign : rawDeltaY; // bottom dock collapses on positive Y
+    const secondaryDelta = isVerticalDock
+      ? Math.abs(rawDeltaY)
+      : Math.abs(rawDeltaX);
 
     if (!hasCaptured.current) {
-      if (deltaX > 10 && deltaX > deltaY) {
-        setIsDraggingDown(false);
+      if (secondaryDelta > 10 && secondaryDelta > primaryDelta) {
+        setIsDragCollapsing(false);
         return;
       }
-      if (deltaY > 10) {
+      if (primaryDelta > 10) {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         hasCaptured.current = true;
       }
     }
 
-    if (deltaY > 0) {
-      setDragY(deltaY);
+    if (primaryDelta > 0) {
+      setDragOffset(primaryDelta);
     }
   };
 
   const handleDockPointerUp = (e: React.PointerEvent) => {
-    if (!isDraggingDown) return;
-    setIsDraggingDown(false);
+    if (!isDragCollapsing) return;
+    setIsDragCollapsing(false);
 
     if (hasCaptured.current) {
       try {
@@ -287,10 +303,10 @@ export const Dock: React.FC = () => {
       hasCaptured.current = false;
     }
 
-    if (dragY > threshold) {
+    if (dragOffset > threshold) {
       setIsExpanded(false);
     }
-    setDragY(0);
+    setDragOffset(0);
   };
 
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
@@ -639,6 +655,26 @@ export const Dock: React.FC = () => {
     [canAccessFeature, canAccessWidget]
   );
 
+  // Position-aware anchoring: bottom-center (default), left-center, right-center.
+  const containerPositionClasses =
+    dockPosition === 'left'
+      ? 'left-6 top-1/2 flex-row'
+      : dockPosition === 'right'
+        ? 'right-6 top-1/2 flex-row'
+        : 'bottom-6 left-1/2 flex-col';
+
+  // Base centering transform (before drag offset is applied).
+  const baseTransform = isVerticalDock
+    ? 'translateY(-50%)'
+    : 'translateX(-50%)';
+
+  // Drag offset translates along the collapse axis.
+  const dragTransform = isVerticalDock
+    ? `translateX(${dragOffset * collapseSign}px)`
+    : `translateY(${dragOffset}px)`;
+
+  const scaleFactor = 1 - Math.min(dragOffset / 500, 0.15);
+
   return (
     <div
       ref={dockContainerRef}
@@ -650,13 +686,13 @@ export const Dock: React.FC = () => {
       data-role="dock"
       data-testid="dock"
       data-screenshot="exclude"
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-dock flex flex-col items-center gap-4 transition-all duration-300 select-none ${
-        isDraggingDown ? 'transition-none' : 'ease-out'
+      className={`fixed ${containerPositionClasses} z-dock flex items-center gap-4 transition-all duration-300 select-none ${
+        isDragCollapsing ? 'transition-none' : 'ease-out'
       }`}
       style={{
-        transform: `translateX(-50%) translateY(${dragY}px) scale(${1 - Math.min(dragY / 500, 0.15)})`,
-        opacity: 1 - Math.min(dragY / 400, 0.4),
-        touchAction: 'pan-x',
+        transform: `${baseTransform} ${dragTransform} scale(${scaleFactor})`,
+        opacity: 1 - Math.min(dragOffset / 400, 0.4),
+        touchAction: isVerticalDock ? 'pan-y' : 'pan-x',
       }}
     >
       {showRosterMenu && (
@@ -701,12 +737,33 @@ export const Dock: React.FC = () => {
             ref={drawingPopoverRef}
             style={{
               position: 'fixed',
-              left: drawingAnchorRect.left + drawingAnchorRect.width / 2,
-              bottom: window.innerHeight - drawingAnchorRect.top + 10,
-              transform: 'translateX(-50%)',
               zIndex: Z_INDEX.popover,
+              ...(dockPosition === 'left'
+                ? {
+                    left: drawingAnchorRect.right + 10,
+                    top: drawingAnchorRect.top + drawingAnchorRect.height / 2,
+                    transform: 'translateY(-50%)',
+                  }
+                : dockPosition === 'right'
+                  ? {
+                      right: window.innerWidth - drawingAnchorRect.left + 10,
+                      top: drawingAnchorRect.top + drawingAnchorRect.height / 2,
+                      transform: 'translateY(-50%)',
+                    }
+                  : {
+                      left:
+                        drawingAnchorRect.left + drawingAnchorRect.width / 2,
+                      bottom: window.innerHeight - drawingAnchorRect.top + 10,
+                      transform: 'translateX(-50%)',
+                    }),
             }}
-            className="w-64 overflow-hidden animate-in slide-in-from-bottom-2 duration-200"
+            className={`w-64 overflow-hidden animate-in duration-200 ${
+              dockPosition === 'left'
+                ? 'slide-in-from-left-2'
+                : dockPosition === 'right'
+                  ? 'slide-in-from-right-2'
+                  : 'slide-in-from-bottom-2'
+            }`}
           >
             <div className="bg-white/50 px-3 py-2 border-b border-white/30">
               <span className="text-xxs font-black uppercase text-slate-600 tracking-wider">
@@ -893,7 +950,13 @@ export const Dock: React.FC = () => {
           className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
             isExpanded
               ? 'scale-100 opacity-100'
-              : 'scale-50 opacity-0 pointer-events-none absolute translate-y-12'
+              : `scale-50 opacity-0 pointer-events-none absolute ${
+                  dockPosition === 'left'
+                    ? '-translate-x-12'
+                    : dockPosition === 'right'
+                      ? 'translate-x-12'
+                      : 'translate-y-12'
+                }`
           }`}
         >
           {/* Widget Library Modal (Triggered by button) */}
@@ -942,7 +1005,11 @@ export const Dock: React.FC = () => {
                   ? 'none'
                   : globalStyle.dockBorderRadius
             }
-            className="relative z-10 px-4 py-3 flex items-center gap-1.5 md:gap-3 max-w-[95vw] overflow-x-auto no-scrollbar flex-nowrap"
+            className={`relative z-10 px-4 py-3 flex items-center gap-1.5 md:gap-3 no-scrollbar flex-nowrap ${
+              isVerticalDock
+                ? 'flex-col max-h-[85vh] overflow-y-auto'
+                : 'max-w-[95vw] overflow-x-auto'
+            }`}
           >
             {dockItems.length > 0 ? (
               <>
@@ -957,7 +1024,11 @@ export const Dock: React.FC = () => {
                     items={dockItems.map((item) =>
                       item.type === 'tool' ? item.toolType : item.folder.id
                     )}
-                    strategy={horizontalListSortingStrategy}
+                    strategy={
+                      isVerticalDock
+                        ? verticalListSortingStrategy
+                        : horizontalListSortingStrategy
+                    }
                   >
                     {dockItems.map((item) => {
                       if (item.type === 'tool') {
@@ -1023,6 +1094,7 @@ export const Dock: React.FC = () => {
                                       .padStart(2, '0')}`
                                   : getToolLabel(item.toolType)
                               }
+                              dockPosition={dockPosition}
                             />
                           );
                         }
@@ -1058,6 +1130,7 @@ export const Dock: React.FC = () => {
                                   : undefined
                               }
                               buttonRef={classesButtonRef}
+                              dockPosition={dockPosition}
                             />
                           );
                         }
@@ -1094,6 +1167,7 @@ export const Dock: React.FC = () => {
                                   : undefined
                               }
                               buttonRef={catalystButtonRef}
+                              dockPosition={dockPosition}
                             />
                           );
                         }
@@ -1129,6 +1203,7 @@ export const Dock: React.FC = () => {
                                   : undefined
                               }
                               buttonRef={drawingButtonRef}
+                              dockPosition={dockPosition}
                             />
                           );
                         }
@@ -1154,6 +1229,7 @@ export const Dock: React.FC = () => {
                               customLabel={getToolLabel(tool.type)}
                               onClickOverride={handleToggleRemoteMenu}
                               buttonRef={remoteButtonRef}
+                              dockPosition={dockPosition}
                             />
                           );
                         }
@@ -1187,6 +1263,7 @@ export const Dock: React.FC = () => {
                             onLongPress={handleLongPress}
                             globalStyle={globalStyle}
                             customLabel={getToolLabel(tool.type)}
+                            dockPosition={dockPosition}
                           />
                         );
                       } else {
@@ -1221,6 +1298,7 @@ export const Dock: React.FC = () => {
                             }
                             onReorder={reorderFolderItems}
                             globalStyle={globalStyle}
+                            dockPosition={dockPosition}
                           />
                         );
                       }
@@ -1369,7 +1447,13 @@ export const Dock: React.FC = () => {
                 )}
 
                 {/* Separator and More Button */}
-                <div className="w-px h-8 bg-slate-200 mx-1 md:mx-2 flex-shrink-0" />
+                <div
+                  className={`bg-slate-200 flex-shrink-0 ${
+                    isVerticalDock
+                      ? 'h-px w-8 my-1 md:my-2'
+                      : 'w-px h-8 mx-1 md:mx-2'
+                  }`}
+                />
 
                 <button
                   ref={moreButtonRef}
@@ -1409,7 +1493,11 @@ export const Dock: React.FC = () => {
           }`}
         >
           {/* Compressed down to a single icon (plus quick access) */}
-          <div className="flex items-center gap-4">
+          <div
+            className={`flex items-center gap-4 ${
+              isVerticalDock ? 'flex-col' : ''
+            }`}
+          >
             {activeDashboard?.settings?.quickAccessWidgets?.[0] && (
               <QuickAccessButton
                 type={activeDashboard.settings.quickAccessWidgets[0]}

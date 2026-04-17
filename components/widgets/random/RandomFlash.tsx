@@ -18,6 +18,15 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
 
   const fontStyle = typeof fontSize === 'number' ? `${fontSize}px` : fontSize;
 
+  // Defensive: this component only renders strings. If stale state ever hands
+  // us an array (e.g., RandomGroup[] from a prior 'groups' run), fall back to
+  // the idle label rather than crashing React with "Objects are not valid as
+  // a React child".
+  const label =
+    typeof displayResult === 'string' && displayResult.length > 0
+      ? displayResult
+      : 'Ready?';
+
   return (
     <div
       className={`text-center font-black transition-all duration-300 w-full flex items-center justify-center font-${globalStyle.fontFamily} ${
@@ -41,7 +50,7 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
           overflowWrap: 'normal',
         }}
       >
-        {(displayResult as string) ?? 'Ready?'}
+        {label}
       </span>
     </div>
   );

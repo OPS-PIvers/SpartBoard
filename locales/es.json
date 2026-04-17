@@ -149,6 +149,11 @@
       "skipConfirmation": "Omitir la confirmación al cerrar widgets.",
       "quickAccessWidgets": "Widgets de Acceso Rápido",
       "quickAccessDescription": "Selecciona hasta 2 widgets para que aparezcan cuando el dock esté minimizado.",
+      "dockPosition": "Posición del Dock",
+      "dockPositionDescription": "Elige dónde aparece el dock en tu pantalla.",
+      "dockBottom": "Abajo",
+      "dockLeft": "Izquierda",
+      "dockRight": "Derecha",
       "language": "Idioma de la Interfaz",
       "languageDescription": "Elige el idioma de visualización preferido para todo el tablero.",
       "saveAllChanges": "Guardar todos los cambios"

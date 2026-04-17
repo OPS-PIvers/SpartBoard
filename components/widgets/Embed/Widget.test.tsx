@@ -64,6 +64,7 @@ vi.mock('@/context/useAuth', () => ({
     completeSetup: vi.fn(),
     disableCloseConfirmation: false,
     remoteControlEnabled: true,
+    dockPosition: 'bottom',
     updateAccountPreferences: vi.fn(),
   })),
 }));
@@ -410,6 +411,7 @@ describe('EmbedWidget', () => {
         completeSetup: vi.fn(),
         disableCloseConfirmation: false,
         remoteControlEnabled: true,
+        dockPosition: 'bottom',
         updateAccountPreferences: vi.fn(),
       });
 

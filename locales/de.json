@@ -146,6 +146,11 @@
       "skipConfirmation": "Bestätigungsdialog beim Schließen von Widgets überspringen.",
       "quickAccessWidgets": "Schnellzugriff-Widgets",
       "quickAccessDescription": "Wähle bis zu 2 Widgets aus, die erscheinen, wenn das Dock minimiert ist.",
+      "dockPosition": "Dock-Position",
+      "dockPositionDescription": "Wähle, wo das Dock auf deinem Bildschirm erscheint.",
+      "dockBottom": "Unten",
+      "dockLeft": "Links",
+      "dockRight": "Rechts",
       "language": "Oberflächensprache",
       "languageDescription": "Wähle deine bevorzugte Anzeigesprache für die gesamte Tafel.",
       "saveAllChanges": "Alle Änderungen speichern"

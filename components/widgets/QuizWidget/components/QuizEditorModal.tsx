@@ -5,17 +5,27 @@
  * editors (Video Activity, Guided Learning, MiniApp).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
   GripVertical,
+  Loader2,
   Plus,
+  Sparkles,
   Trash2,
+  X,
 } from 'lucide-react';
 import { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { useAuth } from '@/context/useAuth';
+import {
+  GeneratedQuestion,
+  buildPromptWithFileContext,
+  generateQuiz,
+} from '@/utils/ai';
+import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 
 interface QuizEditorModalProps {
   isOpen: boolean;
@@ -89,6 +99,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { canAccessFeature } = useAuth();
   // Snapshot the quiz when the modal opens so `isDirty` compares against the
   // original. When the `quiz` prop identity changes, local state is reset via
   // the "adjusting state while rendering" block below — no `key` prop needed.
@@ -105,6 +116,14 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     originalQuestions[0]?.id ?? null
   );
 
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiFileContext, setAiFileContext] = useState<string | null>(null);
+  const [aiFileName, setAiFileName] = useState<string | null>(null);
+  const [aiFileExtracting, setAiFileExtracting] = useState(false);
+
   // Reset local state when the `quiz` prop identity changes (new quiz loaded).
   const [prevQuiz, setPrevQuiz] = useState<QuizData | null>(quiz);
   if (quiz !== prevQuiz) {
@@ -114,7 +133,91 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     setError(null);
     setSaving(false);
     setExpandedId(originalQuestions[0]?.id ?? null);
+    setShowAiPrompt(false);
+    setAiPrompt('');
+    setAiGenerating(false);
+    setAiError(null);
+    setAiFileContext(null);
+    setAiFileName(null);
+    setAiFileExtracting(false);
   }
+
+  const aiEnabled = canAccessFeature('gemini-functions');
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiError(null);
+    const fullPrompt = buildPromptWithFileContext(
+      aiPrompt,
+      aiFileContext,
+      aiFileName
+    );
+    let result: Awaited<ReturnType<typeof generateQuiz>>;
+    try {
+      result = await generateQuiz(fullPrompt);
+    } catch (err) {
+      setAiError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to generate quiz. Please try again.'
+      );
+      setAiGenerating(false);
+      return;
+    }
+    try {
+      if (!result || !Array.isArray(result.questions)) {
+        throw new Error('AI returned an unexpected response shape.');
+      }
+      const validTypes: QuizQuestionType[] = [
+        'MC',
+        'FIB',
+        'Matching',
+        'Ordering',
+      ];
+      const generated: QuizQuestion[] = result.questions.map(
+        (q: GeneratedQuestion) => {
+          const type = validTypes.includes((q.type ?? 'MC') as QuizQuestionType)
+            ? ((q.type as QuizQuestionType) ?? 'MC')
+            : 'MC';
+          return {
+            id: crypto.randomUUID(),
+            text: q.text,
+            timeLimit: q.timeLimit ?? 30,
+            type,
+            correctAnswer: q.correctAnswer ?? '',
+            incorrectAnswers: q.incorrectAnswers ?? [],
+          };
+        }
+      );
+      if (!title.trim() && result.title) setTitle(result.title);
+      setQuestions((prev) => [...prev, ...generated]);
+      if (generated[0]) setExpandedId(generated[0].id);
+      setShowAiPrompt(false);
+      setAiPrompt('');
+      setAiFileContext(null);
+      setAiFileName(null);
+    } catch (err) {
+      setAiError(
+        err instanceof Error
+          ? `Could not parse AI response: ${err.message}`
+          : 'Could not parse AI response.'
+      );
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  // Global Escape listener so the overlay dismisses even when focus is
+  // outside its children (e.g., user clicked the backdrop).
+  useEffect(() => {
+    if (!showAiPrompt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape') setShowAiPrompt(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showAiPrompt]);
 
   const isDirty = useMemo(
     () =>
@@ -225,20 +328,32 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       onSave={handleSave}
       onClose={onClose}
       saveLabel="Save Quiz"
-      bodyClassName="px-6 py-5 bg-slate-50/50"
+      bodyClassName="px-6 py-5 bg-slate-50/50 relative"
     >
       <div className="flex flex-col gap-3">
-        <div>
-          <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-            Quiz Title
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Science Unit 4 Review"
-            className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-          />
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+              Quiz Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Science Unit 4 Review"
+              className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
+            />
+          </div>
+          {aiEnabled && (
+            <button
+              onClick={() => setShowAiPrompt(true)}
+              className="h-[38px] px-4 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
+              title="Generate with AI"
+            >
+              <Sparkles className="w-4 h-4" />
+              Magic
+            </button>
+          )}
         </div>
 
         {error && (
@@ -495,6 +610,73 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           <span className="text-sm">ADD NEW QUESTION</span>
         </button>
       </div>
+
+      {showAiPrompt && aiEnabled && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Magic Quiz Generator"
+          className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
+        >
+          <div className="w-full max-w-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
+                <Sparkles className="w-5 h-5" /> Magic Quiz Generator
+              </h4>
+              <button
+                onClick={() => setShowAiPrompt(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+                aria-label="Close Magic Generator"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
+              Describe the quiz you want to create. Generated questions will be
+              appended to the current list.
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="e.g. A 5-question quiz about the solar system for 3rd graders."
+              className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+              autoFocus
+              aria-label="Describe your quiz"
+            />
+            {canAccessFeature('ai-file-context') && (
+              <DriveFileAttachment
+                onFileContent={(content, name) => {
+                  setAiFileContext(content);
+                  setAiFileName(name);
+                }}
+                onExtractingChange={setAiFileExtracting}
+                disabled={aiGenerating}
+              />
+            )}
+            {aiError && (
+              <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {aiError}
+              </div>
+            )}
+            <button
+              onClick={() => void handleAiGenerate()}
+              disabled={aiGenerating || aiFileExtracting || !aiPrompt.trim()}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+            >
+              {aiGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" /> Generate Quiz
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </EditorModalShell>
   );
 };

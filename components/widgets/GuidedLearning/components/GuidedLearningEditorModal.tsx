@@ -7,6 +7,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { Wand2 } from 'lucide-react';
 import {
   GuidedLearningMode,
   GuidedLearningQuestion,
@@ -15,10 +16,12 @@ import {
   GuidedLearningStep,
 } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { useAuth } from '@/context/useAuth';
 import {
   GuidedLearningEditor,
   GuidedLearningEditorState,
 } from './GuidedLearningEditor';
+import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
 interface GuidedLearningEditorModalProps {
   isOpen: boolean;
@@ -26,6 +29,13 @@ interface GuidedLearningEditorModalProps {
   meta: GuidedLearningSetMetadata | null;
   onClose: () => void;
   onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
+  /**
+   * When provided, shows a "Generate with AI" button inside the modal (admin +
+   * `gemini-functions` gated). Invoked with the generated set so the parent
+   * can replace the in-flight draft (the editor resets when its `set` prop
+   * identity changes).
+   */
+  onAiGenerated?: (set: GuidedLearningSet) => void;
 }
 
 // ─── Deep equality helpers ──────────────────────────────────────────────────
@@ -99,12 +109,17 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
 
 export const GuidedLearningEditorModal: React.FC<
   GuidedLearningEditorModalProps
-> = ({ isOpen, set, meta, onClose, onSave }) => {
+> = ({ isOpen, set, meta, onClose, onSave, onAiGenerated }) => {
+  const { isAdmin, canAccessFeature } = useAuth();
   // Track live state from the headless editor via onStateChange callback
   const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
     null
   );
   const [saving, setSaving] = useState(false);
+  const [showAiGen, setShowAiGen] = useState(false);
+
+  const canUseAi =
+    !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
 
   // Snapshot originals when `set` identity changes
   const originalTitle = set?.title ?? '';
@@ -125,6 +140,7 @@ export const GuidedLearningEditorModal: React.FC<
     setPrevSet(set);
     setLiveState(null);
     setSaving(false);
+    setShowAiGen(false);
   }
 
   // Stable callback for the editor
@@ -205,12 +221,25 @@ export const GuidedLearningEditorModal: React.FC<
         liveState.imageUrls.length === 0 ||
         liveState.uploading
       }
+      footerExtras={
+        canUseAi ? (
+          <button
+            onClick={() => setShowAiGen(true)}
+            className="h-[36px] px-3 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
+            title="Generate with AI (Admin)"
+          >
+            <Wand2 className="w-4 h-4" />
+            Magic
+          </button>
+        ) : null
+      }
       maxWidth="max-w-6xl"
       className="h-[90vh]"
-      bodyClassName="p-0"
+      bodyClassName="p-0 relative"
     >
       {set && (
         <GuidedLearningEditor
+          key={set.id}
           existingSet={set}
           existingMeta={meta}
           onSave={onSave}
@@ -218,6 +247,15 @@ export const GuidedLearningEditorModal: React.FC<
           saving={saving}
           headless
           onStateChange={handleStateChange}
+        />
+      )}
+      {showAiGen && canUseAi && (
+        <GuidedLearningAIGenerator
+          onClose={() => setShowAiGen(false)}
+          onGenerated={(generated) => {
+            setShowAiGen(false);
+            onAiGenerated?.(generated);
+          }}
         />
       )}
     </EditorModalShell>

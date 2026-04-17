@@ -432,7 +432,7 @@ export const DashboardView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
   }, [activeDashboard?.id]);
 
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, dockPosition } = useAuth();
 
   const {
     session,
@@ -1383,7 +1383,9 @@ export const DashboardView: React.FC = () => {
               ? 'Enable background video sound'
               : 'Mute background video'
           }
-          className="fixed bottom-6 left-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm"
+          className={`fixed bottom-6 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm ${
+            dockPosition === 'left' ? 'right-14' : 'left-4'
+          }`}
           aria-label="Toggle background video sound"
         >
           <div className="relative flex items-center justify-center w-full h-full">
@@ -1412,7 +1414,9 @@ export const DashboardView: React.FC = () => {
       <button
         onClick={() => setIsCheatSheetOpen(true)}
         title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
-        className="fixed bottom-6 right-4 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm"
+        className={`fixed bottom-6 z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm ${
+          dockPosition === 'right' ? 'left-14' : 'right-4'
+        }`}
         aria-label={t('widgets.cheatSheet.title')}
       >
         <HelpCircle className="w-4 h-4" />

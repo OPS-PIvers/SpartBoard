@@ -57,6 +57,7 @@ const mockAuth: AuthContextType = {
   },
   disableCloseConfirmation: false,
   remoteControlEnabled: true,
+  dockPosition: 'bottom',
   updateAccountPreferences: async () => {
     // No-op in student view
   },

@@ -304,6 +304,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           setEditingMeta(null);
         }}
         onSave={handleSave}
+        onAiGenerated={(generated) => {
+          setEditingSet({ ...generated, isBuilding: true });
+          setEditingMeta(null);
+        }}
       />
     </>
   );

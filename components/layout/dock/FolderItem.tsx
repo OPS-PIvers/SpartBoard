@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderPlus, X } from 'lucide-react';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -30,6 +30,7 @@ import {
   GlobalStyle,
   WidgetData,
   InternalToolType,
+  DockPosition,
 } from '@/types';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
@@ -47,6 +48,7 @@ interface FolderItemProps {
     newItems: (WidgetType | InternalToolType)[]
   ) => void;
   globalStyle: GlobalStyle;
+  dockPosition?: DockPosition;
 }
 
 // Folder Item Component
@@ -62,6 +64,7 @@ export const FolderItem = React.memo(
     onRemoveItem,
     onReorder,
     globalStyle,
+    dockPosition = 'bottom',
   }: FolderItemProps) => {
     const {
       attributes,
@@ -76,8 +79,17 @@ export const FolderItem = React.memo(
     });
 
     const [showPopover, setShowPopover] = useState(false);
+    const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+      if (showPopover && buttonRef.current) {
+        setAnchorRect(buttonRef.current.getBoundingClientRect());
+      } else {
+        setAnchorRect(null);
+      }
+    }, [showPopover]);
 
     // DND Sensors for internal folder sorting
     const sensors = useSensors(
@@ -128,11 +140,55 @@ export const FolderItem = React.memo(
         className="relative flex flex-col items-center"
       >
         {showPopover &&
+          anchorRect &&
           createPortal(
             <GlassCard
               globalStyle={globalStyle}
               ref={popoverRef}
-              className="fixed bottom-32 left-1/2 -translate-x-1/2 w-64 p-4 animate-in slide-in-from-bottom-2 duration-200 z-popover"
+              style={
+                dockPosition === 'left'
+                  ? {
+                      position: 'fixed',
+                      left: anchorRect.right + 12,
+                      top: Math.max(
+                        12,
+                        Math.min(
+                          anchorRect.top + anchorRect.height / 2,
+                          window.innerHeight - 12
+                        )
+                      ),
+                      transform: 'translateY(-50%)',
+                      zIndex: Z_INDEX.popover,
+                    }
+                  : dockPosition === 'right'
+                    ? {
+                        position: 'fixed',
+                        right: window.innerWidth - anchorRect.left + 12,
+                        top: Math.max(
+                          12,
+                          Math.min(
+                            anchorRect.top + anchorRect.height / 2,
+                            window.innerHeight - 12
+                          )
+                        ),
+                        transform: 'translateY(-50%)',
+                        zIndex: Z_INDEX.popover,
+                      }
+                    : {
+                        position: 'fixed',
+                        left: anchorRect.left + anchorRect.width / 2,
+                        bottom: window.innerHeight - anchorRect.top + 12,
+                        transform: 'translateX(-50%)',
+                        zIndex: Z_INDEX.popover,
+                      }
+              }
+              className={`w-64 p-4 animate-in duration-200 ${
+                dockPosition === 'left'
+                  ? 'slide-in-from-left-2'
+                  : dockPosition === 'right'
+                    ? 'slide-in-from-right-2'
+                    : 'slide-in-from-bottom-2'
+              }`}
             >
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-xxs font-black uppercase text-slate-500 tracking-widest">
@@ -228,7 +284,9 @@ export const FolderItem = React.memo(
             className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'
-                : 'touch-pan-x'
+                : dockPosition === 'left' || dockPosition === 'right'
+                  ? 'touch-pan-y'
+                  : 'touch-pan-x'
             }`}
           >
             <DockIcon

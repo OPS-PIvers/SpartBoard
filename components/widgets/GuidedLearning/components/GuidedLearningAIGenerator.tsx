@@ -43,13 +43,22 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       try {
         const url = await uploadHotspotImage(user.uid, file);
         setImageUrl(url);
-      } catch {
-        setError(
-          'Image upload failed. Please check your connection and try again.'
-        );
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Image upload failed. Please check your connection and try again.';
+        setError(msg);
         setImageBase64('');
         setImageMimeType('');
       }
+    };
+    reader.onerror = () => {
+      setError(
+        'Could not read the selected file. Try a different image (JPEG or PNG).'
+      );
+      setImageBase64('');
+      setImageMimeType('');
     };
     reader.readAsDataURL(file);
   };
