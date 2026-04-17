@@ -555,6 +555,12 @@ service cloud.firestore {
     }
     // === /Wave 2 library assignment archives ===
 
+    // === Guided Learning assignments (Wave 2-GL) ===
+    // Per-teacher archive of guided learning assignments. Owner-only read/write.
+    match /users/{userId}/guided_learning_assignments/{id} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

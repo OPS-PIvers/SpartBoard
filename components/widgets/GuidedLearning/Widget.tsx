@@ -1,16 +1,20 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { doc, writeBatch } from 'firebase/firestore';
 import {
   WidgetData,
   GuidedLearningConfig,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
+  GuidedLearningAssignment,
 } from '@/types';
+import { db } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
+import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { GuidedLearningLibrary } from './components/GuidedLearningLibrary';
+import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
 import { GuidedLearningResults } from './components/GuidedLearningResults';
@@ -20,11 +24,13 @@ import { Loader2 } from 'lucide-react';
 import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerator';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 
+const GL_PERSONAL_COLLECTION = 'guided_learning';
+
 export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const rawConfig = widget.config as GuidedLearningConfig;
   // Normalize legacy 'editor' view — the inline editor is removed; use the modal instead
   const config = useMemo<GuidedLearningConfig>(
@@ -49,6 +55,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   } = useGuidedLearning(user?.uid);
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
+
+  const {
+    assignments,
+    loading: assignmentsLoading,
+    createAssignment,
+    archiveAssignment,
+    unarchiveAssignment,
+    deleteAssignment,
+  } = useGuidedLearningAssignments(user?.uid);
 
   // Local component state
   const [loadingSet, setLoadingSet] = useState(false);
@@ -122,6 +137,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  // The Manager delegates save routing back here: building sets go to
+  // Firestore-only via saveBuildingSet, personal sets go through Drive +
+  // Firestore metadata via saveSet. The Manager never sees this branching.
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
     if (set.isBuilding) {
       await saveBuildingSet(set);
@@ -161,10 +179,23 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     if (!data) return;
     try {
       const url = await createSession(data);
+      const sessionId = url.split('/').pop() ?? '';
       setRecentSessionIds((prev) => ({
         ...prev,
-        [setId]: url.split('/').pop() ?? '',
+        [setId]: sessionId,
       }));
+      if (sessionId) {
+        try {
+          await createAssignment({
+            sessionId,
+            setId: data.id,
+            setTitle: data.title,
+            source: buildingSet ? 'building' : 'personal',
+          });
+        } catch (err) {
+          console.warn('[GuidedLearning] Failed to record assignment:', err);
+        }
+      }
       await navigator.clipboard.writeText(url);
       addToast('Assignment link copied to clipboard!', 'success');
     } catch (err) {
@@ -174,7 +205,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
-  const handleViewResults = async (sessionId: string) => {
+  const handleViewResultsForRecent = async (sessionId: string) => {
     // Ensure the corresponding set is loaded so the results view has an activeSet
     const matchingEntry = Object.entries(recentSessionIds).find(
       ([, storedSessionId]) => storedSessionId === sessionId
@@ -194,6 +225,96 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       } as GuidedLearningConfig,
     });
   };
+
+  const handleViewAssignmentResults = async (
+    assignment: GuidedLearningAssignment
+  ) => {
+    const meta = sets.find((s) => s.id === assignment.setId);
+    const buildingSet = buildingSets.find((s) => s.id === assignment.setId);
+    const loaded = await loadSet(
+      assignment.setId,
+      meta?.driveFileId,
+      buildingSet
+    );
+    if (loaded) setActiveSet(loaded);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'results',
+        resultsSessionId: assignment.sessionId,
+      } as GuidedLearningConfig,
+    });
+  };
+
+  const handleAssignmentCopyLink = async (
+    assignment: GuidedLearningAssignment
+  ) => {
+    const url = `${window.location.origin}/guided-learning?session=${assignment.sessionId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      addToast('Student link copied!', 'success');
+    } catch {
+      addToast('Could not copy link. Try again.', 'error');
+    }
+  };
+
+  const handleAssignmentArchive = async (
+    assignment: GuidedLearningAssignment
+  ) => {
+    try {
+      await archiveAssignment(assignment.id);
+      addToast('Assignment archived.', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to archive';
+      addToast(msg, 'error');
+    }
+  };
+
+  const handleAssignmentUnarchive = async (
+    assignment: GuidedLearningAssignment
+  ) => {
+    try {
+      await unarchiveAssignment(assignment.id);
+      addToast('Moved back to In Progress.', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to move';
+      addToast(msg, 'error');
+    }
+  };
+
+  const handleAssignmentDelete = async (
+    assignment: GuidedLearningAssignment
+  ) => {
+    try {
+      await deleteAssignment(assignment.id);
+      addToast('Assignment deleted.', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete';
+      addToast(msg, 'error');
+    }
+  };
+
+  // Persist a new ordering of personal sets. We write `order` onto each
+  // metadata doc in a single batch — the Drive blob is untouched.
+  const handleReorderPersonal = useCallback(
+    async (orderedIds: string[]) => {
+      if (!user?.uid) return;
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, id), {
+          order: index,
+          updatedAt: Date.now(),
+        });
+      });
+      try {
+        await batch.commit();
+      } catch (err) {
+        console.error('[GuidedLearning] Failed to persist reorder:', err);
+        throw err;
+      }
+    },
+    [user?.uid]
+  );
 
   const emptySet = (): GuidedLearningSet => ({
     id: crypto.randomUUID(),
@@ -236,23 +357,53 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         content={
           <div className="h-full w-full">
             {config.view === 'library' && (
-              <GuidedLearningLibrary
-                widget={widget}
+              <GuidedLearningManager
                 sets={sets}
                 buildingSets={buildingSets}
+                assignments={assignments}
                 loading={loading}
                 buildingLoading={buildingLoading}
+                assignmentsLoading={assignmentsLoading}
                 isDriveConnected={isDriveConnected}
-                onPlay={handlePlay}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onDeleteBuilding={handleDeleteBuilding}
-                onAssign={handleAssign}
-                onCreateNew={handleCreateNew}
+                isAdmin={isAdmin ?? false}
+                onPlay={(setId, driveFileId, buildingSet) => {
+                  void handlePlay(setId, driveFileId, buildingSet);
+                }}
+                onEdit={(setId, driveFileId, buildingSet) => {
+                  void handleEdit(setId, driveFileId, buildingSet);
+                }}
+                onAssign={(setId, driveFileId, buildingSet) => {
+                  void handleAssign(setId, driveFileId, buildingSet);
+                }}
+                onDeletePersonal={(setId, driveFileId) => {
+                  void handleDelete(setId, driveFileId);
+                }}
+                onDeleteBuilding={(setId) => {
+                  void handleDeleteBuilding(setId);
+                }}
+                onCreateNewPersonal={handleCreateNew}
                 onCreateNewBuilding={handleCreateNewBuilding}
-                onViewResults={handleViewResults}
-                onGenerateWithAI={() => setShowAIGen(true)}
+                onOpenAIAuthoring={() => setShowAIGen(true)}
+                onReorderPersonal={handleReorderPersonal}
                 recentSessionIds={recentSessionIds}
+                onViewResults={(sessionId) => {
+                  void handleViewResultsForRecent(sessionId);
+                }}
+                onAssignmentCopyLink={(a) => {
+                  void handleAssignmentCopyLink(a);
+                }}
+                onAssignmentOpenResults={(a) => {
+                  void handleViewAssignmentResults(a);
+                }}
+                onAssignmentArchive={(a) => {
+                  void handleAssignmentArchive(a);
+                }}
+                onAssignmentUnarchive={(a) => {
+                  void handleAssignmentUnarchive(a);
+                }}
+                onAssignmentDelete={(a) => {
+                  void handleAssignmentDelete(a);
+                }}
               />
             )}
 

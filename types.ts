@@ -3545,3 +3545,34 @@ export interface MiniAppAssignment {
 }
 
 // === /MiniApp assignments ===
+
+// === Guided Learning assignments ===
+// Appended by Wave 2-GL migration. Models the per-teacher archive of guided
+// learning sessions so the unified Library shell can surface "In Progress"
+// and "Archive" tabs. An assignment pairs a GuidedLearningSession document
+// (under /guided_learning_sessions/{sessionId}) with a per-teacher archive
+// entry (under /users/{userId}/guided_learning_assignments/{id}).
+export type GuidedLearningAssignmentStatus = 'active' | 'archived';
+
+export interface GuidedLearningAssignment {
+  /** Document id — matches the session id. */
+  id: string;
+  /** ID of the set that was assigned. */
+  setId: string;
+  /** Snapshot of the set's title at assign time. */
+  setTitle: string;
+  /** Session id (== `id`). The student-facing URL uses this. */
+  sessionId: string;
+  /** Firebase UID of the teacher who created the assignment. */
+  teacherUid: string;
+  /** Whether the assignment is still accepting responses. */
+  status: GuidedLearningAssignmentStatus;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last status change. */
+  updatedAt: number;
+  /** Set to epoch ms when the teacher archives this assignment. */
+  archivedAt?: number | null;
+  /** Optional origin set: 'personal' (Drive) or 'building' (Firestore). */
+  source?: 'personal' | 'building';
+}
