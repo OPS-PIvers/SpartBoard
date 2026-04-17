@@ -787,23 +787,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   /* ─── Render ─────────────────────────────────────────────────────────────── */
 
-  const libraryBody =
-    tab === 'library' ? (
-      userId ? (
-        <LibraryDndContext
-          itemIds={orderedIds}
-          onDropOnFolder={handleDropOnFolder}
-          onReorder={handleReorderDrop}
-          renderOverlay={renderDragOverlay}
-        >
-          {renderLibraryTab()}
-        </LibraryDndContext>
-      ) : (
-        renderLibraryTab()
-      )
-    ) : null;
-
-  return (
+  const shell = (
     <LibraryShell
       widgetLabel="Guided Learning"
       tab={tab}
@@ -835,9 +819,22 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         ) : undefined
       }
     >
-      {tab === 'library' && libraryBody}
+      {tab === 'library' && renderLibraryTab()}
       {tab === 'active' && renderAssignmentTab('active')}
       {tab === 'archive' && renderAssignmentTab('archive')}
     </LibraryShell>
+  );
+
+  return userId && tab === 'library' ? (
+    <LibraryDndContext
+      itemIds={orderedIds}
+      onDropOnFolder={handleDropOnFolder}
+      onReorder={handleReorderDrop}
+      renderOverlay={renderDragOverlay}
+    >
+      {shell}
+    </LibraryDndContext>
+  ) : (
+    shell
   );
 };

@@ -687,46 +687,48 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     );
   };
 
-  const libraryTabContent = useExternalDnd ? (
-    <LibraryDndContext
-      itemIds={orderedIds}
-      onReorder={handleReorderDrop}
-      onDropOnFolder={handleDropOnFolder}
-      renderOverlay={renderDragOverlay}
+  const shell = (
+    <LibraryShell
+      widgetLabel="Video Activity"
+      tab={tab}
+      onTabChange={setTab}
+      counts={tabCounts}
+      primaryAction={{
+        label: 'New',
+        icon: Plus,
+        onClick: onNew,
+      }}
+      secondaryActions={[
+        {
+          label: 'Import',
+          icon: FileUp,
+          onClick: onImport,
+        },
+      ]}
+      toolbarSlot={toolbar}
+      filterSidebarSlot={folderSidebarSlot}
     >
-      {renderLibraryTab()}
-    </LibraryDndContext>
-  ) : (
-    renderLibraryTab()
+      {tab === 'library' && renderLibraryTab()}
+      {tab === 'active' && renderAssignmentList(activeAssignments, 'active')}
+      {tab === 'archive' &&
+        renderAssignmentList(inactiveAssignments, 'archive')}
+    </LibraryShell>
   );
 
   return (
     <>
-      <LibraryShell
-        widgetLabel="Video Activity"
-        tab={tab}
-        onTabChange={setTab}
-        counts={tabCounts}
-        primaryAction={{
-          label: 'New',
-          icon: Plus,
-          onClick: onNew,
-        }}
-        secondaryActions={[
-          {
-            label: 'Import',
-            icon: FileUp,
-            onClick: onImport,
-          },
-        ]}
-        toolbarSlot={toolbar}
-        filterSidebarSlot={folderSidebarSlot}
-      >
-        {tab === 'library' && libraryTabContent}
-        {tab === 'active' && renderAssignmentList(activeAssignments, 'active')}
-        {tab === 'archive' &&
-          renderAssignmentList(inactiveAssignments, 'archive')}
-      </LibraryShell>
+      {useExternalDnd && tab === 'library' ? (
+        <LibraryDndContext
+          itemIds={orderedIds}
+          onReorder={handleReorderDrop}
+          onDropOnFolder={handleDropOnFolder}
+          renderOverlay={renderDragOverlay}
+        >
+          {shell}
+        </LibraryDndContext>
+      ) : (
+        shell
+      )}
 
       {assignTarget && (
         <AssignModal<VideoActivitySessionSettings>

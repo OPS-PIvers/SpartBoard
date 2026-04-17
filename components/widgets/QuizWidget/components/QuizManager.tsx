@@ -678,79 +678,73 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  const shell = (
+    <LibraryShell
+      widgetLabel="Quiz"
+      tab={managerTab}
+      onTabChange={(t) => onTabChange?.(t)}
+      counts={{
+        library: quizzes.length,
+        active: activeAssignments.length,
+        archive: inactiveAssignments.length,
+      }}
+      primaryAction={primaryAction}
+      secondaryActions={secondaryActions}
+      toolbarSlot={toolbar}
+      filterSidebarSlot={folderSidebarSlot}
+    >
+      {managerTab === 'library' && (
+        <LibraryTabContent
+          error={error}
+          orderedItems={reorder.orderedItems}
+          onAssignClick={(q) => setAssignTarget(q)}
+          buildSecondaryActions={buildQuizSecondaryActions}
+          onEdit={onEdit}
+          onImport={onImport}
+          totalCount={quizzes.length}
+          reorderLocked={libraryView.reorderLocked}
+          reorderLockedReason={libraryView.reorderLockedReason}
+          enableCardDrag={Boolean(userId)}
+        />
+      )}
+
+      {managerTab === 'active' && (
+        <AssignmentsList
+          assignments={activeAssignments}
+          loading={assignmentsLoading}
+          mode="active"
+          buildActions={buildArchiveActions}
+          emptyTitle="No quizzes in progress"
+          emptySub="Assign a quiz from the Library tab to get started. Active and paused assignments appear here."
+        />
+      )}
+
+      {managerTab === 'archive' && (
+        <AssignmentsList
+          assignments={inactiveAssignments}
+          loading={assignmentsLoading}
+          mode="archive"
+          buildActions={buildArchiveActions}
+          emptyTitle="No archived assignments"
+          emptySub="Ended assignments are moved here so you can review results and share them."
+        />
+      )}
+    </LibraryShell>
+  );
+
   return (
     <>
-      <LibraryShell
-        widgetLabel="Quiz"
-        tab={managerTab}
-        onTabChange={(t) => onTabChange?.(t)}
-        counts={{
-          library: quizzes.length,
-          active: activeAssignments.length,
-          archive: inactiveAssignments.length,
-        }}
-        primaryAction={primaryAction}
-        secondaryActions={secondaryActions}
-        toolbarSlot={toolbar}
-        filterSidebarSlot={folderSidebarSlot}
-      >
-        {managerTab === 'library' &&
-          (userId ? (
-            <LibraryDndContext
-              itemIds={orderedIds}
-              onDropOnFolder={handleDropOnFolder}
-              renderOverlay={renderDragOverlay}
-            >
-              <LibraryTabContent
-                error={error}
-                orderedItems={reorder.orderedItems}
-                onAssignClick={(q) => setAssignTarget(q)}
-                buildSecondaryActions={buildQuizSecondaryActions}
-                onEdit={onEdit}
-                onImport={onImport}
-                totalCount={quizzes.length}
-                reorderLocked={libraryView.reorderLocked}
-                reorderLockedReason={libraryView.reorderLockedReason}
-                enableCardDrag
-              />
-            </LibraryDndContext>
-          ) : (
-            <LibraryTabContent
-              error={error}
-              orderedItems={reorder.orderedItems}
-              onAssignClick={(q) => setAssignTarget(q)}
-              buildSecondaryActions={buildQuizSecondaryActions}
-              onEdit={onEdit}
-              onImport={onImport}
-              totalCount={quizzes.length}
-              reorderLocked={libraryView.reorderLocked}
-              reorderLockedReason={libraryView.reorderLockedReason}
-              enableCardDrag={false}
-            />
-          ))}
-
-        {managerTab === 'active' && (
-          <AssignmentsList
-            assignments={activeAssignments}
-            loading={assignmentsLoading}
-            mode="active"
-            buildActions={buildArchiveActions}
-            emptyTitle="No quizzes in progress"
-            emptySub="Assign a quiz from the Library tab to get started. Active and paused assignments appear here."
-          />
-        )}
-
-        {managerTab === 'archive' && (
-          <AssignmentsList
-            assignments={inactiveAssignments}
-            loading={assignmentsLoading}
-            mode="archive"
-            buildActions={buildArchiveActions}
-            emptyTitle="No archived assignments"
-            emptySub="Ended assignments are moved here so you can review results and share them."
-          />
-        )}
-      </LibraryShell>
+      {userId && managerTab === 'library' ? (
+        <LibraryDndContext
+          itemIds={orderedIds}
+          onDropOnFolder={handleDropOnFolder}
+          renderOverlay={renderDragOverlay}
+        >
+          {shell}
+        </LibraryDndContext>
+      ) : (
+        shell
+      )}
 
       {assignTarget && (
         <AssignModal<QuizAssignOptions>

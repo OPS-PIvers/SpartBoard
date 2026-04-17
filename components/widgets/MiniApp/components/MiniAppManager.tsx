@@ -656,7 +656,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // In the Global view we keep drag disabled — global items are read-only
     // and never move between folders.
     const enableCardDrag = Boolean(userId) && !isGlobalView;
-    const gridEl = (
+    tabContent = (
       <LibraryGrid<UnifiedRow>
         items={view.visibleItems}
         getId={getRowId}
@@ -672,52 +672,44 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         emptyState={empty}
       />
     );
-
-    if (enableCardDrag) {
-      const orderedIds = view.visibleItems.map(getRowId);
-      const renderDragOverlay = (activeId: string): React.ReactNode => {
-        const row = view.visibleItems.find((r) => getRowId(r) === activeId);
-        if (!row || row.kind !== 'personal') return null;
-        const app = row.item;
-        return (
-          <LibraryItemCard<MiniAppItem>
-            id={getRowId(row)}
-            title={app.title}
-            subtitle={
-              <span className="font-mono">
-                {(app.html.length / 1024).toFixed(1)} KB
-              </span>
-            }
-            thumbnail={
-              <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-[10px] font-black uppercase tracking-widest text-indigo-600">
-                HTML
-              </div>
-            }
-            primaryAction={{
-              label: 'Assign',
-              icon: Link2,
-              onClick: () => undefined,
-            }}
-            viewMode={view.state.viewMode}
-            sortable={false}
-            isDragOverlay
-          />
-        );
-      };
-      tabContent = (
-        <LibraryDndContext
-          itemIds={orderedIds}
-          onDropOnFolder={handleDropOnFolder}
-          onReorder={(ids) => reorderHook.handleReorder(ids)}
-          renderOverlay={renderDragOverlay}
-        >
-          {gridEl}
-        </LibraryDndContext>
-      );
-    } else {
-      tabContent = gridEl;
-    }
   }
+
+  /* ── Shared DndContext wiring (must wrap full shell so FolderSidebar
+   *    droppables live in the same context as sortable cards) ───────────── */
+  const libraryDndEnabled =
+    tab === 'library' && Boolean(userId) && !isGlobalView;
+  const orderedRowIds = libraryDndEnabled
+    ? view.visibleItems.map(getRowId)
+    : [];
+  const renderLibraryDragOverlay = (activeId: string): React.ReactNode => {
+    const row = view.visibleItems.find((r) => getRowId(r) === activeId);
+    if (!row || row.kind !== 'personal') return null;
+    const app = row.item;
+    return (
+      <LibraryItemCard<MiniAppItem>
+        id={getRowId(row)}
+        title={app.title}
+        subtitle={
+          <span className="font-mono">
+            {(app.html.length / 1024).toFixed(1)} KB
+          </span>
+        }
+        thumbnail={
+          <div className="flex h-full w-full items-center justify-center bg-indigo-50 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+            HTML
+          </div>
+        }
+        primaryAction={{
+          label: 'Assign',
+          icon: Link2,
+          onClick: () => undefined,
+        }}
+        viewMode={view.state.viewMode}
+        sortable={false}
+        isDragOverlay
+      />
+    );
+  };
 
   /* ── Toolbar is only meaningful on the Library tab ────────────────────── */
   const toolbarSlot =
@@ -737,7 +729,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       />
     ) : null;
 
-  return (
+  const shell = (
     <LibraryShell
       widgetLabel="Mini App"
       tab={tab}
@@ -754,5 +746,18 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     >
       {tabContent}
     </LibraryShell>
+  );
+
+  return libraryDndEnabled ? (
+    <LibraryDndContext
+      itemIds={orderedRowIds}
+      onDropOnFolder={handleDropOnFolder}
+      onReorder={(ids) => reorderHook.handleReorder(ids)}
+      renderOverlay={renderLibraryDragOverlay}
+    >
+      {shell}
+    </LibraryDndContext>
+  ) : (
+    shell
   );
 };
