@@ -300,11 +300,11 @@ export const Toggle: React.FC<{
 
 export const Checkbox: React.FC<
   React.InputHTMLAttributes<HTMLInputElement>
-> = ({ className = '', ...rest }) => (
+> = ({ className = '', type: _type, ...rest }) => (
   <input
+    {...rest}
     type="checkbox"
     className={`h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40 ${className}`}
-    {...rest}
   />
 );
 
@@ -367,6 +367,7 @@ export const Segmented: <T extends string>(props: {
     {options.map((opt) => (
       <button
         key={opt.value}
+        type="button"
         role="tab"
         aria-selected={value === opt.value}
         onClick={() => onChange(opt.value)}

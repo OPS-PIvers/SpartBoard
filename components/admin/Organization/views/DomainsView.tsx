@@ -291,10 +291,16 @@ const AddDomainModal: React.FC<{
       }
     >
       <div className="space-y-4">
-        <Field label="Domain" required hint="Example: orono.k12.mn.us">
+        <Field
+          label="Domain"
+          required
+          hint="Example: orono.k12.mn.us"
+          htmlFor="add-domain-input"
+        >
           <div className="flex items-center rounded-lg border border-slate-300 focus-within:border-brand-blue-primary focus-within:ring-[3px] focus-within:ring-brand-blue-primary/30 bg-white">
             <span className="pl-3 text-slate-400 font-mono text-sm">@</span>
             <input
+              id="add-domain-input"
               value={domain.replace(/^@/, '')}
               onChange={(e) => setDomain(e.target.value)}
               className="flex-1 h-10 px-2 bg-transparent outline-none font-mono text-sm text-slate-800"

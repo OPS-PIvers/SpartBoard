@@ -195,6 +195,18 @@ export const OrganizationPanel: React.FC = () => {
     ? section
     : (visibleSections[0]?.id ?? 'overview');
 
+  // If the persisted section is no longer visible to this actor (e.g. a super
+  // admin downgraded to domain admin), write the fallback back to state +
+  // localStorage so reloads land on a section the user can actually see.
+  // Adjust-during-render pattern: React discards this render and re-renders
+  // with the corrected state, so no cascading-effect warning.
+  if (section !== effectiveSection) {
+    setSection(effectiveSection);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, effectiveSection);
+    }
+  }
+
   // ---- Handlers ----
 
   const updateOrg = (patch: Partial<OrgRecord>) => {

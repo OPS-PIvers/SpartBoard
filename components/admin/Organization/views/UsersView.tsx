@@ -789,23 +789,47 @@ const InviteModal: React.FC<{
               ))}
             </Select>
           </Field>
-          <Field label="Buildings">
-            <Select
-              multiple
-              value={bids}
-              onChange={(e) =>
-                setBids(
-                  Array.from(e.target.selectedOptions).map((o) => o.value)
-                )
-              }
-              className="h-auto py-2"
+          <Field
+            label="Buildings"
+            hint={
+              buildings.length === 0
+                ? 'No buildings yet — add one first.'
+                : undefined
+            }
+          >
+            {/* Checkbox list avoids the ctrl/cmd-click discoverability trap
+                of a native <select multiple>. Scrollable if many buildings. */}
+            <div
+              role="group"
+              aria-label="Buildings"
+              className="max-h-40 overflow-y-auto rounded-lg border border-slate-300 bg-white divide-y divide-slate-100"
             >
-              {buildings.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </Select>
+              {buildings.map((b) => {
+                const checked = bids.includes(b.id);
+                const inputId = `invite-building-${b.id}`;
+                return (
+                  <label
+                    key={b.id}
+                    htmlFor={inputId}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Checkbox
+                      id={inputId}
+                      checked={checked}
+                      onChange={(e) => {
+                        setBids((prev) =>
+                          e.target.checked
+                            ? [...prev, b.id]
+                            : prev.filter((id) => id !== b.id)
+                        );
+                      }}
+                    />
+                    <span className="flex-1 truncate">{b.name}</span>
+                    <Badge color="slate">{b.grades}</Badge>
+                  </label>
+                );
+              })}
+            </div>
           </Field>
         </div>
         <Field

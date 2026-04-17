@@ -233,11 +233,14 @@ const CreateOrgModal: React.FC<{
   const [plan, setPlan] = useState<Plan>('basic');
   const [email, setEmail] = useState('');
 
-  const slug = (s: string) =>
-    s
-      .replace(/[^a-zA-Z]/g, '')
-      .slice(0, 3)
-      .toUpperCase();
+  const slug = (s: string) => {
+    // shortCode is shown as the org avatar — clamp to the 2-4 char window the
+    // field hint advertises, padding with 'X' if the name had fewer than two
+    // letters so we never emit a 0/1-char code that breaks the avatar tile.
+    const letters = s.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const clamped = letters.slice(0, 4);
+    return clamped.length >= 2 ? clamped : (clamped + 'XX').slice(0, 2);
+  };
 
   return (
     <LocalModal
