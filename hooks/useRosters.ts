@@ -616,14 +616,30 @@ export const useRosters = (user: User | null) => {
       }
 
       // Optimistically update local state so the modal reflects the change
-      // immediately, before the Firestore snapshot round-trips.
+      // immediately, before the Firestore snapshot round-trips. Capture the
+      // previous absent value so we can revert if the write fails.
+      let previousAbsent: ClassRoster['absent'];
       setRosters((prev) =>
-        prev.map((r) => (r.id === rosterId ? { ...r, absent: payload } : r))
+        prev.map((r) => {
+          if (r.id !== rosterId) return r;
+          previousAbsent = r.absent;
+          return { ...r, absent: payload };
+        })
       );
 
-      await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
-        absent: payload,
-      });
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
+          absent: payload,
+        });
+      } catch (err) {
+        console.error('Failed to persist absent list:', err);
+        setRosters((prev) =>
+          prev.map((r) =>
+            r.id === rosterId ? { ...r, absent: previousAbsent } : r
+          )
+        );
+        throw err;
+      }
     },
     [user]
   );

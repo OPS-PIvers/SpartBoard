@@ -141,6 +141,7 @@
       "restrictionsNone": "No restrictions",
       "restrictionsCount_one": "{{count}} restricted",
       "restrictionsCount_other": "{{count}} restricted",
+      "restrictionsPickerLabel": "Restrict from working together",
       "restrictionsFilter": "Search classmates…",
       "restrictionsEmptyRoster": "Add more students to set restrictions.",
       "restrictionsNoMatches": "No matches.",
@@ -298,6 +299,7 @@
       "scoreboardCreated": "Created scoreboard with {{count}} teams!",
       "absent": {
         "buttonLabel": "Mark absent students",
+        "ariaLabel": "Open attendance — {{count}} marked absent today",
         "title": "Mark absent — {{date}}",
         "summary": "{{present}} present · {{absent}} absent",
         "clearAll": "Clear all (everyone present)",

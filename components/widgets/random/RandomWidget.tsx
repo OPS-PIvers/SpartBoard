@@ -681,10 +681,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <button
                   onClick={() => setAbsentModalOpen(true)}
-                  title={t('widgets.random.markAbsentTitle', {
-                    defaultValue: 'Mark students absent today',
+                  title={t('widgets.random.absent.buttonLabel', {
+                    defaultValue: 'Mark absent students',
                   })}
-                  aria-label={t('widgets.random.markAbsentAria', {
+                  aria-label={t('widgets.random.absent.ariaLabel', {
                     defaultValue:
                       'Open attendance — {{count}} marked absent today',
                     count: absentCount,

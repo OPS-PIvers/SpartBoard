@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Search, UserX } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -28,7 +28,17 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   useClickOutside(wrapperRef, () => setOpen(false));
+
+  // Return focus to the trigger when the popover closes (WCAG 2.4.3).
+  useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      triggerRef.current?.focus();
+    }
+    wasOpenRef.current = open;
+  }, [open]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -53,6 +63,7 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
   return (
     <div ref={wrapperRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -76,6 +87,15 @@ export const RestrictionsPicker: React.FC<RestrictionsPickerProps> = ({
       {open && (
         <div
           role="dialog"
+          aria-label={t('sidebar.classes.restrictionsPickerLabel', {
+            defaultValue: 'Restrict from working together',
+          })}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setOpen(false);
+            }
+          }}
           className="absolute top-full right-0 mt-1 w-72 max-h-80 flex flex-col z-popover rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           <div className="p-2 border-b border-slate-200 flex items-center gap-2">

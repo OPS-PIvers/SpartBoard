@@ -61,16 +61,20 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
 
   const toggleStudent = useCallback(
     (studentId: string) => {
+      // Use the updater to read the latest state (survives rapid taps),
+      // capture the next value, then fire the Firestore write OUTSIDE the
+      // updater so the write doesn't double-fire under StrictMode.
+      let nextIds!: Set<string>;
       setLocalAbsentIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(studentId)) {
-          next.delete(studentId);
+        nextIds = new Set(prev);
+        if (nextIds.has(studentId)) {
+          nextIds.delete(studentId);
         } else {
-          next.add(studentId);
+          nextIds.add(studentId);
         }
-        void setAbsentStudents(roster.id, [...next]);
-        return next;
+        return nextIds;
       });
+      void setAbsentStudents(roster.id, [...nextIds]);
     },
     [roster.id, setAbsentStudents]
   );
