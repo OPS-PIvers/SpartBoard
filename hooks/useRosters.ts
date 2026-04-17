@@ -617,12 +617,16 @@ export const useRosters = (user: User | null) => {
 
       // Optimistically update local state so the modal reflects the change
       // immediately, before the Firestore snapshot round-trips. Capture the
-      // previous absent value outside the updater (which must stay pure) so
-      // we can revert if the write fails.
-      const previousAbsent = rosters.find((r) => r.id === rosterId)?.absent;
-      setRosters((prev) =>
-        prev.map((r) => (r.id === rosterId ? { ...r, absent: payload } : r))
-      );
+      // previous absent value inside the functional updater — reading from
+      // the rosters closure could return a stale value when rapid taps fire
+      // multiple setAbsentStudents calls before any re-render.
+      let previousAbsent: ClassRoster['absent'] | undefined;
+      setRosters((prev) => {
+        previousAbsent = prev.find((r) => r.id === rosterId)?.absent;
+        return prev.map((r) =>
+          r.id === rosterId ? { ...r, absent: payload } : r
+        );
+      });
 
       try {
         await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
@@ -638,7 +642,7 @@ export const useRosters = (user: User | null) => {
         throw err;
       }
     },
-    [user, rosters]
+    [user]
   );
 
   const setActiveRoster = useCallback((id: string | null) => {

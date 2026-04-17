@@ -82,7 +82,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const maxNameLen = useMemo(() => {
+  const maxNameLen = (() => {
     let max = 0;
     for (const g of groups) {
       const names = Array.isArray(g) ? g : g.names;
@@ -92,7 +92,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
       }
     }
     return max || 8;
-  }, [groups]);
+  })();
 
   const cols = computeColumnCount(groups.length, dims.w, dims.h, maxNameLen);
   const rows = groups.length > 0 ? Math.ceil(groups.length / cols) : 1;
@@ -152,6 +152,9 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
                   1,
                   ...groupNames.map((s) => s.length)
                 );
+                // Intentional cqw/cqh mix (not cqmin): width budget comes from
+                // longest name, height budget from row count. cqmin would
+                // conflate these two independent constraints.
                 const heightCqh = Math.max(6, Math.floor(65 / n));
                 const widthCqw = Math.max(
                   4,
