@@ -1,0 +1,656 @@
+/**
+ * VideoActivityManager — teacher's video activity library built on the shared
+ * Wave-1 library primitives (`LibraryShell`, `LibraryGrid`, `LibraryToolbar`,
+ * `useLibraryView`, `useSortableReorder`, `AssignModal`).
+ *
+ * Three tabs (Library / In Progress / Archive) mirror QuizManager's proven
+ * pattern. The In Progress + Archive tabs render the persisted assignments
+ * surfaced by `useVideoActivityAssignments()`; the assignment runtime itself
+ * (the live monitor / student join-URL flow) isn't shipped here — it will
+ * follow in a later wave. This component only surfaces the list states so
+ * teachers can copy URLs, pause/resume, and delete archived rows.
+ *
+ * Per-assignment session options preserved from the legacy Manager:
+ *   - `autoPlay`, `requireCorrectAnswer` (a.k.a "Require Correct Answers"),
+ *     `allowSkipping`, and a free-text "Assignment Name" — rendered through
+ *     `AssignModal.extraSlot`. The adapter contract is locked; widget-
+ *     specific toggles flow through that slot, not by forking the primitive.
+ */
+
+import React, { useMemo, useState } from 'react';
+import {
+  Activity,
+  AlertCircle,
+  BarChart3,
+  Ban,
+  Copy,
+  Edit2,
+  FileUp,
+  Link2,
+  Loader2,
+  PlayCircle,
+  Plus,
+  Trash2,
+} from 'lucide-react';
+import { LibraryShell } from '@/components/common/library/LibraryShell';
+import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
+import { LibraryGrid } from '@/components/common/library/LibraryGrid';
+import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
+import { AssignModal } from '@/components/common/library/AssignModal';
+import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { Toggle } from '@/components/common/Toggle';
+import type {
+  AssignmentStatusBadge,
+  LibraryBadge,
+  LibraryMenuAction,
+  LibrarySortDir,
+  LibraryTab,
+} from '@/components/common/library/types';
+import type {
+  VideoActivityAssignment,
+  VideoActivityAssignmentStatus,
+  VideoActivityMetadata,
+  VideoActivitySession,
+  VideoActivitySessionSettings,
+} from '@/types';
+
+/* ─── Props ───────────────────────────────────────────────────────────────── */
+
+export interface VideoActivityManagerProps {
+  // Library (activity templates)
+  activities: VideoActivityMetadata[];
+  loading: boolean;
+  error: string | null;
+  onNew: () => void;
+  onImport: () => void;
+  onEdit: (activity: VideoActivityMetadata) => void;
+  onDelete: (activity: VideoActivityMetadata) => void;
+  /**
+   * Optional per-activity results view. New work prefers the assignment-
+   * archive tab; kept for backwards-compatibility while the legacy Widget
+   * still wires a per-activity session history modal.
+   */
+  onResults?: (activity: VideoActivityMetadata) => void;
+  onAssign: (
+    activity: VideoActivityMetadata,
+    settings: VideoActivitySessionSettings,
+    assignmentName: string
+  ) => Promise<string>;
+  /**
+   * Optional persistence hook for manual drag-reorder of the library. If
+   * omitted, drag is still wired but commits are a no-op — the order state
+   * remains local to this session.
+   */
+  onReorderActivities?: (orderedIds: string[]) => Promise<void> | void;
+  defaultSessionSettings: VideoActivitySessionSettings;
+
+  // Assignments (persisted archive)
+  assignments: VideoActivityAssignment[];
+  assignmentsLoading: boolean;
+  onArchiveCopyUrl?: (assignment: VideoActivityAssignment) => void;
+  onArchivePauseResume?: (assignment: VideoActivityAssignment) => Promise<void>;
+  onArchiveDeactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
+  onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
+  onArchiveResults?: (assignment: VideoActivityAssignment) => void;
+
+  // Legacy per-activity session view (one-off session history). Kept for
+  // backwards compatibility with existing Widget.tsx wiring; new work should
+  // prefer the assignment archive instead.
+  onSessionResults?: (session: VideoActivitySession) => void;
+}
+
+/* ─── Assignment status → badge mapping ───────────────────────────────────── */
+
+function statusToBadge(
+  status: VideoActivityAssignmentStatus
+): AssignmentStatusBadge {
+  switch (status) {
+    case 'active':
+      return { label: 'Live', tone: 'success', dot: true };
+    case 'paused':
+      return { label: 'Paused', tone: 'warn', dot: true };
+    case 'inactive':
+    default:
+      return { label: 'Ended', tone: 'neutral' };
+  }
+}
+
+/* ─── Main component ──────────────────────────────────────────────────────── */
+
+export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
+  activities,
+  loading,
+  error,
+  onNew,
+  onImport,
+  onEdit,
+  onDelete,
+  onResults,
+  onAssign,
+  onReorderActivities,
+  defaultSessionSettings,
+  assignments,
+  assignmentsLoading,
+  onArchiveCopyUrl,
+  onArchivePauseResume,
+  onArchiveDeactivate,
+  onArchiveDelete,
+  onArchiveResults,
+}) => {
+  const [tab, setTab] = useState<LibraryTab>('library');
+
+  // Assign modal state
+  const [assignTarget, setAssignTarget] =
+    useState<VideoActivityMetadata | null>(null);
+  const [assignOptions, setAssignOptions] =
+    useState<VideoActivitySessionSettings>(defaultSessionSettings);
+  const [assignmentName, setAssignmentName] = useState<string>('');
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  // Adjust state during render when the assign target changes — avoids the
+  // set-state-in-effect anti-pattern while keeping form fields reset per open.
+  const [prevAssignTargetId, setPrevAssignTargetId] = useState<string | null>(
+    null
+  );
+  if (assignTarget && assignTarget.id !== prevAssignTargetId) {
+    setPrevAssignTargetId(assignTarget.id);
+    setAssignOptions(defaultSessionSettings);
+    setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
+    setAssignError(null);
+  } else if (!assignTarget && prevAssignTargetId !== null) {
+    setPrevAssignTargetId(null);
+  }
+
+  // Delete confirmation state
+  const [confirmDeleteActivityId, setConfirmDeleteActivityId] = useState<
+    string | null
+  >(null);
+  const [confirmDeleteAssignmentId, setConfirmDeleteAssignmentId] = useState<
+    string | null
+  >(null);
+
+  /* ─── Library (activities) view state ─────────────────────────────────── */
+
+  const libraryView = useLibraryView<VideoActivityMetadata>({
+    items: activities,
+    initialSort: { key: 'updated', dir: 'desc' },
+    searchFields: (a) => [a.title, a.youtubeUrl],
+    sortComparators: {
+      manual: (a, b) => (a.order ?? 0) - (b.order ?? 0),
+      updated: (a, b, dir) => {
+        const av = a.updatedAt || a.createdAt;
+        const bv = b.updatedAt || b.createdAt;
+        return dir === 'asc' ? av - bv : bv - av;
+      },
+      created: (a, b, dir) => {
+        return dir === 'asc'
+          ? a.createdAt - b.createdAt
+          : b.createdAt - a.createdAt;
+      },
+      title: (a, b, dir) => {
+        const cmp = a.title.localeCompare(b.title);
+        return dir === 'asc' ? cmp : -cmp;
+      },
+      questionCount: (a, b, dir) => {
+        const cmp = a.questionCount - b.questionCount;
+        return dir === 'asc' ? cmp : -cmp;
+      },
+    },
+  });
+
+  const reorder = useSortableReorder<VideoActivityMetadata>({
+    items: libraryView.visibleItems,
+    getId: (a) => a.id,
+    onCommit: async (orderedIds) => {
+      if (onReorderActivities) {
+        await Promise.resolve(onReorderActivities(orderedIds));
+      }
+    },
+  });
+
+  /* ─── Assignment splits ───────────────────────────────────────────────── */
+
+  const activeAssignments = useMemo(
+    () => assignments.filter((a) => a.status !== 'inactive'),
+    [assignments]
+  );
+  const inactiveAssignments = useMemo(
+    () => assignments.filter((a) => a.status === 'inactive'),
+    [assignments]
+  );
+
+  /* ─── Tab counts ──────────────────────────────────────────────────────── */
+
+  const tabCounts = {
+    library: activities.length,
+    active: activeAssignments.length,
+    archive: inactiveAssignments.length,
+  };
+
+  /* ─── Handlers ────────────────────────────────────────────────────────── */
+
+  const handleAssignConfirm = async (): Promise<void> => {
+    if (!assignTarget) return;
+    if (assignmentName.trim().length === 0) {
+      setAssignError('Assignment name is required.');
+      return;
+    }
+    setAssignError(null);
+    try {
+      await onAssign(assignTarget, assignOptions, assignmentName.trim());
+      setAssignTarget(null);
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : 'Failed to create assignment'
+      );
+      throw err; // let the modal re-enable its button
+    }
+  };
+
+  /* ─── Loading state ───────────────────────────────────────────────────── */
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-brand-blue-primary gap-2">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-sm font-medium">Loading activities…</span>
+      </div>
+    );
+  }
+
+  /* ─── Library tab content ─────────────────────────────────────────────── */
+
+  const activityBadges = (a: VideoActivityMetadata): LibraryBadge[] => [
+    { label: `${a.questionCount} Qs`, tone: 'info' },
+  ];
+
+  const libraryEmptyState = (
+    <ScaledEmptyState
+      icon={PlayCircle}
+      title="No Activities"
+      subtitle="Create your first interactive video activity to get started."
+      action={
+        <button
+          type="button"
+          onClick={onNew}
+          className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors px-4 py-2 text-sm"
+        >
+          Create Activity
+        </button>
+      }
+    />
+  );
+
+  const renderLibraryTab = (): React.ReactElement => (
+    <>
+      {error && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      <LibraryGrid<VideoActivityMetadata>
+        items={reorder.orderedItems}
+        getId={(a) => a.id}
+        onReorder={reorder.handleReorder}
+        dragDisabled={!onReorderActivities}
+        reorderLocked={libraryView.reorderLocked}
+        reorderLockedReason={libraryView.reorderLockedReason}
+        layout={libraryView.state.viewMode}
+        emptyState={libraryEmptyState}
+        renderCard={(activity) => {
+          const secondaryActions: LibraryMenuAction[] = [
+            {
+              id: 'edit',
+              label: 'Edit',
+              icon: Edit2,
+              onClick: () => onEdit(activity),
+            },
+            ...(onResults
+              ? [
+                  {
+                    id: 'results',
+                    label: 'Results',
+                    icon: BarChart3,
+                    onClick: () => onResults(activity),
+                  } satisfies LibraryMenuAction,
+                ]
+              : []),
+            {
+              id: 'delete',
+              label:
+                confirmDeleteActivityId === activity.id
+                  ? 'Confirm delete'
+                  : 'Delete',
+              icon: Trash2,
+              destructive: true,
+              onClick: () => {
+                if (confirmDeleteActivityId === activity.id) {
+                  setConfirmDeleteActivityId(null);
+                  onDelete(activity);
+                } else {
+                  setConfirmDeleteActivityId(activity.id);
+                }
+              },
+            },
+          ];
+          return (
+            <LibraryItemCard<VideoActivityMetadata>
+              key={activity.id}
+              id={activity.id}
+              title={activity.title}
+              subtitle={
+                <span className="truncate">
+                  Updated{' '}
+                  {new Date(
+                    activity.updatedAt || activity.createdAt
+                  ).toLocaleDateString()}
+                </span>
+              }
+              badges={activityBadges(activity)}
+              primaryAction={{
+                label: 'Assign',
+                icon: Link2,
+                onClick: () => setAssignTarget(activity),
+              }}
+              secondaryActions={secondaryActions}
+              onClick={() => onEdit(activity)}
+              viewMode={libraryView.state.viewMode}
+              meta={activity}
+            />
+          );
+        }}
+      />
+    </>
+  );
+
+  /* ─── In Progress / Archive tab content ──────────────────────────────── */
+
+  const renderAssignmentList = (
+    list: VideoActivityAssignment[],
+    mode: 'active' | 'archive'
+  ): React.ReactElement => {
+    if (assignmentsLoading) {
+      return (
+        <div className="flex items-center justify-center py-10 text-brand-blue-primary gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm font-medium">Loading assignments…</span>
+        </div>
+      );
+    }
+
+    if (list.length === 0) {
+      return (
+        <ScaledEmptyState
+          icon={mode === 'active' ? Activity : PlayCircle}
+          title={
+            mode === 'active'
+              ? 'No active assignments yet'
+              : 'No archived assignments'
+          }
+          subtitle={
+            mode === 'active'
+              ? 'Assign an activity from the Library tab to see it here.'
+              : 'Ended assignments will show up here for review.'
+          }
+        />
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-2">
+        {list.map((assignment) => {
+          const status = statusToBadge(assignment.status);
+          const isPaused = assignment.status === 'paused';
+          const secondaryActions: LibraryMenuAction[] = [];
+
+          if (mode === 'active') {
+            if (onArchiveCopyUrl) {
+              secondaryActions.push({
+                id: 'copy-url',
+                label: 'Copy link',
+                icon: Copy,
+                onClick: () => onArchiveCopyUrl(assignment),
+              });
+            }
+            if (onArchivePauseResume) {
+              secondaryActions.push({
+                id: 'pause-resume',
+                label: isPaused ? 'Resume' : 'Pause',
+                icon: isPaused ? PlayCircle : Ban,
+                onClick: () => {
+                  void onArchivePauseResume(assignment);
+                },
+              });
+            }
+            if (onArchiveDeactivate) {
+              secondaryActions.push({
+                id: 'deactivate',
+                label: 'End assignment',
+                icon: Ban,
+                onClick: () => {
+                  void onArchiveDeactivate(assignment);
+                },
+              });
+            }
+          }
+
+          if (onArchiveResults) {
+            secondaryActions.push({
+              id: 'results',
+              label: 'Results',
+              icon: BarChart3,
+              onClick: () => onArchiveResults(assignment),
+            });
+          }
+
+          if (onArchiveDelete) {
+            secondaryActions.push({
+              id: 'delete',
+              label:
+                confirmDeleteAssignmentId === assignment.id
+                  ? 'Confirm delete'
+                  : 'Delete',
+              icon: Trash2,
+              destructive: true,
+              onClick: () => {
+                if (confirmDeleteAssignmentId === assignment.id) {
+                  setConfirmDeleteAssignmentId(null);
+                  void onArchiveDelete(assignment);
+                } else {
+                  setConfirmDeleteAssignmentId(assignment.id);
+                }
+              },
+            });
+          }
+
+          return (
+            <AssignmentArchiveCard<VideoActivityAssignment>
+              key={assignment.id}
+              assignment={assignment}
+              mode={mode}
+              status={status}
+              title={assignment.className ?? assignment.activityTitle}
+              subtitle={
+                assignment.className ? assignment.activityTitle : undefined
+              }
+              meta={
+                <span>
+                  {new Date(assignment.updatedAt).toLocaleDateString()}
+                </span>
+              }
+              primaryAction={{
+                label: mode === 'active' ? 'Open' : 'Results',
+                icon: mode === 'active' ? Link2 : BarChart3,
+                onClick: () => {
+                  if (mode === 'active' && onArchiveCopyUrl) {
+                    onArchiveCopyUrl(assignment);
+                  } else if (onArchiveResults) {
+                    onArchiveResults(assignment);
+                  }
+                },
+              }}
+              secondaryActions={secondaryActions}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  /* ─── Toolbar (library tab only) ─────────────────────────────────────── */
+
+  const toolbar =
+    tab === 'library' ? (
+      <LibraryToolbar
+        {...libraryView.toolbarProps}
+        searchPlaceholder="Search activities…"
+        sortOptions={[
+          {
+            key: 'manual',
+            label: 'Manual',
+            defaultDir: 'asc' as LibrarySortDir,
+          },
+          { key: 'updated', label: 'Recently updated', defaultDir: 'desc' },
+          { key: 'created', label: 'Recently created', defaultDir: 'desc' },
+          { key: 'title', label: 'Title', defaultDir: 'asc' },
+          { key: 'questionCount', label: 'Question count', defaultDir: 'desc' },
+        ]}
+      />
+    ) : null;
+
+  /* ─── Render ──────────────────────────────────────────────────────────── */
+
+  return (
+    <>
+      <LibraryShell
+        widgetLabel="Video Activity"
+        tab={tab}
+        onTabChange={setTab}
+        counts={tabCounts}
+        primaryAction={{
+          label: 'New',
+          icon: Plus,
+          onClick: onNew,
+        }}
+        secondaryActions={[
+          {
+            label: 'Import',
+            icon: FileUp,
+            onClick: onImport,
+          },
+        ]}
+        toolbarSlot={toolbar}
+      >
+        {tab === 'library' && renderLibraryTab()}
+        {tab === 'active' && renderAssignmentList(activeAssignments, 'active')}
+        {tab === 'archive' &&
+          renderAssignmentList(inactiveAssignments, 'archive')}
+      </LibraryShell>
+
+      {assignTarget && (
+        <AssignModal<VideoActivitySessionSettings>
+          isOpen={true}
+          onClose={() => setAssignTarget(null)}
+          itemTitle={assignTarget.title}
+          options={assignOptions}
+          onOptionsChange={setAssignOptions}
+          assignmentName={assignmentName}
+          onAssignmentNameChange={setAssignmentName}
+          confirmLabel="Create Session Link"
+          confirmDisabled={assignmentName.trim().length === 0}
+          confirmDisabledReason="Enter an assignment name."
+          onAssign={handleAssignConfirm}
+          extraSlot={
+            <div className="space-y-3">
+              {assignError && (
+                <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{assignError}</span>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
+                <ToggleRow
+                  label="Auto-Play"
+                  hint="Start video automatically after join"
+                  checked={assignOptions.autoPlay}
+                  onChange={(next) =>
+                    setAssignOptions((prev) => ({ ...prev, autoPlay: next }))
+                  }
+                />
+                <ToggleRow
+                  label="Require Correct Answers"
+                  hint="Incorrect answers rewind to section start"
+                  checked={assignOptions.requireCorrectAnswer}
+                  onChange={(next) =>
+                    setAssignOptions((prev) => ({
+                      ...prev,
+                      requireCorrectAnswer: next,
+                    }))
+                  }
+                />
+                <ToggleRow
+                  label="Allow Skipping"
+                  hint="Let students scrub ahead"
+                  checked={assignOptions.allowSkipping}
+                  onChange={(next) =>
+                    setAssignOptions((prev) => ({
+                      ...prev,
+                      allowSkipping: next,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+          }
+        />
+      )}
+    </>
+  );
+};
+
+/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+
+function buildDefaultAssignmentName(title: string): string {
+  const formattedDate = new Date().toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${title} - ${formattedDate}`;
+}
+
+/* ─── ToggleRow — small presentational helper ─────────────────────────────── */
+
+interface ToggleRowProps {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}
+
+const ToggleRow: React.FC<ToggleRowProps> = ({
+  label,
+  hint,
+  checked,
+  onChange,
+}) => (
+  <div className="flex items-center justify-between gap-3">
+    <div className="min-w-0">
+      <p className="text-sm font-bold text-slate-700">{label}</p>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+    </div>
+    <Toggle
+      checked={checked}
+      onChange={onChange}
+      size="sm"
+      showLabels={false}
+    />
+  </div>
+);

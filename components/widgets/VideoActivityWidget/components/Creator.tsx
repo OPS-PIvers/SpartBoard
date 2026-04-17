@@ -14,9 +14,10 @@ import {
   Loader2,
   AlertCircle,
 } from 'lucide-react';
-import { VideoActivityData, VideoActivityQuestion } from '@/types';
+import { VideoActivityData } from '@/types';
 import { generateVideoActivity } from '@/utils/ai';
-import { Importer } from './Importer';
+import { ImportWizard } from '@/components/common/library/importer';
+import { createVideoActivityImportAdapter } from '../adapters/videoActivityImportAdapter';
 
 interface CreatorProps {
   onBack: () => void;
@@ -96,28 +97,24 @@ export const Creator: React.FC<CreatorProps> = ({
     }
   };
 
-  const handleImportData = async (questions: VideoActivityQuestion[]) => {
-    const activity: VideoActivityData = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      youtubeUrl: url.trim(),
-      questions,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    await onSave(activity);
-  };
-
   // ─── Renderers ─────────────────────────────────────────────────────────────
 
   if (step === 'import') {
+    const importAdapter = createVideoActivityImportAdapter({
+      title: title.trim(),
+      youtubeUrl: url.trim(),
+      onSave: async (activity) => {
+        await onSave(activity);
+      },
+      createTemplateSheet: () => createTemplateSheet(title || 'Video Activity'),
+    });
     return (
-      <Importer
-        onBack={() => setStep('source')}
-        onData={handleImportData}
-        createTemplateSheet={() =>
-          createTemplateSheet(title || 'Video Activity')
-        }
+      <ImportWizard
+        isOpen={true}
+        onClose={() => setStep('source')}
+        adapter={importAdapter}
+        defaultTitle={title.trim()}
+        onSaved={() => setStep('source')}
       />
     );
   }

@@ -1815,6 +1815,8 @@ export interface VideoActivityMetadata {
   questionCount: number;
   createdAt: number;
   updatedAt: number;
+  /** Optional manual ordering index for drag-reorder in the Library view. */
+  order?: number;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results';
@@ -3476,4 +3478,37 @@ export interface CustomWidgetConfig {
 
 export interface RemoteGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+}
+
+// === Video Activity assignments ===
+// Assignment-lifecycle types for the Video Activity widget's Wave 2 library.
+// Mirrors the shape of QuizAssignment* but scoped to Video Activity sessions.
+
+export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
+
+/** Persisted settings for a Video Activity assignment (session behavior flags). */
+export interface VideoActivityAssignmentSettings {
+  /** Free-text label shown in the archive (e.g. "Period 2"). */
+  className?: string;
+  /** Session behavior captured at assign time. */
+  sessionSettings: VideoActivitySessionSettings;
+}
+
+/**
+ * A single instance of a Video Activity being assigned. Stored per-teacher at
+ * `/users/{teacherUid}/video_activity_assignments/{assignmentId}`. The
+ * assignment id is the same id as the matching `/video_activity_sessions/{sessionId}`
+ * document (1:1 pairing, matches the Quiz pattern).
+ */
+export interface VideoActivityAssignment extends VideoActivityAssignmentSettings {
+  /** Assignment UUID — also the sessionId. */
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  /** Drive file id of the source activity so downstream views can rehydrate. */
+  activityDriveFileId: string;
+  teacherUid: string;
+  status: VideoActivityAssignmentStatus;
+  createdAt: number;
+  updatedAt: number;
 }

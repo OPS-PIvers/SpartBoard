@@ -20,7 +20,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
-import { Manager } from './components/Manager';
+import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
@@ -52,22 +53,23 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
 
   const {
     createSession,
-    sessions,
-    sessionsLoading,
-    subscribeToActivitySessions,
-    unsubscribeFromActivitySessions,
-    renameSession,
-    endSession,
     responses,
     subscribeToSession,
     unsubscribeFromSession,
   } = useVideoActivitySessionTeacher();
 
+  const {
+    assignments,
+    loading: assignmentsLoading,
+    pauseAssignment,
+    resumeAssignment,
+    deactivateAssignment,
+    deleteAssignment,
+  } = useVideoActivityAssignments(user?.uid);
+
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
-  const [resultsActivity, setResultsActivity] =
-    useState<VideoActivityMetadata | null>(null);
 
   // Editor modal state — ephemeral, not persisted to Firestore.
   const [editingActivity, setEditingActivity] =
@@ -247,7 +249,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   // Default: manager view (with editor modal rendered as sibling)
   return (
     <>
-      <Manager
+      <VideoActivityManager
         activities={activities}
         loading={loading}
         error={error}
@@ -271,34 +273,6 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             setEditingMeta(meta);
           }
         }}
-        sessionResultsActivity={resultsActivity}
-        activitySessions={sessions}
-        sessionsLoading={sessionsLoading}
-        onResults={(meta) => {
-          setResultsActivity(meta);
-          subscribeToActivitySessions(meta.id, user.uid);
-        }}
-        onCloseResults={() => {
-          setResultsActivity(null);
-          unsubscribeFromActivitySessions();
-        }}
-        onOpenSessionResults={(session) => {
-          subscribeToSession(session.id);
-          setSelectedSession(session);
-          setResultsActivity(null);
-          unsubscribeFromActivitySessions();
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              view: 'results',
-              selectedActivityId: session.activityId,
-              selectedActivityTitle: session.activityTitle,
-              resultsSessionId: session.id,
-            } as VideoActivityConfig,
-          });
-        }}
-        onRenameSession={renameSession}
-        onEndSession={endSession}
         defaultSessionSettings={defaultSessionSettings}
         onAssign={async (meta, sessionSettings, assignmentName) => {
           // Use loadActivityData directly to avoid setting loadingActivity
@@ -350,6 +324,82 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               'error'
             );
           }
+        }}
+        assignments={assignments}
+        assignmentsLoading={assignmentsLoading}
+        onArchiveCopyUrl={(assignment) => {
+          const url = `${window.location.origin}/activity/${encodeURIComponent(assignment.id)}`;
+          if (typeof navigator !== 'undefined' && navigator.clipboard) {
+            void navigator.clipboard
+              .writeText(url)
+              .then(() => addToast('Link copied to clipboard!', 'success'))
+              .catch(() => addToast('Could not copy link.', 'error'));
+          } else {
+            addToast('Clipboard unavailable in this browser.', 'error');
+          }
+        }}
+        onArchivePauseResume={async (assignment) => {
+          try {
+            if (assignment.status === 'paused') {
+              await resumeAssignment(assignment.id);
+              addToast('Assignment resumed.', 'success');
+            } else {
+              await pauseAssignment(assignment.id);
+              addToast('Assignment paused.', 'success');
+            }
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to update status',
+              'error'
+            );
+          }
+        }}
+        onArchiveDeactivate={async (assignment) => {
+          try {
+            await deactivateAssignment(assignment.id);
+            addToast('Assignment ended.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to end assignment',
+              'error'
+            );
+          }
+        }}
+        onArchiveDelete={async (assignment) => {
+          try {
+            await deleteAssignment(assignment.id);
+            addToast('Assignment deleted.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+        onArchiveResults={(assignment) => {
+          subscribeToSession(assignment.id);
+          setSelectedSession({
+            id: assignment.id,
+            activityId: assignment.activityId,
+            activityTitle: assignment.activityTitle,
+            assignmentName: assignment.className ?? assignment.activityTitle,
+            teacherUid: assignment.teacherUid,
+            youtubeUrl: '',
+            questions: [],
+            settings: assignment.sessionSettings,
+            status: assignment.status === 'active' ? 'active' : 'ended',
+            allowedPins: [],
+            createdAt: assignment.createdAt,
+          });
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'results',
+              selectedActivityId: assignment.activityId,
+              selectedActivityTitle: assignment.activityTitle,
+              resultsSessionId: assignment.id,
+            } as VideoActivityConfig,
+          });
         }}
       />
       <VideoActivityEditorModal

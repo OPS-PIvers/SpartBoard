@@ -542,6 +542,12 @@ service cloud.firestore {
       }
     }
 
+    // === Video Activity assignments (Wave 2-VA) ===
+    // Per-teacher archive of video activity assignments — mirrors quiz_assignments.
+    match /users/{userId}/video_activity_assignments/{id} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;
