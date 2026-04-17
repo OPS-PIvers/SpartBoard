@@ -112,10 +112,18 @@ export const AllOrganizationsView: React.FC<Props> = ({
           <div />
         </div>
         {filtered.map((org) => (
-          <button
+          <div
             key={org.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onOpen(org.id)}
-            className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none transition-colors"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen(org.id);
+              }
+            }}
+            className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
               <OrgLogoTile
@@ -173,7 +181,11 @@ export const AllOrganizationsView: React.FC<Props> = ({
                 status={org.status === 'archived' ? 'inactive' : org.status}
               />
             </div>
-            <div onClick={(e) => e.stopPropagation()} role="none">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              role="none"
+            >
               <RowMenu
                 items={[
                   { label: 'Open', onClick: () => onOpen(org.id) },
@@ -190,7 +202,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
                 ]}
               />
             </div>
-          </button>
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="px-5 py-10 text-center text-sm text-slate-500">

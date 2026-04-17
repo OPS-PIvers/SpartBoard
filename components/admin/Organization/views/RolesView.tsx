@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Shield,
   Plus,
@@ -58,12 +58,11 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
   const [creating, setCreating] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const cloneCounter = useRef(1);
+  const createCounter = useRef(1);
 
-  const [prevRolesRef, setPrevRolesRef] = useState(roles);
-  if (roles !== prevRolesRef) {
-    setPrevRolesRef(roles);
+  useEffect(() => {
     setWorking(roles);
-  }
+  }, [roles]);
 
   const dirty = JSON.stringify(working) !== JSON.stringify(roles);
   const activeRole = working.find((r) => r.id === activeRoleId) ?? working[0];
@@ -238,7 +237,10 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
         isOpen={creating}
         onClose={() => setCreating(false)}
         onCreate={(r) => {
-          const id = `custom_${Date.now()}`;
+          const id =
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? `custom_${crypto.randomUUID()}`
+              : `custom_${createCounter.current++}`;
           setWorking((prev) => [
             ...prev,
             {

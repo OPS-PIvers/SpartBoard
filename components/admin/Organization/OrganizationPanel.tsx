@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   LayoutGrid,
@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import {
-  CAPABILITY_GROUPS,
   SEED_BUILDINGS,
   SEED_DOMAINS,
   SEED_ORGS,
@@ -170,13 +169,18 @@ export const OrganizationPanel: React.FC = () => {
     setToast({ message, type });
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   };
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    []
+  );
 
   const visibleSections = useMemo(
     () =>
       SECTIONS.filter((s) => {
         if (s.superOnly && actorRole !== 'super_admin') return false;
         if (s.domainAdminOnly && actorRole === 'building_admin') return false;
-        if (s.id === 'overview' && actorRole === 'super_admin') return false;
         return true;
       }),
     [actorRole]
@@ -327,10 +331,6 @@ export const OrganizationPanel: React.FC = () => {
     setUsers((prev) => [...prev, ...newbies]);
     showToast(`Invited ${emails.length} user${emails.length === 1 ? '' : 's'}`);
   };
-
-  // Also keep CAPABILITY_GROUPS referenced so importing it doesn't get
-  // tree-shaken by mistake during iteration.
-  void CAPABILITY_GROUPS;
 
   const actorBuildingIds = useMemo(() => {
     // Placeholder: building admins would have assigned building IDs.

@@ -76,15 +76,23 @@ const STATUS_META: Record<UserStatus, { label: string; description: string }> =
     },
   };
 
-const ROLE_COLOR: Record<
-  string,
-  'indigo' | 'violet' | 'emerald' | 'sky' | 'rose' | 'teal'
-> = {
+type RoleColor = 'indigo' | 'violet' | 'emerald' | 'sky' | 'rose' | 'teal';
+
+const ROLE_COLOR: Record<string, RoleColor> = {
   super_admin: 'rose',
   domain_admin: 'indigo',
   building_admin: 'violet',
   teacher: 'emerald',
   student: 'sky',
+};
+
+const ROLE_ICON_CLASSES: Record<RoleColor, string> = {
+  indigo: 'bg-indigo-100 text-indigo-700',
+  violet: 'bg-violet-100 text-violet-700',
+  emerald: 'bg-emerald-100 text-emerald-700',
+  sky: 'bg-sky-100 text-sky-700',
+  rose: 'bg-rose-100 text-rose-700',
+  teal: 'bg-teal-100 text-teal-700',
 };
 
 export const UsersView: React.FC<Props> = ({
@@ -503,11 +511,12 @@ const UserRow: React.FC<{
               description={r.blurb}
               icon={
                 <span
-                  className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${
-                    ROLE_COLOR[r.id]
-                      ? `bg-${ROLE_COLOR[r.id]}-100 text-${ROLE_COLOR[r.id]}-700`
-                      : 'bg-slate-100 text-slate-700'
-                  }`}
+                  className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${(() => {
+                    const c = ROLE_COLOR[r.id];
+                    return c
+                      ? ROLE_ICON_CLASSES[c]
+                      : 'bg-slate-100 text-slate-700';
+                  })()}`}
                 >
                   {r.name[0]}
                 </span>

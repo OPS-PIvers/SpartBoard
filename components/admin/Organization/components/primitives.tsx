@@ -205,22 +205,39 @@ export const Field: React.FC<{
   hint?: string;
   error?: string;
   required?: boolean;
+  htmlFor?: string;
   children: React.ReactNode;
   className?: string;
-}> = ({ label, hint, error, required, children, className = '' }) => (
-  <div className={`space-y-1.5 ${className}`}>
-    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-700">
+}> = ({ label, hint, error, required, htmlFor, children, className = '' }) => {
+  const labelContent = (
+    <>
       {label}
       {required && <span className="text-brand-red ml-0.5">*</span>}
-    </label>
-    {children}
-    {error ? (
-      <p className="text-xs text-brand-red">{error}</p>
-    ) : hint ? (
-      <p className="text-xs text-slate-500">{hint}</p>
-    ) : null}
-  </div>
-);
+    </>
+  );
+  return (
+    <div className={`space-y-1.5 ${className}`}>
+      {htmlFor ? (
+        <label
+          htmlFor={htmlFor}
+          className="block text-xs font-semibold uppercase tracking-wide text-slate-700"
+        >
+          {labelContent}
+        </label>
+      ) : (
+        <div className="block text-xs font-semibold uppercase tracking-wide text-slate-700">
+          {labelContent}
+        </div>
+      )}
+      {children}
+      {error ? (
+        <p className="text-xs text-brand-red">{error}</p>
+      ) : hint ? (
+        <p className="text-xs text-slate-500">{hint}</p>
+      ) : null}
+    </div>
+  );
+};
 
 export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({
   className = '',

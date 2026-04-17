@@ -215,28 +215,30 @@ export const BuildingsView: React.FC<Props> = ({
   );
 };
 
-const BuildingModal: React.FC<{
+interface BuildingModalProps {
   isOpen: boolean;
   onClose: () => void;
   existing?: BuildingRecord | null;
   onSave: (b: Partial<BuildingRecord>) => void;
-}> = ({ isOpen, onClose, existing, onSave }) => {
+}
+
+const BuildingModal: React.FC<BuildingModalProps> = (props) => {
+  if (!props.isOpen) return null;
+  return <BuildingModalInner {...props} key={props.existing?.id ?? 'new'} />;
+};
+
+const BuildingModalInner: React.FC<BuildingModalProps> = ({
+  isOpen,
+  onClose,
+  existing,
+  onSave,
+}) => {
   const [name, setName] = useState(existing?.name ?? '');
   const [type, setType] = useState<BuildingType>(
     existing?.type ?? 'elementary'
   );
   const [address, setAddress] = useState(existing?.address ?? '');
   const [grades, setGrades] = useState(existing?.grades ?? 'K-5');
-
-  // Reset when existing changes via key-like pattern without useEffect
-  const [prevId, setPrevId] = useState(existing?.id ?? null);
-  if (existing?.id !== prevId) {
-    setPrevId(existing?.id ?? null);
-    setName(existing?.name ?? '');
-    setType(existing?.type ?? 'elementary');
-    setAddress(existing?.address ?? '');
-    setGrades(existing?.grades ?? 'K-5');
-  }
 
   return (
     <LocalModal
