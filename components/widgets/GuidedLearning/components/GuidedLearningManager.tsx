@@ -18,7 +18,7 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Plus,
   Play,
@@ -153,6 +153,48 @@ const MODE_LABELS: Record<GuidedLearningSet['mode'], string> = {
   explore: 'Explore',
 };
 
+/* ─── Library hook option constants (module-level for referential stability) ─
+
+ * Inline literals passed to `useLibraryView`'s options would re-derive
+ * `visibleItems` on every render, which in turn triggers a re-render loop
+ * through `useSortableReorder`. Keeping them at module scope keeps references
+ * stable across renders. */
+
+const LIBRARY_SEARCH_FIELDS = (e: LibraryEntry): string[] => [
+  e.title,
+  e.description ?? '',
+];
+
+const LIBRARY_INITIAL_SORT = { key: 'manual', dir: 'asc' as const };
+
+const LIBRARY_SORT_COMPARATORS = {
+  manual: (a: LibraryEntry, b: LibraryEntry, dir: 'asc' | 'desc') => {
+    const av = a.order ?? Number.POSITIVE_INFINITY;
+    const bv = b.order ?? Number.POSITIVE_INFINITY;
+    const diff = av - bv;
+    return dir === 'asc' ? diff : -diff;
+  },
+  title: (a: LibraryEntry, b: LibraryEntry, dir: 'asc' | 'desc') => {
+    const diff = a.title.localeCompare(b.title);
+    return dir === 'asc' ? diff : -diff;
+  },
+  updatedAt: (a: LibraryEntry, b: LibraryEntry, dir: 'asc' | 'desc') => {
+    const diff = a.updatedAt - b.updatedAt;
+    return dir === 'asc' ? diff : -diff;
+  },
+  createdAt: (a: LibraryEntry, b: LibraryEntry, dir: 'asc' | 'desc') => {
+    const diff = a.createdAt - b.createdAt;
+    return dir === 'asc' ? diff : -diff;
+  },
+};
+
+const LIBRARY_FILTER_PREDICATES = {
+  source: (item: LibraryEntry, value: string): boolean =>
+    value === '' ? true : item.source === value,
+};
+
+const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
+
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
 // Non-admins still see building sets (they're shared with the whole
@@ -248,31 +290,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
-    initialSort: { key: 'manual', dir: 'asc' },
-    searchFields: (e) => [e.title, e.description ?? ''],
-    sortComparators: {
-      manual: (a, b, dir) => {
-        const av = a.order ?? Number.POSITIVE_INFINITY;
-        const bv = b.order ?? Number.POSITIVE_INFINITY;
-        const diff = av - bv;
-        return dir === 'asc' ? diff : -diff;
-      },
-      title: (a, b, dir) => {
-        const diff = a.title.localeCompare(b.title);
-        return dir === 'asc' ? diff : -diff;
-      },
-      updatedAt: (a, b, dir) => {
-        const diff = a.updatedAt - b.updatedAt;
-        return dir === 'asc' ? diff : -diff;
-      },
-      createdAt: (a, b, dir) => {
-        const diff = a.createdAt - b.createdAt;
-        return dir === 'asc' ? diff : -diff;
-      },
-    },
-    filterPredicates: {
-      source: (item, value) => (value === '' ? true : item.source === value),
-    },
+    initialSort: LIBRARY_INITIAL_SORT,
+    searchFields: LIBRARY_SEARCH_FIELDS,
+    sortComparators: LIBRARY_SORT_COMPARATORS,
+    filterPredicates: LIBRARY_FILTER_PREDICATES,
   });
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
@@ -285,10 +306,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     [view.visibleItems]
   );
 
-  const reorder = useSortableReorder<LibraryEntry>({
-    items: view.visibleItems,
-    getId: (e) => e.id,
-    onCommit: async (orderedIds) => {
+  const onReorderCommit = useCallback(
+    async (orderedIds: string[]) => {
       // Strip the `personal:` prefix and ignore building entries — the Widget
       // only accepts personal set ids.
       const personalIds = orderedIds
@@ -296,6 +315,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         .map((id) => id.slice('personal:'.length));
       await onReorderPersonal(personalIds);
     },
+    [onReorderPersonal]
+  );
+
+  const reorder = useSortableReorder<LibraryEntry>({
+    items: view.visibleItems,
+    getId: LIBRARY_GET_ID,
+    onCommit: onReorderCommit,
   });
 
   const dragDisabled =

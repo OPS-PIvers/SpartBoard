@@ -17,7 +17,7 @@
  *     specific toggles flow through that slot, not by forking the primitive.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -102,6 +102,57 @@ export interface VideoActivityManagerProps {
   onSessionResults?: (session: VideoActivitySession) => void;
 }
 
+/* ─── Library hook option constants (module-level for referential stability) ─
+
+ * Passing these as inline literals inside the component causes `useLibraryView`
+ * to re-derive `visibleItems` on every render, which in turn triggers a
+ * re-render loop through `useSortableReorder`. Keeping them at module scope
+ * makes the references stable. */
+
+const LIBRARY_SEARCH_FIELDS = (a: VideoActivityMetadata): string[] => [
+  a.title,
+  a.youtubeUrl,
+];
+
+const LIBRARY_SORT_COMPARATORS = {
+  manual: (a: VideoActivityMetadata, b: VideoActivityMetadata) =>
+    (a.order ?? 0) - (b.order ?? 0),
+  updated: (
+    a: VideoActivityMetadata,
+    b: VideoActivityMetadata,
+    dir: 'asc' | 'desc'
+  ) => {
+    const av = a.updatedAt || a.createdAt;
+    const bv = b.updatedAt || b.createdAt;
+    return dir === 'asc' ? av - bv : bv - av;
+  },
+  created: (
+    a: VideoActivityMetadata,
+    b: VideoActivityMetadata,
+    dir: 'asc' | 'desc'
+  ) => (dir === 'asc' ? a.createdAt - b.createdAt : b.createdAt - a.createdAt),
+  title: (
+    a: VideoActivityMetadata,
+    b: VideoActivityMetadata,
+    dir: 'asc' | 'desc'
+  ) => {
+    const cmp = a.title.localeCompare(b.title);
+    return dir === 'asc' ? cmp : -cmp;
+  },
+  questionCount: (
+    a: VideoActivityMetadata,
+    b: VideoActivityMetadata,
+    dir: 'asc' | 'desc'
+  ) => {
+    const cmp = a.questionCount - b.questionCount;
+    return dir === 'asc' ? cmp : -cmp;
+  },
+};
+
+const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as LibrarySortDir };
+
+const ACTIVITY_GET_ID = (a: VideoActivityMetadata): string => a.id;
+
 /* ─── Assignment status → badge mapping ───────────────────────────────────── */
 
 function statusToBadge(
@@ -176,39 +227,24 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const libraryView = useLibraryView<VideoActivityMetadata>({
     items: activities,
-    initialSort: { key: 'updated', dir: 'desc' },
-    searchFields: (a) => [a.title, a.youtubeUrl],
-    sortComparators: {
-      manual: (a, b) => (a.order ?? 0) - (b.order ?? 0),
-      updated: (a, b, dir) => {
-        const av = a.updatedAt || a.createdAt;
-        const bv = b.updatedAt || b.createdAt;
-        return dir === 'asc' ? av - bv : bv - av;
-      },
-      created: (a, b, dir) => {
-        return dir === 'asc'
-          ? a.createdAt - b.createdAt
-          : b.createdAt - a.createdAt;
-      },
-      title: (a, b, dir) => {
-        const cmp = a.title.localeCompare(b.title);
-        return dir === 'asc' ? cmp : -cmp;
-      },
-      questionCount: (a, b, dir) => {
-        const cmp = a.questionCount - b.questionCount;
-        return dir === 'asc' ? cmp : -cmp;
-      },
-    },
+    initialSort: LIBRARY_INITIAL_SORT,
+    searchFields: LIBRARY_SEARCH_FIELDS,
+    sortComparators: LIBRARY_SORT_COMPARATORS,
   });
 
-  const reorder = useSortableReorder<VideoActivityMetadata>({
-    items: libraryView.visibleItems,
-    getId: (a) => a.id,
-    onCommit: async (orderedIds) => {
+  const onReorderCommit = useCallback(
+    async (orderedIds: string[]) => {
       if (onReorderActivities) {
         await Promise.resolve(onReorderActivities(orderedIds));
       }
     },
+    [onReorderActivities]
+  );
+
+  const reorder = useSortableReorder<VideoActivityMetadata>({
+    items: libraryView.visibleItems,
+    getId: ACTIVITY_GET_ID,
+    onCommit: onReorderCommit,
   });
 
   /* ─── Assignment splits ───────────────────────────────────────────────── */

@@ -153,4 +153,26 @@ describe('useSortableReorder', () => {
       'AAA'
     );
   });
+
+  it('does not loop when the caller passes a fresh array reference on every render', () => {
+    // Regression: when a caller's parent re-renders and computes items via
+    // useMemo with an unstable dep (e.g. an inline searchFields callback),
+    // `items` arrives as a new array reference each render with identical
+    // ids and order. A previous implementation re-seeded state in that case,
+    // causing an infinite render loop (React error #301).
+    const onCommit = vi.fn();
+
+    const { rerender, result } = renderHook(
+      ({ items }) => useSortableReorder({ items, getId, onCommit }),
+      { initialProps: { items: makeItems(['a', 'b', 'c']) } }
+    );
+
+    // Simulate many parent renders, each passing a fresh array wrapper with
+    // the same logical contents. If this loops, renderHook throws.
+    for (let i = 0; i < 5; i++) {
+      rerender({ items: makeItems(['a', 'b', 'c']) });
+    }
+
+    expect(result.current.orderedItems.map(getId)).toEqual(['a', 'b', 'c']);
+  });
 });

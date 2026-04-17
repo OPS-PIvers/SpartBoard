@@ -193,6 +193,21 @@ const SORT_OPTIONS: LibrarySortOption[] = [
   { key: 'questions', label: 'Question count', defaultDir: 'desc' },
 ];
 
+/* Module-level constants passed to useLibraryView / useSortableReorder —
+ * keeping these stable across renders prevents `visibleItems` from being
+ * re-derived every render (which would drive `useSortableReorder` into a
+ * setState-during-render loop). */
+
+const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string => q.title;
+
+const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
+
+const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
+
+const REORDER_NOOP = (): void => {
+  /* reorder persistence not implemented for Quiz */
+};
+
 const SORT_COMPARATORS: Record<
   string,
   (a: QuizMetadata, b: QuizMetadata, dir: 'asc' | 'desc') => number
@@ -276,8 +291,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Library tab toolbar state ────────────────────────────────────────────
   const libraryView = useLibraryView<QuizMetadata>({
     items: quizzes,
-    initialSort: { key: 'updated', dir: 'desc' },
-    searchFields: (q) => q.title,
+    initialSort: LIBRARY_INITIAL_SORT,
+    searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: SORT_COMPARATORS,
   });
 
@@ -286,10 +301,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // mirrors items + commits nothing, preserving the primitive API.
   const reorder = useSortableReorder<QuizMetadata>({
     items: libraryView.visibleItems,
-    getId: (q) => q.id,
-    onCommit: () => {
-      /* reorder persistence not implemented for Quiz */
-    },
+    getId: QUIZ_GET_ID,
+    onCommit: REORDER_NOOP,
   });
 
   // ─── Derived counts for tab badges ────────────────────────────────────────

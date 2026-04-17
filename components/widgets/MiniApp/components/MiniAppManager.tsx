@@ -26,7 +26,7 @@
  * session lifecycle lives in the parent Widget.tsx.
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Plus,
   FileUp,
@@ -159,6 +159,35 @@ function compareNumbers(a: number, b: number, dir: LibrarySortDir): number {
   return dir === 'asc' ? a - b : b - a;
 }
 
+/* ─── Library hook option constants (module-level for referential stability) ─
+
+ * Inline literals passed to `useLibraryView` would re-derive `visibleItems` on
+ * every render, which in turn triggers a re-render loop through
+ * `useSortableReorder`. Module-scoped constants keep the references stable. */
+
+const LIBRARY_SEARCH_FIELDS = (row: UnifiedRow): string => row.item.title;
+
+const LIBRARY_INITIAL_SORT = { key: 'manual', dir: 'asc' as const };
+
+const LIBRARY_INITIAL_FILTER_VALUES = { source: 'personal' };
+
+const LIBRARY_SORT_COMPARATORS = {
+  // Manual = keep input order (personal first in its stored order, then
+  // global). useLibraryView preserves the input order when the comparator
+  // returns 0.
+  manual: () => 0,
+  title: (a: UnifiedRow, b: UnifiedRow, dir: LibrarySortDir) =>
+    compareStrings(getRowTitle(a), getRowTitle(b), dir),
+  createdAt: (a: UnifiedRow, b: UnifiedRow, dir: LibrarySortDir) =>
+    compareNumbers(getRowCreatedAt(a), getRowCreatedAt(b), dir),
+  size: (a: UnifiedRow, b: UnifiedRow, dir: LibrarySortDir) =>
+    compareNumbers(getRowSize(a), getRowSize(b), dir),
+};
+
+const LIBRARY_FILTER_PREDICATES = {
+  source: (row: UnifiedRow, value: string): boolean => row.kind === value,
+};
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
@@ -205,16 +234,21 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
 
   /* ── Reorder is only meaningful for personal rows ───────────────────── */
-  const reorderHook = useSortableReorder<UnifiedRow>({
-    items: personalRows,
-    getId: getRowId,
-    onCommit: async (nextOrderedIds) => {
+  const onReorderCommit = useCallback(
+    async (nextOrderedIds: string[]) => {
       // Strip the "personal:" prefix before handing to the parent.
       const ids = nextOrderedIds
         .filter((id) => id.startsWith('personal:'))
         .map((id) => id.slice('personal:'.length));
       await onReorder(ids);
     },
+    [onReorder]
+  );
+
+  const reorderHook = useSortableReorder<UnifiedRow>({
+    items: personalRows,
+    getId: getRowId,
+    onCommit: onReorderCommit,
   });
 
   /* ── useLibraryView manages toolbar state + filtered list ────────────── */
@@ -225,22 +259,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   const view = useLibraryView<UnifiedRow>({
     items: allRows,
-    initialSort: { key: 'manual', dir: 'asc' },
-    initialFilterValues: { source: 'personal' },
-    searchFields: (row) => row.item.title,
-    sortComparators: {
-      // Manual = keep input order (personal first in its stored order, then
-      // global). useLibraryView preserves the input order when the comparator
-      // returns 0.
-      manual: () => 0,
-      title: (a, b, dir) => compareStrings(getRowTitle(a), getRowTitle(b), dir),
-      createdAt: (a, b, dir) =>
-        compareNumbers(getRowCreatedAt(a), getRowCreatedAt(b), dir),
-      size: (a, b, dir) => compareNumbers(getRowSize(a), getRowSize(b), dir),
-    },
-    filterPredicates: {
-      source: (row, value) => row.kind === value,
-    },
+    initialSort: LIBRARY_INITIAL_SORT,
+    initialFilterValues: LIBRARY_INITIAL_FILTER_VALUES,
+    searchFields: LIBRARY_SEARCH_FIELDS,
+    sortComparators: LIBRARY_SORT_COMPARATORS,
+    filterPredicates: LIBRARY_FILTER_PREDICATES,
   });
 
   const source: MiniAppSource =

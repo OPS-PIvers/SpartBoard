@@ -87,13 +87,17 @@ export function useSortableReorder<TItem>(
       // Id set changed upstream — drop optimistic ordering and re-seed.
       setOrderedItems(items);
     } else if (!sameIdList(currentOrderedIds, currentIds)) {
-      // Same ids, but item bodies may have been updated by the consumer.
+      // Same ids, but the upstream order differs from our optimistic view.
       // Preserve our optimistic order while absorbing the fresh objects.
       setOrderedItems(reorderByIds(items, getId, currentOrderedIds));
-    } else {
-      // Ids and order both match — just pick up the new item references.
-      setOrderedItems(items);
     }
+    // Else: ids and order both match — orderedItems is already correct.
+    // We intentionally do NOT re-seed with the new array reference here;
+    // doing so would trigger an infinite render loop whenever the caller
+    // passes an unstable array reference (e.g. a freshly-computed useMemo
+    // whose deps include an inline function). Item bodies are rarely
+    // mutated without an id change in this codebase, so dropping the
+    // "absorb fresh object refs" case is a safe tradeoff.
   }
 
   const handleReorder = useCallback(
