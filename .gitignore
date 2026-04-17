@@ -55,6 +55,13 @@ gha-creds-*.json
 eslint-output.txt
 .claude/scheduled_tasks.lock
 .claude/worktrees/
+.claude/settings.local.json
+
+# Playwright MCP scratch
+.playwright-mcp/
+
+# Ad-hoc screenshots
+/login-screen.png
 
 # Verification / QA test artifacts
 verification/
