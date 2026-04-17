@@ -10,6 +10,8 @@ interface DriveFileAttachmentProps {
   onFileContent: (content: string | null, fileName: string | null) => void;
   /** Disable the attachment button (e.g. while generating). */
   disabled?: boolean;
+  /** Notified when extraction starts/stops so callers can gate Generate. */
+  onExtractingChange?: (extracting: boolean) => void;
   className?: string;
 }
 
@@ -23,6 +25,7 @@ interface DriveFileAttachmentProps {
 export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
   onFileContent,
   disabled = false,
+  onExtractingChange,
   className = '',
 }) => {
   const { openPicker, isConnected } = useGooglePicker();
@@ -46,6 +49,10 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
   useEffect(() => {
     onFileContentRef.current = onFileContent;
   }, [onFileContent]);
+
+  useEffect(() => {
+    onExtractingChange?.(isExtracting);
+  }, [isExtracting, onExtractingChange]);
 
   useEffect(() => {
     return () => {

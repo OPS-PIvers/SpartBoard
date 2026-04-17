@@ -355,6 +355,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       <VideoActivityEditorModal
         isOpen={!!editingActivity}
         activity={editingActivity}
+        aiEnabled={aiEnabled}
+        isAdmin={isAdmin === true}
         onClose={() => {
           setEditingActivity(null);
           setEditingMeta(null);
