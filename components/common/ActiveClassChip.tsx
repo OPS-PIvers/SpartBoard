@@ -42,16 +42,21 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeMenu();
     };
+    let animationFrameId = 0;
     const handleReposition = () => {
-      if (anchorRef.current) {
-        setAnchorRect(anchorRef.current.getBoundingClientRect());
-      }
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = requestAnimationFrame(() => {
+        if (anchorRef.current) {
+          setAnchorRect(anchorRef.current.getBoundingClientRect());
+        }
+      });
     };
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKey);
     window.addEventListener('resize', handleReposition);
     window.addEventListener('scroll', handleReposition, true);
     return () => {
+      cancelAnimationFrame(animationFrameId);
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', handleReposition);
@@ -130,7 +135,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
         onClick={() => (open ? closeMenu() : openMenu())}
         className={`${chipClass} hover:bg-brand-blue-light/40 transition-colors cursor-pointer ${className ?? ''}`.trim()}
         style={chipStyle}
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Active class: ${activeRoster.name}. Click to switch class.`}
       >
@@ -142,7 +147,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
         createPortal(
           <div
             ref={popoverRef}
-            role="listbox"
+            role="menu"
             aria-label="Switch active class"
             style={popoverStyle}
             className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-150 min-w-[200px] max-w-[260px] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden"
@@ -159,8 +164,8 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
                   <button
                     key={r.id}
                     type="button"
-                    role="option"
-                    aria-selected={isActive}
+                    role="menuitemradio"
+                    aria-checked={isActive}
                     onClick={() => {
                       if (!isActive) setActiveRoster(r.id);
                       closeMenu();
