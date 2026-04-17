@@ -656,6 +656,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // In the Global view we keep drag disabled — global items are read-only
     // and never move between folders.
     const enableCardDrag = Boolean(userId) && !isGlobalView;
+    // When folder drag is enabled we keep the drag handle active so cards can
+    // be dropped on folder tiles — even in filtered/sorted views. The card-to-
+    // card reorder commit is gated separately (see the onReorder wiring on
+    // the shared `LibraryDndContext` below), so a non-manual sort won't persist
+    // a new order.
     tabContent = (
       <LibraryGrid<UnifiedRow>
         items={view.visibleItems}
@@ -665,8 +670,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
         }
         dragDisabled={isGlobalView}
-        reorderLocked={!isGlobalView && view.reorderLocked}
-        reorderLockedReason={view.reorderLockedReason}
+        reorderLocked={
+          enableCardDrag ? false : !isGlobalView && view.reorderLocked
+        }
+        reorderLockedReason={
+          enableCardDrag ? undefined : view.reorderLockedReason
+        }
         layout={view.state.viewMode}
         useExternalDndContext={enableCardDrag}
         emptyState={empty}
@@ -748,11 +757,19 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     </LibraryShell>
   );
 
+  // Card-to-card drops are only meaningful when the view is in manual reorder
+  // mode (empty search, sort === 'manual'). Gate the reorder commit so a drop
+  // in a filtered/sorted view is a no-op, while folder drops remain live.
+  const handleLibraryReorderDrop = (ids: string[]): void => {
+    if (view.reorderLocked) return;
+    void reorderHook.handleReorder(ids);
+  };
+
   return libraryDndEnabled ? (
     <LibraryDndContext
       itemIds={orderedRowIds}
       onDropOnFolder={handleDropOnFolder}
-      onReorder={(ids) => reorderHook.handleReorder(ids)}
+      onReorder={handleLibraryReorderDrop}
       renderOverlay={renderLibraryDragOverlay}
     >
       {shell}

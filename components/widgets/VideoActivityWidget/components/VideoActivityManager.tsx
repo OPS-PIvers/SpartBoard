@@ -287,11 +287,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
-      if (onReorderActivities) {
-        await Promise.resolve(onReorderActivities(nextOrderedIds));
-      }
+      if (!onReorderActivities) return;
+      if (libraryView.reorderLocked) return;
+      await Promise.resolve(onReorderActivities(nextOrderedIds));
     },
-    [onReorderActivities]
+    [libraryView.reorderLocked, onReorderActivities]
   );
 
   /* ─── Assignment splits ───────────────────────────────────────────────── */
@@ -384,8 +384,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         getId={(a) => a.id}
         onReorder={reorder.handleReorder}
         dragDisabled={!cardDragEnabled}
-        reorderLocked={libraryView.reorderLocked}
-        reorderLockedReason={libraryView.reorderLockedReason}
+        reorderLocked={useExternalDnd ? false : libraryView.reorderLocked}
+        reorderLockedReason={
+          useExternalDnd ? undefined : libraryView.reorderLockedReason
+        }
         layout={libraryView.state.viewMode}
         emptyState={libraryEmptyState}
         useExternalDndContext={useExternalDnd}
