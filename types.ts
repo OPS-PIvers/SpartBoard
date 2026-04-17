@@ -2808,6 +2808,8 @@ export interface UserProfile {
   disableCloseConfirmation?: boolean;
   /** Whether remote control is enabled for all boards (account-level) */
   remoteControlEnabled?: boolean;
+  /** Where the dock is anchored on screen (account-level) */
+  dockPosition?: DockPosition;
 }
 
 export interface SharedGroup {
@@ -2913,6 +2915,12 @@ export interface AppSettings {
  * UI/metadata filter options: "K-2, 3-5, 6-8, 9-12, Universal, All".
  */
 export type GradeLevel = 'k-2' | '3-5' | '6-8' | '9-12';
+
+/**
+ * Where the widget dock renders on screen. Persisted per-user in the
+ * `userProfile/profile` Firestore document and surfaced via `useAuth()`.
+ */
+export type DockPosition = 'bottom' | 'left' | 'right';
 
 /**
  * Grade filter values including the 'all' ("All") option used in the UI.

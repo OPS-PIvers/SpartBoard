@@ -9,6 +9,7 @@ import {
   WidgetConfig,
   UserRolesConfig,
   AppSettings,
+  DockPosition,
 } from '../types';
 
 export interface AuthContextType {
@@ -66,10 +67,13 @@ export interface AuthContextType {
   disableCloseConfirmation: boolean;
   /** Whether remote control is enabled (account-level preference) */
   remoteControlEnabled: boolean;
-  /** Update account-level preferences (disableCloseConfirmation, remoteControlEnabled) */
+  /** Where the dock is anchored on screen (account-level preference) */
+  dockPosition: DockPosition;
+  /** Update account-level preferences */
   updateAccountPreferences: (updates: {
     disableCloseConfirmation?: boolean;
     remoteControlEnabled?: boolean;
+    dockPosition?: DockPosition;
   }) => Promise<void>;
 }
 

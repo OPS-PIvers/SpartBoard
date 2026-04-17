@@ -1,9 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { SlidersHorizontal, ShieldX, MousePointerClick } from 'lucide-react';
+import {
+  SlidersHorizontal,
+  ShieldX,
+  MousePointerClick,
+  LayoutPanelLeft,
+} from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
 import { useAuth } from '@/context/useAuth';
+import { DockPosition } from '@/types';
 
 interface SidebarPreferencesProps {
   isVisible: boolean;
@@ -16,8 +22,31 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
   const {
     disableCloseConfirmation,
     remoteControlEnabled,
+    dockPosition,
     updateAccountPreferences,
   } = useAuth();
+
+  const dockOptions: {
+    value: DockPosition;
+    labelKey: string;
+    fallback: string;
+  }[] = [
+    {
+      value: 'bottom',
+      labelKey: 'sidebar.settings.dockBottom',
+      fallback: 'Bottom',
+    },
+    {
+      value: 'left',
+      labelKey: 'sidebar.settings.dockLeft',
+      fallback: 'Left',
+    },
+    {
+      value: 'right',
+      labelKey: 'sidebar.settings.dockRight',
+      fallback: 'Right',
+    },
+  ];
 
   return (
     <div
@@ -110,6 +139,59 @@ export const SidebarPreferences: React.FC<SidebarPreferencesProps> = ({
                       'Allow controlling your boards remotely from another device.',
                   })}
                 </p>
+              </div>
+            </Card>
+
+            {/* Dock Position Selector */}
+            <Card className="flex items-start gap-4" hoverable>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <LayoutPanelLeft className="w-[18px] h-[18px] text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-slate-700">
+                    {t('sidebar.settings.dockPosition', {
+                      defaultValue: 'Dock Position',
+                    })}
+                  </span>
+                </div>
+                <p className="text-xxs text-slate-500 mt-1 leading-relaxed pr-2">
+                  {t('sidebar.settings.dockPositionDescription', {
+                    defaultValue:
+                      'Choose where the dock appears on your screen.',
+                  })}
+                </p>
+                <div
+                  role="radiogroup"
+                  aria-label={t('sidebar.settings.dockPosition', {
+                    defaultValue: 'Dock Position',
+                  })}
+                  className="mt-2 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+                >
+                  {dockOptions.map((option) => {
+                    const active = dockPosition === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() =>
+                          void updateAccountPreferences({
+                            dockPosition: option.value,
+                          })
+                        }
+                        className={`px-2.5 py-1 text-xxs font-bold rounded-md transition-colors ${
+                          active
+                            ? 'bg-white text-slate-800 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {t(option.labelKey, { defaultValue: option.fallback })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </Card>
           </div>

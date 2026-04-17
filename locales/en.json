@@ -169,6 +169,11 @@
       "skipConfirmation": "Skip the confirmation prompt when closing widgets.",
       "quickAccessWidgets": "Quick Access Widgets",
       "quickAccessDescription": "Select up to 2 widgets to appear when the dock is minimized.",
+      "dockPosition": "Dock Position",
+      "dockPositionDescription": "Choose where the dock appears on your screen.",
+      "dockBottom": "Bottom",
+      "dockLeft": "Left",
+      "dockRight": "Right",
       "language": "Interface Language",
       "languageDescription": "Choose your preferred display language for the entire board.",
       "saveAllChanges": "Save all changes"
