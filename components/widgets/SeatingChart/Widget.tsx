@@ -862,6 +862,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
         selectedCount={selectedIds.size}
         rotateSelected={rotateSelected}
         deleteSelected={deleteSelected}
+        rosterMode={rosterMode}
       />
 
       <div className="flex-1 flex overflow-hidden">

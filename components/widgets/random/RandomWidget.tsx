@@ -12,11 +12,11 @@ import {
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
+import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import {
   Users,
   RefreshCw,
   Layers,
-  Target,
   RotateCcw,
   Trophy,
   UserX,
@@ -730,29 +730,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     </span>
                   )}
                 </button>
-                <div
-                  className="flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light"
-                  style={{
-                    gap: 'clamp(6px, 2cqmin, 14px)',
-                    padding:
-                      'clamp(6px, 1.6cqmin, 12px) clamp(12px, 3cqmin, 22px)',
-                    minHeight: 'clamp(32px, 8cqmin, 48px)',
-                  }}
-                >
-                  <Target
-                    className="text-brand-blue-primary"
-                    style={{
-                      width: 'clamp(14px, 3.6cqmin, 28px)',
-                      height: 'clamp(14px, 3.6cqmin, 28px)',
-                    }}
-                  />
-                  <span
-                    className="font-black uppercase text-brand-blue-primary tracking-wider"
-                    style={{ fontSize: 'clamp(12px, 3cqmin, 20px)' }}
-                  >
-                    {activeRoster.name}
-                  </span>
-                </div>
+                <ActiveClassChip />
               </div>
             )}
           </div>
