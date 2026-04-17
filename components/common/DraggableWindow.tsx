@@ -1660,7 +1660,32 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           </div>
         )}
 
-        <div ref={contentRef} className="flex-1 overflow-hidden relative p-0">
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-hidden relative p-0"
+          onPointerMove={(e) => {
+            // Toggle inner edge drag strips off whenever the pointer is over
+            // an interactive element (contentEditable, input, button, iframe,
+            // etc.) so the browser hit-tests pointerdown directly to that
+            // element. This is what lets native text selection work in text
+            // widgets — otherwise the strip swallows the initial pointerdown
+            // and selection can't extend past the strip's region.
+            const strips = contentRef.current?.querySelectorAll<HTMLElement>(
+              '[data-inner-edge-strip]'
+            );
+            if (!strips || strips.length === 0) return;
+            const beneath = document.elementsFromPoint(e.clientX, e.clientY);
+            const hasInteractiveBeneath = beneath.some(
+              (el) =>
+                !el.hasAttribute('data-inner-edge-strip') &&
+                (el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
+                  el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR))
+            );
+            strips.forEach((s) => {
+              s.style.pointerEvents = hasInteractiveBeneath ? 'none' : 'auto';
+            });
+          }}
+        >
           {/* Flash Overlay */}
           {isFlashing && (
             <div
@@ -1680,6 +1705,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {/* Top */}
               <div
                 aria-hidden="true"
+                data-inner-edge-strip="top"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -1696,6 +1722,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {/* Bottom */}
               <div
                 aria-hidden="true"
+                data-inner-edge-strip="bottom"
                 style={{
                   position: 'absolute',
                   bottom: 0,
@@ -1712,6 +1739,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {/* Left */}
               <div
                 aria-hidden="true"
+                data-inner-edge-strip="left"
                 style={{
                   position: 'absolute',
                   left: 0,
@@ -1728,6 +1756,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               {/* Right */}
               <div
                 aria-hidden="true"
+                data-inner-edge-strip="right"
                 style={{
                   position: 'absolute',
                   right: 0,
