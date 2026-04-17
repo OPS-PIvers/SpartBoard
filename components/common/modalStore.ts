@@ -23,8 +23,19 @@ export const incrementOpenModalCount = (): number => {
   return openModalCount;
 };
 
-/** Modal calls this on unmount. */
+/**
+ * Modal calls this on unmount. Clamps at 0 so a stray extra call can't drive
+ * the counter negative and leave `document.body.style.overflow` locked.
+ */
 export const decrementOpenModalCount = (): number => {
+  if (openModalCount === 0) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[modalStore] decrementOpenModalCount called while count is 0'
+      );
+    }
+    return 0;
+  }
   openModalCount -= 1;
   notify();
   return openModalCount;

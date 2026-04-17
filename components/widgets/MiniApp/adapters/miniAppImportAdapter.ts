@@ -6,8 +6,9 @@
  * mini-app row. The title is derived from the file's `<title>` tag (falling
  * back to the first `<h1>`, then to the filename stem).
  *
- * Writes to `/users/{uid}/miniapps/` with `order: -1` so the import lands at
- * the top of the library (matches the pre-migration ordering behavior).
+ * Writes to `/users/{uid}/miniapps/` with negative `order` values
+ * (`index - total`) so imports land at the top of the library while
+ * preserving their relative order (matches the pre-migration behavior).
  *
  * Magic Generator (Gemini) deliberately stays inside the editor body; it is
  * NOT surfaced here as `aiAssist`, per the original MiniApp brief.

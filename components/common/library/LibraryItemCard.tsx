@@ -231,11 +231,17 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const PrimaryIcon = primaryAction.icon;
   const isList = viewMode === 'list';
 
-  // Track card width so we can inline secondary actions when there's room and
-  // collapse to a 3-dot overflow menu only when the card is narrow.
+  // Inline-vs-overflow layout only applies to list-view cards with secondary
+  // actions. Grid-view cards always use the overflow menu, so we skip the
+  // ResizeObserver entirely there (avoids per-card observer overhead in large
+  // libraries).
+  const secondaryCount = secondaryActions?.length ?? 0;
+  const shouldMeasureSecondaryActions = isList && secondaryCount > 0;
+
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardWidth, setCardWidth] = useState<number | null>(null);
   useEffect(() => {
+    if (!shouldMeasureSecondaryActions) return undefined;
     const el = cardRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver((entries) => {
@@ -244,17 +250,22 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [shouldMeasureSecondaryActions]);
+
+  // When we've flipped out of the measuring mode (e.g. view mode changed from
+  // list to grid, or secondary actions got removed), ignore the stale
+  // measurement so grid cards reliably fall back to the overflow menu.
+  const effectiveCardWidth = shouldMeasureSecondaryActions ? cardWidth : null;
 
   // Rough space budget per inline secondary: ~92px with label, ~40px icon-only.
   // Primary (ASSIGN) plus padding eats ~140px. Inline labels when we have
   // headroom; otherwise try icon-only; otherwise fall back to overflow menu.
-  const secondaryCount = secondaryActions?.length ?? 0;
   const widthForLabels = 160 + secondaryCount * 96;
   const widthForIconOnly = 160 + secondaryCount * 44;
   const canShowInlineLabels =
-    cardWidth != null && cardWidth >= widthForLabels && isList;
-  const canShowInlineIcons = cardWidth != null && cardWidth >= widthForIconOnly;
+    effectiveCardWidth != null && effectiveCardWidth >= widthForLabels;
+  const canShowInlineIcons =
+    effectiveCardWidth != null && effectiveCardWidth >= widthForIconOnly;
   const useOverflowMenu = !canShowInlineLabels && !canShowInlineIcons;
 
   const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
