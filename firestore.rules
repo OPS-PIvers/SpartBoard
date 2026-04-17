@@ -388,7 +388,11 @@ service cloud.firestore {
         request.resource.data.status in ['active', 'ended'] &&
         (!('endedAt' in request.resource.data) || request.resource.data.endedAt is int) &&
         (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is int);
-      allow delete: if false;
+      // Owning teacher (or admin) may delete — used by the Video Activity
+      // "Delete permanently" action in the Assignment archive to clean up the
+      // session along with the per-teacher assignment doc. Mirrors GL sessions.
+      allow delete: if request.auth != null &&
+        (resource.data.teacherUid == request.auth.uid || isAdmin());
 
       match /responses/{studentUid} {
         // Teacher can read all responses; students can only read their own (doc ID == auth UID)
@@ -415,7 +419,12 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt']) &&
           request.resource.data.answers.size() >= resource.data.answers.size() &&
           request.resource.data.answers.hasAll(resource.data.answers);
-        allow delete: if false;
+        // Owning teacher (or admin) may delete responses when permanently
+        // deleting the assignment (matches GL responses).
+        allow delete: if request.auth != null && (
+          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          isAdmin()
+        );
       }
     }
 
@@ -561,7 +570,7 @@ service cloud.firestore {
     // === Wave 2 library assignment archives (appended) ===
     // MiniApp assignment archive (Wave 2-MA).
     match /users/{userId}/miniapp_assignments/{id} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     // === /Wave 2 library assignment archives ===
 

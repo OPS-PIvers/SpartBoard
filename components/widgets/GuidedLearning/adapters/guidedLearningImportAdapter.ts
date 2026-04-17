@@ -12,6 +12,7 @@
  * prompt-only slot is not used in practice for Guided Learning.
  */
 
+import type { ReactNode } from 'react';
 import type {
   ImportAdapter,
   ImportParseResult,
@@ -24,7 +25,7 @@ export interface GuidedLearningImportAdapterDeps {
   /** Persist a generated/imported set to the widget's library. */
   save: (set: GuidedLearningSet, title: string) => Promise<void>;
   /** Renders a compact preview of the parsed set inside the wizard body. */
-  renderPreview: (set: GuidedLearningSet) => React.ReactNode;
+  renderPreview: (set: GuidedLearningSet) => ReactNode;
 }
 
 const NO_NATIVE_IMPORT_MESSAGE =
