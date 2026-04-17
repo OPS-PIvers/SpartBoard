@@ -823,7 +823,7 @@ function MyComponent() {
 
 **4. Docker Build** (`.github/workflows/docker-build.yml`)
 
-- Container image build pipeline (see workflow file for triggers and registry).
+- Container image build pipeline used to build/verify the Docker image (see workflow file for triggers and build details).
 
 See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md) for development branch workflow.
 
