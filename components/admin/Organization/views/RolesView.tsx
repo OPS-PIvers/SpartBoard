@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Shield,
   Plus,
@@ -52,19 +52,25 @@ const ACCESS_META: Record<
 
 export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
   const [working, setWorking] = useState<RoleRecord[]>(roles);
+  const [lastSyncedRoles, setLastSyncedRoles] = useState(roles);
   const [activeRoleId, setActiveRoleId] = useState<RoleId>(
     roles[0]?.id ?? 'domain_admin'
   );
   const [creating, setCreating] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const cloneCounter = useRef(1);
   const createCounter = useRef(1);
 
-  useEffect(() => {
+  // When the parent-supplied roles change (save, reset, or upstream refresh),
+  // re-seed the working copy. Adjust-state-during-render keeps this off the
+  // useEffect path — see CLAUDE.md "resetting state on prop change".
+  if (roles !== lastSyncedRoles) {
+    setLastSyncedRoles(roles);
     setWorking(roles);
-  }, [roles]);
+    setDirty(false);
+  }
 
-  const dirty = JSON.stringify(working) !== JSON.stringify(roles);
   const activeRole = working.find((r) => r.id === activeRoleId) ?? working[0];
 
   const setCellValue = (roleId: RoleId, capId: string, v: CapabilityAccess) => {
@@ -73,6 +79,7 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
         r.id === roleId ? { ...r, perms: { ...r.perms, [capId]: v } } : r
       )
     );
+    setDirty(true);
   };
 
   const cloneRole = (roleId: RoleId) => {
@@ -87,6 +94,7 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
     };
     setWorking((prev) => [...prev, clone]);
     setActiveRoleId(newId);
+    setDirty(true);
   };
 
   return (
@@ -221,7 +229,13 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
                 Unsaved changes
               </div>
               <div className="flex items-center gap-2">
-                <Btn variant="ghost" onClick={() => setWorking(roles)}>
+                <Btn
+                  variant="ghost"
+                  onClick={() => {
+                    setWorking(roles);
+                    setDirty(false);
+                  }}
+                >
                   Discard
                 </Btn>
                 <Btn variant="primary" onClick={() => onSave(working)}>
@@ -258,6 +272,7 @@ export const RolesView: React.FC<Props> = ({ roles, onSave, onReset }) => {
             },
           ]);
           setActiveRoleId(id);
+          setDirty(true);
           setCreating(false);
         }}
       />

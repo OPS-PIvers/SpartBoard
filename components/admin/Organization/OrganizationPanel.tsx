@@ -152,12 +152,11 @@ export const OrganizationPanel: React.FC = () => {
     return defaultSection;
   });
 
-  const setSectionPersist = (s: SectionId) => {
-    setSection(s);
+  useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, s);
+      window.localStorage.setItem(STORAGE_KEY, section);
     }
-  };
+  }, [section]);
 
   const [toast, setToast] = useState<{
     message: string;
@@ -196,15 +195,11 @@ export const OrganizationPanel: React.FC = () => {
     : (visibleSections[0]?.id ?? 'overview');
 
   // If the persisted section is no longer visible to this actor (e.g. a super
-  // admin downgraded to domain admin), write the fallback back to state +
-  // localStorage so reloads land on a section the user can actually see.
-  // Adjust-during-render pattern: React discards this render and re-renders
-  // with the corrected state, so no cascading-effect warning.
+  // admin downgraded to domain admin), correct state during render. React
+  // discards this render and re-renders with the fallback; the localStorage
+  // effect above then persists the new value.
   if (section !== effectiveSection) {
     setSection(effectiveSection);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, effectiveSection);
-    }
   }
 
   // ---- Handlers ----
@@ -242,7 +237,7 @@ export const OrganizationPanel: React.FC = () => {
     };
     setOrgs((prev) => [...prev, record]);
     setActiveOrgId(id);
-    setSectionPersist('overview');
+    setSection('overview');
     showToast('Organization created');
   };
 
@@ -316,6 +311,15 @@ export const OrganizationPanel: React.FC = () => {
     showToast(label);
   };
 
+  const bulkUpdateUsers = (ids: string[], patch: Partial<UserRecord>) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    setUsers((prev) =>
+      prev.map((u) => (idSet.has(u.id) ? { ...u, ...patch } : u))
+    );
+    showToast(`Updated ${ids.length} user${ids.length === 1 ? '' : 's'}`);
+  };
+
   const removeUsers = (ids: string[]) => {
     setUsers((prev) => prev.filter((u) => !ids.includes(u.id)));
     showToast(
@@ -377,7 +381,7 @@ export const OrganizationPanel: React.FC = () => {
             <div className="mb-4">
               <button
                 type="button"
-                onClick={() => setSectionPersist('orgs')}
+                onClick={() => setSection('orgs')}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
               >
                 <ChevronLeft size={14} />
@@ -415,7 +419,7 @@ export const OrganizationPanel: React.FC = () => {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setSectionPersist(s.id)}
+                  onClick={() => setSection(s.id)}
                   className={`text-left p-3 rounded-xl transition-colors flex items-start gap-3 ${
                     active
                       ? 'bg-brand-blue-lighter text-brand-blue-dark'
@@ -485,7 +489,7 @@ export const OrganizationPanel: React.FC = () => {
         <div className="md:hidden w-full">
           <select
             value={effectiveSection}
-            onChange={(e) => setSectionPersist(e.target.value as SectionId)}
+            onChange={(e) => setSection(e.target.value as SectionId)}
             className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold mb-4"
             aria-label="Organization section"
           >
@@ -504,7 +508,7 @@ export const OrganizationPanel: React.FC = () => {
               orgs={orgs}
               onOpen={(id) => {
                 setActiveOrgId(id);
-                setSectionPersist('overview');
+                setSection('overview');
               }}
               onCreate={createOrg}
             />
@@ -543,6 +547,7 @@ export const OrganizationPanel: React.FC = () => {
               actorRole={actorRole}
               actorBuildingIds={actorBuildingIds}
               onUpdate={updateUser}
+              onBulkUpdate={bulkUpdateUsers}
               onRemove={removeUsers}
               onInvite={inviteUsers}
             />

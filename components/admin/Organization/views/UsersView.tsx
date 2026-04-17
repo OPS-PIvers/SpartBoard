@@ -44,6 +44,7 @@ interface Props {
   actorRole: 'super_admin' | 'domain_admin' | 'building_admin';
   actorBuildingIds: string[];
   onUpdate: (id: string, patch: Partial<UserRecord>) => void;
+  onBulkUpdate: (ids: string[], patch: Partial<UserRecord>) => void;
   onRemove: (ids: string[]) => void;
   onInvite: (
     emails: string[],
@@ -102,6 +103,7 @@ export const UsersView: React.FC<Props> = ({
   actorRole,
   actorBuildingIds,
   onUpdate,
+  onBulkUpdate,
   onRemove,
   onInvite,
 }) => {
@@ -113,6 +115,28 @@ export const UsersView: React.FC<Props> = ({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [showImport, setShowImport] = useState(false);
+
+  // Filter changes must clear selection, otherwise bulk actions could fire
+  // against rows the user can no longer see. Per repo convention (see
+  // CLAUDE.md: "Move event-triggered logic into the event handler, not an
+  // effect"), the filter setters are wrapped instead of using useEffect.
+  const clearSelection = () => setSelected(new Set());
+  const changeSearch = (v: string) => {
+    setSearch(v);
+    clearSelection();
+  };
+  const changeRoleFilter = (v: string) => {
+    setRoleFilter(v);
+    clearSelection();
+  };
+  const changeBuildingFilter = (v: string) => {
+    setBuildingFilter(v);
+    clearSelection();
+  };
+  const changeStatusFilter = (v: StatusFilter) => {
+    setStatusFilter(v);
+    clearSelection();
+  };
 
   const isScoped = actorRole === 'building_admin';
   const canEditUser = (u: UserRecord) =>
@@ -214,14 +238,14 @@ export const UsersView: React.FC<Props> = ({
           />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeSearch(e.target.value)}
             placeholder="Search by name or email"
             className="pl-9"
           />
         </div>
         <Select
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          onChange={(e) => changeRoleFilter(e.target.value)}
           className="w-40"
           aria-label="Filter by role"
         >
@@ -234,7 +258,7 @@ export const UsersView: React.FC<Props> = ({
         </Select>
         <Select
           value={buildingFilter}
-          onChange={(e) => setBuildingFilter(e.target.value)}
+          onChange={(e) => changeBuildingFilter(e.target.value)}
           className="w-48"
           aria-label="Filter by building"
         >
@@ -247,7 +271,7 @@ export const UsersView: React.FC<Props> = ({
         </Select>
         <Segmented
           value={statusFilter}
-          onChange={setStatusFilter}
+          onChange={changeStatusFilter}
           options={[
             { value: 'all', label: 'All' },
             { value: 'active', label: 'Active' },
@@ -307,9 +331,7 @@ export const UsersView: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => {
-              Array.from(selected).forEach((id) =>
-                onUpdate(id, { status: 'inactive' })
-              );
+              onBulkUpdate(Array.from(selected), { status: 'inactive' });
               setSelected(new Set());
             }}
             className="text-xs font-semibold hover:text-white/80"
@@ -383,7 +405,11 @@ export const UsersView: React.FC<Props> = ({
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}
         roles={roles}
-        buildings={buildings}
+        buildings={
+          isScoped
+            ? buildings.filter((b) => actorBuildingIds.includes(b.id))
+            : buildings
+        }
         onInvite={(emails, role, bids, msg) => {
           onInvite(emails, role, bids, msg);
           setShowInvite(false);
@@ -657,34 +683,39 @@ const UserRow: React.FC<{
             label: 'Edit',
             icon: <Edit3 size={14} />,
             onClick: () => console.warn('[Users] edit', user.id),
+            disabled: !editable,
           },
           {
             label: 'Resend invite',
             icon: <Mail size={14} />,
             onClick: () => console.warn('[Users] resend', user.id),
-            disabled: user.status !== 'invited',
+            disabled: !editable || user.status !== 'invited',
           },
           {
             label: 'Reset password',
             icon: <KeyRound size={14} />,
             onClick: () => console.warn('[Users] reset password', user.id),
+            disabled: !editable,
           },
           user.status === 'inactive'
             ? {
                 label: 'Reactivate',
                 icon: <UserCheck size={14} />,
                 onClick: () => onUpdate({ status: 'active' }),
+                disabled: !editable,
               }
             : {
                 label: 'Deactivate',
                 icon: <UserMinus size={14} />,
                 onClick: () => onUpdate({ status: 'inactive' }),
+                disabled: !editable,
               },
           {
             label: 'Delete',
             icon: <Trash2 size={14} />,
             onClick: onDelete,
             danger: true,
+            disabled: !editable,
           },
         ]}
       />
