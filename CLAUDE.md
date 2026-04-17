@@ -8,13 +8,13 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 
 **Key Features:**
 
-- 57 widget types for classroom management
+- 60+ widget types for classroom management (see `types.ts` `WidgetType` union for the current list)
 - Firebase Authentication with Google Sign-In
 - Cloud-synced dashboards via Firestore
 - Feature permissions system for widget access control
 - Admin panel with analytics, user management, and widget builder
 - Student-facing apps: live quiz, video activity, guided learning, activity wall, mini-apps
-- Internationalization (i18n) with multi-language support
+- Internationalization (i18n) — supported languages live in `locales/` (currently `en`, `de`, `es`, `fr`)
 - Google Drive dashboard sync and ClassLink roster integration
 - Remote control for mobile devices
 - AI-powered features via Google Gemini (OCR, quiz generation, mini-app generation)
@@ -32,7 +32,7 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 │   ├── auth/            # Authentication UI (LoginScreen)
 │   ├── common/          # Shared components (DraggableWindow, ScaledEmptyState, TypographySettings, etc.)
 │   ├── layout/          # Layout components (Sidebar, Dock, DashboardView)
-│   ├── widgets/         # 57 widget implementations + WidgetRegistry
+│   ├── widgets/         # All widget implementations + WidgetRegistry
 │   ├── student/         # Student-facing apps (StudentApp, StudentLobby, NextUpStudentApp)
 │   ├── remote/          # Mobile remote control
 │   ├── quiz/            # Quiz session components
@@ -40,49 +40,24 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 │   ├── guidedLearning/  # Guided learning session
 │   ├── miniApp/         # Mini-app runner
 │   ├── activityWall/    # Activity wall
-│   └── announcements/   # Announcement system
-├── context/             # React Context providers (4 contexts)
+│   ├── announcements/   # Announcement system
+│   └── classes/         # Roster / class management UI
+├── context/             # React Context providers (Auth, Dashboard, CustomWidgets, Dialog)
 │   ├── AuthContext.tsx           # Authentication and permissions
 │   ├── DashboardContext.tsx      # Dashboard state management
 │   ├── CustomWidgetsContext.tsx  # Custom widget system
 │   ├── DialogContext.tsx         # Dialog/modal management
-│   └── *.ts files               # Type definitions + hook exports (useAuth, useDashboard, useCustomWidgets, useDialog)
-├── hooks/               # Custom React hooks (31 files)
-│   ├── useFirestore.ts      # Firestore CRUD operations
-│   ├── useStorage.ts        # Firebase Storage operations
-│   ├── useGoogleDrive.ts    # Google Drive dashboard sync
-│   ├── useRosters.ts        # ClassLink roster management
-│   ├── useLiveSession.ts    # Live student session management
-│   ├── useQuizSession.ts    # Quiz session orchestration
-│   └── ...                  # 25 more hooks (see hooks/ directory)
-├── config/              # Configuration files
-│   ├── firebase.ts          # Firebase initialization
-│   ├── tools.ts             # Widget metadata (icon, label, color) for the dock
-│   ├── widgetDefaults.ts    # Default widget dimensions and initial config
-│   ├── widgetGradeLevels.ts # Grade-level widget filtering
-│   ├── widgetAppearance.ts  # Widget visual appearance config
-│   ├── fonts.ts             # Font configuration
-│   └── zIndex.ts            # Z-index layering constants
-├── utils/               # Utility functions (37+ files)
-│   ├── migration.ts         # localStorage to Firestore migration
-│   ├── ai.ts                # Gemini AI integrations (mini-app, poll, quiz generation, etc.)
-│   ├── ai_security.ts       # AI prompt security
-│   ├── googleDriveService.ts # Google Drive sync service
-│   ├── classlinkService.ts  # ClassLink roster service
-│   └── ...                  # 32 more utils (see utils/ directory)
-├── scripts/             # Setup and maintenance scripts
-│   ├── setup-admins.js      # Admin user setup script
-│   ├── generate-version.js  # Version generation (runs pre-dev/build)
-│   └── init-global-perms.js # Initialize global permissions
+│   └── *.ts files               # Context value types + hook exports (useAuth, useDashboard, useCustomWidgets, useDialog)
+├── hooks/               # Custom React hooks (see directory for full list)
+├── config/              # Configuration files (see directory for full list)
+├── utils/               # Utility functions (see directory for full list)
+├── scripts/             # Setup and maintenance scripts (admin setup, version generation, env setup)
 ├── i18n/                # Internationalization setup (i18next)
-├── locales/             # Translation files
+├── locales/             # Translation files (en, de, es, fr)
 ├── tests/               # Test suites (components, e2e, hooks, i18n, utils)
-├── docs/                # Project documentation (ADMIN_SETUP, DEV_WORKFLOW, LINTING_SETUP, DEPLOY_CHECK)
+├── docs/                # Project documentation (ADMIN_SETUP, DEV_WORKFLOW, LINTING_SETUP, etc.)
 ├── functions/           # Firebase Cloud Functions (Node.js)
-├── .github/workflows/   # CI/CD GitHub Actions
-│   ├── pr-validation.yml        # PR validation checks
-│   ├── firebase-deploy.yml      # Production deployment
-│   └── firebase-dev-deploy.yml  # Dev branch previews
+├── .github/workflows/   # CI/CD GitHub Actions (pr-validation, firebase-deploy, firebase-dev-deploy, docker-build)
 ├── App.tsx              # Root component with BrowserRouter
 ├── index.tsx            # Application entry point
 ├── types.ts             # Global TypeScript types
@@ -98,6 +73,8 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 ## Development Commands
 
 > **Package manager**: This project uses **pnpm** throughout. Do not use `npm install` — use `pnpm` commands instead.
+>
+> **Node version**: This project requires **Node 24+** (`package.json` engines: `>=24.0.0`; `functions/` is pinned to `24`). Older Node versions print an "Unsupported engine" warning during install and may fail in CI.
 
 - **Install dependencies**: `pnpm run install:all` (installs root + `functions/` — always use this, not bare `pnpm install`)
 - **Start dev server**: `pnpm run dev` (runs on port 3000)
@@ -179,7 +156,7 @@ For development and automated testing, you can enable an authentication bypass m
   - Feature permissions for widget access control
   - Google token auto-refresh with 1-hour TTL
   - Building-based access filtering
-  - Provides `useAuth()` hook with `user`, `isAdmin`, `canAccessWidget()`, `canAccessFeature()`
+  - Provides `useAuth()` hook with `user`, `isAdmin`, `signInWithGoogle()`, `signOut()`, `canAccessWidget()`, `canAccessFeature()`, `featurePermissions`, `globalPermissions` (plus Google token, building selection, language, `savedWidgetConfigs`, `appSettings`, etc. — see `context/AuthContextValue.ts` for the full surface)
 
 - **CustomWidgetsContext** (`context/CustomWidgetsContext.tsx`): Custom widget creation and management
   - Provides `useCustomWidgets()` hook
@@ -190,7 +167,7 @@ For development and automated testing, you can enable an authentication bypass m
 **Widget System**: Plugin-based architecture
 
 - Each widget is a self-contained component in `components/widgets/`
-- Widget types are defined in `types.ts` with the `WidgetType` union (57 types)
+- Widget types are defined in `types.ts` with the `WidgetType` union
 - `TOOLS` metadata array is in `config/tools.ts` with icon, label, and color per widget
 - All widgets follow the pattern: `<WidgetName>Widget` component + optional `<WidgetName>Settings` component
 - Widgets are registered in `components/widgets/WidgetRegistry.ts` which lazily loads components
@@ -270,22 +247,20 @@ App.tsx (root, BrowserRouter)
 - `components/student/StudentApp.tsx`: Main student entry point
 - `components/auth/LoginScreen.tsx`: Google Sign-In UI
 
-**Hooks (key hooks from 31 total):**
+**Hooks** (see `hooks/` directory for the full list — strategically important ones):
 
 - `hooks/useFirestore.ts`: Firestore CRUD operations for dashboards
 - `hooks/useStorage.ts`: Firebase Storage operations for file uploads
 - `hooks/useGoogleDrive.ts`: Google Drive dashboard sync
 - `hooks/useRosters.ts`: ClassLink roster management
 - `hooks/useLiveSession.ts`: Live student session management
-- `hooks/useQuizSession.ts`: Quiz session orchestration
-- `hooks/useVideoActivitySession.ts`: Video activity session management
-- `hooks/useGuidedLearningSession.ts`: Guided learning session management
-- `hooks/useMiniAppSession.ts`: Mini-app session management
+- `hooks/useQuizSession.ts` / `useVideoActivitySession.ts` / `useGuidedLearningSession.ts` / `useMiniAppSession.ts`: Session orchestration for each student-app type
 - `hooks/useStarterPacks.ts`: Starter pack dashboard templates
-- `hooks/useScreenRecord.ts`: Screen recording functionality
-- `hooks/useMusicStations.ts`: Music station management
+- `hooks/useScreenRecord.ts`: Screen recording
+- `hooks/useMusicStations.ts`: Music stations
+- `hooks/useFeaturePermissions.ts`: Permission helpers used by Dock and admin UI
 
-**Config:**
+**Config** (see `config/` directory for the full list — most-referenced files):
 
 - `config/firebase.ts`: Firebase initialization with auth, firestore, and storage
 - `config/tools.ts`: Widget metadata (icon, label, color) for the dock
@@ -295,9 +270,7 @@ App.tsx (root, BrowserRouter)
 - `config/fonts.ts`: Font family configuration
 - `config/zIndex.ts`: Z-index layering constants
 
-**Config:**
-
-- `config/firebase.ts`: Firebase initialization with auth, firestore, and storage
+Domain-specific config (catalyst colors, sound library, snap layouts, instructional routines, scoreboard, buildings, etc.) also lives under `config/` — list the directory rather than guessing filenames.
 
 ### Path Aliasing
 
@@ -418,7 +391,7 @@ function MyComponent() {
 
 In `types.ts`:
 
-**a) Add to WidgetType union** (around line 23-43):
+**a) Add to the `WidgetType` union:**
 
 ```typescript
 export type WidgetType =
@@ -594,16 +567,14 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
 
 5. **Settings panels (back-face) don't need scaling** - use normal Tailwind classes there.
 
-6. **Settings panels (back-face) don't need scaling** - use normal Tailwind classes there.
-
-7. **Container query unit reference:**
+6. **Container query unit reference:**
    - `cqmin` = 1% of the smaller dimension (width or height) - **USE THIS for almost everything**
    - `cqw` = 1% of container width - only use when you specifically need width-based scaling
    - `cqh` = 1% of container height - only use when you specifically need height-based scaling
    - `min(Xpx, Ycqmin)` **caps maximum size at Xpx** (text never exceeds X pixels - prevents blur on huge screens)
    - For unlimited scaling, use `Ycqmin` alone or `clamp(Xpx, Ycqmin, Zpx)` for min/max bounds
 
-8. **Common scaling formulas:**
+7. **Common scaling formulas:**
 
    ```tsx
    // Tiny labels (footer metadata) - cap at 10px
@@ -623,7 +594,7 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
    // OR for unlimited scaling: style={{ fontSize: '25cqmin' }}
    ```
 
-9. **For empty/error states**, use the shared `ScaledEmptyState` component:
+8. **For empty/error states**, use the shared `ScaledEmptyState` component:
 
    ```tsx
    import { ScaledEmptyState } from '../common/ScaledEmptyState';
@@ -635,14 +606,12 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
    />;
    ```
 
-10. **For Catalyst icon rendering**, `renderCatalystIcon()` accepts CSS string sizes:
+9. **For Catalyst icon rendering**, `renderCatalystIcon()` accepts CSS string sizes:
 
-    ```tsx
-    renderCatalystIcon(iconName, 'min(32px, 8cqmin)'); // Scaled
-    renderCatalystIcon(iconName, 32); // Fixed (for settings panels only)
-    ```
-
-**Reference implementations:** `WeatherWidget.tsx`, `RecessGearWidget.tsx`, `LunchCount/Widget.tsx`
+   ```tsx
+   renderCatalystIcon(iconName, 'min(32px, 8cqmin)'); // Scaled
+   renderCatalystIcon(iconName, 32); // Fixed (for settings panels only)
+   ```
 
 **Reference implementations:** `WeatherWidget.tsx`, `RecessGearWidget.tsx`, `LunchCount/Widget.tsx`
 
@@ -697,12 +666,12 @@ const {
   activeDashboard,
   addWidget,
   updateWidget,
-  deleteWidget,
+  removeWidget,
   bringToFront,
   saveCurrentDashboard,
-  createDashboard,
+  createNewDashboard,
   deleteDashboard,
-  switchDashboard,
+  loadDashboard,
 } = useDashboard();
 ```
 
@@ -713,10 +682,12 @@ const {
   user,
   isAdmin,
   loading,
-  signIn,
+  signInWithGoogle,
   signOut,
   canAccessWidget,
+  canAccessFeature,
   featurePermissions,
+  globalPermissions,
 } = useAuth();
 ```
 
@@ -849,6 +820,10 @@ function MyComponent() {
 - Runs on pushes to configured dev branches (`dev-lead`, `dev-developer1`, `dev-developer2`, etc.)
 - Creates persistent preview URLs (30 days)
 - Pattern: `https://spartboard--dev-{branch}-XXXXXXXX.web.app`
+
+**4. Docker Build** (`.github/workflows/docker-build.yml`)
+
+- Container image build pipeline (see workflow file for triggers and registry).
 
 See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md) for development branch workflow.
 
@@ -1003,8 +978,8 @@ Test directories:
 
 ---
 
-**Last Updated**: 2026-04-07
-**Version**: 2.0.0
+**Last Updated**: 2026-04-17
+**Version**: 2.1.0
 
 ## Widget Appearance Standard (Visual System)
 
