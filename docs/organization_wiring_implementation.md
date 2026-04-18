@@ -4,7 +4,7 @@ Wire the newly-merged `components/admin/Organization/` scaffold (PR #1348) to re
 
 **Base branch:** `dev-paul`
 **Last updated:** 2026-04-18
-**Status:** Phase 2 complete (hooks + view wiring + `useAuth` org fields + `mockData.ts` removed); Phase 3 next
+**Status:** Phase 2 complete — PR #1351 cleared for merge (pending preview QA); Phase 3 ready to start on `claude/org-wiring-p3-writes`
 
 ---
 
@@ -23,13 +23,13 @@ If implementation is interrupted, do this before writing any code:
 
 ## Current State
 
-| Field               | Value                                                                                                       |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Active phase        | Phase 2 complete — moving to Phase 3                                                                        |
-| Active branch       | `claude/implement-org-wiring-phase-2-NRzzg` (open PR; awaiting manual QA in preview)                        |
-| Last completed task | Phase 2 / P + R — `mockData.ts` deleted, hooks + views wired, `useAuth` extended, `pnpm run validate` green |
-| Last updated (UTC)  | 2026-04-18                                                                                                  |
-| Next action         | Phase 2 / Q (manual QA in preview) then kick off Phase 3 on `claude/org-wiring-p3-writes`                   |
+| Field               | Value                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Active phase        | Phase 2 complete — ready for Phase 3                                                                                                 |
+| Active branch       | `claude/implement-org-wiring-phase-2-NRzzg` — PR #1351 (commits `180e370`, `27beb25`, `5fd0e6b`); merge pending manual QA in preview |
+| Last completed task | Phase 2 / R — review-feedback fixes applied (defensive `id` spread, super-admin listener gating, membership hydration loading, docs) |
+| Last updated (UTC)  | 2026-04-18                                                                                                                           |
+| Next action         | Phase 2 / Q (manual QA in preview) then kick off Phase 3 on `claude/org-wiring-p3-writes`                                            |
 
 ---
 
@@ -172,16 +172,16 @@ View prop signatures were not changed — instead, the panel wires hook data in 
 **Serial:**
 
 - [x] **P — Remove `mockData.ts`.** Deleted. `CAPABILITY_GROUPS` was extracted to `config/organizationCapabilities.ts` first so it remained the source of truth for the Roles matrix + the migration script's `SYSTEM_ROLES.perms` block.
-- [ ] **Q — Manual QA in preview.** Sign in as paul.ivers@orono.k12.mn.us; verify every section loads real data. _(Pending — requires preview deploy from this branch.)_
-- [x] **R — Update this doc.** Phase 2 task ledger closed; Current State moved to Phase 3.
+- [ ] **Q — Manual QA in preview.** Sign in as paul.ivers@orono.k12.mn.us; verify every section loads real data. _(Pending — requires preview deploy from this branch; this is the only remaining blocker before the PR merges.)_
+- [x] **R — Update this doc.** Phase 2 task ledger closed (commits `180e370` → `27beb25` → `5fd0e6b`); Current State advanced to Phase 3 handoff.
 
 ### Acceptance checklist
 
-- [ ] Every view renders real Firestore data (verified in preview)
-- [ ] No `SEED_*` references remain in `components/admin/Organization/`
-- [ ] Write buttons/menus show "Coming soon" toasts (not errors)
-- [ ] `pnpm run validate` passes
-- [ ] No regression in legacy admin flows (`feature_permissions`, `admin_settings`)
+- [ ] Every view renders real Firestore data (verified in preview) _(pending preview QA — task Q)_
+- [x] No `SEED_*` references remain in `components/admin/Organization/` (verified via `rg 'SEED_' components/admin/Organization` → no matches)
+- [x] Write buttons/menus show "Coming soon" toasts (not errors) — all handlers route through `OrganizationPanel`'s `showComingSoon()` helper
+- [x] `pnpm run validate` passes — green on `5fd0e6b` (type-check + lint + format-check + 1312 unit tests)
+- [x] No regression in legacy admin flows (`feature_permissions`, `admin_settings`) — `useAuth` additions are additive; legacy admin reads + `isAdmin()` paths untouched
 
 ---
 
@@ -327,3 +327,7 @@ Append one line per commit that advances this plan. Include short SHA + task let
 - 2026-04-18 — Phase 1 F dry-run clean: 18 planned writes (1 org + 4 buildings + 1 domain + 5 roles + 1 studentPageConfig + 6 members).
 - 2026-04-18 — Phase 1 G committed: 18 docs written to `spartboard` Firestore; re-run verified idempotent; admin-SDK read-back confirms `/organizations/orono` hierarchy present.
 - 2026-04-18 — `scripts/setup-organization.js` gained an `applicationDefault()` fallback and Phase 1 H doc updates land directly on `dev-paul`.
+- 2026-04-18 — `180e370` — Phase 2 A–P: seven `onSnapshot` hooks + tests, all seven views consume hooks, `useAuth` extended with `{ orgId, roleId, buildingIds }`, `mockData.ts` deleted, `CAPABILITY_GROUPS` moved to `config/organizationCapabilities.ts`, write handlers routed through a single "Coming soon" toast. 21 new hook tests; `pnpm run validate` green.
+- 2026-04-18 — `27beb25` — Phase 2 review-feedback round 1 (Copilot on PR #1351): (a) collection hooks now spread `{ id: d.id, ...d.data() }` so Firestore doc IDs survive the snapshot hydration (`useOrganizations`, `useOrgBuildings`, `useOrgDomains`, `useOrgRoles`; `useOrgMembers` uses `email: d.id` since the doc ID is `emailLower`); (b) hook tests updated to the `docs[]` mock shape; (c) `DEFAULT_ORG_ID` moved below imports in `AuthContext`; (d) `setOrgId(member.orgId ?? DEFAULT_ORG_ID)` uses the member-doc-derived org when available.
+- 2026-04-18 — `5fd0e6b` — Phase 2 review-feedback round 2 (Gemini on PR #1351): (a) `OrganizationPanel` hook order reshuffled so `section`/`visibleSections`/`effectiveSection` are computed before hooks, letting `orgScopedOrgId = effectiveSection === 'orgs' ? null : activeOrgId` short-circuit org-scoped `onSnapshot` subscriptions when a super-admin is on the orgs list; (b) panel-level `isMembershipHydrating = !isSuperAdmin && Boolean(user) && authOrgId === null` now keeps every org-scoped section in loading state until the `useAuth` membership listener returns (prevents brief empty-state flashes); (c) removed unreachable `building_admin` fallback in `actorBuildingIds` (the branch was unreachable because `actorRole === 'building_admin'` already handled it). No behavioural regressions; all 1312 tests green.
+- 2026-04-18 — Phase 2 final-review subagent pass confirmed production-ready; Current State advanced to Phase 3 handoff; PR #1351 cleared for merge pending preview QA (task Q).
