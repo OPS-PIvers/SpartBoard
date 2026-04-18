@@ -18,12 +18,14 @@
  * Copy scripts/org-seed.example.json → scripts/org-seed.json and edit before
  * running for real.
  *
- * Credentials resolution mirrors scripts/setup-admins.js:
- *   1. FIREBASE_SERVICE_ACCOUNT env var (JSON)
- *   2. scripts/service-account-key.json
+ * Credentials resolution (checked in order):
+ *   1. FIREBASE_SERVICE_ACCOUNT env var (JSON) — used by CI
+ *   2. scripts/service-account-key.json — used by local dev
+ *   3. GOOGLE_APPLICATION_CREDENTIALS → Application Default Credentials
+ *      (e.g. `gcloud auth application-default login` or a keyfile)
  */
 
-import { initializeApp, cert } from 'firebase-admin/app';
+import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -146,6 +148,7 @@ function loadCredentials() {
       return {
         source: 'FIREBASE_SERVICE_ACCOUNT env',
         creds: JSON.parse(envJson),
+        useApplicationDefault: false,
       };
     } catch (e) {
       throw new Error(
@@ -158,13 +161,24 @@ function loadCredentials() {
     return {
       source: 'scripts/service-account-key.json',
       creds: JSON.parse(readFileSync(path, 'utf8')),
+      useApplicationDefault: false,
     };
   } catch {
-    throw new Error(
-      'Firebase Admin credentials not found. Either set FIREBASE_SERVICE_ACCOUNT (JSON) ' +
-        'or save the service account key at scripts/service-account-key.json.'
-    );
+    // Fall through to ADC.
   }
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return {
+      source: `GOOGLE_APPLICATION_CREDENTIALS=${process.env.GOOGLE_APPLICATION_CREDENTIALS}`,
+      creds: null,
+      useApplicationDefault: true,
+    };
+  }
+  throw new Error(
+    'Firebase Admin credentials not found. Options:\n' +
+      '  1. Set FIREBASE_SERVICE_ACCOUNT env var (JSON)\n' +
+      '  2. Save a service account key at scripts/service-account-key.json\n' +
+      '  3. Set GOOGLE_APPLICATION_CREDENTIALS to a credentials file (user or service account)'
+  );
 }
 
 function loadSeed(customPath) {
@@ -221,7 +235,7 @@ async function run() {
     process.exit(0);
   }
 
-  const { source, creds } = loadCredentials();
+  const { source, creds, useApplicationDefault } = loadCredentials();
   console.log(`✅ Using credentials from ${source}`);
 
   const seed = loadSeed(args.seedPath);
@@ -231,7 +245,12 @@ async function run() {
   const orgId = seed.orgId;
   console.log(`🏢 Migrating organization: ${orgId}`);
 
-  initializeApp({ credential: cert(creds) });
+  initializeApp({
+    credential: useApplicationDefault ? applicationDefault() : cert(creds),
+    ...(useApplicationDefault && process.env.FIREBASE_PROJECT_ID
+      ? { projectId: process.env.FIREBASE_PROJECT_ID }
+      : {}),
+  });
   const db = getFirestore();
   const writer = new Writer(db, { dryRun: args.dryRun });
 
