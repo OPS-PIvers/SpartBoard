@@ -111,6 +111,9 @@ export interface MemberRecord {
   invitedAt?: string;
   lastActive?: string | null;
   addedBy?: string; // uid of admin who created this membership
+  // Provenance for non-uid creation paths (migration scripts, Cloud Functions).
+  // Set when `addedBy` can't be a real uid — e.g. 'migration:setup-organization'.
+  addedBySource?: string;
 }
 
 // Short-lived invitation stored at /organizations/{orgId}/invitations/{token}.

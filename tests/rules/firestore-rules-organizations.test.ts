@@ -166,6 +166,17 @@ describe('organizations — reads', () => {
     );
   });
 
+  it('non-member cannot read another user\u2019s member doc', async () => {
+    // Self-probe is the ONLY reason a non-member can read /members/*.
+    // Reading some other user's membership must fall through to the
+    // isOrgMember / isSuperAdmin clauses and be denied.
+    await assertFails(
+      getDoc(
+        doc(asOutsider(), `organizations/${ORG_ID}/members/${MEMBER_EMAIL}`)
+      )
+    );
+  });
+
   it('unauthenticated users cannot read org data', async () => {
     await assertFails(getDoc(doc(asAnon(), `organizations/${ORG_ID}`)));
     await assertFails(
