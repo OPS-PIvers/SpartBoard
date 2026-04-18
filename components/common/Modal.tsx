@@ -1,6 +1,11 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import {
+  decrementOpenModalCount,
+  getOpenModalCount,
+  incrementOpenModalCount,
+} from './modalStore';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -19,9 +24,6 @@ interface ModalProps {
   ariaLabel?: string;
   ariaLabelledby?: string;
 }
-
-// Track number of open modals to handle nested locking correctly
-let openModalCount = 0;
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
@@ -50,10 +52,10 @@ export const Modal: React.FC<ModalProps> = ({
       }
     };
 
-    if (openModalCount === 0) {
+    if (getOpenModalCount() === 0) {
       document.body.style.overflow = 'hidden';
     }
-    openModalCount++;
+    incrementOpenModalCount();
     window.addEventListener(
       'keydown',
       handleEscape,
@@ -61,8 +63,8 @@ export const Modal: React.FC<ModalProps> = ({
     );
 
     return () => {
-      openModalCount--;
-      if (openModalCount === 0) {
+      const remaining = decrementOpenModalCount();
+      if (remaining === 0) {
         document.body.style.overflow = 'unset';
       }
       window.removeEventListener(

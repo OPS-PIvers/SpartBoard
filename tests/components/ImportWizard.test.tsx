@@ -25,6 +25,7 @@ interface MakeAdapterOptions {
   aiAssist?: ImportAdapter<FakeData>['aiAssist'];
   templateHelper?: ImportAdapter<FakeData>['templateHelper'];
   supportedSources?: ImportAdapter<FakeData>['supportedSources'];
+  suggestTitle?: (data: FakeData) => string | undefined;
 }
 
 function makeAdapter(opts: MakeAdapterOptions = {}): {
@@ -69,6 +70,7 @@ function makeAdapter(opts: MakeAdapterOptions = {}): {
     ),
     save: saveSpy as unknown as ImportAdapter<FakeData>['save'],
     aiAssist,
+    suggestTitle: opts.suggestTitle,
   };
   return { adapter, parseSpy, validateSpy, saveSpy, aiGenerateSpy };
 }
@@ -425,6 +427,61 @@ describe('ImportWizard', () => {
     expect(
       screen.getByText('Ambiguous timestamp on row 5')
     ).toBeInTheDocument();
+  });
+
+  it('prefills the title from adapter.suggestTitle after a successful parse when the input is empty', async () => {
+    const { adapter } = makeAdapter({
+      suggestTitle: (data) => `Derived ${data.rows.length}`,
+    });
+    renderWizard(adapter);
+
+    // Parse a sheet URL — suggestTitle should fire because title state is empty.
+    const urlField = screen.getByLabelText('Google Sheet URL');
+    fireEvent.change(urlField, {
+      target: { value: 'https://docs.google.com/spreadsheets/d/abc' },
+    });
+    fireEvent.click(
+      urlField.parentElement?.querySelector('button') as HTMLButtonElement
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview')).toBeInTheDocument();
+    });
+
+    // Advance to the Confirm step where the Title input lives.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    const titleInput = await screen.findByLabelText('Title');
+    expect((titleInput as HTMLInputElement).value).toBe('Derived 2');
+  });
+
+  it('does not overwrite an already-typed title on subsequent parses', async () => {
+    const suggestTitleSpy = vi.fn(
+      (data: FakeData) => `Derived ${data.rows[0]}`
+    );
+    const { adapter } = makeAdapter({
+      suggestTitle: suggestTitleSpy,
+    });
+    // defaultTitle simulates a title the user (or caller) has already supplied.
+    renderWizard(adapter, { defaultTitle: 'User Typed Title' });
+
+    // First parse — adapter has a suggestion, but the input is non-empty, so
+    // the user-provided title must stand.
+    const urlField = screen.getByLabelText('Google Sheet URL');
+    fireEvent.change(urlField, {
+      target: { value: 'https://docs.google.com/spreadsheets/d/abc' },
+    });
+    fireEvent.click(
+      urlField.parentElement?.querySelector('button') as HTMLButtonElement
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('preview')).toBeInTheDocument();
+    });
+
+    // Advance to Confirm and verify the user's title is still there.
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    const titleInput = await screen.findByLabelText('Title');
+    expect((titleInput as HTMLInputElement).value).toBe('User Typed Title');
   });
 
   it('shows the template helper when adapter exposes templateHelper', () => {

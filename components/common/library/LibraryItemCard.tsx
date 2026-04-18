@@ -16,7 +16,7 @@
  * hint as the drag-handle tooltip at reduced opacity.
  */
 
-import React, { useContext, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
@@ -55,6 +55,57 @@ const BADGE_TONE_STYLES: Record<
   },
 };
 
+/* ─── Inline action buttons ──────────────────────────────────────────────── */
+
+interface InlineActionButtonProps {
+  action: LibraryMenuAction;
+  compact?: boolean;
+}
+
+const InlineActionButton: React.FC<InlineActionButtonProps> = ({
+  action,
+  compact = false,
+}) => {
+  const Icon = action.icon;
+  const destructive = action.destructive;
+  const base =
+    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border font-bold uppercase tracking-wider transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50';
+  const tone = destructive
+    ? 'border-brand-red-primary/20 bg-white/80 text-brand-red-dark hover:bg-brand-red-lighter/30 hover:border-brand-red-primary/40'
+    : 'border-slate-200 bg-white/80 text-slate-700 hover:bg-white hover:border-slate-300';
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!action.disabled) action.onClick();
+      }}
+      disabled={action.disabled}
+      title={action.disabled ? action.disabledReason : action.label}
+      aria-label={action.label}
+      className={`${base} ${tone}`}
+      style={{
+        paddingInline: compact ? '0' : 'min(12px, 2.8cqmin)',
+        paddingBlock: 'min(6px, 1.6cqmin)',
+        fontSize: 'min(11px, 3.6cqmin)',
+        minWidth: compact ? 'min(32px, 9cqmin)' : undefined,
+        height: compact ? 'min(32px, 9cqmin)' : undefined,
+      }}
+    >
+      {Icon && (
+        <Icon
+          style={{
+            width: 'min(14px, 4cqmin)',
+            height: 'min(14px, 4cqmin)',
+          }}
+          className="shrink-0"
+        />
+      )}
+      {!compact && <span className="truncate">{action.label}</span>}
+    </button>
+  );
+};
+
 /* ─── Overflow menu (click-outside aware) ─────────────────────────────────── */
 
 interface OverflowMenuProps {
@@ -83,13 +134,22 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        className="inline-flex shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        style={{
+          width: 'min(32px, 9cqmin)',
+          height: 'min(32px, 9cqmin)',
+        }}
         title="More actions"
         aria-label="More actions"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <MoreHorizontal className="h-4 w-4" />
+        <MoreHorizontal
+          style={{
+            width: 'min(16px, 4.5cqmin)',
+            height: 'min(16px, 4.5cqmin)',
+          }}
+        />
       </button>
       {open && (
         <div
@@ -171,6 +231,43 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const PrimaryIcon = primaryAction.icon;
   const isList = viewMode === 'list';
 
+  // Inline-vs-overflow layout only applies to list-view cards with secondary
+  // actions. Grid-view cards always use the overflow menu, so we skip the
+  // ResizeObserver entirely there (avoids per-card observer overhead in large
+  // libraries).
+  const secondaryCount = secondaryActions?.length ?? 0;
+  const shouldMeasureSecondaryActions = isList && secondaryCount > 0;
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardWidth, setCardWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (!shouldMeasureSecondaryActions) return undefined;
+    const el = cardRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setCardWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldMeasureSecondaryActions]);
+
+  // When we've flipped out of the measuring mode (e.g. view mode changed from
+  // list to grid, or secondary actions got removed), ignore the stale
+  // measurement so grid cards reliably fall back to the overflow menu.
+  const effectiveCardWidth = shouldMeasureSecondaryActions ? cardWidth : null;
+
+  // Rough space budget per inline secondary: ~92px with label, ~40px icon-only.
+  // Primary (ASSIGN) plus padding eats ~140px. Inline labels when we have
+  // headroom; otherwise try icon-only; otherwise fall back to overflow menu.
+  const widthForLabels = 160 + secondaryCount * 96;
+  const widthForIconOnly = 160 + secondaryCount * 44;
+  const canShowInlineLabels =
+    effectiveCardWidth != null && effectiveCardWidth >= widthForLabels;
+  const canShowInlineIcons =
+    effectiveCardWidth != null && effectiveCardWidth >= widthForIconOnly;
+  const useOverflowMenu = !canShowInlineLabels && !canShowInlineIcons;
+
   const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Ignore bubbled events from buttons / links / menus inside the card.
     if ((e.target as HTMLElement).closest('button, a, [role="menu"]')) return;
@@ -179,10 +276,11 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
 
   return (
     <div
+      ref={cardRef}
       onClick={onClick ? handleBodyClick : undefined}
       className={[
-        'group relative flex rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-shadow hover:shadow-md',
-        isList ? 'flex-row items-center gap-3 p-3' : 'flex-col gap-3 p-4',
+        'group relative flex rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm text-slate-700 shadow-sm transition-shadow hover:shadow-md hover:bg-white/85',
+        isList ? 'flex-row items-center' : 'flex-col',
         onClick && 'cursor-pointer',
         isDragging && 'opacity-50',
         isDragOverlay &&
@@ -190,6 +288,10 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
       ]
         .filter(Boolean)
         .join(' ')}
+      style={{
+        gap: isList ? 'min(12px, 3cqmin)' : 'min(12px, 3cqmin)',
+        padding: isList ? 'min(12px, 2.8cqmin)' : 'min(16px, 3.5cqmin)',
+      }}
       aria-hidden={isDragOverlay}
     >
       {/* Drag handle (left edge) */}
@@ -198,30 +300,49 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
       {/* Thumbnail */}
       {thumbnail && (
         <div
-          className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50 ${
-            isList ? 'h-12 w-12' : 'h-24 w-full'
-          }`}
+          className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50/60"
+          style={
+            isList
+              ? {
+                  width: 'min(48px, 13cqmin)',
+                  height: 'min(48px, 13cqmin)',
+                }
+              : {
+                  width: '100%',
+                  height: 'min(96px, 26cqmin)',
+                }
+          }
         >
           {thumbnail}
         </div>
       )}
 
       {/* Main body */}
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div
+        className="flex min-w-0 flex-1 flex-col"
+        style={{ gap: 'min(4px, 1cqmin)' }}
+      >
         <h3
-          className={`truncate font-black text-slate-800 ${
-            isList ? 'text-sm' : 'text-[15px]'
-          }`}
+          className="truncate font-black text-slate-800"
+          style={{
+            fontSize: isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)',
+          }}
         >
           {title}
         </h3>
         {subtitle && (
-          <div className="truncate text-xs font-medium text-slate-500">
+          <div
+            className="truncate font-medium text-slate-500"
+            style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+          >
             {subtitle}
           </div>
         )}
         {badges && badges.length > 0 && (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <div
+            className="mt-1 flex flex-wrap items-center"
+            style={{ gap: 'min(6px, 1.5cqmin)' }}
+          >
             {badges.map((b, i) => (
               <BadgeChip key={`${b.label}-${i}`} badge={b} />
             ))}
@@ -231,9 +352,8 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
 
       {/* Actions (right side) */}
       <div
-        className={`flex shrink-0 items-center gap-1 ${
-          isList ? '' : 'self-end'
-        }`}
+        className={`flex shrink-0 items-center ${isList ? '' : 'self-end'}`}
+        style={{ gap: 'min(6px, 1.5cqmin)' }}
       >
         <button
           type="button"
@@ -247,13 +367,37 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
               ? primaryAction.disabledReason
               : primaryAction.label
           }
-          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue-primary font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
+          style={{
+            paddingInline: 'min(14px, 3.2cqmin)',
+            paddingBlock: 'min(6px, 1.6cqmin)',
+            fontSize: 'min(12px, 3.8cqmin)',
+          }}
         >
-          {PrimaryIcon && <PrimaryIcon size={14} />}
+          {PrimaryIcon && (
+            <PrimaryIcon
+              style={{
+                width: 'min(14px, 4cqmin)',
+                height: 'min(14px, 4cqmin)',
+              }}
+            />
+          )}
           {primaryAction.label}
         </button>
         {secondaryActions && secondaryActions.length > 0 && (
-          <OverflowMenu actions={secondaryActions} />
+          <>
+            {useOverflowMenu ? (
+              <OverflowMenu actions={secondaryActions} />
+            ) : (
+              secondaryActions.map((action) => (
+                <InlineActionButton
+                  key={action.id}
+                  action={action}
+                  compact={!canShowInlineLabels}
+                />
+              ))
+            )}
+          </>
         )}
       </div>
     </div>

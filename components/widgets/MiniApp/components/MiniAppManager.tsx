@@ -504,7 +504,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   const personalEmpty = (
     <div className="flex flex-col items-center justify-center gap-3 text-center py-10 text-slate-400">
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+      <div className="rounded-2xl border border-dashed border-slate-300/70 bg-white/60 backdrop-blur-sm p-5">
         <Box className="h-8 w-8 stroke-slate-300" />
       </div>
       <div>
@@ -520,7 +520,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   const globalEmpty = (
     <div className="flex flex-col items-center justify-center gap-3 text-center py-10 text-slate-400">
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+      <div className="rounded-2xl border border-dashed border-slate-300/70 bg-white/60 backdrop-blur-sm p-5">
         <Globe className="h-8 w-8 stroke-slate-300" />
       </div>
       <div>
