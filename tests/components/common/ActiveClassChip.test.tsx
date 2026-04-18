@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -158,5 +159,77 @@ describe('ActiveClassChip', () => {
 
     fireEvent.mouseDown(screen.getByTestId('outside'));
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('focuses the active roster when the menu opens', () => {
+    const rosters = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2'),
+      makeRoster('r3', 'Period 3'),
+    ];
+    mockUseDashboard({ rosters, activeRosterId: 'r2' });
+
+    render(<ActiveClassChip />);
+    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
+
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 2/i })
+    ).toHaveFocus();
+  });
+
+  it('moves focus with ArrowDown / ArrowUp inside the menu', async () => {
+    const user = userEvent.setup();
+    const rosters = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2'),
+      makeRoster('r3', 'Period 3'),
+    ];
+    mockUseDashboard({ rosters, activeRosterId: 'r1' });
+
+    render(<ActiveClassChip />);
+    fireEvent.click(screen.getByRole('button', { name: /active class/i }));
+
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 1/i })
+    ).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 2/i })
+    ).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 3/i })
+    ).toHaveFocus();
+
+    // Wraps to first.
+    await user.keyboard('{ArrowDown}');
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 1/i })
+    ).toHaveFocus();
+
+    // Wraps backward.
+    await user.keyboard('{ArrowUp}');
+    expect(
+      screen.getByRole('menuitemradio', { name: /period 3/i })
+    ).toHaveFocus();
+  });
+
+  it('returns focus to the trigger when the menu closes', () => {
+    const rosters = [
+      makeRoster('r1', 'Period 1'),
+      makeRoster('r2', 'Period 2'),
+    ];
+    mockUseDashboard({ rosters, activeRosterId: 'r1' });
+
+    render(<ActiveClassChip />);
+    const trigger = screen.getByRole('button', { name: /active class/i });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 });
