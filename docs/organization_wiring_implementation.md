@@ -88,7 +88,7 @@ Lays the data model, gets rules in place for read-only access, and migrates exis
 ### Deliverables
 
 - [ ] `/organizations/orono` doc created in Firestore with seeded defaults _(deferred to task G)_
-- [ ] System roles (`super_admin`, `domain_admin`, `building_admin`, `teacher`) seeded into `/organizations/orono/roles/*` _(deferred to task G)_
+- [ ] System roles (`super_admin`, `domain_admin`, `building_admin`, `teacher`, `student`) seeded into `/organizations/orono/roles/*` _(deferred to task G)_
 - [ ] Buildings seeded from input CSV into `/organizations/orono/buildings/*` _(deferred to task G)_
 - [ ] Every current `/admins/*` email upserted into `/organizations/orono/members/{emailLower}` with correct roleId _(deferred to task G)_
 - [ ] Every `admin_settings/user_roles.superAdmins` email upserted as `super_admin` role _(deferred to task G)_

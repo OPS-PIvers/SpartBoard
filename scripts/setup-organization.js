@@ -331,13 +331,16 @@ async function run() {
   const allMemberEmails = new Set([...adminEmails, ...superAdmins]);
   for (const email of allMemberEmails) {
     const roleId = superSet.has(email) ? 'super_admin' : 'domain_admin';
+    // `addedBy` is reserved for real Firebase Auth uids (per MemberRecord
+    // in types/organization.ts). Migration-created members omit it and
+    // record provenance in `addedBySource` instead.
     writer.set(`organizations/${orgId}/members/${email}`, {
       email,
       orgId,
       roleId,
       buildingIds: [],
       status: 'active',
-      addedBy: 'migration:setup-organization',
+      addedBySource: 'migration:setup-organization',
       invitedAt: nowIso,
     });
   }
