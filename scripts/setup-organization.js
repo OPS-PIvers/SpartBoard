@@ -225,6 +225,7 @@ async function run() {
 
   // 1. Org doc
   const nowIso = new Date().toISOString();
+  const buildings = seed.buildings ?? [];
   writer.set(`organizations/${orgId}`, {
     id: orgId,
     name: seed.org.name,
@@ -238,10 +239,13 @@ async function run() {
     seedColor: seed.org.seedColor ?? 'bg-indigo-600',
     supportUrl: seed.org.supportUrl ?? null,
     createdAt: nowIso,
+    // Counters required by OrgRecord. A Phase-4 Cloud Function will keep
+    // `users` in sync; seed `buildings` from the migration input.
+    users: 0,
+    buildings: buildings.length,
   });
 
   // 2. Buildings
-  const buildings = seed.buildings ?? [];
   for (const b of buildings) {
     if (!b.id) throw new Error('Every building must have an "id".');
     writer.set(`organizations/${orgId}/buildings/${b.id}`, {
@@ -252,6 +256,7 @@ async function run() {
       address: b.address ?? '',
       grades: b.grades ?? '',
       adminEmails: (b.adminEmails ?? []).map((e) => e.toLowerCase()),
+      users: 0,
     });
   }
 
@@ -267,6 +272,7 @@ async function run() {
       status: d.status ?? 'pending',
       role: d.role ?? 'staff',
       addedAt: nowIso,
+      users: 0,
     });
   }
 
@@ -284,7 +290,7 @@ async function run() {
     accentColor: seed.studentPage?.accentColor ?? '#2d3f89',
     heroText:
       seed.studentPage?.heroText ??
-      `Welcome, ${seed.org.shortName ?? ''}!`.trim(),
+      `Welcome, ${seed.org.shortName ?? seed.org.name ?? ''}!`.trim(),
   });
 
   // 6. Members from legacy /admins/*
@@ -318,7 +324,7 @@ async function run() {
       buildingIds: [],
       status: 'active',
       addedBy: 'migration:setup-organization',
-      migratedAt: nowIso,
+      invitedAt: nowIso,
     });
   }
 
