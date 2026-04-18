@@ -68,6 +68,10 @@ import {
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
 } from '@/components/common/library';
+import {
+  countItemsByFolder,
+  filterByFolder,
+} from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 
 export interface PlcOptions {
@@ -317,21 +321,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // Count quizzes per folder id (+ `root` for unfoldered items) for sidebar
   // badges.
-  const folderItemCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const q of quizzes) {
-      const key = q.folderId ?? 'root';
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [quizzes]);
+  const folderItemCounts = useMemo(
+    () => countItemsByFolder(quizzes),
+    [quizzes]
+  );
 
   // Filter BEFORE useLibraryView so search/sort only operate on the
   // currently-selected folder's quizzes.
-  const folderFilteredQuizzes = useMemo(() => {
-    if (selectedFolderId === null) return quizzes;
-    return quizzes.filter((q) => (q.folderId ?? null) === selectedFolderId);
-  }, [quizzes, selectedFolderId]);
+  const folderFilteredQuizzes = useMemo(
+    () => filterByFolder(quizzes, selectedFolderId),
+    [quizzes, selectedFolderId]
+  );
 
   // ─── Library tab toolbar state ────────────────────────────────────────────
   const libraryView = useLibraryView<QuizMetadata>({

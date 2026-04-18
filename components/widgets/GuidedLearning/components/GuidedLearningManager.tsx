@@ -48,6 +48,10 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import {
+  countItemsByFolder,
+  filterSourcedEntriesByFolder,
+} from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
@@ -301,29 +305,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     setSelectedFolderId(null);
   }
 
-  const folderItemCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    // Only personal sets participate in folders. Building sets are always at
-    // root (they're shared at the building level and have no folderId field).
-    for (const meta of sets) {
-      const key = meta.folderId ?? 'root';
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [sets]);
+  // Only personal sets participate in folders. Building sets are always at
+  // root (they're shared at the building level and have no folderId field).
+  const folderItemCounts = useMemo(() => countItemsByFolder(sets), [sets]);
 
-  const allEntries = useMemo(() => {
-    const entries = buildLibraryEntries(sets, buildingSets);
-    if (selectedFolderId === null) return entries;
-    // Folder selection only applies to personal sets. Keep building entries in
-    // the unified list so the toolbar Source filter can still switch to
-    // "Building" without producing a misleading empty state.
-    return entries.filter(
-      (e) =>
-        e.source === 'building' ||
-        (e.source === 'personal' && (e.folderId ?? null) === selectedFolderId)
-    );
-  }, [sets, buildingSets, selectedFolderId]);
+  const allEntries = useMemo(
+    () =>
+      filterSourcedEntriesByFolder(
+        buildLibraryEntries(sets, buildingSets),
+        selectedFolderId
+      ),
+    [sets, buildingSets, selectedFolderId]
+  );
 
   // ─── Toolbar state (search/sort/filter) via useLibraryView ────────────────
   const sourceFilter: LibraryFilter = {

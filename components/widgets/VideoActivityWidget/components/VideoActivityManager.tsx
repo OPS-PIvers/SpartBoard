@@ -42,6 +42,10 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import {
+  countItemsByFolder,
+  filterByFolder,
+} from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Toggle } from '@/components/common/Toggle';
@@ -248,19 +252,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setSelectedFolderId(null);
   }
 
-  const folderItemCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const a of activities) {
-      const key = a.folderId ?? 'root';
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [activities]);
+  const folderItemCounts = useMemo(
+    () => countItemsByFolder(activities),
+    [activities]
+  );
 
-  const folderFilteredActivities = useMemo(() => {
-    if (selectedFolderId === null) return activities;
-    return activities.filter((a) => (a.folderId ?? null) === selectedFolderId);
-  }, [activities, selectedFolderId]);
+  const folderFilteredActivities = useMemo(
+    () => filterByFolder(activities, selectedFolderId),
+    [activities, selectedFolderId]
+  );
 
   /* ─── Library (activities) view state ─────────────────────────────────── */
 

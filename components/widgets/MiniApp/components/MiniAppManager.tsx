@@ -57,6 +57,10 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import {
+  countItemsByFolder,
+  filterByFolder,
+} from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import type {
   LibraryTab,
@@ -251,23 +255,17 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   // Count personal apps per folder id (+ `root` for unfoldered items) for the
   // sidebar badges. Global apps never live in a teacher's folder.
-  const folderItemCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of personalLibrary) {
-      const key = item.folderId ?? 'root';
-      counts[key] = (counts[key] ?? 0) + 1;
-    }
-    return counts;
-  }, [personalLibrary]);
+  const folderItemCounts = useMemo(
+    () => countItemsByFolder(personalLibrary),
+    [personalLibrary]
+  );
 
   // Filter BEFORE building rows so search/sort only operate on the currently
   // selected folder's apps.
-  const folderFilteredPersonal = useMemo(() => {
-    if (selectedFolderId === null) return personalLibrary;
-    return personalLibrary.filter(
-      (item) => (item.folderId ?? null) === selectedFolderId
-    );
-  }, [personalLibrary, selectedFolderId]);
+  const folderFilteredPersonal = useMemo(
+    () => filterByFolder(personalLibrary, selectedFolderId),
+    [personalLibrary, selectedFolderId]
+  );
 
   /* ── Unified rows (sorted by source + ordering) ─────────────────────── */
   const personalRows = useMemo<UnifiedRow[]>(
