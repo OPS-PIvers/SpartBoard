@@ -39,15 +39,15 @@ import {
   DockPosition,
 } from '../types';
 import type { MemberRecord } from '../types/organization';
+import { AuthContext } from './AuthContextValue';
+import { getBuildingGradeLevels } from '../config/buildings';
+import i18n from '../i18n';
+import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 
 // Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
 // dynamically once `admin_settings/user_roles` (or an org-index collection)
 // tracks which org a given uid belongs to.
 const DEFAULT_ORG_ID = 'orono';
-import { AuthContext } from './AuthContextValue';
-import { getBuildingGradeLevels } from '../config/buildings';
-import i18n from '../i18n';
-import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 
 /**
  * IMPORTANT: Authentication bypass / mock user mode

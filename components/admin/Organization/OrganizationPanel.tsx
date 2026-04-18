@@ -175,21 +175,31 @@ export const OrganizationPanel: React.FC = () => {
   }
 
   // ---- Firestore-backed data ----
-  // Super admins viewing the org list don't need any org-scoped subscriptions;
-  // skip them until a specific org is opened to avoid holding listeners open
-  // unnecessarily.
-  const orgScopedOrgId =
-    effectiveSection === 'orgs' && !selectedOrgId ? null : activeOrgId;
+  // The global "All organizations" list doesn't need any org-scoped data; skip
+  // those subscriptions to avoid holding listeners open unnecessarily when a
+  // super admin navigates back to the list.
+  const orgScopedOrgId = effectiveSection === 'orgs' ? null : activeOrgId;
+  // Non-super admins may render before their membership doc hydrates from
+  // Firestore — treat that as loading so org-scoped sections don't flash the
+  // "no data" empty state.
+  const isMembershipHydrating =
+    !isSuperAdmin && Boolean(user) && authOrgId === null;
   const { organizations, loading: orgsLoading } = useOrganizations();
-  const { organization: activeOrg, loading: orgLoading } =
+  const { organization: activeOrg, loading: orgLoadingRaw } =
     useOrganization(orgScopedOrgId);
-  const { buildings, loading: buildingsLoading } =
+  const { buildings, loading: buildingsLoadingRaw } =
     useOrgBuildings(orgScopedOrgId);
-  const { domains, loading: domainsLoading } = useOrgDomains(orgScopedOrgId);
-  const { roles, loading: rolesLoading } = useOrgRoles(orgScopedOrgId);
-  const { users, loading: usersLoading } = useOrgMembers(orgScopedOrgId);
-  const { studentPage, loading: studentPageLoading } =
+  const { domains, loading: domainsLoadingRaw } = useOrgDomains(orgScopedOrgId);
+  const { roles, loading: rolesLoadingRaw } = useOrgRoles(orgScopedOrgId);
+  const { users, loading: usersLoadingRaw } = useOrgMembers(orgScopedOrgId);
+  const { studentPage, loading: studentPageLoadingRaw } =
     useOrgStudentPage(orgScopedOrgId);
+  const orgLoading = orgLoadingRaw || isMembershipHydrating;
+  const buildingsLoading = buildingsLoadingRaw || isMembershipHydrating;
+  const domainsLoading = domainsLoadingRaw || isMembershipHydrating;
+  const rolesLoading = rolesLoadingRaw || isMembershipHydrating;
+  const usersLoading = usersLoadingRaw || isMembershipHydrating;
+  const studentPageLoading = studentPageLoadingRaw || isMembershipHydrating;
 
   const [toast, setToast] = useState<{
     message: string;
@@ -216,14 +226,13 @@ export const OrganizationPanel: React.FC = () => {
   const inviteComingSoon = () =>
     showToast('Invitations — coming in Phase 4', 'info');
 
-  // Building-admin scope: restrict to the member doc's buildingIds when
-  // present; otherwise allow all buildings in the active org. Super admins
-  // and domain admins see every building.
+  // Building-admin scope: restrict strictly to the member doc's buildingIds.
+  // A building admin with no assigned buildings sees an empty list — this
+  // matches the permissions defined in Firestore. Super admins and domain
+  // admins see every building.
   const actorBuildingIds = useMemo(() => {
     if (actorRole === 'building_admin') {
-      return memberBuildingIds.length > 0
-        ? memberBuildingIds
-        : buildings.slice(0, 1).map((b) => b.id);
+      return memberBuildingIds;
     }
     return buildings.map((b) => b.id);
   }, [actorRole, memberBuildingIds, buildings]);
