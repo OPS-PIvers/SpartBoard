@@ -91,6 +91,11 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
 
   // Category detail panel — null = overview, string = detail view for that category
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [prevIsVisible, setPrevIsVisible] = useState(isVisible);
+  if (isVisible !== prevIsVisible) {
+    setPrevIsVisible(isVisible);
+    if (!isVisible) setActiveCategory(null);
+  }
 
   // Custom color picker state
   const [customColor, setCustomColor] = useState('#3b82f6');
@@ -185,11 +190,6 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     if (tab !== 'media') setSearchQuery('');
   };
 
-  // Reset detail panel when sidebar is hidden
-  useEffect(() => {
-    if (!isVisible) setActiveCategory(null);
-  }, [isVisible]);
-
   // Fetch past uploads from Google Drive when the "My Uploads" tab is opened
   useEffect(() => {
     if (designTab !== 'my-uploads' || !isInitialized || hasFetchedDrive) return;
@@ -254,21 +254,23 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     return isCustomBackground(bg) ? bg.slice('custom:'.length) : '';
   }, [activeDashboard?.background]);
 
-  useEffect(() => {
+  const [prevActiveCustomValue, setPrevActiveCustomValue] =
+    useState<string>('');
+  if (activeCustomValue !== prevActiveCustomValue) {
+    setPrevActiveCustomValue(activeCustomValue);
     if (activeCustomValue.startsWith('#')) {
       setCustomColor(activeCustomValue);
-      return;
+    } else {
+      const m = activeCustomValue.match(
+        /^linear-gradient\(\s*([^,]+?)\s*,\s*(#[0-9a-fA-F]{3,8})\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/
+      );
+      if (m?.[1] && m[2] && m[3]) {
+        setGradientAngle(m[1].trim());
+        setGradientColor1(m[2]);
+        setGradientColor2(m[3]);
+      }
     }
-
-    const m = activeCustomValue.match(
-      /^linear-gradient\(\s*([^,]+?)\s*,\s*(#[0-9a-fA-F]{3,8})\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/
-    );
-    if (m?.[1] && m[2] && m[3]) {
-      setGradientAngle(m[1].trim());
-      setGradientColor1(m[2]);
-      setGradientColor2(m[3]);
-    }
-  }, [activeCustomValue]);
+  }
 
   // Check if a custom color/gradient is currently active
   const currentGradientValue = `linear-gradient(${gradientAngle}, ${gradientColor1}, ${gradientColor2})`;
