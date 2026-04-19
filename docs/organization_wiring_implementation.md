@@ -246,15 +246,26 @@ Enable writes for each view, gated on a new `orgAdminWrites` entry in the existi
 
 ### Deploy order (important)
 
-Order matters for Phase 3 rollout. Do each step from a host with Firebase
-admin credentials, in this sequence:
+Order matters for Phase 3 rollout. The `global_permissions/org-admin-writes`
+doc was seeded on 2026-04-19 ahead of merge (see Decisions Log), so the
+rules can now deploy without opening the beta gate. If you ever re-seed
+from scratch, follow this order:
 
-1. **Seed the perm doc first** — `node scripts/init-global-perms.js`.
-   If rules deploy before the `global_permissions/org-admin-writes` doc
-   exists, `canAccessFeature('org-admin-writes')` falls back to the
-   default-allow path in `AuthContext` (no permission record ⇒ public), so
-   every domain admin would briefly get write UI without the beta gate.
-2. **Deploy the rules** — `firebase deploy --only firestore:rules --project spartboard`.
+1. **Seed the perm doc first.** Do NOT run `scripts/init-global-perms.js`
+   as-is — it uses unconditional `set()` (not merge) with stale config
+   values and would clobber live `gemini-functions`/`smart-poll`/
+   `live-session`/`embed-mini-app` entries. Either (a) run a targeted
+   one-off that only writes `global_permissions/org-admin-writes` with
+   `merge: true`, or (b) first align `init-global-perms.js` with prod and
+   switch it to `set(..., { merge: true })`. A follow-up task should fix
+   the script so it's safe to run again; until then treat it as unsafe.
+   If the doc is missing at deploy time, `canAccessFeature('org-admin-writes')`
+   falls back to the default-allow path in `AuthContext` (no permission
+   record ⇒ public), so every domain admin would briefly get write UI
+   without the beta gate.
+2. **Deploy the rules.** CI does this automatically on push to `dev-*` or
+   `main` (`firebase deploy --only functions,firestore,storage` in
+   `.github/workflows/firebase-dev-deploy.yml`). Manual: `firebase deploy --only firestore:rules --project spartboard` from a host with creds.
 3. **Smoke test as paul.ivers** (in `betaUsers`) — writes should persist.
 4. **Smoke test as a non-beta domain admin** — writes should still show the
    Phase-2 "coming soon" toast.
@@ -349,6 +360,8 @@ Record non-obvious choices so future sessions don't re-litigate them. Append; do
 - **2026-04-19** — Phase 4 link-uid write **must** happen through a Cloud Function, not the client. The member-update rule's whitelist at `firestore.rules` intentionally excludes `uid`. Admin SDK in a CF bypasses rules, so the trigger can safely link `uid` on first sign-in; a client-side link would let any domain admin reassign a member's uid and hijack the linked account. Documented in the rules file itself so future contributors don't quietly add `uid` to the whitelist.
 - **2026-04-19** — Phase 3 deploy order is perm-doc-first: `node scripts/init-global-perms.js` before `firebase deploy --only firestore:rules --project spartboard`. Deploying rules first opens the beta gate briefly for every domain admin because `canAccessFeature` defaults to `true` when no permission record exists. This order is enforced by the deploy-order section in this doc rather than tooling — the scripts are separately owned.
 - **2026-04-19** — Mobile layout bug in `OrganizationPanel.tsx` found during Phase 2 QA: the outer wrapper was `<div className="flex gap-6 h-full">` (flex-row) with no mobile stacking override. On mobile, the aside is `hidden md:flex` so it disappears, but the mobile section `<select>` wrapper is `md:hidden w-full` — with `w-full` it claimed 100% of the row's width, leaving 0px for `<main className="flex-1">`. Every tab appeared blank. Fix is a one-line addition of `flex-col md:flex-row` so mobile stacks vertically. Landed on `dev-paul` as `b593c9ca` (separate from the Phase 3 PR so Phase 2 shippability wasn't blocked).
+- **2026-04-19** — `global_permissions/org-admin-writes` seeded directly in prod Firestore ahead of the Phase 3 merge. Targeted `setDoc(..., { merge: true })` of the single doc (not via `init-global-perms.js` — see next entry). Before: doc did not exist → `canAccessFeature` would default-allow. After: `{ accessLevel: 'beta', enabled: true, betaUsers: ['paul.ivers@orono.k12.mn.us'], featureId: 'org-admin-writes', config: {} }`. This unblocks the automatic rules deploy CI runs on merge to `dev-paul`.
+- **2026-04-19** — `scripts/init-global-perms.js` has drifted from prod and is **unsafe to run as-is**. It uses unconditional `set()` (not merge) and carries stale config for `gemini-functions` (`dailyLimit: 20` vs. prod `3`), `smart-poll` (flips prod `admin`/`disabled` back to `public`/`enabled`), `live-session` (flips prod `admin`/`disabled` back to `public`/`enabled`), `embed-mini-app` (re-enables and raises daily cap), and `video-activity-audio-transcription` (`dailyLimit: 5` vs. prod `3`). Follow-up task (outside Phase 3 scope): rebuild the script from a current prod snapshot and switch it to `set(..., { merge: true })`. Until then, targeted one-off scripts are the safe path.
 
 ---
 
