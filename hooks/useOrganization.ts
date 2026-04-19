@@ -60,6 +60,7 @@ export const useOrganization = (orgId: string | null) => {
     }
     // Never let a client clobber the doc id field.
     const { id: _omit, ...rest } = patch;
+    if (Object.keys(rest).length === 0) return;
     await updateDoc(doc(db, 'organizations', orgId), rest);
   };
 

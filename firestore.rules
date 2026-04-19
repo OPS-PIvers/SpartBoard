@@ -126,12 +126,15 @@ service cloud.firestore {
       match /domains/{domainId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
         // Domain admin or super admin only. Create must carry canonical
-        // orgId + matching doc id. Update is whitelisted to the fields
-        // admins actually configure — `status` is DNS-verified server-side
-        // (never client-set) and `users`/`addedAt` are derived/stamped.
+        // orgId + matching doc id, and clients cannot seed `status:'verified'`
+        // or inflate `users` — verification is DNS-based server-side, and
+        // `users` is a derived count. Update is whitelisted to the fields
+        // admins actually configure.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           request.resource.data.orgId == orgId &&
-          request.resource.data.id == domainId;
+          request.resource.data.id == domainId &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.users == 0;
         allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
         allow update: if isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
@@ -147,11 +150,15 @@ service cloud.firestore {
         // System roles are immutable from clients — the migration script
         // seeds them with `{ merge: true }` so the first write happens server
         // side; every client mutation is refused if `system == true`.
+        // Client-created roles must carry canonical path identity and be
+        // explicitly non-system.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
-          request.resource.data.system != true;
+          request.resource.data.id == roleId &&
+          request.resource.data.system == false;
         allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           resource.data.system != true &&
-          request.resource.data.system == resource.data.system;
+          request.resource.data.system == resource.data.system &&
+          request.resource.data.id == resource.data.id;
         allow delete: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           resource.data.system != true;
       }
@@ -170,7 +177,17 @@ service cloud.firestore {
         // fields (email, orgId, uid, addedBy, addedBySource) stay pinned to
         // what the invitation/sign-in flow set. Building admins can only
         // update `status` on members whose buildingIds intersect their own.
-        allow create, delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        // Create enforces shape: doc id == lowercased email, required
+        // fields present, and only the invite-shape keys are allowed.
+        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.email == emailLower &&
+          request.resource.data.orgId == orgId &&
+          request.resource.data.keys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
+          request.resource.data.keys().hasOnly([
+            'email', 'orgId', 'roleId', 'buildingIds', 'status',
+            'name', 'invitedAt', 'addedBy', 'addedBySource'
+          ]);
+        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
         allow update: if isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            request.resource.data.email == resource.data.email &&
@@ -185,7 +202,12 @@ service cloud.firestore {
 
       match /studentPageConfig/{configId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        allow create, update, delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        // Only the canonical `default` doc is writable; clients never need
+        // arbitrary config ids, and delete is refused so the org always has
+        // a config doc (rules tier narrows the attack surface).
+        allow create, update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          configId == 'default';
+        allow delete: if false;
       }
 
       match /invitations/{token} {

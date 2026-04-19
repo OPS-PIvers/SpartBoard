@@ -9,23 +9,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { OrgRecord } from '@/types/organization';
-
-// Derive a URL-friendly id from an org name. Falls back to a UUID when the
-// name has no alphanumeric content (keeps document paths valid either way).
-const slugFromName = (name: string): string => {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48);
-  if (base) return base;
-  // crypto.randomUUID is guaranteed on every runtime we support (modern
-  // browsers + Node 19+). Matches the id-gen pattern used by other hooks.
-  return (globalThis.crypto?.randomUUID?.() ?? `org-${Date.now()}`).slice(
-    0,
-    24
-  );
-};
+import { slugOrFallback } from '@/utils/slug';
 
 /**
  * Subscribes to the top-level `/organizations` collection.
@@ -96,7 +80,7 @@ export const useOrganizations = () => {
     if (!name) {
       throw new Error('Organization name is required.');
     }
-    const id = partial.id ?? slugFromName(name);
+    const id = partial.id ?? slugOrFallback(name, 'org');
     const record = {
       id,
       name,

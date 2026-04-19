@@ -12,25 +12,8 @@ import type {
   AuthMethod,
   DomainRecord,
   DomainRole,
-  DomainStatus,
 } from '@/types/organization';
-
-const slug = (s: string): string =>
-  s
-    .toLowerCase()
-    .replace(/^@/, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48);
-
-const defaultDomainId = (d: Partial<DomainRecord>): string => {
-  const base = slug(d.domain ?? '');
-  if (base) return base;
-  return (globalThis.crypto?.randomUUID?.() ?? `domain-${Date.now()}`).slice(
-    0,
-    24
-  );
-};
+import { slugOrFallback } from '@/utils/slug';
 
 /**
  * Subscribes to `/organizations/{orgId}/domains`. Reads allowed for org
@@ -86,16 +69,21 @@ export const useOrgDomains = (orgId: string | null) => {
     if (!domain.domain) {
       throw new Error('Domain is required.');
     }
-    const id = domain.id ?? defaultDomainId(domain);
+    const id = domain.id ?? slugOrFallback(domain.domain, 'domain');
+    // `status`, `users`, and `addedAt` are server-managed (status is
+    // DNS-verified by a Cloud Function; users is a derived count; addedAt is
+    // the admin's create stamp). Hard-code safe defaults so caller data can
+    // never spoof the verification state — the rules also reject a
+    // client-supplied `status != 'pending'` on create.
     const record: DomainRecord = {
       id,
       orgId,
       domain: domain.domain,
       authMethod: (domain.authMethod as AuthMethod) ?? 'google',
-      status: (domain.status as DomainStatus) ?? 'pending',
+      status: 'pending',
       role: (domain.role as DomainRole) ?? 'staff',
-      users: domain.users ?? 0,
-      addedAt: domain.addedAt ?? new Date().toISOString(),
+      users: 0,
+      addedAt: new Date().toISOString(),
     };
     await setDoc(doc(db, 'organizations', orgId, 'domains', id), record);
   };

@@ -517,13 +517,23 @@ describe('organizations/buildings — writes', () => {
 });
 
 describe('organizations/domains — writes', () => {
+  const pendingDomain = (id: string, domain: string) => ({
+    id,
+    orgId: ORG_ID,
+    domain,
+    authMethod: 'google',
+    status: 'pending',
+    role: 'staff',
+    users: 0,
+    addedAt: '2026-01-01',
+  });
+
   it('domain admin can create, update, delete domains', async () => {
     await assertSucceeds(
-      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/students`), {
-        id: 'students',
-        orgId: ORG_ID,
-        domain: '@students.orono.k12.mn.us',
-      })
+      setDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/students`),
+        pendingDomain('students', '@students.orono.k12.mn.us')
+      )
     );
     await assertSucceeds(
       updateDoc(
@@ -539,9 +549,8 @@ describe('organizations/domains — writes', () => {
   it('domain admin cannot create a domain whose orgId != path orgId', async () => {
     await assertFails(
       setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/sneaky`), {
-        id: 'sneaky',
+        ...pendingDomain('sneaky', '@x.com'),
         orgId: OTHER_ORG_ID,
-        domain: '@x.com',
       })
     );
   });
@@ -549,9 +558,25 @@ describe('organizations/domains — writes', () => {
   it('domain admin cannot create a domain whose id != path domainId', async () => {
     await assertFails(
       setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/real`), {
-        id: 'fake',
-        orgId: ORG_ID,
-        domain: '@x.com',
+        ...pendingDomain('fake', '@x.com'),
+      })
+    );
+  });
+
+  it('domain admin cannot seed status:verified on create (server-managed)', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/spoof`), {
+        ...pendingDomain('spoof', '@spoof.com'),
+        status: 'verified',
+      })
+    );
+  });
+
+  it('domain admin cannot seed a nonzero users count on create', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/inflate`), {
+        ...pendingDomain('inflate', '@inflate.com'),
+        users: 9999,
       })
     );
   });
@@ -592,9 +617,7 @@ describe('organizations/domains — writes', () => {
   it('building admin cannot write domains', async () => {
     await assertFails(
       setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/new`), {
-        id: 'new',
-        orgId: ORG_ID,
-        domain: '@x.com',
+        ...pendingDomain('new', '@x.com'),
       })
     );
     await assertFails(
@@ -632,6 +655,17 @@ describe('organizations/roles — writes (system role protection)', () => {
         id: 'hacked',
         name: 'Hacked',
         system: true,
+        perms: {},
+      })
+    );
+  });
+
+  it('domain admin cannot create a role whose id != path roleId', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/roles/real`), {
+        id: 'fake',
+        name: 'Mismatch',
+        system: false,
         perms: {},
       })
     );
@@ -708,6 +742,14 @@ describe('organizations/roles — writes (system role protection)', () => {
 });
 
 describe('organizations/members — writes', () => {
+  const validMember = (email: string) => ({
+    email,
+    orgId: ORG_ID,
+    roleId: 'teacher',
+    status: 'invited',
+    buildingIds: ['high'],
+  });
+
   it('domain admin can create a new member', async () => {
     await assertSucceeds(
       setDoc(
@@ -715,13 +757,59 @@ describe('organizations/members — writes', () => {
           asDomainAdmin(),
           `organizations/${ORG_ID}/members/new.teacher@orono.k12.mn.us`
         ),
+        validMember('new.teacher@orono.k12.mn.us')
+      )
+    );
+  });
+
+  it('domain admin cannot create a member whose email != doc id', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/expected@orono.k12.mn.us`
+        ),
+        validMember('someoneelse@orono.k12.mn.us')
+      )
+    );
+  });
+
+  it('domain admin cannot create a member whose orgId != path orgId', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/xorg@orono.k12.mn.us`
+        ),
+        { ...validMember('xorg@orono.k12.mn.us'), orgId: OTHER_ORG_ID }
+      )
+    );
+  });
+
+  it('domain admin cannot create a member missing required fields', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/missing@orono.k12.mn.us`
+        ),
         {
-          email: 'new.teacher@orono.k12.mn.us',
+          email: 'missing@orono.k12.mn.us',
           orgId: ORG_ID,
-          roleId: 'teacher',
-          status: 'invited',
-          buildingIds: ['high'],
+          // roleId, status, buildingIds all missing
         }
+      )
+    );
+  });
+
+  it('domain admin cannot create a member with arbitrary extra fields', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/extra@orono.k12.mn.us`
+        ),
+        { ...validMember('extra@orono.k12.mn.us'), isSuperAdmin: true }
       )
     );
   });
@@ -844,13 +932,7 @@ describe('organizations/members — writes', () => {
           asBuildingAdmin(),
           `organizations/${ORG_ID}/members/new@orono.k12.mn.us`
         ),
-        {
-          email: 'new@orono.k12.mn.us',
-          orgId: ORG_ID,
-          roleId: 'teacher',
-          status: 'invited',
-          buildingIds: ['high'],
-        }
+        validMember('new@orono.k12.mn.us')
       )
     );
     await assertFails(
@@ -912,6 +994,26 @@ describe('organizations/studentPageConfig — writes', () => {
       updateDoc(
         doc(asTeacher(), `organizations/${ORG_ID}/studentPageConfig/default`),
         { heroText: 'nope' }
+      )
+    );
+  });
+
+  it('domain admin cannot create a non-default student page config', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/studentPageConfig/sneaky`
+        ),
+        { orgId: ORG_ID, heroText: 'sneaky' }
+      )
+    );
+  });
+
+  it('super admin cannot delete the student page config', async () => {
+    await assertFails(
+      deleteDoc(
+        doc(asSuper(), `organizations/${ORG_ID}/studentPageConfig/default`)
       )
     );
   });

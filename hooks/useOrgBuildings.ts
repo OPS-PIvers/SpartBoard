@@ -10,22 +10,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type { BuildingRecord, BuildingType } from '@/types/organization';
-
-const slug = (s: string): string =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48);
-
-const defaultBuildingId = (b: Partial<BuildingRecord>): string => {
-  const base = slug(b.name ?? '');
-  if (base) return base;
-  return (globalThis.crypto?.randomUUID?.() ?? `building-${Date.now()}`).slice(
-    0,
-    24
-  );
-};
+import { slugOrFallback } from '@/utils/slug';
 
 /**
  * Subscribes to `/organizations/{orgId}/buildings`. Reads allowed for org
@@ -82,7 +67,7 @@ export const useOrgBuildings = (orgId: string | null) => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
-    const id = building.id ?? defaultBuildingId(building);
+    const id = building.id ?? slugOrFallback(building.name ?? '', 'building');
     const record: BuildingRecord = {
       id,
       orgId,
@@ -104,6 +89,7 @@ export const useOrgBuildings = (orgId: string | null) => {
       throw new Error('No organization selected.');
     }
     const { id: _omitId, orgId: _omitOrg, ...rest } = patch;
+    if (Object.keys(rest).length === 0) return;
     await updateDoc(doc(db, 'organizations', orgId, 'buildings', id), rest);
   };
 
