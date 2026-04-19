@@ -1,6 +1,12 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import {
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  AlertTriangle,
+} from 'lucide-react';
 
 // Color palette for badges and role accents.
 export type AccentColor =
@@ -635,7 +641,7 @@ export const PopoverOption: React.FC<{
 
 // Inline toast shim (bottom-center) ----------------------------------
 
-export type OrgToastType = 'info' | 'warn' | 'error';
+export type OrgToastType = 'info' | 'success' | 'warn' | 'error';
 
 export const OrgToast: React.FC<{
   message: string;
@@ -643,6 +649,7 @@ export const OrgToast: React.FC<{
 }> = ({ message, type = 'info' }) => {
   const styles: Record<OrgToastType, { bg: string; Icon: typeof Info }> = {
     info: { bg: 'bg-brand-blue-dark', Icon: Info },
+    success: { bg: 'bg-emerald-600', Icon: CheckCircle2 },
     warn: { bg: 'bg-amber-600', Icon: AlertTriangle },
     error: { bg: 'bg-brand-red', Icon: AlertCircle },
   };

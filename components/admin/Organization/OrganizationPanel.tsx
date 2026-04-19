@@ -225,7 +225,6 @@ export const OrganizationPanel: React.FC = () => {
     updateMember,
     bulkUpdateMembers,
     removeMembers,
-    inviteMembers,
   } = useOrgMembers(orgScopedOrgId);
   const {
     studentPage,
@@ -273,7 +272,7 @@ export const OrganizationPanel: React.FC = () => {
   ) => {
     task()
       .then(() => {
-        if (successMsg) showToast(successMsg, 'info');
+        if (successMsg) showToast(successMsg, 'success');
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
@@ -342,15 +341,16 @@ export const OrganizationPanel: React.FC = () => {
     );
   };
   const handleInvite = (
-    emails: string[],
-    role: string,
-    bids: string[],
-    msg?: string
+    _emails: string[],
+    _role: string,
+    _bids: string[],
+    _msg?: string
   ) => {
-    // Invitations require a Cloud Function (Phase 4); keep the dedicated
-    // message even when `org-admin-writes` is enabled so the UI is honest.
+    // Invitations require a Cloud Function (Phase 4); surface a dedicated
+    // info toast rather than forwarding to the rejection stub (which would
+    // render as a misleading error toast).
     if (!writesEnabled) return comingSoon('Invite users');
-    run('Invite users', () => inviteMembers(emails, role, bids, msg));
+    showToast('Invitations — coming in Phase 4', 'info');
   };
   const handleUpdateStudentPage = (patch: Partial<StudentPageConfig>) => {
     if (!writesEnabled) return comingSoon('Student page edits');
