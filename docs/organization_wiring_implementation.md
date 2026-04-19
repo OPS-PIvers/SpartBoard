@@ -236,6 +236,21 @@ Enable writes for each view, gated on a new `orgAdminWrites` entry in the existi
 - [ ] With flag on for paul.ivers, every mutation persists and re-renders via snapshot _(verify in preview as part of task R)_
 - [ ] Cross-org writes are rejected by rules (verified in preview console)
 
+### Deploy order (important)
+
+Order matters for Phase 3 rollout. Do each step from a host with Firebase
+admin credentials, in this sequence:
+
+1. **Seed the perm doc first** — `node scripts/init-global-perms.js`.
+   If rules deploy before the `global_permissions/org-admin-writes` doc
+   exists, `canAccessFeature('org-admin-writes')` falls back to the
+   default-allow path in `AuthContext` (no permission record ⇒ public), so
+   every domain admin would briefly get write UI without the beta gate.
+2. **Deploy the rules** — `firebase deploy --only firestore:rules --project spartboard`.
+3. **Smoke test as paul.ivers** (in `betaUsers`) — writes should persist.
+4. **Smoke test as a non-beta domain admin** — writes should still show the
+   Phase-2 "coming soon" toast.
+
 ---
 
 ## Phase 4 — Invitations, CSV import, write-through

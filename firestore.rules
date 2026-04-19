@@ -135,13 +135,19 @@ service cloud.firestore {
         // Domain admin or super admin only. Create must carry canonical
         // orgId + matching doc id, and clients cannot seed `status:'verified'`
         // or inflate `users` — verification is DNS-based server-side, and
-        // `users` is a derived count. Update is whitelisted to the fields
+        // `users` is a derived count. `keys().hasOnly([...])` mirrors the
+        // shape enforced on buildings/roles/members so clients can't stash
+        // arbitrary fields on create. Update is whitelisted to the fields
         // admins actually configure.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           request.resource.data.orgId == orgId &&
           request.resource.data.id == domainId &&
           request.resource.data.status == 'pending' &&
-          request.resource.data.users == 0;
+          request.resource.data.users == 0 &&
+          request.resource.data.keys().hasOnly([
+            'id', 'orgId', 'domain', 'authMethod', 'status', 'role',
+            'users', 'addedAt'
+          ]);
         allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
         allow update: if isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
@@ -192,8 +198,13 @@ service cloud.firestore {
                     isSuperAdmin();
         // Domain+ admins manage members with a field whitelist so identity
         // fields (email, orgId, uid, addedBy, addedBySource) stay pinned to
-        // what the invitation/sign-in flow set. Building admins can only
-        // update `status` on members whose buildingIds intersect their own.
+        // what the invitation/sign-in flow set. `uid` is intentionally not
+        // in the update whitelist: Phase 4's first-sign-in link-uid write
+        // must happen through a Cloud Function (Admin SDK bypasses these
+        // rules) so no client actor can reassign a member's uid and hijack
+        // the linked account. Building admins can only update `status` on
+        // members whose buildingIds intersect their own — see the update
+        // branch below for the `hasAny()` scoping note.
         // Create enforces shape: doc id == lowercased email (both the path
         // segment and payload field must be lowercase so isOrgMember() — which
         // always looks up `members/{token.email.lower()}` — can find the
@@ -217,6 +228,12 @@ service cloud.firestore {
            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ])) ||
+          // Building admin can flip `status` on a member whose buildingIds
+          // overlap their own. `hasAny([])` returns false, so a newly
+          // invited member with `buildingIds: []` is *not* editable by a
+          // building admin — the domain admin must assign a building first.
+          // This is intentional: building admins shouldn't be able to act on
+          // members who haven't been scoped into their building yet.
           (isBuildingAdmin(orgId) &&
            resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));

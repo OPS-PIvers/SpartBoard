@@ -293,7 +293,16 @@ export const OrganizationPanel: React.FC = () => {
   // archive the wrong org.
   const handleArchiveOrg = (targetOrgId: string) => {
     if (!writesEnabled) return comingSoon('Archive organization');
-    if (targetOrgId !== activeOrgId) return;
+    if (targetOrgId !== activeOrgId) {
+      // A mismatch means the view passed an org id that doesn't match the
+      // hook's subscription — almost always a wiring bug. Warn so we notice
+      // in dev rather than silently dropping the write.
+      console.warn(
+        '[OrganizationPanel] Archive skipped: targetOrgId mismatch',
+        { targetOrgId, activeOrgId }
+      );
+      return;
+    }
     run('Archive organization', archiveOrg, 'Organization archived');
   };
   const handleAddBuilding = (b: Partial<BuildingRecord>) => {

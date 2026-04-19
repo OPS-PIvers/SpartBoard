@@ -620,6 +620,15 @@ describe('organizations/domains — writes', () => {
     );
   });
 
+  it('domain admin cannot attach arbitrary fields on create (hasOnly)', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/extra`), {
+        ...pendingDomain('extra', '@extra.com'),
+        secretNote: 'stash',
+      })
+    );
+  });
+
   it('domain admin cannot flip status (server-managed) via update', async () => {
     await assertFails(
       updateDoc(
