@@ -247,7 +247,7 @@ export const UsersView: React.FC<Props> = ({
       />
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative w-80">
+        <div className="relative w-full sm:w-80">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -259,32 +259,34 @@ export const UsersView: React.FC<Props> = ({
             className="pl-9"
           />
         </div>
-        <Select
-          value={roleFilter}
-          onChange={(e) => changeRoleFilter(e.target.value)}
-          className="w-40"
-          aria-label="Filter by role"
-        >
-          <option value="">All roles</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={buildingFilter}
-          onChange={(e) => changeBuildingFilter(e.target.value)}
-          className="w-48"
-          aria-label="Filter by building"
-        >
-          <option value="">All buildings</option>
-          {visibleBuildings.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </Select>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Select
+            value={roleFilter}
+            onChange={(e) => changeRoleFilter(e.target.value)}
+            className="flex-1 sm:w-40"
+            aria-label="Filter by role"
+          >
+            <option value="">All roles</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={buildingFilter}
+            onChange={(e) => changeBuildingFilter(e.target.value)}
+            className="flex-1 sm:w-48"
+            aria-label="Filter by building"
+          >
+            <option value="">All buildings</option>
+            {visibleBuildings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </Select>
+        </div>
         <Segmented
           value={statusFilter}
           onChange={changeStatusFilter}
@@ -296,11 +298,11 @@ export const UsersView: React.FC<Props> = ({
           ]}
           ariaLabel="Status filter"
         />
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <Select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="w-48"
+            className="w-full sm:w-48"
             aria-label="Sort"
           >
             <option value="name_asc">Name A-Z</option>
@@ -312,7 +314,7 @@ export const UsersView: React.FC<Props> = ({
       </div>
 
       {selected.size > 0 && (
-        <div className="sticky top-0 z-dropdown mb-3 bg-slate-900 text-white rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-[0_10px_15px_-3px_rgba(29,42,93,.25)]">
+        <div className="sticky top-0 z-dropdown mb-3 bg-slate-900 text-white rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 shadow-[0_10px_15px_-3px_rgba(29,42,93,.25)]">
           <span className="text-sm font-semibold">
             {selected.size} selected
           </span>
@@ -375,46 +377,50 @@ export const UsersView: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(29,42,93,.06)] overflow-visible">
-        <div className="grid grid-cols-[32px_2.2fr_1.3fr_1.5fr_1fr_1fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          <div>
-            <Checkbox
-              aria-label="Select all"
-              checked={allChecked}
-              onChange={() => {
-                if (allChecked) setSelected(new Set());
-                else setSelected(new Set(filtered.map((u) => u.id)));
-              }}
-            />
+      <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(29,42,93,.06)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-w-[740px]">
+            <div className="grid grid-cols-[32px_2.2fr_1.3fr_1.5fr_1fr_1fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div>
+                <Checkbox
+                  aria-label="Select all"
+                  checked={allChecked}
+                  onChange={() => {
+                    if (allChecked) setSelected(new Set());
+                    else setSelected(new Set(filtered.map((u) => u.id)));
+                  }}
+                />
+              </div>
+              <div>Name</div>
+              <div>Role</div>
+              <div>Buildings</div>
+              <div>Status</div>
+              <div>Last active</div>
+              <div />
+            </div>
+            {filtered.map((u) => {
+              const editable = canEditUser(u);
+              return (
+                <UserRow
+                  key={u.id}
+                  user={u}
+                  roles={roles}
+                  buildings={visibleBuildings}
+                  selected={selected.has(u.id)}
+                  onToggle={() => toggleRow(u.id)}
+                  editable={editable}
+                  onUpdate={(patch) => onUpdate(u.id, patch)}
+                  onDelete={() => (editable ? onRemove([u.id]) : undefined)}
+                />
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="px-5 py-10 text-center text-sm text-slate-500">
+                No users match your filters.
+              </div>
+            )}
           </div>
-          <div>Name</div>
-          <div>Role</div>
-          <div>Buildings</div>
-          <div>Status</div>
-          <div>Last active</div>
-          <div />
         </div>
-        {filtered.map((u) => {
-          const editable = canEditUser(u);
-          return (
-            <UserRow
-              key={u.id}
-              user={u}
-              roles={roles}
-              buildings={visibleBuildings}
-              selected={selected.has(u.id)}
-              onToggle={() => toggleRow(u.id)}
-              editable={editable}
-              onUpdate={(patch) => onUpdate(u.id, patch)}
-              onDelete={() => (editable ? onRemove([u.id]) : undefined)}
-            />
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">
-            No users match your filters.
-          </div>
-        )}
       </div>
 
       <InviteModal
@@ -814,7 +820,7 @@ const InviteModal: React.FC<{
             ))}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Role">
             <Select value={role} onChange={(e) => setRole(e.target.value)}>
               {roles.map((r) => (

@@ -106,7 +106,7 @@ export const ViewHeader: React.FC<{
   blurb?: string;
   actions?: React.ReactNode;
 }> = ({ title, blurb, actions }) => (
-  <div className="flex items-start justify-between gap-4 mb-6">
+  <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
     <div className="min-w-0">
       <h2 className="text-xl font-bold text-slate-900 leading-tight">
         {title}
@@ -116,7 +116,9 @@ export const ViewHeader: React.FC<{
       )}
     </div>
     {actions && (
-      <div className="shrink-0 flex items-center gap-2">{actions}</div>
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+        {actions}
+      </div>
     )}
   </div>
 );
@@ -405,14 +407,65 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
   label = 'Row actions',
 }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const measure = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const menuRect = menuRef.current?.getBoundingClientRect();
+      const viewportMargin = 8;
+      const gap = 4;
+      const menuWidth = Math.max(menuRect?.width ?? 0, 200);
+      const menuHeight = menuRect?.height ?? 0;
+
+      const preferredTop = r.bottom + gap;
+      const flippedTop = r.top - menuHeight - gap;
+      const maxTop = Math.max(
+        viewportMargin,
+        window.innerHeight - menuHeight - viewportMargin
+      );
+      const top =
+        menuHeight > 0 &&
+        preferredTop + menuHeight > window.innerHeight - viewportMargin
+          ? Math.max(viewportMargin, flippedTop)
+          : Math.min(preferredTop, maxTop);
+
+      const preferredRight = window.innerWidth - r.right;
+      const maxRight = Math.max(
+        viewportMargin,
+        window.innerWidth - menuWidth - viewportMargin
+      );
+      const right = Math.min(
+        Math.max(preferredRight, viewportMargin),
+        maxRight
+      );
+
+      setPos({ top, right });
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    // Capture scroll from any ancestor (tables, modals, etc.)
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
     const onDocClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -426,8 +479,9 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
   }, [open]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label}
         aria-haspopup="menu"
@@ -447,32 +501,39 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
           <circle cx="8" cy="13" r="1.5" />
         </svg>
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1 z-dropdown min-w-[200px] bg-white rounded-xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] border border-slate-200 py-1"
-        >
-          {items.map((item, i) => (
-            <button
-              key={i}
-              role="menuitem"
-              disabled={item.disabled}
-              onClick={() => {
-                setOpen(false);
-                item.onClick();
-              }}
-              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
-                item.danger
-                  ? 'text-brand-red hover:bg-rose-50'
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ position: 'fixed', top: pos.top, right: pos.right }}
+            className="z-dropdown min-w-[200px] bg-white rounded-xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] border border-slate-200 py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {items.map((item, i) => (
+              <button
+                key={i}
+                role="menuitem"
+                disabled={item.disabled}
+                onClick={() => {
+                  setOpen(false);
+                  item.onClick();
+                }}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  item.danger
+                    ? 'text-brand-red hover:bg-rose-50'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

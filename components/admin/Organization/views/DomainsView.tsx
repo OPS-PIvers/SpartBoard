@@ -126,84 +126,91 @@ export const DomainsView: React.FC<Props> = ({ domains, onAdd, onRemove }) => {
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(29,42,93,.06),0_1px_3px_rgba(29,42,93,.08)] overflow-hidden">
-            <div className="grid grid-cols-[2fr_1.2fr_0.9fr_0.6fr_0.9fr_auto] gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              <div>Domain</div>
-              <div>Auth method</div>
-              <div>Status</div>
-              <div className="text-right">Users</div>
-              <div>Added</div>
-              <div />
-            </div>
-            {domains.map((d) => {
-              const roleMeta = DOMAIN_ROLE_META[d.role];
-              return (
-                <div
-                  key={d.id}
-                  className="grid grid-cols-[2fr_1.2fr_0.9fr_0.6fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        d.role === 'student'
-                          ? 'bg-sky-50 text-sky-600'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      {d.role === 'student' ? (
-                        <GraduationCap size={16} />
-                      ) : (
-                        <Globe size={16} />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-mono text-slate-800 truncate">
-                        {d.domain}
-                      </div>
-                      <div className="mt-0.5">
-                        <Badge color={roleMeta.color}>{roleMeta.label}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-700">
-                    {AUTH_ICON[d.authMethod]}
-                    {AUTH_LABEL[d.authMethod]}
-                  </div>
-                  <div>
-                    <StatusPill status={d.status} />
-                  </div>
-                  <div className="text-right text-sm font-mono text-slate-700">
-                    {d.users.toLocaleString()}
-                  </div>
-                  <div className="text-sm font-mono text-slate-500">
-                    {d.addedAt}
-                  </div>
-                  <RowMenu
-                    items={[
-                      {
-                        label: 'Edit',
-                        onClick: () => console.warn('[Domains] edit', d.id),
-                      },
-                      {
-                        label: 'Set as primary',
-                        onClick: () =>
-                          console.warn('[Domains] set primary', d.id),
-                        disabled: d.role === 'primary',
-                      },
-                      {
-                        label: 'Resend verification',
-                        onClick: () => console.warn('[Domains] resend', d.id),
-                        disabled: d.status !== 'pending',
-                      },
-                      {
-                        label: 'Remove',
-                        onClick: () => onRemove(d.id),
-                        danger: true,
-                      },
-                    ]}
-                  />
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px]">
+                <div className="grid grid-cols-[2fr_1.2fr_0.9fr_0.6fr_0.9fr_auto] gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <div>Domain</div>
+                  <div>Auth method</div>
+                  <div>Status</div>
+                  <div className="text-right">Users</div>
+                  <div>Added</div>
+                  <div />
                 </div>
-              );
-            })}
+                {domains.map((d) => {
+                  const roleMeta = DOMAIN_ROLE_META[d.role];
+                  return (
+                    <div
+                      key={d.id}
+                      className="grid grid-cols-[2fr_1.2fr_0.9fr_0.6fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 hover:bg-slate-50 transition-colors min-w-0"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            d.role === 'student'
+                              ? 'bg-sky-50 text-sky-600'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}
+                        >
+                          {d.role === 'student' ? (
+                            <GraduationCap size={16} />
+                          ) : (
+                            <Globe size={16} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-mono text-slate-800 truncate">
+                            {d.domain}
+                          </div>
+                          <div className="mt-0.5">
+                            <Badge color={roleMeta.color}>
+                              {roleMeta.label}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
+                        {AUTH_ICON[d.authMethod]}
+                        {AUTH_LABEL[d.authMethod]}
+                      </div>
+                      <div>
+                        <StatusPill status={d.status} />
+                      </div>
+                      <div className="text-right text-sm font-mono text-slate-700">
+                        {d.users.toLocaleString()}
+                      </div>
+                      <div className="text-sm font-mono text-slate-500">
+                        {d.addedAt}
+                      </div>
+                      <RowMenu
+                        items={[
+                          {
+                            label: 'Edit',
+                            onClick: () => console.warn('[Domains] edit', d.id),
+                          },
+                          {
+                            label: 'Set as primary',
+                            onClick: () =>
+                              console.warn('[Domains] set primary', d.id),
+                            disabled: d.role === 'primary',
+                          },
+                          {
+                            label: 'Resend verification',
+                            onClick: () =>
+                              console.warn('[Domains] resend', d.id),
+                            disabled: d.status !== 'pending',
+                          },
+                          {
+                            label: 'Remove',
+                            onClick: () => onRemove(d.id),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 p-4 rounded-xl bg-brand-blue-lighter/50 border border-brand-blue-lighter text-sm text-slate-700 flex items-start gap-3">

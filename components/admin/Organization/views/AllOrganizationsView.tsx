@@ -101,114 +101,118 @@ export const AllOrganizationsView: React.FC<Props> = ({
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_2px_rgba(29,42,93,.06),0_1px_3px_rgba(29,42,93,.08)] overflow-hidden">
-        <div className="grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          <div>Organization</div>
-          <div>Plan</div>
-          <div>AI</div>
-          <div className="text-right">Users</div>
-          <div className="text-right">Buildings</div>
-          <div>Primary admin</div>
-          <div>Status</div>
-          <div />
-        </div>
-        {filtered.map((org) => (
-          <div
-            key={org.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen(org.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onOpen(org.id);
-              }
-            }}
-            className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <OrgLogoTile
-                shortCode={org.shortCode}
-                seedColor={org.seedColor}
-              />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-slate-900 truncate">
-                  {org.name}
+        <div className="overflow-x-auto">
+          <div className="min-w-[780px]">
+            <div className="grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div>Organization</div>
+              <div>Plan</div>
+              <div>AI</div>
+              <div className="text-right">Users</div>
+              <div className="text-right">Buildings</div>
+              <div>Primary admin</div>
+              <div>Status</div>
+              <div />
+            </div>
+            {filtered.map((org) => (
+              <div
+                key={org.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpen(org.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(org.id);
+                  }
+                }}
+                className="w-full grid grid-cols-[2fr_1fr_0.75fr_0.75fr_0.75fr_1.5fr_0.9fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-100 last:border-b-0 text-left hover:bg-slate-50 focus:bg-slate-50 focus:outline-none transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <OrgLogoTile
+                    shortCode={org.shortCode}
+                    seedColor={org.seedColor}
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
+                      {org.name}
+                    </div>
+                    <div className="text-xs text-slate-500 font-mono">
+                      {org.state} · created {org.createdAt}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-slate-500 font-mono">
-                  {org.state} · created {org.createdAt}
+                <div>
+                  <Badge
+                    color={
+                      org.plan === 'full'
+                        ? 'indigo'
+                        : org.plan === 'expanded'
+                          ? 'cyan'
+                          : 'slate'
+                    }
+                  >
+                    {PLAN_LABEL[org.plan]}
+                  </Badge>
+                </div>
+                <div>
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      org.aiEnabled ? 'text-emerald-700' : 'text-slate-500'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        org.aiEnabled ? 'bg-emerald-500' : 'bg-slate-400'
+                      }`}
+                      aria-hidden
+                    />
+                    {org.aiEnabled ? 'On' : 'Off'}
+                  </span>
+                </div>
+                <div className="text-right text-sm font-mono text-slate-700">
+                  {org.users}
+                </div>
+                <div className="text-right text-sm font-mono text-slate-700">
+                  {org.buildings}
+                </div>
+                <div className="text-sm text-slate-700 font-mono truncate">
+                  {org.primaryAdminEmail}
+                </div>
+                <div>
+                  <StatusPill
+                    status={org.status === 'archived' ? 'inactive' : org.status}
+                  />
+                </div>
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  role="none"
+                >
+                  <RowMenu
+                    items={[
+                      { label: 'Open', onClick: () => onOpen(org.id) },
+                      {
+                        label: 'Edit details',
+                        onClick: () => onOpen(org.id),
+                      },
+                      {
+                        label: 'Archive',
+                        onClick: () =>
+                          console.warn('[AllOrganizations] archive', org.id),
+                        danger: true,
+                      },
+                    ]}
+                  />
                 </div>
               </div>
-            </div>
-            <div>
-              <Badge
-                color={
-                  org.plan === 'full'
-                    ? 'indigo'
-                    : org.plan === 'expanded'
-                      ? 'cyan'
-                      : 'slate'
-                }
-              >
-                {PLAN_LABEL[org.plan]}
-              </Badge>
-            </div>
-            <div>
-              <span
-                className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                  org.aiEnabled ? 'text-emerald-700' : 'text-slate-500'
-                }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    org.aiEnabled ? 'bg-emerald-500' : 'bg-slate-400'
-                  }`}
-                  aria-hidden
-                />
-                {org.aiEnabled ? 'On' : 'Off'}
-              </span>
-            </div>
-            <div className="text-right text-sm font-mono text-slate-700">
-              {org.users}
-            </div>
-            <div className="text-right text-sm font-mono text-slate-700">
-              {org.buildings}
-            </div>
-            <div className="text-sm text-slate-700 font-mono truncate">
-              {org.primaryAdminEmail}
-            </div>
-            <div>
-              <StatusPill
-                status={org.status === 'archived' ? 'inactive' : org.status}
-              />
-            </div>
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-              role="none"
-            >
-              <RowMenu
-                items={[
-                  { label: 'Open', onClick: () => onOpen(org.id) },
-                  {
-                    label: 'Edit details',
-                    onClick: () => onOpen(org.id),
-                  },
-                  {
-                    label: 'Archive',
-                    onClick: () =>
-                      console.warn('[AllOrganizations] archive', org.id),
-                    danger: true,
-                  },
-                ]}
-              />
-            </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-5 py-10 text-center text-sm text-slate-500">
+                No organizations match your filters.
+              </div>
+            )}
           </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="px-5 py-10 text-center text-sm text-slate-500">
-            No organizations match your filters.
-          </div>
-        )}
+        </div>
       </div>
 
       <CreateOrgModal
@@ -282,7 +286,7 @@ const CreateOrgModal: React.FC<{
             autoFocus
           />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Short code" hint="2-4 letters, used in avatars">
             <Input
               value={shortCode}
