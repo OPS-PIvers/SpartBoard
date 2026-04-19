@@ -362,6 +362,27 @@ describe('organizations — domain admin writes on own org', () => {
     );
   });
 
+  it('cannot change status (archive is super-admin-only)', async () => {
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
+        status: 'archived',
+      })
+    );
+  });
+
+  it('cannot overwrite derived counts (users, buildings)', async () => {
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
+        users: 9999,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}`), {
+        buildings: 9999,
+      })
+    );
+  });
+
   it('cannot edit another org', async () => {
     await assertFails(
       updateDoc(doc(asDomainAdmin(), `organizations/${OTHER_ORG_ID}`), {
@@ -392,6 +413,7 @@ describe('organizations/buildings — writes', () => {
     await assertSucceeds(
       setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/new`), {
         id: 'new',
+        orgId: ORG_ID,
         name: 'New School',
       })
     );
@@ -408,11 +430,55 @@ describe('organizations/buildings — writes', () => {
     );
   });
 
+  it('domain admin cannot create a building whose orgId != path orgId', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/sneaky`), {
+        id: 'sneaky',
+        orgId: OTHER_ORG_ID, // spoofed parent
+        name: 'Sneaky',
+      })
+    );
+  });
+
+  it('domain admin cannot create a building whose id != path buildingId', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/real`), {
+        id: 'fake',
+        orgId: ORG_ID,
+        name: 'Mismatch',
+      })
+    );
+  });
+
   it('building admin can update a building in their scope', async () => {
     await assertSucceeds(
       updateDoc(
         doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
         { address: '123 Spartan Way' }
+      )
+    );
+  });
+
+  it('building admin cannot rewrite a building identity field', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
+        { orgId: OTHER_ORG_ID }
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/high`),
+        { id: 'renamed' }
+      )
+    );
+  });
+
+  it('domain admin cannot rewrite a building identity field', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/buildings/high`),
+        { orgId: OTHER_ORG_ID }
       )
     );
   });
@@ -430,6 +496,7 @@ describe('organizations/buildings — writes', () => {
     await assertFails(
       setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/buildings/new`), {
         id: 'new',
+        orgId: ORG_ID,
         name: 'X',
       })
     );
@@ -454,6 +521,7 @@ describe('organizations/domains — writes', () => {
     await assertSucceeds(
       setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/students`), {
         id: 'students',
+        orgId: ORG_ID,
         domain: '@students.orono.k12.mn.us',
       })
     );
@@ -468,10 +536,64 @@ describe('organizations/domains — writes', () => {
     );
   });
 
+  it('domain admin cannot create a domain whose orgId != path orgId', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/sneaky`), {
+        id: 'sneaky',
+        orgId: OTHER_ORG_ID,
+        domain: '@x.com',
+      })
+    );
+  });
+
+  it('domain admin cannot create a domain whose id != path domainId', async () => {
+    await assertFails(
+      setDoc(doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/real`), {
+        id: 'fake',
+        orgId: ORG_ID,
+        domain: '@x.com',
+      })
+    );
+  });
+
+  it('domain admin cannot flip status (server-managed) via update', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
+        { status: 'verified' }
+      )
+    );
+  });
+
+  it('domain admin cannot overwrite derived users count or addedAt', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
+        { users: 9999 }
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
+        { addedAt: '2020-01-01' }
+      )
+    );
+  });
+
+  it('domain admin cannot rewrite a domain identity field', async () => {
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/primary`),
+        { orgId: OTHER_ORG_ID }
+      )
+    );
+  });
+
   it('building admin cannot write domains', async () => {
     await assertFails(
       setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/new`), {
         id: 'new',
+        orgId: ORG_ID,
         domain: '@x.com',
       })
     );
@@ -612,6 +734,48 @@ describe('organizations/members — writes', () => {
           `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
         ),
         { roleId: 'building_admin', buildingIds: ['high', 'middle'] }
+      )
+    );
+  });
+
+  it('domain admin cannot spoof member identity (email, orgId, uid)', async () => {
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { email: 'other@example.com' }
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { orgId: OTHER_ORG_ID }
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { uid: 'impostor-uid' }
+      )
+    );
+  });
+
+  it('domain admin cannot add arbitrary fields to a member doc', async () => {
+    await assertFails(
+      updateDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+        ),
+        { isSuperAdmin: true }
       )
     );
   });

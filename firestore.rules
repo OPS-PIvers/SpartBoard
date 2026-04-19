@@ -87,31 +87,59 @@ service cloud.firestore {
 
     match /organizations/{orgId} {
       allow read: if isOrgMember(orgId) || isSuperAdmin();
-      // Only super admins can create, archive (delete), or flip AI/plan.
-      // Domain admins can edit identity-ish fields for their own org.
+      // Only super admins can create, archive (delete), flip AI/plan, or
+      // change `status` (soft-archive). Domain admins can edit identity-ish
+      // fields for their own org. `users`/`buildings` are derived counts
+      // maintained server-side — never settable from the client at the
+      // domain-admin tier.
       allow create, delete: if isSuperAdmin();
       allow update: if isSuperAdmin() ||
         (isDomainAdmin(orgId) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'name', 'shortName', 'shortCode', 'state', 'primaryAdminEmail',
-           'users', 'buildings', 'status', 'seedColor', 'supportUrl'
+           'seedColor', 'supportUrl'
          ]));
 
       match /buildings/{buildingId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Only domain+ admins can create/delete buildings.
-        allow create, delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        // Building admins can edit buildings they manage (name, address,
-        // grades, type, adminEmails). Domain+ admins edit any building.
-        allow update: if isSuperAdmin() || isDomainAdmin(orgId) ||
-          (isBuildingAdmin(orgId) &&
-           buildingId in orgMember(orgId).buildingIds);
+        // Only domain+ admins can create/delete buildings. Create must carry
+        // the canonical orgId and matching doc id so clients can't seed
+        // records that misrepresent their parent.
+        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.orgId == orgId &&
+          request.resource.data.id == buildingId;
+        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        // Building admins can edit the mutable fields of buildings they
+        // manage; domain+ admins edit any building. Identity fields
+        // (id, orgId) are immutable for all tiers below super admin.
+        allow update: if (isSuperAdmin() ||
+            (isDomainAdmin(orgId) &&
+             request.resource.data.id == resource.data.id &&
+             request.resource.data.orgId == resource.data.orgId) ||
+            (isBuildingAdmin(orgId) &&
+             buildingId in orgMember(orgId).buildingIds &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'name', 'address', 'grades', 'type', 'adminEmails'
+             ])));
       }
 
       match /domains/{domainId} {
         allow read: if isOrgMember(orgId) || isSuperAdmin();
-        // Domain admin or super admin only.
-        allow create, update, delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        // Domain admin or super admin only. Create must carry canonical
+        // orgId + matching doc id. Update is whitelisted to the fields
+        // admins actually configure — `status` is DNS-verified server-side
+        // (never client-set) and `users`/`addedAt` are derived/stamped.
+        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          request.resource.data.orgId == orgId &&
+          request.resource.data.id == domainId;
+        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        allow update: if isSuperAdmin() ||
+          (isDomainAdmin(orgId) &&
+           request.resource.data.id == resource.data.id &&
+           request.resource.data.orgId == resource.data.orgId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'domain', 'authMethod', 'role'
+           ]));
       }
 
       match /roles/{roleId} {
@@ -138,11 +166,18 @@ service cloud.firestore {
                        request.auth.token.email.lower() == emailLower) ||
                     isOrgMember(orgId) ||
                     isSuperAdmin();
-        // Domain+ admins fully manage members. Building admins can only
+        // Domain+ admins manage members with a field whitelist so identity
+        // fields (email, orgId, uid, addedBy, addedBySource) stay pinned to
+        // what the invitation/sign-in flow set. Building admins can only
         // update `status` on members whose buildingIds intersect their own.
-        // roleId is never editable by building admins.
         allow create, delete: if isSuperAdmin() || isDomainAdmin(orgId);
-        allow update: if isSuperAdmin() || isDomainAdmin(orgId) ||
+        allow update: if isSuperAdmin() ||
+          (isDomainAdmin(orgId) &&
+           request.resource.data.email == resource.data.email &&
+           request.resource.data.orgId == resource.data.orgId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
+           ])) ||
           (isBuildingAdmin(orgId) &&
            resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
