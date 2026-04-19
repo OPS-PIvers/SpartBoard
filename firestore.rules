@@ -194,10 +194,15 @@ service cloud.firestore {
         // fields (email, orgId, uid, addedBy, addedBySource) stay pinned to
         // what the invitation/sign-in flow set. Building admins can only
         // update `status` on members whose buildingIds intersect their own.
-        // Create enforces shape: doc id == lowercased email, required
-        // fields present, and only the invite-shape keys are allowed.
+        // Create enforces shape: doc id == lowercased email (both the path
+        // segment and payload field must be lowercase so isOrgMember() — which
+        // always looks up `members/{token.email.lower()}` — can find the
+        // record), required fields present, and only the invite-shape keys
+        // are allowed.
         allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+          emailLower == emailLower.lower() &&
           request.resource.data.email == emailLower &&
+          request.resource.data.email == request.resource.data.email.lower() &&
           request.resource.data.orgId == orgId &&
           request.resource.data.keys().hasAll(['email', 'orgId', 'roleId', 'buildingIds', 'status']) &&
           request.resource.data.keys().hasOnly([

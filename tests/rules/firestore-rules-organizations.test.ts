@@ -891,6 +891,32 @@ describe('organizations/members — writes', () => {
     );
   });
 
+  it('domain admin cannot create a member with a mixed-case doc id', async () => {
+    // isOrgMember() always looks up members/{token.email.lower()}, so a
+    // mixed-case id would be orphaned and never found.
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/Mixed.Case@orono.k12.mn.us`
+        ),
+        validMember('mixed.case@orono.k12.mn.us')
+      )
+    );
+  });
+
+  it('domain admin cannot create a member with a mixed-case email field', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/mixed.case@orono.k12.mn.us`
+        ),
+        validMember('Mixed.Case@orono.k12.mn.us')
+      )
+    );
+  });
+
   it('domain admin can update roleId and buildingIds', async () => {
     await assertSucceeds(
       updateDoc(

@@ -288,8 +288,12 @@ export const OrganizationPanel: React.FC = () => {
     if (!writesEnabled) return comingSoon('Organization edits');
     run('Update organization', () => updateOrg(patch));
   };
-  const handleArchiveOrg = () => {
+  // `archiveOrg` is scoped to the hook's active orgId, so the caller's id
+  // should always match. Assert it so a stale row in the view can't silently
+  // archive the wrong org.
+  const handleArchiveOrg = (targetOrgId: string) => {
     if (!writesEnabled) return comingSoon('Archive organization');
+    if (targetOrgId !== activeOrgId) return;
     run('Archive organization', archiveOrg, 'Organization archived');
   };
   const handleAddBuilding = (b: Partial<BuildingRecord>) => {
