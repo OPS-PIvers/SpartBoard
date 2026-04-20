@@ -3,12 +3,19 @@
  * wiring plan — see docs/organization_wiring_implementation.md).
  *
  * WHAT THIS SCRIPT DOES
- *   Iterates every /users/{uid} doc, resolves each user's email + display name
- *   + selectedBuildings, and upserts /organizations/{orgId}/members/{emailLower}
- *   as a teacher-role member. Intended to hydrate the Users view with the
- *   ~90 active teachers who already exist at /users/{uid} but were never
- *   backfilled into the org's members tree (Phase 1's migration only copied
- *   the 6 /admins/* emails + admin_settings.superAdmins).
+ *   Enumerates every Firebase Auth user, filters to the target org's allowed
+ *   email domains (read from /organizations/{orgId}/domains), and upserts
+ *   /organizations/{orgId}/members/{emailLower} as a teacher-role member.
+ *   Email + display name come from the Auth record (source of truth);
+ *   selectedBuildings are read from /users/{uid}/userProfile/profile when
+ *   present (teachers who've never saved a profile get buildingIds: []).
+ *
+ *   Enumerating Auth (vs. scanning /users) is deliberate: the /users
+ *   collection only contains docs for teachers who have triggered a
+ *   Firestore write (profile save, dashboard creation, etc.), so scanning
+ *   it misses anyone who has signed in but not yet customized anything.
+ *   Admin analytics already uses admin.auth().listUsers() for the same
+ *   reason, and this script must agree with that count.
  *
  * WHEN TO RUN IT
  *   Once, after Phase 4 ships. The members-sync and counter Cloud Functions
@@ -200,22 +207,21 @@ async function resolveBuildingIds(db, uid, verbose) {
   return { buildingIds: [], found: false };
 }
 
-async function resolveEmailAndName(db, uid, userDocData, verbose) {
-  // Prefer Firebase Auth's record — the /users/{uid} doc may be stale or
-  // lack email/displayName entirely.
-  let authUser = null;
+// Pull the /users/{uid} doc (if any) as a secondary source of email/displayName
+// when the Auth record is incomplete. Returns null if the doc doesn't exist.
+async function loadUserDoc(db, uid) {
   try {
-    authUser = await getAuth().getUser(uid);
-  } catch (err) {
-    if (verbose) {
-      console.log(
-        '    [warn] auth.getUser(' +
-          uid +
-          ') failed: ' +
-          (err && err.message ? err.message : err)
-      );
-    }
+    const snap = await db.doc('users/' + uid).get();
+    return snap.exists ? snap.data() || {} : null;
+  } catch {
+    return null;
   }
+}
+
+// Combine Auth record + optional /users/{uid} doc into the canonical
+// { email, name } we'll write to the member doc. Auth wins on conflicts
+// because it's the source of truth for sign-in identity.
+function resolveIdentity(authUser, userDocData) {
   const authEmail =
     authUser && typeof authUser.email === 'string' ? authUser.email : '';
   const docEmail =
@@ -235,6 +241,26 @@ async function resolveEmailAndName(db, uid, userDocData, verbose) {
   const name = deriveName(authDisplayName || docDisplayName, email);
 
   return { email, name };
+}
+
+// Read /organizations/{orgId}/domains/* and return a Set of lowercased
+// domains (e.g. 'orono.k12.mn.us'). Handles the seed shape where the
+// stored value is '@orono.k12.mn.us' — the '@' is stripped for comparison.
+async function loadOrgDomains(db, orgId) {
+  const snap = await db.collection('organizations/' + orgId + '/domains').get();
+  const domains = new Set();
+  snap.docs.forEach((d) => {
+    const data = d.data() || {};
+    const raw = typeof data.domain === 'string' ? data.domain : '';
+    const cleaned = raw.trim().toLowerCase().replace(/^@/, '');
+    if (cleaned) domains.add(cleaned);
+  });
+  return domains;
+}
+
+function emailDomain(email) {
+  const at = email.lastIndexOf('@');
+  return at === -1 ? '' : email.slice(at + 1).toLowerCase();
 }
 
 async function run() {
@@ -266,12 +292,25 @@ async function run() {
       (args.verbose ? '  [verbose]' : '')
   );
 
-  const usersSnap = await db.collection('users').get();
-  console.log('Scanning ' + usersSnap.size + ' /users/* docs...');
+  // Domain allow-list gates which Auth accounts we enroll as teachers.
+  // Prevents writing non-Orono sign-ins (e.g. a cross-district admin who
+  // logged in once) into /organizations/orono/members.
+  const allowedDomains = await loadOrgDomains(db, orgId);
+  if (allowedDomains.size === 0) {
+    throw new Error(
+      'No domains found under /organizations/' +
+        orgId +
+        '/domains. Seed the org first (scripts/setup-organization.js).'
+    );
+  }
+  console.log(
+    'Allowed domains: ' + Array.from(allowedDomains).sort().join(', ')
+  );
 
   const stats = {
     considered: 0,
     skipped_no_email: 0,
+    skipped_wrong_domain: 0,
     skipped_student_id: 0,
     skipped_existing_admin: 0,
     upserted: 0,
@@ -292,28 +331,50 @@ async function run() {
     pending = 0;
   };
 
-  for (const userDoc of usersSnap.docs) {
-    stats.considered += 1;
-    const uid = userDoc.id;
-    const userData = userDoc.data() || {};
+  // Enumerate Firebase Auth — the authoritative list of teachers who have
+  // signed in at least once. Previously this script scanned the /users
+  // Firestore collection, which only contains docs for users who have
+  // interacted with the app enough to trigger a write (profile save, etc.)
+  // and so missed anyone who had logged in but not yet customized anything.
+  // Analytics uses admin.auth().listUsers() for the same reason.
+  const authUsers = [];
+  let pageToken = undefined;
+  do {
+    const page = await getAuth().listUsers(1000, pageToken);
+    authUsers.push(...page.users);
+    pageToken = page.pageToken;
+  } while (pageToken);
+  console.log('Scanning ' + authUsers.length + ' Firebase Auth accounts...');
 
-    const { email, name } = await resolveEmailAndName(
-      db,
-      uid,
-      userData,
-      args.verbose
-    );
+  for (const authUser of authUsers) {
+    stats.considered += 1;
+    const uid = authUser.uid;
+    const userData = await loadUserDoc(db, uid);
+    const { email, name } = resolveIdentity(authUser, userData);
 
     if (!email) {
       stats.skipped_no_email += 1;
-      console.log('  [skip] uid=' + uid + ' has no resolvable email');
+      if (args.verbose) {
+        console.log('  [skip] uid=' + uid + ' has no resolvable email');
+      }
+      continue;
+    }
+
+    // Domain gate: drop sign-ins that don't belong to this org. Anonymous
+    // auth (used by /join, /quiz, etc.) has no email and is already handled
+    // by the !email check above; this catches non-org Google sign-ins.
+    const domain = emailDomain(email);
+    if (!allowedDomains.has(domain)) {
+      stats.skipped_wrong_domain += 1;
+      if (args.verbose) {
+        console.log('  [skip] ' + email + ' uid=' + uid + ' outside org');
+      }
       continue;
     }
 
     // Skip student-ID-shaped emails (all-digits local part, e.g. 704522@...).
     // Orono teacher emails are firstname.lastname@; numeric locals are student
-    // accounts that accidentally landed in /users/{uid} and must not be
-    // backfilled as teachers.
+    // accounts that must not be backfilled as teachers.
     const localPart = email.split('@')[0] || '';
     if (/^\d+$/.test(localPart)) {
       stats.skipped_student_id += 1;
@@ -386,6 +447,7 @@ async function run() {
   console.log('Summary:');
   console.log('  considered:              ' + stats.considered);
   console.log('  skipped_no_email:        ' + stats.skipped_no_email);
+  console.log('  skipped_wrong_domain:    ' + stats.skipped_wrong_domain);
   console.log('  skipped_student_id:      ' + stats.skipped_student_id);
   console.log('  skipped_existing_admin:  ' + stats.skipped_existing_admin);
   console.log('  upserted:                ' + stats.upserted);
