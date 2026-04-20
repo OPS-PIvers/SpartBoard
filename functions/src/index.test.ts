@@ -39,6 +39,45 @@ const toAsyncStream = (docs: MockDocInput[]) => ({
 });
 
 const mockFirestore = {
+  doc: vi.fn((path: string) => {
+    const parts = path.split("/");
+    const uid = parts[1];
+    const user = mockFirestoreState.users.find((u) => u.id === uid);
+    const docRef = {
+      id: parts[parts.length - 1],
+      parent: {
+        id: parts[parts.length - 2],
+        parent: {
+          id: uid,
+        },
+      },
+    };
+    return {
+      ...docRef,
+      get: vi.fn(() => {
+        if (!user) return Promise.resolve({ exists: false, ref: docRef });
+        return Promise.resolve({
+          exists: true,
+          data: () => ({ selectedBuildings: user.data.buildings }),
+          ref: docRef,
+        });
+      }),
+    };
+  }),
+  getAll: vi.fn((...refs: any[]) => {
+    return Promise.all(
+      refs.map((ref) => {
+        const uid = ref.parent.parent.id;
+        const user = mockFirestoreState.users.find((u) => u.id === uid);
+        if (!user) return { exists: false, ref };
+        return {
+          exists: true,
+          data: () => ({ selectedBuildings: user.data.buildings }),
+          ref,
+        };
+      })
+    );
+  }),
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
@@ -118,6 +157,7 @@ vi.mock('firebase-admin', () => {
 
   return {
     initializeApp: vi.fn(),
+    apps: [],
     firestore: firestoreFn,
     auth: vi.fn(() => ({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),

@@ -1984,12 +1984,21 @@ export const adminAnalytics = onRequest(
       const buildingsMap = new Map<string, string[]>();
       const authUids = Array.from(authUsersMap.keys());
       const PROFILE_BATCH = 500;
+      const profileBatches = [];
       for (let i = 0; i < authUids.length; i += PROFILE_BATCH) {
-        const batch = authUids.slice(i, i + PROFILE_BATCH);
-        const refs = batch.map((uid) =>
-          db.doc(`users/${uid}/userProfile/profile`)
-        );
-        const snapshots = await db.getAll(...refs);
+        profileBatches.push(authUids.slice(i, i + PROFILE_BATCH));
+      }
+
+      const profileSnapshots = await Promise.all(
+        profileBatches.map((batch) => {
+          const refs = batch.map((uid) =>
+            db.doc(`users/${uid}/userProfile/profile`)
+          );
+          return db.getAll(...refs);
+        })
+      );
+
+      for (const snapshots of profileSnapshots) {
         for (const snap of snapshots) {
           if (!snap.exists) continue;
           const data = snap.data();
