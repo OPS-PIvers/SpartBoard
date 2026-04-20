@@ -9,6 +9,7 @@ import {
   Upload,
   Loader2,
   StopCircle,
+  Info,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -54,6 +55,7 @@ export const EmbedConfigEditor: React.FC<{
 
   const embedUrl = convertToEmbedUrl(rawUrl);
   const wasConverted = rawUrl.trim() !== '' && embedUrl !== rawUrl.trim();
+  const isDriveUrl = /drive\.google\.com/i.test(rawUrl);
 
   const applyUrl = () => {
     const finalUrl = embedUrl || rawUrl.trim();
@@ -217,6 +219,17 @@ export const EmbedConfigEditor: React.FC<{
             Paste any YouTube, Google Drive, Docs, Slides, Sheets, or Forms link
             — it will be converted automatically.
           </p>
+          {isDriveUrl && (
+            <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                For Drive videos, set sharing to{' '}
+                <strong>&quot;Anyone with the link can view&quot;</strong>.
+                Otherwise teachers may see a blank loader due to browser
+                third-party cookie restrictions.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -430,9 +443,9 @@ export const EmbedConfigEditor: React.FC<{
             Auto-play video
           </div>
           <div className="text-xs text-slate-500">
-            Video will attempt to play automatically when this announcement
-            activates. Works reliably with YouTube; best-effort for Google
-            Drive.
+            YouTube videos will play automatically when this announcement
+            activates. Google Drive videos require a click to play — Drive
+            doesn&apos;t support autoplay in embedded iframes.
           </div>
         </div>
       </div>

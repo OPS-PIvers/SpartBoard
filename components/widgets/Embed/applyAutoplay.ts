@@ -1,7 +1,13 @@
 /**
- * Appends `?autoplay=1` to embed URLs for supported video hosts.
- * For YouTube, also appends `mute=1` to satisfy browser autoplay policies.
- * Returns the original URL unchanged for unsupported hosts or when autoplay is off.
+ * Appends `?autoplay=1&mute=1` to YouTube embed URLs so the browser will
+ * honor autoplay. Returns the original URL unchanged otherwise.
+ *
+ * Drive and Vids are intentionally excluded: their `/preview` endpoints
+ * treat `?autoplay=1` as a privileged action and route the request through
+ * `accounts.google.com` to verify the viewer. That redirect can't be framed
+ * cross-origin, so the embed hangs. Without the autoplay param, Drive serves
+ * the thumbnail anonymously and the user clicks play (which uses a
+ * gesture-gated auth path that works inside the iframe).
  */
 export function applyAutoplay(embedUrl: string, autoplay: boolean): string {
   if (!autoplay || !embedUrl) return embedUrl;
@@ -9,18 +15,10 @@ export function applyAutoplay(embedUrl: string, autoplay: boolean): string {
     const u = new URL(embedUrl);
     const host = u.hostname.toLowerCase();
     const isYouTube = host === 'youtube.com' || host.endsWith('.youtube.com');
-    const supportsAutoplay =
-      isYouTube ||
-      host === 'drive.google.com' ||
-      host.endsWith('.drive.google.com') ||
-      host === 'vids.google.com' ||
-      host.endsWith('.vids.google.com');
-    if (supportsAutoplay) {
+    if (isYouTube) {
       u.searchParams.set('autoplay', '1');
       // YouTube requires mute=1 for reliable autoplay in most browsers
-      if (isYouTube) {
-        u.searchParams.set('mute', '1');
-      }
+      u.searchParams.set('mute', '1');
     }
     return u.toString();
   } catch {

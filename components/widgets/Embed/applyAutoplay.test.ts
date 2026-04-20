@@ -25,18 +25,16 @@ describe('applyAutoplay', () => {
     );
   });
 
-  it('appends autoplay=1 for Google Drive preview URLs (no mute)', () => {
+  it('does not append autoplay for Google Drive preview URLs', () => {
+    // Drive /preview routes ?autoplay=1 through accounts.google.com, which
+    // can't be framed cross-origin — so autoplay must be a no-op for Drive.
     const url = 'https://drive.google.com/file/d/fileId123/preview';
-    expect(applyAutoplay(url, true)).toBe(
-      'https://drive.google.com/file/d/fileId123/preview?autoplay=1'
-    );
+    expect(applyAutoplay(url, true)).toBe(url);
   });
 
-  it('appends autoplay=1 for Google Vids preview URLs (no mute)', () => {
+  it('does not append autoplay for Google Vids preview URLs', () => {
     const url = 'https://vids.google.com/vids/vidId456/preview';
-    expect(applyAutoplay(url, true)).toBe(
-      'https://vids.google.com/vids/vidId456/preview?autoplay=1'
-    );
+    expect(applyAutoplay(url, true)).toBe(url);
   });
 
   it('does not append autoplay for unsupported hosts', () => {

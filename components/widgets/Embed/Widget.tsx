@@ -11,6 +11,8 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
@@ -214,6 +216,39 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   );
 
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Auth-gated embeds (Drive, Docs, Vids) can appear to hang silently when
+  // their internal auth redirect is blocked by CSP / third-party cookies.
+  // We show a non-blocking "still loading?" banner after a timeout so
+  // teachers have an escape hatch (open in new tab) when the iframe never
+  // becomes interactive.
+  const STUCK_TIMEOUT_MS = 8000;
+  const isAuthGatedHost = React.useMemo(() => {
+    if (mode !== 'url') return false;
+    try {
+      const hostname = new URL(embedUrl).hostname.toLowerCase();
+      return (
+        hostname === 'drive.google.com' ||
+        hostname === 'docs.google.com' ||
+        hostname === 'vids.google.com'
+      );
+    } catch {
+      return false;
+    }
+  }, [mode, embedUrl]);
+
+  const [isStuck, setIsStuck] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Reset stuck / dismissal state whenever the URL, mode or refresh cycle
+  // changes so a fresh load gets a fresh timer.
+  useEffect(() => {
+    setIsStuck(false);
+    setBannerDismissed(false);
+    if (!isAuthGatedHost) return;
+    const timer = window.setTimeout(() => setIsStuck(true), STUCK_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isAuthGatedHost, finalEmbedUrl, refreshKey]);
 
   const isActuallyEmbeddable = React.useMemo(() => {
     if (isEmbeddable) return true;
@@ -573,6 +608,42 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
+              {displayMode === 'url' &&
+                isAuthGatedHost &&
+                isStuck &&
+                !bannerDismissed && (
+                  <div
+                    role="status"
+                    className="absolute top-2 left-2 right-2 flex items-start gap-2 px-3 py-2 bg-amber-50/95 backdrop-blur-sm border border-amber-300 rounded-lg shadow-lg"
+                    style={{ zIndex: 2 }}
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 text-xs text-amber-900">
+                      <p className="font-semibold">Still loading?</p>
+                      <p className="mt-0.5 text-amber-800">
+                        If this video doesn&apos;t appear, the owner may need to
+                        set sharing to{' '}
+                        <strong>&quot;Anyone with the link&quot;</strong>.
+                      </p>
+                      <a
+                        href={sanitizedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1.5 font-semibold text-amber-900 underline hover:text-amber-700"
+                      >
+                        Open in new tab
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <button
+                      onClick={() => setBannerDismissed(true)}
+                      className="shrink-0 p-1 -m-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded"
+                      aria-label="Dismiss loading warning"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
             </div>
           )}
         </div>
