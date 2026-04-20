@@ -12,11 +12,11 @@ import {
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
+import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import {
   Users,
   RefreshCw,
   Layers,
-  Target,
   RotateCcw,
   Trophy,
   UserX,
@@ -645,11 +645,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         header={
           <div
             className="flex justify-between items-center w-full"
-            style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin) 0' }}
+            style={{
+              padding:
+                'clamp(4px, 1.5cqmin, 12px) clamp(8px, 2.5cqmin, 20px) 0',
+            }}
           >
             <div
               className="flex items-center"
-              style={{ gap: 'min(8px, 2cqmin)' }}
+              style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
               {mode === 'single' && (
                 <>
@@ -660,13 +663,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       (remainingStudents.length === 0 && !displayResult)
                     }
                     className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
-                    style={{ padding: 'min(6px, 1.5cqmin)' }}
+                    style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
                     title="Reset student pool"
                   >
                     <RotateCcw
                       style={{
-                        width: 'min(14px, 3.5cqmin)',
-                        height: 'min(14px, 3.5cqmin)',
+                        width: 'clamp(14px, 4cqmin, 28px)',
+                        height: 'clamp(14px, 4cqmin, 28px)',
                       }}
                     />
                   </button>
@@ -674,8 +677,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     <span
                       className="font-black text-slate-500 uppercase tracking-tight bg-slate-50 rounded border border-slate-200"
                       style={{
-                        fontSize: 'min(9px, 2.2cqmin)',
-                        padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                        fontSize: 'clamp(10px, 2.6cqmin, 18px)',
+                        padding:
+                          'clamp(2px, 0.7cqmin, 6px) clamp(6px, 2cqmin, 14px)',
                       }}
                     >
                       {remainingStudents.length} Left
@@ -687,7 +691,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {activeRoster && rosterMode === 'class' && (
               <div
                 className="flex items-center"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
+                style={{ gap: 'clamp(4px, 1.5cqmin, 12px)' }}
               >
                 <button
                   onClick={() => setAbsentModalOpen(true)}
@@ -701,49 +705,32 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   })}
                   className="relative flex items-center bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-brand-blue-primary transition-colors"
                   style={{
-                    gap: 'min(4px, 1cqmin)',
-                    padding: 'min(3px, 0.8cqmin) min(8px, 2cqmin)',
+                    gap: 'clamp(6px, 1.5cqmin, 12px)',
+                    padding:
+                      'clamp(8px, 2cqmin, 14px) clamp(12px, 3cqmin, 22px)',
+                    minHeight: 'clamp(32px, 8cqmin, 48px)',
                   }}
                 >
                   <UserX
                     style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
+                      width: 'clamp(16px, 4cqmin, 32px)',
+                      height: 'clamp(16px, 4cqmin, 32px)',
                     }}
                   />
                   {absentCount > 0 && (
                     <span
                       className="font-black bg-red-500 text-white rounded-full leading-none tabular-nums"
                       style={{
-                        fontSize: 'min(9px, 2.2cqmin)',
-                        padding: 'min(2px, 0.5cqmin) min(5px, 1.2cqmin)',
+                        fontSize: 'clamp(12px, 3cqmin, 20px)',
+                        padding:
+                          'clamp(3px, 0.9cqmin, 7px) clamp(7px, 2cqmin, 14px)',
                       }}
                     >
                       {absentCount}
                     </span>
                   )}
                 </button>
-                <div
-                  className="flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-                  }}
-                >
-                  <Target
-                    className="text-brand-blue-primary"
-                    style={{
-                      width: 'min(10px, 2.5cqmin)',
-                      height: 'min(10px, 2.5cqmin)',
-                    }}
-                  />
-                  <span
-                    className="font-black uppercase text-brand-blue-primary tracking-wider"
-                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
-                  >
-                    {activeRoster.name}
-                  </span>
-                </div>
+                <ActiveClassChip />
               </div>
             )}
           </div>
@@ -838,8 +825,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         footer={
           <div
-            className="w-full px-2 pb-2 flex"
-            style={{ gap: 'min(8px, 2cqmin)' }}
+            className="w-full flex"
+            style={{
+              padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+              gap: 'clamp(6px, 2cqmin, 14px)',
+            }}
           >
             {mode === 'groups' &&
               Array.isArray(displayResult) &&
@@ -854,8 +844,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={handleSendToScoreboard}
                   aria-label={t('widgets.random.sendToScoreboard')}
                   style={{
-                    width: 'min(48px, 12cqmin)',
-                    height: 'min(48px, 12cqmin)',
+                    width: 'clamp(40px, 10cqmin, 72px)',
+                    height: 'clamp(40px, 10cqmin, 72px)',
                     padding: 0,
                   }}
                   className="flex-shrink-0"
@@ -863,8 +853,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   icon={
                     <Trophy
                       style={{
-                        width: 'min(20px, 5cqmin)',
-                        height: 'min(20px, 5cqmin)',
+                        width: 'clamp(20px, 5cqmin, 36px)',
+                        height: 'clamp(20px, 5cqmin, 36px)',
                       }}
                       className="text-amber-500"
                     />
@@ -873,19 +863,24 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               )}
             <Button
               variant="hero"
-              size="lg"
+              size="md"
               shape="pill"
               onClick={handlePick}
               disabled={isSpinning}
-              className="flex-1 h-12"
+              className="flex-1"
+              style={{
+                height: 'clamp(40px, 10cqmin, 72px)',
+                paddingLeft: 'clamp(16px, 4cqmin, 40px)',
+                paddingRight: 'clamp(16px, 4cqmin, 40px)',
+              }}
               aria-label={isSpinning ? 'Picking' : 'Randomize'}
               title={isSpinning ? 'Picking...' : 'Randomize'}
               icon={
                 <RefreshCw
                   className={isSpinning ? 'animate-spin' : ''}
                   style={{
-                    width: 'min(28px, 8cqmin)',
-                    height: 'min(28px, 8cqmin)',
+                    width: 'clamp(20px, 6cqmin, 44px)',
+                    height: 'clamp(20px, 6cqmin, 44px)',
                   }}
                 />
               }

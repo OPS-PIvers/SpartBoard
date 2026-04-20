@@ -1,0 +1,65 @@
+{
+  "orgId": "orono",
+  "org": {
+    "name": "Orono Public Schools",
+    "shortName": "Orono",
+    "shortCode": "OPS",
+    "state": "MN",
+    "plan": "full",
+    "aiEnabled": true,
+    "primaryAdminEmail": "paul.ivers@orono.k12.mn.us",
+    "status": "active",
+    "seedColor": "bg-indigo-600",
+    "supportUrl": "https://orono.k12.mn.us/support"
+  },
+  "buildings": [
+    {
+      "id": "schumann",
+      "name": "Schumann Elementary",
+      "type": "elementary",
+      "address": "5455 Old Crystal Bay Rd N",
+      "grades": "K-2",
+      "adminEmails": []
+    },
+    {
+      "id": "intermediate",
+      "name": "Orono Intermediate",
+      "type": "elementary",
+      "address": "685 Old Crystal Bay Rd N",
+      "grades": "3-5",
+      "adminEmails": []
+    },
+    {
+      "id": "middle",
+      "name": "Orono Middle School",
+      "type": "middle",
+      "address": "685 Old Crystal Bay Rd N",
+      "grades": "6-8",
+      "adminEmails": []
+    },
+    {
+      "id": "high",
+      "name": "Orono High School",
+      "type": "high",
+      "address": "795 Old Crystal Bay Rd N",
+      "grades": "9-12",
+      "adminEmails": []
+    }
+  ],
+  "domains": [
+    {
+      "id": "primary",
+      "domain": "@orono.k12.mn.us",
+      "authMethod": "google",
+      "status": "verified",
+      "role": "primary"
+    }
+  ],
+  "studentPage": {
+    "showAnnouncements": true,
+    "showTeacherDirectory": true,
+    "showLunchMenu": false,
+    "accentColor": "#2d3f89",
+    "heroText": "Welcome, Orono students!"
+  }
+}

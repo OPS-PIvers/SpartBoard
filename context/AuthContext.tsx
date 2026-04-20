@@ -38,10 +38,16 @@ import {
   AppSettings,
   DockPosition,
 } from '../types';
+import type { MemberRecord } from '../types/organization';
 import { AuthContext } from './AuthContextValue';
 import { getBuildingGradeLevels } from '../config/buildings';
 import i18n from '../i18n';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
+
+// Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
+// dynamically once `admin_settings/user_roles` (or an org-index collection)
+// tracks which org a given uid belongs to.
+const DEFAULT_ORG_ID = 'orono';
 
 /**
  * IMPORTANT: Authentication bypass / mock user mode
@@ -221,6 +227,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     useState(false);
   const [remoteControlEnabled, setRemoteControlEnabledState] = useState(true);
   const [dockPosition, setDockPositionState] = useState<DockPosition>('bottom');
+  const [orgId, setOrgId] = useState<string | null>(
+    isAuthBypass ? DEFAULT_ORG_ID : null
+  );
+  const [roleId, setRoleId] = useState<string | null>(
+    isAuthBypass ? 'super_admin' : null
+  );
+  const [buildingIds, setBuildingIds] = useState<string[]>([]);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -533,6 +546,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     void checkAdminStatus();
+  }, [user]);
+
+  // Subscribe to organization membership. Phase 2 hard-codes the single seeded
+  // `orono` org; Phase 3+ will resolve orgId dynamically from a user→org
+  // index. Rules allow a signed-in user to read their own member doc
+  // (`request.auth.token.email.lower() == resource.id`), so this listener
+  // works for non-admins too.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user?.email) {
+      setOrgId(null);
+      setRoleId(null);
+      setBuildingIds([]);
+      return;
+    }
+
+    const emailLower = user.email.toLowerCase();
+    const unsub = onSnapshot(
+      doc(db, 'organizations', DEFAULT_ORG_ID, 'members', emailLower),
+      (snap) => {
+        if (snap.exists()) {
+          const member = snap.data() as MemberRecord;
+          setOrgId(member.orgId ?? DEFAULT_ORG_ID);
+          setRoleId(member.roleId ?? null);
+          setBuildingIds(member.buildingIds ?? []);
+        } else {
+          setOrgId(null);
+          setRoleId(null);
+          setBuildingIds([]);
+        }
+      },
+      (error) => {
+        console.error('[AuthContext] Error loading org membership:', error);
+        setOrgId(null);
+        setRoleId(null);
+        setBuildingIds([]);
+      }
+    );
+
+    return unsub;
   }, [user]);
 
   // Listen to feature permissions (only when authenticated)
@@ -1215,6 +1268,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         remoteControlEnabled,
         dockPosition,
         updateAccountPreferences,
+        orgId,
+        roleId,
+        buildingIds,
       }}
     >
       {children}

@@ -22,6 +22,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 import { Button } from '@/components/common/Button';
+import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { RefreshCw, Undo2, CheckCircle2, Box, Users } from 'lucide-react';
 import { SubmitReportModal } from './SubmitReportModal';
 import { useNutrislice } from './useNutrislice';
@@ -467,23 +468,29 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(12px, 2.5cqmin)',
             }}
           >
-            <div className="flex flex-col shrink-0">
-              <h3
-                style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-                className="font-black text-slate-700 uppercase tracking-widest"
-              >
-                Daily Lunch Count
-              </h3>
-              <p
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                className="font-bold text-slate-500 uppercase tracking-tighter"
-              >
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </p>
+            <div
+              className="flex items-center shrink-0"
+              style={{ gap: 'min(10px, 2cqmin)' }}
+            >
+              <div className="flex flex-col shrink-0">
+                <h3
+                  style={{ fontSize: 'min(14px, 4.5cqmin)' }}
+                  className="font-black text-slate-700 uppercase tracking-widest"
+                >
+                  Daily Lunch Count
+                </h3>
+                <p
+                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                  className="font-bold text-slate-500 uppercase tracking-tighter"
+                >
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </p>
+              </div>
+              {rosterMode === 'class' && <ActiveClassChip />}
             </div>
 
             <Button

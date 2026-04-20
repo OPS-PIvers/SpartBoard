@@ -24,6 +24,11 @@ import {
   DashboardContext,
   DashboardContextValue,
 } from '@/context/DashboardContextValue';
+import {
+  incrementOpenModalCount,
+  decrementOpenModalCount,
+  getOpenModalCount,
+} from './modalStore';
 
 // Mock dependencies
 const { mockTakeScreenshot } = vi.hoisted(() => ({
@@ -509,6 +514,43 @@ describe('DraggableWindow', () => {
         screen.queryByDisplayValue('New Saved Title')
       ).not.toBeInTheDocument();
     });
+  });
+
+  it('suppresses the floating toolbar while any Modal is open and restores it on close', async () => {
+    // Sanity check: the global modal counter starts at 0 across tests.
+    expect(getOpenModalCount()).toBe(0);
+
+    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+
+    // With the widget selected and no modal open, the toolbar should render
+    // its action buttons (Settings / Minimize live only inside the toolbar).
+    expect(screen.getByTitle('Settings (Alt+S)')).toBeInTheDocument();
+    expect(screen.getByTitle('Minimize (Esc)')).toBeInTheDocument();
+
+    // Simulate a portalled <Modal> mount by incrementing the shared counter.
+    // DraggableWindow subscribes via useHasOpenModal / useSyncExternalStore
+    // and should re-render with the toolbar hidden.
+    act(() => {
+      incrementOpenModalCount();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTitle('Settings (Alt+S)')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Minimize (Esc)')).not.toBeInTheDocument();
+    });
+
+    // Simulate modal unmount — toolbar should come back.
+    act(() => {
+      decrementOpenModalCount();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Settings (Alt+S)')).toBeInTheDocument();
+      expect(screen.getByTitle('Minimize (Esc)')).toBeInTheDocument();
+    });
+
+    // Leave the counter the way we found it.
+    expect(getOpenModalCount()).toBe(0);
   });
 
   it('renders restore FAB when maximized and handles click', () => {

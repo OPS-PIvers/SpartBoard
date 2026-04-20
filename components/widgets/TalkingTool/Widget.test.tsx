@@ -71,6 +71,9 @@ const mockAuthContext = (
   updateAccountPreferences: async () => {
     /* mock */
   },
+  orgId: null,
+  roleId: null,
+  buildingIds: [],
   ...overrides,
 });
 

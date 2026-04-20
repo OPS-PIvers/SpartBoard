@@ -4,15 +4,11 @@ import {
   MiniAppItem,
   MiniAppConfig,
   GlobalMiniAppItem,
+  MiniAppAssignment,
   WidgetComponentProps,
 } from '@/types';
 import {
-  Plus,
   LayoutGrid,
-  Download,
-  Upload,
-  Box,
-  Globe,
   Save,
   X,
   Link2,
@@ -24,23 +20,9 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
+import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import {
   collection,
   doc,
@@ -49,14 +31,18 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { SortableItem } from './components/SortableItem';
-import { GlobalAppRow } from './components/GlobalAppRow';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
+import { MiniAppManager } from './components/MiniAppManager';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
 import { useDialog } from '@/context/useDialog';
-import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { ImportWizard } from '@/components/common/library/importer';
+import {
+  createMiniAppImportAdapter,
+  type MiniAppImportData,
+} from './adapters/miniAppImportAdapter';
+import type { LibraryTab } from '@/components/common/library/types';
 
 // --- ASSIGN MODAL ---
 interface MiniAppAssignModalProps {
@@ -298,8 +284,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     handleMessage,
   ]);
 
-  const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
+  const [managerTab, setManagerTab] = useState<LibraryTab>('library');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
+  const [showImportWizard, setShowImportWizard] = useState(false);
+
+  // Per-teacher MiniApp assignment archive — populates the In Progress /
+  // Archive tabs. Lives in `/users/{uid}/miniapp_assignments/`.
+  const {
+    assignments,
+    loading: assignmentsLoading,
+    createAssignment,
+    endAssignment,
+    deleteAssignment,
+  } = useMiniAppAssignments(user?.uid);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -356,13 +353,33 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setIsCreatingSession(true);
     setAssignError(null);
     try {
+      const googleSheetIdForSession = config.collectResults
+        ? (config.googleSheetId ?? undefined)
+        : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
         globalConfig?.submissionUrl,
-        config.collectResults ? (config.googleSheetId ?? undefined) : undefined
+        googleSheetIdForSession
       );
+      // Mirror the new session into the per-teacher archive so it shows up
+      // in the In Progress / Archive tabs. Failures here are non-fatal —
+      // the session itself still exists.
+      try {
+        await createAssignment({
+          sessionId,
+          app: { id: assigningApp.id, title: assigningApp.title },
+          assignmentName,
+          submissionUrl: globalConfig?.submissionUrl,
+          googleSheetId: googleSheetIdForSession,
+        });
+      } catch (archiveErr) {
+        console.warn(
+          '[MiniAppWidget] Failed to archive assignment',
+          archiveErr
+        );
+      }
       setCreatedSessionId(sessionId);
       const url = `${window.location.origin}/miniapp/${sessionId}`;
       try {
@@ -380,23 +397,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     }
   };
   const [editingApp, setEditingApp] = useState<MiniAppItem | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Unsaved paste state: shown as an overlay when activeAppUnsaved is true
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [pendingSaveTitle, setPendingSaveTitle] = useState('');
-
-  // Dnd Kit Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   // --- HANDLERS ---
 
@@ -495,15 +499,23 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     addToast('App saved to cloud', 'success');
   };
 
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      endWidgetDrag();
-      const { active, over } = event;
-      if (!user || !over || active.id === over.id) return;
+  const handleReorder = useCallback(
+    async (nextOrderedIds: string[]) => {
+      if (!user) return;
 
-      const oldIndex = library.findIndex((a) => a.id === active.id);
-      const newIndex = library.findIndex((a) => a.id === over.id);
-      const reordered = arrayMove(library, oldIndex, newIndex);
+      const byId = new Map(library.map((a) => [a.id, a]));
+      const orderedIdSet = new Set(nextOrderedIds);
+      const reordered: MiniAppItem[] = [];
+      for (const id of nextOrderedIds) {
+        const app = byId.get(id);
+        if (app) reordered.push(app);
+      }
+      // Append any library items whose ids weren't in the requested ordering
+      // (defensive — should not happen, but keeps data consistent). Using a
+      // Set keeps this O(n) even if the teacher's library grows large.
+      for (const app of library) {
+        if (!orderedIdSet.has(app.id)) reordered.push(app);
+      }
 
       const batch = writeBatch(db);
       reordered.forEach((app, index) => {
@@ -540,7 +552,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       };
       await setDoc(doc(appsRef, id), appData);
       addToast(`"${app.title}" added to your library`, 'success');
-      setActiveTab('personal');
     } catch (err) {
       console.error(err);
       addToast('Failed to save app', 'error');
@@ -562,52 +573,69 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     addToast('Library exported successfully', 'success');
   };
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
+  // Archive / In Progress handlers ─────────────────────────────────────────
+  const handleArchiveCopyUrl = useCallback(
+    async (assignment: MiniAppAssignment) => {
+      const url = `${window.location.origin}/miniapp/${assignment.sessionId}`;
       try {
-        const imported = JSON.parse(event.target?.result as string) as unknown;
-        if (!Array.isArray(imported)) throw new Error('Invalid format');
+        await navigator.clipboard.writeText(url);
+        addToast('Link copied to clipboard', 'success');
+      } catch {
+        addToast(`Link: ${url}`, 'info');
+      }
+    },
+    [addToast]
+  );
 
-        const batch = writeBatch(db);
-        const appsRef = collection(db, 'users', user.uid, 'miniapps');
-
-        let count = 0;
-        imported.forEach((item: unknown, index) => {
-          if (typeof item !== 'object' || item === null) return;
-          const i = item as Record<string, unknown>;
-          if (typeof i.html !== 'string') return;
-
-          const id = crypto.randomUUID() as string;
-          const appData: MiniAppItem = {
-            id,
-            title:
-              typeof i.title === 'string' && i.title
-                ? i.title.slice(0, 100)
-                : 'Untitled App',
-            html: i.html,
-            createdAt: Date.now(),
-            order: index - imported.length, // Put at start
-          };
-          batch.set(doc(appsRef, id), appData);
-          count++;
-        });
-
-        if (count > 0) {
-          await batch.commit();
-          addToast(`Imported ${count} apps`, 'success');
-        }
+  const handleArchiveEnd = useCallback(
+    async (assignment: MiniAppAssignment) => {
+      const confirmed = await showConfirm(
+        `End "${assignment.assignmentName}"? Students will no longer be able to submit.`,
+        { title: 'End Assignment', variant: 'danger', confirmLabel: 'End' }
+      );
+      if (!confirmed) return;
+      try {
+        await endAssignment(assignment.id);
+        addToast('Assignment ended', 'info');
       } catch (err) {
         console.error(err);
-        addToast('Failed to import: Invalid JSON file', 'error');
+        addToast('Failed to end assignment', 'error');
       }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
+    },
+    [endAssignment, showConfirm, addToast]
+  );
+
+  const handleArchiveDelete = useCallback(
+    async (assignment: MiniAppAssignment) => {
+      const confirmed = await showConfirm(
+        `Delete "${assignment.assignmentName}" from the archive?`,
+        {
+          title: 'Delete Assignment',
+          variant: 'danger',
+          confirmLabel: 'Delete',
+        }
+      );
+      if (!confirmed) return;
+      try {
+        await deleteAssignment(assignment.id);
+        addToast('Assignment deleted', 'info');
+      } catch (err) {
+        console.error(err);
+        addToast('Failed to delete assignment', 'error');
+      }
+    },
+    [deleteAssignment, showConfirm, addToast]
+  );
+
+  // Import Wizard adapter (rebuilt per user so save() closes over uid).
+  const importAdapter = React.useMemo(() => {
+    if (!user?.uid) return null;
+    return createMiniAppImportAdapter(user.uid);
+  }, [user?.uid]);
+
+  const handleImportSaved = useCallback(() => {
+    addToast('Mini-apps imported', 'success');
+  }, [addToast]);
 
   // --- RENDER: RUNNING MODE ---
   if (activeApp) {
@@ -805,294 +833,42 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         onClose={() => setEditingApp(null)}
         onSave={saveMiniApp}
       />
+      {/* Import wizard (Wave 2 shared primitive) */}
+      {importAdapter && (
+        <ImportWizard<MiniAppImportData>
+          isOpen={showImportWizard}
+          onClose={() => setShowImportWizard(false)}
+          adapter={importAdapter}
+          onSaved={handleImportSaved}
+        />
+      )}
       <WidgetLayout
         padding="p-0"
-        header={
-          <div
-            className="shrink-0"
-            style={{ padding: 'min(16px, 3.5cqmin) min(20px, 4cqmin) 0' }}
-          >
-            {/* Title row */}
-            <div
-              className="flex items-center justify-between"
-              style={{ marginBottom: 'min(10px, 2.5cqmin)' }}
-            >
-              <h2
-                className="font-black text-slate-800 tracking-tight uppercase"
-                style={{ fontSize: 'min(18px, 4.5cqmin)' }}
-              >
-                App Library
-              </h2>
-              {activeTab === 'personal' && (
-                <button
-                  onClick={handleCreate}
-                  className="bg-white text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all shadow-sm border border-slate-200 hover:border-indigo-200 active:scale-95"
-                  style={{ padding: 'min(10px, 2.2cqmin)' }}
-                  title="Create New App"
-                >
-                  <Plus
-                    style={{
-                      width: 'min(22px, 5.5cqmin)',
-                      height: 'min(22px, 5.5cqmin)',
-                    }}
-                  />
-                </button>
-              )}
-            </div>
-
-            {/* Tabs */}
-            <div
-              className="flex bg-slate-100 rounded-xl p-0.5"
-              style={{
-                gap: 'min(2px, 0.5cqmin)',
-                marginBottom: 'min(2px, 0.5cqmin)',
-              }}
-            >
-              <button
-                onClick={() => setActiveTab('personal')}
-                className={`flex-1 flex items-center justify-center rounded-lg transition-all font-black uppercase tracking-widest ${
-                  activeTab === 'personal'
-                    ? 'bg-white text-indigo-600 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-                style={{
-                  fontSize: 'min(10px, 2.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin)',
-                  gap: 'min(4px, 1cqmin)',
-                }}
-              >
-                My Apps
-                {library.length > 0 && (
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 ${activeTab === 'personal' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}
-                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
-                  >
-                    {library.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('global')}
-                className={`flex-1 flex items-center justify-center rounded-lg transition-all font-black uppercase tracking-widest ${
-                  activeTab === 'global'
-                    ? 'bg-white text-violet-600 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-                style={{
-                  fontSize: 'min(10px, 2.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin)',
-                  gap: 'min(4px, 1cqmin)',
-                }}
-              >
-                <Globe
-                  style={{
-                    width: 'min(10px, 2.5cqmin)',
-                    height: 'min(10px, 2.5cqmin)',
-                  }}
-                />
-                Global
-                {globalLibrary.length > 0 && (
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 ${activeTab === 'global' ? 'bg-violet-100 text-violet-600' : 'bg-slate-200 text-slate-500'}`}
-                    style={{ fontSize: 'min(9px, 2.2cqmin)' }}
-                  >
-                    {globalLibrary.length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        }
         content={
-          <div className="relative flex-1 w-full h-full flex flex-col min-h-0">
-            <div
-              className="flex-1 w-full h-full overflow-y-auto bg-transparent custom-scrollbar flex flex-col"
-              style={{
-                padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
-                gap: 'min(8px, 2cqmin)',
-              }}
-            >
-              {activeTab === 'personal' ? (
-                <>
-                  {/* Personal library sub-header links */}
-                  <div
-                    className="flex items-center"
-                    style={{
-                      gap: 'min(12px, 3cqmin)',
-                      marginBottom: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    <button
-                      onClick={handleExport}
-                      className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
-                      style={{
-                        fontSize: 'min(10px, 2.5cqmin)',
-                        gap: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      <Download
-                        style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
-                        }}
-                      />
-                      Export
-                    </button>
-                    <span
-                      className="text-slate-200 font-bold"
-                      style={{ fontSize: 'min(10px, 2.5cqmin)' }}
-                    >
-                      •
-                    </span>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center transition-colors"
-                      style={{
-                        fontSize: 'min(10px, 2.5cqmin)',
-                        gap: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      <Upload
-                        style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
-                        }}
-                      />
-                      Import
-                    </button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImport}
-                      accept=".json"
-                      className="hidden"
-                    />
-                  </div>
-
-                  {library.length === 0 ? (
-                    <div
-                      className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
-                      style={{
-                        gap: 'min(16px, 3.5cqmin)',
-                        paddingTop: 'min(32px, 7cqmin)',
-                        paddingBottom: 'min(32px, 7cqmin)',
-                      }}
-                    >
-                      <div
-                        className="bg-white rounded-3xl border border-slate-200 shadow-sm"
-                        style={{ padding: 'min(20px, 4cqmin)' }}
-                      >
-                        <Box
-                          className="stroke-slate-300"
-                          style={{
-                            width: 'min(40px, 10cqmin)',
-                            height: 'min(40px, 10cqmin)',
-                          }}
-                        />
-                      </div>
-                      <div className="text-center">
-                        <p
-                          className="font-black uppercase tracking-widest"
-                          style={{
-                            fontSize: 'min(14px, 3.5cqmin)',
-                            marginBottom: 'min(4px, 1cqmin)',
-                          }}
-                        >
-                          No apps saved yet
-                        </p>
-                        <p
-                          className="font-bold uppercase tracking-tighter"
-                          style={{ fontSize: 'min(12px, 3cqmin)' }}
-                        >
-                          Import a file or create your first mini-app.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragStart={beginWidgetDrag}
-                      onDragEnd={handleDragEnd}
-                      onDragCancel={endWidgetDrag}
-                    >
-                      <SortableContext
-                        items={library.map((item) => item.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {library.map((app) => (
-                          <SortableItem
-                            key={app.id}
-                            app={app}
-                            onRun={handleRun}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                            onAssign={handleOpenAssign}
-                            onShowAssignments={handleOpenAssignments}
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  )}
-                </>
-              ) : (
-                /* Global library tab */
-                <>
-                  {globalLibrary.length === 0 ? (
-                    <div
-                      className="h-full flex flex-col items-center justify-center text-slate-400 opacity-40"
-                      style={{
-                        gap: 'min(16px, 3.5cqmin)',
-                        paddingTop: 'min(32px, 7cqmin)',
-                        paddingBottom: 'min(32px, 7cqmin)',
-                      }}
-                    >
-                      <div
-                        className="bg-white rounded-3xl border border-slate-200 shadow-sm"
-                        style={{ padding: 'min(20px, 4cqmin)' }}
-                      >
-                        <Globe
-                          className="stroke-slate-300"
-                          style={{
-                            width: 'min(40px, 10cqmin)',
-                            height: 'min(40px, 10cqmin)',
-                          }}
-                        />
-                      </div>
-                      <div className="text-center">
-                        <p
-                          className="font-black uppercase tracking-widest"
-                          style={{
-                            fontSize: 'min(14px, 3.5cqmin)',
-                            marginBottom: 'min(4px, 1cqmin)',
-                          }}
-                        >
-                          No shared apps yet
-                        </p>
-                        <p
-                          className="font-bold uppercase tracking-tighter"
-                          style={{ fontSize: 'min(12px, 3cqmin)' }}
-                        >
-                          Your admin has not published any apps yet.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    globalLibrary.map((app) => (
-                      <GlobalAppRow
-                        key={app.id}
-                        app={app}
-                        onRun={handleRun}
-                        onSaveToLibrary={handleSaveToLibrary}
-                        isSaving={savingGlobalId === app.id}
-                        onAssign={handleOpenAssign}
-                        onShowAssignments={handleOpenAssignments}
-                      />
-                    ))
-                  )}
-                </>
-              )}
-            </div>
+          <div className="relative flex flex-col w-full h-full min-h-0">
+            <MiniAppManager
+              userId={user?.uid}
+              tab={managerTab}
+              onTabChange={setManagerTab}
+              personalLibrary={library}
+              globalLibrary={globalLibrary}
+              assignments={assignments}
+              assignmentsLoading={assignmentsLoading}
+              onCreate={handleCreate}
+              onEdit={handleEdit}
+              onDelete={(app) => void handleDelete(app.id)}
+              onRun={handleRun}
+              onAssign={handleOpenAssign}
+              onShowAssignments={handleOpenAssignments}
+              onReorder={handleReorder}
+              onSaveGlobalToLibrary={(app) => void handleSaveToLibrary(app)}
+              savingGlobalId={savingGlobalId}
+              onImport={() => setShowImportWizard(true)}
+              onExport={handleExport}
+              onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
+              onArchiveEnd={(a) => void handleArchiveEnd(a)}
+              onArchiveDelete={(a) => void handleArchiveDelete(a)}
+            />
             {/* Assign modal */}
             {!isStudentView && assigningApp && (
               <MiniAppAssignModal
@@ -1110,7 +886,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 }}
               />
             )}
-            {/* Assignments modal */}
+            {/* Assignments modal (live sessions for a specific app) */}
             {!isStudentView && assignmentsForApp && (
               <AssignmentsModal
                 appTitle={assignmentsForApp.title}
@@ -1121,19 +897,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 onEndSession={endSession}
               />
             )}
-          </div>
-        }
-        footer={
-          <div
-            className="font-black text-slate-400 text-center uppercase tracking-widest shrink-0"
-            style={{
-              padding: 'min(12px, 2.5cqmin)',
-              fontSize: 'min(10px, 2.5cqmin)',
-            }}
-          >
-            {activeTab === 'personal'
-              ? 'Drag to reorder • Runs in secure sandbox'
-              : 'Shared by your admin • Runs in secure sandbox'}
           </div>
         }
       />

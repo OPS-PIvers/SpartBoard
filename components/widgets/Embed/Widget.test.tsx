@@ -413,6 +413,9 @@ describe('EmbedWidget', () => {
         remoteControlEnabled: true,
         dockPosition: 'bottom',
         updateAccountPreferences: vi.fn(),
+        orgId: null,
+        roleId: null,
+        buildingIds: [],
       });
 
       render(<EmbedWidget widget={validWidget} />);

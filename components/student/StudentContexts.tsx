@@ -61,6 +61,9 @@ const mockAuth: AuthContextType = {
   updateAccountPreferences: async () => {
     // No-op in student view
   },
+  orgId: null,
+  roleId: null,
+  buildingIds: [],
 };
 
 // --- MOCK DASHBOARD ---

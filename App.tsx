@@ -64,6 +64,11 @@ const LoginScreen = lazy(() =>
     default: module.LoginScreen,
   }))
 );
+const InviteAcceptance = lazy(() =>
+  import('./components/auth/InviteAcceptance').then((module) => ({
+    default: module.InviteAcceptance,
+  }))
+);
 const DashboardView = lazy(() =>
   import('./components/layout/DashboardView').then((module) => ({
     default: module.DashboardView,
@@ -171,6 +176,7 @@ const App: React.FC = () => {
     pathname === '/activity' || pathname.startsWith('/activity/');
   const isActivityWallRoute =
     pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
+  const isInviteRoute = pathname.startsWith('/invite/');
 
   // MiniApp student route — anonymous entry, no teacher auth needed
   if (isMiniAppRoute) {
@@ -282,6 +288,23 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Invite-acceptance route — requires Firebase auth so the user can claim
+  // their invitation, but does NOT need DashboardProvider/CustomWidgetsProvider
+  // (those mount heavy code the invite page doesn't need, and a failed invite
+  // should not trigger dashboard loading).
+  if (isInviteRoute) {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <InviteAcceptance />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 

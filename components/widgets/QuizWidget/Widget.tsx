@@ -15,7 +15,8 @@ import {
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { QuizManager, PlcOptions } from './components/QuizManager';
-import { QuizImporter } from './components/QuizImporter';
+import { ImportWizard } from '@/components/common/library/importer';
+import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -479,23 +480,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const view = config.view ?? 'manager';
 
   if (view === 'import') {
+    const adapter = createQuizImportAdapter({
+      saveQuiz: async (data) => {
+        await saveQuiz(data);
+      },
+      importFromSheet,
+      importFromCSV,
+      createQuizTemplate: async () => {
+        const url = await createQuizTemplate();
+        return url;
+      },
+    });
     return (
-      <QuizImporter
-        onBack={() => setView('manager')}
-        importFromSheet={importFromSheet}
-        importFromCSV={importFromCSV}
-        createQuizTemplate={createQuizTemplate}
-        onSave={async (quiz) => {
-          try {
-            await saveQuiz(quiz);
-            addToast('Quiz saved to Drive!', 'success');
-            setView('manager');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Save failed',
-              'error'
-            );
-          }
+      <ImportWizard
+        isOpen
+        onClose={() => setView('manager')}
+        adapter={adapter}
+        onSaved={() => {
+          addToast('Quiz saved to Drive!', 'success');
+          setView('manager');
         }}
       />
     );
@@ -621,6 +624,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   return (
     <>
       <QuizManager
+        userId={user?.uid}
         quizzes={quizzes}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}

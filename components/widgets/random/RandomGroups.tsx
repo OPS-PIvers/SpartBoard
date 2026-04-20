@@ -10,19 +10,31 @@ interface RandomGroupsProps {
 const computeColumnCount = (
   groupCount: number,
   width: number,
-  height: number
+  height: number,
+  maxNameLen: number = 8
 ): number => {
   if (groupCount <= 1 || width <= 0 || height <= 0)
     return Math.max(1, groupCount);
   const containerRatio = width / height;
+  // Ideal column count makes each card's aspect ratio approximately square-ish
+  // while respecting the container shape: idealCols ≈ sqrt(count * containerRatio).
+  const idealCols = Math.sqrt(groupCount * containerRatio);
   let bestCols = 1;
   let bestScore = Infinity;
   for (let cols = 1; cols <= groupCount; cols++) {
     const rows = Math.ceil(groupCount / cols);
-    const cardRatio = width / cols / (height / rows);
-    const ratioMismatch = Math.abs(Math.log(cardRatio / containerRatio));
+    const cardW = width / cols;
+    const cardH = height / rows;
+    // Distance from the aspect-driven ideal — the primary signal.
+    const idealDist = Math.abs(cols - idealCols);
+    // Penalize empty grid cells mildly (e.g. 5 groups in 3×2 has 1 empty).
     const wastedCells = cols * rows - groupCount;
-    const score = ratioMismatch + wastedCells * 0.15;
+    // Penalize cards too narrow for the longest name (~6px per glyph).
+    const widthShortfall = Math.max(0, maxNameLen * 6 - cardW) / 80;
+    // Penalize cards too short to be readable (keeps rows from collapsing).
+    const heightShortfall = Math.max(0, 60 - cardH) / 80;
+    const score =
+      idealDist + wastedCells * 0.12 + widthShortfall + heightShortfall;
     if (score < bestScore) {
       bestScore = score;
       bestCols = cols;
@@ -70,7 +82,19 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const cols = computeColumnCount(groups.length, dims.w, dims.h);
+  const maxNameLen = (() => {
+    let max = 0;
+    for (const g of groups) {
+      const names = Array.isArray(g) ? g : g.names;
+      if (!names) continue;
+      for (const name of names) {
+        if (name.length > max) max = name.length;
+      }
+    }
+    return max || 8;
+  })();
+
+  const cols = computeColumnCount(groups.length, dims.w, dims.h, maxNameLen);
   const rows = groups.length > 0 ? Math.ceil(groups.length / cols) : 1;
 
   return (
@@ -80,8 +104,8 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
       style={{
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: 'min(8px, 2cqmin)',
-        padding: 'min(4px, 1cqmin) 0',
+        gap: 'clamp(6px, 2cqmin, 16px)',
+        padding: 'clamp(4px, 1.2cqmin, 10px) 0',
       }}
     >
       {groups.map((groupItem, i) => {
@@ -104,15 +128,15 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
             key={!Array.isArray(groupItem) && groupItem.id ? groupItem.id : i}
             className="bg-blue-50 border border-blue-200 rounded-xl flex flex-col shadow-sm overflow-hidden min-w-0 min-h-0"
             style={{
-              padding: 'min(10px, 4cqmin)',
+              padding: 'clamp(8px, 3.5cqmin, 20px)',
               containerType: 'size',
             }}
           >
             <div
               className="uppercase text-brand-blue-primary tracking-widest opacity-80 font-black truncate flex-shrink-0"
               style={{
-                fontSize: 'min(14px, 7cqmin)',
-                marginBottom: 'min(6px, 2cqmin)',
+                fontSize: 'clamp(11px, 8cqmin, 24px)',
+                marginBottom: 'clamp(4px, 2.5cqmin, 10px)',
               }}
               title={groupName}
             >
@@ -120,23 +144,34 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
             </div>
             <div
               className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden"
-              style={{ gap: 'min(4px, 1.5cqmin)' }}
+              style={{ gap: 'clamp(3px, 1.5cqmin, 10px)' }}
             >
-              {groupNames.map((name, ni) => {
+              {(() => {
                 const n = Math.max(groupNames.length, 1);
-                const cqminPerLine = Math.max(10, Math.floor(62 / n));
-                return (
+                const maxChars = Math.max(
+                  1,
+                  ...groupNames.map((s) => s.length)
+                );
+                // Intentional cqw/cqh mix (not cqmin): width budget comes from
+                // longest name, height budget from row count. cqmin would
+                // conflate these two independent constraints.
+                const heightCqh = Math.max(6, Math.floor(65 / n));
+                const widthCqw = Math.max(
+                  4,
+                  Math.min(40, Math.round(140 / maxChars))
+                );
+                return groupNames.map((name, ni) => (
                   <div
                     key={ni}
                     className="text-slate-700 font-bold whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{
-                      fontSize: `clamp(12px, ${cqminPerLine}cqmin, 64px)`,
+                      fontSize: `clamp(8px, min(${widthCqw}cqw, ${heightCqh}cqh), 72px)`,
                     }}
                   >
                     {name}
                   </div>
-                );
-              })}
+                ));
+              })()}
             </div>
           </div>
         );
@@ -144,16 +179,16 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
       {showEmptyState && (
         <div
           className="col-span-full row-span-full flex flex-col items-center justify-center text-slate-300 italic font-bold"
-          style={{ gap: 'min(8px, 2cqmin)' }}
+          style={{ gap: 'clamp(8px, 2.5cqmin, 18px)' }}
         >
           <Users
             className="opacity-20"
             style={{
-              width: 'min(32px, 8cqmin)',
-              height: 'min(32px, 8cqmin)',
+              width: 'clamp(32px, 10cqmin, 72px)',
+              height: 'clamp(32px, 10cqmin, 72px)',
             }}
           />
-          <span style={{ fontSize: 'min(14px, 3.5cqmin)' }}>
+          <span style={{ fontSize: 'clamp(12px, 3.5cqmin, 22px)' }}>
             Click Randomize to Group
           </span>
         </div>

@@ -209,6 +209,10 @@ const validateRosterMeta = (
 export const useRosters = (user: User | null) => {
   // In-memory rosters include the students array loaded from Drive.
   const [rosters, setRosters] = useState<ClassRoster[]>([]);
+  // Keep a ref in sync with the latest rosters so handlers can read the
+  // current value without adding `rosters` to their dependency arrays.
+  const rostersRef = useRef<ClassRoster[]>(rosters);
+  rostersRef.current = rosters;
   const { driveService } = useGoogleDrive();
   const [activeRosterId, setActiveRosterIdState] = useState<string | null>(() =>
     localStorage.getItem('spart_active_roster_id')
@@ -615,11 +619,17 @@ export const useRosters = (user: User | null) => {
         return;
       }
 
+      // Read the current absent payload off a ref that's kept in sync with
+      // state in the render body. This avoids the stale-closure problem of
+      // reading `rosters` (which would require adding `rosters` to the
+      // useCallback deps and re-allocating on every roster change) without
+      // relying on side effects inside a functional state updater.
+      const previousAbsent = rostersRef.current.find(
+        (r) => r.id === rosterId
+      )?.absent;
+
       // Optimistically update local state so the modal reflects the change
-      // immediately, before the Firestore snapshot round-trips. Capture the
-      // previous absent value outside the updater (which must stay pure) so
-      // we can revert if the write fails.
-      const previousAbsent = rosters.find((r) => r.id === rosterId)?.absent;
+      // immediately, before the Firestore snapshot round-trips.
       setRosters((prev) =>
         prev.map((r) => (r.id === rosterId ? { ...r, absent: payload } : r))
       );
@@ -638,7 +648,7 @@ export const useRosters = (user: User | null) => {
         throw err;
       }
     },
-    [user, rosters]
+    [user]
   );
 
   const setActiveRoster = useCallback((id: string | null) => {

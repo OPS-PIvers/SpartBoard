@@ -1160,6 +1160,11 @@ export interface MiniAppItem {
   html: string;
   createdAt: number;
   order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/miniapp_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 /**
@@ -1518,6 +1523,11 @@ export interface QuizMetadata {
   questionCount: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/quiz_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -1815,6 +1825,13 @@ export interface VideoActivityMetadata {
   questionCount: number;
   createdAt: number;
   updatedAt: number;
+  /** Optional manual ordering index for drag-reorder in the Library view. */
+  order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/video_activity_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results';
@@ -2417,6 +2434,16 @@ export interface GuidedLearningSetMetadata {
   driveFileId: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Optional manual sort order, written by the Library "Manual order" reorder
+   * flow. Omitted for sets that have never been manually reordered.
+   */
+  order?: number;
+  /**
+   * Optional folder assignment (Wave 3). `null` or missing = root.
+   * Refers to a folder id in `/users/{userId}/guided_learning_folders/{folderId}`.
+   */
+  folderId?: string | null;
 }
 
 /**
@@ -2885,7 +2912,8 @@ export type GlobalFeature =
   | 'remote-control'
   | 'embed-mini-app'
   | 'video-activity-audio-transcription'
-  | 'ai-file-context';
+  | 'ai-file-context'
+  | 'org-admin-writes';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
@@ -3476,4 +3504,156 @@ export interface CustomWidgetConfig {
 
 export interface RemoteGlobalConfig {
   dockDefaults?: Record<string, boolean>;
+}
+
+// === Video Activity assignments ===
+// Assignment-lifecycle types for the Video Activity widget's Wave 2 library.
+// Mirrors the shape of QuizAssignment* but scoped to Video Activity sessions.
+
+export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
+
+/** Persisted settings for a Video Activity assignment (session behavior flags). */
+export interface VideoActivityAssignmentSettings {
+  /** Free-text label shown in the archive (e.g. "Period 2"). */
+  className?: string;
+  /** Session behavior captured at assign time. */
+  sessionSettings: VideoActivitySessionSettings;
+}
+
+/**
+ * A single instance of a Video Activity being assigned. Stored per-teacher at
+ * `/users/{teacherUid}/video_activity_assignments/{assignmentId}`. The
+ * assignment id is the same id as the matching `/video_activity_sessions/{sessionId}`
+ * document (1:1 pairing, matches the Quiz pattern).
+ */
+export interface VideoActivityAssignment extends VideoActivityAssignmentSettings {
+  /** Assignment UUID — also the sessionId. */
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  /** Drive file id of the source activity so downstream views can rehydrate. */
+  activityDriveFileId: string;
+  teacherUid: string;
+  status: VideoActivityAssignmentStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// === MiniApp assignments ===
+// Appended by Wave 2-MA. Keep in this delimited section so other Wave 2
+// migrations appending to types.ts don't collide.
+
+/**
+ * A persistent archive row for a MiniApp that the teacher has assigned to
+ * students. Lives in `/users/{teacherUid}/miniapp_assignments/{assignmentId}`.
+ *
+ * Unlike QuizAssignment, a MiniApp assignment is a thin archive record — the
+ * actual live student link is the underlying MiniAppSession (see
+ * `/mini_app_sessions/{sessionId}`). `sessionId` here is that session's doc id.
+ *
+ * `status` mirrors the session lifecycle:
+ *   - `active`: session is live.
+ *   - `inactive`: session has been ended.
+ */
+export interface MiniAppAssignment {
+  id: string;
+  sessionId: string;
+  appId: string;
+  appTitle: string;
+  assignmentName: string;
+  teacherUid: string;
+  status: 'active' | 'inactive';
+  createdAt: number;
+  updatedAt: number;
+  /** Optional mirrored fields so the archive list can show result-collection intent at a glance. */
+  submissionUrl?: string;
+  googleSheetId?: string;
+}
+
+// === /MiniApp assignments ===
+
+// === Guided Learning assignments ===
+// Appended by Wave 2-GL migration. Models the per-teacher archive of guided
+// learning sessions so the unified Library shell can surface "In Progress"
+// and "Archive" tabs. An assignment pairs a GuidedLearningSession document
+// (under /guided_learning_sessions/{sessionId}) with a per-teacher archive
+// entry (under /users/{userId}/guided_learning_assignments/{id}).
+export type GuidedLearningAssignmentStatus = 'active' | 'archived';
+
+export interface GuidedLearningAssignment {
+  /** Document id — matches the session id. */
+  id: string;
+  /** ID of the set that was assigned. */
+  setId: string;
+  /** Snapshot of the set's title at assign time. */
+  setTitle: string;
+  /** Session id (== `id`). The student-facing URL uses this. */
+  sessionId: string;
+  /** Firebase UID of the teacher who created the assignment. */
+  teacherUid: string;
+  /** Whether the assignment is still accepting responses. */
+  status: GuidedLearningAssignmentStatus;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last status change. */
+  updatedAt: number;
+  /** Set to epoch ms when the teacher archives this assignment. */
+  archivedAt?: number | null;
+  /** Optional origin set: 'personal' (Drive) or 'building' (Firestore). */
+  source?: 'personal' | 'building';
+}
+
+// === Library folders (Wave 3) ===
+//
+// Folder organization for the four library-style widgets (Quiz, Video
+// Activity, Guided Learning, MiniApp). Each widget has its OWN folders
+// collection — folders are never shared across widgets.
+//
+// Storage shape: a flat per-widget collection at
+//   /users/{userId}/{widget}_folders/{folderId}
+// where `{widget}` is one of `quiz`, `video_activity`, `guided_learning`,
+// `miniapp`. Nested folders are modeled via `parentId` (string id of
+// the parent, or `null` for root) rather than nested subcollection paths.
+//
+// Why flat-collection-with-`parentId` instead of nested paths:
+//   - Firestore cannot query across subcollection segments. A flat
+//     collection lets us list all folders for a widget in one snapshot
+//     and build the tree client-side, and lets us reorder / move between
+//     folders with a single-field update.
+//   - Library items (quizzes, activities, sets, miniapps) stay in their
+//     existing metadata collections; each item gains an optional
+//     `folderId` pointer. `null` / missing means root.
+//
+// Implementation lands in Wave 3-B. This schema PR only introduces the
+// types, the Firestore security rules, and empty stubs for the consumer
+// hook + UI components.
+
+/** Which library the folders belong to. Folders never cross widgets. */
+export type LibraryFolderWidget =
+  | 'quiz'
+  | 'video_activity'
+  | 'guided_learning'
+  | 'miniapp';
+
+/**
+ * A folder record stored at
+ * `/users/{userId}/{widget}_folders/{folderId}`.
+ *
+ * Siblings within a given `parentId` are ordered by the `order` field
+ * (ascending); ties break by `createdAt`. `parentId: null` = root-level
+ * folder. Folder-name uniqueness is NOT enforced by the schema — the UI
+ * layer may append " (2)" on collision, but two sibling folders are
+ * allowed to share a name if the user really wants that.
+ */
+export interface LibraryFolder {
+  id: string;
+  name: string;
+  /** Parent folder id, or `null` for root-level folders. */
+  parentId: string | null;
+  /** Sort order among siblings (ascending). */
+  order: number;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
+  updatedAt?: number;
 }

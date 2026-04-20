@@ -45,6 +45,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { GlassCard } from './GlassCard';
 import { SettingsPanel } from './SettingsPanel';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useHasOpenModal } from './modalStore';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { IconButton } from '@/components/common/IconButton';
 import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
@@ -170,7 +171,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const showTools = selectedWidgetId === widget.id;
+  // Suppress the floating toolbar while any portalled Modal is open. The
+  // toolbar normally sits at Z_INDEX.toolMenu (above modals) so it remains
+  // reachable during regular use, but when the user has opened an editor,
+  // import, or assignment modal from within the widget, the toolbar floating
+  // on top of that modal is disorienting and blocks clicks.
+  const hasOpenModal = useHasOpenModal();
+  const showTools = selectedWidgetId === widget.id && !hasOpenModal;
 
   // Group visual state
   const isInGroup = !!widget.groupId;

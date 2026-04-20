@@ -75,6 +75,22 @@ export interface AuthContextType {
     remoteControlEnabled?: boolean;
     dockPosition?: DockPosition;
   }) => Promise<void>;
+  /**
+   * The organization this user belongs to, derived from their membership doc.
+   * `null` until the membership snapshot resolves; stays `null` for
+   * non-members. Phase 2 hard-codes this to the single seeded `orono` org;
+   * Phase 3+ resolves it dynamically via `admin_settings/user_roles` or a
+   * dedicated org-index collection.
+   */
+  orgId: string | null;
+  /** The user's role id within `orgId` (from the members doc). Null until resolved. */
+  roleId: string | null;
+  /**
+   * Building ids the user has scoped admin access to (from the members doc).
+   * Distinct from `selectedBuildings`, which is a UI filter the user picks
+   * themselves. Empty array when the user is not a member or has org-wide scope.
+   */
+  buildingIds: string[];
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(

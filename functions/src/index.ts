@@ -8,6 +8,17 @@ import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 
+// Phase 4 — organization invitations + membership write-through.
+// These modules initialize their own `admin.initializeApp()` guarded by
+// `admin.apps.length`, so importing here is safe: the first import (either
+// direction) wins and the others no-op. Re-exporting the callables and the
+// trigger makes them deployable via `firebase deploy --only functions`.
+export {
+  createOrganizationInvites,
+  claimOrganizationInvite,
+} from './organizationInvites';
+export { organizationMembersSync } from './organizationMembersSync';
+
 setGlobalOptions({ region: 'us-central1' });
 
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');

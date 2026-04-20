@@ -56,6 +56,15 @@ async function initGlobalPermissions() {
       enabled: true,
       betaUsers: [],
     },
+    {
+      // Phase 3: gates the Organization admin panel's write actions. Default
+      // to beta so a domain admin can't accidentally mutate org state until
+      // Paul's team has validated the flow end-to-end.
+      id: 'org-admin-writes',
+      accessLevel: 'beta',
+      enabled: true,
+      betaUsers: ['paul.ivers@orono.k12.mn.us'],
+    },
   ];
 
   console.log('🚀 Initializing global_permissions collection...');

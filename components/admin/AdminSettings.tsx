@@ -7,7 +7,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Users,
+  Building2,
   BarChart,
   LayoutTemplate,
 } from 'lucide-react';
@@ -17,7 +17,7 @@ import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
 import { AnnouncementsManager } from './Announcements';
-import { UserManagementPanel } from './UserManagement/UserManagementPanel';
+import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
 import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 
@@ -51,10 +51,10 @@ const TABS = [
     component: AnnouncementsManager,
   },
   {
-    id: 'users',
-    label: 'User Management',
-    icon: Users,
-    component: UserManagementPanel,
+    id: 'organization',
+    label: 'Organization',
+    icon: Building2,
+    component: OrganizationPanel,
   },
   {
     id: 'analytics',
