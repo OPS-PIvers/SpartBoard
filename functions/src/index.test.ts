@@ -43,6 +43,7 @@ const mockFirestore = {
     path,
     get: vi.fn(() => Promise.resolve({ exists: false })),
   })),
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
   getAll: vi.fn((...refs: any[]) => {
     return Promise.resolve(
       refs.map((ref) => {
@@ -67,6 +68,7 @@ const mockFirestore = {
       })
     );
   }),
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
