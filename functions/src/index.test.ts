@@ -39,6 +39,34 @@ const toAsyncStream = (docs: MockDocInput[]) => ({
 });
 
 const mockFirestore = {
+  doc: vi.fn((path: string) => ({
+    path,
+    get: vi.fn(() => Promise.resolve({ exists: false })),
+  })),
+  getAll: vi.fn((...refs: any[]) => {
+    return Promise.resolve(
+      refs.map((ref) => {
+        // Expected path: users/{uid}/userProfile/profile
+        const parts = ref.path.split('/');
+        const uid = parts[1];
+        const user = mockFirestoreState.users.find((u) => u.id === uid);
+        if (user) {
+          return {
+            exists: true,
+            data: () => ({
+              selectedBuildings: user.data.buildings,
+            }),
+            ref: {
+              parent: {
+                parent: { id: uid },
+              },
+            },
+          };
+        }
+        return { exists: false, data: () => ({}) };
+      })
+    );
+  }),
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
@@ -117,6 +145,7 @@ vi.mock('firebase-admin', () => {
   });
 
   return {
+    apps: [],
     initializeApp: vi.fn(),
     firestore: firestoreFn,
     auth: vi.fn(() => ({
@@ -227,7 +256,7 @@ describe('fetchExternalProxy', () => {
     await expect(
       handler({ url: 'https://example.com/weather' }, { auth: { uid: '123' } })
     ).rejects.toThrow(
-      'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
+      'Invalid proxy URL. Only https://api.openweathermap.org, https://owc.enterprise.earthnetworks.com, and https://orono.api.nutrislice.com are allowed.'
     );
   });
 
@@ -242,7 +271,7 @@ describe('fetchExternalProxy', () => {
         { auth: { uid: '123' } }
       )
     ).rejects.toThrow(
-      'Invalid proxy URL. Only https://api.openweathermap.org and https://owc.enterprise.earthnetworks.com are allowed.'
+      'Invalid proxy URL. Only https://api.openweathermap.org, https://owc.enterprise.earthnetworks.com, and https://orono.api.nutrislice.com are allowed.'
     );
   });
 
@@ -463,6 +492,18 @@ describe('adminAnalytics', () => {
         },
       },
     ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash1',
+        ownerUid: 'uid1',
+        data: { updatedAt: now - 1 * 60 * 60 * 1000, widgets: [] },
+      },
+      {
+        id: 'dash2',
+        ownerUid: 'uid2',
+        data: { updatedAt: now - 10 * 24 * 60 * 60 * 1000, widgets: [] },
+      },
+    ];
 
     mockFirestoreState.aiUsage = [
       { id: 'uid1_2026-03-30', data: { count: 10 } },
@@ -519,7 +560,7 @@ describe('adminAnalytics', () => {
       monthly: 1,
       daily: 0,
     });
-    expect(capturedData.api.totalCalls).toBe(17);
+    expect(capturedData.api.totalCalls).toBe(10);
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
@@ -529,6 +570,13 @@ describe('adminAnalytics', () => {
         id: 'uid_a',
         data: {
           email: 'known@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+      {
+        id: 'uid_b',
+        data: {
           lastLogin: Date.now(),
           buildings: [],
         },

@@ -1984,12 +1984,17 @@ export const adminAnalytics = onRequest(
       const buildingsMap = new Map<string, string[]>();
       const authUids = Array.from(authUsersMap.keys());
       const PROFILE_BATCH = 500;
+      const batchPromises = [];
       for (let i = 0; i < authUids.length; i += PROFILE_BATCH) {
         const batch = authUids.slice(i, i + PROFILE_BATCH);
         const refs = batch.map((uid) =>
           db.doc(`users/${uid}/userProfile/profile`)
         );
-        const snapshots = await db.getAll(...refs);
+        batchPromises.push(db.getAll(...refs));
+      }
+
+      const allSnapshots = await Promise.all(batchPromises);
+      for (const snapshots of allSnapshots) {
         for (const snap of snapshots) {
           if (!snap.exists) continue;
           const data = snap.data();
@@ -2049,7 +2054,6 @@ export const adminAnalytics = onRequest(
 
       for await (const dashDoc of dashboardsStream) {
         if (!dashDoc.exists) continue;
-        totalDashboards++;
         const dashData = dashDoc.data() as DashboardData;
         const updatedAt =
           typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
@@ -2061,6 +2065,7 @@ export const adminAnalytics = onRequest(
         // Skip dashboards owned by anonymous users (not in filtered auth map)
         if (!ownerUid || !authUsersMap.has(ownerUid)) continue;
 
+        totalDashboards++;
         allDashboardOwnerUids.add(ownerUid);
 
         // Track the most recent edit across all of this user's dashboards
