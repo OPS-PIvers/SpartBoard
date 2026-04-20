@@ -18,6 +18,7 @@ export {
   claimOrganizationInvite,
 } from './organizationInvites';
 export { organizationMembersSync } from './organizationMembersSync';
+export { organizationMemberCounters } from './organizationMemberCounters';
 
 setGlobalOptions({ region: 'us-central1' });
 
