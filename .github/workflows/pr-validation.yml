@@ -37,7 +37,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run unit tests
-        run: pnpm test
+        run: pnpm run test:all
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY || 'test-key' }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN || 'test.firebaseapp.com' }}
