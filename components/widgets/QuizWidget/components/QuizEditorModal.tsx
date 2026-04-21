@@ -17,8 +17,14 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
+import {
+  LibraryFolder,
+  QuizData,
+  QuizQuestion,
+  QuizQuestionType,
+} from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { useAuth } from '@/context/useAuth';
 import {
   GeneratedQuestion,
@@ -32,6 +38,16 @@ interface QuizEditorModalProps {
   quiz: QuizData | null;
   onClose: () => void;
   onSave: (updatedQuiz: QuizData) => Promise<void>;
+  /** Folders for the FolderSelectField. Omit to hide the field. */
+  folders?: LibraryFolder[];
+  /** Current folder id for this quiz (null = root). */
+  folderId?: string | null;
+  /**
+   * Called when the user picks a different folder in the modal. Expected to
+   * call `useFolders().moveItem(...)` — metadata-only, separate from onSave
+   * since QuizData is stored in Drive (folderId lives in Firestore metadata).
+   */
+  onFolderChange?: (folderId: string | null) => void;
 }
 
 const QUESTION_TYPES: {
@@ -98,6 +114,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   quiz,
   onClose,
   onSave,
+  folders,
+  folderId,
+  onFolderChange,
 }) => {
   const { canAccessFeature } = useAuth();
   // Snapshot the quiz when the modal opens so `isDirty` compares against the
@@ -355,6 +374,14 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             </button>
           )}
         </div>
+
+        {folders && onFolderChange && (
+          <FolderSelectField
+            folders={folders}
+            value={folderId ?? null}
+            onChange={onFolderChange}
+          />
+        )}
 
         {error && (
           <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">

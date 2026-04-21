@@ -14,6 +14,7 @@ import {
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useFolders } from '@/hooks/useFolders';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
@@ -74,6 +75,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateAssignmentSettings,
     shareAssignment,
   } = useQuizAssignments(user?.uid);
+
+  // Folders are managed by QuizManager separately; this duplicate binding is
+  // used only so the editor modal can surface a folder picker and commit
+  // moves via `moveItem` without leaving the modal.
+  const { folders: quizFolders, moveItem: moveQuizItem } = useFolders(
+    user?.uid,
+    'quiz'
+  );
 
   // Ephemeral modal state for per-assignment settings editing.
   const [editingAssignment, setEditingAssignment] =
@@ -965,10 +974,34 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
+        onLibraryViewModeChange={(mode) => {
+          updateWidget(widget.id, {
+            config: { ...config, libraryViewMode: mode } as QuizConfig,
+          });
+        }}
       />
       <QuizEditorModal
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
+        folders={editingMeta ? quizFolders : undefined}
+        folderId={editingMeta?.folderId ?? null}
+        onFolderChange={
+          editingMeta
+            ? async (folderId) => {
+                try {
+                  await moveQuizItem(editingMeta.id, folderId);
+                  addToast('Folder updated.', 'success');
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to update folder',
+                    'error'
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => {
           setEditingQuiz(null);
           setEditingMeta(null);

@@ -14,6 +14,7 @@ import {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningStep,
+  LibraryFolder,
 } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { useAuth } from '@/context/useAuth';
@@ -36,6 +37,10 @@ interface GuidedLearningEditorModalProps {
    * identity changes).
    */
   onAiGenerated?: (set: GuidedLearningSet) => void;
+  /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
+  folders?: LibraryFolder[];
+  folderId?: string | null;
+  onFolderChange?: (folderId: string | null) => void;
 }
 
 // ─── Deep equality helpers ──────────────────────────────────────────────────
@@ -109,7 +114,17 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
 
 export const GuidedLearningEditorModal: React.FC<
   GuidedLearningEditorModalProps
-> = ({ isOpen, set, meta, onClose, onSave, onAiGenerated }) => {
+> = ({
+  isOpen,
+  set,
+  meta,
+  onClose,
+  onSave,
+  onAiGenerated,
+  folders,
+  folderId,
+  onFolderChange,
+}) => {
   const { isAdmin, canAccessFeature } = useAuth();
   // Track live state from the headless editor via onStateChange callback
   const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
@@ -247,6 +262,9 @@ export const GuidedLearningEditorModal: React.FC<
           saving={saving}
           headless
           onStateChange={handleStateChange}
+          folders={folders}
+          folderId={folderId}
+          onFolderChange={onFolderChange}
         />
       )}
       {showAiGen && canUseAi && (

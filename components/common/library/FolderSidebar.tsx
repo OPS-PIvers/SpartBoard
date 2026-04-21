@@ -16,6 +16,7 @@ import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder, LibraryFolderWidget } from '@/types';
 import { FolderTree } from './FolderTree';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
+import { useFolderPanelMode } from './LibraryFolderPanelContext';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
 
@@ -168,37 +169,61 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     setConfirmDelete(target);
   };
 
+  const panelMode = useFolderPanelMode();
+  const isRail = panelMode === 'rail';
+
   return (
-    <aside
-      className="flex flex-col gap-1 w-56 shrink-0 border-r border-slate-200 bg-slate-50/60 p-2 overflow-y-auto"
-      aria-label="Folders"
+    <div
+      className="flex flex-col gap-1 w-full"
+      style={{ padding: isRail ? 'min(4px, 1cqmin)' : 'min(8px, 2cqmin)' }}
     >
-      <header className="flex items-center justify-between px-2 pt-1 pb-2">
-        <span className="text-xs font-bold text-brand-blue-dark uppercase tracking-widest">
-          Folders
-        </span>
-        {onCreateFolder && (
-          <button
-            type="button"
-            onClick={() => {
-              setCreatingUnder(null);
-              setNewName('');
-            }}
-            className="p-1 rounded-lg hover:bg-white text-brand-blue-primary transition-colors"
-            title="New folder"
-            aria-label="New folder"
+      {!isRail && (
+        <header
+          className="flex items-center justify-between"
+          style={{
+            paddingInline: 'min(8px, 2cqmin)',
+            paddingTop: 'min(4px, 1cqmin)',
+            paddingBottom: 'min(8px, 2cqmin)',
+          }}
+        >
+          <span
+            className="font-bold text-brand-blue-dark uppercase tracking-widest"
+            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
           >
-            <FolderPlus className="w-4 h-4" />
-          </button>
-        )}
-      </header>
+            Folders
+          </span>
+          {onCreateFolder && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreatingUnder(null);
+                setNewName('');
+              }}
+              className="p-1 rounded-lg hover:bg-white text-brand-blue-primary transition-colors"
+              title="New folder"
+              aria-label="New folder"
+            >
+              <FolderPlus
+                style={{
+                  width: 'min(16px, 4.5cqmin)',
+                  height: 'min(16px, 4.5cqmin)',
+                }}
+              />
+            </button>
+          )}
+        </header>
+      )}
 
       {/* Root / "All items" entry */}
       <button
         ref={enableDrop ? rootDroppable.setNodeRef : undefined}
         type="button"
         onClick={() => onSelectFolder(null)}
-        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm font-semibold text-left transition-colors ${
+        title={isRail ? 'All items' : undefined}
+        aria-label={isRail ? 'All items' : undefined}
+        className={`flex items-center rounded-lg font-semibold text-left transition-colors ${
+          isRail ? 'justify-center' : ''
+        } ${
           selectedFolderId === null
             ? 'bg-brand-blue-primary text-white'
             : 'text-brand-blue-dark hover:bg-white'
@@ -207,16 +232,29 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
             : ''
         }`}
+        style={{
+          gap: isRail ? '0' : 'min(8px, 2cqmin)',
+          paddingInline: isRail ? '0' : 'min(8px, 2cqmin)',
+          paddingBlock: 'min(6px, 1.5cqmin)',
+          fontSize: 'min(13px, 4cqmin)',
+        }}
       >
-        <Inbox className="w-4 h-4" />
-        <span className="flex-1">All items</span>
-        {rootCount > 0 && (
+        <Inbox
+          style={{
+            width: 'min(16px, 4.5cqmin)',
+            height: 'min(16px, 4.5cqmin)',
+            flexShrink: 0,
+          }}
+        />
+        {!isRail && <span className="flex-1 truncate">All items</span>}
+        {!isRail && rootCount > 0 && (
           <span
-            className={`text-xxs font-bold ${
+            className={`font-bold ${
               selectedFolderId === null
                 ? 'text-white/80'
                 : 'text-brand-blue-primary/60'
             }`}
+            style={{ fontSize: 'min(10px, 3cqmin)' }}
           >
             {rootCount}
           </span>
@@ -224,7 +262,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       </button>
 
       {/* Inline new-folder at root */}
-      {creatingUnder === null && (
+      {!isRail && creatingUnder === null && (
         <NewFolderInput
           value={newName}
           onChange={setNewName}
@@ -236,15 +274,15 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         />
       )}
 
-      {loading && (
+      {!isRail && loading && (
         <p className="text-xxs text-slate-400 italic px-2 py-1">
           Loading folders…
         </p>
       )}
-      {error && (
+      {!isRail && error && (
         <p className="text-xxs text-brand-red-primary px-2 py-1">{error}</p>
       )}
-      {commitError && (
+      {!isRail && commitError && (
         <p className="text-xxs text-brand-red-primary px-2 py-1">
           {commitError}
         </p>
@@ -287,7 +325,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       />
 
       {/* Inline new-folder rendered below the subtree it targets */}
-      {creatingUnder && creatingUnder !== null && (
+      {!isRail && creatingUnder && creatingUnder !== null && (
         <div className="ml-6">
           <NewFolderInput
             value={newName}
@@ -310,7 +348,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           onConfirm={handleConfirmDelete}
         />
       )}
-    </aside>
+    </div>
   );
 };
 

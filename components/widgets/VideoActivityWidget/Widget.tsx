@@ -23,6 +23,7 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { useFolders } from '@/hooks/useFolders';
 import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
@@ -108,6 +109,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingMeta, setEditingMeta] = useState<VideoActivityMetadata | null>(
     null
   );
+
+  const { folders: videoActivityFolders, moveItem: moveVideoActivityItem } =
+    useFolders(user?.uid, 'video_activity');
 
   // Get global AI generation permission from feature permissions
   const videoActivityPerm = featurePermissions.find(
@@ -447,12 +451,37 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             } as VideoActivityConfig,
           });
         }}
+        initialLibraryViewMode={config.libraryViewMode}
+        onLibraryViewModeChange={(mode) => {
+          updateWidget(widget.id, {
+            config: { ...config, libraryViewMode: mode } as VideoActivityConfig,
+          });
+        }}
       />
       <VideoActivityEditorModal
         isOpen={!!editingActivity}
         activity={editingActivity}
         aiEnabled={aiEnabled}
         isAdmin={isAdmin === true}
+        folders={editingMeta ? videoActivityFolders : undefined}
+        folderId={editingMeta?.folderId ?? null}
+        onFolderChange={
+          editingMeta
+            ? async (folderId) => {
+                try {
+                  await moveVideoActivityItem(editingMeta.id, folderId);
+                  addToast('Folder updated.', 'success');
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to update folder',
+                    'error'
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => {
           setEditingActivity(null);
           setEditingMeta(null);

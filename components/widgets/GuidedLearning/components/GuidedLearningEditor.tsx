@@ -22,9 +22,11 @@ import {
   GuidedLearningMode,
   GuidedLearningStep,
   GuidedLearningSetMetadata,
+  LibraryFolder,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
 
@@ -49,6 +51,10 @@ interface Props {
   headless?: boolean;
   /** Fires whenever editable fields change so a parent modal can compute isDirty. */
   onStateChange?: (state: GuidedLearningEditorState) => void;
+  /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
+  folders?: LibraryFolder[];
+  folderId?: string | null;
+  onFolderChange?: (folderId: string | null) => void;
 }
 
 const MODE_OPTIONS: {
@@ -73,6 +79,9 @@ export const GuidedLearningEditor: React.FC<Props> = ({
   saving,
   headless,
   onStateChange,
+  folders,
+  folderId,
+  onFolderChange,
 }) => {
   const { user } = useAuth();
   const { uploading, uploadHotspotImage } = useStorage();
@@ -408,6 +417,14 @@ export const GuidedLearningEditor: React.FC<Props> = ({
               }}
             />
           </div>
+
+          {folders && onFolderChange && (
+            <FolderSelectField
+              folders={folders}
+              value={folderId ?? null}
+              onChange={onFolderChange}
+            />
+          )}
 
           <div>
             <label

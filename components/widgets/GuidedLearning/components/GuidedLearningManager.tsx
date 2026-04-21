@@ -34,6 +34,7 @@ import {
   RotateCcw,
   Copy,
   ExternalLink,
+  CheckSquare,
 } from 'lucide-react';
 import type {
   GuidedLearningAssignment,
@@ -45,9 +46,13 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import {
   countItemsByFolder,
   filterSourcedEntriesByFolder,
@@ -122,8 +127,11 @@ export interface GuidedLearningManagerProps {
     driveFileId?: string,
     buildingSet?: GuidedLearningSet
   ) => void;
-  onDeletePersonal: (setId: string, driveFileId: string) => void;
-  onDeleteBuilding: (setId: string) => void;
+  onDeletePersonal: (
+    setId: string,
+    driveFileId: string
+  ) => void | Promise<void>;
+  onDeleteBuilding: (setId: string) => void | Promise<void>;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
   /** Admin-only — opens the standalone AI authoring dialog for building sets. */
@@ -147,6 +155,11 @@ export interface GuidedLearningManagerProps {
   onAssignmentArchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
+
+  /** Persisted library grid/list toggle (from widget config). */
+  initialLibraryViewMode?: 'grid' | 'list';
+  /** Persist the library grid/list toggle into widget config. */
+  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
 }
 
 /* ─── Sort / filter config ────────────────────────────────────────────────── */
@@ -281,14 +294,38 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentArchive,
   onAssignmentUnarchive,
   onAssignmentDelete,
+  initialLibraryViewMode,
+  onLibraryViewModeChange,
 }) => {
   const [tab, setTab] = React.useState<LibraryTab>('library');
+
+  // ─── Bulk selection (Step 8) ────────────────────────────────────────────
+  const selection = useLibrarySelection();
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+  const [prevTab, setPrevTab] = React.useState(tab);
+  if (prevTab !== tab) {
+    setPrevTab(tab);
+    if (tab !== 'library' && selectionMode) {
+      setSelectionMode(false);
+      selection.clear();
+    }
+  }
 
   // ─── Folder navigation (Wave 3-B-3) ─────────────────────────────────────
   const folderState = useFolders(userId, 'guided_learning');
   const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(
     null
   );
+  // When set, a `FolderPickerPopover` dialog is shown for this personal entry.
+  // Only 'personal' sets participate in folders (building sets have no
+  // folderId). Carry the rawId + display title so the dialog can label itself
+  // without another lookup.
+  const [folderPickerTarget, setFolderPickerTarget] = React.useState<{
+    rawId: string;
+    title: string;
+    folderId: string | null;
+  } | null>(null);
 
   // Reset folder selection when the signed-in user changes or the selected
   // folder no longer exists (adjust-state-during-render pattern).
@@ -333,9 +370,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const view = useLibraryView<LibraryEntry>({
     items: allEntries,
     initialSort: LIBRARY_INITIAL_SORT,
+    initialViewMode: initialLibraryViewMode ?? 'grid',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
+    onViewModeChange: onLibraryViewModeChange,
   });
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
@@ -385,6 +424,73 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     [userId, moveItem]
   );
 
+  // ─── Bulk handlers (Step 8) ─────────────────────────────────────────────
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
+    if (selection.count === 0) return;
+    const personalIds = Array.from(selection.selectedIds).filter((id) =>
+      id.startsWith('personal:')
+    );
+    if (personalIds.length === 0) return;
+    const ok = window.confirm(
+      `Delete ${personalIds.length} set${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setBulkBusy(true);
+    try {
+      const results = await Promise.allSettled(
+        personalIds.map(async (id) => {
+          const rawId = id.slice('personal:'.length);
+          const entry = allEntries.find((e) => e.id === id);
+          if (entry?.driveFileId) {
+            await onDeletePersonal(rawId, entry.driveFileId);
+          }
+        })
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[GuidedLearningManager] bulk delete failed for',
+            personalIds[idx],
+            result.reason
+          );
+        }
+      });
+      selection.clear();
+      setSelectionMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selection, allEntries, onDeletePersonal]);
+
+  const handleBulkMove = useCallback(
+    async (folderId: string | null): Promise<void> => {
+      if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds).filter((id) =>
+        id.startsWith('personal:')
+      );
+      setBulkBusy(true);
+      try {
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id.slice('personal:'.length), folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
+            console.error(
+              '[GuidedLearningManager] bulk move failed for',
+              ids[idx],
+              result.reason
+            );
+          }
+        });
+        selection.clear();
+        setSelectionMode(false);
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [userId, selection, moveItem]
+  );
+
   const reorderDragActive =
     !view.reorderLocked &&
     activeSourceFilter === 'personal' &&
@@ -393,7 +499,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // would be blocked (e.g. sort !== 'manual'). Drops on a folder tile move the
   // item; drops on another card reorder (only honored when manual reorder is
   // active — see `handleReorderDrop` below).
-  const enableCardDrag = Boolean(userId) || reorderDragActive;
+  const enableCardDrag =
+    (Boolean(userId) || reorderDragActive) && !selectionMode;
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
@@ -502,6 +609,20 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
+    if (entry.source === 'personal') {
+      secondary.push(
+        buildMoveToFolderAction({
+          onOpenPicker: () =>
+            setFolderPickerTarget({
+              rawId,
+              title: entry.title,
+              folderId: entry.folderId ?? null,
+            }),
+          disabled: !userId,
+        })
+      );
+    }
+
     if (canDelete) {
       secondary.push({
         id: 'delete',
@@ -510,9 +631,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         destructive: true,
         onClick: () => {
           if (entry.source === 'personal' && entry.driveFileId) {
-            onDeletePersonal(rawId, entry.driveFileId);
+            void onDeletePersonal(rawId, entry.driveFileId);
           } else if (entry.source === 'building') {
-            onDeleteBuilding(rawId);
+            void onDeleteBuilding(rawId);
           }
         },
       });
@@ -537,6 +658,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       <BookOpen className="h-5 w-5 text-slate-400" aria-hidden="true" />
     );
 
+    const isPersonal = entry.source === 'personal';
+    const selectable = isPersonal && selectionMode;
     return (
       <LibraryItemCard<LibraryEntry>
         key={entry.id}
@@ -556,9 +679,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             ? () => onEdit(rawId, entry.driveFileId, entry.buildingSet)
             : undefined
         }
-        sortable={entry.source === 'personal' && enableCardDrag}
+        sortable={isPersonal && enableCardDrag && !selectionMode}
         viewMode={view.state.viewMode}
         meta={entry}
+        selectionMode={selectable}
+        selected={selectable && selection.isSelected(entry.id)}
+        onSelectionToggle={
+          selectable ? () => selection.toggle(entry.id) : undefined
+        }
       />
     );
   };
@@ -667,6 +795,22 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
             Your personal sets are saved to Google Drive. Sign out and sign back
             in to grant Drive access. Building sets are still available below.
+          </div>
+        )}
+
+        {selectionMode && selection.count > 0 && (
+          <div className="mb-3">
+            <BulkActionBar
+              count={selection.count}
+              onClear={() => {
+                selection.clear();
+                setSelectionMode(false);
+              }}
+              folders={folderState.folders}
+              onMove={handleBulkMove}
+              onDelete={handleBulkDelete}
+              busy={bulkBusy}
+            />
           </div>
         )}
 
@@ -818,12 +962,41 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             filters={[sourceFilter]}
             searchPlaceholder="Search sets…"
             rightSlot={
-              isBuildingFiltered ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  <Building2 size={12} />
-                  Building library
-                </span>
-              ) : null
+              <span className="flex items-center gap-2">
+                {isBuildingFiltered && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                    <Building2 size={12} />
+                    Building library
+                  </span>
+                )}
+                {userId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectionMode) {
+                        selection.clear();
+                        setSelectionMode(false);
+                      } else {
+                        setSelectionMode(true);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                      selectionMode
+                        ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                        : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+                    }`}
+                    aria-pressed={selectionMode}
+                    title={
+                      selectionMode
+                        ? 'Exit selection mode'
+                        : 'Enter selection mode'
+                    }
+                  >
+                    <CheckSquare className="h-3.5 w-3.5" />
+                    {selectionMode ? 'Cancel' : 'Select'}
+                  </button>
+                )}
+              </span>
             }
           />
         ) : undefined
@@ -835,16 +1008,35 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     </LibraryShell>
   );
 
+  const folderPickerDialog = folderPickerTarget ? (
+    <FolderPickerPopover
+      variant="dialog"
+      folders={folderState.folders}
+      selectedFolderId={folderPickerTarget.folderId}
+      onSelect={(folderId) => {
+        void handleDropOnFolder(folderPickerTarget.rawId, folderId);
+      }}
+      onClose={() => setFolderPickerTarget(null)}
+      title={`Move "${folderPickerTarget.title}" to…`}
+    />
+  ) : null;
+
   return userId && tab === 'library' ? (
-    <LibraryDndContext
-      itemIds={orderedIds}
-      onDropOnFolder={handleDropOnFolder}
-      onReorder={handleReorderDrop}
-      renderOverlay={renderDragOverlay}
-    >
-      {shell}
-    </LibraryDndContext>
+    <>
+      <LibraryDndContext
+        itemIds={orderedIds}
+        onDropOnFolder={handleDropOnFolder}
+        onReorder={handleReorderDrop}
+        renderOverlay={renderDragOverlay}
+      >
+        {shell}
+      </LibraryDndContext>
+      {folderPickerDialog}
+    </>
   ) : (
-    shell
+    <>
+      {shell}
+      {folderPickerDialog}
+    </>
   );
 };

@@ -41,6 +41,7 @@ import {
   Inbox,
   Loader2,
   AlertCircle,
+  CheckSquare,
 } from 'lucide-react';
 import {
   QuizMetadata,
@@ -59,14 +60,19 @@ import {
   AssignModal,
   AssignmentArchiveCard,
   FolderSidebar,
+  FolderPickerPopover,
   LibraryDndContext,
+  buildMoveToFolderAction,
   useLibraryView,
+  useLibrarySelection,
   useSortableReorder,
+  BulkActionBar,
   type LibraryMenuAction,
   type LibrarySortOption,
   type AssignModeOption,
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
+  type LibrarySelectionApi,
 } from '@/components/common/library';
 import {
   countItemsByFolder,
@@ -158,7 +164,7 @@ interface QuizManagerProps {
     sessionOptions: QuizSessionOptions
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
-  onDelete: (quiz: QuizMetadata) => void;
+  onDelete: (quiz: QuizMetadata) => void | Promise<void>;
   onShare: (quiz: QuizMetadata) => void;
   rosters: ClassRoster[];
   config: QuizConfig;
@@ -177,6 +183,8 @@ interface QuizManagerProps {
   onArchivePauseResume?: (assignment: QuizAssignment) => void;
   onArchiveDeactivate?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void;
+  /** Persist the library grid/list toggle into widget config. */
+  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
 }
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -272,6 +280,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchivePauseResume,
   onArchiveDeactivate,
   onArchiveDelete,
+  onLibraryViewModeChange,
 }) => {
   const noop = () => {
     /* action not wired */
@@ -301,6 +310,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  // Quiz whose "Move to folder…" picker is open (null = picker closed).
+  const [folderPickerTarget, setFolderPickerTarget] =
+    useState<QuizMetadata | null>(null);
+
+  // ─── Bulk selection (Step 8) ──────────────────────────────────────────────
+  const selection = useLibrarySelection();
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  // Exit selection mode if the user leaves the library tab
+  const [prevManagerTab, setPrevManagerTab] = useState(managerTab);
+  if (prevManagerTab !== managerTab) {
+    setPrevManagerTab(managerTab);
+    if (managerTab !== 'library' && selectionMode) {
+      setSelectionMode(false);
+      selection.clear();
+    }
+  }
 
   // Reset folder selection when the signed-in user changes or the selected
   // folder no longer exists (e.g. after delete, sign-out, or account switch).
@@ -337,8 +363,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const libraryView = useLibraryView<QuizMetadata>({
     items: folderFilteredQuizzes,
     initialSort: LIBRARY_INITIAL_SORT,
+    initialViewMode: config.libraryViewMode ?? 'grid',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: SORT_COMPARATORS,
+    onViewModeChange: onLibraryViewModeChange,
   });
 
   // useSortableReorder is used in no-op mode: Quiz metadata has no persisted
@@ -388,6 +416,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Link2,
       onClick: () => onShare(quiz),
     },
+    buildMoveToFolderAction({
+      onOpenPicker: () => setFolderPickerTarget(quiz),
+      disabled: !userId,
+    }),
     {
       id: 'delete',
       label: 'Delete',
@@ -397,7 +429,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = window.confirm(
           `Delete "${quiz.title}"? This cannot be undone.`
         );
-        if (ok) onDelete(quiz);
+        if (ok) void onDelete(quiz);
       },
     },
   ];
@@ -596,6 +628,63 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [userId, moveItem]
   );
 
+  // ─── Bulk handlers (Step 8) ───────────────────────────────────────────────
+  const handleBulkMove = useCallback(
+    async (folderId: string | null): Promise<void> => {
+      if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds);
+      setBulkBusy(true);
+      try {
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id, folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
+            console.error(
+              '[QuizManager] bulk move failed for',
+              ids[idx],
+              result.reason
+            );
+          }
+        });
+        selection.clear();
+        setSelectionMode(false);
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [userId, selection, moveItem]
+  );
+
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
+    if (selection.count === 0) return;
+    const ok = window.confirm(
+      `Delete ${selection.count} quiz${selection.count === 1 ? '' : 'zes'}? This cannot be undone.`
+    );
+    if (!ok) return;
+    const ids = Array.from(selection.selectedIds);
+    const targets = quizzes.filter((q) => ids.includes(q.id));
+    setBulkBusy(true);
+    try {
+      const results = await Promise.allSettled(
+        targets.map(async (quiz) => onDelete(quiz))
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[QuizManager] bulk delete failed for',
+            targets[idx]?.id,
+            result.reason
+          );
+        }
+      });
+      selection.clear();
+      setSelectionMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selection, quizzes, onDelete]);
+
   // ─── Folder sidebar (Library tab only) ────────────────────────────────────
   const folderSidebarSlot =
     managerTab === 'library' && userId ? (
@@ -632,6 +721,33 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         {...libraryView.toolbarProps}
         searchPlaceholder="Search quizzes…"
         sortOptions={SORT_OPTIONS}
+        rightSlot={
+          userId ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (selectionMode) {
+                  selection.clear();
+                  setSelectionMode(false);
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                selectionMode
+                  ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                  : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+              }`}
+              aria-pressed={selectionMode}
+              title={
+                selectionMode ? 'Exit selection mode' : 'Enter selection mode'
+              }
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectionMode ? 'Cancel' : 'Select'}
+            </button>
+          ) : undefined
+        }
       />
     ) : undefined;
 
@@ -721,7 +837,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           totalCount={quizzes.length}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
-          enableCardDrag={Boolean(userId)}
+          enableCardDrag={Boolean(userId) && !selectionMode}
+          viewMode={libraryView.state.viewMode}
+          selection={selection}
+          selectionMode={selectionMode}
+          bulkBusy={bulkBusy}
+          folders={folderState.folders}
+          onBulkMove={handleBulkMove}
+          onBulkDelete={handleBulkDelete}
         />
       )}
 
@@ -761,6 +884,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         </LibraryDndContext>
       ) : (
         shell
+      )}
+
+      {folderPickerTarget && (
+        <FolderPickerPopover
+          variant="dialog"
+          folders={folderState.folders}
+          selectedFolderId={folderPickerTarget.folderId ?? null}
+          onSelect={(folderId) => {
+            void handleDropOnFolder(folderPickerTarget.id, folderId);
+          }}
+          onClose={() => setFolderPickerTarget(null)}
+          title={`Move "${folderPickerTarget.title}" to…`}
+        />
       )}
 
       {assignTarget && (
@@ -818,6 +954,13 @@ const LibraryTabContent: React.FC<{
    * enable drag when a teacher is signed in so drag-to-folder works.
    */
   enableCardDrag: boolean;
+  viewMode: 'grid' | 'list';
+  selection: LibrarySelectionApi;
+  selectionMode: boolean;
+  bulkBusy: boolean;
+  folders: import('@/types').LibraryFolder[];
+  onBulkMove: (folderId: string | null) => Promise<void>;
+  onBulkDelete: () => void | Promise<void>;
 }> = ({
   error,
   orderedItems,
@@ -829,6 +972,13 @@ const LibraryTabContent: React.FC<{
   reorderLocked,
   reorderLockedReason,
   enableCardDrag,
+  viewMode,
+  selection,
+  selectionMode,
+  bulkBusy,
+  folders,
+  onBulkMove,
+  onBulkDelete,
 }) => {
   const emptyState =
     totalCount === 0 ? (
@@ -868,6 +1018,19 @@ const LibraryTabContent: React.FC<{
         </div>
       )}
 
+      {selectionMode && selection.count > 0 && (
+        <div className="mb-3">
+          <BulkActionBar
+            count={selection.count}
+            onClear={() => selection.clear()}
+            folders={folders}
+            onMove={onBulkMove}
+            onDelete={onBulkDelete}
+            busy={bulkBusy}
+          />
+        </div>
+      )}
+
       <LibraryGrid<QuizMetadata>
         items={orderedItems}
         getId={(q) => q.id}
@@ -877,7 +1040,7 @@ const LibraryTabContent: React.FC<{
         // works on grids without folder drag.
         reorderLocked={enableCardDrag ? false : reorderLocked}
         reorderLockedReason={enableCardDrag ? undefined : reorderLockedReason}
-        layout="list"
+        layout={viewMode}
         emptyState={emptyState}
         useExternalDndContext={enableCardDrag}
         renderCard={(quiz) => (
@@ -905,9 +1068,12 @@ const LibraryTabContent: React.FC<{
             }}
             secondaryActions={buildSecondaryActions(quiz)}
             onClick={() => onEdit(quiz)}
-            viewMode="list"
+            viewMode={viewMode}
             sortable={enableCardDrag}
             meta={quiz}
+            selectionMode={selectionMode}
+            selected={selection.isSelected(quiz.id)}
+            onSelectionToggle={() => selection.toggle(quiz.id)}
           />
         )}
       />

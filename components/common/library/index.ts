@@ -27,6 +27,24 @@ export { FolderSidebar } from './FolderSidebar';
 export type { FolderSidebarProps, FolderDeleteMode } from './FolderSidebar';
 export { FolderTree } from './FolderTree';
 export {
+  LibraryFolderPanelContext,
+  useFolderPanelMode,
+} from './LibraryFolderPanelContext';
+export { FolderPickerPopover } from './FolderPickerPopover';
+export type { FolderPickerPopoverProps } from './FolderPickerPopover';
+export { buildMoveToFolderAction } from './folderMenuAction';
+export type { MoveToFolderActionOptions } from './folderMenuAction';
+export { FolderSelectField } from './FolderSelectField';
+export type { FolderSelectFieldProps } from './FolderSelectField';
+export { useLibrarySelection } from './useLibrarySelection';
+export type { LibrarySelectionApi } from './useLibrarySelection';
+export { BulkActionBar } from './BulkActionBar';
+export type { BulkActionBarProps } from './BulkActionBar';
+export type {
+  FolderPanelMode,
+  LibraryFolderPanelContextValue,
+} from './LibraryFolderPanelContext';
+export {
   ROOT_FOLDER_COUNT_KEY,
   filterByFolder,
   countItemsByFolder,
@@ -47,6 +65,7 @@ export type {
   LibrarySortOption,
   LibraryFilter,
   LibraryShellTabCounts,
+  LibraryFolderPanelSetting,
   LibraryShellProps,
   LibraryToolbarProps,
   LibraryItemCardProps,

@@ -20,13 +20,22 @@ export function useLibraryView<TItem>(
     searchFields,
     sortComparators,
     filterPredicates,
+    onViewModeChange,
   } = options;
 
   const [search, setSearch] = useState<string>(initialSearch);
   const [sort, setSort] = useState<{ key: string; dir: LibrarySortDir }>(
     initialSort
   );
-  const [viewMode, setViewMode] = useState<LibraryViewMode>(initialViewMode);
+  const [viewMode, setViewModeState] =
+    useState<LibraryViewMode>(initialViewMode);
+  const handleViewModeChange = useCallback(
+    (next: LibraryViewMode) => {
+      setViewModeState(next);
+      onViewModeChange?.(next);
+    },
+    [onViewModeChange]
+  );
   const [filterValues, setFilterValues] =
     useState<Record<string, string>>(initialFilterValues);
 
@@ -89,9 +98,16 @@ export function useLibraryView<TItem>(
       filterValues,
       onFilterChange: handleFilterChange,
       viewMode,
-      onViewModeChange: setViewMode,
+      onViewModeChange: handleViewModeChange,
     }),
-    [search, sort, filterValues, handleFilterChange, viewMode]
+    [
+      search,
+      sort,
+      filterValues,
+      handleFilterChange,
+      viewMode,
+      handleViewModeChange,
+    ]
   );
 
   const state = useMemo(

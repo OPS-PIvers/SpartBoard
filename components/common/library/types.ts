@@ -114,6 +114,12 @@ export interface LibraryShellTabCounts {
   archive?: number;
 }
 
+/**
+ * Folder-panel display mode. `'auto'` resolves to full/rail/hidden based on
+ * the widget's container width; the other values pin the panel to that mode.
+ */
+export type LibraryFolderPanelSetting = 'auto' | 'full' | 'rail' | 'hidden';
+
 export interface LibraryShellProps {
   /** e.g. "Quiz", "Video Activity" — drives empty-state copy, aria labels. */
   widgetLabel: string;
@@ -129,6 +135,13 @@ export interface LibraryShellProps {
   toolbarSlot?: React.ReactNode;
   /** Rendered as a left sidebar — used by Phase 4 folders. */
   filterSidebarSlot?: React.ReactNode;
+  /**
+   * Controls the folder-panel state machine. Defaults to `'auto'` (derived
+   * from widget width). Passing an explicit value pins the panel open/closed.
+   */
+  folderPanelMode?: LibraryFolderPanelSetting;
+  /** Called when the user toggles panel mode via the chevron. */
+  onFolderPanelModeChange?: (mode: LibraryFolderPanelSetting) => void;
   /** Tab-specific content. Consumer decides what to render per tab. */
   children: React.ReactNode;
 }
@@ -181,6 +194,15 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   viewMode?: LibraryViewMode;
   /** Hidden from screen readers when this card is the drag overlay. */
   isDragOverlay?: boolean;
+  /**
+   * When true, renders a left-edge checkbox and suppresses the default card
+   * click → the row toggles selection instead of opening the editor.
+   */
+  selectionMode?: boolean;
+  /** Current selection state — only meaningful when `selectionMode` is true. */
+  selected?: boolean;
+  /** Fired when the user toggles the card's checkbox (or clicks the row in selection mode). */
+  onSelectionToggle?: () => void;
 }
 
 /* ─── LibraryGrid (dnd-kit SortableContext wrapper) ───────────────────────── */
@@ -240,6 +262,11 @@ export interface UseLibraryViewOptions<TItem> {
    * item. Missing filter id = no-op (all pass).
    */
   filterPredicates?: Record<string, (item: TItem, value: string) => boolean>;
+  /**
+   * Optional side-effect fired when the teacher toggles grid/list. Lets the
+   * consumer persist the choice (e.g. to widget config).
+   */
+  onViewModeChange?: (viewMode: LibraryViewMode) => void;
 }
 
 export interface UseLibraryViewResult<TItem> {
