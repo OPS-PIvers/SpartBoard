@@ -2017,13 +2017,30 @@ export const adminAnalytics = onRequest(
 
     const db = admin.firestore();
 
-    // 2. Verify caller is an admin (super admin in /admins, or a member of
-    // the requested org — org-scoped admins should see their own analytics).
+    // 2. Verify caller is authorized for the requested org. Two paths:
+    //   - Super admin: exists in `/admins/{email}`. May view any org.
+    //   - Org admin: has a member doc at `/organizations/{orgId}/members/{email}`
+    //     whose `roleId` is in the admin-tier set. Mirrors the role gating in
+    //     `assertCallerIsOrgAdmin` (organizationInvites.ts) but also admits
+    //     building_admin, since reading analytics is a lesser privilege than
+    //     inviting members.
+    const ORG_ADMIN_ROLE_IDS = new Set([
+      'super_admin',
+      'domain_admin',
+      'building_admin',
+    ]);
     const [adminDoc, memberDoc] = await Promise.all([
       db.collection('admins').doc(email).get(),
       db.doc(`organizations/${orgId}/members/${email}`).get(),
     ]);
-    if (!adminDoc.exists && !memberDoc.exists) {
+    const memberData = memberDoc.exists
+      ? (memberDoc.data() as { roleId?: unknown })
+      : undefined;
+    const memberRoleId =
+      typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
+    const isSuperAdmin = adminDoc.exists;
+    const isOrgAdmin = memberDoc.exists && ORG_ADMIN_ROLE_IDS.has(memberRoleId);
+    if (!isSuperAdmin && !isOrgAdmin) {
       console.error(
         `[getAdminAnalytics] Unauthorized access: ${email} is not an admin of ${orgId}`
       );
@@ -2101,11 +2118,14 @@ export const adminAnalytics = onRequest(
         }
       }
 
-      // 3b. Build the buildings map from the member record (admin-assigned)
-      // rather than from each user's self-selected `selectedBuildings`
-      // profile field. The member record's `buildingIds` are the authoritative
-      // source and are guaranteed to match live building doc ids, so the
-      // client-side "Unknown (…)" fallbacks disappear.
+      // 3b. Build the buildings map (uid → buildingIds) from the member record
+      // (admin-assigned) rather than from each user's self-selected
+      // `selectedBuildings` profile field. The member record's `buildingIds`
+      // are the authoritative source and are guaranteed to match live building
+      // doc ids, so the client-side "Unknown (…)" fallbacks disappear. Only
+      // members with a resolved `uid` land in the map (widget drilldowns key
+      // off uid); totals/bucketing iterate `members` directly below so invited
+      // users without a uid still count.
       const buildingsMap = new Map<string, string[]>();
       for (const m of members) {
         if (!m.uid) continue;
@@ -2219,11 +2239,18 @@ export const adminAnalytics = onRequest(
         daily: 0,
       };
 
-      for (const [uid, { email: userEmail }] of authUsersMap) {
+      // Iterate the org member roster (not just the auth-resolved subset) so
+      // invited-but-never-signed-in members count toward totals/domain/building
+      // buckets with zero engagement, matching the "totals come from the
+      // member roster; engagement is joined from Auth when available" contract.
+      for (const member of members) {
+        const userEmail = member.email;
         const domain = userEmail.includes('@')
           ? userEmail.split('@')[1]
           : 'unknown';
-        const lastEditMs = lastEditByUser.get(uid) ?? 0;
+        const lastEditMs = member.uid
+          ? (lastEditByUser.get(member.uid) ?? 0)
+          : 0;
         const isMonthlyActive =
           lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
         const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
@@ -2234,7 +2261,7 @@ export const adminAnalytics = onRequest(
 
         increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
 
-        const buildings = buildingsMap.get(uid) ?? [];
+        const buildings = member.buildingIds;
         if (buildings.length === 0) {
           increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
           if (!usersByDomainAndBuilding[domain]) {
@@ -2267,21 +2294,26 @@ export const adminAnalytics = onRequest(
         }
       }
 
-      // 4c. Build per-user detail list for KPI drilldowns
-      const userList = Array.from(authUsersMap.entries()).map(
-        ([uid, { email: userEmail, lastSignInMs }]) => {
-          const lastEditMs = lastEditByUser.get(uid) ?? 0;
-          return {
-            email: userEmail,
-            buildings: buildingsMap.get(uid) ?? [],
-            lastSignInMs,
-            lastEditMs,
-            hasDashboard: allDashboardOwnerUids.has(uid),
-            isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-            isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
-          };
-        }
-      );
+      // 4c. Build per-user detail list for KPI drilldowns. Same rule: iterate
+      // the member roster, join Auth metadata when a uid is present.
+      const userList = members.map((member) => {
+        const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
+        const lastSignInMs = authInfo?.lastSignInMs ?? 0;
+        const lastEditMs = member.uid
+          ? (lastEditByUser.get(member.uid) ?? 0)
+          : 0;
+        return {
+          email: member.email,
+          buildings: member.buildingIds,
+          lastSignInMs,
+          lastEditMs,
+          hasDashboard: member.uid
+            ? allDashboardOwnerUids.has(member.uid)
+            : false,
+          isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
+          isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
+        };
+      });
 
       // Auth data was already collected in step 3a – no separate scan needed
       const totalRegisteredUsers = authUsersMap.size;

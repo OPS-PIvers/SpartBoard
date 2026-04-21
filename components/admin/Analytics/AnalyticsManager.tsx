@@ -1375,6 +1375,11 @@ export const AnalyticsManager: React.FC = () => {
     if (!orgId) {
       // Org membership hasn't resolved yet; skip the request rather than
       // firing one that the backend would reject for missing org scope.
+      // Clear the initial loading flag so the UI shows an empty state instead
+      // of a permanent spinner for users who don't have an active org.
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
       return;
     }
     const requestId = requestSequenceRef.current + 1;

@@ -59,6 +59,14 @@ export const organizationBuildingCounters = onDocumentWritten(
         buildingId,
         error: err instanceof Error ? err.message : String(err),
       });
+      // Rethrow so Cloud Functions retries the invocation. The counter is
+      // supposed to self-heal drift; swallowing transient errors would leave
+      // it stale until the next create/delete.
+      throw err instanceof Error
+        ? err
+        : new Error(
+            `organizationBuildingCounters: recount failed for org ${orgId}, building ${buildingId}: ${String(err)}`
+          );
     }
   }
 );

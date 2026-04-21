@@ -878,4 +878,63 @@ describe('adminAnalytics', () => {
     expect(capturedData.api.totalCalls).toBe(5);
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
   });
+
+  it('returns 400 when orgId is missing from the request body', async () => {
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+    const statusSpy = vi.fn().mockReturnThis();
+    const jsonSpy = vi.fn().mockReturnThis();
+    const mockRes = {
+      status: statusSpy,
+      json: jsonSpy,
+      setHeader: vi.fn().mockReturnThis(),
+      getHeader: vi.fn().mockReturnValue(''),
+    };
+
+    const mockReq = {
+      headers: {
+        origin: 'http://localhost',
+        authorization: 'Bearer mock-token',
+      },
+      body: {},
+    };
+
+    await (adminAnalytics as any)(mockReq, mockRes);
+
+    expect(statusSpy).toHaveBeenCalledWith(400);
+    expect(jsonSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'invalid-argument' })
+    );
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+  });
+
+  it('returns 403 when caller is neither super admin nor an org admin', async () => {
+    // No /admins entry and no member doc for this caller → denied.
+    mockFirestoreState.admins = new Set<string>();
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+    const statusSpy = vi.fn().mockReturnThis();
+    const jsonSpy = vi.fn().mockReturnThis();
+    const mockRes = {
+      status: statusSpy,
+      json: jsonSpy,
+      setHeader: vi.fn().mockReturnThis(),
+      getHeader: vi.fn().mockReturnValue(''),
+    };
+
+    const mockReq = {
+      headers: {
+        origin: 'http://localhost',
+        authorization: 'Bearer mock-token',
+      },
+      body: { orgId: 'orono' },
+    };
+
+    await (adminAnalytics as any)(mockReq, mockRes);
+
+    expect(statusSpy).toHaveBeenCalledWith(403);
+    expect(jsonSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'permission-denied' })
+    );
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+  });
 });
