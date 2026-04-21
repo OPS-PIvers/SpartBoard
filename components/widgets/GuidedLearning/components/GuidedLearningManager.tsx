@@ -26,7 +26,7 @@ import {
   Trash2,
   Link2,
   BarChart2,
-  Wand2,
+  Sparkles,
   Building2,
   BookOpen,
   Loader2,
@@ -431,7 +431,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       ? [
           {
             label: 'AI',
-            icon: Wand2,
+            icon: Sparkles,
             onClick: onOpenAIAuthoring,
           },
         ]

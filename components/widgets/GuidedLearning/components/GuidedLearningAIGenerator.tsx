@@ -1,15 +1,161 @@
-import React, { useState, useRef } from 'react';
-import { Wand2, Upload, Loader2, X } from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  Sparkles,
+  Upload,
+  Loader2,
+  X,
+  GripVertical,
+  Trash2,
+} from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { GuidedLearningSet } from '@/types';
-import { generateGuidedLearning, buildPromptWithFileContext } from '@/utils/ai';
+import {
+  generateGuidedLearning,
+  buildPromptWithFileContext,
+  GuidedLearningImageInput,
+} from '@/utils/ai';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import {
+  DriveImagePicker,
+  PickedDriveImage,
+} from '@/components/common/DriveImagePicker';
+import { Z_INDEX } from '@/config/zIndex';
 
 interface Props {
   onClose: () => void;
   onGenerated: (set: GuidedLearningSet) => void;
 }
+
+interface GeneratorImage {
+  id: string;
+  url: string;
+  base64: string;
+  mimeType: string;
+  fileName: string;
+  caption: string;
+}
+
+const fileToBase64 = (file: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const commaIndex = dataUrl.indexOf(',');
+      resolve(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
+    reader.readAsDataURL(file);
+  });
+
+interface SortableImageRowProps {
+  image: GeneratorImage;
+  index: number;
+  onCaptionChange: (id: string, caption: string) => void;
+  onRemove: (id: string) => void;
+  disabled: boolean;
+}
+
+const SortableImageRow: React.FC<SortableImageRowProps> = ({
+  image,
+  index,
+  onCaptionChange,
+  onRemove,
+  disabled,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? Z_INDEX.itemDragging : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`grid grid-cols-[auto_1fr] gap-3 p-2.5 bg-white/5 border rounded-xl ${
+        isDragging
+          ? 'border-brand-blue-light/60 shadow-lg opacity-80'
+          : 'border-white/10'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-200 transition-colors"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-800 shrink-0">
+          <img
+            src={image.url}
+            alt={image.fileName}
+            className="w-full h-full object-cover"
+          />
+          <span className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px] font-bold bg-black/60 text-white rounded">
+            {index + 1}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-start gap-2">
+          <span
+            className="text-xs text-slate-300 font-medium truncate flex-1"
+            title={image.fileName}
+          >
+            {image.fileName}
+          </span>
+          <button
+            type="button"
+            onClick={() => onRemove(image.id)}
+            disabled={disabled}
+            className="p-1 text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
+            aria-label="Remove image"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <textarea
+          value={image.caption}
+          onChange={(e) => onCaptionChange(image.id, e.target.value)}
+          placeholder="Optional notes for this image…"
+          rows={2}
+          disabled={disabled}
+          className="w-full bg-slate-900/60 border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-brand-blue-light focus:outline-none resize-none disabled:opacity-50"
+        />
+      </div>
+    </div>
+  );
+};
 
 export const GuidedLearningAIGenerator: React.FC<Props> = ({
   onClose,
@@ -17,68 +163,146 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 }) => {
   const { user, canAccessFeature } = useAuth();
   const { uploading, uploadHotspotImage } = useStorage();
-  const [imageUrl, setImageUrl] = useState('');
-  const [imageBase64, setImageBase64] = useState('');
-  const [imageMimeType, setImageMimeType] = useState('');
+  const [images, setImages] = useState<GeneratorImage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState('');
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setError('');
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-    // Convert to base64 for Gemini
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(',')[1];
-      setImageBase64(base64);
-      setImageMimeType(file.type);
-      // Upload to Storage; if it fails, reject rather than persisting a large data URI
+  const addFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0 || !user) return;
+      setError('');
+      setUploadingImages(true);
       try {
-        const url = await uploadHotspotImage(user.uid, file);
-        setImageUrl(url);
+        const uploads = await Promise.all(
+          files.map(async (file) => {
+            const [url, base64] = await Promise.all([
+              uploadHotspotImage(user.uid, file),
+              fileToBase64(file),
+            ]);
+            return {
+              id: crypto.randomUUID(),
+              url,
+              base64,
+              mimeType: file.type || 'image/png',
+              fileName: file.name || 'pasted-image',
+              caption: '',
+            };
+          })
+        );
+        setImages((prev) => [...prev, ...uploads]);
       } catch (err) {
         const msg =
           err instanceof Error
             ? err.message
             : 'Image upload failed. Please check your connection and try again.';
         setError(msg);
-        setImageBase64('');
-        setImageMimeType('');
+      } finally {
+        setUploadingImages(false);
       }
-    };
-    reader.onerror = () => {
-      setError(
-        'Could not read the selected file. Try a different image (JPEG or PNG).'
-      );
-      setImageBase64('');
-      setImageMimeType('');
-    };
-    reader.readAsDataURL(file);
+    },
+    [user, uploadHotspotImage]
+  );
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length > 0) void addFiles(files);
   };
 
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        void addFiles(imageFiles);
+      }
+    },
+    [addFiles]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        f.type.startsWith('image/')
+      );
+      if (files.length > 0) void addFiles(files);
+    },
+    [addFiles]
+  );
+
+  const handleDriveImageAdded = useCallback((picked: PickedDriveImage) => {
+    setImages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        url: picked.url,
+        base64: picked.base64,
+        mimeType: picked.mimeType,
+        fileName: picked.fileName,
+        caption: '',
+      },
+    ]);
+  }, []);
+
+  const handleCaptionChange = useCallback((id: string, caption: string) => {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, caption } : img))
+    );
+  }, []);
+
+  const handleRemove = useCallback((id: string) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setImages((prev) => {
+      const oldIndex = prev.findIndex((img) => img.id === active.id);
+      const newIndex = prev.findIndex((img) => img.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
+
   const handleGenerate = async () => {
-    if (!imageBase64 || !imageUrl) return;
+    if (images.length === 0) return;
     setGenerating(true);
     setError('');
     try {
       const fullPrompt =
         buildPromptWithFileContext(prompt, fileContext, fileName) || undefined;
-      const result = await generateGuidedLearning(
-        imageBase64,
-        imageMimeType,
-        fullPrompt
-      );
+      const aiImages: GuidedLearningImageInput[] = images.map((img) => ({
+        base64: img.base64,
+        mimeType: img.mimeType,
+        caption: img.caption.trim() || undefined,
+      }));
+      const result = await generateGuidedLearning(aiImages, fullPrompt);
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
         title: result.suggestedTitle,
-        imageUrls: [imageUrl],
+        imageUrls: images.map((img) => img.url),
         steps: result.steps,
         mode: result.suggestedMode,
         createdAt: Date.now(),
@@ -95,13 +319,20 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     }
   };
 
+  const busy = generating || uploading || uploadingImages;
+
   return (
-    <div className="absolute inset-0 z-widget-internal-overlay bg-slate-900/95 backdrop-blur-sm flex flex-col p-4">
+    <div
+      className="absolute inset-0 z-widget-internal-overlay bg-slate-900/95 backdrop-blur-sm flex flex-col p-4"
+      onPaste={handlePaste}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+    >
       <div className="flex items-center gap-2 mb-4">
         <button onClick={onClose} className="text-slate-400 hover:text-white">
           <X className="w-4 h-4" />
         </button>
-        <Wand2 className="w-4 h-4 text-violet-400" />
+        <Sparkles className="w-4 h-4 text-brand-blue-light" />
         <span className="text-white font-semibold text-sm">
           Generate with AI
         </span>
@@ -109,52 +340,97 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
       <div className="space-y-3 flex-1 overflow-y-auto">
         <p className="text-slate-400 text-xs">
-          Upload an image and Gemini will analyze it to automatically create a
-          guided learning experience with hotspot steps.
+          Add one or more images — upload, paste, or pull from Drive. Gemini
+          will analyze them together and draft a guided learning experience with
+          hotspots spanning the images you provide.
         </p>
 
-        {/* Image upload */}
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Image *</label>
-          {imageUrl ? (
-            <div className="relative rounded-lg overflow-hidden">
-              <img
-                src={imageUrl}
-                alt="Selected"
-                className="w-full max-h-40 object-contain bg-slate-800"
-              />
-              <button
-                onClick={() => {
-                  setImageUrl('');
-                  setImageBase64('');
-                }}
-                className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
-                aria-label="Remove image"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="w-full border-2 border-dashed border-white/20 rounded-xl py-6 text-center hover:border-white/30 transition-colors"
-            >
-              <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-              <span className="text-slate-400 text-xs">
-                Click to upload image
-              </span>
-            </button>
-          )}
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            className="w-full border-2 border-dashed border-white/20 rounded-xl py-5 text-center hover:border-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+            <span className="text-slate-300 text-xs block">
+              Click to upload, drop here, or paste (Ctrl+V)
+            </span>
+            <span className="text-slate-500 text-[11px] mt-0.5 block">
+              PNG, JPG, WebP — multi-select supported
+            </span>
+          </button>
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={handleFile}
+            onChange={handleFileInput}
           />
+
+          <div className="flex flex-wrap gap-2">
+            <DriveImagePicker
+              onImageAdded={handleDriveImageAdded}
+              disabled={busy}
+              variant="dark"
+              label="Add image from Drive"
+            />
+            {canAccessFeature('ai-file-context') && (
+              <DriveFileAttachment
+                onFileContent={(content, name) => {
+                  setFileContext(content);
+                  setFileName(name);
+                }}
+                disabled={busy}
+                variant="dark"
+                label="Attach context doc"
+              />
+            )}
+          </div>
         </div>
 
-        {/* Optional prompt */}
+        {uploadingImages && (
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Uploading images…
+          </div>
+        )}
+
+        {images.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-400">
+                {images.length} image{images.length === 1 ? '' : 's'} — drag to
+                reorder
+              </label>
+            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={images.map((img) => img.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-2">
+                  {images.map((image, index) => (
+                    <SortableImageRow
+                      key={image.id}
+                      image={image}
+                      index={index}
+                      onCaptionChange={handleCaptionChange}
+                      onRemove={handleRemove}
+                      disabled={busy}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-slate-400 mb-1">
             Additional instructions (optional)
@@ -168,19 +444,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           />
         </div>
 
-        {/* Drive file attachment */}
-        {canAccessFeature('ai-file-context') && (
-          <DriveFileAttachment
-            onFileContent={(content, name) => {
-              setFileContext(content);
-              setFileName(name);
-            }}
-            disabled={generating}
-          />
-        )}
-
         {error && (
-          <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg">
+          <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg whitespace-pre-wrap">
             {error}
           </p>
         )}
@@ -188,8 +453,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
       <button
         onClick={handleGenerate}
-        disabled={!imageBase64 || !imageUrl || generating || uploading}
-        className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
+        disabled={images.length === 0 || busy}
+        className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
       >
         {generating ? (
           <>
@@ -198,8 +463,8 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           </>
         ) : (
           <>
-            <Wand2 className="w-4 h-4" />
-            Generate Experience
+            <Sparkles className="w-4 h-4" />
+            Draft with AI
           </>
         )}
       </button>

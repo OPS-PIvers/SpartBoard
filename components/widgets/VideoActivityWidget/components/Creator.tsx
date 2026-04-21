@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import {
   ArrowLeft,
   Youtube,
-  Wand2,
   FileSpreadsheet,
   PlusCircle,
   Sparkles,
@@ -214,11 +213,11 @@ export const Creator: React.FC<CreatorProps> = ({
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-                      <Wand2 className="w-6 h-6 text-indigo-600" />
+                      <Sparkles className="w-6 h-6 text-indigo-600" />
                     </div>
                     <div>
                       <h4 className="font-bold text-slate-800">
-                        Magic Creator
+                        Draft with AI
                       </h4>
                       <p className="text-xs text-slate-500 leading-relaxed">
                         Generate questions automatically using Gemini&apos;s
@@ -279,7 +278,7 @@ export const Creator: React.FC<CreatorProps> = ({
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <Wand2 className="w-5 h-5 text-indigo-600" />
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
                   <span className="font-bold text-indigo-900 text-sm">
                     AI Configuration
                   </span>

@@ -195,14 +195,14 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         <button
           onClick={() => setShowPromptDialog(true)}
           disabled={isGenerating}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-xxs font-black uppercase tracking-wider hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 transition-all shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-black uppercase tracking-wider disabled:opacity-50 transition-colors shadow-sm"
         >
           {isGenerating ? (
             <Loader2 size={14} className="animate-spin" />
           ) : (
             <Sparkles size={14} />
           )}
-          Magic Design
+          Draft with AI
         </button>
         <button
           onClick={onSave}

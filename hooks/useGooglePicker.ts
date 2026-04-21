@@ -19,6 +19,15 @@ const SUPPORTED_MIME_TYPES = [
   'text/markdown',
 ].join(',');
 
+/** Image MIME types offered in the image-picker mode. */
+const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'].join(',');
+
+/** Options for `openPicker`. Default mode is `'docs'`. */
+export interface OpenPickerOptions {
+  mode?: 'docs' | 'images';
+  maxItems?: number;
+}
+
 /** Max time (ms) to wait for the gapi script to become available. */
 const GAPI_LOAD_TIMEOUT_MS = 15_000;
 
@@ -104,81 +113,100 @@ export const useGooglePicker = () => {
   const { googleAccessToken } = useAuth();
   const pickerActiveRef = useRef(false);
 
-  const openPicker = useCallback((): Promise<PickedFile | null> => {
-    if (!googleAccessToken) {
-      return Promise.reject(
-        new Error('Google Drive is not connected. Please sign in again.')
-      );
-    }
+  const openPicker = useCallback(
+    (options?: OpenPickerOptions): Promise<PickedFile | null> => {
+      if (!googleAccessToken) {
+        return Promise.reject(
+          new Error('Google Drive is not connected. Please sign in again.')
+        );
+      }
 
-    if (pickerActiveRef.current) {
-      return Promise.resolve(null);
-    }
+      if (pickerActiveRef.current) {
+        return Promise.resolve(null);
+      }
 
-    // Set synchronously before async work to prevent race conditions
-    pickerActiveRef.current = true;
+      const mode = options?.mode ?? 'docs';
+      const maxItems = Math.max(1, options?.maxItems ?? 1);
 
-    return ensurePickerApi()
-      .then(() => {
-        return new Promise<PickedFile | null>((resolve) => {
-          const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
-            .setIncludeFolders(true)
-            .setMimeTypes(SUPPORTED_MIME_TYPES)
-            .setMode(google.picker.DocsViewMode.LIST);
+      // Set synchronously before async work to prevent race conditions
+      pickerActiveRef.current = true;
 
-          const apiKey = (import.meta.env.VITE_GOOGLE_API_KEY ??
-            import.meta.env.VITE_FIREBASE_API_KEY) as string | undefined;
+      return ensurePickerApi()
+        .then(() => {
+          return new Promise<PickedFile | null>((resolve) => {
+            const viewId =
+              mode === 'images'
+                ? google.picker.ViewId.DOCS_IMAGES
+                : google.picker.ViewId.DOCS;
 
-          const builder = new google.picker.PickerBuilder()
-            .addView(docsView)
-            .setOAuthToken(googleAccessToken)
-            .setMaxItems(1)
-            .setTitle('Select a file for AI context')
-            .setCallback((response: google.picker.ResponseObject) => {
-              const action = response[
-                google.picker.Response.ACTION
-              ] as google.picker.Action;
+            const mimeTypes =
+              mode === 'images' ? IMAGE_MIME_TYPES : SUPPORTED_MIME_TYPES;
 
-              if (action === google.picker.Action.PICKED) {
-                const docs = response[google.picker.Response.DOCUMENTS];
-                if (docs && docs.length > 0) {
-                  const doc = docs[0];
-                  resolve({
-                    id: doc[google.picker.Document.ID],
-                    name: doc[google.picker.Document.NAME] ?? 'Untitled',
-                    mimeType: doc[google.picker.Document.MIME_TYPE] ?? '',
-                  });
+            const docsView = new google.picker.DocsView(viewId)
+              .setIncludeFolders(mode === 'docs')
+              .setMimeTypes(mimeTypes)
+              .setMode(google.picker.DocsViewMode.LIST);
+
+            const apiKey = (import.meta.env.VITE_GOOGLE_API_KEY ??
+              import.meta.env.VITE_FIREBASE_API_KEY) as string | undefined;
+
+            const title =
+              mode === 'images'
+                ? 'Select an image from Drive'
+                : 'Select a file for AI context';
+
+            const builder = new google.picker.PickerBuilder()
+              .addView(docsView)
+              .setOAuthToken(googleAccessToken)
+              .setMaxItems(maxItems)
+              .setTitle(title)
+              .setCallback((response: google.picker.ResponseObject) => {
+                const action = response[
+                  google.picker.Response.ACTION
+                ] as google.picker.Action;
+
+                if (action === google.picker.Action.PICKED) {
+                  const docs = response[google.picker.Response.DOCUMENTS];
+                  if (docs && docs.length > 0) {
+                    const doc = docs[0];
+                    resolve({
+                      id: doc[google.picker.Document.ID],
+                      name: doc[google.picker.Document.NAME] ?? 'Untitled',
+                      mimeType: doc[google.picker.Document.MIME_TYPE] ?? '',
+                    });
+                  } else {
+                    resolve(null);
+                  }
+                  pickerActiveRef.current = false;
                 } else {
+                  // CANCEL, ERROR, or any unexpected action — always clean up
                   resolve(null);
+                  pickerActiveRef.current = false;
                 }
-                pickerActiveRef.current = false;
-              } else {
-                // CANCEL, ERROR, or any unexpected action — always clean up
-                resolve(null);
-                pickerActiveRef.current = false;
-              }
-            });
+              });
 
-          if (apiKey) {
-            builder.setDeveloperKey(apiKey);
-          }
+            if (apiKey) {
+              builder.setDeveloperKey(apiKey);
+            }
 
-          const appId = (import.meta.env.VITE_GOOGLE_APP_ID ??
-            import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) as
-            | string
-            | undefined;
-          if (appId) {
-            builder.setAppId(appId);
-          }
+            const appId = (import.meta.env.VITE_GOOGLE_APP_ID ??
+              import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) as
+              | string
+              | undefined;
+            if (appId) {
+              builder.setAppId(appId);
+            }
 
-          builder.build().setVisible(true);
+            builder.build().setVisible(true);
+          });
+        })
+        .catch((err) => {
+          pickerActiveRef.current = false;
+          throw err;
         });
-      })
-      .catch((err) => {
-        pickerActiveRef.current = false;
-        throw err;
-      });
-  }, [googleAccessToken]);
+    },
+    [googleAccessToken]
+  );
 
   return { openPicker, isConnected: !!googleAccessToken };
 };

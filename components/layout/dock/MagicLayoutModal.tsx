@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import {
@@ -40,7 +40,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
       );
       const widgets = await generateDashboardLayout(fullDescription);
       addWidgets(widgets);
-      addToast('Magic layout generated!', 'success');
+      addToast('Layout generated!', 'success');
       onClose();
     } catch (error) {
       console.error(error);
@@ -62,12 +62,12 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
     >
       <GlassCard className="w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg text-white">
-            <Wand2 className="w-5 h-5" />
+          <div className="p-2 bg-brand-blue-primary rounded-xl shadow-sm text-white">
+            <Sparkles className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">
-              Magic Layout
+              Layout Generator
             </h3>
             <p className="text-xs text-slate-500">
               Describe your lesson, and AI will set it up.
@@ -132,7 +132,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !description.trim()}
-            className="flex-[2] py-3 text-xs font-black uppercase tracking-widest text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-[2] py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
@@ -141,8 +141,8 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
               </>
             ) : (
               <>
-                <Wand2 className="w-4 h-4" />
-                <span>Cast Spell</span>
+                <Sparkles className="w-4 h-4" />
+                <span>Draft with AI</span>
               </>
             )}
           </button>

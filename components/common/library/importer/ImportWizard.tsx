@@ -400,14 +400,14 @@ export function ImportWizard<TData>({
         <button
           type="button"
           onClick={() => setAiOpen(true)}
-          className="w-full py-4 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border-2 border-dashed border-indigo-500/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+          className="w-full py-4 bg-slate-50 hover:bg-slate-100 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 rounded-2xl flex flex-col items-center justify-center gap-1 transition-colors group active:scale-95"
           aria-label={`AI-assist import for ${adapter.widgetLabel}`}
         >
-          <Sparkles className="w-6 h-6 text-indigo-500 group-hover:scale-110 transition-transform" />
-          <span className="font-black text-indigo-600 text-xs uppercase tracking-widest">
-            AI-assist
+          <Sparkles className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
+          <span className="font-black text-brand-blue-dark text-xs uppercase tracking-widest">
+            Draft with AI
           </span>
-          <p className="text-[11px] text-indigo-400 font-bold">
+          <p className="text-[11px] text-slate-500 font-bold">
             Describe it and we&apos;ll draft it.
           </p>
         </button>

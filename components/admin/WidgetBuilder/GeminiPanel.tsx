@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import { Wand2, Wrench, Plus, HelpCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Wrench, Plus, HelpCircle, Loader2 } from 'lucide-react';
 
 interface GeminiPanelProps {
   onGenerate: (code: string) => void;
@@ -110,7 +110,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
       <div className="px-3 py-2 bg-slate-700 border-b border-slate-600 flex items-center gap-2">
-        <Wand2 size={14} className="text-purple-400" />
+        <Sparkles size={14} className="text-brand-blue-light" />
         <span className="text-xs font-semibold text-slate-200">
           AI Assistant
         </span>
@@ -121,7 +121,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe what you want this widget to do..."
-          className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-purple-500 transition-colors"
+          className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:border-brand-blue-light transition-colors"
           rows={3}
         />
 
@@ -129,9 +129,9 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
           <button
             onClick={() => handleAction('generate')}
             disabled={loading}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
           >
-            <Wand2 size={12} />
+            <Sparkles size={12} />
             Generate
           </button>
           <button

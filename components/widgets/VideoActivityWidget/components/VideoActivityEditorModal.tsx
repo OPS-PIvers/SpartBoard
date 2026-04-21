@@ -19,7 +19,6 @@ import {
   Plus,
   Sparkles,
   Trash2,
-  Wand2,
   X,
   Youtube,
 } from 'lucide-react';
@@ -375,7 +374,7 @@ export const VideoActivityEditorModal: React.FC<
               <button
                 onClick={() => setShowAiPrompt(true)}
                 disabled={!youtubeUrl.trim()}
-                className="h-[38px] px-4 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
+                className="h-[38px] px-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
                 title={
                   youtubeUrl.trim()
                     ? 'Generate questions with AI'
@@ -383,8 +382,8 @@ export const VideoActivityEditorModal: React.FC<
                 }
                 aria-describedby="va-ai-button-hint"
               >
-                <Wand2 className="w-4 h-4" />
-                Magic
+                <Sparkles className="w-4 h-4" />
+                Draft with AI
               </button>
               <span id="va-ai-button-hint" className="sr-only">
                 {youtubeUrl.trim()
@@ -649,7 +648,7 @@ export const VideoActivityEditorModal: React.FC<
             <button
               onClick={() => void handleAiGenerate()}
               disabled={aiGenerating || !youtubeUrl.trim()}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-2"
             >
               {aiGenerating ? (
                 <>
@@ -657,7 +656,7 @@ export const VideoActivityEditorModal: React.FC<
                 </>
               ) : (
                 <>
-                  <Wand2 className="w-4 h-4" /> Generate Questions
+                  <Sparkles className="w-4 h-4" /> Generate Questions
                 </>
               )}
             </button>

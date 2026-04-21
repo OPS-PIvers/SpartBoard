@@ -7,6 +7,7 @@ import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
+import { parseGeminiJson } from './parseGeminiJson';
 
 // Phase 4 — organization invitations + membership write-through.
 // These modules initialize their own `admin.initializeApp()` guarded by
@@ -899,7 +900,7 @@ export const generateWithAI = onCall(
         return { result: text };
       }
 
-      return JSON.parse(text) as Record<string, unknown>;
+      return parseGeminiJson<Record<string, unknown>>(text);
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
@@ -1394,7 +1395,7 @@ Return JSON in this exact format:
       const text = result.text;
       if (!text) throw new Error('Empty response from AI');
 
-      const parsed = JSON.parse(text) as GeneratedVideoActivity;
+      const parsed = parseGeminiJson<GeneratedVideoActivity>(text);
 
       if (
         !parsed.title ||
@@ -1677,7 +1678,7 @@ Return JSON:
       const text = result.text;
       if (!text) throw new Error('Empty response from AI');
 
-      const parsed = JSON.parse(text) as GeneratedVideoActivity;
+      const parsed = parseGeminiJson<GeneratedVideoActivity>(text);
 
       if (
         !parsed.title ||
@@ -1728,6 +1729,12 @@ interface GeneratedGuidedLearning {
   steps: GuidedLearningStep[];
 }
 
+interface GuidedLearningImageInput {
+  base64: string;
+  mimeType: string;
+  caption?: string;
+}
+
 export const generateGuidedLearning = onCall(
   {
     memory: '512MiB',
@@ -1736,9 +1743,11 @@ export const generateGuidedLearning = onCall(
   },
   async (request) => {
     const data = request.data as {
-      imageBase64: string;
-      mimeType: string;
+      images?: GuidedLearningImageInput[];
       prompt?: string;
+      // Legacy single-image shape — accepted for backward compatibility.
+      imageBase64?: string;
+      mimeType?: string;
     };
     // Admin only
     const uid = request.auth?.uid;
@@ -1768,12 +1777,27 @@ export const generateGuidedLearning = onCall(
       );
     }
 
-    const { imageBase64, mimeType, prompt } = data;
-    if (!imageBase64 || !mimeType) {
+    const { prompt } = data;
+    const images: GuidedLearningImageInput[] =
+      Array.isArray(data.images) && data.images.length > 0
+        ? data.images
+        : data.imageBase64 && data.mimeType
+          ? [{ base64: data.imageBase64, mimeType: data.mimeType }]
+          : [];
+
+    if (images.length === 0) {
       throw new HttpsError(
         'invalid-argument',
-        'imageBase64 and mimeType are required.'
+        'At least one image is required.'
       );
+    }
+    for (const img of images) {
+      if (!img.base64 || !img.mimeType) {
+        throw new HttpsError(
+          'invalid-argument',
+          'Every image must include base64 data and mimeType.'
+        );
+      }
     }
 
     const apiKey = GEMINI_API_KEY.value();
@@ -1788,8 +1812,10 @@ export const generateGuidedLearning = onCall(
     try {
       const ai = new GoogleGenAI({ apiKey });
 
+      const imageCount = images.length;
+      const maxIndex = imageCount - 1;
       const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
-Analyze the provided image and generate a guided learning experience as a JSON object.
+Analyze the provided image(s) and generate a guided learning experience as a JSON object.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -1802,7 +1828,7 @@ Return ONLY valid JSON with this exact structure:
       "yPct": number (0-100),
       "label": "string",
       "interactionType": "text-popover" | "tooltip" | "pan-zoom" | "spotlight" | "pan-zoom-spotlight" | "question",
-      "imageIndex": number (always 0 for now),
+      "imageIndex": number (0-based index into the provided images, 0..${maxIndex}),
       "hideStepNumber": boolean (optional),
       "showOverlay": "none" | "popover" | "tooltip" | "banner" (for pan-zoom, spotlight, pan-zoom-spotlight),
       "text": "string (for text-popover/tooltip)",
@@ -1822,32 +1848,46 @@ Return ONLY valid JSON with this exact structure:
 }
 
 Guidelines:
-- Create 4-8 meaningful steps that guide learners through the content
-- Use text-popover for key concepts, spotlight to highlight areas, pan-zoom to zoom in on details, pan-zoom-spotlight when both are useful, questions to check understanding
-- This phase supports single-image AI generation only, so set imageIndex to 0 for every step
-- Place hotspots at meaningful locations on the image (xPct/yPct as percentages 0-100)
-- Include at least 1 question step for comprehension checking
-- Make content educational and age-appropriate
-- Set autoAdvanceDuration to 5-15 seconds for non-question steps in guided mode`;
+- You have been given ${imageCount} image${imageCount === 1 ? '' : 's'} (imageIndex ${imageCount === 1 ? '0' : `0..${maxIndex}`}).
+- Each step's imageIndex MUST be the 0-based position of the image it refers to.
+- Distribute steps across the images in a pedagogically meaningful order; do not cluster everything on image 0 unless only one image was provided.
+- Respect any per-image notes the teacher provided (sent as text before each image).
+- Create 4-8 meaningful steps per image that guide learners through the content (scale total step count with image count, cap at ~${Math.min(24, imageCount * 6)}).
+- Use text-popover for key concepts, spotlight to highlight areas, pan-zoom to zoom in on details, pan-zoom-spotlight when both are useful, questions to check understanding.
+- Place hotspots at meaningful locations on the image (xPct/yPct as percentages 0-100, relative to the image they reference).
+- Include at least 1 question step for comprehension checking.
+- Make content educational and age-appropriate.
+- Set autoAdvanceDuration to 5-15 seconds for non-question steps in guided mode.`;
 
-      const userPrompt = prompt
+      const userPromptHeader = prompt
         ? `Additional instructions: ${sanitizePrompt(prompt)}`
-        : 'Analyze this educational image and create an engaging guided learning experience.';
+        : 'Analyze the image(s) below and create an engaging guided learning experience.';
+
+      const parts: {
+        text?: string;
+        inlineData?: { mimeType: string; data: string };
+      }[] = [{ text: userPromptHeader }];
+
+      images.forEach((img, index) => {
+        const caption = img.caption ? sanitizePrompt(img.caption) : '';
+        const header = caption
+          ? `Image ${index} notes: ${caption}`
+          : `Image ${index}:`;
+        parts.push({ text: header });
+        parts.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: img.base64,
+          },
+        });
+      });
 
       const response = await ai.models.generateContent({
         model: guidedLearningModel,
         contents: [
           {
             role: 'user',
-            parts: [
-              { text: userPrompt },
-              {
-                inlineData: {
-                  mimeType,
-                  data: imageBase64,
-                },
-              },
-            ],
+            parts,
           },
         ],
         config: {
@@ -1857,7 +1897,7 @@ Guidelines:
       });
 
       const rawText = response.text ?? '';
-      const parsed = JSON.parse(rawText) as GeneratedGuidedLearning;
+      const parsed = parseGeminiJson<GeneratedGuidedLearning>(rawText);
 
       if (
         !parsed.suggestedTitle ||
@@ -1867,10 +1907,16 @@ Guidelines:
         throw new Error('Invalid response structure from AI');
       }
 
-      // Ensure all steps have IDs
+      // Ensure all steps have IDs and imageIndex values fall within range.
       parsed.steps = parsed.steps.map((step, i) => ({
         ...step,
         id: step.id || `step-${i + 1}-${Date.now()}`,
+        imageIndex:
+          typeof step.imageIndex === 'number' &&
+          step.imageIndex >= 0 &&
+          step.imageIndex <= maxIndex
+            ? step.imageIndex
+            : 0,
       }));
 
       return parsed;

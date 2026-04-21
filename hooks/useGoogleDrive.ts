@@ -156,6 +156,26 @@ export const useGoogleDrive = () => {
     [driveService]
   );
 
+  /**
+   * Download a binary file (e.g. a JPEG/PNG image) from Drive as a Blob.
+   * Used by image-picker flows that want to push the raw bytes to Firebase
+   * Storage + forward a base64 copy to Gemini.
+   */
+  const getDriveFileAsBlob = useCallback(
+    async (
+      fileId: string
+    ): Promise<{ blob: Blob; mimeType: string; name: string } | null> => {
+      if (!driveService) return null;
+      try {
+        return await driveService.downloadFileAsBlob(fileId);
+      } catch (error) {
+        console.error('Failed to download Drive file:', error);
+        return null;
+      }
+    },
+    [driveService]
+  );
+
   return {
     driveService,
     isConnected,
@@ -165,6 +185,7 @@ export const useGoogleDrive = () => {
     uploadBackgroundToDrive,
     getUserBackgroundsFromDrive,
     getDriveFileTextContent,
+    getDriveFileAsBlob,
     saveDrawingToDrive,
   };
 };

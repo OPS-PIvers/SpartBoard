@@ -356,26 +356,38 @@ interface AIGuidedLearningResponse {
   steps?: unknown[];
 }
 
+/** One image to send to Gemini for guided-learning generation. */
+export interface GuidedLearningImageInput {
+  /** Base64-encoded image data (no `data:` URI prefix). */
+  base64: string;
+  /** MIME type, e.g. 'image/jpeg'. */
+  mimeType: string;
+  /** Optional per-image instructions the teacher wrote. */
+  caption?: string;
+}
+
 /**
- * Generates a complete guided learning experience from an image using Gemini.
- * Admin-only. Sends the image inline to the Cloud Function which calls Gemini.
+ * Generates a complete guided learning experience from one or more images.
+ * Admin-only. Sends the images inline to the Cloud Function which calls Gemini.
  *
- * @param imageBase64 - Base64-encoded image data (no data URI prefix).
- * @param mimeType - MIME type of the image (e.g. 'image/jpeg').
- * @param prompt - Optional additional instructions for Gemini.
+ * Returned steps reference images by `imageIndex` (0-based). Indices outside
+ * the `images.length` range are clamped to 0 rather than dropping the step.
  */
 export async function generateGuidedLearning(
-  imageBase64: string,
-  mimeType: string,
+  images: GuidedLearningImageInput[],
   prompt?: string
 ): Promise<GeneratedGuidedLearning> {
+  if (!Array.isArray(images) || images.length === 0) {
+    throw new Error('At least one image is required.');
+  }
+
   try {
     const fn = httpsCallable<
-      { imageBase64: string; mimeType: string; prompt?: string },
+      { images: GuidedLearningImageInput[]; prompt?: string },
       AIGuidedLearningResponse
     >(functions, 'generateGuidedLearning');
 
-    const result = await fn({ imageBase64, mimeType, prompt });
+    const result = await fn({ images, prompt });
     const data = result.data;
 
     if (
@@ -408,6 +420,7 @@ export async function generateGuidedLearning(
       'question',
     ];
 
+    const maxImageIndex = images.length - 1;
     const validatedSteps = data.steps
       .map((step, index) => {
         if (typeof step !== 'object' || step === null) return null;
@@ -433,14 +446,16 @@ export async function generateGuidedLearning(
             : null;
         if (xPct === null || yPct === null || interactionType === null)
           return null;
+        const rawIndex = typeof s.imageIndex === 'number' ? s.imageIndex : 0;
+        const imageIndex =
+          rawIndex >= 0 && rawIndex <= maxImageIndex ? rawIndex : 0;
         return {
           ...s,
           id,
           xPct,
           yPct,
           interactionType,
-          imageIndex:
-            typeof s.imageIndex === 'number' ? Math.max(0, s.imageIndex) : 0,
+          imageIndex,
           showOverlay:
             s.showOverlay === 'popover' ||
             s.showOverlay === 'tooltip' ||
@@ -463,16 +478,11 @@ export async function generateGuidedLearning(
   } catch (error) {
     console.error('Guided Learning Generation Error:', error);
     if (error instanceof Error) {
-      if (
-        error.message.includes('Invalid response format from AI') ||
-        error.message.includes('AI returned no valid guided learning steps')
-      ) {
-        throw error;
-      }
+      // Re-throw with the real message so the UI surfaces quota / parse /
+      // network errors rather than a generic "try again" string.
+      throw error;
     }
-    throw new Error(
-      'Failed to generate guided learning experience. Please try again.'
-    );
+    throw new Error('Failed to generate guided learning experience.');
   }
 }
 

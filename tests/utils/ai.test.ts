@@ -307,42 +307,46 @@ describe('extractTextWithGemini', () => {
 });
 
 describe('generateGuidedLearning', () => {
+  const img = (caption?: string) => [
+    { base64: 'base64', mimeType: 'image/jpeg', caption },
+  ];
+
   it('generates guided learning successfully', async () => {
-    const result = await generateGuidedLearning(
-      'base64',
-      'image/jpeg',
-      'prompt'
-    );
+    const result = await generateGuidedLearning(img(), 'prompt');
     expect(result.suggestedTitle).toBe('Learning Module');
     expect(result.suggestedMode).toBe('guided');
     expect(result.steps).toHaveLength(1);
     expect(result.steps[0].interactionType).toBe('tooltip');
   });
 
-  it('throws formatted error on failure', async () => {
-    await expect(
-      generateGuidedLearning('base64', 'image/jpeg', 'FAIL')
-    ).rejects.toThrow(
-      'Failed to generate guided learning experience. Please try again.'
+  it('surfaces the real server error on failure', async () => {
+    await expect(generateGuidedLearning(img(), 'FAIL')).rejects.toThrow(
+      'Simulated API Failure'
     );
   });
 
   it('throws error on invalid response format', async () => {
     await expect(
-      generateGuidedLearning('base64', 'image/jpeg', 'invalid-response')
+      generateGuidedLearning(img(), 'invalid-response')
     ).rejects.toThrow('Invalid response format from AI');
   });
 
   it('throws error when no valid steps are returned', async () => {
-    await expect(
-      generateGuidedLearning('base64', 'image/jpeg', 'no-steps')
-    ).rejects.toThrow('Invalid response format from AI');
+    await expect(generateGuidedLearning(img(), 'no-steps')).rejects.toThrow(
+      'Invalid response format from AI'
+    );
   });
 
   it('throws error when AI returns no valid guided learning steps', async () => {
     await expect(
-      generateGuidedLearning('base64', 'image/jpeg', 'invalid-steps')
+      generateGuidedLearning(img(), 'invalid-steps')
     ).rejects.toThrow('AI returned no valid guided learning steps');
+  });
+
+  it('rejects when no images are provided', async () => {
+    await expect(generateGuidedLearning([], 'prompt')).rejects.toThrow(
+      'At least one image is required.'
+    );
   });
 });
 

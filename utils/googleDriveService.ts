@@ -712,4 +712,27 @@ export class GoogleDriveService {
 
     return response.text();
   }
+
+  /**
+   * Download a binary file from Drive (e.g. a JPEG/PNG image) as a Blob.
+   * Uses `alt=media` so the raw bytes come back, not metadata.
+   */
+  async downloadFileAsBlob(
+    fileId: string
+  ): Promise<{ blob: Blob; mimeType: string; name: string }> {
+    const metadata = await this.getFileMetadata(fileId);
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}?alt=media`,
+      { headers: this.headers }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return {
+      blob,
+      mimeType: metadata.mimeType || blob.type || 'application/octet-stream',
+      name: metadata.name || 'drive-file',
+    };
+  }
 }

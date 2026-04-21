@@ -13,6 +13,13 @@ interface DriveFileAttachmentProps {
   /** Notified when extraction starts/stops so callers can gate Generate. */
   onExtractingChange?: (extracting: boolean) => void;
   className?: string;
+  /** Button label. Defaults to "Attach file from Drive". */
+  label?: string;
+  /**
+   * Color palette. `'light'` (default) is indigo-on-white for light
+   * containers; `'dark'` is slate-on-transparent for dark overlays.
+   */
+  variant?: 'light' | 'dark';
 }
 
 /**
@@ -27,6 +34,8 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
   disabled = false,
   onExtractingChange,
   className = '',
+  label = 'Attach file from Drive',
+  variant = 'light',
 }) => {
   const { openPicker, isConnected } = useGooglePicker();
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -62,45 +71,43 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
     };
   }, []);
 
-  const handlePick = useCallback(async () => {
-    if (disabled || isExtracting) return;
-    setError(null);
+  const handlePick = useCallback(
+    async (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      if (disabled || isExtracting) return;
+      setError(null);
 
-    try {
-      const file = await openPicker();
-      if (!file) return; // User cancelled
+      try {
+        const file = await openPicker({ mode: 'docs' });
+        if (!file) return; // User cancelled
 
-      setSelectedFile(file);
-      setIsExtracting(true);
+        setSelectedFile(file);
+        setIsExtracting(true);
 
-      const text = await getDriveFileTextContent(file.id);
-      if (!text) {
-        setError(
-          'Could not extract text from this file. Try a Google Doc, Sheet, Slides, or text file.'
-        );
+        const text = await getDriveFileTextContent(file.id);
+        if (!text) {
+          setError(
+            'Could not extract text from this file. Try a Google Doc, Sheet, Slides, or text file.'
+          );
+          setSelectedFile(null);
+          onFileContent(null, null);
+          return;
+        }
+
+        const trimmed = text.substring(0, FILE_TEXT_LIMIT);
+        onFileContent(trimmed, file.name);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to read file';
+        setError(message);
         setSelectedFile(null);
         onFileContent(null, null);
-        return;
+      } finally {
+        setIsExtracting(false);
       }
-
-      const trimmed = text.substring(0, FILE_TEXT_LIMIT);
-      onFileContent(trimmed, file.name);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to read file';
-      setError(message);
-      setSelectedFile(null);
-      onFileContent(null, null);
-    } finally {
-      setIsExtracting(false);
-    }
-  }, [
-    disabled,
-    isExtracting,
-    openPicker,
-    getDriveFileTextContent,
-    onFileContent,
-  ]);
+    },
+    [disabled, isExtracting, openPicker, getDriveFileTextContent, onFileContent]
+  );
 
   const handleRemove = useCallback(() => {
     setSelectedFile(null);
@@ -112,26 +119,50 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
     return null; // Don't show anything if Drive is not connected
   }
 
+  const isDark = variant === 'dark';
+
+  const pillClasses = isDark
+    ? 'flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs'
+    : 'flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs';
+
+  const iconClasses = isDark
+    ? 'w-3.5 h-3.5 text-slate-300 shrink-0'
+    : 'w-3.5 h-3.5 text-indigo-500 shrink-0';
+
+  const fileNameClasses = isDark
+    ? 'text-slate-200 font-medium truncate flex-1'
+    : 'text-indigo-700 font-medium truncate flex-1';
+
+  const removeButtonClasses = isDark
+    ? 'p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-slate-200 transition-colors'
+    : 'p-0.5 hover:bg-indigo-200 rounded text-indigo-400 hover:text-indigo-600 transition-colors';
+
+  const extractingPillClasses = isDark
+    ? 'flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300'
+    : 'flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-500';
+
+  const pickButtonClasses = isDark
+    ? 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 border border-dashed border-white/10 hover:border-white/20 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+    : 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 hover:border-indigo-300 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {selectedFile && !isExtracting ? (
-        <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs">
-          <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-          <span className="text-indigo-700 font-medium truncate flex-1">
-            {selectedFile.name}
-          </span>
+        <div className={pillClasses}>
+          <FileText className={iconClasses} />
+          <span className={fileNameClasses}>{selectedFile.name}</span>
           <button
             type="button"
             onClick={handleRemove}
             disabled={disabled}
-            className="p-0.5 hover:bg-indigo-200 rounded text-indigo-400 hover:text-indigo-600 transition-colors"
+            className={removeButtonClasses}
             aria-label="Remove attached file"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       ) : isExtracting ? (
-        <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-500">
+        <div className={extractingPillClasses}>
           <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
           <span className="font-medium truncate">
             Reading {selectedFile?.name}...
@@ -142,14 +173,14 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
           type="button"
           onClick={handlePick}
           disabled={disabled}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 hover:border-indigo-300 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={pickButtonClasses}
         >
           <HardDrive className="w-3.5 h-3.5" />
-          Attach file from Drive
+          {label}
         </button>
       )}
       {error && (
-        <div className="flex items-center gap-1.5 text-xs text-red-500 animate-in slide-in-from-top-1">
+        <div className="flex items-center gap-1.5 text-xs text-red-400 animate-in slide-in-from-top-1">
           <AlertCircle className="w-3 h-3 shrink-0" />
           <span>{error}</span>
         </div>

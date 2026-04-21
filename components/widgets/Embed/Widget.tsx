@@ -6,7 +6,7 @@ import {
   ExternalLink,
   Code,
   XCircle,
-  Wand2,
+  Sparkles,
   Loader2,
   ZoomIn,
   ZoomOut,
@@ -513,7 +513,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     {isGeneratingApp ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Wand2 className="w-4 h-4" />
+                      <Sparkles className="w-4 h-4" />
                     )}
                   </button>
                 )}

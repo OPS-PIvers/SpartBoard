@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Wand2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
   GuidedLearningQuestion,
@@ -225,11 +225,11 @@ export const GuidedLearningEditorModal: React.FC<
         canUseAi ? (
           <button
             onClick={() => setShowAiGen(true)}
-            className="h-[36px] px-3 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
+            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
             title="Generate with AI (Admin)"
           >
-            <Wand2 className="w-4 h-4" />
-            Magic
+            <Sparkles className="w-4 h-4" />
+            Draft with AI
           </button>
         ) : null
       }

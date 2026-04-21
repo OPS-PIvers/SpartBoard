@@ -347,11 +347,11 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           {aiEnabled && (
             <button
               onClick={() => setShowAiPrompt(true)}
-              className="h-[38px] px-4 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 active:scale-95"
+              className="h-[38px] px-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
               title="Generate with AI"
             >
               <Sparkles className="w-4 h-4" />
-              Magic
+              Draft with AI
             </button>
           )}
         </div>
