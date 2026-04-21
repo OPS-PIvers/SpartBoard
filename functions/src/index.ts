@@ -1986,8 +1986,15 @@ export const adminAnalytics = onRequest(
       const PROFILE_BATCH = 500;
       const CONCURRENCY_LIMIT = 10;
 
-      for (let i = 0; i < authUids.length; i += PROFILE_BATCH * CONCURRENCY_LIMIT) {
-        const chunkUids = authUids.slice(i, i + PROFILE_BATCH * CONCURRENCY_LIMIT);
+      for (
+        let i = 0;
+        i < authUids.length;
+        i += PROFILE_BATCH * CONCURRENCY_LIMIT
+      ) {
+        const chunkUids = authUids.slice(
+          i,
+          i + PROFILE_BATCH * CONCURRENCY_LIMIT
+        );
         const chunkPromises: Promise<admin.firestore.DocumentSnapshot[]>[] = [];
 
         for (let j = 0; j < chunkUids.length; j += PROFILE_BATCH) {
