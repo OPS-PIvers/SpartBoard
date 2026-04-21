@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { detectWidgetType } from './smartPaste';
-import { EmbedConfig, ChecklistConfig } from '../types';
+import { EmbedConfig, ChecklistConfig, StickerConfig } from '@/types';
 
 describe('detectWidgetType (Smart Paste)', () => {
+  it('returns null for empty or whitespace-only input', () => {
+    expect(detectWidgetType('')).toBeNull();
+    expect(detectWidgetType('   ')).toBeNull();
+  });
+
   it('detects Google Slides and converts to preview URL', () => {
     const input =
       'https://docs.google.com/presentation/d/14weFpoSvOXRuO8DfhyB3cCEzX48VnCNmqShAdUh_esk/edit?slide=id.g3c33466b1b1_0_0#slide=id.g3c33466b1b1_0_0';
@@ -174,6 +179,18 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('detects board share URLs with bare domain', () => {
+    const input = 'myapp.com/share/boardId123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-board') {
+      expect(result.url).toBe(`https://${input}`);
+    } else {
+      throw new Error('Expected import-board action');
+    }
+  });
+
   it('detects ambiguous checklists and prompts the user', () => {
     const input = 'Buy milk\nWalk the dog\nFinish the review';
     const result = detectWidgetType(input);
@@ -225,6 +242,30 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  it('detects assignment share URLs', () => {
+    const input = 'https://spartboard.web.app/share/assignment/abc123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-assignment') {
+      expect(result.shareId).toBe('abc123');
+    } else {
+      throw new Error('Expected import-assignment action');
+    }
+  });
+
+  it('detects assignment share URLs with bare domain', () => {
+    const input = 'spartboard.web.app/share/assignment/xyz789';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-assignment') {
+      expect(result.shareId).toBe('xyz789');
+    } else {
+      throw new Error('Expected import-assignment action');
+    }
+  });
+
   it('does not treat quiz share URLs as board imports', () => {
     const input = 'https://spartboard.web.app/share/quiz/abc123';
     const result = detectWidgetType(input);
@@ -257,5 +298,102 @@ describe('detectWidgetType (Smart Paste)', () => {
     } else {
       throw new Error('Expected create-widget action');
     }
+  });
+
+  it('detects image URLs as stickers', () => {
+    const images = [
+      'https://example.com/image.png',
+      'https://example.com/image.jpg',
+      'https://example.com/image.jpeg',
+      'https://example.com/image.gif',
+      'https://example.com/image.webp',
+      'https://example.com/image.svg',
+      'https://example.com/image.png?v=1',
+      'https://example.com/image.png#main',
+    ];
+
+    images.forEach((input) => {
+      const result = detectWidgetType(input);
+      expect(result).not.toBeNull();
+      if (result?.action === 'create-widget') {
+        expect(result.type).toBe('sticker');
+        expect((result.config as StickerConfig).url).toBe(input);
+      } else {
+        throw new Error(`Expected create-widget action for ${input}`);
+      }
+    });
+  });
+
+  it('detects Google Sheets URLs', () => {
+    const input = 'https://docs.google.com/spreadsheets/d/1abc123/edit#gid=0';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toContain('/spreadsheets/d/1abc123/preview');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  it('detects Google Forms URLs', () => {
+    const input = 'https://docs.google.com/forms/d/e/1FAIpQLSf123/viewform';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'create-widget') {
+      expect(result.type).toBe('embed');
+      const config = result.config as EmbedConfig;
+      expect(config.url).toContain('embedded=true');
+    } else {
+      throw new Error('Expected create-widget action');
+    }
+  });
+
+  describe('checklist edge cases', () => {
+    it('detects 2 short paragraphs as checklist', () => {
+      const input = 'Item 1\n\nItem 2';
+      const result = detectWidgetType(input);
+      expect(result?.action).toBe('create-widget');
+      if (result?.action === 'create-widget') {
+        expect(result.type).toBe('checklist');
+      }
+    });
+
+    it('detects 2 paragraphs with one long item as text', () => {
+      const input = 'Item 1\n\n' + 'a'.repeat(251);
+      const result = detectWidgetType(input);
+      expect(result?.action).toBe('create-widget');
+      if (result?.action === 'create-widget') {
+        expect(result.type).toBe('text');
+      }
+    });
+
+    it('prompts for 3 short lines', () => {
+      const input = 'Line 1\nLine 2\nLine 3';
+      const result = detectWidgetType(input);
+      expect(result?.action).toBe('prompt-text-or-checklist');
+    });
+
+    it('treats 2 short lines as text', () => {
+      const input = 'Line 1\nLine 2';
+      const result = detectWidgetType(input);
+      expect(result?.action).toBe('create-widget');
+      if (result?.action === 'create-widget') {
+        expect(result.type).toBe('text');
+      }
+    });
+
+    it('treats 3 long lines as text', () => {
+      const input =
+        'a'.repeat(121) + '\n' + 'b'.repeat(121) + '\n' + 'c'.repeat(121);
+      const result = detectWidgetType(input);
+      expect(result?.action).toBe('create-widget');
+      if (result?.action === 'create-widget') {
+        expect(result.type).toBe('text');
+      }
+    });
   });
 });
