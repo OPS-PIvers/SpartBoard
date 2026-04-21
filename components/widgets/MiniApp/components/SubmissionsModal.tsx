@@ -9,7 +9,7 @@
  * sandboxed mini-app iframe's postMessage.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { X, Loader2, Inbox, ChevronDown, ChevronRight } from 'lucide-react';
 import { db } from '@/config/firebase';
@@ -135,14 +135,6 @@ const SubmissionRowView: React.FC<{
   expanded: boolean;
   onToggle: () => void;
 }> = ({ submission, expanded, onToggle }) => {
-  const prettyPayload = useMemo(() => {
-    try {
-      return JSON.stringify(submission.payload, null, 2);
-    } catch {
-      return String(submission.payload);
-    }
-  }, [submission.payload]);
-
   const Chevron = expanded ? ChevronDown : ChevronRight;
 
   return (
@@ -165,9 +157,17 @@ const SubmissionRowView: React.FC<{
       </button>
       {expanded && (
         <pre className="mt-2 rounded-xl bg-slate-900 text-slate-100 text-xs p-3 overflow-x-auto whitespace-pre-wrap break-all">
-          {prettyPayload}
+          {formatPayload(submission.payload)}
         </pre>
       )}
     </div>
   );
 };
+
+function formatPayload(payload: unknown): string {
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+}
