@@ -25,7 +25,6 @@ const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'].join(',');
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
   mode?: 'docs' | 'images';
-  maxItems?: number;
 }
 
 /** Max time (ms) to wait for the gapi script to become available. */
@@ -126,7 +125,6 @@ export const useGooglePicker = () => {
       }
 
       const mode = options?.mode ?? 'docs';
-      const maxItems = Math.max(1, options?.maxItems ?? 1);
 
       // Set synchronously before async work to prevent race conditions
       pickerActiveRef.current = true;
@@ -158,7 +156,7 @@ export const useGooglePicker = () => {
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)
               .setOAuthToken(googleAccessToken)
-              .setMaxItems(maxItems)
+              .setMaxItems(1)
               .setTitle(title)
               .setCallback((response: google.picker.ResponseObject) => {
                 const action = response[

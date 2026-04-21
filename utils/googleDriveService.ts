@@ -726,7 +726,15 @@ export class GoogleDriveService {
       { headers: this.headers }
     );
     if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.statusText}`);
+      const bodyExcerpt = await response
+        .text()
+        .then((t) => t.slice(0, 200))
+        .catch(() => '');
+      const statusText = response.statusText || 'Unknown error';
+      const suffix = bodyExcerpt ? ` — ${bodyExcerpt}` : '';
+      throw new Error(
+        `Failed to download file (${response.status} ${statusText})${suffix}`
+      );
     }
     const blob = await response.blob();
     return {

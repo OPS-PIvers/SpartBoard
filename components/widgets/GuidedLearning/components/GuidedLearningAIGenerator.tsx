@@ -76,7 +76,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: image.id });
+  } = useSortable({ id: image.id, disabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -97,9 +97,10 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-200 transition-colors"
+          {...(disabled ? {} : attributes)}
+          {...(disabled ? {} : listeners)}
+          disabled={disabled}
+          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Drag to reorder"
         >
           <GripVertical className="w-4 h-4" />
@@ -277,12 +278,15 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
   const handleGenerate = async () => {
     if (images.length === 0) return;
+    // Snapshot the image order at kickoff so a late reorder or remove can't
+    // desync the `imageIndex` values Gemini sees from the final `imageUrls`.
+    const snapshot = images;
     setGenerating(true);
     setError('');
     try {
       const fullPrompt =
         buildPromptWithFileContext(prompt, fileContext, fileName) || undefined;
-      const aiImages: GuidedLearningImageInput[] = images.map((img) => ({
+      const aiImages: GuidedLearningImageInput[] = snapshot.map((img) => ({
         base64: img.base64,
         mimeType: img.mimeType,
         caption: img.caption.trim() || undefined,
@@ -291,7 +295,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
         title: result.suggestedTitle,
-        imageUrls: images.map((img) => img.url),
+        imageUrls: snapshot.map((img) => img.url),
         steps: result.steps,
         mode: result.suggestedMode,
         createdAt: Date.now(),

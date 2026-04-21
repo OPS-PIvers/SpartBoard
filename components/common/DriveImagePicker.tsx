@@ -19,14 +19,14 @@ interface DriveImagePickerProps {
   className?: string;
   label?: string;
   variant?: 'light' | 'dark';
-  maxItems?: number;
 }
 
 /**
- * Lets users pick one or more images from Google Drive. Each pick is
+ * Lets users pick a single image from Google Drive. The picked file is
  * uploaded to Firebase Storage (via `uploadHotspotImage`) and converted to
  * base64 in parallel so the consumer can both render it and send the bytes
- * to Gemini.
+ * to Gemini. Callers that need multiple images should invoke this once per
+ * image.
  */
 export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
   onImageAdded,
@@ -34,7 +34,6 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
   className = '',
   label = 'Add image from Drive',
   variant = 'light',
-  maxItems = 5,
 }) => {
   const { user } = useAuth();
   const { openPicker, isConnected } = useGooglePicker();
@@ -50,7 +49,7 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
       setError(null);
 
       try {
-        const picked = await openPicker({ mode: 'images', maxItems });
+        const picked = await openPicker({ mode: 'images' });
         if (!picked) return;
 
         setLoading(true);
@@ -91,7 +90,6 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
       getDriveFileAsBlob,
       uploadHotspotImage,
       onImageAdded,
-      maxItems,
     ]
   );
 
