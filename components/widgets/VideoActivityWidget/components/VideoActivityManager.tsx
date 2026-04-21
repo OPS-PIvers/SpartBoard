@@ -23,6 +23,7 @@ import {
   AlertCircle,
   BarChart3,
   Ban,
+  CheckSquare,
   Copy,
   Edit2,
   FileUp,
@@ -39,9 +40,13 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -104,6 +109,11 @@ export interface VideoActivityManagerProps {
   onArchiveDeactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
+
+  /** Persisted library grid/list toggle (from widget config). */
+  initialLibraryViewMode?: 'grid' | 'list';
+  /** Persist the library grid/list toggle into widget config. */
+  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
 
   // Legacy per-activity session view (one-off session history). Kept for
   // backwards compatibility with existing Widget.tsx wiring; new work should
@@ -200,6 +210,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveDeactivate,
   onArchiveDelete,
   onArchiveResults,
+  initialLibraryViewMode,
+  onLibraryViewModeChange,
 }) => {
   const [tab, setTab] = useState<LibraryTab>('library');
 
@@ -236,6 +248,21 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folderPickerTarget, setFolderPickerTarget] =
+    useState<VideoActivityMetadata | null>(null);
+
+  /* ─── Bulk selection (Step 8) ─────────────────────────────────────────── */
+  const selection = useLibrarySelection();
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [prevManagerTab, setPrevManagerTab] = useState(tab);
+  if (prevManagerTab !== tab) {
+    setPrevManagerTab(tab);
+    if (tab !== 'library' && selectionMode) {
+      setSelectionMode(false);
+      selection.clear();
+    }
+  }
 
   // Reset folder selection when the signed-in user changes or the selected
   // folder no longer exists (adjust-state-during-render pattern).
@@ -267,8 +294,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const libraryView = useLibraryView<VideoActivityMetadata>({
     items: folderFilteredActivities,
     initialSort: LIBRARY_INITIAL_SORT,
+    initialViewMode: initialLibraryViewMode ?? 'grid',
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
+    onViewModeChange: onLibraryViewModeChange,
   });
 
   const onReorderCommit = useCallback(
@@ -299,6 +328,52 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     },
     [userId, moveItem]
   );
+
+  /* ─── Bulk handlers (Step 8) ──────────────────────────────────────────── */
+  const handleBulkMove = useCallback(
+    async (folderId: string | null): Promise<void> => {
+      if (!userId || selection.count === 0) return;
+      setBulkBusy(true);
+      try {
+        for (const id of Array.from(selection.selectedIds)) {
+          try {
+            await moveItem(id, folderId);
+          } catch (err) {
+            console.error(
+              '[VideoActivityManager] bulk move failed for',
+              id,
+              err
+            );
+          }
+        }
+        selection.clear();
+        setSelectionMode(false);
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [userId, selection, moveItem]
+  );
+
+  const handleBulkDelete = useCallback((): void => {
+    if (selection.count === 0) return;
+    const ok = window.confirm(
+      `Delete ${selection.count} activit${selection.count === 1 ? 'y' : 'ies'}? This cannot be undone.`
+    );
+    if (!ok) return;
+    const ids = Array.from(selection.selectedIds);
+    const targets = activities.filter((a) => ids.includes(a.id));
+    setBulkBusy(true);
+    try {
+      for (const activity of targets) {
+        onDelete(activity);
+      }
+      selection.clear();
+      setSelectionMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selection, activities, onDelete]);
 
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
@@ -382,8 +457,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     />
   );
 
-  const useExternalDnd = Boolean(userId);
-  const cardDragEnabled = useExternalDnd || Boolean(onReorderActivities);
+  const useExternalDnd = Boolean(userId) && !selectionMode;
+  const cardDragEnabled =
+    (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
 
   const renderLibraryTab = (): React.ReactElement => (
     <>
@@ -391,6 +467,19 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
+        </div>
+      )}
+
+      {selectionMode && selection.count > 0 && (
+        <div className="mb-3">
+          <BulkActionBar
+            count={selection.count}
+            onClear={() => selection.clear()}
+            folders={folderState.folders}
+            onMove={handleBulkMove}
+            onDelete={handleBulkDelete}
+            busy={bulkBusy}
+          />
         </div>
       )}
 
@@ -424,6 +513,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                   } satisfies LibraryMenuAction,
                 ]
               : []),
+            buildMoveToFolderAction({
+              onOpenPicker: () => setFolderPickerTarget(activity),
+              disabled: !userId,
+            }),
             {
               id: 'delete',
               label:
@@ -465,6 +558,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               onClick={() => onEdit(activity)}
               viewMode={libraryView.state.viewMode}
               meta={activity}
+              selectionMode={selectionMode}
+              selected={selection.isSelected(activity.id)}
+              onSelectionToggle={() => selection.toggle(activity.id)}
             />
           );
         }}
@@ -650,6 +746,33 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           { key: 'title', label: 'Title', defaultDir: 'asc' },
           { key: 'questionCount', label: 'Question count', defaultDir: 'desc' },
         ]}
+        rightSlot={
+          userId ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (selectionMode) {
+                  selection.clear();
+                  setSelectionMode(false);
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                selectionMode
+                  ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                  : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+              }`}
+              aria-pressed={selectionMode}
+              title={
+                selectionMode ? 'Exit selection mode' : 'Enter selection mode'
+              }
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectionMode ? 'Cancel' : 'Select'}
+            </button>
+          ) : undefined
+        }
       />
     ) : null;
 
@@ -745,6 +868,19 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         </LibraryDndContext>
       ) : (
         shell
+      )}
+
+      {folderPickerTarget && (
+        <FolderPickerPopover
+          variant="dialog"
+          folders={folderState.folders}
+          selectedFolderId={folderPickerTarget.folderId ?? null}
+          onSelect={(folderId) => {
+            void handleDropOnFolder(folderPickerTarget.id, folderId);
+          }}
+          onClose={() => setFolderPickerTarget(null)}
+          title={`Move "${folderPickerTarget.title}" to…`}
+        />
       )}
 
       {assignTarget && (

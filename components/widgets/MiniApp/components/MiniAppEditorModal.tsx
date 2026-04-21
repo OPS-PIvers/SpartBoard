@@ -20,8 +20,15 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
-import { MiniAppConfig, MiniAppItem, TextConfig, WidgetData } from '@/types';
+import {
+  LibraryFolder,
+  MiniAppConfig,
+  MiniAppItem,
+  TextConfig,
+  WidgetData,
+} from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -36,6 +43,10 @@ interface MiniAppEditorModalProps {
   widget: WidgetData;
   onClose: () => void;
   onSave: (updated: MiniAppItem) => Promise<void>;
+  /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
+  folders?: LibraryFolder[];
+  folderId?: string | null;
+  onFolderChange?: (folderId: string | null) => void;
 }
 
 export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
@@ -44,6 +55,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   widget,
   onClose,
   onSave,
+  folders,
+  folderId,
+  onFolderChange,
 }) => {
   const { canAccessFeature } = useAuth();
   const { updateWidget, addToast, activeDashboard } = useDashboard();
@@ -398,6 +412,14 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             </div>
           )}
         </div>
+
+        {folders && onFolderChange && (
+          <FolderSelectField
+            folders={folders}
+            value={folderId ?? null}
+            onChange={onFolderChange}
+          />
+        )}
 
         {/* HTML Code textarea */}
         <div className="flex-1 flex flex-col min-h-[250px]">

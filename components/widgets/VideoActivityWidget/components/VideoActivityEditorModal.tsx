@@ -23,8 +23,13 @@ import {
   X,
   Youtube,
 } from 'lucide-react';
-import { VideoActivityData, VideoActivityQuestion } from '@/types';
+import {
+  LibraryFolder,
+  VideoActivityData,
+  VideoActivityQuestion,
+} from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { useAuth } from '@/context/useAuth';
 import { generateVideoActivity } from '@/utils/ai';
 
@@ -37,6 +42,10 @@ interface VideoActivityEditorModalProps {
   aiEnabled?: boolean;
   /** Admin override — admins can use AI even when the widget-level toggle is off. */
   isAdmin?: boolean;
+  /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
+  folders?: LibraryFolder[];
+  folderId?: string | null;
+  onFolderChange?: (folderId: string | null) => void;
 }
 
 /** Convert total seconds to MM:SS string. */
@@ -100,6 +109,9 @@ export const VideoActivityEditorModal: React.FC<
   onSave,
   aiEnabled = true,
   isAdmin = false,
+  folders,
+  folderId,
+  onFolderChange,
 }) => {
   const { canAccessFeature } = useAuth();
   // Snapshot the activity when the modal opens so `isDirty` compares against
@@ -410,6 +422,14 @@ export const VideoActivityEditorModal: React.FC<
             />
           </div>
         </div>
+
+        {folders && onFolderChange && (
+          <FolderSelectField
+            folders={folders}
+            value={folderId ?? null}
+            onChange={onFolderChange}
+          />
+        )}
 
         {error && (
           <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">

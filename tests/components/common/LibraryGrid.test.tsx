@@ -83,8 +83,10 @@ describe('LibraryGrid', () => {
       name: /clear search to reorder/i,
     });
     expect(handles.length).toBeGreaterThan(0);
-    // Handles should be disabled while locked.
-    expect(handles[0]).toBeDisabled();
+    // The sortable wrapper reflects the lock via aria-disabled. The whole card
+    // is the drag activator (not a native <button>), so we assert the aria
+    // contract rather than the form-control disabled attribute.
+    expect(handles[0]).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('keyboard accessibility smoke test: drag handle is focusable and responds to Space', () => {
@@ -119,9 +121,10 @@ describe('LibraryGrid', () => {
 
     // We assert the integration path plumbed through — the exact dnd-kit
     // keyboard coordination is exercised in dnd-kit's own test suite; for
-    // us it's enough to verify the handle is a real focusable button
-    // participating in the DndContext. (Some jsdom environments don't
-    // fully simulate the keyboard sensor's internal layout math.)
-    expect(handles[0]).toHaveAttribute('type', 'button');
+    // us it's enough to verify the handle is a focusable element with the
+    // button role participating in the DndContext. (Some jsdom environments
+    // don't fully simulate the keyboard sensor's internal layout math.)
+    expect(handles[0]).toHaveAttribute('role', 'button');
+    expect(handles[0]).toHaveAttribute('tabindex', '0');
   });
 });

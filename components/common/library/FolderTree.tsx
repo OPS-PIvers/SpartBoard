@@ -23,6 +23,7 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import type { LibraryFolder } from '@/types';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
+import { useFolderPanelMode } from './LibraryFolderPanelContext';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -158,6 +159,8 @@ const FolderRow: React.FC<FolderRowProps> = ({
   onCreateChild,
   onMoveToRoot,
 }) => {
+  const panelMode = useFolderPanelMode();
+  const isRail = panelMode === 'rail';
   const dropData = useMemo<FolderDropData>(
     () => ({ type: 'folder', folderId: folder.id }),
     [folder.id]
@@ -169,10 +172,50 @@ const FolderRow: React.FC<FolderRowProps> = ({
   });
   const isOver = enableDrop && droppable.isOver;
 
+  // Rail mode: render a single icon button per folder so the tiny rail is
+  // still navigable. Nesting/rename/menu affordances are suppressed; the
+  // user can expand the panel to access them.
+  if (isRail) {
+    return (
+      <div
+        ref={enableDrop ? droppable.setNodeRef : undefined}
+        className={`flex items-center justify-center rounded-lg transition-colors ${
+          isSelected
+            ? 'bg-brand-blue-primary/15 text-brand-blue-dark'
+            : 'text-slate-500 hover:bg-slate-100'
+        } ${
+          isOver
+            ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
+            : ''
+        }`}
+        style={{ paddingBlock: 'min(6px, 1.5cqmin)' }}
+      >
+        <button
+          type="button"
+          onClick={() => onSelectFolder(folder.id)}
+          title={`${folder.name}${count > 0 ? ` (${count})` : ''}`}
+          aria-label={`${folder.name}, ${count} items`}
+          className="flex items-center justify-center"
+          style={{
+            width: 'min(32px, 9cqmin)',
+            height: 'min(32px, 9cqmin)',
+          }}
+        >
+          <Folder
+            style={{
+              width: 'min(16px, 4.5cqmin)',
+              height: 'min(16px, 4.5cqmin)',
+            }}
+          />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={enableDrop ? droppable.setNodeRef : undefined}
-      className={`group relative flex items-center gap-1 rounded-lg text-sm font-medium select-none transition-colors ${
+      className={`group relative flex items-center font-medium select-none rounded-lg transition-colors ${
         isSelected
           ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
           : 'text-slate-700 hover:bg-slate-100'
@@ -181,7 +224,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
           ? 'ring-2 ring-brand-blue-primary/60 bg-brand-blue-lighter/40'
           : ''
       }`}
-      style={{ paddingLeft: depth * INDENT_PX + 4 }}
+      style={{
+        paddingLeft: depth * INDENT_PX + 4,
+        gap: 'min(4px, 1cqmin)',
+        fontSize: 'min(13px, 4cqmin)',
+      }}
     >
       {/* Expand/collapse chevron. */}
       <button
@@ -258,11 +305,15 @@ const FolderRow: React.FC<FolderRowProps> = ({
       {/* Item count badge. */}
       {!isRenaming && count > 0 && (
         <span
-          className={`shrink-0 inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none ${
+          className={`shrink-0 inline-flex items-center justify-center rounded-full font-bold leading-none ${
             isSelected
               ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
               : 'bg-slate-200 text-slate-600'
           }`}
+          style={{
+            paddingInline: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(10px, 3cqmin)',
+          }}
         >
           {count}
         </span>

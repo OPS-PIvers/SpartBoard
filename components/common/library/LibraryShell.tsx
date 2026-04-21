@@ -1,10 +1,52 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { BookOpen, Activity, Archive as ArchiveIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  BookOpen,
+  Activity,
+  Archive as ArchiveIcon,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react';
 import type {
   LibraryShellProps,
   LibraryTab,
   LibraryPrimaryAction,
+  LibraryFolderPanelSetting,
 } from './types';
+import {
+  LibraryFolderPanelContext,
+  type FolderPanelMode,
+} from './LibraryFolderPanelContext';
+
+/**
+ * Widget-width breakpoints (px) for auto-collapsing the folder panel. Below
+ * `HIDE_BELOW_PX` the panel is not rendered (caller surfaces a picker
+ * elsewhere); below `RAIL_BELOW_PX` the panel shrinks to an icon rail.
+ */
+const HIDE_BELOW_PX = 360;
+const RAIL_BELOW_PX = 560;
+
+const resolveFolderPanelMode = (
+  setting: LibraryFolderPanelSetting,
+  widthPx: number | null
+): FolderPanelMode => {
+  if (setting === 'full' || setting === 'rail' || setting === 'hidden') {
+    return setting;
+  }
+  if (widthPx == null) return 'full';
+  if (widthPx < HIDE_BELOW_PX) return 'hidden';
+  if (widthPx < RAIL_BELOW_PX) return 'rail';
+  return 'full';
+};
+
+const cycleFolderPanelSetting = (
+  current: FolderPanelMode
+): LibraryFolderPanelSetting => {
+  // Toggle progression: full ↔ rail ↔ hidden. Always lands on an explicit
+  // setting so the user's choice sticks (instead of reverting to 'auto').
+  if (current === 'full') return 'rail';
+  if (current === 'rail') return 'hidden';
+  return 'full';
+};
 
 interface TabDef {
   key: LibraryTab;
@@ -76,8 +118,19 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   secondaryActions,
   toolbarSlot,
   filterSidebarSlot,
+  folderPanelMode: folderPanelModeProp,
+  onFolderPanelModeChange,
   children,
 }) => {
+  // When the caller doesn't wire a controlled setting, fall back to internal
+  // state so the chevron toggle still works (just won't persist across mounts).
+  const [uncontrolledMode, setUncontrolledMode] =
+    useState<LibraryFolderPanelSetting>('auto');
+  const folderPanelSetting = folderPanelModeProp ?? uncontrolledMode;
+  const setFolderPanelSetting = (next: LibraryFolderPanelSetting): void => {
+    if (onFolderPanelModeChange) onFolderPanelModeChange(next);
+    else setUncontrolledMode(next);
+  };
   const tabs: TabDef[] = [
     {
       key: 'library',
@@ -116,6 +169,17 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   }, []);
   const buttonCount = (primaryAction ? 1 : 0) + (secondaryActions?.length ?? 0);
   const labelsHidden = rootWidth != null && rootWidth < 260 + buttonCount * 110;
+
+  const effectiveFolderPanelMode: FolderPanelMode = useMemo(
+    () => resolveFolderPanelMode(folderPanelSetting, rootWidth),
+    [folderPanelSetting, rootWidth]
+  );
+  const folderPanelContextValue = useMemo(
+    () => ({ mode: effectiveFolderPanelMode }),
+    [effectiveFolderPanelMode]
+  );
+  const shouldRenderFolderPanel =
+    filterSidebarSlot != null && effectiveFolderPanelMode !== 'hidden';
 
   return (
     <section
@@ -231,10 +295,99 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       )}
 
       <div className="flex flex-1 min-h-0">
-        {filterSidebarSlot && (
-          <aside className="w-60 shrink-0 bg-white/40 backdrop-blur-sm border-r border-slate-200/70 overflow-y-auto">
-            {filterSidebarSlot}
-          </aside>
+        {shouldRenderFolderPanel && (
+          <LibraryFolderPanelContext.Provider value={folderPanelContextValue}>
+            <aside
+              className="shrink-0 bg-white/40 backdrop-blur-sm border-r border-slate-200/70 overflow-y-auto flex flex-col"
+              style={{
+                width:
+                  effectiveFolderPanelMode === 'rail'
+                    ? 'min(56px, 14cqmin)'
+                    : 'min(240px, 30cqmin)',
+              }}
+              aria-label="Folders"
+            >
+              <div
+                className="flex items-center justify-end shrink-0"
+                style={{
+                  paddingInline:
+                    effectiveFolderPanelMode === 'rail'
+                      ? 'min(4px, 1cqmin)'
+                      : 'min(8px, 2cqmin)',
+                  paddingBlock: 'min(6px, 1.5cqmin)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFolderPanelSetting(
+                      cycleFolderPanelSetting(effectiveFolderPanelMode)
+                    )
+                  }
+                  className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+                  style={{
+                    width: 'min(28px, 7cqmin)',
+                    height: 'min(28px, 7cqmin)',
+                  }}
+                  title={
+                    effectiveFolderPanelMode === 'full'
+                      ? 'Collapse folders'
+                      : effectiveFolderPanelMode === 'rail'
+                        ? 'Hide folders'
+                        : 'Show folders'
+                  }
+                  aria-label="Toggle folder panel"
+                >
+                  {effectiveFolderPanelMode === 'full' ? (
+                    <ChevronsLeft
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <ChevronsRight
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  )}
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {filterSidebarSlot}
+              </div>
+            </aside>
+          </LibraryFolderPanelContext.Provider>
+        )}
+        {!shouldRenderFolderPanel && filterSidebarSlot != null && (
+          <div
+            className="shrink-0 border-r border-slate-200/70 bg-white/40 backdrop-blur-sm flex items-start justify-center"
+            style={{
+              paddingInline: 'min(6px, 1.5cqmin)',
+              paddingBlock: 'min(8px, 2cqmin)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setFolderPanelSetting('rail')}
+              className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
+              style={{
+                width: 'min(28px, 7cqmin)',
+                height: 'min(28px, 7cqmin)',
+              }}
+              title="Show folders"
+              aria-label="Show folders"
+            >
+              <ChevronsRight
+                style={{
+                  width: 'min(16px, 4.5cqmin)',
+                  height: 'min(16px, 4.5cqmin)',
+                }}
+              />
+            </button>
+          </div>
         )}
         <div
           role="tabpanel"

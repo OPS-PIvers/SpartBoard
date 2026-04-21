@@ -1187,6 +1187,8 @@ export interface MiniAppConfig {
   collectResults?: boolean; // Toggle switch state
   googleSheetId?: string; // Extracted Sheet ID
   googleSheetUrl?: string; // Original pasted URL for UI
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
 }
 
 // Add new Global Config type
@@ -1721,6 +1723,8 @@ export interface QuizConfig {
   liveScoreboardMode?: 'pin' | 'name';
   /** When to update scores: on quiz completion or after each question */
   liveScoreboardScoring?: 'completion' | 'per-question';
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -1847,6 +1851,8 @@ export interface VideoActivityConfig {
   autoPlay?: boolean;
   requireCorrectAnswer?: boolean;
   allowSkipping?: boolean;
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
 }
 
 export interface VideoActivitySessionSettings {
@@ -2521,6 +2527,8 @@ export interface GuidedLearningConfig {
   playerSetId?: string | null;
   /** Session ID when viewing results */
   resultsSessionId?: string | null;
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
 }
 
 // Union of all widget configs

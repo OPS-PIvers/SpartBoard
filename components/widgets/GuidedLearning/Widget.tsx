@@ -13,6 +13,7 @@ import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
+import { useFolders } from '@/hooks/useFolders';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
@@ -71,6 +72,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
+
+  const { folders: glFolders, moveItem: moveGlItem } = useFolders(
+    user?.uid,
+    'guided_learning'
+  );
   const [showAIGen, setShowAIGen] = useState(false);
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
@@ -407,6 +413,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onAssignmentDelete={(a) => {
                   void handleAssignmentDelete(a);
                 }}
+                initialLibraryViewMode={config.libraryViewMode}
+                onLibraryViewModeChange={(mode) => {
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      libraryViewMode: mode,
+                    } as GuidedLearningConfig,
+                  });
+                }}
               />
             )}
 
@@ -453,6 +468,25 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         isOpen={!!editingSet}
         set={editingSet}
         meta={editingMeta}
+        folders={editingMeta ? glFolders : undefined}
+        folderId={editingMeta?.folderId ?? null}
+        onFolderChange={
+          editingMeta
+            ? async (folderId) => {
+                try {
+                  await moveGlItem(editingMeta.id, folderId);
+                  addToast('Folder updated.', 'success');
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to update folder',
+                    'error'
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => {
           setEditingSet(null);
           setEditingMeta(null);

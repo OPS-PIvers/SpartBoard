@@ -23,6 +23,7 @@ import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
+import { useFolders } from '@/hooks/useFolders';
 import {
   collection,
   doc,
@@ -397,6 +398,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     }
   };
   const [editingApp, setEditingApp] = useState<MiniAppItem | null>(null);
+
+  const { folders: miniAppFolders, moveItem: moveMiniAppItem } = useFolders(
+    user?.uid,
+    'miniapp'
+  );
 
   // Unsaved paste state: shown as an overlay when activeAppUnsaved is true
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -830,6 +836,25 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         isOpen={!!editingApp}
         app={editingApp}
         widget={widget}
+        folders={editingApp ? miniAppFolders : undefined}
+        folderId={editingApp?.folderId ?? null}
+        onFolderChange={
+          editingApp
+            ? async (folderId) => {
+                try {
+                  await moveMiniAppItem(editingApp.id, folderId);
+                  addToast('Folder updated.', 'success');
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to update folder',
+                    'error'
+                  );
+                }
+              }
+            : undefined
+        }
         onClose={() => setEditingApp(null)}
         onSave={saveMiniApp}
       />
@@ -868,6 +893,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
+              initialLibraryViewMode={config.libraryViewMode}
+              onLibraryViewModeChange={(mode) =>
+                updateWidget(widget.id, {
+                  config: { ...config, libraryViewMode: mode } as MiniAppConfig,
+                })
+              }
             />
             {/* Assign modal */}
             {!isStudentView && assigningApp && (

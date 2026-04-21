@@ -42,6 +42,7 @@ import {
   Loader2,
   ExternalLink,
   Copy,
+  CheckSquare,
 } from 'lucide-react';
 import type {
   MiniAppItem,
@@ -54,9 +55,13 @@ import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
+import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -115,6 +120,11 @@ export interface MiniAppManagerProps {
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
+
+  /** Persisted library grid/list toggle (from widget config). */
+  initialLibraryViewMode?: 'grid' | 'list';
+  /** Persist the library grid/list toggle into widget config. */
+  onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
 }
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
@@ -222,6 +232,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveEnd,
   onArchiveDelete,
   onArchiveOpenApp,
+  initialLibraryViewMode,
+  onLibraryViewModeChange,
 }) => {
   /* ── Assignment buckets ─────────────────────────────────────────────── */
   const activeAssignments = useMemo(
@@ -233,9 +245,27 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [assignments]
   );
 
+  /* ── Bulk selection (Step 8) ───────────────────────────────────────── */
+  const selection = useLibrarySelection();
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [prevTab, setPrevTab] = useState(tab);
+  if (prevTab !== tab) {
+    setPrevTab(tab);
+    if (tab !== 'library' && selectionMode) {
+      setSelectionMode(false);
+      selection.clear();
+    }
+  }
+
   /* ── Folder navigation (Wave 3-B-3) ────────────────────────────────── */
   const folderState = useFolders(userId, 'miniapp');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folderPickerTarget, setFolderPickerTarget] = useState<{
+    id: string;
+    title: string;
+    folderId: string | null;
+  } | null>(null);
 
   // Reset folder selection when the signed-in user changes or the selected
   // folder no longer exists (adjust-state-during-render pattern). We clear the
@@ -308,6 +338,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
     filterPredicates: LIBRARY_FILTER_PREDICATES,
+    initialViewMode: initialLibraryViewMode ?? 'grid',
+    onViewModeChange: onLibraryViewModeChange,
   });
 
   const source: MiniAppSource =
@@ -362,6 +394,54 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [userId, moveItem]
   );
 
+  /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
+  const handleBulkDelete = useCallback((): void => {
+    if (selection.count === 0) return;
+    const personalIds = Array.from(selection.selectedIds).filter((id) =>
+      id.startsWith('personal:')
+    );
+    if (personalIds.length === 0) return;
+    const ok = window.confirm(
+      `Delete ${personalIds.length} app${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setBulkBusy(true);
+    try {
+      for (const id of personalIds) {
+        const rawId = id.slice('personal:'.length);
+        const app = personalLibrary.find((a) => a.id === rawId);
+        if (app) onDelete(app);
+      }
+      selection.clear();
+      setSelectionMode(false);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selection, personalLibrary, onDelete]);
+
+  const handleBulkMove = useCallback(
+    async (folderId: string | null): Promise<void> => {
+      if (!userId || selection.count === 0) return;
+      setBulkBusy(true);
+      try {
+        for (const id of Array.from(selection.selectedIds)) {
+          if (!id.startsWith('personal:')) continue;
+          const rawId = id.slice('personal:'.length);
+          try {
+            await moveItem(rawId, folderId);
+          } catch (err) {
+            console.error('[MiniAppManager] bulk move failed for', id, err);
+          }
+        }
+        selection.clear();
+        setSelectionMode(false);
+      } finally {
+        setBulkBusy(false);
+      }
+    },
+    [userId, selection, moveItem]
+  );
+
   /* ── Folder sidebar (Library tab + personal source only) ─────────────── */
   const folderSidebarSlot =
     tab === 'library' && userId && !isGlobalView ? (
@@ -404,6 +484,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         icon: Pencil,
         onClick: () => onEdit(app),
       },
+      buildMoveToFolderAction({
+        onOpenPicker: () =>
+          setFolderPickerTarget({
+            id: app.id,
+            title: app.title,
+            folderId: app.folderId ?? null,
+          }),
+        disabled: !userId,
+      }),
       {
         id: 'delete',
         label: 'Delete',
@@ -435,8 +524,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         }}
         secondaryActions={secondary}
         onClick={() => onEdit(app)}
-        sortable
+        sortable={!selectionMode}
         viewMode={view.state.viewMode}
+        selectionMode={selectionMode}
+        selected={selection.isSelected(getRowId(row))}
+        onSelectionToggle={() => selection.toggle(getRowId(row))}
       />
     );
   }
@@ -676,38 +768,55 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // Enable card drag when a teacher is signed in so drag-to-folder works.
     // In the Global view we keep drag disabled — global items are read-only
     // and never move between folders.
-    const enableCardDrag = Boolean(userId) && !isGlobalView;
+    const enableCardDrag = Boolean(userId) && !isGlobalView && !selectionMode;
     // When folder drag is enabled we keep the drag handle active so cards can
     // be dropped on folder tiles — even in filtered/sorted views. The card-to-
     // card reorder commit is gated separately (see the onReorder wiring on
     // the shared `LibraryDndContext` below), so a non-manual sort won't persist
     // a new order.
     tabContent = (
-      <LibraryGrid<UnifiedRow>
-        items={view.visibleItems}
-        getId={getRowId}
-        renderCard={renderCard}
-        onReorder={
-          isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
-        }
-        dragDisabled={isGlobalView}
-        reorderLocked={
-          enableCardDrag ? false : !isGlobalView && view.reorderLocked
-        }
-        reorderLockedReason={
-          enableCardDrag ? undefined : view.reorderLockedReason
-        }
-        layout={view.state.viewMode}
-        useExternalDndContext={enableCardDrag}
-        emptyState={empty}
-      />
+      <>
+        {selectionMode && selection.count > 0 && (
+          <div className="mb-3">
+            <BulkActionBar
+              count={selection.count}
+              onClear={() => {
+                selection.clear();
+                setSelectionMode(false);
+              }}
+              folders={folderState.folders}
+              onMove={handleBulkMove}
+              onDelete={handleBulkDelete}
+              busy={bulkBusy}
+            />
+          </div>
+        )}
+        <LibraryGrid<UnifiedRow>
+          items={view.visibleItems}
+          getId={getRowId}
+          renderCard={renderCard}
+          onReorder={
+            isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
+          }
+          dragDisabled={isGlobalView || selectionMode}
+          reorderLocked={
+            enableCardDrag ? false : !isGlobalView && view.reorderLocked
+          }
+          reorderLockedReason={
+            enableCardDrag ? undefined : view.reorderLockedReason
+          }
+          layout={view.state.viewMode}
+          useExternalDndContext={enableCardDrag}
+          emptyState={empty}
+        />
+      </>
     );
   }
 
   /* ── Shared DndContext wiring (must wrap full shell so FolderSidebar
    *    droppables live in the same context as sortable cards) ───────────── */
   const libraryDndEnabled =
-    tab === 'library' && Boolean(userId) && !isGlobalView;
+    tab === 'library' && Boolean(userId) && !isGlobalView && !selectionMode;
   const orderedRowIds = libraryDndEnabled
     ? view.visibleItems.map(getRowId)
     : [];
@@ -756,6 +865,33 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onFilterChange={view.toolbarProps.onFilterChange}
         viewMode={view.toolbarProps.viewMode}
         onViewModeChange={view.toolbarProps.onViewModeChange}
+        rightSlot={
+          userId && !isGlobalView ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (selectionMode) {
+                  selection.clear();
+                  setSelectionMode(false);
+                } else {
+                  setSelectionMode(true);
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                selectionMode
+                  ? 'bg-brand-blue-primary text-white hover:bg-brand-blue-dark'
+                  : 'bg-white/70 text-slate-600 hover:bg-white hover:text-slate-800'
+              }`}
+              aria-pressed={selectionMode}
+              title={
+                selectionMode ? 'Exit selection mode' : 'Enter selection mode'
+              }
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectionMode ? 'Cancel' : 'Select'}
+            </button>
+          ) : undefined
+        }
       />
     ) : null;
 
@@ -786,16 +922,35 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     void reorderHook.handleReorder(ids);
   };
 
+  const folderPickerDialog = folderPickerTarget ? (
+    <FolderPickerPopover
+      variant="dialog"
+      folders={folderState.folders}
+      selectedFolderId={folderPickerTarget.folderId}
+      onSelect={(folderId) => {
+        void handleDropOnFolder(folderPickerTarget.id, folderId);
+      }}
+      onClose={() => setFolderPickerTarget(null)}
+      title={`Move "${folderPickerTarget.title}" to…`}
+    />
+  ) : null;
+
   return libraryDndEnabled ? (
-    <LibraryDndContext
-      itemIds={orderedRowIds}
-      onDropOnFolder={handleDropOnFolder}
-      onReorder={handleLibraryReorderDrop}
-      renderOverlay={renderLibraryDragOverlay}
-    >
-      {shell}
-    </LibraryDndContext>
+    <>
+      <LibraryDndContext
+        itemIds={orderedRowIds}
+        onDropOnFolder={handleDropOnFolder}
+        onReorder={handleLibraryReorderDrop}
+        renderOverlay={renderLibraryDragOverlay}
+      >
+        {shell}
+      </LibraryDndContext>
+      {folderPickerDialog}
+    </>
   ) : (
-    shell
+    <>
+      {shell}
+      {folderPickerDialog}
+    </>
   );
 };
