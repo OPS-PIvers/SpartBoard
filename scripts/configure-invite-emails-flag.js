@@ -60,8 +60,8 @@ const FLAG_ID = 'invite-emails';
 
 // Default sender for the initial Option A smoke-test path. Resend's
 // onboarding@resend.dev sender works without domain verification but can
-// only deliver to the Resend account's own verified email address
-// (paul.ivers@orono.k12.mn.us). Swap via --from once a real domain is live.
+// only deliver to the Resend account's own verified recipient. See
+// internal email setup docs and swap via --from once a real domain is live.
 const DEFAULT_FROM = 'onboarding@resend.dev';
 
 function parseArgs(argv) {
