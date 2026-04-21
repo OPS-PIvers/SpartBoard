@@ -245,6 +245,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isRefreshingRef = useRef(false);
   // Prevents duplicate root-doc syncs within the same session
   const rootDocSyncedRef = useRef(false);
+  // Prevents duplicate member-doc `lastActive` stamps within the same session
+  const memberLastActiveSyncedRef = useRef(false);
 
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
@@ -828,6 +830,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [user, profileLoaded, selectedBuildings]);
 
+  // Stamp /organizations/{orgId}/members/{emailLower}.lastActive on sign-in so
+  // the Organization admin panel's "Last active" column reflects real sign-ins
+  // (and not just invitation-claim time, which is the only other write path).
+  // Gated by a self-write branch in firestore.rules that only permits writing
+  // the `lastActive` field to one's own member doc. Fires once per session.
+  useEffect(() => {
+    if (!user || isAuthBypass) return;
+    if (!orgId || !user.email) return;
+    if (memberLastActiveSyncedRef.current) return;
+    memberLastActiveSyncedRef.current = true;
+
+    const emailLower = user.email.toLowerCase();
+    void setDoc(
+      doc(db, 'organizations', orgId, 'members', emailLower),
+      { lastActive: new Date().toISOString() },
+      { merge: true }
+    ).catch((err: unknown) => {
+      console.error('Error stamping member lastActive:', err);
+      memberLastActiveSyncedRef.current = false;
+    });
+  }, [user, orgId]);
+
   const setSelectedBuildings = useCallback(
     async (buildings: string[]) => {
       setSelectedBuildingsState(buildings);
@@ -1024,6 +1048,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setUser(null);
             setGoogleAccessToken(null);
             rootDocSyncedRef.current = false;
+            memberLastActiveSyncedRef.current = false;
             setLoading(false);
             void firebaseSignOut(auth).catch((err: unknown) => {
               console.error(
@@ -1042,6 +1067,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!firebaseUser) {
         setGoogleAccessToken(null);
         rootDocSyncedRef.current = false;
+        memberLastActiveSyncedRef.current = false;
       }
       setLoading(false);
     });
