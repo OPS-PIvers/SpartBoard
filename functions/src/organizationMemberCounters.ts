@@ -122,15 +122,25 @@ export function resolveDomainDocId(
  *    `update` fails with "No document to update", which we log and skip.
  *  - The org doc always exists, so its increment uses `update()` and is
  *    treated as an error if it fails.
- *  - NEVER throws. Firestore retries thrown triggers, which on a counter
- *    trigger could double-count. We log and swallow exceptions instead.
- *    Operators rely on `scripts/recount-org-members.js` as the reconcile
- *    tool if a partial failure drifts the counters.
+ *  - NEVER throws. Throwing from the handler triggers Firestore's
+ *    handler-level retry, which on a counter trigger would deterministically
+ *    double-apply every per-path increment that succeeded before the throw.
+ *    We log and swallow exceptions instead. Note that this only suppresses
+ *    handler-retry duplication — Firestore/Eventarc delivery is itself
+ *    at-least-once, so a rare duplicate invocation could still double-apply
+ *    a delta. `scripts/recount-org-members.js` is the authoritative
+ *    reconcile tool for any drift (predated writes, partial failures, or
+ *    the duplicate-delivery case).
  */
 export const organizationMemberCounters = onDocumentWritten(
   'organizations/{orgId}/members/{emailLower}',
   async (event) => {
-    const { orgId, emailLower } = event.params;
+    const { orgId, emailLower: rawEmailLower } = event.params;
+    // Defensive normalization, matching organizationMembersSync. Phase 1
+    // rules enforce lowercase doc ids, but lowercasing again is cheap
+    // insurance against a future rule relaxation.
+    const emailLower =
+      typeof rawEmailLower === 'string' ? rawEmailLower.toLowerCase() : '';
     const change = event.data;
     if (!change) {
       logger.warn('organizationMemberCounters: received event without data', {
