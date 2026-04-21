@@ -116,3 +116,52 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1354 head SHA `d8cf3e3d` — two `useEffect`s converted in `SidebarBackgrounds.tsx`; `useEffect` still used for Google Drive fetch elsewhere in the file
   - PR #1353 head SHA `7a043e4a` — draft, no CI triggered; diff covers MathTools/Widget.tsx + 4 journal files + new `tests/hooks/useLiveSession.test.ts` (201 lines, 9 tests covering `joinSession` validation)
   - PR #1335 head SHA `5a78487e` — largest PR in the review cycle; rollback risk is very high if a regression ships
+
+## 2026-04-21
+
+- PRs reviewed:
+  - #1364 — fix(deps): patch vite arbitrary file read + rollup path traversal CVEs (head `claude/beautiful-sagan-6pOsV`, base `dev-paul`, DRAFT)
+  - #1363 — ⚡ Parallelize user profile batch reads in adminAnalytics (head `perf-admin-analytics-concurrency-6701482378594574203`, base `dev-paul`, DRAFT)
+  - #1362 — feat(org): link org buildings to all admin widget configs (head `claude/link-buildings-feature-permissions-jJ6vS`, base `dev-paul`)
+  - #1361 — ⚡ Parallelize Firestore batch reads in adminAnalytics (head `perf-optimize-admin-analytics-concurrency-10708163277250221314`, base `dev-paul`)
+  - #1360 — 🧪 Add tests for smartPaste widget detection (head `testing-improvement-smart-paste-1333681013903441932`, base `dev-paul`)
+  - #1359 — feat(org): add organizationMemberCounters CF (head `claude/fix-building-user-count-F7BqF`, base `dev-paul`)
+  - #1358 — feat(org): super admin click-to-cycle editing for system role perms (head `claude/editable-admin-permissions-O5prX`, base `dev-paul`, DRAFT)
+  - #1355 — 🧹 remove leftover console.log in adminAnalytics (head `code-health-remove-logs-admin-analytics-16413078109270849377`, base `dev-paul`)
+  - #1354 — Refactor `useEffect` prop synchronization in `SidebarBackgrounds` (head `refactor-use-effect-prop-sync-2711741412273027246`, base `dev-paul`)
+  - #1353 — fix(math-tools): scale empty-state and tab-bar spacing with cqmin (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+- Comments processed: 40 total — 1 new fix pushed, 39 already addressed or explained
+  - PR #1364: 1 unresolved thread from gemini — architectural discussion about test mocking pattern (no fix)
+  - PR #1363: 11 threads — 9 already `Fixed.` by google-labs-jules; 1 unresolved Copilot comment about `payload.message` length cap flagged in review
+  - PR #1362: 6 threads — all resolved by author with follow-up commits (1f929d7, bac8d62); slug-ID standardization addresses the main Copilot concern
+  - PR #1361: 9 threads — all already `Fixed.` by google-labs-jules in follow-up commits
+  - PR #1360: 1 thread — **automated fix pushed** (de5d221): relative `'../types'` → `'@/types'` alias per gemini suggestion
+  - PR #1359: 5 threads — 4 already replied to; 1 unresolved Copilot comment about `functions/**` test exclusion flagged in review
+  - PR #1358: 7 threads — all resolved by author with follow-up commits (3d66fd3, 6d1de14, 6deaab9, 584d350); `permsEqual` typing + a11y + key-order test all addressed
+  - PR #1355: 0 threads
+  - PR #1354: 0 threads
+  - PR #1353: 6 threads — 4 already replied to explaining non-actionability; 2 new Copilot comments about PR scope + test mocking flagged in review
+- Fixes pushed: 1
+  - PR #1360 `testing-improvement-smart-paste-1333681013903441932` — `utils/smartPaste.test.ts` switched to `@/types` alias (type-check ✓, lint ✓, 31/31 tests pass)
+- Reviews posted: 10
+  - PR #1364: Ready — dependency patch is tight and well-verified; noted scope-creep with MathTools + useLiveSession test additions
+  - PR #1363: Ready with minor notes — parallelization clean; flagged `payload.message` length-cap gap on new `/mail` write path
+  - PR #1362: Ready with minor notes — large but tidy refactor; slug-ID standardization resolves ID-consistency risk; flagged LunchCount widget still has hardcoded 4-member union
+  - PR #1361: Ready with minor notes — concurrency cap addresses earlier rate-limit concern; noted overlap with #1363 on `/mail` + invite-email scope
+  - PR #1360: Ready — test-only PR; automated fix for @/ alias pushed
+  - PR #1359: Ready with minor notes — clean Phase 4.1 trigger; flagged at-least-once delivery caveat and CI not running `functions/**` tests
+  - PR #1358: Ready — all Copilot/gemini concerns addressed with follow-up commits + new tests
+  - PR #1355: Ready — zero-risk hygiene cleanup
+  - PR #1354: Ready — correct implementation of "adjusting state while rendering" pattern from CLAUDE.md
+  - PR #1353: Ready with minor notes — MathTools scaling fix correct; noted scope-creep with useLiveSession test; verified useLiveSession mocking actually works (Vitest alias resolution shares module instance)
+- Notes:
+  - PR #1364 head SHA `ab0c9f1618` — rebased on top of scheduled-tasks, pulls in MathTools + useLiveSession scope from #1353
+  - PR #1363 head SHA `46b5e14656` — near-duplicate invite-email scope with #1361
+  - PR #1362 head SHA `bac8d62b19` — 50+ admin panel migrations, largest surface-area PR in the cycle
+  - PR #1361 head SHA `245b43a1c7` — concurrency cap of 10 × 500 refs in flight; monitor Firestore quota post-deploy
+  - PR #1360 head SHA before fix `becaed8448`, after fix `de5d221` — fix pushed to `testing-improvement-smart-paste-1333681013903441932`
+  - PR #1359 head SHA `4d60abcd2c` — 21/21 helper tests in functions/ but CI doesn't run them (vitest.config.ts excludes `functions/**`)
+  - PR #1358 head SHA `584d3508b6` — Firestore rules adjustment for super-admin system-role perms editing is the security-sensitive piece
+  - PR #1355 head SHA `02822790` — unchanged since 2026-04-20 entry
+  - PR #1354 head SHA `d8cf3e3d` — unchanged since 2026-04-20 entry
+  - PR #1353 head SHA `525aa6c313` — useLiveSession mocking concern investigated and confirmed non-issue (Vitest resolves `@/config/firebase` and `../config/firebase` to the same module)
