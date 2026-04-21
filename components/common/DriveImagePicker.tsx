@@ -4,6 +4,7 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
+import { blobToBase64 } from '@/utils/fileEncoding';
 
 export interface PickedDriveImage {
   url: string;
@@ -20,18 +21,6 @@ interface DriveImagePickerProps {
   variant?: 'light' | 'dark';
   maxItems?: number;
 }
-
-const blobToBase64 = (blob: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const commaIndex = dataUrl.indexOf(',');
-      resolve(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
-    reader.readAsDataURL(blob);
-  });
 
 /**
  * Lets users pick one or more images from Google Drive. Each pick is

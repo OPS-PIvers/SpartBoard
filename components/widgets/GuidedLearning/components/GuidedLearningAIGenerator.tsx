@@ -37,6 +37,7 @@ import {
   DriveImagePicker,
   PickedDriveImage,
 } from '@/components/common/DriveImagePicker';
+import { blobToBase64 } from '@/utils/fileEncoding';
 import { Z_INDEX } from '@/config/zIndex';
 
 interface Props {
@@ -52,18 +53,6 @@ interface GeneratorImage {
   fileName: string;
   caption: string;
 }
-
-const fileToBase64 = (file: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const commaIndex = dataUrl.indexOf(',');
-      resolve(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
-    reader.readAsDataURL(file);
-  });
 
 interface SortableImageRowProps {
   image: GeneratorImage;
@@ -189,7 +178,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           files.map(async (file) => {
             const [url, base64] = await Promise.all([
               uploadHotspotImage(user.uid, file),
-              fileToBase64(file),
+              blobToBase64(file),
             ]);
             return {
               id: crypto.randomUUID(),
