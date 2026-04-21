@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-04-21_
-_Last action: 2026-04-14_
+_Last action: 2026-04-21_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### HIGH `vite` dev server has HIGH arbitrary file read vulnerability
-
-- **Detected:** 2026-04-14
-- **File:** package.json (`"vite": "^6.4.1"` locked at 6.4.1)
-- **Detail:** HIGH vulnerability in the Vite dev server allows arbitrary file reads via path traversal in certain server configurations. While this only affects the dev server (not production builds), it affects the development environment and CI preview builds.
-- **Fix:** `pnpm up vite@latest` within the ^6.x range, or upgrade to vite 7+ if a patched version is available. Also check rollup (locked at 4.55.1) — HIGH path traversal in rollup >=4.0.0 <4.59.0, fix: rollup@>=4.59.0. Running `pnpm up vite` should pull in the updated rollup as a transitive dep.
 
 ### HIGH `hono` has authorization bypass, arbitrary file access, and HTML injection vulnerabilities
 
@@ -108,6 +101,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `vite` dev server has HIGH arbitrary file read vulnerability
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-21
+- **File:** package.json
+- **Detail:** HIGH vulnerability in the Vite dev server allows arbitrary file reads via path traversal. Rollup (transitive dep of Vite) also had a HIGH path traversal issue in versions <4.59.0.
+- **Resolution:** Ran `pnpm up vite` which upgraded `vite` from 6.4.1 → 6.4.2 (semver-compatible within ^6.x range). `pnpm up vite` did not pull in a newer rollup on its own, so added `"rollup": "^4.59.0"` to the existing `pnpm.overrides` block in `package.json`. After reinstall, rollup resolved to 4.60.2. Verified both advisories cleared in `pnpm audit`. `pnpm type-check`, `pnpm -C functions type-check`, `pnpm lint --max-warnings 0`, `pnpm format:check`, `pnpm build` (23.5s, successful), and `pnpm test` (all 1367 unit tests pass across 150 files) all clean.
 
 ### HIGH `axios` direct dependency has CRITICAL CVEs — upgrade to >=1.15.0
 
