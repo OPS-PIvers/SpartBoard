@@ -180,10 +180,14 @@ export function buildingRecordToBuilding(record: BuildingRecord): Building {
     name: record.name,
     gradeLevels,
     gradeLabel: record.grades || gradeLabelFromType(record.type),
-    // `supportsLunchCount` defaults to true for elementary schools so the
-    // existing lunch-count flows keep working with dynamically-added buildings.
-    // If a district wants to opt out, they can archive the building or we can
-    // add a dedicated toggle later.
+    // NOTE: LunchCount's `schoolSite` is still a fixed literal union in
+    // `LunchCountConfig` and `isLunchCountBuilding()` only recognises the four
+    // legacy seeded IDs. A dynamically-added Firestore building cannot yet be
+    // used as a LunchCount site even if this flag is true — it is only used by
+    // admin UIs (e.g. the LunchCount configuration panel) to decide whether to
+    // offer the building as an option. Widening `schoolSite` to string and
+    // teaching `useNutrislice` about dynamic building IDs is tracked as
+    // follow-up work and intentionally out of scope here.
     supportsLunchCount: record.type === 'elementary',
   };
 }
