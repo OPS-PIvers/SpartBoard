@@ -14,7 +14,7 @@ Prettier's pre-commit hook rewrites staged files to LF, which is why commits fro
 
 - Creates merge conflicts on every open PR and every unmerged `claude/*` / `dev-*` branch. All of them will need a rebase onto the renormalized `main`. The conflicts are mechanical (not content), but they're tedious and error-prone across many branches.
 - Adds a hop to every `git blame` touched by the commit unless registered in `.git-blame-ignore-revs`.
-- Requires every other worktree and every teammate's clone to run `git add --renormalize .` or re-clone to sync.
+- Requires every other worktree and every teammate's clone to re-clone or refresh the working tree (`git rm --cached -r .` followed by `git reset --hard`, on a clean tree) to sync.
 
 Safe windows: **after all open PRs are merged or closed**, ideally overnight or on a weekend so there's no contention.
 
@@ -63,7 +63,7 @@ This PR adds config only. No file rewrites yet.
 *.zip       binary
 ```
 
-**Create `/.git-blame-ignore-revs`** (empty for now; step 2 adds the commit hash):
+**Create `/.git-blame-ignore-revs`** (empty for now; step 3 adds the commit hash):
 
 ```
 # Commits listed here are skipped by `git blame` (and GitHub's blame view).
@@ -85,13 +85,17 @@ Merge PR 1 to `main` on its own.
 
 ### Step 2 — PR 2: renormalize (huge but mechanical)
 
-From a freshly-pulled `main` after PR 1 is merged:
+From a freshly-pulled `main` after PR 1 is merged, **on a clean working tree**. The commands below include `git rm --cached -r .` and `git reset --hard`, which will discard any uncommitted changes — stash or commit everything you care about before starting.
 
 ```bash
+# 0. Confirm clean working tree — this must print "nothing to commit"
+git status
+
 # 1. Sanity: confirm .gitattributes is present
 cat .gitattributes
 
-# 2. Refresh the index so git re-applies the new attribute rules
+# 2. Refresh the index so git re-applies the new attribute rules.
+#    WARNING: the next two commands discard any uncommitted changes.
 git rm --cached -r .
 git reset --hard
 
