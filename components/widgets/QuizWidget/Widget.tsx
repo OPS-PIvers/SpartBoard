@@ -790,6 +790,80 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
+        onBulkDelete={async (metas) => {
+          // Aggregated variant of the single-quiz onDelete handler above.
+          // Partitions targets into:
+          //   - blocked: has live/paused assignments → cannot delete
+          //   - withArchived: has only archived assignments → needs warning
+          //   - clean: no assignments → delete silently
+          // Shows ONE summary toast for blocked items and ONE aggregated
+          // confirm for the archived-assignment warning, regardless of how
+          // many quizzes are selected — replaces the old per-item dialogs
+          // that would fire up to N times when bulk-deleting N quizzes.
+          const blocked: QuizMetadata[] = [];
+          const withArchived: QuizMetadata[] = [];
+          const clean: QuizMetadata[] = [];
+          for (const meta of metas) {
+            const related = assignments.filter((a) => a.quizId === meta.id);
+            const live = related.filter((a) => a.status !== 'inactive');
+            if (live.length > 0) {
+              blocked.push(meta);
+            } else if (related.length > 0) {
+              withArchived.push(meta);
+            } else {
+              clean.push(meta);
+            }
+          }
+
+          if (blocked.length > 0) {
+            addToast(
+              `Skipped ${blocked.length} quiz${blocked.length === 1 ? '' : 'zes'} with active or paused assignments. Deactivate them first.`,
+              'error'
+            );
+          }
+
+          const deletable = [...clean, ...withArchived];
+          if (deletable.length === 0) return;
+
+          const confirmMsg =
+            withArchived.length > 0
+              ? `Delete ${deletable.length} quiz${deletable.length === 1 ? '' : 'zes'}? ` +
+                `${withArchived.length} ${withArchived.length === 1 ? 'has' : 'have'} archived assignments — ` +
+                `deleting will prevent viewing their monitor and results. This cannot be undone.`
+              : `Delete ${deletable.length} quiz${deletable.length === 1 ? '' : 'zes'}? This cannot be undone.`;
+          const ok = window.confirm(confirmMsg);
+          if (!ok) return;
+
+          const results = await Promise.allSettled(
+            deletable.map((meta) => deleteQuiz(meta.id, meta.driveFileId))
+          );
+          const failed: string[] = [];
+          results.forEach((result, idx) => {
+            if (result.status === 'rejected') {
+              const id = deletable[idx]?.id ?? '?';
+              failed.push(id);
+              console.error(
+                '[QuizWidget] bulk delete failed for',
+                id,
+                result.reason
+              );
+            }
+          });
+
+          const succeeded = deletable.length - failed.length;
+          if (succeeded > 0) {
+            addToast(
+              `Deleted ${succeeded} quiz${succeeded === 1 ? '' : 'zes'}.`,
+              'success'
+            );
+          }
+          if (failed.length > 0) {
+            addToast(
+              `${failed.length} quiz${failed.length === 1 ? '' : 'zes'} failed to delete.`,
+              'error'
+            );
+          }
+        }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
