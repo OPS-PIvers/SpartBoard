@@ -12,8 +12,18 @@
  * folders from `useFolders()` and handle the move/commit themselves.
  */
 
-import React, { useEffect, useId, useMemo, useRef } from 'react';
+import React, {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 import type { LibraryFolder } from '@/types';
 
 export interface FolderPickerPopoverProps {
@@ -27,12 +37,19 @@ export interface FolderPickerPopoverProps {
   title?: string;
   /**
    * Layout mode:
-   *   - `'popover'` (default): absolutely-positioned card — caller owns the
-   *     relative anchor (usually the kebab-menu row).
+   *   - `'popover'` (default): portal-rendered card anchored via `anchorRef`
+   *     to escape clipping ancestors (`overflow: hidden`, `will-change:
+   *     transform`, etc.) inside widgets and modals.
    *   - `'dialog'`: fixed-position centered modal with a backdrop, suitable
    *     for use from a row action without a stable anchor.
    */
   variant?: 'popover' | 'dialog';
+  /**
+   * Anchor element for the `'popover'` variant. The popover is positioned
+   * with `position: fixed` relative to this element's bounding rect.
+   * Required for `'popover'`, ignored for `'dialog'`.
+   */
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
 interface FlatNode {
@@ -83,6 +100,9 @@ const flattenFolders = (folders: LibraryFolder[]): FlatNode[] => {
   return out;
 };
 
+const POPOVER_WIDTH = 256;
+const POPOVER_GAP = 4;
+
 export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   folders,
   selectedFolderId,
@@ -90,16 +110,41 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   onClose,
   title = 'Move to folder',
   variant = 'popover',
+  anchorRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerId = useId();
+  const isPortaledPopover = variant === 'popover' && !!anchorRef;
+  const [anchorPos, setAnchorPos] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isPortaledPopover || !anchorRef?.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const viewportW =
+      typeof window !== 'undefined' ? window.innerWidth : rect.right;
+    const left = Math.max(
+      8,
+      Math.min(rect.left, viewportW - POPOVER_WIDTH - 8)
+    );
+    setAnchorPos({ top: rect.bottom + POPOVER_GAP, left });
+  }, [isPortaledPopover, anchorRef]);
 
   useEffect(() => {
     const handlePointer = (event: MouseEvent): void => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) {
-        onClose();
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (containerRef.current && containerRef.current.contains(target)) return;
+      if (
+        isPortaledPopover &&
+        anchorRef?.current &&
+        anchorRef.current.contains(target)
+      ) {
+        return;
       }
+      onClose();
     };
     const handleKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
@@ -110,7 +155,18 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [onClose]);
+  }, [onClose, isPortaledPopover, anchorRef]);
+
+  useLayoutEffect(() => {
+    if (!isPortaledPopover) return;
+    const close = () => onClose();
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [isPortaledPopover, onClose]);
 
   const flat = useMemo(() => flattenFolders(folders), [folders]);
 
@@ -148,17 +204,33 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     );
   };
 
+  const cardClass =
+    variant === 'dialog'
+      ? 'relative z-10 flex max-h-[80vh] w-80 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
+      : isPortaledPopover
+        ? 'flex max-h-72 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-md'
+        : 'absolute z-50 mt-1 flex max-h-72 w-64 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-md';
+
+  const cardStyle: React.CSSProperties | undefined =
+    isPortaledPopover && anchorPos
+      ? {
+          position: 'fixed',
+          top: anchorPos.top,
+          left: anchorPos.left,
+          width: POPOVER_WIDTH,
+          zIndex: Z_INDEX.modalNestedContent,
+        }
+      : undefined;
+
   const card = (
     <div
       ref={containerRef}
       role="dialog"
       aria-labelledby={headerId}
       aria-modal={variant === 'dialog' ? true : undefined}
-      className={
-        variant === 'dialog'
-          ? 'relative z-10 flex max-h-[80vh] w-80 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
-          : 'absolute z-50 mt-1 flex max-h-72 w-64 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-md'
-      }
+      data-click-outside-ignore={isPortaledPopover ? 'true' : undefined}
+      className={cardClass}
+      style={cardStyle}
     >
       <header
         id={headerId}
@@ -220,6 +292,11 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
         {card}
       </div>
     );
+  }
+
+  if (isPortaledPopover) {
+    if (!anchorPos || typeof document === 'undefined') return null;
+    return createPortal(card, document.body);
   }
 
   return card;

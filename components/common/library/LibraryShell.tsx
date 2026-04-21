@@ -371,7 +371,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
           >
             <button
               type="button"
-              onClick={() => setFolderPanelSetting('rail')}
+              onClick={() => setFolderPanelSetting('full')}
               className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary"
               style={{
                 width: 'min(28px, 7cqmin)',

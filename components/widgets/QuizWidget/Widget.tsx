@@ -694,12 +694,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             updateWidget(widget.id, {
               config: {
                 ...config,
-                view: 'monitor',
+                view: 'manager',
                 managerTab: 'active',
                 selectedQuizId: meta.id,
                 selectedQuizTitle: meta.title,
                 activeAssignmentId: assignmentId,
-                activeLiveSessionCode: code,
                 plcMode: plcOptions.plcMode,
                 teacherName: plcOptions.teacherName ?? '',
                 periodName:
@@ -1090,7 +1089,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
         folders={editingMeta ? quizFolders : undefined}
-        folderId={editingMeta?.folderId ?? null}
+        folderId={
+          editingMeta
+            ? (quizzes.find((q) => q.id === editingMeta.id)?.folderId ?? null)
+            : null
+        }
         onFolderChange={
           editingMeta
             ? async (folderId) => {

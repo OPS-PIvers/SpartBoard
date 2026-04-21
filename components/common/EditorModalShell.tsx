@@ -159,7 +159,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       contentClassName={bodyClassName}
       ariaLabelledby="editor-modal-shell-title"
     >
-      {children}
+      <div style={{ colorScheme: 'light' }} className="contents">
+        {children}
+      </div>
     </Modal>
   );
 };

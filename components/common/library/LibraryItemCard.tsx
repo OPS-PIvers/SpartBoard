@@ -17,7 +17,8 @@
  * hint as the drag-handle tooltip at reduced opacity.
  */
 
-import React, { useContext, useRef, useState } from 'react';
+import React, { useContext, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Check, GripVertical, MoreHorizontal } from 'lucide-react';
@@ -62,11 +63,43 @@ interface OverflowMenuProps {
   actions: LibraryMenuAction[];
 }
 
+const MENU_WIDTH = 176;
+const MENU_GAP = 4;
+
 const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null
+  );
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useClickOutside(ref, () => setOpen(false));
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportW =
+      typeof window !== 'undefined' ? window.innerWidth : rect.right;
+    // Right-align menu to the trigger, clamped to viewport.
+    const left = Math.max(
+      8,
+      Math.min(rect.right - MENU_WIDTH, viewportW - MENU_WIDTH - 8)
+    );
+    setMenuPos({ top: rect.bottom + MENU_GAP, left });
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('resize', close);
+    // Capture phase catches scrolls on any ancestor scroll container.
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [open]);
 
   if (actions.length === 0) return null;
 
@@ -76,9 +109,55 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
     return a.destructive ? 1 : -1;
   });
 
+  const menu =
+    open && menuPos
+      ? createPortal(
+          <div
+            role="menu"
+            data-click-outside-ignore="true"
+            className="min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+            style={{
+              position: 'fixed',
+              top: menuPos.top,
+              left: menuPos.left,
+              width: MENU_WIDTH,
+              zIndex: Z_INDEX.popover,
+            }}
+          >
+            {ordered.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  role="menuitem"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen(false);
+                    if (!item.disabled) item.onClick();
+                  }}
+                  disabled={item.disabled}
+                  title={item.disabled ? item.disabledReason : undefined}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    item.destructive
+                      ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {Icon && <Icon size={14} className="shrink-0" />}
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -101,38 +180,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
           }}
         />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-50 mt-1 min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-        >
-          {ordered.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                role="menuitem"
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpen(false);
-                  if (!item.disabled) item.onClick();
-                }}
-                disabled={item.disabled}
-                title={item.disabled ? item.disabledReason : undefined}
-                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                  item.destructive
-                    ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                {Icon && <Icon size={14} className="shrink-0" />}
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {menu}
     </div>
   );
 };

@@ -32,6 +32,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import {
   folderAwareCollisionDetection,
@@ -125,7 +126,7 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       onDragCancel={handleDragCancel}
     >
       {children}
-      <DragOverlay>
+      <DragOverlay modifiers={[snapCenterToCursor]}>
         {activeId != null && renderOverlay ? (
           <LibraryGridLockContext.Provider value={overlayLockState}>
             {renderOverlay(activeId)}

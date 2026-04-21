@@ -9,7 +9,7 @@
  * `useFolders()` on the manager side to persist.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Folder as FolderIcon, Inbox, ChevronDown } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
 import { FolderPickerPopover } from './FolderPickerPopover';
@@ -36,6 +36,7 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
   disabledReason,
 }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const currentFolder = useMemo(
     () =>
@@ -56,6 +57,7 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
         {label}
       </label>
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => setPickerOpen(true)}
@@ -73,7 +75,8 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
 
       {pickerOpen && (
         <FolderPickerPopover
-          variant="dialog"
+          variant="popover"
+          anchorRef={buttonRef}
           folders={folders}
           selectedFolderId={value}
           onSelect={onChange}
