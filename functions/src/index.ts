@@ -1984,7 +1984,7 @@ export const adminAnalytics = onRequest(
       const buildingsMap = new Map<string, string[]>();
       const authUids = Array.from(authUsersMap.keys());
       const PROFILE_BATCH = 500;
-      const profileBatches = [];
+      const profileBatches: string[][] = [];
       for (let i = 0; i < authUids.length; i += PROFILE_BATCH) {
         profileBatches.push(authUids.slice(i, i + PROFILE_BATCH));
       }

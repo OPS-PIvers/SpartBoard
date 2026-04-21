@@ -40,7 +40,7 @@ const toAsyncStream = (docs: MockDocInput[]) => ({
 
 const mockFirestore = {
   doc: vi.fn((path: string) => {
-    const parts = path.split("/");
+    const parts = path.split('/');
     const uid = parts[1];
     const user = mockFirestoreState.users.find((u) => u.id === uid);
     const docRef = {
@@ -64,7 +64,7 @@ const mockFirestore = {
       }),
     };
   }),
-  getAll: vi.fn((...refs: any[]) => {
+  getAll: vi.fn((...refs: { parent: { parent: { id: string } } }[]) => {
     return Promise.all(
       refs.map((ref) => {
         const uid = ref.parent.parent.id;

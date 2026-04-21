@@ -79,10 +79,20 @@ function parseArgs(argv) {
     else if (a === '--enable') args.enable = true;
     else if (a === '--disable') args.enable = false;
     else if (a === '--from') {
-      args.from = argv[i + 1];
+      const val = argv[i + 1];
+      if (!val || val.startsWith('--')) {
+        console.error('Error: --from requires an email address');
+        process.exit(1);
+      }
+      args.from = val;
       i += 1;
     } else if (a === '--reply-to') {
-      args.replyTo = argv[i + 1];
+      const val = argv[i + 1];
+      if (!val || val.startsWith('--')) {
+        console.error('Error: --reply-to requires an email address');
+        process.exit(1);
+      }
+      args.replyTo = val;
       i += 1;
     }
   }
@@ -200,6 +210,10 @@ async function run() {
     if (args.enable !== null) patch.enabled = args.enable;
     if (args.from !== null) patch.from = args.from;
     if (args.replyTo !== null) patch.replyTo = args.replyTo;
+
+    // Guard against any remaining undefineds from previous logic
+    if (patch.from === undefined) delete patch.from;
+    if (patch.replyTo === undefined) delete patch.replyTo;
   }
 
   if (Object.keys(patch).length === 0) {

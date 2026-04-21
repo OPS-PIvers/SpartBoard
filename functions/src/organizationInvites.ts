@@ -333,8 +333,8 @@ export function escapeHtml(raw: string): string {
 /**
  * Turns a roleId into a human-friendly label for the invite email. We don't
  * load the org's role docs (one extra read per invite, marginal value for
- * the email body), so this is a best-effort transform: system roleIds get
- * Title Case + spaces; custom roleIds fall through as-is.
+ * the email body), so this is a best-effort transform. Behaves similarly for
+ * all roleIds: replaces separators with spaces and applies Title Case.
  */
 export function formatRoleLabel(roleId: string): string {
   return roleId
