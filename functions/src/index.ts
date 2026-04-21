@@ -1911,8 +1911,6 @@ export const adminAnalytics = onRequest(
     invoker: 'public',
   },
   async (req, res) => {
-    console.log('[getAdminAnalytics] Function started');
-
     // 1. Verify caller is authenticated via Bearer token
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -1938,7 +1936,6 @@ export const adminAnalytics = onRequest(
     const db = admin.firestore();
 
     // 2. Verify caller is an admin
-    console.log(`[getAdminAnalytics] Verifying admin status for: ${email}`);
     const adminDoc = await db.collection('admins').doc(email).get();
     if (!adminDoc.exists) {
       console.error(
@@ -1953,7 +1950,6 @@ export const adminAnalytics = onRequest(
       // 3a. Collect ALL user data from Firebase Auth (authoritative source
       // for MAU/DAU). This replaces the previous Firestore-only approach
       // which missed users without a /users/{uid} root doc.
-      console.log('[getAdminAnalytics] Fetching users from Firebase Auth...');
       const authUsersMap = new Map<
         string,
         { email: string; lastSignInMs: number }
@@ -1977,31 +1973,47 @@ export const adminAnalytics = onRequest(
         authPageToken = listResult.pageToken;
       } while (authPageToken);
 
-      console.log(`[getAdminAnalytics] Found ${authUsersMap.size} Auth users`);
-
       // 3b. Batch-read /users/{uid}/userProfile/profile for building assignments
       // The source of truth for buildings is the profile subcollection, not the
       // root user doc (which is only populated on recent logins).
       const buildingsMap = new Map<string, string[]>();
       const authUids = Array.from(authUsersMap.keys());
       const PROFILE_BATCH = 500;
-      for (let i = 0; i < authUids.length; i += PROFILE_BATCH) {
-        const batch = authUids.slice(i, i + PROFILE_BATCH);
-        const refs = batch.map((uid) =>
-          db.doc(`users/${uid}/userProfile/profile`)
+      const CONCURRENCY_LIMIT = 10;
+
+      for (
+        let i = 0;
+        i < authUids.length;
+        i += PROFILE_BATCH * CONCURRENCY_LIMIT
+      ) {
+        const chunkUids = authUids.slice(
+          i,
+          i + PROFILE_BATCH * CONCURRENCY_LIMIT
         );
-        const snapshots = await db.getAll(...refs);
-        for (const snap of snapshots) {
-          if (!snap.exists) continue;
-          const data = snap.data();
-          if (
-            data &&
-            Array.isArray(data.selectedBuildings) &&
-            data.selectedBuildings.length > 0
-          ) {
-            const uid = snap.ref.parent.parent?.id;
-            if (!uid) continue;
-            buildingsMap.set(uid, data.selectedBuildings.map(String));
+        const chunkPromises: Promise<admin.firestore.DocumentSnapshot[]>[] = [];
+
+        for (let j = 0; j < chunkUids.length; j += PROFILE_BATCH) {
+          const batch = chunkUids.slice(j, j + PROFILE_BATCH);
+          const refs = batch.map((uid) =>
+            db.doc(`users/${uid}/userProfile/profile`)
+          );
+          chunkPromises.push(db.getAll(...refs));
+        }
+
+        const chunkSnapshots = await Promise.all(chunkPromises);
+        for (const snapshots of chunkSnapshots) {
+          for (const snap of snapshots) {
+            if (!snap.exists) continue;
+            const data = snap.data();
+            if (
+              data &&
+              Array.isArray(data.selectedBuildings) &&
+              data.selectedBuildings.length > 0
+            ) {
+              const uid = snap.ref.parent.parent?.id;
+              if (!uid) continue;
+              buildingsMap.set(uid, data.selectedBuildings.map(String));
+            }
           }
         }
       }
@@ -2024,10 +2036,6 @@ export const adminAnalytics = onRequest(
         if (isMonthlyActive) bucket[key].monthly += 1;
         if (isDailyActive) bucket[key].daily += 1;
       };
-
-      console.log(
-        '[getAdminAnalytics] Fetching dashboards via collectionGroup...'
-      );
       // 4. Fetch Dashboards for Widget Stats
       let totalDashboards = 0;
       const totalWidgetCounts: Record<string, number> = {};
@@ -2050,7 +2058,6 @@ export const adminAnalytics = onRequest(
 
       for await (const dashDoc of dashboardsStream) {
         if (!dashDoc.exists) continue;
-        totalDashboards++;
         const dashData = dashDoc.data() as DashboardData;
         const updatedAt =
           typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
@@ -2062,6 +2069,7 @@ export const adminAnalytics = onRequest(
         // Skip dashboards owned by anonymous users (not in filtered auth map)
         if (!ownerUid || !authUsersMap.has(ownerUid)) continue;
 
+        totalDashboards++;
         allDashboardOwnerUids.add(ownerUid);
 
         // Track the most recent edit across all of this user's dashboards
@@ -2100,8 +2108,6 @@ export const adminAnalytics = onRequest(
           });
         }
       }
-
-      console.log(`[getAdminAnalytics] Found ${totalDashboards} dashboards`);
 
       // 4b. Compute engagement using last-edit timestamps (not last-login)
       //     A user is "active" if they edited a dashboard within the window.
@@ -2164,11 +2170,6 @@ export const adminAnalytics = onRequest(
           }
         }
       }
-
-      const totalUsers = authUsersMap.size;
-      console.log(
-        `[getAdminAnalytics] Computed engagement for ${totalUsers} users`
-      );
 
       // 4c. Build per-user detail list for KPI drilldowns
       const userList = Array.from(authUsersMap.entries()).map(
@@ -2271,10 +2272,7 @@ export const adminAnalytics = onRequest(
             .sort(),
         };
       }
-
-      console.log('[getAdminAnalytics] Fetching AI usage...');
       // 5. Fetch AI Usage
-      let totalAiUsageRecords = 0;
       let totalAiCalls = 0;
       const callsPerUser: Record<string, number> = {};
       const dailyCallCounts: Record<string, number> = {};
@@ -2296,7 +2294,6 @@ export const adminAnalytics = onRequest(
 
       for await (const usageDoc of aiUsageStream) {
         if (!usageDoc.exists) continue;
-        totalAiUsageRecords++;
         const idParts = usageDoc.id.split('_');
         if (idParts.length < 2) continue;
 
@@ -2330,10 +2327,6 @@ export const adminAnalytics = onRequest(
           dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
         }
       }
-
-      console.log(
-        `[getAdminAnalytics] Found ${totalAiUsageRecords} AI usage records`
-      );
 
       const uniqueDays = Object.keys(dailyCallCounts).length || 1;
       const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
@@ -2382,8 +2375,6 @@ export const adminAnalytics = onRequest(
           count,
           email: topUserEmails[uid] ?? `Unknown (${uid})`,
         }));
-
-      console.log('[getAdminAnalytics] Analysis complete, returning results');
       res.json({
         users: {
           total: totalEngagement.total,

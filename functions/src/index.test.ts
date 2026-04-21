@@ -38,46 +38,38 @@ const toAsyncStream = (docs: MockDocInput[]) => ({
   },
 });
 
-// Synthetic ref for a `users/{uid}/userProfile/profile` path. The real code
-// calls `db.doc(path)` to build a reference and later `db.getAll(...refs)` to
-// batch-read them — the mock only needs enough structure to round-trip the
-// `uid` and produce a snapshot from `mockFirestoreState.users`.
 interface MockDocRef {
   path: string;
-  uid: string | null;
 }
 
-const parseUserProfileRef = (path: string): MockDocRef => {
-  const m = /^users\/([^/]+)\/userProfile\/profile$/.exec(path);
-  return { path, uid: m ? m[1] : null };
-};
-
 const mockFirestore = {
-  doc: vi.fn((path: string): MockDocRef => parseUserProfileRef(path)),
+  doc: vi.fn((path: string) => ({
+    path,
+    get: vi.fn(() => Promise.resolve({ exists: false })),
+  })),
   getAll: vi.fn((...refs: MockDocRef[]) => {
-    const snapshots = refs.map((ref) => {
-      const user =
-        ref.uid != null
-          ? mockFirestoreState.users.find((u) => u.id === ref.uid)
-          : undefined;
-      // Map the test fixture's `buildings` field into the real
-      // `selectedBuildings` shape the handler expects.
-      const selectedBuildings =
-        user && Array.isArray(user.data.buildings)
-          ? (user.data.buildings as string[])
-          : [];
-      const exists = !!user && selectedBuildings.length > 0;
-      return {
-        exists,
-        data: () => (exists ? { selectedBuildings } : undefined),
-        ref: {
-          parent: {
-            parent: ref.uid != null ? { id: ref.uid } : null,
-          },
-        },
-      };
-    });
-    return Promise.resolve(snapshots);
+    return Promise.resolve(
+      refs.map((ref) => {
+        // Expected path: users/{uid}/userProfile/profile
+        const parts = ref.path.split('/');
+        const uid = parts[1];
+        const user = mockFirestoreState.users.find((u) => u.id === uid);
+        if (user) {
+          return {
+            exists: true,
+            data: () => ({
+              selectedBuildings: user.data.buildings,
+            }),
+            ref: {
+              parent: {
+                parent: { id: uid },
+              },
+            },
+          };
+        }
+        return { exists: false, data: () => ({}) };
+      })
+    );
   }),
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
@@ -156,9 +148,12 @@ vi.mock('firebase-admin', () => {
     },
   });
 
+  const apps: unknown[] = [];
   return {
-    initializeApp: vi.fn(),
-    apps: [],
+    apps,
+    initializeApp: vi.fn(() => {
+      if (apps.length === 0) apps.push({ name: '[DEFAULT]' });
+    }),
     firestore: firestoreFn,
     auth: vi.fn(() => ({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
@@ -476,14 +471,7 @@ describe('adminAnalytics', () => {
     mockFirestoreState.aiUsage = [];
   });
 
-  // TODO(spartboard): Three adminAnalytics tests below are skipped because the
-  // handler's engagement model shifted from user.lastLogin → dashboard.updatedAt
-  // (monthly/daily buckets), the topUsers path now filters by authUsersMap
-  // (drops UIDs with no Auth record), and totalDashboards is tallied before the
-  // anonymous-owner filter. The fixtures need to be rewritten accordingly; see
-  // the Phase 4.1 follow-up. Leaving them skipped keeps the functions test
-  // runner green in CI without losing visibility of the drift.
-  it.skip('aggregates users by domain and building, including no-building users', async () => {
+  it('aggregates users by domain and building, including no-building users', async () => {
     const now = Date.now();
     mockFirestoreState.users = [
       {
@@ -509,6 +497,18 @@ describe('adminAnalytics', () => {
           lastLogin: now - 45 * 24 * 60 * 60 * 1000,
           buildings: ['north'],
         },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash1',
+        ownerUid: 'uid1',
+        data: { updatedAt: now - 1 * 60 * 60 * 1000, widgets: [] },
+      },
+      {
+        id: 'dash2',
+        ownerUid: 'uid2',
+        data: { updatedAt: now - 10 * 24 * 60 * 60 * 1000, widgets: [] },
       },
     ];
 
@@ -567,16 +567,23 @@ describe('adminAnalytics', () => {
       monthly: 1,
       daily: 0,
     });
-    expect(capturedData.api.totalCalls).toBe(17);
+    expect(capturedData.api.totalCalls).toBe(10);
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
-  it.skip('returns topUsers with resolved email and unknown fallback', async () => {
+  it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {
         id: 'uid_a',
         data: {
           email: 'known@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+      {
+        id: 'uid_b',
+        data: {
           lastLogin: Date.now(),
           buildings: [],
         },
@@ -761,7 +768,7 @@ describe('adminAnalytics', () => {
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
-  it.skip('excludes anonymous auth users from all analytics metrics', async () => {
+  it('excludes anonymous auth users from all analytics metrics', async () => {
     const now = Date.now();
     mockFirestoreState.users = [
       {

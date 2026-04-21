@@ -110,6 +110,40 @@ export interface MemberRecord {
   addedBySource?: string;
 }
 
+// Minimal view of the org doc — only the fields the invite email needs.
+// Full shape lives in types/organization.ts (OrgRecord) but the functions
+// package doesn't share that tsconfig, so we repeat just what's used here.
+export interface OrgLite {
+  id: string;
+  name: string;
+}
+
+// Runtime config for the Trigger Email extension queue. Sourced from
+// `/global_permissions/invite-emails`. When `enabled: false` the CF skips
+// the /mail/{token} write entirely so no email goes out — invites still
+// mint and the copy-link flow keeps working. `from` and `replyTo` are
+// optional overrides; when unset, the extension's configured defaults apply.
+export interface InviteEmailConfig {
+  enabled: boolean;
+  from?: string;
+  replyTo?: string;
+}
+
+// Shape written to the `mail` collection that the `firestore-send-email`
+// Firebase extension watches. Keeping this local (not imported from the
+// extension package) avoids pulling a dependency the rest of the CFs
+// don't need.
+export interface MailDoc {
+  to: string[];
+  from?: string;
+  replyTo?: string;
+  message: {
+    subject: string;
+    text: string;
+    html: string;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -278,6 +312,141 @@ export function generateToken(): string {
 /** Builds the user-facing claim URL for a given token. */
 export function buildClaimUrl(token: string): string {
   return `${CLAIM_URL_ORIGIN}/invite/${token}`;
+}
+
+/**
+ * Minimal HTML-escape for user-supplied strings interpolated into the
+ * invitation email body. We only interpolate: org name, role label, admin's
+ * personal message, and expiry date. Inviters are trusted org admins but
+ * the invitee's mail client renders this as HTML, so any `<` / `>` / `&` /
+ * `"` in those fields must not become live markup.
+ */
+export function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Turns a roleId into a human-friendly label for the invite email. We don't
+ * load the org's role docs (one extra read per invite, marginal value for
+ * the email body), so this is a best-effort transform: system roleIds get
+ * Title Case + spaces; custom roleIds fall through as-is.
+ */
+export function formatRoleLabel(roleId: string): string {
+  return roleId
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
+/**
+ * Builds the invitation email body. Pure — no I/O, no side effects. The
+ * returned `{subject, text, html}` is written straight into the `mail`
+ * collection doc that the Trigger Email extension picks up.
+ *
+ * Design notes:
+ *   - HTML body is a single-column table layout (the only thing that
+ *     renders consistently across Gmail/Outlook/Apple Mail). No external
+ *     CSS, no web fonts — inline styles only.
+ *   - The text body is the authoritative plaintext fallback. Spam filters
+ *     weight the text/html similarity, so the plaintext carries the same
+ *     claim URL and call-to-action, not a "view in browser" stub.
+ *   - `personalMessage` from the admin is rendered inside a left-border
+ *     blockquote so it reads as "the admin's own words" rather than
+ *     platform boilerplate.
+ *   - `expiresAt` is shown in the invitee's local time would be ideal, but
+ *     the CF has no access to their TZ; we show UTC with the date first
+ *     ("April 27, 2026") which reads naturally in any locale.
+ */
+export function buildInvitationEmail(opts: {
+  orgName: string;
+  roleId: string;
+  claimUrl: string;
+  expiresAt: string;
+  personalMessage?: string;
+}): { subject: string; text: string; html: string } {
+  const { orgName, roleId, claimUrl, expiresAt, personalMessage } = opts;
+  const roleLabel = formatRoleLabel(roleId);
+  const expiryDate = new Date(expiresAt);
+  const expiryFormatted = expiryDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+
+  const subject = `You're invited to ${orgName} on SpartBoard`;
+
+  const textLines = [
+    `You've been invited to join ${orgName} on SpartBoard as a ${roleLabel}.`,
+    '',
+  ];
+  if (personalMessage && personalMessage.trim()) {
+    textLines.push('A note from your administrator:');
+    for (const line of personalMessage.trim().split('\n')) {
+      textLines.push(`  ${line}`);
+    }
+    textLines.push('');
+  }
+  textLines.push(
+    'Accept your invitation:',
+    claimUrl,
+    '',
+    `This invitation expires on ${expiryFormatted} (UTC).`,
+    '',
+    "If you weren't expecting this email, you can safely ignore it."
+  );
+  const text = textLines.join('\n');
+
+  const safeOrg = escapeHtml(orgName);
+  const safeRole = escapeHtml(roleLabel);
+  const safeExpiry = escapeHtml(expiryFormatted);
+  const safeUrl = escapeHtml(claimUrl);
+  const messageBlock =
+    personalMessage && personalMessage.trim()
+      ? `
+        <tr><td style="padding:0 0 16px 0;">
+          <div style="border-left:3px solid #2d3f89;padding:8px 12px;color:#334155;font-style:italic;background:#f8fafc;">
+            ${escapeHtml(personalMessage.trim()).replace(/\n/g, '<br>')}
+          </div>
+        </td></tr>`
+      : '';
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
+      <tr><td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;">
+          <tr><td style="padding:0 0 16px 0;">
+            <div style="font-size:20px;font-weight:600;color:#1d2a5d;">You're invited to ${safeOrg}</div>
+          </td></tr>
+          <tr><td style="padding:0 0 16px 0;color:#334155;font-size:15px;line-height:1.5;">
+            You've been invited to join <strong>${safeOrg}</strong> on SpartBoard as a <strong>${safeRole}</strong>.
+          </td></tr>
+          ${messageBlock}
+          <tr><td style="padding:16px 0;">
+            <a href="${safeUrl}" style="display:inline-block;background:#2d3f89;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px;">Accept invitation</a>
+          </td></tr>
+          <tr><td style="padding:16px 0 0 0;color:#64748b;font-size:13px;line-height:1.5;">
+            This invitation expires on <strong>${safeExpiry}</strong> (UTC).<br>
+            If the button doesn't work, paste this link into your browser:<br>
+            <span style="word-break:break-all;color:#2d3f89;">${safeUrl}</span>
+          </td></tr>
+          <tr><td style="padding:24px 0 0 0;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;line-height:1.5;">
+            If you weren't expecting this email, you can safely ignore it.
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  return { subject, text, html };
 }
 
 /**
@@ -461,16 +630,50 @@ async function assertCallerIsOrgAdmin(
   }
 }
 
-/** Validates that `/organizations/{orgId}` exists. */
-async function assertOrgExists(
+/**
+ * Loads the org doc and returns a minimal view (`OrgLite`) containing the
+ * fields the invite flow needs. Throws `not-found` if the org doesn't
+ * exist. Replaces the earlier `assertOrgExists` — we need the org's display
+ * name for the invite email anyway, so folding the read into one call
+ * avoids a second round-trip.
+ */
+async function loadOrg(
   db: admin.firestore.Firestore,
   orgId: string
-): Promise<void> {
+): Promise<OrgLite> {
   const orgRef = db.collection('organizations').doc(orgId);
   const snap = await orgRef.get();
   if (!snap.exists) {
     throw new HttpsError('not-found', `Organization '${orgId}' not found.`);
   }
+  const data = snap.data() ?? {};
+  // Fall back to the orgId if `name` isn't set — old seed docs from Phase 1
+  // may predate the field. The email subject becomes "You're invited to
+  // orono on SpartBoard", which is ugly but doesn't break the flow.
+  const name = typeof data.name === 'string' && data.name ? data.name : orgId;
+  return { id: orgId, name };
+}
+
+/**
+ * Reads the invite-email kill switch from `/global_permissions/invite-emails`.
+ * Missing doc / missing `enabled` field defaults to `false` so email never
+ * sends accidentally — we have to opt-in explicitly after the extension is
+ * installed and a smoke-test send has landed.
+ */
+async function loadInviteEmailConfig(
+  db: admin.firestore.Firestore
+): Promise<InviteEmailConfig> {
+  const snap = await db
+    .collection('global_permissions')
+    .doc('invite-emails')
+    .get();
+  if (!snap.exists) return { enabled: false };
+  const data = snap.data() ?? {};
+  return {
+    enabled: data.enabled === true,
+    from: typeof data.from === 'string' ? data.from : undefined,
+    replyTo: typeof data.replyTo === 'string' ? data.replyTo : undefined,
+  };
 }
 
 /** Returns the set of valid role ids for the org. */
@@ -557,11 +760,12 @@ export const createOrganizationInvites = onCall(
     const db = admin.firestore();
 
     // Authorization & existence checks happen serially (cheap reads, fail fast).
-    await assertOrgExists(db, payload.orgId);
+    const org = await loadOrg(db, payload.orgId);
     await assertCallerIsOrgAdmin(db, payload.orgId, callerEmailLower);
 
     const validRoleIds = await loadRoleIds(db, payload.orgId);
     const validBuildingIds = await loadBuildingIds(db, payload.orgId);
+    const emailConfig = await loadInviteEmailConfig(db);
 
     const results: CreateInviteResult[] = [];
     const errors: CreateInviteError[] = [...perEntryErrors];
@@ -598,9 +802,12 @@ export const createOrganizationInvites = onCall(
       try {
         const result = await writeInvitation(db, {
           orgId: payload.orgId,
+          orgName: org.name,
           invite: scopedInvite,
           expiresInDays: payload.expiresInDays,
           issuedBy: callerUid,
+          personalMessage: payload.message,
+          emailConfig,
         });
         results.push(result);
       } catch (err) {
@@ -627,12 +834,23 @@ async function writeInvitation(
   db: admin.firestore.Firestore,
   opts: {
     orgId: string;
+    orgName: string;
     invite: NormalizedInvite;
     expiresInDays: number;
     issuedBy: string;
+    personalMessage?: string;
+    emailConfig: InviteEmailConfig;
   }
 ): Promise<CreateInviteResult> {
-  const { orgId, invite, expiresInDays, issuedBy } = opts;
+  const {
+    orgId,
+    orgName,
+    invite,
+    expiresInDays,
+    issuedBy,
+    personalMessage,
+    emailConfig,
+  } = opts;
   const now = new Date();
 
   const memberRef = db
@@ -647,6 +865,10 @@ async function writeInvitation(
     .doc(orgId)
     .collection('invitations')
     .doc(token);
+  // Mail doc id = invitation token. Ties the send 1:1 to the invite (so a
+  // re-send for the same token would be idempotent) and makes the extension
+  // output easy to trace back to its source invite.
+  const mailRef = db.collection('mail').doc(token);
 
   const status = await db.runTransaction(
     async (tx): Promise<'created' | 'already_active'> => {
@@ -662,13 +884,14 @@ async function writeInvitation(
       });
 
       if (plan.action === 'already_active') {
-        // Don't mint an invitation or touch the member doc — the user is
-        // already active and the UI should reflect "already_active".
+        // Don't mint an invitation or queue mail — the user is already
+        // active and the UI should reflect "already_active".
         return 'already_active';
       }
 
       tx.set(memberRef, plan.patch, { merge: true });
 
+      const expiresAt = computeExpiresAt(now, expiresInDays);
       const invitation: InvitationRecord = {
         token,
         orgId,
@@ -676,10 +899,32 @@ async function writeInvitation(
         roleId: invite.roleId,
         buildingIds: invite.buildingIds,
         createdAt: now.toISOString(),
-        expiresAt: computeExpiresAt(now, expiresInDays),
+        expiresAt,
         issuedBy,
       };
       tx.set(invitationRef, invitation);
+
+      // Email queue: only touched when the flag is enabled. Writing here
+      // (inside the same tx) means "invite minted AND email queued" is
+      // atomic — if the tx aborts, neither lands. The extension picks up
+      // /mail/{token} async and appends its own `delivery` subfield for
+      // observability.
+      if (emailConfig.enabled) {
+        const body = buildInvitationEmail({
+          orgName,
+          roleId: invite.roleId,
+          claimUrl: buildClaimUrl(token),
+          expiresAt,
+          personalMessage,
+        });
+        const mailDoc: MailDoc = {
+          to: [invite.email],
+          message: body,
+        };
+        if (emailConfig.from) mailDoc.from = emailConfig.from;
+        if (emailConfig.replyTo) mailDoc.replyTo = emailConfig.replyTo;
+        tx.set(mailRef, mailDoc);
+      }
       return 'created';
     }
   );

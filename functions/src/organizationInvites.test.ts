@@ -72,6 +72,9 @@ import {
   filterValidBuildingIds,
   buildClaimUrl,
   generateToken,
+  buildInvitationEmail,
+  escapeHtml,
+  formatRoleLabel,
   CLAIM_URL_ORIGIN,
   DEFAULT_EXPIRES_IN_DAYS,
   MAX_EXPIRES_IN_DAYS,
@@ -361,6 +364,96 @@ describe('generateToken', () => {
 describe('buildClaimUrl', () => {
   it('assembles the prod origin + /invite/:token', () => {
     expect(buildClaimUrl('abc123')).toBe(`${CLAIM_URL_ORIGIN}/invite/abc123`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// escapeHtml / formatRoleLabel / buildInvitationEmail
+// ---------------------------------------------------------------------------
+
+describe('escapeHtml', () => {
+  it('escapes the five characters that break HTML context', () => {
+    expect(escapeHtml('<script>alert("x")</script>')).toBe(
+      '&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;'
+    );
+    expect(escapeHtml("O'Brien & Sons")).toBe('O&#39;Brien &amp; Sons');
+  });
+
+  it('passes through ordinary text unchanged', () => {
+    expect(escapeHtml('Orono Schools')).toBe('Orono Schools');
+  });
+});
+
+describe('formatRoleLabel', () => {
+  it('title-cases snake_case role ids', () => {
+    expect(formatRoleLabel('super_admin')).toBe('Super Admin');
+    expect(formatRoleLabel('domain_admin')).toBe('Domain Admin');
+    expect(formatRoleLabel('teacher')).toBe('Teacher');
+  });
+});
+
+describe('buildInvitationEmail', () => {
+  const base = {
+    orgName: 'Orono Schools',
+    roleId: 'teacher',
+    claimUrl: 'https://spartboard.web.app/invite/tok-xyz',
+    expiresAt: '2026-05-03T12:00:00.000Z',
+  };
+
+  it('generates subject with org name', () => {
+    const { subject } = buildInvitationEmail(base);
+    expect(subject).toBe("You're invited to Orono Schools on SpartBoard");
+  });
+
+  it('text and html both carry the claim URL', () => {
+    const { text, html } = buildInvitationEmail(base);
+    expect(text).toContain('https://spartboard.web.app/invite/tok-xyz');
+    expect(html).toContain('https://spartboard.web.app/invite/tok-xyz');
+  });
+
+  it('renders role label in human form', () => {
+    const { text, html } = buildInvitationEmail({
+      ...base,
+      roleId: 'super_admin',
+    });
+    expect(text).toContain('as a Super Admin');
+    expect(html).toContain('Super Admin');
+  });
+
+  it('omits personal message block when none provided', () => {
+    const { text, html } = buildInvitationEmail(base);
+    expect(text).not.toContain('note from your administrator');
+    expect(html).not.toContain('border-left:3px solid');
+  });
+
+  it('renders personal message in both bodies when provided', () => {
+    const { text, html } = buildInvitationEmail({
+      ...base,
+      personalMessage: 'Welcome aboard!\nSee you Monday.',
+    });
+    expect(text).toContain('A note from your administrator:');
+    expect(text).toContain('  Welcome aboard!');
+    expect(text).toContain('  See you Monday.');
+    expect(html).toContain('Welcome aboard!<br>See you Monday.');
+  });
+
+  it('escapes HTML in org name, role, and personal message', () => {
+    const { html } = buildInvitationEmail({
+      ...base,
+      orgName: '<evil>Acme</evil>',
+      personalMessage: '<img src=x onerror=alert(1)>',
+    });
+    expect(html).not.toContain('<evil>');
+    expect(html).not.toContain('<img src=x');
+    expect(html).toContain('&lt;evil&gt;Acme&lt;/evil&gt;');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('formats the expiry date in UTC', () => {
+    const { text, html } = buildInvitationEmail(base);
+    // 2026-05-03 → "May 3, 2026" in en-US long form
+    expect(text).toContain('May 3, 2026');
+    expect(html).toContain('May 3, 2026');
   });
 });
 
