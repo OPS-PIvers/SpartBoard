@@ -1,5 +1,5 @@
 import React from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 interface BuildingSelectorProps {
   selectedId: string;
@@ -12,13 +12,14 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
   onSelect,
   activeClassName = 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm',
 }) => {
+  const buildings = useAdminBuildings();
   return (
     <div
       className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar"
       role="tablist"
       aria-label="Building Selection"
     >
-      {BUILDINGS.map((building) => (
+      {buildings.map((building) => (
         <button
           key={building.id}
           type="button"

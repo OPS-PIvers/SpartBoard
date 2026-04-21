@@ -14,7 +14,7 @@
   },
   "buildings": [
     {
-      "id": "schumann",
+      "id": "schumann-elementary",
       "name": "Schumann Elementary",
       "type": "elementary",
       "address": "5455 Old Crystal Bay Rd N",
@@ -22,7 +22,7 @@
       "adminEmails": []
     },
     {
-      "id": "intermediate",
+      "id": "orono-intermediate-school",
       "name": "Orono Intermediate",
       "type": "elementary",
       "address": "685 Old Crystal Bay Rd N",
@@ -30,7 +30,7 @@
       "adminEmails": []
     },
     {
-      "id": "middle",
+      "id": "orono-middle-school",
       "name": "Orono Middle School",
       "type": "middle",
       "address": "685 Old Crystal Bay Rd N",
@@ -38,7 +38,7 @@
       "adminEmails": []
     },
     {
-      "id": "high",
+      "id": "orono-high-school",
       "name": "Orono High School",
       "type": "high",
       "address": "795 Old Crystal Bay Rd N",

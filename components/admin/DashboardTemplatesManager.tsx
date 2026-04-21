@@ -14,7 +14,7 @@ import { DashboardTemplate } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { Toggle } from '@/components/common/Toggle';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   Plus,
   Trash2,
@@ -62,6 +62,7 @@ const DEFAULT_FORM: NewTemplateFormState = { name: '', description: '' };
 export const DashboardTemplatesManager: React.FC = () => {
   const { user } = useAuth();
   const { showConfirm } = useDialog();
+  const BUILDINGS = useAdminBuildings();
 
   const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
   const [loading, setLoading] = useState(true);

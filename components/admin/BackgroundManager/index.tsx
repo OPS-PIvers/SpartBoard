@@ -26,7 +26,7 @@ import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { DriveFile } from '@/utils/googleDriveService';
 import { extractYouTubeId } from '@/utils/youtube';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   Upload,
   Image as ImageIcon,
@@ -106,6 +106,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const BackgroundManager: React.FC = () => {
   const { showConfirm } = useDialog();
   const isMobile = useIsMobile();
+  const BUILDINGS = useAdminBuildings();
   const [presets, setPresets] = useState<BackgroundPreset[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);

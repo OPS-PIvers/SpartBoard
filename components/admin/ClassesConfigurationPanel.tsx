@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ClassesGlobalConfig, BuildingClassesDefaults } from '@/types';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { Toggle } from '../common/Toggle';
 
 interface ClassesConfigurationPanelProps {
@@ -11,7 +12,8 @@ interface ClassesConfigurationPanelProps {
 export const ClassesConfigurationPanel: React.FC<
   ClassesConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [activeTab, setActiveTab] = useState(BUILDINGS[0].id);
+  const BUILDINGS = useAdminBuildings();
+  const [activeTab, setActiveTab] = useBuildingSelection(BUILDINGS);
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const activeConfig: BuildingClassesDefaults = buildingDefaults[activeTab] || {

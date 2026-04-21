@@ -33,7 +33,7 @@ import {
   MiniAppGlobalConfig,
   FeaturePermission,
 } from '@/types';
-import { BUILDINGS, BUILDINGS_BY_ID } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 
@@ -49,6 +49,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const BUILDINGS = useAdminBuildings();
+  const BUILDINGS_BY_ID = React.useMemo(
+    () => new Map(BUILDINGS.map((b) => [b.id, b])),
+    [BUILDINGS]
+  );
   const [apps, setApps] = useState<GlobalMiniAppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');

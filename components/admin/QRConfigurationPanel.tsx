@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import React from 'react';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { QRGlobalConfig, BuildingQRDefaults } from '@/types';
 import { QrCode, Link, Palette } from 'lucide-react';
@@ -14,9 +15,9 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
   config,
   onChange,
 }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingQRDefaults = buildingDefaults[

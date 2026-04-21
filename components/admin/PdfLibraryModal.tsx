@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
 import { GlobalPdfItem, PdfGlobalConfig, FeaturePermission } from '@/types';
-import { BUILDINGS, BUILDINGS_BY_ID } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
@@ -46,6 +46,11 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 }) => {
   const { showConfirm } = useDialog();
   const { uploadAdminPdf, deleteFile } = useStorage();
+  const BUILDINGS = useAdminBuildings();
+  const BUILDINGS_BY_ID = React.useMemo(
+    () => new Map(BUILDINGS.map((b) => [b.id, b])),
+    [BUILDINGS]
+  );
   const [pdfs, setPdfs] = useState<GlobalPdfItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('list');

@@ -1,6 +1,7 @@
 import { Card } from '@/components/common/Card';
-import React, { useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import React from 'react';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import {
   HotspotImageGlobalConfig,
@@ -24,9 +25,9 @@ interface HotspotImageConfigurationPanelProps {
 export const HotspotImageConfigurationPanel: React.FC<
   HotspotImageConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingHotspotImageDefaults = buildingDefaults[

@@ -23,7 +23,7 @@ import {
   FeaturePermission,
   VideoActivityGlobalConfig,
 } from '@/types';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -40,6 +40,7 @@ type View = 'list' | 'settings';
 export const VideoActivityConfigurationModal: React.FC<
   VideoActivityConfigurationModalProps
 > = ({ onClose, permission, onSave }) => {
+  const BUILDINGS = useAdminBuildings();
   const [view, setView] = useState<View>('list');
   const [activities, setActivities] = useState<GlobalVideoActivity[]>([]);
   const [loading, setLoading] = useState(true);

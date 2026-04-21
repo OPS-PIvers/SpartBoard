@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import {
   ChecklistGlobalConfig,
@@ -17,9 +18,9 @@ interface ChecklistConfigurationPanelProps {
 export const ChecklistConfigurationPanel: React.FC<
   ChecklistConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
   const [newItemText, setNewItemText] = useState('');
 
   const buildingDefaults = config.buildingDefaults ?? {};

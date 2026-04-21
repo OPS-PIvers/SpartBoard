@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { WidgetData } from '@/types';
 
 interface WidgetBuildingToggleProps {
@@ -21,6 +21,7 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
 }) => {
   const auth = useContext(AuthContext);
   const selectedBuildings = auth?.selectedBuildings ?? [];
+  const BUILDINGS = useAdminBuildings();
 
   const userBuildings = BUILDINGS.filter((b) =>
     selectedBuildings.includes(b.id)

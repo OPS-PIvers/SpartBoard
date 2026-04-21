@@ -317,16 +317,18 @@ export const OrganizationPanel: React.FC = () => {
     }
     run('Archive organization', archiveOrg, 'Organization archived');
   };
+  // Building CRUD is always available to org admins — Firestore rules are the
+  // source of truth for who can write (domain+ admins for create/delete,
+  // building admins for update within their scoped buildingIds). Gating these
+  // behind `org-admin-writes` would hide the kebab actions even from admins
+  // who have the correct role, which is what users reported as "locked".
   const handleAddBuilding = (b: Partial<BuildingRecord>) => {
-    if (!writesEnabled) return comingSoon('Add building');
     run('Add building', () => addBuilding(b), `Added "${b.name ?? ''}"`);
   };
   const handleUpdateBuilding = (id: string, patch: Partial<BuildingRecord>) => {
-    if (!writesEnabled) return comingSoon('Edit building');
     run('Update building', () => updateBuilding(id, patch));
   };
   const handleRemoveBuilding = (id: string) => {
-    if (!writesEnabled) return comingSoon('Archive building');
     run('Remove building', () => removeBuilding(id), 'Building removed');
   };
   const handleAddDomain = (d: Partial<DomainRecord>) => {

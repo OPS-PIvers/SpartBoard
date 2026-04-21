@@ -8,7 +8,8 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import {
   BloomsTaxonomyGlobalConfig,
@@ -43,6 +44,7 @@ interface BloomsTaxonomyConfigurationModalProps {
 export const BloomsTaxonomyConfigurationModal: React.FC<
   BloomsTaxonomyConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
+  const BUILDINGS = useAdminBuildings();
   const [config, setConfig] = useState<BloomsTaxonomyGlobalConfig>(() =>
     normalizeConfig(permission.config)
   );
@@ -51,9 +53,8 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     text: string;
     type: 'success' | 'error';
   } | null>(null);
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
   const [selectedLevel, setSelectedLevel] = useState<BloomsLevel>('remember');
 
   // Sync state if permission.config changes externally

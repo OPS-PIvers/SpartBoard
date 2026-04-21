@@ -7,7 +7,7 @@ import {
   Save,
   Image as ImageIcon,
 } from 'lucide-react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   FeaturePermission,
   WorkSymbol,
@@ -35,6 +35,7 @@ const normalizeConfig = (raw: unknown): WorkSymbolsGlobalConfig => {
 export const WorkSymbolsConfigurationModal: React.FC<
   WorkSymbolsConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
+  const BUILDINGS = useAdminBuildings();
   const [globalConfig, setGlobalConfig] = useState<WorkSymbolsGlobalConfig>(
     () => normalizeConfig(permission.config)
   );

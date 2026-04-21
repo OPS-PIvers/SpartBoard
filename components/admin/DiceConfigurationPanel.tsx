@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import React from 'react';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { DiceGlobalConfig, BuildingDiceDefaults } from '@/types';
 import { Card } from '@/components/common/Card';
@@ -15,9 +16,9 @@ export const DiceConfigurationPanel: React.FC<DiceConfigurationPanelProps> = ({
   config,
   onChange,
 }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
 
   const buildingDefaults = config.buildingDefaults ?? {};
   const currentBuildingConfig: BuildingDiceDefaults = buildingDefaults[

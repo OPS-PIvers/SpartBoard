@@ -1,6 +1,6 @@
 import React from 'react';
 import { WidgetMeta, WIDGET_COLOR_PRESETS } from './types';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   CUSTOM_WIDGET_ICON_OPTIONS,
   getCustomWidgetIcon,
@@ -40,6 +40,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
   meta,
   onChange,
 }) => {
+  const BUILDINGS = useAdminBuildings();
   const update = (partial: Partial<WidgetMeta>) =>
     onChange({ ...meta, ...partial });
 

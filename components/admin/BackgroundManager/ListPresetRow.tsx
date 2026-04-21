@@ -11,7 +11,7 @@ import {
   Star,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { extractYouTubeId } from '@/utils/youtube';
 import { PresetCardProps } from './types';
 import { AccessLevel } from '@/types';
@@ -37,6 +37,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
   getAccessLevelIcon,
   getAccessLevelColor,
 }) => {
+  const BUILDINGS = useAdminBuildings();
   const isVideo = Boolean(extractYouTubeId(preset.url));
 
   return (

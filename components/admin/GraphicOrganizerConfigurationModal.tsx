@@ -8,7 +8,8 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
   GraphicOrganizerGlobalConfig,
   GraphicOrganizerBuildingConfig,
@@ -82,9 +83,9 @@ const normalizeConfig = (raw: unknown): GraphicOrganizerGlobalConfig => {
 export const GraphicOrganizerConfigurationModal: React.FC<
   GraphicOrganizerConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
-  const [selectedBuilding, setSelectedBuilding] = useState(
-    BUILDINGS.length > 0 ? BUILDINGS[0].id : ''
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuilding, setSelectedBuilding] =
+    useBuildingSelection(BUILDINGS);
   const [globalConfig, setGlobalConfig] =
     useState<GraphicOrganizerGlobalConfig>(() =>
       normalizeConfig(permission.config)

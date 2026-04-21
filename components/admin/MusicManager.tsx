@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { db, storage } from '@/config/firebase';
 import { MusicStation, MUSIC_GENRES, MusicGenre } from '@/types';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '../common/Button';
 import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
@@ -218,6 +218,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
 // ---------------------------------------------------------------------------
 
 export const MusicManager: React.FC = () => {
+  const BUILDINGS = useAdminBuildings();
   const [stations, setStations] = useState<MusicStation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);

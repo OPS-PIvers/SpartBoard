@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import React from 'react';
 import { useOrgBuildings } from './useOrgBuildings';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
+import type { User } from 'firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -26,9 +28,16 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(),
-}));
+const makeAuthWrapper = (user: Partial<User> | null) => {
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(
+      AuthContext.Provider,
+      { value: { user } as unknown as AuthContextType },
+      children
+    );
+  Wrapper.displayName = 'AuthContextTestWrapper';
+  return Wrapper;
+};
 
 const mockBuilding: BuildingRecord = {
   id: 'schumann',
@@ -42,13 +51,15 @@ const mockBuilding: BuildingRecord = {
 };
 
 describe('useOrgBuildings', () => {
-  const mockUseAuth = useAuth as Mock;
   const mockCollection = collection as Mock;
   const mockOnSnapshot = onSnapshot as Mock;
   const mockDoc = doc as Mock;
   const mockSetDoc = setDoc as Mock;
   const mockUpdateDoc = updateDoc as Mock;
   const mockDeleteDoc = deleteDoc as Mock;
+
+  const withUser = makeAuthWrapper({ uid: 'u' });
+  const withoutUser = makeAuthWrapper(null);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,15 +73,15 @@ describe('useOrgBuildings', () => {
   });
 
   it('skips subscription when orgId is null', () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
-    const { result } = renderHook(() => useOrgBuildings(null));
+    const { result } = renderHook(() => useOrgBuildings(null), {
+      wrapper: withUser,
+    });
     expect(mockOnSnapshot).not.toHaveBeenCalled();
     expect(result.current.buildings).toEqual([]);
     expect(result.current.loading).toBe(false);
   });
 
   it('hydrates buildings from snapshot', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockImplementation(
       (
         _ref: unknown,
@@ -85,7 +96,9 @@ describe('useOrgBuildings', () => {
       }
     );
 
-    const { result } = renderHook(() => useOrgBuildings('orono'));
+    const { result } = renderHook(() => useOrgBuildings('orono'), {
+      wrapper: withUser,
+    });
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
       expect(result.current.buildings).toHaveLength(1);
@@ -94,10 +107,11 @@ describe('useOrgBuildings', () => {
   });
 
   it('addBuilding writes a new doc with a derived id', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
-    const { result } = renderHook(() => useOrgBuildings('orono'));
+    const { result } = renderHook(() => useOrgBuildings('orono'), {
+      wrapper: withUser,
+    });
 
     await act(async () => {
       await result.current.addBuilding({
@@ -122,10 +136,11 @@ describe('useOrgBuildings', () => {
   });
 
   it('updateBuilding patches the doc (stripping id/orgId)', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
-    const { result } = renderHook(() => useOrgBuildings('orono'));
+    const { result } = renderHook(() => useOrgBuildings('orono'), {
+      wrapper: withUser,
+    });
 
     await act(async () => {
       await result.current.updateBuilding('schumann', {
@@ -142,10 +157,11 @@ describe('useOrgBuildings', () => {
   });
 
   it('removeBuilding deletes the doc', async () => {
-    mockUseAuth.mockReturnValue({ user: { uid: 'u' } });
     mockOnSnapshot.mockReturnValue(() => undefined);
 
-    const { result } = renderHook(() => useOrgBuildings('orono'));
+    const { result } = renderHook(() => useOrgBuildings('orono'), {
+      wrapper: withUser,
+    });
 
     await act(async () => {
       await result.current.removeBuilding('schumann');
@@ -157,8 +173,9 @@ describe('useOrgBuildings', () => {
   });
 
   it('writes reject when orgId is null', async () => {
-    mockUseAuth.mockReturnValue({ user: null });
-    const { result } = renderHook(() => useOrgBuildings(null));
+    const { result } = renderHook(() => useOrgBuildings(null), {
+      wrapper: withoutUser,
+    });
     await expect(result.current.addBuilding({ name: 'x' })).rejects.toThrow(
       /No organization/
     );

@@ -34,7 +34,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import type { Building } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 
 interface EngagementCounts {
@@ -108,7 +109,15 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   {} as Record<string, string>
 );
 
-const KNOWN_BUILDINGS = new Map(BUILDINGS.map((b) => [b.id, b]));
+// `KNOWN_BUILDINGS` is re-derived per component from `useAdminBuildings()`
+// below so analytics labels reflect the org's live building list.
+const useKnownBuildings = (): Map<string, Building> => {
+  const buildings = useAdminBuildings();
+  return React.useMemo(
+    () => new Map(buildings.map((b) => [b.id, b])),
+    [buildings]
+  );
+};
 const _CHART_COLORS = [
   '#2d3f89',
   '#3b82f6',
@@ -877,6 +886,7 @@ function sortRows<T extends SortableRow>(rows: T[], sort: SortState): T[] {
 }
 
 const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
+  const KNOWN_BUILDINGS = useKnownBuildings();
   const [domainSort, setDomainSort] = useState<SortState>({
     key: 'total',
     dir: 'desc',
@@ -914,7 +924,7 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         })),
         buildingSort
       ),
-    [data.users.buildings, buildingSort]
+    [data.users.buildings, buildingSort, KNOWN_BUILDINGS]
   );
 
   const buildingChartRows = useMemo(
@@ -928,7 +938,7 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
           total: counts.total,
         }))
         .sort((a, b) => b.total - a.total),
-    [data.users.buildings]
+    [data.users.buildings, KNOWN_BUILDINGS]
   );
 
   const toggleSort = (
@@ -1016,6 +1026,7 @@ const KpiUserModal: React.FC<{
   category: KpiCategory;
   users: KpiUser[];
 }> = ({ isOpen, onClose, category, users }) => {
+  const KNOWN_BUILDINGS = useKnownBuildings();
   const [emailSearch, setEmailSearch] = useState('');
   const [buildingFilter, setBuildingFilter] = useState('all');
   const [sortKey, setSortKey] = useState<KpiSortKey>('email');
@@ -1106,7 +1117,14 @@ const KpiUserModal: React.FC<{
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [categoryUsers, emailSearch, buildingFilter, sortKey, sortDir]);
+  }, [
+    categoryUsers,
+    emailSearch,
+    buildingFilter,
+    sortKey,
+    sortDir,
+    KNOWN_BUILDINGS,
+  ]);
 
   return (
     <Modal
@@ -1331,6 +1349,7 @@ const DataTable: React.FC<{
 };
 
 export const AnalyticsManager: React.FC = () => {
+  const KNOWN_BUILDINGS = useKnownBuildings();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1513,7 +1532,7 @@ export const AnalyticsManager: React.FC = () => {
               name: KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`,
             }))
         : [],
-    [data]
+    [data, KNOWN_BUILDINGS]
   );
 
   const hasNoBuildingUsers = Boolean(data?.users.buildings.none);

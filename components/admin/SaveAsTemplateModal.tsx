@@ -13,7 +13,7 @@ import { LayoutTemplate, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Dashboard, DashboardTemplate, WidgetData } from '@/types';
 import { useAuth } from '@/context/useAuth';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 interface SaveAsTemplateModalProps {
   isOpen: boolean;
@@ -29,6 +29,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   currentDashboard,
 }) => {
   const { user } = useAuth();
+  const BUILDINGS = useAdminBuildings();
   const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 

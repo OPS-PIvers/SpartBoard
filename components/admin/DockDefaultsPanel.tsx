@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { Toggle } from '@/components/common/Toggle';
 import { Layout } from 'lucide-react';
 
@@ -12,6 +12,7 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
   config,
   onChange,
 }) => {
+  const buildings = useAdminBuildings();
   const dockDefaults = useMemo(
     () => config.dockDefaults ?? {},
     [config.dockDefaults]
@@ -40,7 +41,7 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {BUILDINGS.map((building) => (
+        {buildings.map((building) => (
           <div
             key={building.id}
             className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100"

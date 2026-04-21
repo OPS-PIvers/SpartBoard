@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
@@ -8,7 +8,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import type { BuildingRecord, BuildingType } from '@/types/organization';
 import { slugOrFallback } from '@/utils/slug';
 
@@ -21,7 +21,11 @@ import { slugOrFallback } from '@/utils/slug';
  * buildings listed in their own `buildingIds`.
  */
 export const useOrgBuildings = (orgId: string | null) => {
-  const { user } = useAuth();
+  // Use useContext directly so callers rendered outside AuthProvider (e.g. a
+  // test harness) don't throw; they'll simply skip the Firestore subscription
+  // and let the consumer fall back to seed data.
+  const auth = useContext(AuthContext);
+  const user = auth?.user ?? null;
   const [buildings, setBuildings] = useState<BuildingRecord[]>([]);
   const [error, setError] = useState<Error | null>(null);
 

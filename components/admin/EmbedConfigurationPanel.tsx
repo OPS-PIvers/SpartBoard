@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { EmbedGlobalConfig, BuildingEmbedDefaults } from '@/types';
 import { Plus, Trash2, Settings2 } from 'lucide-react';
@@ -14,9 +15,9 @@ interface EmbedConfigurationPanelProps {
 export const EmbedConfigurationPanel: React.FC<
   EmbedConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
   const [newUrl, setNewUrl] = useState('');
 
   const buildingDefaults = useMemo(

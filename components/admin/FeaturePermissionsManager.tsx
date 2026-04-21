@@ -16,7 +16,7 @@ import {
   getWidgetGradeLevels,
   ALL_GRADE_LEVELS,
 } from '@/config/widgetGradeLevels';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   Shield,
   Users,
@@ -53,6 +53,7 @@ import { useDialog } from '@/context/useDialog';
 export const FeaturePermissionsManager: React.FC = () => {
   const { showConfirm } = useDialog();
   const isMobile = useIsMobile();
+  const buildings = useAdminBuildings();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [showFilters, setShowFilters] = useState(false);
@@ -312,7 +313,7 @@ export const FeaturePermissionsManager: React.FC = () => {
       )
         return false;
       if (filterBuilding !== 'all') {
-        const building = BUILDINGS.find((b) => b.id === filterBuilding);
+        const building = buildings.find((b) => b.id === filterBuilding);
         if (building) {
           const currentLevels =
             perm.gradeLevels ?? getWidgetGradeLevels(tool.type);
@@ -322,7 +323,13 @@ export const FeaturePermissionsManager: React.FC = () => {
       }
       return true;
     });
-  }, [permissions, filterEnabled, filterAvailability, filterBuilding]);
+  }, [
+    permissions,
+    filterEnabled,
+    filterAvailability,
+    filterBuilding,
+    buildings,
+  ]);
 
   const btnClass = (active: boolean) =>
     `px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
@@ -370,7 +377,7 @@ export const FeaturePermissionsManager: React.FC = () => {
       >
         All
       </button>
-      {BUILDINGS.map((b) => (
+      {buildings.map((b) => (
         <button
           key={b.id}
           onClick={() => setFilterBuilding(b.id)}

@@ -35,7 +35,7 @@ import {
   WidgetConfig,
   PollConfig,
 } from '@/types';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
@@ -582,6 +582,7 @@ const PollResponsesPanel: React.FC<{
 export const AnnouncementsManager: React.FC = () => {
   const { user } = useAuth();
   const { addToast } = useDashboard();
+  const BUILDINGS = useAdminBuildings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);

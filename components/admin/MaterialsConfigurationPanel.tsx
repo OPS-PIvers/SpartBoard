@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import {
   MaterialDefinition,
@@ -32,9 +33,9 @@ const EMPTY_DRAFT: Omit<MaterialDefinition, 'id'> = {
 export const MaterialsConfigurationPanel: React.FC<
   MaterialsConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
   const [draft, setDraft] =
     useState<Omit<MaterialDefinition, 'id'>>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);

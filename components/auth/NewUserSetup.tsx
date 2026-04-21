@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { TOOLS } from '@/config/tools';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -278,47 +278,50 @@ export const NewUserSetup: React.FC = () => {
 const StepBuildings: React.FC<{
   selected: string[];
   onToggle: (id: string) => void;
-}> = ({ selected, onToggle }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-    {BUILDINGS.map((b) => {
-      const isSelected = selected.includes(b.id);
-      return (
-        <button
-          key={b.id}
-          onClick={() => onToggle(b.id)}
-          aria-pressed={isSelected}
-          className={`relative flex flex-col items-start p-5 rounded-2xl border-2 text-left transition-all ${
-            isSelected
-              ? 'border-blue-500 bg-blue-500/10'
-              : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
-          }`}
-        >
-          {isSelected && (
-            <span className="absolute top-3 right-3 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-              <Check className="w-3 h-3 text-white" />
-            </span>
-          )}
-          <Building2
-            className={`w-6 h-6 mb-3 ${isSelected ? 'text-blue-400' : 'text-slate-400'}`}
-          />
-          <span
-            className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-slate-200'}`}
+}> = ({ selected, onToggle }) => {
+  const BUILDINGS = useAdminBuildings();
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {BUILDINGS.map((b) => {
+        const isSelected = selected.includes(b.id);
+        return (
+          <button
+            key={b.id}
+            onClick={() => onToggle(b.id)}
+            aria-pressed={isSelected}
+            className={`relative flex flex-col items-start p-5 rounded-2xl border-2 text-left transition-all ${
+              isSelected
+                ? 'border-blue-500 bg-blue-500/10'
+                : 'border-slate-600 bg-slate-700/50 hover:border-slate-500'
+            }`}
           >
-            {b.name}
-          </span>
-          <span className="text-slate-400 text-xs mt-0.5">
-            Grades {b.gradeLabel}
-          </span>
-        </button>
-      );
-    })}
-    {selected.length === 0 && (
-      <p className="col-span-full text-center text-slate-500 text-xs pt-2">
-        Select at least one school to continue.
-      </p>
-    )}
-  </div>
-);
+            {isSelected && (
+              <span className="absolute top-3 right-3 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" />
+              </span>
+            )}
+            <Building2
+              className={`w-6 h-6 mb-3 ${isSelected ? 'text-blue-400' : 'text-slate-400'}`}
+            />
+            <span
+              className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-slate-200'}`}
+            >
+              {b.name}
+            </span>
+            <span className="text-slate-400 text-xs mt-0.5">
+              Grades {b.gradeLabel}
+            </span>
+          </button>
+        );
+      })}
+      {selected.length === 0 && (
+        <p className="col-span-full text-center text-slate-500 text-xs pt-2">
+          Select at least one school to continue.
+        </p>
+      )}
+    </div>
+  );
+};
 
 // ─── Step 1: Appearance ───────────────────────────────────────────────────────
 

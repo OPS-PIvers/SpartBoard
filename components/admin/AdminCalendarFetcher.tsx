@@ -4,11 +4,12 @@ import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { CalendarGlobalConfig } from '@/types';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 export const AdminCalendarFetcher: React.FC = () => {
   const { isAdmin, featurePermissions } = useAuth();
   const { calendarService, isConnected } = useGoogleCalendar();
+  const BUILDINGS = useAdminBuildings();
 
   const calendarPermission = featurePermissions.find(
     (p) => p.widgetType === 'calendar'
@@ -99,7 +100,7 @@ export const AdminCalendarFetcher: React.FC = () => {
     );
 
     return () => clearInterval(intervalId);
-  }, [isAdmin, calendarService, isConnected, config]);
+  }, [isAdmin, calendarService, isConnected, config, BUILDINGS]);
 
   return null; // Headless
 };

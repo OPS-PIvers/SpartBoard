@@ -1,6 +1,6 @@
 import { Card } from '@/components/common/Card';
 import React, { useEffect, useRef, useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   SoundboardGlobalConfig,
   SoundboardBuildingConfig,
@@ -21,11 +21,14 @@ interface SoundboardConfigurationPanelProps {
   onChange: (newConfig: SoundboardGlobalConfig) => void;
 }
 
-const ALL_BUILDING_IDS = BUILDINGS.map((building) => building.id);
-
 export const SoundboardConfigurationPanel: React.FC<
   SoundboardConfigurationPanelProps
 > = ({ config, onChange }) => {
+  const BUILDINGS = useAdminBuildings();
+  const ALL_BUILDING_IDS = React.useMemo(
+    () => BUILDINGS.map((building) => building.id),
+    [BUILDINGS]
+  );
   const { googleAccessToken } = useAuth();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playbackErrors, setPlaybackErrors] = useState<Record<string, string>>(

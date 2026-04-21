@@ -1,6 +1,7 @@
 import { Card } from '@/components/common/Card';
-import React, { useState } from 'react';
-import { BUILDINGS } from '@/config/buildings';
+import React from 'react';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { ExpectationsGlobalConfig, ExpectationsOptionOverride } from '@/types';
 import { Toggle } from '../common/Toggle';
@@ -18,9 +19,9 @@ interface ExpectationsConfigurationPanelProps {
 export const ExpectationsConfigurationPanel: React.FC<
   ExpectationsConfigurationPanelProps
 > = ({ config, onChange }) => {
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string>(
-    BUILDINGS[0].id
-  );
+  const BUILDINGS = useAdminBuildings();
+  const [selectedBuildingId, setSelectedBuildingId] =
+    useBuildingSelection(BUILDINGS);
 
   const buildingsConfig = config.buildings ?? {};
   const currentBuildingConfig = buildingsConfig[selectedBuildingId] ?? {

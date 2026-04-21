@@ -72,10 +72,13 @@ vi.mock('@/config/firebase', () => {
   };
   return {
     isConfigured: false,
+    isAuthBypass: false,
     app,
     db,
     auth,
     storage,
     functions,
+    GOOGLE_OAUTH_SCOPES: [] as string[],
+    googleProvider: {},
   };
 });

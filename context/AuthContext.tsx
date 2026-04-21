@@ -38,9 +38,12 @@ import {
   AppSettings,
   DockPosition,
 } from '../types';
-import type { MemberRecord } from '../types/organization';
+import type { MemberRecord, BuildingRecord } from '../types/organization';
 import { AuthContext } from './AuthContextValue';
-import { getBuildingGradeLevels } from '../config/buildings';
+import {
+  buildingRecordToBuilding,
+  getBuildingGradeLevels,
+} from '../config/buildings';
 import i18n from '../i18n';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 
@@ -234,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAuthBypass ? 'super_admin' : null
   );
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
+  const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -640,6 +644,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user]);
 
+  // Subscribe to the active org's buildings so grade-level resolution stays
+  // in sync with whatever admins configure in Admin Settings > Organization.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user || !orgId) {
+      setOrgBuildings([]);
+      return;
+    }
+
+    const unsub = onSnapshot(
+      collection(db, 'organizations', orgId, 'buildings'),
+      (snapshot) => {
+        const items: BuildingRecord[] = snapshot.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as BuildingRecord
+        );
+        setOrgBuildings(items);
+      },
+      (err) => {
+        console.error(
+          `[AuthContext] org buildings snapshot error (${orgId}):`,
+          err
+        );
+      }
+    );
+    return unsub;
+  }, [user, orgId]);
+
   // Load user profile (selectedBuildings) from Firestore when user signs in
   useEffect(() => {
     if (isAuthBypass) return;
@@ -958,10 +989,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
-  const userGradeLevels = useMemo<GradeLevel[]>(
-    () => getBuildingGradeLevels(selectedBuildings),
-    [selectedBuildings]
-  );
+  const userGradeLevels = useMemo<GradeLevel[]>(() => {
+    const source =
+      orgBuildings.length > 0
+        ? orgBuildings.map(buildingRecordToBuilding)
+        : undefined;
+    return getBuildingGradeLevels(selectedBuildings, source);
+  }, [selectedBuildings, orgBuildings]);
 
   // Auth state listener
   useEffect(() => {

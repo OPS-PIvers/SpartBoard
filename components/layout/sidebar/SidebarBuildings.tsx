@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Building2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 
 interface SidebarBuildingsProps {
   isVisible: boolean;
@@ -13,6 +13,7 @@ export const SidebarBuildings: React.FC<SidebarBuildingsProps> = ({
 }) => {
   const { t } = useTranslation();
   const { selectedBuildings, setSelectedBuildings } = useAuth();
+  const BUILDINGS = useAdminBuildings();
 
   return (
     <div
