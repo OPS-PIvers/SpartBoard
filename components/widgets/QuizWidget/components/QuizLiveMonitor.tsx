@@ -86,6 +86,160 @@ interface QuizLiveMonitorProps {
   onBack?: () => void;
 }
 
+interface LiveScoreboardSetupPopupProps {
+  setupRef: React.RefObject<HTMLDivElement | null>;
+  mode: 'pin' | 'name';
+  onModeChange: (mode: 'pin' | 'name') => void;
+  scoring: 'completion' | 'per-question';
+  onScoringChange: (scoring: 'completion' | 'per-question') => void;
+  hasNames: boolean;
+  onEnable: () => void;
+}
+
+const LiveScoreboardSetupPopup: React.FC<LiveScoreboardSetupPopupProps> = ({
+  setupRef,
+  mode,
+  onModeChange,
+  scoring,
+  onScoringChange,
+  hasNames,
+  onEnable,
+}) => (
+  <div
+    ref={setupRef}
+    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+    style={{ padding: 'min(16px, 4cqmin)' }}
+  >
+    <p
+      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+      style={{
+        fontSize: 'min(11px, 3.5cqmin)',
+        marginBottom: 'min(12px, 3cqmin)',
+      }}
+    >
+      Live Scoreboard Setup
+    </p>
+
+    <p
+      className="font-bold text-slate-500 uppercase tracking-wider"
+      style={{
+        fontSize: 'min(9px, 2.5cqmin)',
+        marginBottom: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      Display as
+    </p>
+    <div
+      className="flex"
+      style={{
+        gap: 'min(6px, 1.5cqmin)',
+        marginBottom: 'min(12px, 3cqmin)',
+      }}
+    >
+      <button
+        onClick={() => onModeChange('name')}
+        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+          mode === 'name'
+            ? 'bg-brand-blue-primary text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        disabled={!hasNames}
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(8px, 2cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        <User
+          style={{
+            width: 'min(12px, 3.5cqmin)',
+            height: 'min(12px, 3.5cqmin)',
+          }}
+        />
+        Names
+      </button>
+      <button
+        onClick={() => onModeChange('pin')}
+        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+          mode === 'pin'
+            ? 'bg-brand-blue-primary text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(8px, 2cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        <Hash
+          style={{
+            width: 'min(12px, 3.5cqmin)',
+            height: 'min(12px, 3.5cqmin)',
+          }}
+        />
+        PINs
+      </button>
+    </div>
+
+    <p
+      className="font-bold text-slate-500 uppercase tracking-wider"
+      style={{
+        fontSize: 'min(9px, 2.5cqmin)',
+        marginBottom: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      Update scores
+    </p>
+    <div
+      className="flex flex-col"
+      style={{
+        gap: 'min(4px, 1cqmin)',
+        marginBottom: 'min(14px, 3.5cqmin)',
+      }}
+    >
+      <button
+        onClick={() => onScoringChange('completion')}
+        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+          scoring === 'completion'
+            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+        }`}
+        style={{
+          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        On quiz completion
+      </button>
+      <button
+        onClick={() => onScoringChange('per-question')}
+        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+          scoring === 'per-question'
+            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+        }`}
+        style={{
+          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        After each question
+      </button>
+    </div>
+
+    <button
+      onClick={onEnable}
+      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
+      style={{
+        padding: 'min(10px, 2.5cqmin)',
+        fontSize: 'min(11px, 3.5cqmin)',
+      }}
+    >
+      START LIVE SCOREBOARD
+    </button>
+  </div>
+);
+
 export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   session,
   responses,
@@ -1022,143 +1176,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     />
                   </button>
                   {showLiveScoreboardSetup && (
-                    <div
-                      ref={liveScoreboardSetupRef}
-                      className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                      style={{ padding: 'min(16px, 4cqmin)' }}
-                    >
-                      <p
-                        className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(11px, 3.5cqmin)',
-                          marginBottom: 'min(12px, 3cqmin)',
-                        }}
-                      >
-                        Live Scoreboard Setup
-                      </p>
-
-                      {/* Name/PIN choice */}
-                      <p
-                        className="font-bold text-slate-500 uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(9px, 2.5cqmin)',
-                          marginBottom: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        Display as
-                      </p>
-                      <div
-                        className="flex"
-                        style={{
-                          gap: 'min(6px, 1.5cqmin)',
-                          marginBottom: 'min(12px, 3cqmin)',
-                        }}
-                      >
-                        <button
-                          onClick={() => setLiveScoreboardMode('name')}
-                          className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                            liveScoreboardMode === 'name'
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                          disabled={!hasNames}
-                          style={{
-                            gap: 'min(4px, 1cqmin)',
-                            padding: 'min(8px, 2cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          <User
-                            style={{
-                              width: 'min(12px, 3.5cqmin)',
-                              height: 'min(12px, 3.5cqmin)',
-                            }}
-                          />
-                          Names
-                        </button>
-                        <button
-                          onClick={() => setLiveScoreboardMode('pin')}
-                          className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                            liveScoreboardMode === 'pin'
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                          style={{
-                            gap: 'min(4px, 1cqmin)',
-                            padding: 'min(8px, 2cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          <Hash
-                            style={{
-                              width: 'min(12px, 3.5cqmin)',
-                              height: 'min(12px, 3.5cqmin)',
-                            }}
-                          />
-                          PINs
-                        </button>
-                      </div>
-
-                      {/* Scoring mode choice */}
-                      <p
-                        className="font-bold text-slate-500 uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(9px, 2.5cqmin)',
-                          marginBottom: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        Update scores
-                      </p>
-                      <div
-                        className="flex flex-col"
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          marginBottom: 'min(14px, 3.5cqmin)',
-                        }}
-                      >
-                        <button
-                          onClick={() => setLiveScoreboardScoring('completion')}
-                          className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                            liveScoreboardScoring === 'completion'
-                              ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                          }`}
-                          style={{
-                            padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          On quiz completion
-                        </button>
-                        <button
-                          onClick={() =>
-                            setLiveScoreboardScoring('per-question')
-                          }
-                          className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                            liveScoreboardScoring === 'per-question'
-                              ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                          }`}
-                          style={{
-                            padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          After each question
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={handleEnableLiveScoreboard}
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
-                        style={{
-                          padding: 'min(10px, 2.5cqmin)',
-                          fontSize: 'min(11px, 3.5cqmin)',
-                        }}
-                      >
-                        START LIVE SCOREBOARD
-                      </button>
-                    </div>
+                    <LiveScoreboardSetupPopup
+                      setupRef={liveScoreboardSetupRef}
+                      mode={liveScoreboardMode}
+                      onModeChange={setLiveScoreboardMode}
+                      scoring={liveScoreboardScoring}
+                      onScoringChange={setLiveScoreboardScoring}
+                      hasNames={hasNames}
+                      onEnable={handleEnableLiveScoreboard}
+                    />
                   )}
                 </div>
               )}
@@ -1426,138 +1452,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     />
                   </button>
                   {showLiveScoreboardSetup && (
-                    <div
-                      ref={liveScoreboardSetupRef}
-                      className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                      style={{ padding: 'min(16px, 4cqmin)' }}
-                    >
-                      <p
-                        className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(11px, 3.5cqmin)',
-                          marginBottom: 'min(12px, 3cqmin)',
-                        }}
-                      >
-                        Live Scoreboard Setup
-                      </p>
-                      <p
-                        className="font-bold text-slate-500 uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(9px, 2.5cqmin)',
-                          marginBottom: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        Display as
-                      </p>
-                      <div
-                        className="flex"
-                        style={{
-                          gap: 'min(6px, 1.5cqmin)',
-                          marginBottom: 'min(12px, 3cqmin)',
-                        }}
-                      >
-                        <button
-                          onClick={() => setLiveScoreboardMode('name')}
-                          className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                            liveScoreboardMode === 'name'
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                          disabled={!hasNames}
-                          style={{
-                            gap: 'min(4px, 1cqmin)',
-                            padding: 'min(8px, 2cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          <User
-                            style={{
-                              width: 'min(12px, 3.5cqmin)',
-                              height: 'min(12px, 3.5cqmin)',
-                            }}
-                          />
-                          Names
-                        </button>
-                        <button
-                          onClick={() => setLiveScoreboardMode('pin')}
-                          className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                            liveScoreboardMode === 'pin'
-                              ? 'bg-brand-blue-primary text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                          style={{
-                            gap: 'min(4px, 1cqmin)',
-                            padding: 'min(8px, 2cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          <Hash
-                            style={{
-                              width: 'min(12px, 3.5cqmin)',
-                              height: 'min(12px, 3.5cqmin)',
-                            }}
-                          />
-                          PINs
-                        </button>
-                      </div>
-                      <p
-                        className="font-bold text-slate-500 uppercase tracking-wider"
-                        style={{
-                          fontSize: 'min(9px, 2.5cqmin)',
-                          marginBottom: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        Update scores
-                      </p>
-                      <div
-                        className="flex flex-col"
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          marginBottom: 'min(14px, 3.5cqmin)',
-                        }}
-                      >
-                        <button
-                          onClick={() => setLiveScoreboardScoring('completion')}
-                          className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                            liveScoreboardScoring === 'completion'
-                              ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                          }`}
-                          style={{
-                            padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          On quiz completion
-                        </button>
-                        <button
-                          onClick={() =>
-                            setLiveScoreboardScoring('per-question')
-                          }
-                          className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                            liveScoreboardScoring === 'per-question'
-                              ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                          }`}
-                          style={{
-                            padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                            fontSize: 'min(10px, 3cqmin)',
-                          }}
-                        >
-                          After each question
-                        </button>
-                      </div>
-                      <button
-                        onClick={handleEnableLiveScoreboard}
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
-                        style={{
-                          padding: 'min(10px, 2.5cqmin)',
-                          fontSize: 'min(11px, 3.5cqmin)',
-                        }}
-                      >
-                        START LIVE SCOREBOARD
-                      </button>
-                    </div>
+                    <LiveScoreboardSetupPopup
+                      setupRef={liveScoreboardSetupRef}
+                      mode={liveScoreboardMode}
+                      onModeChange={setLiveScoreboardMode}
+                      scoring={liveScoreboardScoring}
+                      onScoringChange={setLiveScoreboardScoring}
+                      hasNames={hasNames}
+                      onEnable={handleEnableLiveScoreboard}
+                    />
                   )}
                 </div>
               )}
