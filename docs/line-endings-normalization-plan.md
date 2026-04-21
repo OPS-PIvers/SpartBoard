@@ -115,10 +115,20 @@ After PR 2 is merged:
 ```bash
 git checkout main
 git pull
-# Copy the hash of the squash-merge commit that landed on main
-SQUASH_HASH=$(git log -1 --format=%H)
+
+# Identify the squash commit by subject, not by position. `git log -1` would
+# grab whatever commit happens to be at tip of `main`, which is wrong if any
+# other PR merged between PR 2 landing and this step running — the wrong
+# hash would silently get recorded (blame-ignore ignores unknown hashes, so
+# the renormalize commit would never actually be skipped).
+SQUASH_HASH=$(git log --format="%H %s" | grep "normalize line endings" | head -1 | awk '{print $1}')
+
+# Verify before writing — confirm the commit subject, author, and date look
+# right. If this prints nothing or the wrong commit, stop and investigate.
+git log -1 --format="%H %s%n%an  %ad" "$SQUASH_HASH"
+
 git checkout -b chore/blame-ignore-renormalize
-echo "$SQUASH_HASH" >> .git-blame-ignore-revs
+echo "$SQUASH_HASH  # chore: normalize line endings" >> .git-blame-ignore-revs
 git add .git-blame-ignore-revs
 git commit -m "chore: register line-ending renormalize in blame-ignore"
 git push -u origin chore/blame-ignore-renormalize
