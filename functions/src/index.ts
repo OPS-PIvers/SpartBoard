@@ -21,6 +21,7 @@ export {
 export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
+export { getOrgUserActivity } from './organizationUserActivity';
 
 setGlobalOptions({ region: 'us-central1' });
 

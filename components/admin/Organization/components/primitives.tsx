@@ -509,7 +509,7 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
             ref={menuRef}
             role="menu"
             style={{ position: 'fixed', top: pos.top, right: pos.right }}
-            className="z-dropdown min-w-[200px] bg-white rounded-xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] border border-slate-200 py-1"
+            className="z-popover min-w-[200px] bg-white rounded-xl shadow-[0_10px_15px_-3px_rgba(29,42,93,.12),0_4px_6px_-4px_rgba(29,42,93,.08)] border border-slate-200 py-1"
             onClick={(e) => e.stopPropagation()}
           >
             {items.map((item, i) => (
