@@ -251,7 +251,21 @@ service cloud.firestore {
           // members who haven't been scoped into their building yet.
           (isBuildingAdmin(orgId) &&
            resource.data.buildingIds.hasAny(orgMember(orgId).buildingIds) &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+          // Self-write: the signed-in user may stamp their own `lastActive`
+          // on their own member doc. Bound strictly — email/orgId must match
+          // the existing record and only `lastActive` can change, so this
+          // cannot escalate role/buildingIds/status or touch another user.
+          // Powers the "Last active" column in the Organization admin panel;
+          // the alternative (a server trigger off Firebase Auth sign-in
+          // events) costs a Cloud Function for a write the client can safely
+          // make itself under this rule.
+          (request.auth != null &&
+           request.auth.token.email != null &&
+           request.auth.token.email.lower() == emailLower &&
+           request.resource.data.email == resource.data.email &&
+           request.resource.data.orgId == resource.data.orgId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActive']));
       }
 
       match /studentPageConfig/{configId} {

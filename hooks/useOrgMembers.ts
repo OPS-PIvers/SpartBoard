@@ -286,6 +286,57 @@ export const useOrgMembers = (orgId: string | null) => {
     return rewriteClaimUrls(result.data);
   };
 
+  // Re-invites an existing member by re-running the invite callable with the
+  // same role + buildings already on their member doc. The CF mints a fresh
+  // token, overwrites the existing invitation record, and re-sends the email.
+  const resendInvite = async (email: string): Promise<InviteResponse> => {
+    if (!orgId) {
+      throw new Error('No organization selected.');
+    }
+    const emailLower = email.toLowerCase();
+    const existing = members.find((m) => m.email === emailLower);
+    if (!existing) {
+      throw new Error(`No member record for ${email}.`);
+    }
+    const callable = httpsCallable<
+      {
+        orgId: string;
+        invitations: BulkInviteIntent[];
+        message?: string;
+      },
+      InviteResponse
+    >(functions, 'createOrganizationInvites');
+    const result = await callable({
+      orgId,
+      invitations: [
+        {
+          email: emailLower,
+          roleId: existing.roleId,
+          buildingIds: existing.buildingIds ?? [],
+        },
+      ],
+    });
+    return rewriteClaimUrls(result.data);
+  };
+
+  // Triggers a password reset email via the `resetOrganizationUserPassword`
+  // callable. The CF uses the Admin SDK to mint a reset link and sends it
+  // through the same mail transport as invites. Auth/membership checks run
+  // server-side; we only need to provide orgId + target email here.
+  const resetPassword = async (
+    email: string
+  ): Promise<{ sent: boolean; email: string }> => {
+    if (!orgId) {
+      throw new Error('No organization selected.');
+    }
+    const callable = httpsCallable<
+      { orgId: string; email: string },
+      { sent: boolean; email: string }
+    >(functions, 'resetOrganizationUserPassword');
+    const result = await callable({ orgId, email: email.toLowerCase() });
+    return result.data;
+  };
+
   return {
     members,
     users,
@@ -296,5 +347,7 @@ export const useOrgMembers = (orgId: string | null) => {
     removeMembers,
     inviteMembers,
     bulkInviteMembers,
+    resendInvite,
+    resetPassword,
   };
 };

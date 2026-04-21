@@ -20,6 +20,7 @@ export {
 } from './organizationInvites';
 export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
+export { resetOrganizationUserPassword } from './organizationResetPassword';
 
 setGlobalOptions({ region: 'us-central1' });
 

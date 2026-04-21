@@ -57,6 +57,12 @@ interface Props {
   // buildingIds (from `parseInvitesCsv`). Returns void; the parent surfaces
   // success/error toasts via its own callback.
   onBulkInvite: (intents: InviteIntent[]) => void;
+  // Resend an existing invite by email. Parent re-invokes the
+  // `createOrganizationInvites` callable with the current role/buildingIds.
+  onResendInvite: (user: UserRecord) => void;
+  // Trigger a password reset for a user. Parent calls the
+  // `resetOrganizationUserPassword` callable (Admin SDK).
+  onResetPassword: (user: UserRecord) => void;
 }
 
 type StatusFilter = 'all' | UserStatus;
@@ -119,6 +125,8 @@ export const UsersView: React.FC<Props> = ({
   onRemove,
   onInvite,
   onBulkInvite,
+  onResendInvite,
+  onResetPassword,
 }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
@@ -128,6 +136,11 @@ export const UsersView: React.FC<Props> = ({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showInvite, setShowInvite] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const editingUser = useMemo(
+    () => users.find((u) => u.id === editingUserId) ?? null,
+    [users, editingUserId]
+  );
 
   // Filter changes must clear selection, otherwise bulk actions could fire
   // against rows the user can no longer see. Per repo convention (see
@@ -436,6 +449,9 @@ export const UsersView: React.FC<Props> = ({
                   onDelete={() =>
                     canManageUsers && inScope ? onRemove([u.id]) : undefined
                   }
+                  onEdit={() => setEditingUserId(u.id)}
+                  onResendInvite={() => onResendInvite(u)}
+                  onResetPassword={() => onResetPassword(u)}
                 />
               );
             })}
@@ -456,6 +472,18 @@ export const UsersView: React.FC<Props> = ({
         onInvite={(emails, role, bids, msg) => {
           onInvite(emails, role, bids, msg);
           setShowInvite(false);
+        }}
+      />
+
+      <EditUserModal
+        isOpen={editingUser !== null}
+        existing={editingUser}
+        roles={roles}
+        buildings={visibleBuildings}
+        onClose={() => setEditingUserId(null)}
+        onSave={(patch) => {
+          if (editingUser) onUpdate(editingUser.id, patch);
+          setEditingUserId(null);
         }}
       />
 
@@ -487,6 +515,9 @@ const UserRow: React.FC<{
   canManage: boolean;
   onUpdate: (patch: Partial<UserRecord>) => void;
   onDelete: () => void;
+  onEdit: () => void;
+  onResendInvite: () => void;
+  onResetPassword: () => void;
 }> = ({
   user,
   roles,
@@ -497,6 +528,9 @@ const UserRow: React.FC<{
   canManage,
   onUpdate,
   onDelete,
+  onEdit,
+  onResendInvite,
+  onResetPassword,
 }) => {
   // Granular gating: status toggle only needs in-scope; role/buildings/delete
   // additionally require manage privileges (domain admin or higher).
@@ -728,19 +762,19 @@ const UserRow: React.FC<{
           {
             label: 'Edit',
             icon: <Edit3 size={14} />,
-            onClick: () => console.warn('[Users] edit', user.id),
+            onClick: onEdit,
             disabled: !canManage || !inScope,
           },
           {
             label: 'Resend invite',
             icon: <Mail size={14} />,
-            onClick: () => console.warn('[Users] resend', user.id),
+            onClick: onResendInvite,
             disabled: !canManage || !inScope || user.status !== 'invited',
           },
           {
             label: 'Reset password',
             icon: <KeyRound size={14} />,
-            onClick: () => console.warn('[Users] reset password', user.id),
+            onClick: onResetPassword,
             disabled: !canManage || !inScope,
           },
           user.status === 'inactive'
@@ -1108,6 +1142,125 @@ const BulkImportModal: React.FC<{
             )}
           </div>
         )}
+      </div>
+    </LocalModal>
+  );
+};
+
+// ---------- Edit user modal ----------
+
+// Pre-populated edit form for an existing member. Submits a patch containing
+// only the fields that actually changed; if nothing changed, `onSave` is
+// called with an empty patch and `updateMember` no-ops (see useOrgMembers).
+const EditUserModal: React.FC<{
+  isOpen: boolean;
+  existing: UserRecord | null;
+  roles: RoleRecord[];
+  buildings: BuildingRecord[];
+  onClose: () => void;
+  onSave: (patch: Partial<UserRecord>) => void;
+}> = ({ isOpen, existing, roles, buildings, onClose, onSave }) => {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [bids, setBids] = useState<string[]>([]);
+
+  // Sync form state when a different user is selected. Per CLAUDE.md, we
+  // reset state during render rather than reaching for useEffect.
+  const [lastId, setLastId] = useState<string | null>(null);
+  if (existing && existing.id !== lastId) {
+    setLastId(existing.id);
+    setName(existing.name);
+    setRole(existing.role);
+    setBids(existing.buildingIds);
+  }
+
+  if (!existing) return null;
+
+  const buildPatch = (): Partial<UserRecord> => {
+    const patch: Partial<UserRecord> = {};
+    if (name !== existing.name) patch.name = name;
+    if (role !== existing.role) patch.role = role;
+    const sameBuildings =
+      bids.length === existing.buildingIds.length &&
+      bids.every((id) => existing.buildingIds.includes(id));
+    if (!sameBuildings) patch.buildingIds = bids;
+    return patch;
+  };
+
+  return (
+    <LocalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit user"
+      icon={<Edit3 size={18} />}
+      size="lg"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn variant="primary" onClick={() => onSave(buildPatch())}>
+            Save changes
+          </Btn>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Email">
+          <Input value={existing.email} disabled readOnly />
+        </Field>
+        <Field label="Name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Role">
+            <Select value={role} onChange={(e) => setRole(e.target.value)}>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field
+            label="Buildings"
+            hint={
+              buildings.length === 0 ? 'No buildings available.' : undefined
+            }
+          >
+            <div
+              role="group"
+              aria-label="Buildings"
+              className="max-h-40 overflow-y-auto rounded-lg border border-slate-300 bg-white divide-y divide-slate-100"
+            >
+              {buildings.map((b) => {
+                const checked = bids.includes(b.id);
+                const inputId = `edit-building-${b.id}`;
+                return (
+                  <label
+                    key={b.id}
+                    htmlFor={inputId}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <Checkbox
+                      id={inputId}
+                      checked={checked}
+                      onChange={(e) => {
+                        setBids((prev) =>
+                          e.target.checked
+                            ? [...prev, b.id]
+                            : prev.filter((id) => id !== b.id)
+                        );
+                      }}
+                    />
+                    <span className="flex-1 truncate">{b.name}</span>
+                    <Badge color="slate">{b.grades}</Badge>
+                  </label>
+                );
+              })}
+            </div>
+          </Field>
+        </div>
       </div>
     </LocalModal>
   );
