@@ -12,7 +12,7 @@
  * folders from `useFolders()` and handle the move/commit themselves.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
 
@@ -92,6 +92,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   variant = 'popover',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const headerId = useId();
 
   useEffect(() => {
     const handlePointer = (event: MouseEvent): void => {
@@ -151,7 +152,8 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     <div
       ref={containerRef}
       role="dialog"
-      aria-label={title}
+      aria-labelledby={headerId}
+      aria-modal={variant === 'dialog' ? true : undefined}
       className={
         variant === 'dialog'
           ? 'relative z-10 flex max-h-[80vh] w-80 flex-col rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md'
@@ -159,6 +161,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
       }
     >
       <header
+        id={headerId}
         className="border-b border-slate-200 font-semibold text-slate-500"
         style={{
           paddingInline: 'min(12px, 3cqmin)',
@@ -212,7 +215,6 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     return (
       <div
         className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
-        aria-modal="true"
         role="presentation"
       >
         {card}

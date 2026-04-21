@@ -99,7 +99,7 @@ export interface MiniAppManagerProps {
   /* ── Library-tab callbacks (personal) ─────────────────────────────────── */
   onCreate: () => void;
   onEdit: (app: MiniAppItem) => void;
-  onDelete: (app: MiniAppItem) => void;
+  onDelete: (app: MiniAppItem) => void | Promise<void>;
   onRun: (app: MiniAppItem) => void;
   onAssign: (app: MiniAppItem) => void;
   onShowAssignments: (app: MiniAppItem) => void;
@@ -395,7 +395,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
 
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
-  const handleBulkDelete = useCallback((): void => {
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
     const personalIds = Array.from(selection.selectedIds).filter((id) =>
       id.startsWith('personal:')
@@ -407,11 +407,22 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     if (!ok) return;
     setBulkBusy(true);
     try {
-      for (const id of personalIds) {
-        const rawId = id.slice('personal:'.length);
-        const app = personalLibrary.find((a) => a.id === rawId);
-        if (app) onDelete(app);
-      }
+      const results = await Promise.allSettled(
+        personalIds.map(async (id) => {
+          const rawId = id.slice('personal:'.length);
+          const app = personalLibrary.find((a) => a.id === rawId);
+          if (app) await onDelete(app);
+        })
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[MiniAppManager] bulk delete failed for',
+            personalIds[idx],
+            result.reason
+          );
+        }
+      });
       selection.clear();
       setSelectionMode(false);
     } finally {
@@ -422,17 +433,23 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
       if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds).filter((id) =>
+        id.startsWith('personal:')
+      );
       setBulkBusy(true);
       try {
-        for (const id of Array.from(selection.selectedIds)) {
-          if (!id.startsWith('personal:')) continue;
-          const rawId = id.slice('personal:'.length);
-          try {
-            await moveItem(rawId, folderId);
-          } catch (err) {
-            console.error('[MiniAppManager] bulk move failed for', id, err);
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id.slice('personal:'.length), folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
+            console.error(
+              '[MiniAppManager] bulk move failed for',
+              ids[idx],
+              result.reason
+            );
           }
-        }
+        });
         selection.clear();
         setSelectionMode(false);
       } finally {
@@ -497,7 +514,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         id: 'delete',
         label: 'Delete',
         icon: Trash2,
-        onClick: () => onDelete(app),
+        onClick: () => void onDelete(app),
         destructive: true,
       },
     ];

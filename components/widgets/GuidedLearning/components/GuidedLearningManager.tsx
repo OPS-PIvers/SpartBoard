@@ -127,8 +127,11 @@ export interface GuidedLearningManagerProps {
     driveFileId?: string,
     buildingSet?: GuidedLearningSet
   ) => void;
-  onDeletePersonal: (setId: string, driveFileId: string) => void;
-  onDeleteBuilding: (setId: string) => void;
+  onDeletePersonal: (
+    setId: string,
+    driveFileId: string
+  ) => void | Promise<void>;
+  onDeleteBuilding: (setId: string) => void | Promise<void>;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
   /** Admin-only — opens the standalone AI authoring dialog for building sets. */
@@ -422,7 +425,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   );
 
   // ─── Bulk handlers (Step 8) ─────────────────────────────────────────────
-  const handleBulkDelete = useCallback((): void => {
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
     const personalIds = Array.from(selection.selectedIds).filter((id) =>
       id.startsWith('personal:')
@@ -434,13 +437,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     if (!ok) return;
     setBulkBusy(true);
     try {
-      for (const id of personalIds) {
-        const rawId = id.slice('personal:'.length);
-        const entry = allEntries.find((e) => e.id === id);
-        if (entry?.driveFileId) {
-          onDeletePersonal(rawId, entry.driveFileId);
+      const results = await Promise.allSettled(
+        personalIds.map(async (id) => {
+          const rawId = id.slice('personal:'.length);
+          const entry = allEntries.find((e) => e.id === id);
+          if (entry?.driveFileId) {
+            await onDeletePersonal(rawId, entry.driveFileId);
+          }
+        })
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[GuidedLearningManager] bulk delete failed for',
+            personalIds[idx],
+            result.reason
+          );
         }
-      }
+      });
       selection.clear();
       setSelectionMode(false);
     } finally {
@@ -451,21 +465,23 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
       if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds).filter((id) =>
+        id.startsWith('personal:')
+      );
       setBulkBusy(true);
       try {
-        for (const id of Array.from(selection.selectedIds)) {
-          if (!id.startsWith('personal:')) continue;
-          const rawId = id.slice('personal:'.length);
-          try {
-            await moveItem(rawId, folderId);
-          } catch (err) {
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id.slice('personal:'.length), folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
             console.error(
               '[GuidedLearningManager] bulk move failed for',
-              id,
-              err
+              ids[idx],
+              result.reason
             );
           }
-        }
+        });
         selection.clear();
         setSelectionMode(false);
       } finally {
@@ -615,9 +631,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         destructive: true,
         onClick: () => {
           if (entry.source === 'personal' && entry.driveFileId) {
-            onDeletePersonal(rawId, entry.driveFileId);
+            void onDeletePersonal(rawId, entry.driveFileId);
           } else if (entry.source === 'building') {
-            onDeleteBuilding(rawId);
+            void onDeleteBuilding(rawId);
           }
         },
       });

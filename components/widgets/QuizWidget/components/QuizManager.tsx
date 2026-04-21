@@ -164,7 +164,7 @@ interface QuizManagerProps {
     sessionOptions: QuizSessionOptions
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
-  onDelete: (quiz: QuizMetadata) => void;
+  onDelete: (quiz: QuizMetadata) => void | Promise<void>;
   onShare: (quiz: QuizMetadata) => void;
   rosters: ClassRoster[];
   config: QuizConfig;
@@ -429,7 +429,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         const ok = window.confirm(
           `Delete "${quiz.title}"? This cannot be undone.`
         );
-        if (ok) onDelete(quiz);
+        if (ok) void onDelete(quiz);
       },
     },
   ];
@@ -632,15 +632,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
       if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds);
       setBulkBusy(true);
       try {
-        for (const id of Array.from(selection.selectedIds)) {
-          try {
-            await moveItem(id, folderId);
-          } catch (err) {
-            console.error('[QuizManager] bulk move failed for', id, err);
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id, folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
+            console.error(
+              '[QuizManager] bulk move failed for',
+              ids[idx],
+              result.reason
+            );
           }
-        }
+        });
         selection.clear();
         setSelectionMode(false);
       } finally {
@@ -650,7 +656,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [userId, selection, moveItem]
   );
 
-  const handleBulkDelete = useCallback((): void => {
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
     const ok = window.confirm(
       `Delete ${selection.count} quiz${selection.count === 1 ? '' : 'zes'}? This cannot be undone.`
@@ -660,9 +666,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const targets = quizzes.filter((q) => ids.includes(q.id));
     setBulkBusy(true);
     try {
-      for (const quiz of targets) {
-        onDelete(quiz);
-      }
+      const results = await Promise.allSettled(
+        targets.map(async (quiz) => onDelete(quiz))
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[QuizManager] bulk delete failed for',
+            targets[idx]?.id,
+            result.reason
+          );
+        }
+      });
       selection.clear();
       setSelectionMode(false);
     } finally {
@@ -945,7 +960,7 @@ const LibraryTabContent: React.FC<{
   bulkBusy: boolean;
   folders: import('@/types').LibraryFolder[];
   onBulkMove: (folderId: string | null) => Promise<void>;
-  onBulkDelete: () => void;
+  onBulkDelete: () => void | Promise<void>;
 }> = ({
   error,
   orderedItems,

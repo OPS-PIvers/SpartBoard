@@ -52,7 +52,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               onClick={() => setShowFolderPicker((v) => !v)}
               disabled={busy}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-dark shadow-sm transition-colors hover:bg-brand-blue-lighter/40 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-haspopup="menu"
+              aria-haspopup="dialog"
               aria-expanded={showFolderPicker}
             >
               <FolderInput className="h-3.5 w-3.5" />
@@ -75,8 +75,8 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         {onDelete && (
           <button
             type="button"
-            onClick={() => {
-              if (!busy) void onDelete();
+            onClick={async () => {
+              if (!busy) await onDelete();
             }}
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"

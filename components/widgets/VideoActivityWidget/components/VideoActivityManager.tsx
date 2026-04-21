@@ -81,7 +81,7 @@ export interface VideoActivityManagerProps {
   onNew: () => void;
   onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
-  onDelete: (activity: VideoActivityMetadata) => void;
+  onDelete: (activity: VideoActivityMetadata) => void | Promise<void>;
   /**
    * Optional per-activity results view. New work prefers the assignment-
    * archive tab; kept for backwards-compatibility while the legacy Widget
@@ -333,19 +333,21 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
       if (!userId || selection.count === 0) return;
+      const ids = Array.from(selection.selectedIds);
       setBulkBusy(true);
       try {
-        for (const id of Array.from(selection.selectedIds)) {
-          try {
-            await moveItem(id, folderId);
-          } catch (err) {
+        const results = await Promise.allSettled(
+          ids.map((id) => moveItem(id, folderId))
+        );
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
             console.error(
               '[VideoActivityManager] bulk move failed for',
-              id,
-              err
+              ids[idx],
+              result.reason
             );
           }
-        }
+        });
         selection.clear();
         setSelectionMode(false);
       } finally {
@@ -355,7 +357,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     [userId, selection, moveItem]
   );
 
-  const handleBulkDelete = useCallback((): void => {
+  const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
     const ok = window.confirm(
       `Delete ${selection.count} activit${selection.count === 1 ? 'y' : 'ies'}? This cannot be undone.`
@@ -365,9 +367,18 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     const targets = activities.filter((a) => ids.includes(a.id));
     setBulkBusy(true);
     try {
-      for (const activity of targets) {
-        onDelete(activity);
-      }
+      const results = await Promise.allSettled(
+        targets.map(async (activity) => onDelete(activity))
+      );
+      results.forEach((result, idx) => {
+        if (result.status === 'rejected') {
+          console.error(
+            '[VideoActivityManager] bulk delete failed for',
+            targets[idx]?.id,
+            result.reason
+          );
+        }
+      });
       selection.clear();
       setSelectionMode(false);
     } finally {
@@ -528,7 +539,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               onClick: () => {
                 if (confirmDeleteActivityId === activity.id) {
                   setConfirmDeleteActivityId(null);
-                  onDelete(activity);
+                  void onDelete(activity);
                 } else {
                   setConfirmDeleteActivityId(activity.id);
                 }
