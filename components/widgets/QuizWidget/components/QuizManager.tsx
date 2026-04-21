@@ -170,9 +170,11 @@ interface QuizManagerProps {
    * fired by `onDelete` (see QuizWidget's `onDelete` wiring, which prompts
    * per-quiz when archived assignments exist). Receives every selected
    * quiz — implementers are responsible for their own aggregated confirms
-   * and summary toasts.
+   * and summary toasts. Resolve to `true` when a delete was attempted
+   * (selection will be cleared) or `false` when the handler aborted or
+   * the user cancelled (selection will be preserved so they can retry).
    */
-  onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<void>;
+  onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<boolean>;
   onShare: (quiz: QuizMetadata) => void;
   rosters: ClassRoster[];
   config: QuizConfig;
@@ -671,29 +673,38 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     if (targets.length === 0) return;
     setBulkBusy(true);
     try {
+      // `didAttempt` gates the selection clear: if the user cancelled a
+      // confirm or the widget-level handler aborted (e.g. assignments
+      // still loading), keep the selection so they can retry without
+      // re-selecting everything.
+      let didAttempt = false;
       if (onBulkDelete) {
         // Widget-level handler owns confirmation + summary toasts.
-        await onBulkDelete(targets);
+        didAttempt = await onBulkDelete(targets);
       } else {
         const ok = window.confirm(
           `Delete ${targets.length} quiz${targets.length === 1 ? '' : 'zes'}? This cannot be undone.`
         );
-        if (!ok) return;
-        const results = await Promise.allSettled(
-          targets.map(async (quiz) => onDelete(quiz))
-        );
-        results.forEach((result, idx) => {
-          if (result.status === 'rejected') {
-            console.error(
-              '[QuizManager] bulk delete failed for',
-              targets[idx]?.id,
-              result.reason
-            );
-          }
-        });
+        if (ok) {
+          const results = await Promise.allSettled(
+            targets.map(async (quiz) => onDelete(quiz))
+          );
+          results.forEach((result, idx) => {
+            if (result.status === 'rejected') {
+              console.error(
+                '[QuizManager] bulk delete failed for',
+                targets[idx]?.id,
+                result.reason
+              );
+            }
+          });
+          didAttempt = true;
+        }
       }
-      selection.clear();
-      setSelectionMode(false);
+      if (didAttempt) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }

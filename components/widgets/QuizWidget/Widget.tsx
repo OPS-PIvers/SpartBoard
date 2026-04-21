@@ -790,7 +790,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        onBulkDelete={async (metas) => {
+        onBulkDelete={async (metas): Promise<boolean> => {
           // Aggregated variant of the single-quiz onDelete handler above.
           // Partitions targets into:
           //   - blocked: has live/paused assignments → cannot delete
@@ -800,6 +800,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // confirm for the archived-assignment warning, regardless of how
           // many quizzes are selected — replaces the old per-item dialogs
           // that would fire up to N times when bulk-deleting N quizzes.
+          //
+          // Returns `true` when a delete was attempted (caller clears
+          // selection) and `false` when the handler aborted or the user
+          // cancelled (caller preserves selection so the teacher can retry
+          // without re-selecting everything).
 
           // Guard against stale/empty assignments: the live-assignment check
           // is load-bearing for student safety. Abort if the listener hasn't
@@ -809,7 +814,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               'Still loading assignment data — try bulk delete again in a moment.',
               'info'
             );
-            return;
+            return false;
           }
 
           // Pre-index assignments by quizId so partitioning stays O(N+M)
@@ -844,7 +849,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
 
           const deletable = [...clean, ...withArchived];
-          if (deletable.length === 0) return;
+          if (deletable.length === 0) return false;
 
           const confirmMsg =
             withArchived.length > 0
@@ -853,7 +858,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 `deleting will prevent viewing their monitor and results. This cannot be undone.`
               : `Delete ${deletable.length} quiz${deletable.length === 1 ? '' : 'zes'}? This cannot be undone.`;
           const ok = window.confirm(confirmMsg);
-          if (!ok) return;
+          if (!ok) return false;
 
           const results = await Promise.allSettled(
             deletable.map((meta) => deleteQuiz(meta.id, meta.driveFileId))
@@ -884,6 +889,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               'error'
             );
           }
+          return true;
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
