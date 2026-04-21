@@ -679,7 +679,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 periodNames: plcOptions.periodNames,
                 plcSheetUrl: plcOptions.plcSheetUrl,
               },
-              'active'
+              'paused'
             );
             updateWidget(widget.id, {
               config: {
@@ -703,17 +703,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               void navigator.clipboard
                 .writeText(url)
                 .then(() =>
-                  addToast('Assignment link copied to clipboard!', 'success')
+                  addToast(
+                    'Student link copied — press Play when you\u2019re ready to start.',
+                    'success'
+                  )
                 )
                 .catch(() =>
                   addToast(
-                    'Assignment created, but link could not be copied.',
+                    'Assignment created (paused), but link could not be copied.',
                     'info'
                   )
                 );
             } else {
               addToast(
-                'Assignment created, but link could not be copied.',
+                'Assignment created (paused), but link could not be copied.',
                 'info'
               );
             }
@@ -788,10 +791,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
             void navigator.clipboard
               .writeText(url)
-              .then(() => addToast('Join link copied!', 'success'))
-              .catch(() => addToast(`Join link: ${url}`, 'info'));
+              .then(() => addToast('Student link copied!', 'success'))
+              .catch(() => addToast(`Student link: ${url}`, 'info'));
           } else {
-            addToast(`Join link: ${url}`, 'info');
+            addToast(`Student link: ${url}`, 'info');
           }
         }}
         onArchiveMonitor={async (a) => {

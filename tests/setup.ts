@@ -1,3 +1,7 @@
+// TZ pinning for deterministic Date formatting lives in ./setTz.ts, which is
+// loaded as the first setupFile in vitest.config.ts. It must be a separate
+// file because ESM import statements in this file would be hoisted above any
+// top-level TZ assignment here.
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 import '../i18n'; // Initialise i18next with English translations for all tests

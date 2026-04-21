@@ -194,7 +194,14 @@ export const DashboardView: React.FC = () => {
   // happened" paste UX).
   useEffect(() => {
     if (!pendingQuizShareId || !user) return;
-    void importSharedQuiz(pendingQuizShareId)
+    // Clear synchronously BEFORE awaiting so effect re-runs (triggered by
+    // unrelated dep churn like `openQuizWidgetToTab` changing reference when
+    // activeDashboard updates) don't re-invoke the import and spawn duplicate
+    // widgets. Previously this was in .finally() and opened a race window
+    // where the same shareId could be imported 2-3× concurrently.
+    const shareId = pendingQuizShareId;
+    clearPendingQuizShare();
+    void importSharedQuiz(shareId)
       .then(() => {
         addToast('Shared quiz imported to your library!', 'success');
         openQuizWidgetToTab('library');
@@ -212,8 +219,7 @@ export const DashboardView: React.FC = () => {
             : 'Failed to import shared quiz.',
           'error'
         );
-      })
-      .finally(() => clearPendingQuizShare());
+      });
   }, [
     pendingQuizShareId,
     user,
@@ -225,10 +231,15 @@ export const DashboardView: React.FC = () => {
 
   // Handle pending shared assignment import from URL/paste.
   // Imports copy the quiz into the user's library and create a paused
-  // assignment, then surface the Quiz widget to the Active tab.
+  // assignment, then surface the Quiz widget to the Active tab — which
+  // shows live and paused assignments (Archive only shows inactive ones).
   useEffect(() => {
     if (!pendingAssignmentShareId || !user) return;
-    void importSharedAssignment(pendingAssignmentShareId, async (quiz) => {
+    // Clear synchronously BEFORE awaiting — see the quiz-share effect above
+    // for the triple-import race rationale.
+    const shareId = pendingAssignmentShareId;
+    clearPendingAssignmentShare();
+    void importSharedAssignment(shareId, async (quiz) => {
       const meta = await saveQuiz(quiz);
       return { id: meta.id, driveFileId: meta.driveFileId };
     })
@@ -237,7 +248,7 @@ export const DashboardView: React.FC = () => {
           'Shared assignment imported! Click Start to begin.',
           'success'
         );
-        openQuizWidgetToTab('archive');
+        openQuizWidgetToTab('active');
       })
       .catch((err: unknown) => {
         const msg =
@@ -252,8 +263,7 @@ export const DashboardView: React.FC = () => {
             : 'Failed to import shared assignment.',
           'error'
         );
-      })
-      .finally(() => clearPendingAssignmentShare());
+      });
   }, [
     pendingAssignmentShareId,
     user,

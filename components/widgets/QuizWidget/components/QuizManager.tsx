@@ -435,7 +435,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
       secondaries.push({
         id: 'copy-url',
-        label: 'Copy URL',
+        label: 'Copy Student Link',
         icon: Link2,
         onClick: () => (onArchiveCopyUrl ?? noop)(a),
         disabled: !urlLive,
@@ -1169,8 +1169,9 @@ const AssignPlcSlot: React.FC<{
           />
         )}
         <p className="text-xxs text-slate-400 mt-0.5">
-          Select class periods for this assignment. Students will choose their
-          class when joining.
+          {options.selectedPeriodNames.length > 1
+            ? 'Students will see a class-period picker after entering their PIN.'
+            : 'Select class periods for this assignment. Pick two or more to give students a picker when they join.'}
         </p>
       </div>
 

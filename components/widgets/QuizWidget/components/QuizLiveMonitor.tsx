@@ -86,6 +86,160 @@ interface QuizLiveMonitorProps {
   onBack?: () => void;
 }
 
+interface LiveScoreboardSetupPopupProps {
+  setupRef: React.RefObject<HTMLDivElement | null>;
+  mode: 'pin' | 'name';
+  onModeChange: (mode: 'pin' | 'name') => void;
+  scoring: 'completion' | 'per-question';
+  onScoringChange: (scoring: 'completion' | 'per-question') => void;
+  hasNames: boolean;
+  onEnable: () => void;
+}
+
+const LiveScoreboardSetupPopup: React.FC<LiveScoreboardSetupPopupProps> = ({
+  setupRef,
+  mode,
+  onModeChange,
+  scoring,
+  onScoringChange,
+  hasNames,
+  onEnable,
+}) => (
+  <div
+    ref={setupRef}
+    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+    style={{ padding: 'min(16px, 4cqmin)' }}
+  >
+    <p
+      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+      style={{
+        fontSize: 'min(11px, 3.5cqmin)',
+        marginBottom: 'min(12px, 3cqmin)',
+      }}
+    >
+      Live Scoreboard Setup
+    </p>
+
+    <p
+      className="font-bold text-slate-500 uppercase tracking-wider"
+      style={{
+        fontSize: 'min(9px, 2.5cqmin)',
+        marginBottom: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      Display as
+    </p>
+    <div
+      className="flex"
+      style={{
+        gap: 'min(6px, 1.5cqmin)',
+        marginBottom: 'min(12px, 3cqmin)',
+      }}
+    >
+      <button
+        onClick={() => onModeChange('name')}
+        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+          mode === 'name'
+            ? 'bg-brand-blue-primary text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        disabled={!hasNames}
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(8px, 2cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        <User
+          style={{
+            width: 'min(12px, 3.5cqmin)',
+            height: 'min(12px, 3.5cqmin)',
+          }}
+        />
+        Names
+      </button>
+      <button
+        onClick={() => onModeChange('pin')}
+        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
+          mode === 'pin'
+            ? 'bg-brand-blue-primary text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(8px, 2cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        <Hash
+          style={{
+            width: 'min(12px, 3.5cqmin)',
+            height: 'min(12px, 3.5cqmin)',
+          }}
+        />
+        PINs
+      </button>
+    </div>
+
+    <p
+      className="font-bold text-slate-500 uppercase tracking-wider"
+      style={{
+        fontSize: 'min(9px, 2.5cqmin)',
+        marginBottom: 'min(6px, 1.5cqmin)',
+      }}
+    >
+      Update scores
+    </p>
+    <div
+      className="flex flex-col"
+      style={{
+        gap: 'min(4px, 1cqmin)',
+        marginBottom: 'min(14px, 3.5cqmin)',
+      }}
+    >
+      <button
+        onClick={() => onScoringChange('completion')}
+        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+          scoring === 'completion'
+            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+        }`}
+        style={{
+          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        On quiz completion
+      </button>
+      <button
+        onClick={() => onScoringChange('per-question')}
+        className={`flex items-center font-bold rounded-xl transition-all text-left ${
+          scoring === 'per-question'
+            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
+            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+        }`}
+        style={{
+          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+          fontSize: 'min(10px, 3cqmin)',
+        }}
+      >
+        After each question
+      </button>
+    </div>
+
+    <button
+      onClick={onEnable}
+      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
+      style={{
+        padding: 'min(10px, 2.5cqmin)',
+        fontSize: 'min(11px, 3.5cqmin)',
+      }}
+    >
+      START LIVE SCOREBOARD
+    </button>
+  </div>
+);
+
 export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   session,
   responses,
@@ -134,6 +288,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   >('per-question');
   const liveScoreboardSetupRef = useRef<HTMLDivElement>(null);
   const isLiveScoreboardActive = config.liveScoreboardEnabled ?? false;
+  // Only surface the scoreboard toggle when the session was set up for
+  // gamification. Plain quizzes / assessments should not show a prominent
+  // "Scoreboard" control on the projector — teachers told us it's intrusive.
+  // If the scoreboard is already running we keep the control visible so it
+  // can be turned off from here.
+  const isGamifiedSession =
+    Boolean(session.speedBonusEnabled) ||
+    Boolean(session.streakBonusEnabled) ||
+    Boolean(session.showPodiumBetweenQuestions);
+  const showScoreboardControl = isGamifiedSession || isLiveScoreboardActive;
 
   // New state for Phase 1 & 2 features
   const [showAnswerColors, setShowAnswerColors] = useState(false);
@@ -537,209 +701,270 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
           {/* ── ACTIVE STATE: restructured layout with question at top ── */}
           {isActive && currentQ && (
             <>
-              {/* 1. QUESTION — hero content at the very top */}
-              <div className="relative">
-                {autoCountdown !== null && (
-                  <div
-                    className="absolute top-0 left-0 right-0 rounded-full overflow-hidden bg-brand-blue-lighter"
-                    style={{ height: 'min(4px, 1cqmin)' }}
-                  >
-                    <div
-                      className="h-full bg-brand-red-primary transition-all duration-1000 ease-linear"
-                      style={{ width: `${(autoCountdown / 5) * 100}%` }}
-                    />
-                  </div>
-                )}
+              {/* 1a. SELF-PACED STATUS — replaces the question hero when
+                     students are answering independently. Exposing the current
+                     question on the board is meaningless (every student is on
+                     a different question) and can leak answer context. */}
+              {session.sessionMode === 'student' ? (
                 <div
-                  className="flex items-center flex-wrap"
+                  className="bg-violet-50 border border-violet-200 rounded-xl"
                   style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    marginBottom: 'min(4px, 1cqmin)',
-                    marginTop:
-                      autoCountdown !== null ? 'min(6px, 1.5cqmin)' : undefined,
+                    padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
                   }}
                 >
-                  <span
-                    className="bg-brand-blue-primary text-white font-bold rounded-lg"
+                  <div
+                    className="flex items-center text-violet-700 font-black uppercase tracking-wider"
                     style={{
-                      fontSize: 'min(10px, 3cqmin)',
-                      padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-                      textTransform: 'uppercase',
+                      fontSize: 'min(11px, 3.5cqmin)',
+                      gap: 'min(6px, 1.5cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
                     }}
                   >
-                    Q{session.currentQuestionIndex + 1}/{session.totalQuestions}
-                  </span>
-                  <span
-                    className={`font-bold rounded-lg ${
-                      currentQ.type === 'MC'
-                        ? 'bg-blue-100 text-blue-700'
-                        : currentQ.type === 'FIB'
-                          ? 'bg-amber-100 text-amber-700'
-                          : currentQ.type === 'Matching'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-teal-100 text-teal-700'
-                    }`}
+                    <Clock
+                      style={{
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
+                      }}
+                    />
+                    Self-paced
+                  </div>
+                  <p
+                    className="text-violet-900 font-bold"
                     style={{
-                      fontSize: 'min(9px, 2.5cqmin)',
-                      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                      fontSize: 'min(16px, 6cqmin)',
+                      lineHeight: 1.25,
                     }}
                   >
-                    {currentQ.type}
-                  </span>
-                  {currentQ.timeLimit > 0 && (
-                    <span
-                      className="flex items-center gap-0.5 text-slate-500 font-bold"
-                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                    >
-                      <Clock
-                        style={{
-                          width: 'min(10px, 2.5cqmin)',
-                          height: 'min(10px, 2.5cqmin)',
-                        }}
-                      />
-                      {currentQ.timeLimit}s
-                    </span>
-                  )}
+                    Students are working through the quiz independently.
+                  </p>
+                  <p
+                    className="text-violet-700"
+                    style={{
+                      fontSize: 'min(11px, 3.5cqmin)',
+                      marginTop: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    {completed} of {responses.length} finished
+                    {responses.length > 0 &&
+                      ` (${Math.round((completed / responses.length) * 100)}%)`}
+                  </p>
+                </div>
+              ) : (
+                /* 1b. QUESTION — hero content (teacher/auto-paced only) */
+                <div className="relative">
                   {autoCountdown !== null && (
                     <div
-                      className="flex items-center gap-0.5 text-brand-red-primary font-black animate-pulse"
-                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                      className="absolute top-0 left-0 right-0 rounded-full overflow-hidden bg-brand-blue-lighter"
+                      style={{ height: 'min(4px, 1cqmin)' }}
                     >
-                      <Zap
-                        className="fill-current"
-                        style={{
-                          width: 'min(10px, 2.5cqmin)',
-                          height: 'min(10px, 2.5cqmin)',
-                        }}
+                      <div
+                        className="h-full bg-brand-red-primary transition-all duration-1000 ease-linear"
+                        style={{ width: `${(autoCountdown / 5) * 100}%` }}
                       />
-                      {autoCountdown}s
                     </div>
                   )}
-                  <button
-                    onClick={() => setShowStats(!showStats)}
-                    className="ml-auto flex items-center text-brand-blue-primary font-bold hover:underline"
-                    style={{
-                      gap: 'min(3px, 0.7cqmin)',
-                      fontSize: 'min(10px, 3cqmin)',
-                    }}
-                  >
-                    <BarChart3
-                      style={{
-                        width: 'min(12px, 3cqmin)',
-                        height: 'min(12px, 3cqmin)',
-                      }}
-                    />
-                    {showStats ? 'Hide' : 'Stats'}
-                  </button>
-                </div>
-                <p
-                  className="text-brand-blue-dark font-black"
-                  style={{
-                    fontSize: 'min(28px, 12cqmin)',
-                    lineHeight: 1.15,
-                  }}
-                >
-                  {currentQ.text}
-                </p>
-
-                {/* Correct answer on board — always visible during review phase */}
-                {((session.showCorrectOnBoard ?? false) || isReviewing) &&
-                  session.revealedAnswers?.[currentQ.id] && (
-                    <div
-                      className="bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
-                      style={{
-                        fontSize: 'min(13px, 4.5cqmin)',
-                        marginTop: 'min(6px, 1.5cqmin)',
-                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                      }}
-                    >
-                      <div>
-                        <span className="text-emerald-600 font-black">✓ </span>
-                        <span className="text-emerald-800 font-bold">
-                          {session.revealedAnswers[currentQ.id]}
-                        </span>
-                      </div>
-                      {onHideAnswer && (
-                        <button
-                          onClick={() => void onHideAnswer(currentQ.id)}
-                          className="text-emerald-500 hover:text-emerald-700 transition-colors ml-2 shrink-0"
-                          title="Hide answer"
-                        >
-                          <EyeOff
-                            style={{
-                              width: 'min(14px, 3.5cqmin)',
-                              height: 'min(14px, 3.5cqmin)',
-                            }}
-                          />
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                {/* Reveal answer button */}
-                {session.showCorrectOnBoard &&
-                  !session.revealedAnswers?.[currentQ.id] &&
-                  onRevealAnswer && (
-                    <button
-                      onClick={() =>
-                        void onRevealAnswer(currentQ.id, currentQ.correctAnswer)
-                      }
-                      className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
-                      style={{
-                        fontSize: 'min(11px, 3.5cqmin)',
-                        marginTop: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      <Eye
-                        style={{
-                          width: 'min(14px, 3.5cqmin)',
-                          height: 'min(14px, 3.5cqmin)',
-                        }}
-                      />
-                      Reveal Answer
-                    </button>
-                  )}
-
-                {/* Completion progress bar */}
-                <div style={{ marginTop: 'min(8px, 2cqmin)' }}>
                   <div
-                    className="flex items-center justify-between text-brand-gray-primary font-bold uppercase tracking-wider"
+                    className="flex items-center flex-wrap"
                     style={{
-                      fontSize: 'min(9px, 2.5cqmin)',
-                      marginBottom: 'min(3px, 0.7cqmin)',
+                      gap: 'min(6px, 1.5cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                      marginTop:
+                        autoCountdown !== null
+                          ? 'min(6px, 1.5cqmin)'
+                          : undefined,
                     }}
                   >
-                    <span>Answered</span>
-                    <span>
-                      {answered} / {responses.length}
+                    <span
+                      className="bg-brand-blue-primary text-white font-bold rounded-lg"
+                      style={{
+                        fontSize: 'min(10px, 3cqmin)',
+                        padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Q{session.currentQuestionIndex + 1}/
+                      {session.totalQuestions}
                     </span>
-                  </div>
-                  <div
-                    className="bg-brand-blue-lighter rounded-full overflow-hidden shadow-inner border border-brand-blue-primary/5"
-                    style={{ height: 'min(8px, 2cqmin)' }}
-                  >
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                    <span
+                      className={`font-bold rounded-lg ${
+                        currentQ.type === 'MC'
+                          ? 'bg-blue-100 text-blue-700'
+                          : currentQ.type === 'FIB'
+                            ? 'bg-amber-100 text-amber-700'
+                            : currentQ.type === 'Matching'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-teal-100 text-teal-700'
+                      }`}
                       style={{
-                        width: `${responses.length > 0 ? (answered / responses.length) * 100 : 0}%`,
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
                       }}
-                    />
+                    >
+                      {currentQ.type}
+                    </span>
+                    {currentQ.timeLimit > 0 && (
+                      <span
+                        className="flex items-center gap-0.5 text-slate-500 font-bold"
+                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                      >
+                        <Clock
+                          style={{
+                            width: 'min(10px, 2.5cqmin)',
+                            height: 'min(10px, 2.5cqmin)',
+                          }}
+                        />
+                        {currentQ.timeLimit}s
+                      </span>
+                    )}
+                    {autoCountdown !== null && (
+                      <div
+                        className="flex items-center gap-0.5 text-brand-red-primary font-black animate-pulse"
+                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                      >
+                        <Zap
+                          className="fill-current"
+                          style={{
+                            width: 'min(10px, 2.5cqmin)',
+                            height: 'min(10px, 2.5cqmin)',
+                          }}
+                        />
+                        {autoCountdown}s
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setShowStats(!showStats)}
+                      className="ml-auto flex items-center text-brand-blue-primary font-bold hover:underline"
+                      style={{
+                        gap: 'min(3px, 0.7cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                    >
+                      <BarChart3
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      {showStats ? 'Hide' : 'Stats'}
+                    </button>
                   </div>
-                </div>
-
-                {/* Live answer distribution (MC only) */}
-                {showStats && currentQ.type === 'MC' && (
-                  <div
-                    className="border-t border-brand-blue-primary/5"
+                  <p
+                    className="text-brand-blue-dark font-black"
                     style={{
-                      marginTop: 'min(8px, 2cqmin)',
-                      paddingTop: 'min(8px, 2cqmin)',
+                      fontSize: 'min(28px, 12cqmin)',
+                      lineHeight: 1.15,
                     }}
                   >
-                    <MCDistribution question={currentQ} responses={responses} />
+                    {currentQ.text}
+                  </p>
+
+                  {/* Correct answer on board — always visible during review phase */}
+                  {((session.showCorrectOnBoard ?? false) || isReviewing) &&
+                    session.revealedAnswers?.[currentQ.id] && (
+                      <div
+                        className="bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between"
+                        style={{
+                          fontSize: 'min(13px, 4.5cqmin)',
+                          marginTop: 'min(6px, 1.5cqmin)',
+                          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                        }}
+                      >
+                        <div>
+                          <span className="text-emerald-600 font-black">
+                            ✓{' '}
+                          </span>
+                          <span className="text-emerald-800 font-bold">
+                            {session.revealedAnswers[currentQ.id]}
+                          </span>
+                        </div>
+                        {onHideAnswer && (
+                          <button
+                            onClick={() => void onHideAnswer(currentQ.id)}
+                            className="text-emerald-500 hover:text-emerald-700 transition-colors ml-2 shrink-0"
+                            title="Hide answer"
+                          >
+                            <EyeOff
+                              style={{
+                                width: 'min(14px, 3.5cqmin)',
+                                height: 'min(14px, 3.5cqmin)',
+                              }}
+                            />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                  {/* Reveal answer button */}
+                  {session.showCorrectOnBoard &&
+                    !session.revealedAnswers?.[currentQ.id] &&
+                    onRevealAnswer && (
+                      <button
+                        onClick={() =>
+                          void onRevealAnswer(
+                            currentQ.id,
+                            currentQ.correctAnswer
+                          )
+                        }
+                        className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 font-bold transition-colors"
+                        style={{
+                          fontSize: 'min(11px, 3.5cqmin)',
+                          marginTop: 'min(6px, 1.5cqmin)',
+                        }}
+                      >
+                        <Eye
+                          style={{
+                            width: 'min(14px, 3.5cqmin)',
+                            height: 'min(14px, 3.5cqmin)',
+                          }}
+                        />
+                        Reveal Answer
+                      </button>
+                    )}
+
+                  {/* Completion progress bar */}
+                  <div style={{ marginTop: 'min(8px, 2cqmin)' }}>
+                    <div
+                      className="flex items-center justify-between text-brand-gray-primary font-bold uppercase tracking-wider"
+                      style={{
+                        fontSize: 'min(9px, 2.5cqmin)',
+                        marginBottom: 'min(3px, 0.7cqmin)',
+                      }}
+                    >
+                      <span>Answered</span>
+                      <span>
+                        {answered} / {responses.length}
+                      </span>
+                    </div>
+                    <div
+                      className="bg-brand-blue-lighter rounded-full overflow-hidden shadow-inner border border-brand-blue-primary/5"
+                      style={{ height: 'min(8px, 2cqmin)' }}
+                    >
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                        style={{
+                          width: `${responses.length > 0 ? (answered / responses.length) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Live answer distribution (MC only) */}
+                  {showStats && currentQ.type === 'MC' && (
+                    <div
+                      className="border-t border-brand-blue-primary/5"
+                      style={{
+                        marginTop: 'min(8px, 2cqmin)',
+                        paddingTop: 'min(8px, 2cqmin)',
+                      }}
+                    >
+                      <MCDistribution
+                        question={currentQ}
+                        responses={responses}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Podium overlay between questions (review phase) */}
               {isReviewing && session.showPodiumBetweenQuestions && (
@@ -917,170 +1142,52 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 )}
               </div>
 
-              {/* 4. Live Scoreboard Toggle (compact) */}
-              <div className="relative">
-                <button
-                  onClick={handleToggleLiveScoreboard}
-                  className={`w-full flex items-center justify-center font-bold rounded-xl transition-all active:scale-95 border ${
-                    isLiveScoreboardActive
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
-                      : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
-                  }`}
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(5px, 1.2cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
-                  }}
-                >
-                  <Trophy
-                    className={isLiveScoreboardActive ? 'animate-pulse' : ''}
+              {/* 4. Live Scoreboard Toggle (compact) — icon-only, gated on
+                  gamification signals so plain quizzes don't surface it. */}
+              {showScoreboardControl && (
+                <div className="relative flex justify-end">
+                  <button
+                    onClick={handleToggleLiveScoreboard}
+                    aria-label={
+                      isLiveScoreboardActive
+                        ? 'Live scoreboard on — click to configure or disable'
+                        : 'Enable live scoreboard'
+                    }
+                    title={
+                      isLiveScoreboardActive
+                        ? 'Live scoreboard on'
+                        : 'Enable live scoreboard'
+                    }
+                    className={`flex items-center justify-center rounded-lg transition-all active:scale-95 border ${
+                      isLiveScoreboardActive
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-300 shadow-sm'
+                        : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
+                    }`}
                     style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
+                      width: 'min(28px, 7cqmin)',
+                      height: 'min(28px, 7cqmin)',
                     }}
-                  />
-                  {isLiveScoreboardActive
-                    ? 'LIVE SCOREBOARD ON'
-                    : 'ENABLE LIVE SCOREBOARD'}
-                </button>
-                {showLiveScoreboardSetup && (
-                  <div
-                    ref={liveScoreboardSetupRef}
-                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                    style={{ padding: 'min(16px, 4cqmin)' }}
                   >
-                    <p
-                      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                    <Trophy
                       style={{
-                        fontSize: 'min(11px, 3.5cqmin)',
-                        marginBottom: 'min(12px, 3cqmin)',
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
                       }}
-                    >
-                      Live Scoreboard Setup
-                    </p>
-
-                    {/* Name/PIN choice */}
-                    <p
-                      className="font-bold text-slate-500 uppercase tracking-wider"
-                      style={{
-                        fontSize: 'min(9px, 2.5cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      Display as
-                    </p>
-                    <div
-                      className="flex"
-                      style={{
-                        gap: 'min(6px, 1.5cqmin)',
-                        marginBottom: 'min(12px, 3cqmin)',
-                      }}
-                    >
-                      <button
-                        onClick={() => setLiveScoreboardMode('name')}
-                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                          liveScoreboardMode === 'name'
-                            ? 'bg-brand-blue-primary text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        disabled={!hasNames}
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          padding: 'min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        <User
-                          style={{
-                            width: 'min(12px, 3.5cqmin)',
-                            height: 'min(12px, 3.5cqmin)',
-                          }}
-                        />
-                        Names
-                      </button>
-                      <button
-                        onClick={() => setLiveScoreboardMode('pin')}
-                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                          liveScoreboardMode === 'pin'
-                            ? 'bg-brand-blue-primary text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          padding: 'min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        <Hash
-                          style={{
-                            width: 'min(12px, 3.5cqmin)',
-                            height: 'min(12px, 3.5cqmin)',
-                          }}
-                        />
-                        PINs
-                      </button>
-                    </div>
-
-                    {/* Scoring mode choice */}
-                    <p
-                      className="font-bold text-slate-500 uppercase tracking-wider"
-                      style={{
-                        fontSize: 'min(9px, 2.5cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      Update scores
-                    </p>
-                    <div
-                      className="flex flex-col"
-                      style={{
-                        gap: 'min(4px, 1cqmin)',
-                        marginBottom: 'min(14px, 3.5cqmin)',
-                      }}
-                    >
-                      <button
-                        onClick={() => setLiveScoreboardScoring('completion')}
-                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                          liveScoreboardScoring === 'completion'
-                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                        style={{
-                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        On quiz completion
-                      </button>
-                      <button
-                        onClick={() => setLiveScoreboardScoring('per-question')}
-                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                          liveScoreboardScoring === 'per-question'
-                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                        style={{
-                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        After each question
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={handleEnableLiveScoreboard}
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
-                      style={{
-                        padding: 'min(10px, 2.5cqmin)',
-                        fontSize: 'min(11px, 3.5cqmin)',
-                      }}
-                    >
-                      START LIVE SCOREBOARD
-                    </button>
-                  </div>
-                )}
-              </div>
+                    />
+                  </button>
+                  {showLiveScoreboardSetup && (
+                    <LiveScoreboardSetupPopup
+                      setupRef={liveScoreboardSetupRef}
+                      mode={liveScoreboardMode}
+                      onModeChange={setLiveScoreboardMode}
+                      scoring={liveScoreboardScoring}
+                      onScoringChange={setLiveScoreboardScoring}
+                      hasNames={hasNames}
+                      onEnable={handleEnableLiveScoreboard}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* 5. ROSTER show/hide + student list */}
               {responses.length > 0 && (
@@ -1311,165 +1418,52 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 )}
               </div>
 
-              {/* Live Scoreboard Toggle (full size) */}
-              <div className="relative">
-                <button
-                  onClick={handleToggleLiveScoreboard}
-                  className={`w-full flex items-center justify-center font-bold rounded-2xl transition-all active:scale-95 border ${
-                    isLiveScoreboardActive
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20'
-                      : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
-                  }`}
-                  style={{
-                    gap: 'min(8px, 2cqmin)',
-                    padding: 'min(10px, 2.5cqmin) min(16px, 4cqmin)',
-                    fontSize: 'min(11px, 3.5cqmin)',
-                  }}
-                >
-                  <Trophy
-                    className={isLiveScoreboardActive ? 'animate-pulse' : ''}
+              {/* Live Scoreboard Toggle (full size) — icon-only, gated on
+                  gamification signals so plain quizzes don't surface it. */}
+              {showScoreboardControl && (
+                <div className="relative flex justify-end">
+                  <button
+                    onClick={handleToggleLiveScoreboard}
+                    aria-label={
+                      isLiveScoreboardActive
+                        ? 'Live scoreboard on — click to configure or disable'
+                        : 'Enable live scoreboard'
+                    }
+                    title={
+                      isLiveScoreboardActive
+                        ? 'Live scoreboard on'
+                        : 'Enable live scoreboard'
+                    }
+                    className={`flex items-center justify-center rounded-lg transition-all active:scale-95 border ${
+                      isLiveScoreboardActive
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-1 ring-amber-300 shadow-sm'
+                        : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-200'
+                    }`}
                     style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
+                      width: 'min(32px, 8cqmin)',
+                      height: 'min(32px, 8cqmin)',
                     }}
-                  />
-                  {isLiveScoreboardActive
-                    ? 'LIVE SCOREBOARD ON'
-                    : 'ENABLE LIVE SCOREBOARD'}
-                </button>
-                {showLiveScoreboardSetup && (
-                  <div
-                    ref={liveScoreboardSetupRef}
-                    className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-brand-blue-primary/10 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-                    style={{ padding: 'min(16px, 4cqmin)' }}
                   >
-                    <p
-                      className="font-black text-brand-blue-dark text-center uppercase tracking-wider"
+                    <Trophy
                       style={{
-                        fontSize: 'min(11px, 3.5cqmin)',
-                        marginBottom: 'min(12px, 3cqmin)',
+                        width: 'min(16px, 4cqmin)',
+                        height: 'min(16px, 4cqmin)',
                       }}
-                    >
-                      Live Scoreboard Setup
-                    </p>
-                    <p
-                      className="font-bold text-slate-500 uppercase tracking-wider"
-                      style={{
-                        fontSize: 'min(9px, 2.5cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      Display as
-                    </p>
-                    <div
-                      className="flex"
-                      style={{
-                        gap: 'min(6px, 1.5cqmin)',
-                        marginBottom: 'min(12px, 3cqmin)',
-                      }}
-                    >
-                      <button
-                        onClick={() => setLiveScoreboardMode('name')}
-                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                          liveScoreboardMode === 'name'
-                            ? 'bg-brand-blue-primary text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        disabled={!hasNames}
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          padding: 'min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        <User
-                          style={{
-                            width: 'min(12px, 3.5cqmin)',
-                            height: 'min(12px, 3.5cqmin)',
-                          }}
-                        />
-                        Names
-                      </button>
-                      <button
-                        onClick={() => setLiveScoreboardMode('pin')}
-                        className={`flex-1 flex items-center justify-center font-bold rounded-xl transition-all ${
-                          liveScoreboardMode === 'pin'
-                            ? 'bg-brand-blue-primary text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                        style={{
-                          gap: 'min(4px, 1cqmin)',
-                          padding: 'min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        <Hash
-                          style={{
-                            width: 'min(12px, 3.5cqmin)',
-                            height: 'min(12px, 3.5cqmin)',
-                          }}
-                        />
-                        PINs
-                      </button>
-                    </div>
-                    <p
-                      className="font-bold text-slate-500 uppercase tracking-wider"
-                      style={{
-                        fontSize: 'min(9px, 2.5cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      Update scores
-                    </p>
-                    <div
-                      className="flex flex-col"
-                      style={{
-                        gap: 'min(4px, 1cqmin)',
-                        marginBottom: 'min(14px, 3.5cqmin)',
-                      }}
-                    >
-                      <button
-                        onClick={() => setLiveScoreboardScoring('completion')}
-                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                          liveScoreboardScoring === 'completion'
-                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                        style={{
-                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        On quiz completion
-                      </button>
-                      <button
-                        onClick={() => setLiveScoreboardScoring('per-question')}
-                        className={`flex items-center font-bold rounded-xl transition-all text-left ${
-                          liveScoreboardScoring === 'per-question'
-                            ? 'bg-brand-blue-lighter text-brand-blue-dark ring-2 ring-brand-blue-primary/30'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                        style={{
-                          padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
-                          fontSize: 'min(10px, 3cqmin)',
-                        }}
-                      >
-                        After each question
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleEnableLiveScoreboard}
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl transition-all active:scale-95 shadow-md"
-                      style={{
-                        padding: 'min(10px, 2.5cqmin)',
-                        fontSize: 'min(11px, 3.5cqmin)',
-                      }}
-                    >
-                      START LIVE SCOREBOARD
-                    </button>
-                  </div>
-                )}
-              </div>
+                    />
+                  </button>
+                  {showLiveScoreboardSetup && (
+                    <LiveScoreboardSetupPopup
+                      setupRef={liveScoreboardSetupRef}
+                      mode={liveScoreboardMode}
+                      onModeChange={setLiveScoreboardMode}
+                      scoring={liveScoreboardScoring}
+                      onScoringChange={setLiveScoreboardScoring}
+                      hasNames={hasNames}
+                      onEnable={handleEnableLiveScoreboard}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Stat boxes (non-interactive for waiting/ended) */}
               <div
