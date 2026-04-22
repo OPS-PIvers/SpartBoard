@@ -9,6 +9,7 @@ import {
   GraduationCap,
   ChevronLeft,
   Loader2,
+  FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
@@ -18,6 +19,7 @@ import { useOrgDomains } from '@/hooks/useOrgDomains';
 import { useOrgRoles } from '@/hooks/useOrgRoles';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { useOrgStudentPage } from '@/hooks/useOrgStudentPage';
+import { useTestClasses } from '@/hooks/useTestClasses';
 import type {
   ActorRole,
   BuildingRecord,
@@ -35,6 +37,7 @@ import { BuildingsView } from './views/BuildingsView';
 import { RolesView } from './views/RolesView';
 import { UsersView } from './views/UsersView';
 import { StudentPageView } from './views/StudentPageView';
+import { TestClassesView } from './views/TestClassesView';
 import {
   OrgLogoTile,
   OrgToast,
@@ -48,7 +51,8 @@ type SectionId =
   | 'buildings'
   | 'roles'
   | 'users'
-  | 'student';
+  | 'student'
+  | 'testClasses';
 
 interface SectionDef {
   id: SectionId;
@@ -104,6 +108,13 @@ const SECTIONS: SectionDef[] = [
     label: 'Student page',
     sublabel: 'What students see.',
     icon: GraduationCap,
+    domainAdminOnly: true,
+  },
+  {
+    id: 'testClasses',
+    label: 'Test classes',
+    sublabel: 'Mock classes for PII-free SSO testing.',
+    icon: FlaskConical,
     domainAdminOnly: true,
   },
 ];
@@ -246,12 +257,20 @@ export const OrganizationPanel: React.FC = () => {
     loading: studentPageLoadingRaw,
     updateStudentPage,
   } = useOrgStudentPage(orgScopedOrgId);
+  const {
+    testClasses,
+    loading: testClassesLoadingRaw,
+    addTestClass,
+    updateTestClass,
+    removeTestClass,
+  } = useTestClasses(orgScopedOrgId);
   const orgLoading = orgLoadingRaw || isMembershipHydrating;
   const buildingsLoading = buildingsLoadingRaw || isMembershipHydrating;
   const domainsLoading = domainsLoadingRaw || isMembershipHydrating;
   const rolesLoading = rolesLoadingRaw || isMembershipHydrating;
   const usersLoading = usersLoadingRaw || isMembershipHydrating;
   const studentPageLoading = studentPageLoadingRaw || isMembershipHydrating;
+  const testClassesLoading = testClassesLoadingRaw || isMembershipHydrating;
 
   const [toast, setToast] = useState<{
     message: string;
@@ -478,6 +497,32 @@ export const OrganizationPanel: React.FC = () => {
     if (!writesEnabled) return comingSoon('Student page edits');
     run('Update student page', () => updateStudentPage(patch));
   };
+  // Test-class writes sit behind the same `org-admin-writes` gate so they
+  // match the coming-soon behavior of the other admin CRUD flows.
+  const handleAddTestClass = (input: {
+    classId?: string;
+    title: string;
+    subject?: string;
+    memberEmails: string;
+  }) => {
+    if (!writesEnabled) return comingSoon('Create test class');
+    run(
+      'Create test class',
+      () => addTestClass(input),
+      `Created "${input.title}"`
+    );
+  };
+  const handleUpdateTestClass = (
+    id: string,
+    patch: { title?: string; subject?: string; memberEmails?: string }
+  ) => {
+    if (!writesEnabled) return comingSoon('Update test class');
+    run('Update test class', () => updateTestClass(id, patch));
+  };
+  const handleRemoveTestClass = (id: string) => {
+    if (!writesEnabled) return comingSoon('Delete test class');
+    run('Delete test class', () => removeTestClass(id), 'Test class deleted');
+  };
 
   // Re-invite uses the existing `createOrganizationInvites` callable, which
   // overwrites the prior invitation doc with a fresh token. We auto-copy the
@@ -540,6 +585,7 @@ export const OrganizationPanel: React.FC = () => {
     roles: rolesLoading,
     users: usersLoading || rolesLoading,
     student: studentPageLoading,
+    testClasses: testClassesLoading,
   };
 
   return (
@@ -769,6 +815,14 @@ export const OrganizationPanel: React.FC = () => {
                 ) : (
                   <PanelEmpty message="Student page config has not been seeded yet." />
                 ))}
+              {effectiveSection === 'testClasses' && (
+                <TestClassesView
+                  testClasses={testClasses}
+                  onAdd={handleAddTestClass}
+                  onUpdate={handleUpdateTestClass}
+                  onRemove={handleRemoveTestClass}
+                />
+              )}
             </>
           )}
         </main>

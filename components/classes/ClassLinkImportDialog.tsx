@@ -1,11 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { collection, getDocs } from 'firebase/firestore';
 import { Download, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { ClassLinkClass, ClassRoster, Student } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { db } from '@/config/firebase';
 import { classLinkService } from '@/utils/classlinkService';
+import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
+
+const TEST_PREFIX = 'test:';
+
+const materializeTestClassStudents = (emails: string[]): Student[] =>
+  emails.map((email) => ({
+    id: crypto.randomUUID(),
+    firstName: email.split('@')[0] || email,
+    lastName: '',
+    pin: '',
+  }));
 
 export type ClassLinkDialogMode =
   | { kind: 'new' }
@@ -33,12 +46,34 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
+  const { user, userRoles, orgId, roleId } = useAuth();
+
+  const canReadTestClasses = useMemo(() => {
+    if (!orgId) return false;
+    const isSuperAdminByEmail = Boolean(
+      user?.email &&
+      userRoles?.superAdmins?.some(
+        (e) => e.toLowerCase() === user.email?.toLowerCase()
+      )
+    );
+    return (
+      isSuperAdminByEmail ||
+      roleId === 'super_admin' ||
+      roleId === 'domain_admin'
+    );
+  }, [orgId, roleId, userRoles, user?.email]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassLinkClass[]>([]);
   const [studentsByClass, setStudentsByClass] = useState<
     Record<string, import('@/types').ClassLinkStudent[]>
+  >({});
+  // Emails per synthetic test class, keyed by `test:<classId>`. Kept separate
+  // from studentsByClass (which is typed for ClassLink students) so the import
+  // handler can branch cleanly on the id prefix.
+  const [testEmailsByClass, setTestEmailsByClass] = useState<
+    Record<string, string[]>
   >({});
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -49,12 +84,65 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
     setError(null);
     setClasses([]);
     setStudentsByClass({});
+    setTestEmailsByClass({});
     void (async () => {
+      // ClassLink fetch + test-class fetch run in parallel. Test-class fetch is
+      // only attempted when the actor clears the super/domain admin gate
+      // Firestore rules enforce; otherwise it's skipped entirely to avoid a
+      // guaranteed permission-denied round-trip.
+      const testPromise =
+        canReadTestClasses && orgId
+          ? getDocs(collection(db, 'organizations', orgId, 'testClasses'))
+              .then((snap) => {
+                const extraClasses: ClassLinkClass[] = [];
+                const extraEmails: Record<string, string[]> = {};
+                for (const d of snap.docs) {
+                  const data = d.data() as {
+                    title?: string;
+                    subject?: string;
+                    memberEmails?: unknown;
+                  };
+                  const emails = Array.isArray(data.memberEmails)
+                    ? data.memberEmails.filter(
+                        (e): e is string => typeof e === 'string'
+                      )
+                    : [];
+                  const key = `${TEST_PREFIX}${d.id}`;
+                  extraClasses.push({
+                    sourcedId: key,
+                    title: `${data.title ?? d.id} (test)`,
+                    subject: data.subject,
+                  });
+                  extraEmails[key] = emails;
+                }
+                return { extraClasses, extraEmails };
+              })
+              .catch((err) => {
+                if (import.meta.env.DEV) {
+                  console.warn(
+                    '[ClassLinkImportDialog] testClasses fetch failed:',
+                    err
+                  );
+                }
+                return {
+                  extraClasses: [] as ClassLinkClass[],
+                  extraEmails: {} as Record<string, string[]>,
+                };
+              })
+          : Promise.resolve({
+              extraClasses: [] as ClassLinkClass[],
+              extraEmails: {} as Record<string, string[]>,
+            });
+
       try {
-        const data = await classLinkService.getRosters(true);
+        const [data, testResult] = await Promise.all([
+          classLinkService.getRosters(true),
+          testPromise,
+        ]);
         if (cancelled) return;
-        setClasses(data.classes);
+        setClasses([...data.classes, ...testResult.extraClasses]);
         setStudentsByClass(data.studentsByClass);
+        setTestEmailsByClass(testResult.extraEmails);
       } catch (err) {
         if (cancelled) return;
         console.error('Failed to fetch from ClassLink', err);
@@ -70,20 +158,21 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, t]);
+  }, [isOpen, t, canReadTestClasses, orgId]);
 
   const handleImportNew = async (cls: ClassLinkClass) => {
     setPendingId(cls.sourcedId);
     try {
-      const students: Student[] = (studentsByClass[cls.sourcedId] ?? []).map(
-        (s) => ({
-          id: crypto.randomUUID(),
-          firstName: s.givenName,
-          lastName: s.familyName,
-          pin: '',
-          classLinkSourcedId: s.sourcedId,
-        })
-      );
+      const isTestClass = cls.sourcedId.startsWith(TEST_PREFIX);
+      const students: Student[] = isTestClass
+        ? materializeTestClassStudents(testEmailsByClass[cls.sourcedId] ?? [])
+        : (studentsByClass[cls.sourcedId] ?? []).map((s) => ({
+            id: crypto.randomUUID(),
+            firstName: s.givenName,
+            lastName: s.familyName,
+            pin: '',
+            classLinkSourcedId: s.sourcedId,
+          }));
       const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
       const displayName = `${subjectPrefix}${cls.title}${codeSuffix}`;
@@ -232,54 +321,76 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
 
       {!loading && !error && classes.length > 0 && (
         <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-          {classes.map((cls) => {
-            const count = studentsByClass[cls.sourcedId]?.length ?? 0;
-            const isPending = pendingId === cls.sourcedId;
-            return (
-              <div
-                key={cls.sourcedId}
-                className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-sm transition-all"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-slate-800 truncate">
-                    {cls.title}
-                  </div>
-                  <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                    {t('sidebar.classes.studentCount', {
-                      count,
-                      defaultValue: '{{count}} Student',
-                      defaultValue_other: '{{count}} Students',
-                    })}
-                    {cls.classCode ? ` · ${cls.classCode}` : ''}
-                  </div>
-                </div>
-                <button
-                  onClick={() =>
-                    mode.kind === 'new'
-                      ? void handleImportNew(cls)
-                      : void handleMergeInto(cls)
-                  }
-                  disabled={isPending}
-                  className="shrink-0 bg-brand-blue-primary text-white px-3 py-2 rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          {classes
+            // Test classes don't carry ClassLinkStudent records (no sourcedIds
+            // or full names), so `mergeClassLinkStudents` can't diff them
+            // against an existing roster. Hide them in merge mode.
+            .filter(
+              (cls) =>
+                !(
+                  mode.kind === 'merge' && cls.sourcedId.startsWith(TEST_PREFIX)
+                )
+            )
+            .map((cls) => {
+              const isTestClass = cls.sourcedId.startsWith(TEST_PREFIX);
+              const count = isTestClass
+                ? (testEmailsByClass[cls.sourcedId]?.length ?? 0)
+                : (studentsByClass[cls.sourcedId]?.length ?? 0);
+              const isPending = pendingId === cls.sourcedId;
+              return (
+                <div
+                  key={cls.sourcedId}
+                  className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-xl bg-white hover:border-brand-blue-primary hover:shadow-sm transition-all"
                 >
-                  {isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : mode.kind === 'new' ? (
-                    <Download className="w-3 h-3" />
-                  ) : (
-                    <RefreshCw className="w-3 h-3" />
-                  )}
-                  {mode.kind === 'new'
-                    ? t('sidebar.classes.classLinkImport', {
-                        defaultValue: 'Import',
-                      })
-                    : t('sidebar.classes.classLinkMerge', {
-                        defaultValue: 'Merge',
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="text-sm font-bold text-slate-800 truncate">
+                        {cls.title}
+                      </div>
+                      {isTestClass && (
+                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                          {t('sidebar.classes.testBadge', {
+                            defaultValue: 'TEST',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+                      {t('sidebar.classes.studentCount', {
+                        count,
+                        defaultValue: '{{count}} Student',
+                        defaultValue_other: '{{count}} Students',
                       })}
-                </button>
-              </div>
-            );
-          })}
+                      {cls.classCode ? ` · ${cls.classCode}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() =>
+                      mode.kind === 'new'
+                        ? void handleImportNew(cls)
+                        : void handleMergeInto(cls)
+                    }
+                    disabled={isPending}
+                    className="shrink-0 bg-brand-blue-primary text-white px-3 py-2 rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isPending ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : mode.kind === 'new' ? (
+                      <Download className="w-3 h-3" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    {mode.kind === 'new'
+                      ? t('sidebar.classes.classLinkImport', {
+                          defaultValue: 'Import',
+                        })
+                      : t('sidebar.classes.classLinkMerge', {
+                          defaultValue: 'Merge',
+                        })}
+                  </button>
+                </div>
+              );
+            })}
         </div>
       )}
     </Modal>

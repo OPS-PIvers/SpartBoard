@@ -23,6 +23,7 @@ import {
   FeaturePermission,
   MaterialsGlobalConfig,
   DrawableObject,
+  ClassRoster,
 } from '../types';
 import { useAuth } from './useAuth';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
@@ -40,6 +41,10 @@ import {
   dashboardHasPII,
 } from '../utils/dashboardPII';
 import { useRosters } from '../hooks/useRosters';
+import {
+  useTestClassRosters,
+  isTestClassRosterId,
+} from '../hooks/useTestClassRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { DashboardContext } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
@@ -96,6 +101,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     savedWidgetConfigs,
     saveWidgetConfig,
     remoteControlEnabled: accountRemoteControlEnabled,
+    orgId,
+    roleId,
+    userRoles,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -454,14 +462,55 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- ROSTER LOGIC ---
   const {
-    rosters,
+    rosters: userRosters,
     activeRosterId,
     addRoster,
-    updateRoster,
-    deleteRoster,
+    updateRoster: baseUpdateRoster,
+    deleteRoster: baseDeleteRoster,
     setActiveRoster,
-    setAbsentStudents,
+    setAbsentStudents: baseSetAbsentStudents,
   } = useRosters(user);
+
+  // Admin-managed mock classes surface as synthetic read-only rosters so the
+  // sidebar and pickers don't need two different data shapes.
+  const testClassRosters = useTestClassRosters(
+    orgId,
+    roleId,
+    userRoles,
+    user?.email
+  );
+
+  const rosters = useMemo(
+    () => [...userRosters, ...testClassRosters],
+    [userRosters, testClassRosters]
+  );
+
+  // Short-circuit mutations targeting test-class rosters. They are managed
+  // from the admin panel, not the per-user roster CRUD path, so any write
+  // here would target a non-existent `/users/{uid}/rosters/` doc.
+  const updateRoster = useCallback(
+    async (id: string, updates: Partial<ClassRoster>) => {
+      if (isTestClassRosterId(id)) return;
+      return baseUpdateRoster(id, updates);
+    },
+    [baseUpdateRoster]
+  );
+
+  const deleteRoster = useCallback(
+    async (id: string) => {
+      if (isTestClassRosterId(id)) return;
+      return baseDeleteRoster(id);
+    },
+    [baseDeleteRoster]
+  );
+
+  const setAbsentStudents = useCallback(
+    async (rosterId: string, studentIds: string[]) => {
+      if (isTestClassRosterId(rosterId)) return;
+      return baseSetAbsentStudents(rosterId, studentIds);
+    },
+    [baseSetAbsentStudents]
+  );
 
   // Refs to prevent race conditions
   const lastLocalUpdateAt = useRef<number>(0);
