@@ -490,8 +490,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentsForApp(null);
   };
 
-  // Subscribe to sessions for whichever app the teacher is managing
-  const targetAppId = assignmentsForApp?.id ?? activeApp?.id;
+  // Subscribe to sessions only when the Assignments modal is open. The
+  // previous `?? activeApp?.id` fallback kept this listener live whenever a
+  // teacher had ever opened a mini-app (since `activeApp` is persisted in
+  // `widget.config.activeApp`), producing constant `mini_app_sessions`
+  // listener traffic and "requires an index" console spam for users who
+  // never open the Assignments modal.
+  const targetAppId = assignmentsForApp?.id;
   useEffect(() => {
     if (!user?.uid || !targetAppId) {
       unsubscribeFromAppSessions();
