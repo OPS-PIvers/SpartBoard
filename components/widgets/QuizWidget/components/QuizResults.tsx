@@ -44,6 +44,10 @@ import {
   isGamificationActive,
 } from '../utils/quizScoreboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import {
+  useAssignmentPseudonyms,
+  formatStudentName,
+} from '@/hooks/useAssignmentPseudonyms';
 
 interface QuizResultsProps {
   quiz: QuizData;
@@ -97,6 +101,14 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const pinToName = useMemo(
     () => buildPinToNameMap(rosters, resolvedPeriods),
     [rosters, resolvedPeriods]
+  );
+
+  // ClassLink name resolution — only populated when session.classId is set
+  // (i.e. assigned to a ClassLink class). For legacy code+PIN sessions both
+  // maps are empty and pinToName handles display.
+  const { byStudentUid } = useAssignmentPseudonyms(
+    session?.id ?? null,
+    session?.classId ?? null
   );
   const exportPinToName = useMemo(
     () => buildPinToExportNameMap(rosters, resolvedPeriods),
@@ -510,6 +522,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 responses={filteredResponses}
                 questions={quiz.questions}
                 pinToName={pinToName}
+                byStudentUid={byStudentUid}
                 tabWarningsEnabled={tabWarningsEnabled ?? true}
                 session={session}
               />
@@ -777,9 +790,20 @@ const StudentsTab: React.FC<{
   responses: QuizResponse[];
   questions: QuizQuestion[];
   pinToName: Record<string, string>;
+  byStudentUid: Map<
+    string,
+    import('@/hooks/useAssignmentPseudonyms').StudentName
+  >;
   tabWarningsEnabled: boolean;
   session?: import('@/types').QuizSession | null;
-}> = ({ responses, questions, pinToName, tabWarningsEnabled, session }) => {
+}> = ({
+  responses,
+  questions,
+  pinToName,
+  byStudentUid,
+  tabWarningsEnabled,
+  session,
+}) => {
   const [showResults, setShowResults] = useState(false);
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   const gamified = isGamificationActive(session);
@@ -844,6 +868,13 @@ const StudentsTab: React.FC<{
             const earned = getEarnedPoints(r, questions, session);
             const warnings = r.tabSwitchWarnings ?? 0;
 
+            const classLinkName = formatStudentName(
+              byStudentUid.get(r.studentUid)
+            );
+            const rosterName = pinToName[r.pin];
+            const displayName = classLinkName || rosterName || `PIN ${r.pin}`;
+            const isResolved = Boolean(classLinkName || rosterName);
+
             return (
               <div
                 key={r.studentUid}
@@ -852,10 +883,10 @@ const StudentsTab: React.FC<{
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p
-                      className={`font-bold text-brand-blue-dark truncate ${pinToName[r.pin] ? '' : 'font-mono'}`}
+                      className={`font-bold text-brand-blue-dark truncate ${isResolved ? '' : 'font-mono'}`}
                       style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                     >
-                      {pinToName[r.pin] ?? `PIN ${r.pin}`}
+                      {displayName}
                     </p>
                     {tabWarningsEnabled && warnings > 0 && (
                       <span

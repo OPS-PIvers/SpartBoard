@@ -56,11 +56,18 @@ export interface UseVideoActivityAssignmentsResult {
   /**
    * Create a new assignment + its matching session doc in one batch.
    * Returns the new assignment's id (== sessionId).
+   *
+   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
+   * written onto the session doc so that ClassLink-authenticated students
+   * see this session on their `/my-assignments` page, and Firestore rules
+   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
+   * access. Omitting it preserves the classic join-URL-only flow.
    */
   createAssignment: (
     activity: AssignmentActivityRef,
     settings: VideoActivityAssignmentSettings,
-    initialStatus?: VideoActivityAssignmentStatus
+    initialStatus?: VideoActivityAssignmentStatus,
+    classId?: string
   ) => Promise<{ id: string }>;
   /** Set both assignment.status and session.status to 'paused' (assignment) / 'ended' (session). */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -128,7 +135,7 @@ export const useVideoActivityAssignments = (
   const createAssignment = useCallback<
     UseVideoActivityAssignmentsResult['createAssignment']
   >(
-    async (activity, settings, initialStatus = 'active') => {
+    async (activity, settings, initialStatus = 'active', classId) => {
       if (!userId) throw new Error('Not authenticated');
 
       const assignmentId = crypto.randomUUID();
@@ -166,6 +173,11 @@ export const useVideoActivityAssignments = (
         allowedPins: [],
         createdAt: now,
         ...(sessionStatus === 'ended' ? { endedAt: now } : {}),
+        // Phase 3B: optional ClassLink target class. Only write when a
+        // non-empty sourcedId was supplied so sessions created without a
+        // target keep a clean doc shape (and the rules no-op branch kicks in
+        // via `resource.data.get('classId', '')`).
+        ...(classId ? { classId } : {}),
       };
 
       const batch = writeBatch(db);

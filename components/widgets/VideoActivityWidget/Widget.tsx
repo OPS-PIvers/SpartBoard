@@ -310,7 +310,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           }
         }}
         defaultSessionSettings={defaultSessionSettings}
-        onAssign={async (meta, sessionSettings, assignmentName) => {
+        onAssign={async (meta, sessionSettings, assignmentName, classId) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -320,12 +320,27 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             user.uid,
             [],
             sessionSettings,
-            assignmentName
+            assignmentName,
+            classId ?? undefined
           );
+
+          // Phase 3B: persist per-activity memory of the last ClassLink target
+          // so the next launch of the same activity pre-selects the class the
+          // teacher used last time. Clearing the selection ("No class") also
+          // clears the remembered id so we don't stick on stale values.
+          const prevMap = config.lastClassIdByActivityId ?? {};
+          const nextMap: Record<string, string> = { ...prevMap };
+          if (classId) {
+            nextMap[meta.id] = classId;
+          } else {
+            delete nextMap[meta.id];
+          }
+
           updateWidget(widget.id, {
             config: {
               ...config,
               resultsSessionId: sessionId,
+              lastClassIdByActivityId: nextMap,
             } as VideoActivityConfig,
           });
 
@@ -336,6 +351,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
           return sessionId;
         }}
+        lastClassIdByActivityId={config.lastClassIdByActivityId}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);

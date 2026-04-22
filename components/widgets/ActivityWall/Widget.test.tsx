@@ -104,6 +104,16 @@ vi.mock('firebase/firestore', () => ({
   deleteField: vi.fn(() => '__delete__'),
 }));
 
+// Phase 3D: the widget fetches ClassLink classes on mount to decide
+// whether to show the target-class selector. Tests don't exercise
+// ClassLink, so stub the service to a no-op that returns an empty
+// classes list.
+vi.mock('@/utils/classlinkService', () => ({
+  classLinkService: {
+    getRosters: vi.fn().mockResolvedValue({ classes: [], studentsByClass: {} }),
+  },
+}));
+
 describe('ActivityWallWidget', () => {
   const baseWidget: WidgetData = {
     id: 'widget-1',

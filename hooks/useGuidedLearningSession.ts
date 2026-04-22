@@ -134,8 +134,16 @@ export function toPublicStep(
 export interface UseGuidedLearningSessionTeacherResult {
   responses: GuidedLearningResponse[];
   responsesLoading: boolean;
-  /** Create a new session and return its URL */
-  createSession: (set: GuidedLearningSet) => Promise<string>;
+  /**
+   * Create a new session and return its URL.
+   *
+   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
+   * written onto the session doc so that ClassLink-authenticated students
+   * see this session on their `/my-assignments` page, and Firestore rules
+   * (`passesStudentClassGate`) enforce class-based access. Omitting it
+   * preserves the classic join-link flow.
+   */
+  createSession: (set: GuidedLearningSet, classId?: string) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
   /** Export responses as a CSV blob string */
@@ -152,7 +160,7 @@ export const useGuidedLearningSessionTeacher = (
   const [responsesLoading, setResponsesLoading] = useState(false);
 
   const createSession = useCallback(
-    async (set: GuidedLearningSet): Promise<string> => {
+    async (set: GuidedLearningSet, classId?: string): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
       const sessionId = crypto.randomUUID();
@@ -166,6 +174,11 @@ export const useGuidedLearningSessionTeacher = (
         publicSteps,
         teacherUid,
         createdAt: Date.now(),
+        // Phase 3C: optional ClassLink target class. Only write when a
+        // non-empty sourcedId was supplied so sessions created without a
+        // target keep a clean doc shape (and the rules no-op branch kicks in
+        // via `resource.data.get('classId', '')`).
+        ...(classId ? { classId } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

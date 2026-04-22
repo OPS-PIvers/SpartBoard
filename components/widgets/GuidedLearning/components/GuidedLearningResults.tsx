@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart2,
   Download,
@@ -7,11 +7,17 @@ import {
   CheckCircle2,
   Loader2,
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import { GuidedLearningSet } from '@/types';
 import {
   useGuidedLearningSessionTeacher,
   isAnswerCorrect,
 } from '@/hooks/useGuidedLearningSession';
+import {
+  useAssignmentPseudonyms,
+  formatStudentName,
+} from '@/hooks/useAssignmentPseudonyms';
 
 interface Props {
   set: GuidedLearningSet;
@@ -35,6 +41,30 @@ export const GuidedLearningResults: React.FC<Props> = ({
     const unsub = subscribeToResponses(sessionId);
     return unsub;
   }, [sessionId, subscribeToResponses]);
+
+  // Fetch the session doc once to learn the optional classId. When set
+  // (ClassLink-assigned), we resolve pseudonyms to real student names.
+  const [classId, setClassId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snap = await getDoc(
+          doc(db, 'guided_learning_sessions', sessionId)
+        );
+        if (cancelled) return;
+        const data = snap.data() as { classId?: string } | undefined;
+        setClassId(data?.classId ?? null);
+      } catch {
+        if (!cancelled) setClassId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const { byStudentUid } = useAssignmentPseudonyms(sessionId, classId);
 
   const {
     questionSteps,
@@ -235,26 +265,33 @@ export const GuidedLearningResults: React.FC<Props> = ({
                 Responses
               </h3>
               <div className="space-y-1.5">
-                {responseStats.map(({ response: r, qCorrect, qAnswered }) => (
-                  <div
-                    key={r.studentAnonymousId}
-                    className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
-                  >
-                    <div>
-                      <span className="text-white text-xs font-medium">
-                        {r.pin ? `PIN: ${r.pin}` : 'Anonymous'}
-                      </span>
-                      <span className="text-slate-500 text-xs ml-2">
-                        {r.completedAt ? 'Completed' : 'In progress'}
-                      </span>
+                {responseStats.map(({ response: r, qCorrect, qAnswered }) => {
+                  const classLinkName = formatStudentName(
+                    byStudentUid.get(r.studentAnonymousId)
+                  );
+                  const label =
+                    classLinkName || (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
+                  return (
+                    <div
+                      key={r.studentAnonymousId}
+                      className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
+                    >
+                      <div>
+                        <span className="text-white text-xs font-medium">
+                          {label}
+                        </span>
+                        <span className="text-slate-500 text-xs ml-2">
+                          {r.completedAt ? 'Completed' : 'In progress'}
+                        </span>
+                      </div>
+                      {questionSteps.length > 0 && (
+                        <span className="text-slate-300 text-xs">
+                          {qCorrect}/{qAnswered} correct
+                        </span>
+                      )}
                     </div>
-                    {questionSteps.length > 0 && (
-                      <span className="text-slate-300 text-xs">
-                        {qCorrect}/{qAnswered} correct
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

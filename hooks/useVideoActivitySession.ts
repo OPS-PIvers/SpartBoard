@@ -74,13 +74,22 @@ const normalizeSession = (
 // ---------------------------------------------------------------------------
 
 export interface UseVideoActivitySessionTeacherResult {
-  /** Create a session for a class and return the sessionId (used as the share link). */
+  /**
+   * Create a session for a class and return the sessionId (used as the share link).
+   *
+   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
+   * written onto the session doc so that ClassLink-authenticated students
+   * see this session on their `/my-assignments` page, and Firestore rules
+   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
+   * access. Omitting it preserves the classic code/PIN-only flow.
+   */
   createSession: (
     activity: VideoActivityData,
     teacherUid: string,
     allowedPins?: string[],
     settings?: Partial<VideoActivitySessionSettings>,
-    assignmentName?: string
+    assignmentName?: string,
+    classId?: string
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -117,7 +126,8 @@ export const useVideoActivitySessionTeacher =
         teacherUid: string,
         allowedPins: string[] = [],
         settings?: Partial<VideoActivitySessionSettings>,
-        assignmentName?: string
+        assignmentName?: string,
+        classId?: string
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -142,6 +152,11 @@ export const useVideoActivitySessionTeacher =
           status: 'active',
           allowedPins,
           createdAt: Date.now(),
+          // Phase 3B: optional ClassLink target class. Only write when a
+          // non-empty sourcedId was supplied so sessions created without a
+          // target keep a clean doc shape (and the rules no-op branch kicks in
+          // via `resource.data.get('classId', '')`).
+          ...(classId ? { classId } : {}),
         };
 
         await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

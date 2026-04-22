@@ -667,7 +667,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           meta,
           mode,
           plcOptions: PlcOptions,
-          sessionOptions: QuizSessionOptions
+          sessionOptions: QuizSessionOptions,
+          classId: string | null
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
@@ -689,8 +690,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 periodNames: plcOptions.periodNames,
                 plcSheetUrl: plcOptions.plcSheetUrl,
               },
-              'paused'
+              'paused',
+              classId ?? undefined
             );
+            // Persist the teacher's last-used classId per quiz so re-launching
+            // the same quiz pre-selects the same class. Clearing (picking "No
+            // class") removes the entry rather than writing an empty string
+            // to keep the config map small.
+            const prevMap = config.lastClassIdByQuizId ?? {};
+            const nextMap: Record<string, string> = { ...prevMap };
+            if (classId) {
+              nextMap[meta.id] = classId;
+            } else {
+              delete nextMap[meta.id];
+            }
             updateWidget(widget.id, {
               config: {
                 ...config,
@@ -705,6 +718,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 plcSheetUrl: plcOptions.plcSheetUrl ?? '',
+                lastClassIdByQuizId: nextMap,
               } as QuizConfig,
             });
             const url = `${window.location.origin}/quiz?code=${code}`;

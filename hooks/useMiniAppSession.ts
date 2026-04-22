@@ -45,6 +45,7 @@ const normalizeSession = (
     status: data.status === 'ended' ? 'ended' : 'active',
     createdAt,
     ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
+    ...(data.classId ? { classId: data.classId } : {}),
     ...(data.submissionUrl ? { submissionUrl: data.submissionUrl } : {}),
     ...(data.googleSheetId ? { googleSheetId: data.googleSheetId } : {}),
   };
@@ -57,7 +58,9 @@ export interface UseMiniAppSessionTeacherResult {
     teacherUid: string,
     assignmentName: string,
     submissionUrl?: string,
-    googleSheetId?: string
+    googleSheetId?: string,
+    /** Optional ClassLink classId the teacher targeted. */
+    classId?: string
   ) => Promise<string>;
   /** Sessions created by this teacher for the currently subscribed app. */
   sessions: MiniAppSession[];
@@ -83,7 +86,8 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       teacherUid: string,
       assignmentName: string,
       submissionUrl?: string,
-      googleSheetId?: string
+      googleSheetId?: string,
+      classId?: string
     ): Promise<string> => {
       const sessionId = crypto.randomUUID();
       const trimmedName = assignmentName.trim();
@@ -100,6 +104,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
             : `${app.title} — ${new Date().toLocaleString()}`,
         status: 'active',
         createdAt: Date.now(),
+        ...(classId ? { classId } : {}),
         ...(submissionUrl ? { submissionUrl } : {}),
         ...(googleSheetId ? { googleSheetId } : {}),
       };

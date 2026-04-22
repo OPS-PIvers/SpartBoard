@@ -6,6 +6,7 @@ import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
+import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
 
@@ -29,6 +30,10 @@ const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
+const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
+  'STUDENT_PSEUDONYM_HMAC_SECRET'
+);
+const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
 
 const ALLOWED_ORIGINS: (string | RegExp)[] = [
   'https://spartboard.web.app',
@@ -353,6 +358,9 @@ export const getClassLinkRosterV1 = onCall(
     const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
 
     try {
+      if (!isSafeEmailForOneRosterFilter(userEmail)) {
+        return { classes: [], studentsByClass: {} };
+      }
       const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
       const userParams = { filter: `email='${userEmail}'` };
 
@@ -2483,6 +2491,520 @@ export const adminAnalytics = onRequest(
           ? err.message
           : 'An internal error occurred fetching analytics.';
       res.status(500).json({ error: 'internal', message: errorMessage });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Student identity (ClassLink-via-Google) — PII-free auth flow
+// ---------------------------------------------------------------------------
+//
+// Students launch SpartBoard from their ClassLink LaunchPad tile. Because
+// ClassLink is the district IdP and pushes identity into Google Workspace,
+// the student is already signed in with Google on the Chromebook. We use
+// Google Identity Services (GIS) client-side to obtain an ID token, verify
+// it server-side, then look up the student in ClassLink OneRoster and mint
+// a Firebase custom token whose UID is an HMAC pseudonym of the OneRoster
+// sourcedId. Email / name / sub / sourcedId are never persisted.
+//
+// Intentional design choices:
+//   - GIS + custom token (NOT signInWithPopup + GoogleAuthProvider) so that
+//     the Firebase Auth user record never receives email/displayName/photoURL.
+//   - Per-organization domain gating via existing
+//     /organizations/{orgId}/domains subcollection; a login with a domain
+//     not present (and verified) in any organization is rejected.
+//   - Per-assignment pseudonym = HMAC(SECRET, uid + assignmentId) so the
+//     server never needs the sourcedId after login. Teacher match-back
+//     recomputes it from the OneRoster roster at grading time.
+//   - NO PII logging. All catch blocks log class-of-failure only.
+
+interface OneRosterUserWithRole extends ClassLinkUser {
+  role?: string;
+  roles?: Array<{ role?: string; roleType?: string }>;
+}
+
+const STUDENT_LOGIN_CLASS_IDS_MAX = 20;
+
+function hmacSha256Hex(secret: string, message: string): string {
+  return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
+}
+
+function computeStudentUid(sourcedId: string, hmacSecret: string): string {
+  return hmacSha256Hex(hmacSecret, `sid:${sourcedId}`);
+}
+
+function computeAssignmentPseudonym(
+  uid: string,
+  assignmentId: string,
+  hmacSecret: string
+): string {
+  return hmacSha256Hex(hmacSecret, `asn:${uid}:${assignmentId}`);
+}
+
+function normalizeEmailDomain(email: string): string | null {
+  const at = email.lastIndexOf('@');
+  if (at < 0 || at === email.length - 1) return null;
+  return '@' + email.slice(at + 1).toLowerCase();
+}
+
+/**
+ * Rejects emails that would break (or be injected into) an unquoted
+ * OneRoster `filter=email='...'` string. Real Google-verified school emails
+ * never contain `'` or `\`, so callers short-circuit to the standard
+ * "not in roster" path rather than disclosing the guard's existence.
+ */
+function isSafeEmailForOneRosterFilter(email: string): boolean {
+  return !/['\\]/.test(email);
+}
+
+/**
+ * Looks up the organization that owns the given email domain. Matches against
+ * the existing /organizations/{orgId}/domains/{doc} subcollection, requiring
+ * `status === 'verified'`. Domain values in that collection are stored with a
+ * leading '@' (e.g. '@orono.k12.mn.us'). Returns null if no match.
+ */
+async function resolveOrgIdForDomain(
+  db: admin.firestore.Firestore,
+  domainWithAt: string
+): Promise<string | null> {
+  const snap = await db
+    .collectionGroup('domains')
+    .where('domain', '==', domainWithAt)
+    .where('status', '==', 'verified')
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const orgRef = snap.docs[0].ref.parent.parent;
+  return orgRef ? orgRef.id : null;
+}
+
+function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
+  if (user.role && user.role.toLowerCase() === 'student') return true;
+  if (Array.isArray(user.roles)) {
+    return user.roles.some((r) => {
+      const v = (r.role ?? r.roleType ?? '').toLowerCase();
+      return v === 'student' || v === 'primary';
+    });
+  }
+  return false;
+}
+
+/**
+ * studentLoginV1
+ *
+ * Input:  { idToken: string }  — Google ID token from GIS on the client.
+ * Output: { customToken, orgId, classCount } — client then calls
+ *         signInWithCustomToken(customToken).
+ *
+ * Failure codes:
+ *   - unauthenticated / invalid-argument: ID token missing or invalid.
+ *   - permission-denied: email domain not registered with any organization.
+ *   - not-found: student email not present in ClassLink OneRoster, or no
+ *                classes enrolled, or account role is not 'student'.
+ *   - internal: ClassLink API unreachable or server misconfigured.
+ */
+export const studentLoginV1 = onCall(
+  {
+    memory: '256MiB',
+    minInstances: 1,
+    secrets: [
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+      GOOGLE_OAUTH_CLIENT_ID,
+    ],
+    invoker: 'public',
+  },
+  async (request) => {
+    const rawIdToken = (request.data as { idToken?: unknown })?.idToken;
+    const idToken = typeof rawIdToken === 'string' ? rawIdToken : '';
+    if (!idToken) {
+      throw new HttpsError('invalid-argument', 'Missing idToken.');
+    }
+
+    const googleClientId = GOOGLE_OAUTH_CLIENT_ID.value();
+    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+    const classlinkClientId = CLASSLINK_CLIENT_ID.value();
+    const classlinkClientSecret = CLASSLINK_CLIENT_SECRET.value();
+    const tenantUrl = CLASSLINK_TENANT_URL.value();
+    if (
+      !googleClientId ||
+      !hmacSecret ||
+      !classlinkClientId ||
+      !classlinkClientSecret ||
+      !tenantUrl
+    ) {
+      console.error(
+        '[studentLoginV1] Missing required server configuration (secrets).'
+      );
+      throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    // 1. Verify the Google ID token signature and audience. The library also
+    //    validates `iss`, `exp`, and our expected `aud` in one call.
+    const oauthClient = new OAuth2Client();
+    let email: string;
+    let hd: string | undefined;
+    let emailVerified: boolean;
+    try {
+      const ticket = await oauthClient.verifyIdToken({
+        idToken,
+        audience: googleClientId,
+      });
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new Error('no-payload');
+      }
+      email = typeof payload.email === 'string' ? payload.email : '';
+      hd = typeof payload.hd === 'string' ? payload.hd : undefined;
+      emailVerified = payload.email_verified === true;
+    } catch {
+      // Do not log token contents.
+      console.warn('[studentLoginV1] ID token verification failed.');
+      throw new HttpsError('unauthenticated', 'Invalid identity token.');
+    }
+    if (!email || !emailVerified) {
+      throw new HttpsError('unauthenticated', 'Email not verified by Google.');
+    }
+
+    // 2. Organization / domain gate. Prefer the `hd` claim (Workspace-issued),
+    //    but fall back to the email suffix since `hd` is not guaranteed on
+    //    every Workspace configuration.
+    const emailDomain = normalizeEmailDomain(email);
+    if (!emailDomain) {
+      throw new HttpsError('unauthenticated', 'Malformed email.');
+    }
+    const hdDomain = hd ? '@' + hd.toLowerCase() : null;
+
+    const db = admin.firestore();
+    let orgId = hdDomain ? await resolveOrgIdForDomain(db, hdDomain) : null;
+    if (!orgId) {
+      orgId = await resolveOrgIdForDomain(db, emailDomain);
+    }
+    if (!orgId) {
+      // Counter for monitoring alert on misconfiguration / unregistered schools.
+      console.warn('[studentLoginV1] students_rejected_domain');
+      throw new HttpsError(
+        'permission-denied',
+        'This SpartBoard is only available to schools that have signed up.'
+      );
+    }
+
+    // 3. ClassLink OneRoster lookup — fetch the student's sourcedId and
+    //    classes. Held in memory only, never written to Firestore.
+    const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
+    let sourcedId: string;
+    let classIds: string[];
+    try {
+      if (!isSafeEmailForOneRosterFilter(email)) {
+        console.warn('[studentLoginV1] students_not_in_roster');
+        throw new HttpsError(
+          'not-found',
+          'No student record found in ClassLink roster.'
+        );
+      }
+      const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const userParams = { filter: `email='${email}'` };
+      const userHeaders = getOAuthHeaders(
+        usersBaseUrl,
+        userParams,
+        'GET',
+        classlinkClientId,
+        classlinkClientSecret
+      );
+      const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
+        usersBaseUrl,
+        { params: userParams, headers: { ...userHeaders } }
+      );
+      const users = userResp.data.users ?? [];
+      const studentUser = users.find(isOneRosterStudent);
+      if (!studentUser) {
+        console.warn('[studentLoginV1] students_not_in_roster');
+        throw new HttpsError(
+          'not-found',
+          'No student record found in ClassLink roster.'
+        );
+      }
+      sourcedId = studentUser.sourcedId;
+
+      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${sourcedId}/classes`;
+      const classesHeaders = getOAuthHeaders(
+        classesUrl,
+        {},
+        'GET',
+        classlinkClientId,
+        classlinkClientSecret
+      );
+      const classesResp = await axios.get<{ classes: ClassLinkClass[] }>(
+        classesUrl,
+        { headers: { ...classesHeaders } }
+      );
+      classIds = (classesResp.data.classes ?? [])
+        .map((c) => c.sourcedId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      if (axios.isAxiosError(err)) {
+        console.error(
+          '[studentLoginV1] ClassLink request failed:',
+          err.response?.status
+        );
+      } else {
+        console.error('[studentLoginV1] ClassLink request failed.');
+      }
+      throw new HttpsError('internal', 'Roster service unavailable.');
+    }
+
+    // 4. Compute the stable opaque UID and mint the custom token with
+    //    the classIds claim that gates Firestore reads.
+    const uid = computeStudentUid(sourcedId, hmacSecret);
+
+    let customToken: string;
+    try {
+      customToken = await admin.auth().createCustomToken(uid, {
+        studentRole: true,
+        orgId,
+        classIds,
+      });
+    } catch (err) {
+      console.error('[studentLoginV1] createCustomToken failed:', err);
+      throw new HttpsError('internal', 'Failed to mint auth token.');
+    }
+
+    return { customToken, orgId, classCount: classIds.length };
+  }
+);
+
+/**
+ * getAssignmentPseudonymV1
+ *
+ * Called by the authenticated student client when opening a specific
+ * assignment. Returns the opaque pseudonym to write into the response doc:
+ *
+ *   pseudonym = HMAC_SHA256(HMAC_SECRET, "asn:" + uid + ":" + assignmentId)
+ *
+ * Stable within (uid, assignmentId), unlinkable across assignments, and
+ * unlinkable to a student without both the HMAC secret AND the OneRoster
+ * roster.
+ */
+export const getAssignmentPseudonymV1 = onCall(
+  {
+    memory: '128MiB',
+    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    invoker: 'public',
+  },
+  (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (request.auth.token.studentRole !== true) {
+      throw new HttpsError('permission-denied', 'Student role required.');
+    }
+    const rawAssignmentId = (request.data as { assignmentId?: unknown })
+      ?.assignmentId;
+    const assignmentId =
+      typeof rawAssignmentId === 'string' ? rawAssignmentId : '';
+    if (!assignmentId || assignmentId.length > 200) {
+      throw new HttpsError('invalid-argument', 'Invalid assignmentId.');
+    }
+
+    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+    if (!hmacSecret) {
+      throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    const pseudonym = computeAssignmentPseudonym(
+      request.auth.uid,
+      assignmentId,
+      hmacSecret
+    );
+    return { pseudonym };
+  }
+);
+
+/**
+ * getPseudonymsForAssignmentV1
+ *
+ * Called by a teacher's client when rendering the grading view for an
+ * assignment. Returns both pseudonyms plus names for every student in the
+ * targeted ClassLink class:
+ *   { sourcedId -> { studentUid, assignmentPseudonym, givenName, familyName } }
+ * so the teacher's client can join Firestore responses (keyed by either the
+ * session-scoped studentUid for quiz/video/guided-learning or the
+ * assignment-scoped pseudonym for mini-app submissions) back to roster
+ * identity and display names. Names never touch Firestore — they stay in
+ * teacher-browser memory for the session. The HMAC secret never leaves the
+ * server.
+ *
+ * Only callable by a teacher who actually teaches the requested class
+ * (ClassLink membership is re-verified on every call).
+ */
+export const getPseudonymsForAssignmentV1 = onCall(
+  {
+    memory: '256MiB',
+    minInstances: 1,
+    secrets: [
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+    ],
+    invoker: 'public',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    // Teachers authenticate with standard Firebase Auth (email present on
+    // token). Students never have email on their token, so this also keeps
+    // students out of the teacher-only endpoint.
+    const teacherEmail = request.auth.token.email;
+    if (!teacherEmail || request.auth.token.studentRole === true) {
+      throw new HttpsError('permission-denied', 'Teacher account required.');
+    }
+
+    const data = request.data as {
+      assignmentId?: unknown;
+      classId?: unknown;
+    };
+    const assignmentId =
+      typeof data?.assignmentId === 'string' ? data.assignmentId : '';
+    const classId = typeof data?.classId === 'string' ? data.classId : '';
+    if (!assignmentId || !classId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'assignmentId and classId are required.'
+      );
+    }
+
+    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+    const classlinkClientId = CLASSLINK_CLIENT_ID.value();
+    const classlinkClientSecret = CLASSLINK_CLIENT_SECRET.value();
+    const tenantUrl = CLASSLINK_TENANT_URL.value();
+    if (
+      !hmacSecret ||
+      !classlinkClientId ||
+      !classlinkClientSecret ||
+      !tenantUrl
+    ) {
+      throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
+
+    // Verify the teacher actually teaches this class before disclosing the
+    // roster pseudonyms. A teacher can only retrieve pseudonyms for their
+    // own classes.
+    try {
+      if (!isSafeEmailForOneRosterFilter(teacherEmail)) {
+        throw new HttpsError(
+          'not-found',
+          'Teacher not found in ClassLink roster.'
+        );
+      }
+      const teacherUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const teacherParams = { filter: `email='${teacherEmail}'` };
+      const teacherHeaders = getOAuthHeaders(
+        teacherUrl,
+        teacherParams,
+        'GET',
+        classlinkClientId,
+        classlinkClientSecret
+      );
+      const teacherResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
+        teacherUrl,
+        { params: teacherParams, headers: { ...teacherHeaders } }
+      );
+      const teacherUser = (teacherResp.data.users ?? [])[0];
+      if (!teacherUser) {
+        throw new HttpsError(
+          'not-found',
+          'Teacher not found in ClassLink roster.'
+        );
+      }
+      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${teacherUser.sourcedId}/classes`;
+      const classesHeaders = getOAuthHeaders(
+        classesUrl,
+        {},
+        'GET',
+        classlinkClientId,
+        classlinkClientSecret
+      );
+      const classesResp = await axios.get<{ classes: ClassLinkClass[] }>(
+        classesUrl,
+        { headers: { ...classesHeaders } }
+      );
+      const teaches = (classesResp.data.classes ?? []).some(
+        (c) => c.sourcedId === classId
+      );
+      if (!teaches) {
+        throw new HttpsError(
+          'permission-denied',
+          'Not a teacher of this class.'
+        );
+      }
+
+      // Now fetch the class's students and compute the pseudonym map.
+      const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${classId}/students`;
+      const studentsHeaders = getOAuthHeaders(
+        studentsUrl,
+        {},
+        'GET',
+        classlinkClientId,
+        classlinkClientSecret
+      );
+      const studentsResp = await axios.get<{ users: ClassLinkStudent[] }>(
+        studentsUrl,
+        { headers: { ...studentsHeaders } }
+      );
+      const students = studentsResp.data.users ?? [];
+
+      // Return both pseudonyms so teacher viewers can match whichever one
+      // the response doc is keyed by:
+      //  - studentUid            — HMAC(sourcedId, secret); equals the
+      //                            ClassLink student's Firebase Auth UID.
+      //                            Used by quiz/video-activity/guided-learning
+      //                            response docs that key on auth.currentUser.uid.
+      //  - assignmentPseudonym   — HMAC(studentUid + assignmentId, secret).
+      //                            Used by mini-app submission docs that key
+      //                            on a per-assignment opaque id.
+      const pseudonyms: Record<
+        string,
+        {
+          studentUid: string;
+          assignmentPseudonym: string;
+          givenName: string;
+          familyName: string;
+        }
+      > = {};
+      for (const s of students) {
+        if (!s.sourcedId) continue;
+        const studentUid = computeStudentUid(s.sourcedId, hmacSecret);
+        pseudonyms[s.sourcedId] = {
+          studentUid,
+          assignmentPseudonym: computeAssignmentPseudonym(
+            studentUid,
+            assignmentId,
+            hmacSecret
+          ),
+          givenName: s.givenName ?? '',
+          familyName: s.familyName ?? '',
+        };
+      }
+      return { pseudonyms };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      if (axios.isAxiosError(err)) {
+        console.error(
+          '[getPseudonymsForAssignmentV1] ClassLink request failed:',
+          err.response?.status
+        );
+      } else {
+        console.error('[getPseudonymsForAssignmentV1] Unexpected failure.');
+      }
+      throw new HttpsError('internal', 'Roster service unavailable.');
     }
   }
 );

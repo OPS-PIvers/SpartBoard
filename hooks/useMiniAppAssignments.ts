@@ -36,6 +36,8 @@ export interface CreateMiniAppAssignmentInput {
   sessionId: string;
   app: Pick<MiniAppItem, 'id' | 'title'>;
   assignmentName: string;
+  /** Optional ClassLink classId the teacher targeted. */
+  classId?: string;
   submissionUrl?: string;
   googleSheetId?: string;
 }
@@ -123,6 +125,7 @@ export const useMiniAppAssignments = (
         status: 'active',
         createdAt: now,
         updatedAt: now,
+        ...(input.classId ? { classId: input.classId } : {}),
         ...(input.submissionUrl ? { submissionUrl: input.submissionUrl } : {}),
         ...(input.googleSheetId ? { googleSheetId: input.googleSheetId } : {}),
       };

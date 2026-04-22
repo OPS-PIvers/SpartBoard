@@ -16,7 +16,7 @@
  * only, not functionality.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -42,14 +42,17 @@ import {
   Loader2,
   AlertCircle,
   CheckSquare,
+  Users,
 } from 'lucide-react';
 import {
+  ClassLinkClass,
   QuizMetadata,
   QuizSessionMode,
   QuizConfig,
   ClassRoster,
   QuizAssignment,
 } from '@/types';
+import { classLinkService } from '@/utils/classlinkService';
 import { type QuizSessionOptions } from '@/hooks/useQuizSession';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -104,9 +107,19 @@ interface QuizAssignOptions {
   teacherName: string;
   selectedPeriodNames: string[];
   plcSheetUrl: string;
+  /**
+   * ClassLink class `sourcedId` this quiz is targeted at, or `''` for the
+   * "No class" option (classic code/PIN-only flow). Written onto the
+   * `quiz_sessions/{sessionId}` document when non-empty so students who
+   * signed in via ClassLink see the session on their /my-assignments page.
+   */
+  classId: string;
 }
 
-function buildDefaultAssignOptions(config: QuizConfig): QuizAssignOptions {
+function buildDefaultAssignOptions(
+  config: QuizConfig,
+  quizId?: string
+): QuizAssignOptions {
   return {
     tabWarningsEnabled: true,
     showResultToStudent: false,
@@ -121,6 +134,7 @@ function buildDefaultAssignOptions(config: QuizConfig): QuizAssignOptions {
     selectedPeriodNames:
       config.periodNames ?? (config.periodName ? [config.periodName] : []),
     plcSheetUrl: config.plcSheetUrl ?? '',
+    classId: (quizId && config.lastClassIdByQuizId?.[quizId]) ?? '',
   };
 }
 
@@ -161,7 +175,12 @@ interface QuizManagerProps {
     quiz: QuizMetadata,
     mode: QuizSessionMode,
     plcOptions: PlcOptions,
-    sessionOptions: QuizSessionOptions
+    sessionOptions: QuizSessionOptions,
+    /**
+     * ClassLink target class `sourcedId`, or `null` when the teacher chose
+     * "No class" (classic code/PIN-only flow). Phase 3A.
+     */
+    classId: string | null
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
@@ -314,9 +333,38 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setSelectedMode(null);
-      setAssignOptions(buildDefaultAssignOptions(config));
+      setAssignOptions(buildDefaultAssignOptions(config, assignTarget.id));
     }
   }
+
+  // ─── ClassLink target-class fetch (Phase 3A) ──────────────────────────────
+  // Teacher's ClassLink classes (if provisioned). Fetched once per QuizManager
+  // mount via the existing `classLinkService` (5-min cache — cheap). If the
+  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
+  // the selector is hidden entirely. Errors are swallowed: ClassLink being
+  // unreachable must not block code+PIN launches.
+  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
+    []
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await classLinkService.getRosters();
+        if (cancelled) return;
+        setClassLinkClasses(data.classes);
+      } catch (err) {
+        // Silent: no-ClassLink orgs and transient failures both fall back
+        // to code+PIN-only launches, so the selector stays hidden.
+        if (import.meta.env.DEV) {
+          console.warn('[QuizManager] ClassLink fetch failed:', err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
@@ -620,7 +668,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       showPodiumBetweenQuestions: assignOptions.showPodiumBetweenQuestions,
       soundEffectsEnabled: assignOptions.soundEffectsEnabled,
     };
-    onAssign(assignTarget, selectedMode, plcOptions, sessionOptions);
+    // Guard: if the teacher somehow picked a classId that's no longer in the
+    // fetched ClassLink list (e.g. rosters changed between fetch and confirm),
+    // fall through to no-class rather than writing a stale id.
+    const selectedClassId =
+      assignOptions.classId &&
+      classLinkClasses.some((c) => c.sourcedId === assignOptions.classId)
+        ? assignOptions.classId
+        : null;
+    onAssign(
+      assignTarget,
+      selectedMode,
+      plcOptions,
+      sessionOptions,
+      selectedClassId
+    );
     setAssignTarget(null);
     setSelectedMode(null);
   };
@@ -941,6 +1003,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             <AssignExtraSlot
               options={assignOptions}
               onChange={setAssignOptions}
+              classLinkClasses={classLinkClasses}
             />
           }
           plcSlot={
@@ -1216,7 +1279,8 @@ const AssignmentsList: React.FC<{
 const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
-}> = ({ options, onChange }) => {
+  classLinkClasses: ClassLinkClass[];
+}> = ({ options, onChange, classLinkClasses }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -1224,6 +1288,14 @@ const AssignExtraSlot: React.FC<{
 
   return (
     <>
+      {classLinkClasses.length > 0 && (
+        <AssignTargetClassRow
+          classes={classLinkClasses}
+          value={options.classId}
+          onChange={(v) => update('classId', v)}
+        />
+      )}
+
       <SectionHeader label="Quiz Integrity" />
       <ToggleRow
         label="Tab Switch Detection"
@@ -1279,6 +1351,62 @@ const AssignExtraSlot: React.FC<{
         hint="Chimes, ticks, and fanfares during the quiz"
       />
     </>
+  );
+};
+
+/**
+ * Build a human-readable label for a ClassLink class. Mirrors the format
+ * used by `ClassLinkImportDialog` so teachers see the same class names in
+ * both flows.
+ */
+function formatClassLinkClassLabel(cls: ClassLinkClass): string {
+  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
+  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
+  return `${subjectPrefix}${cls.title}${codeSuffix}`;
+}
+
+/**
+ * Target-class selector rendered inside the Assign modal's `extraSlot`.
+ * Lets the teacher pick an optional ClassLink class to target this quiz at
+ * so that students who signed in via ClassLink see it on their
+ * `/my-assignments` page. Phase 3A — pilot for class-targeted session
+ * launches. Hidden entirely when the teacher isn't on a ClassLink org
+ * (empty classes list).
+ */
+const AssignTargetClassRow: React.FC<{
+  classes: ClassLinkClass[];
+  value: string;
+  onChange: (next: string) => void;
+}> = ({ classes, value, onChange }) => {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <Users className="w-4 h-4 text-brand-blue-primary" />
+        <label
+          htmlFor="quiz-assign-target-class"
+          className="text-sm font-bold text-brand-blue-dark"
+        >
+          Target class (optional)
+        </label>
+      </div>
+      <select
+        id="quiz-assign-target-class"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      >
+        <option value="">No class (use code/PIN only)</option>
+        {classes.map((cls) => (
+          <option key={cls.sourcedId} value={cls.sourcedId}>
+            {formatClassLinkClassLabel(cls)}
+          </option>
+        ))}
+      </select>
+      <p className="text-xxs text-slate-500 mt-1">
+        Students in this class will see this quiz in their assignments list.
+        Leave blank to use a join code.
+      </p>
+    </div>
   );
 };
 

@@ -570,6 +570,16 @@ export interface ActivityWallActivity {
   identificationMode: ActivityWallIdentificationMode;
   submissions: ActivityWallSubmission[];
   startedAt: number | null;
+  /**
+   * Optional ClassLink class `sourcedId` this activity is targeted at
+   * (Phase 3D). When present, the value is mirrored onto the
+   * `activity_wall_sessions/{sessionId}` document so that students who
+   * signed in via ClassLink see the activity on their `/my-assignments`
+   * page, and Firestore rules (`passesStudentClassGate`) enforce that
+   * only students enrolled in this class can read the session doc.
+   * Empty/undefined preserves the classic code/PIN-style (`?data=`) flow.
+   */
+  classId?: string;
 }
 
 export interface ActivityWallBuildingConfig {
@@ -591,6 +601,37 @@ export interface ActivityWallConfig {
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
   fontColor?: string;
+  /**
+   * Per-activity memory of the teacher's last-selected ClassLink target
+   * class (Phase 3D). Keyed by `ActivityWallActivity.id`. Used to
+   * pre-populate the target-class selector when the teacher re-opens the
+   * editor for an existing activity. Entries are cleared when the teacher
+   * picks "No class" so the map stays small.
+   */
+  lastClassIdByActivityId?: Record<string, string>;
+}
+
+/**
+ * Firestore document shape for `activity_wall_sessions/{sessionId}`.
+ *
+ * The teacher's Activity Wall widget writes this doc when an activity
+ * becomes active so the student app (and the `/my-assignments` listing)
+ * can discover the session's configuration without relying on a
+ * base64-encoded URL payload. `classId`, when present, gates
+ * ClassLink-authenticated student access via Firestore rules.
+ */
+export interface ActivityWallSession {
+  id: string;
+  activityId: string;
+  teacherUid: string;
+  title: string;
+  prompt: string;
+  mode: ActivityWallMode;
+  moderationEnabled: boolean;
+  identificationMode: ActivityWallIdentificationMode;
+  updatedAt: number;
+  /** See `ActivityWallActivity.classId` — omitted for code/PIN-only launches. */
+  classId?: string;
 }
 
 export interface WebcamConfig {
@@ -1189,6 +1230,12 @@ export interface MiniAppConfig {
   googleSheetUrl?: string; // Original pasted URL for UI
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
+  /**
+   * Remembers the last ClassLink classId the teacher selected per app, keyed
+   * by appId. Used to pre-populate the target-class picker on subsequent
+   * assigns so teachers don't have to re-pick the same class each time.
+   */
+  lastClassIdByAppId?: Record<string, string>;
 }
 
 // Add new Global Config type
@@ -1212,9 +1259,42 @@ export interface MiniAppSession {
   status: 'active' | 'ended';
   createdAt: number;
   endedAt?: number;
-  // Optional result collection via Apps Script
+  /**
+   * Optional ClassLink class sourcedId this session is targeted to. Present
+   * when the teacher launched the assignment from the class-targeted
+   * selector; absent for legacy shared-link launches. Used by the student
+   * `/my-assignments` feed to filter assignments by class.
+   */
+  classId?: string;
+  // Legacy result-collection fields — kept for rollback insurance, no longer
+  // written by current teacher flow. Submissions now land in the
+  // `submissions/` subcollection. See `MiniAppSubmission` below.
   submissionUrl?: string;
   googleSheetId?: string;
+}
+
+/**
+ * A single student submission inside `/mini_app_sessions/{sessionId}/submissions/{submissionId}`.
+ *
+ * `submissionId` is:
+ *   - The per-assignment HMAC pseudonym for ClassLink-authenticated students
+ *     (returned from the `getAssignmentPseudonymV1` Cloud Function). Stable
+ *     within the assignment so a student cannot double-submit but unlinkable
+ *     across assignments without the server HMAC secret.
+ *   - The anonymous Firebase Auth UID for legacy shared-link launches. Also
+ *     stable per-device per-session.
+ *
+ * No PII is ever persisted — the submission shape is deliberately opaque.
+ */
+export interface MiniAppSubmission {
+  submittedAt: number;
+  /**
+   * Payload forwarded from the sandboxed iframe's postMessage. Always a
+   * top-level object because Firestore rules enforce `payload is map`;
+   * scalar/array payloads from the iframe are wrapped in `{ value }` by
+   * the submission handler before persisting.
+   */
+  payload: Record<string, unknown>;
 }
 
 export interface PdfItem {
@@ -1633,6 +1713,18 @@ export interface QuizSession {
   // ─── Multi-class period support ─────────────────────────────────────────────
   /** Selected class period roster names available for students to join. */
   periodNames?: string[];
+
+  // ─── ClassLink target class (Phase 3A) ─────────────────────────────────────
+  /**
+   * Optional ClassLink class `sourcedId` this session is targeted at. When
+   * present, students who signed in via the ClassLink / Google flow will see
+   * this session on their `/my-assignments` page, and Firestore rules
+   * enforce (via `passesStudentClassGate`) that only students enrolled in
+   * this class can read the session doc. Omit (or leave as an empty string)
+   * to preserve the classic code/PIN-only flow — the gate is a no-op for
+   * non-studentRole users.
+   */
+  classId?: string;
 }
 
 export interface QuizResponseAnswer {
@@ -1725,6 +1817,14 @@ export interface QuizConfig {
   liveScoreboardScoring?: 'completion' | 'per-question';
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
+  /**
+   * Per-quiz memory of the last ClassLink target class (`sourcedId`) the
+   * teacher picked in the Assign modal. Key is quizId, value is the
+   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
+   * of the same quiz so teachers don't have to re-pick every time.
+   * Undefined means "use the default (No class)".
+   */
+  lastClassIdByQuizId?: Record<string, string>;
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -1853,6 +1953,14 @@ export interface VideoActivityConfig {
   allowSkipping?: boolean;
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
+  /**
+   * Per-activity memory of the last ClassLink target class (`sourcedId`) the
+   * teacher picked in the Assign modal. Key is activityId, value is the
+   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
+   * of the same activity so teachers don't have to re-pick every time.
+   * Undefined means "use the default (No class)".
+   */
+  lastClassIdByActivityId?: Record<string, string>;
 }
 
 export interface VideoActivitySessionSettings {
@@ -1896,6 +2004,14 @@ export interface VideoActivitySession {
   endedAt?: number;
   /** Optional Unix timestamp when the session link expires. */
   expiresAt?: number;
+  /**
+   * Optional ClassLink class `sourcedId` this session is targeted at. When
+   * set, ClassLink-authenticated students whose token includes this classId
+   * see the session on their `/my-assignments` page, and Firestore rules
+   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
+   * access. Undefined preserves the classic code/PIN-only flow.
+   */
+  classId?: string;
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2499,6 +2615,17 @@ export interface GuidedLearningSession {
   teacherUid: string;
   createdAt: number;
   expiresAt?: number;
+  // ─── ClassLink target class (Phase 3C) ─────────────────────────────────────
+  /**
+   * Optional ClassLink class `sourcedId` this session is targeted at. When
+   * present, students who signed in via the ClassLink / Google flow will see
+   * this session on their `/my-assignments` page, and Firestore rules
+   * enforce (via `passesStudentClassGate`) that only students enrolled in
+   * this class can read the session doc. Omit (or leave as an empty string)
+   * to preserve the classic join-link flow — the gate is a no-op for
+   * non-studentRole users.
+   */
+  classId?: string;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -2529,6 +2656,14 @@ export interface GuidedLearningConfig {
   resultsSessionId?: string | null;
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
+  /**
+   * Per-set memory of the last ClassLink target class (`sourcedId`) the
+   * teacher picked in the Assign dialog. Key is the Guided Learning set id,
+   * value is the ClassLink class sourcedId. Used to pre-select the selector
+   * on re-launch of the same set so teachers don't have to re-pick every
+   * time. Undefined means "use the default (No class)".
+   */
+  lastClassIdBySetId?: Record<string, string>;
 }
 
 // Union of all widget configs
@@ -3573,7 +3708,10 @@ export interface MiniAppAssignment {
   status: 'active' | 'inactive';
   createdAt: number;
   updatedAt: number;
-  /** Optional mirrored fields so the archive list can show result-collection intent at a glance. */
+  /** Mirrors `MiniAppSession.classId`. Present when assigned via the
+   * class-targeted picker; absent for legacy shared-link launches. */
+  classId?: string;
+  /** Legacy fields kept for rollback insurance — no longer written. */
   submissionUrl?: string;
   googleSheetId?: string;
 }

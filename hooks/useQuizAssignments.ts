@@ -61,11 +61,18 @@ export interface UseQuizAssignmentsResult {
   /**
    * Create a new assignment + its matching session doc in one batch.
    * Returns the new assignment's id (== sessionId) and the allocated join code.
+   *
+   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
+   * written onto the session doc so that ClassLink-authenticated students
+   * see this session on their `/my-assignments` page, and Firestore rules
+   * (`passesStudentClassGate`) enforce class-based access. Omitting it
+   * preserves the classic code/PIN-only flow.
    */
   createAssignment: (
     quiz: AssignmentQuizRef,
     settings: QuizAssignmentSettings,
-    initialStatus?: QuizAssignmentStatus
+    initialStatus?: QuizAssignmentStatus,
+    classId?: string
   ) => Promise<{ id: string; code: string }>;
   /** Set both assignment.status and session.status to 'paused'. */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -174,7 +181,7 @@ export const useQuizAssignments = (
   const createAssignment = useCallback<
     UseQuizAssignmentsResult['createAssignment']
   >(
-    async (quiz, settings, initialStatus = 'active') => {
+    async (quiz, settings, initialStatus = 'active', classId) => {
       if (!userId) throw new Error('Not authenticated');
 
       const assignmentId = crypto.randomUUID();
@@ -240,6 +247,11 @@ export const useQuizAssignments = (
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         questionPhase: 'answering',
         periodNames: settings.periodNames,
+        // Phase 3A: optional ClassLink target class. Only write when a
+        // non-empty sourcedId was supplied so sessions created without a
+        // target keep a clean doc shape (and the rules no-op branch kicks in
+        // via `resource.data.get('classId', '')`).
+        ...(classId ? { classId } : {}),
       };
 
       const batch = writeBatch(db);

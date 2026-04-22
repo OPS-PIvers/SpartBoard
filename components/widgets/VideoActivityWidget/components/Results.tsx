@@ -19,6 +19,10 @@ import {
 import { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
+import {
+  useAssignmentPseudonyms,
+  formatStudentName,
+} from '@/hooks/useAssignmentPseudonyms';
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -32,6 +36,10 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
 }) => {
   const { googleAccessToken } = useAuth();
+  const { byStudentUid } = useAssignmentPseudonyms(
+    session.id,
+    session.classId ?? null
+  );
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -497,7 +505,9 @@ export const Results: React.FC<ResultsProps> = ({
                           className="font-bold text-slate-800 truncate"
                           style={{ fontSize: 'min(13px, 4cqmin)' }}
                         >
-                          {r.name || r.pin}
+                          {formatStudentName(byStudentUid.get(r.studentUid)) ||
+                            r.name ||
+                            r.pin}
                         </p>
                         <p
                           className="text-slate-400"

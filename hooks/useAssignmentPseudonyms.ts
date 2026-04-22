@@ -1,0 +1,157 @@
+/**
+ * useAssignmentPseudonyms — teacher-side name resolution for ClassLink
+ * students.
+ *
+ * Calls `getPseudonymsForAssignmentV1` once per (assignmentId, classId) pair
+ * and returns two reverse maps so grading viewers can render student names
+ * regardless of which pseudonym their response docs are keyed by:
+ *
+ *   - `byStudentUid`           — keyed by HMAC(sourcedId). Matches Firestore
+ *                                docs that use `auth.currentUser.uid` as the
+ *                                doc ID (quiz, video-activity, guided-
+ *                                learning responses).
+ *   - `byAssignmentPseudonym`  — keyed by HMAC(studentUid + assignmentId).
+ *                                Matches Firestore docs that use a per-
+ *                                assignment opaque id as the doc ID (mini-
+ *                                app submissions).
+ *
+ * The callable is only invoked when `classId` is non-empty (i.e. the
+ * assignment was targeted to a ClassLink class). Unmatched ids in the
+ * reverse maps mean the submitting student arrived via the legacy code+PIN
+ * flow — callers should fall back to their existing PIN / anonymous label.
+ *
+ * Module-level Promise-valued cache so sibling viewers (e.g. AssignmentsModal
+ * opening a row-level modal) de-dupe the round trip. Cache is invalidated
+ * when the authenticated teacher uid changes.
+ */
+
+import { useEffect, useState } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { auth, functions } from '@/config/firebase';
+
+export interface StudentName {
+  givenName: string;
+  familyName: string;
+}
+
+export interface AssignmentPseudonymMaps {
+  byStudentUid: Map<string, StudentName>;
+  byAssignmentPseudonym: Map<string, StudentName>;
+}
+
+interface CallableResponse {
+  pseudonyms?: Record<
+    string,
+    {
+      studentUid?: string;
+      assignmentPseudonym?: string;
+      givenName?: string;
+      familyName?: string;
+    }
+  >;
+}
+
+const EMPTY_MAPS: AssignmentPseudonymMaps = {
+  byStudentUid: new Map(),
+  byAssignmentPseudonym: new Map(),
+};
+
+let cacheOwnerUid: string | null = null;
+let cache: Map<string, Promise<AssignmentPseudonymMaps>> = new Map();
+
+function cacheKey(assignmentId: string, classId: string): string {
+  return `${assignmentId}::${classId}`;
+}
+
+function fetchPseudonymMaps(
+  assignmentId: string,
+  classId: string,
+  teacherUid: string
+): Promise<AssignmentPseudonymMaps> {
+  if (cacheOwnerUid !== teacherUid) {
+    cache = new Map();
+    cacheOwnerUid = teacherUid;
+  }
+  const key = cacheKey(assignmentId, classId);
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const callable = httpsCallable<
+    { assignmentId: string; classId: string },
+    CallableResponse
+  >(functions, 'getPseudonymsForAssignmentV1');
+
+  const promise = callable({ assignmentId, classId }).then((res) => {
+    const entries = res.data?.pseudonyms ?? {};
+    const byStudentUid = new Map<string, StudentName>();
+    const byAssignmentPseudonym = new Map<string, StudentName>();
+    for (const v of Object.values(entries)) {
+      const name: StudentName = {
+        givenName: v.givenName ?? '',
+        familyName: v.familyName ?? '',
+      };
+      if (v.studentUid) byStudentUid.set(v.studentUid, name);
+      if (v.assignmentPseudonym)
+        byAssignmentPseudonym.set(v.assignmentPseudonym, name);
+    }
+    return { byStudentUid, byAssignmentPseudonym };
+  });
+
+  cache.set(key, promise);
+  promise.catch(() => {
+    if (cache.get(key) === promise) cache.delete(key);
+  });
+
+  return promise;
+}
+
+interface ResolvedMaps {
+  key: string;
+  maps: AssignmentPseudonymMaps;
+}
+
+function pairKey(
+  assignmentId: string | null | undefined,
+  classId: string | null | undefined
+): string {
+  return assignmentId && classId ? `${assignmentId}::${classId}` : '';
+}
+
+export function useAssignmentPseudonyms(
+  assignmentId: string | null | undefined,
+  classId: string | null | undefined
+): AssignmentPseudonymMaps {
+  const [resolved, setResolved] = useState<ResolvedMaps>({
+    key: '',
+    maps: EMPTY_MAPS,
+  });
+
+  useEffect(() => {
+    const key = pairKey(assignmentId, classId);
+    if (!key || !assignmentId || !classId) return;
+    const teacherUid = auth.currentUser?.uid ?? '';
+    if (!teacherUid) return;
+    let cancelled = false;
+    fetchPseudonymMaps(assignmentId, classId, teacherUid)
+      .then((maps) => {
+        if (!cancelled) setResolved({ key, maps });
+      })
+      .catch((err) => {
+        console.warn('[useAssignmentPseudonyms] Name resolution failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId, classId]);
+
+  const currentKey = pairKey(assignmentId, classId);
+  return resolved.key === currentKey && currentKey !== ''
+    ? resolved.maps
+    : EMPTY_MAPS;
+}
+
+export function formatStudentName(name: StudentName | undefined): string {
+  if (!name) return '';
+  const full = `${name.givenName} ${name.familyName}`.trim();
+  return full;
+}

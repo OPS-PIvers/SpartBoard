@@ -112,6 +112,87 @@ function MyComponent() {
 
   Then re-run the setup script.
 
+## ClassLink-via-Google Student Auth
+
+Students launch SpartBoard from ClassLink → Google ID token from GIS → Cloud
+Function `studentLoginV1` mints a Firebase custom token with an HMAC pseudonym
+UID and a `classIds` claim. No student PII is persisted in Firebase.
+
+### HMAC pseudonym secret
+
+**Secret:** `STUDENT_PSEUDONYM_HMAC_SECRET` (32+ random bytes).
+
+This secret is the keystone of the grading match-back system. Every response
+doc, submission doc, and pseudonym UID is derived from it.
+
+**Set on first deploy:**
+
+```bash
+firebase functions:secrets:set STUDENT_PSEUDONYM_HMAC_SECRET
+```
+
+**Rotation rules — read before touching:**
+
+- **NEVER rotate during a semester.** Rotation invalidates every pseudonym in
+  every in-flight assignment. Teacher grading breaks silently (pseudonyms in
+  Firestore no longer match those the function computes for the roster) and
+  students' prior submissions become unrecoverable.
+- Rotate only between semesters, with all assignments closed and rosters
+  archived.
+- If rotation is ever required mid-year (suspected leak), **do not** just
+  rotate. Implement dual-key verification first: `getPseudonymsForAssignmentV1`
+  tries the new key, falls back to the old key for 30 days, then the old key
+  is retired. Budget 1–2 days of dev time.
+
+### Per-organization domain configuration
+
+Each Organization document in Firestore carries a `domains: string[]` field.
+`studentLoginV1` looks up the organization by matching the student's Google
+`hd` claim (and email suffix) against any organization's domains list; no
+match = rejected login.
+
+- Manage via Admin Settings → Organizations in the app UI.
+- Seed Orono with `['orono.k12.mn.us']`.
+- Onboarding a new school is a pure admin-UI action, no code deploy.
+
+### Cloud Monitoring alerts
+
+Ship before rollout, not after. A class of 30 students logging in
+simultaneously is the default scenario — silent failures become classroom
+emergencies. Configure the following alert policies in Google Cloud
+Monitoring (Console → Monitoring → Alerting):
+
+1. **`studentLoginV1` error rate** — alert if >5% errors over any 5-minute
+   window. Metric: `cloudfunctions.googleapis.com/function/execution_count`
+   filtered to `function_name = "studentLoginV1"` and
+   `status != "ok"`; threshold = 5% of total executions.
+
+2. **`studentLoginV1` p95 latency** — alert if p95 > 2s sustained for 10
+   minutes. Metric: `cloudfunctions.googleapis.com/function/execution_times`
+   filtered to `function_name = "studentLoginV1"`; threshold = 2000ms.
+   Sustained latency usually indicates a cold-start or OneRoster slowness.
+
+3. **`students_rejected_domain` counter** — custom log-based counter. A
+   sudden spike means a domain-list misconfiguration (an organization's
+   domains changed, or a school's DNS/Workspace changed their `hd` claim).
+   Create a log-based metric from entries matching
+   `resource.type="cloud_function" function_name="studentLoginV1" textPayload=~"rejected_domain"`.
+
+4. **`students_not_in_roster` counter** — custom log-based counter. Low
+   baseline expected; spikes during roster rollover mean ClassLink sync is
+   behind. Create a log-based metric matching
+   `textPayload=~"not_in_roster"`.
+
+Route alert notifications to the admin ops channel. Confirm the channel at
+rollout — do not assume.
+
+### Cold-start mitigation
+
+`studentLoginV1` and `getPseudonymsForAssignmentV1` are configured with
+`minInstances: 1` to avoid cold-start penalties during simultaneous class
+logins. If cost becomes an issue, the two functions can share a warm
+instance by co-locating them.
+
 ## Troubleshooting
 
 **Script fails with "service-account-key.json not found":**

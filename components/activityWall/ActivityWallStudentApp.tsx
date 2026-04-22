@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Camera, ImagePlus, Loader2, Send, X } from 'lucide-react';
 import { ActivityWallIdentificationMode, ActivityWallMode } from '@/types';
 import { db, auth, storage } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
-import { doc, collection, setDoc } from 'firebase/firestore';
+import { doc, collection, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 
 type ActivityPayload = {
@@ -15,6 +15,25 @@ type ActivityPayload = {
   identificationMode: ActivityWallIdentificationMode;
   teacherUid: string;
 };
+
+/**
+ * The `/activity-wall/:pathId` app supports two launch styles:
+ *
+ *   - **Legacy `?data=<base64>` payload** (teacher's code/PIN flow). The
+ *     path segment is the `activityId` and the payload JSON carries the
+ *     full activity config.
+ *   - **Class-targeted link** from `/my-assignments` (Phase 3D). No
+ *     `?data=` param; the path segment is the session doc id
+ *     (`${teacherUid}_${activityId}`) and we read the activity config
+ *     directly from `activity_wall_sessions/{sessionId}` via a one-shot
+ *     `getDoc`. We deliberately do NOT use `onSnapshot` here — session
+ *     config is write-once and re-rendering on every teacher tweak
+ *     would multiply per-student Firestore reads across a class of 30.
+ */
+type PayloadState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; payload: ActivityPayload }
+  | { kind: 'error' };
 
 const isActivityPayload = (value: unknown): value is ActivityPayload => {
   if (typeof value !== 'object' || value === null) {
@@ -61,7 +80,7 @@ const decodeBase64Utf8 = (value: string): string | null => {
   }
 };
 
-const parsePayload = (): ActivityPayload | null => {
+const parsePayloadFromUrl = (): ActivityPayload | null => {
   const params = new URLSearchParams(window.location.search);
   const encoded = params.get('data');
   if (!encoded) return null;
@@ -76,6 +95,65 @@ const parsePayload = (): ActivityPayload | null => {
   } catch {
     return null;
   }
+};
+
+/**
+ * Normalise a raw Firestore `activity_wall_sessions/{sessionId}` doc
+ * into the same `ActivityPayload` shape the base64 URL carries. Returns
+ * null when required fields are missing or malformed — the student app
+ * treats that as an error state (no deep-link resolution possible).
+ *
+ * Session docs written before Phase 3D may be missing `moderationEnabled`
+ * and `identificationMode` (those fields were added alongside this
+ * fallback). We default `moderationEnabled` to false and
+ * `identificationMode` to 'anonymous' so legacy sessions still render —
+ * both are the safest possible defaults (no submissions auto-hidden,
+ * no PII collected).
+ */
+const normaliseSessionDoc = (
+  sessionId: string,
+  raw: Record<string, unknown>
+): ActivityPayload | null => {
+  const {
+    activityId,
+    teacherUid,
+    title,
+    prompt,
+    mode,
+    moderationEnabled,
+    identificationMode,
+  } = raw;
+
+  if (typeof activityId !== 'string' || activityId.length === 0) return null;
+  if (typeof teacherUid !== 'string' || teacherUid.length === 0) return null;
+  if (typeof title !== 'string') return null;
+  if (typeof prompt !== 'string') return null;
+  if (mode !== 'text' && mode !== 'photo') return null;
+
+  // The submit handler expects a specific sessionId: `${teacherUid}_${id}`.
+  // Refuse to proceed if the doc id doesn't match that convention, so
+  // submission paths never write to an unexpected collection.
+  if (sessionId !== `${teacherUid}_${activityId}`) return null;
+
+  const resolvedModeration =
+    typeof moderationEnabled === 'boolean' ? moderationEnabled : false;
+  const resolvedIdentification: ActivityWallIdentificationMode =
+    identificationMode === 'name' ||
+    identificationMode === 'pin' ||
+    identificationMode === 'name-pin' ||
+    identificationMode === 'anonymous'
+      ? identificationMode
+      : 'anonymous';
+
+  return {
+    id: activityId,
+    teacherUid,
+    title,
+    prompt,
+    mode,
+    moderationEnabled: resolvedModeration,
+    identificationMode: resolvedIdentification,
+  };
 };
 
 const getSafePreviewUrl = (value: string | null): string | null => {
@@ -95,10 +173,32 @@ const buildParticipantLabel = (
 };
 
 export const ActivityWallStudentApp: React.FC = () => {
-  const payload = useMemo(() => parsePayload(), []);
-  const activityIdFromPath = window.location.pathname
-    .replace(/^\/activity-wall\/?/, '')
-    .split('/')[0];
+  // The URL payload — when present — is authoritative. We parse it
+  // synchronously in the same render as mount so URL-based launches
+  // render immediately without a loading flash.
+  const urlPayload = useMemo(() => parsePayloadFromUrl(), []);
+  const pathSegment = useMemo(
+    () =>
+      window.location.pathname.replace(/^\/activity-wall\/?/, '').split('/')[0],
+    []
+  );
+
+  const [payloadState, setPayloadState] = useState<PayloadState>(() => {
+    if (urlPayload && pathSegment && urlPayload.id === pathSegment) {
+      return { kind: 'ready', payload: urlPayload };
+    }
+    // No usable URL payload (either missing or mismatched against the
+    // path) — fall back to a Firestore read, but only when we have a
+    // non-empty path segment we can use as a sessionId.
+    if (!pathSegment) return { kind: 'error' };
+    if (urlPayload) {
+      // Param was present but mismatched — that's a genuinely bad link,
+      // not a class-targeted deep-link. Surface the error immediately
+      // rather than wasting a Firestore read.
+      return { kind: 'error' };
+    }
+    return { kind: 'loading' };
+  });
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [response, setResponse] = useState('');
@@ -107,6 +207,58 @@ export const ActivityWallStudentApp: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Firestore session-config fallback (Phase 3D). Runs only when the URL
+  // didn't carry a `?data=` payload — i.e. a class-targeted launch from
+  // `/my-assignments`. Uses a one-shot `getDoc` rather than `onSnapshot`:
+  // session config is write-once (teachers don't mutate title/prompt
+  // mid-activity) and subscribing would multiply per-student reads for
+  // zero benefit. Firestore rules (`passesStudentClassGate`) enforce
+  // that ClassLink-authenticated students can only read the doc when
+  // their `classIds` claim contains the session's `classId`.
+  //
+  // Syncs with the Firestore external system, which is exactly what
+  // `useEffect` is for.
+  useEffect(() => {
+    if (payloadState.kind !== 'loading') return;
+    if (!pathSegment) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snap = await getDoc(
+          doc(db, 'activity_wall_sessions', pathSegment)
+        );
+        if (cancelled) return;
+        if (!snap.exists()) {
+          setPayloadState({ kind: 'error' });
+          return;
+        }
+        const normalised = normaliseSessionDoc(
+          pathSegment,
+          snap.data() as Record<string, unknown>
+        );
+        if (!normalised) {
+          setPayloadState({ kind: 'error' });
+          return;
+        }
+        setPayloadState({ kind: 'ready', payload: normalised });
+      } catch (error) {
+        // Firestore permission-denied and network failures both land
+        // here. We don't expose the specific reason to the student —
+        // just show the same clean "not available" state so the UI
+        // never leaks access-control hints.
+        console.error(
+          '[ActivityWallStudentApp] Session-config fallback failed:',
+          error
+        );
+        if (cancelled) return;
+        setPayloadState({ kind: 'error' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [payloadState.kind, pathSegment]);
 
   // Keep previewUrl in sync with selectedFile and revoke the blob URL on cleanup
   // to avoid leaking browser memory (synchronization with an external resource).
@@ -123,13 +275,25 @@ export const ActivityWallStudentApp: React.FC = () => {
 
   const safePreviewUrl = getSafePreviewUrl(previewUrl);
 
-  if (!payload || !activityIdFromPath || payload.id !== activityIdFromPath) {
+  if (payloadState.kind === 'loading') {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 text-center">
-        Invalid activity link. Ask your teacher for a new link.
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 text-center text-slate-600">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Loading activity…
       </div>
     );
   }
+
+  if (payloadState.kind === 'error') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 text-center">
+        This activity isn&apos;t available right now. Ask your teacher for a new
+        link.
+      </div>
+    );
+  }
+
+  const payload = payloadState.payload;
 
   const requiresName =
     payload.identificationMode === 'name' ||

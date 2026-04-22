@@ -6,6 +6,7 @@ import {
   GlobalMiniAppItem,
   MiniAppAssignment,
   WidgetComponentProps,
+  ClassLinkClass,
 } from '@/types';
 import {
   LayoutGrid,
@@ -18,7 +19,9 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
+  Users,
 } from 'lucide-react';
+import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -55,7 +58,23 @@ interface MiniAppAssignModalProps {
   error: string | null;
   onConfirm: () => void;
   onClose: () => void;
+  /** ClassLink classes for the target-class picker. Hidden when empty. */
+  classLinkClasses: ClassLinkClass[];
+  /** Currently-selected classId, or '' for no class. */
+  selectedClassId: string;
+  onClassIdChange: (next: string) => void;
 }
+
+/**
+ * Human-readable label for a ClassLink class. Mirrors the format used by
+ * `QuizManager` / `ActivityWallWidget` / etc. so teachers see the same class
+ * names across every assignment-targeting flow.
+ */
+const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
+  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
+  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
+  return `${subjectPrefix}${cls.title}${codeSuffix}`;
+};
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   appTitle,
@@ -66,6 +85,9 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   error,
   onConfirm,
   onClose,
+  classLinkClasses,
+  selectedClassId,
+  onClassIdChange,
 }) => {
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
@@ -182,6 +204,36 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
                 />
               </div>
+              {classLinkClasses.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Users className="w-4 h-4 text-brand-blue-primary" />
+                    <label
+                      htmlFor="miniapp-assign-target-class"
+                      className="text-sm font-bold text-slate-700"
+                    >
+                      Target class (optional)
+                    </label>
+                  </div>
+                  <select
+                    id="miniapp-assign-target-class"
+                    value={selectedClassId}
+                    onChange={(e) => onClassIdChange(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                  >
+                    <option value="">No class (shareable link only)</option>
+                    {classLinkClasses.map((cls) => (
+                      <option key={cls.sourcedId} value={cls.sourcedId}>
+                        {formatClassLinkClassLabel(cls)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Students in this class will see this in their assignments
+                    list. Leave blank to share a link directly.
+                  </p>
+                </div>
+              )}
               {error && (
                 <p className="text-sm text-brand-red-primary text-center font-medium">
                   {error}
@@ -305,8 +357,35 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignTargetClassId, setAssignTargetClassId] = useState('');
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
+
+  // ─── ClassLink target-class fetch (Phase 3E) ────────────────────────────────
+  // Fetched once per widget mount via the shared classLinkService (5-min
+  // cache). Hidden entirely when the teacher isn't on a ClassLink-provisioned
+  // org. Errors are swallowed: ClassLink being unreachable must not block
+  // shareable-link launches.
+  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
+    []
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await classLinkService.getRosters();
+        if (cancelled) return;
+        setClassLinkClasses(data.classes);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[MiniAppWidget] ClassLink fetch failed:', err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const buildDefaultAssignmentName = (appTitle: string) => {
     const formatted = new Date().toLocaleString([], {
@@ -323,6 +402,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentName(buildDefaultAssignmentName(app.title));
     setCreatedSessionId(null);
     setAssignError(null);
+    // Pre-populate the class picker with whatever the teacher picked last
+    // time for this app, so repeated assignments don't require re-picking.
+    setAssignTargetClassId(config.lastClassIdByAppId?.[app.id] ?? '');
   };
 
   const handleOpenAssignments = (app: MiniAppItem) => {
@@ -354,15 +436,23 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setIsCreatingSession(true);
     setAssignError(null);
     try {
-      const googleSheetIdForSession = config.collectResults
-        ? (config.googleSheetId ?? undefined)
-        : undefined;
+      // Guard against a stale-selection state: the class list refreshes on
+      // mount, and a teacher could have picked a class that's since been
+      // removed from the roster. Only forward a classId we can still see.
+      const resolvedClassId =
+        assignTargetClassId &&
+        classLinkClasses.some((c) => c.sourcedId === assignTargetClassId)
+          ? assignTargetClassId
+          : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
-        globalConfig?.submissionUrl,
-        googleSheetIdForSession
+        // Legacy submissionUrl/googleSheetId — no longer threaded. Phase 3E
+        // migrates submissions to the Firestore `submissions/` subcollection.
+        undefined,
+        undefined,
+        resolvedClassId
       );
       // Mirror the new session into the per-teacher archive so it shows up
       // in the In Progress / Archive tabs. Failures here are non-fatal —
@@ -372,13 +462,31 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
-          submissionUrl: globalConfig?.submissionUrl,
-          googleSheetId: googleSheetIdForSession,
+          ...(resolvedClassId ? { classId: resolvedClassId } : {}),
         });
       } catch (archiveErr) {
         console.warn(
           '[MiniAppWidget] Failed to archive assignment',
           archiveErr
+        );
+      }
+      // Remember this choice for next time (or clear it if the teacher
+      // deliberately picked "No class").
+      try {
+        const prevMap = config.lastClassIdByAppId ?? {};
+        const nextMap: Record<string, string> = { ...prevMap };
+        if (resolvedClassId) {
+          nextMap[assigningApp.id] = resolvedClassId;
+        } else {
+          delete nextMap[assigningApp.id];
+        }
+        updateWidget(widget.id, {
+          config: { ...config, lastClassIdByAppId: nextMap } as MiniAppConfig,
+        });
+      } catch (cfgErr) {
+        console.warn(
+          '[MiniAppWidget] Failed to persist lastClassIdByAppId',
+          cfgErr
         );
       }
       setCreatedSessionId(sessionId);
@@ -804,11 +912,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
+                classLinkClasses={classLinkClasses}
+                selectedClassId={assignTargetClassId}
+                onClassIdChange={setAssignTargetClassId}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
+                  setAssignTargetClassId('');
                 }}
               />
             )}
@@ -909,11 +1021,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
+                classLinkClasses={classLinkClasses}
+                selectedClassId={assignTargetClassId}
+                onClassIdChange={setAssignTargetClassId}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
+                  setAssignTargetClassId('');
                 }}
               />
             )}

@@ -14,6 +14,7 @@ import {
   Plus,
   QrCode,
   Trash2,
+  Users,
 } from 'lucide-react';
 import {
   WidgetData,
@@ -21,9 +22,11 @@ import {
   ActivityWallConfig,
   ActivityWallActivity,
   ActivityWallSubmission,
+  ClassLinkClass,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { db, functions, storage } from '@/config/firebase';
 import {
@@ -251,6 +254,17 @@ const buildBlankActivity = (): ActivityWallActivity => ({
   startedAt: null,
 });
 
+/**
+ * Human-readable label for a ClassLink class. Mirrors the format used by
+ * `ClassLinkImportDialog` and `QuizManager` so teachers see the same
+ * class names across every assignment-targeting flow.
+ */
+const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
+  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
+  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
+  return `${subjectPrefix}${cls.title}${codeSuffix}`;
+};
+
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -270,6 +284,35 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     null
   );
   const [showLiveView, setShowLiveView] = useState(false);
+
+  // ─── ClassLink target-class fetch (Phase 3D) ────────────────────────────
+  // Teacher's ClassLink classes (if provisioned). Fetched once per widget
+  // mount via the existing `classLinkService` (5-min cache — cheap). If the
+  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
+  // the target-class selector is hidden entirely. Errors are swallowed:
+  // ClassLink being unreachable must not block `?data=`-based launches.
+  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
+    []
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await classLinkService.getRosters();
+        if (cancelled) return;
+        setClassLinkClasses(data.classes);
+      } catch (err) {
+        // Silent: no-ClassLink orgs and transient failures both fall back
+        // to `?data=`-only launches, so the selector stays hidden.
+        if (import.meta.env.DEV) {
+          console.warn('[ActivityWall] ClassLink fetch failed:', err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<
     string | null
   >(null);
@@ -342,6 +385,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     if (!activeActivity || !user || !activeSessionId) return;
 
+    // Phase 3D: Mirror the full activity config onto the session doc so
+    // students who land via `/my-assignments` (no `?data=` payload) can
+    // hydrate the same UX as the base64-URL path — including moderation
+    // and participant-identification behavior. `classId`, when present,
+    // additionally gates ClassLink-authenticated student reads via
+    // Firestore rules (`passesStudentClassGate`); omitting it preserves
+    // the classic code/PIN-only flow.
     void setDoc(
       doc(db, 'activity_wall_sessions', activeSessionId),
       {
@@ -351,7 +401,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         title: activeActivity.title,
         prompt: activeActivity.prompt,
         mode: activeActivity.mode,
+        moderationEnabled: activeActivity.moderationEnabled,
+        identificationMode: activeActivity.identificationMode,
         updatedAt: Date.now(),
+        ...(activeActivity.classId ? { classId: activeActivity.classId } : {}),
       },
       { merge: true }
     );
@@ -488,17 +541,45 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     [updateWidget, widget.config, widget.id]
   );
 
+  // Open the editor seeded with the teacher's last-used classId for this
+  // activity (Phase 3D). Keeps the same UX as QuizManager where re-assigning
+  // the same item pre-fills the previous target class without surprising
+  // the teacher on a fresh "New" activity.
+  const openEditor = (activity: ActivityWallActivity) => {
+    const lastUsed = config.lastClassIdByActivityId?.[activity.id];
+    if (!activity.classId && lastUsed) {
+      setEditorDraft({ ...activity, classId: lastUsed });
+    } else {
+      setEditorDraft(activity);
+    }
+  };
+
   const saveEditorDraft = () => {
     if (!editorDraft) return;
     const title = editorDraft.title.trim();
     const prompt = editorDraft.prompt.trim();
     if (!title || !prompt) return;
 
+    // Phase 3D guard: if the teacher somehow held onto a classId that is
+    // no longer in the fetched ClassLink list (e.g. rosters changed
+    // between editor open and save), fall through to no-class rather
+    // than writing a stale id onto the activity or session doc.
+    const draftClassId = editorDraft.classId ?? '';
+    const selectedClassId =
+      draftClassId && classLinkClasses.some((c) => c.sourcedId === draftClassId)
+        ? draftClassId
+        : '';
+
     const nextActivity: ActivityWallActivity = {
       ...editorDraft,
       title,
       prompt,
       startedAt: editorDraft.startedAt ?? Date.now(),
+      // Only write `classId` onto the activity when non-empty so the
+      // Firestore session doc — and match-back rules — don't see a
+      // stale id. `undefined` serializes cleanly and keeps the doc
+      // shape aligned with the classic code/PIN flow.
+      classId: selectedClassId || undefined,
     };
 
     const exists = activities.some((a) => a.id === nextActivity.id);
@@ -506,9 +587,22 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       ? activities.map((a) => (a.id === nextActivity.id ? nextActivity : a))
       : [...activities, nextActivity];
 
+    // Persist the teacher's last-used classId per activity so re-opening
+    // the same activity's editor pre-selects the same class. Clearing
+    // (picking "No class") removes the entry rather than writing an
+    // empty string to keep the config map small.
+    const prevMap = config.lastClassIdByActivityId ?? {};
+    const nextMap: Record<string, string> = { ...prevMap };
+    if (selectedClassId) {
+      nextMap[nextActivity.id] = selectedClassId;
+    } else {
+      delete nextMap[nextActivity.id];
+    }
+
     updateConfig({
       activities: nextActivities,
       activeActivityId: nextActivity.id,
+      lastClassIdByActivityId: nextMap,
     });
     setEditorDraft(null);
     setShowLiveView(true);
@@ -1082,6 +1176,49 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                     <option value="name-pin">Name &amp; PIN</option>
                   </select>
                 </label>
+
+                {classLinkClasses.length > 0 && (
+                  <label className="block">
+                    <span
+                      className="flex items-center gap-1.5 font-black uppercase tracking-wider text-slate-600 mb-1"
+                      style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    >
+                      <Users
+                        className="text-brand-blue-primary"
+                        style={{
+                          width: 'min(12px, 3.4cqmin)',
+                          height: 'min(12px, 3.4cqmin)',
+                        }}
+                      />
+                      Target class (optional)
+                    </span>
+                    <select
+                      value={editorDraft.classId ?? ''}
+                      onChange={(event) =>
+                        setEditorDraft({
+                          ...editorDraft,
+                          classId: event.target.value || undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
+                      style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+                    >
+                      <option value="">No class (use link only)</option>
+                      {classLinkClasses.map((cls) => (
+                        <option key={cls.sourcedId} value={cls.sourcedId}>
+                          {formatClassLinkClassLabel(cls)}
+                        </option>
+                      ))}
+                    </select>
+                    <p
+                      className="text-slate-500 mt-1"
+                      style={{ fontSize: 'min(9px, 2.9cqmin)' }}
+                    >
+                      Students in this class will see this activity in their
+                      assignments list. Leave blank to use a shareable link.
+                    </p>
+                  </label>
+                )}
               </div>
             </div>
 
@@ -1135,7 +1272,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setEditorDraft(buildBlankActivity());
+                  openEditor(buildBlankActivity());
                   setShowLiveView(false);
                 }}
                 className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
@@ -1216,7 +1353,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditorDraft(activity)}
+                          onClick={() => openEditor(activity)}
                           className="rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center"
                           style={{ gap: 'min(4px, 1.1cqmin)' }}
                         >
