@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   MiniAppItem,
@@ -267,7 +273,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   studentPin,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user, isAdmin, orgId } = useAuth();
+  const { user, userRoles, orgId, roleId } = useAuth();
+  // Gate testClasses read on the same role check the Firestore rules enforce
+  // (`isSuperAdmin() || isDomainAdmin(orgId)`) rather than the legacy
+  // `/admins/` membership flag. Building admins appear in `/admins/` in some
+  // deployments — querying on that flag would trigger a permission-denied
+  // round-trip for them. See `resolveActorRole` in OrganizationPanel for the
+  // reference pattern.
+  const canReadTestClasses = Boolean(
+    (user?.email &&
+      userRoles?.superAdmins?.some(
+        (e) => e.toLowerCase() === user.email?.toLowerCase()
+      )) ||
+    roleId === 'super_admin' ||
+    roleId === 'domain_admin'
+  );
   const { showConfirm } = useDialog();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
@@ -370,51 +390,69 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
     []
   );
+  const [testClasses, setTestClasses] = useState<ClassLinkClass[]>([]);
+
+  // ClassLink roster fetch runs once per mount and does not depend on admin
+  // state — splitting it from the test-class fetch avoids re-issuing the
+  // ClassLink request when `roleId` hydrates from null.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // Test-class fetch is gated on `isAdmin && orgId`. Super admins are
-      // seeded as `/organizations/{orgId}/members` with roleId 'super_admin'
-      // by the Phase 1 migration, so their `orgId` is populated through the
-      // same member-doc path as domain admins — this check does not exclude
-      // them in practice. Skipping the read when orgId is null is correct:
-      // testClasses docs live under a specific org, so there is no valid
-      // query to issue without one.
-      const [rosterResult, testClassesResult] = await Promise.allSettled([
-        classLinkService.getRosters(),
-        isAdmin && orgId
-          ? getDocs(collection(db, `organizations/${orgId}/testClasses`))
-          : Promise.resolve(null),
-      ]);
-      if (cancelled) return;
-
-      const classLinkList: ClassLinkClass[] =
-        rosterResult.status === 'fulfilled' ? rosterResult.value.classes : [];
-      if (rosterResult.status === 'rejected' && import.meta.env.DEV) {
-        console.warn(
-          '[MiniAppWidget] ClassLink fetch failed:',
-          rosterResult.reason
-        );
+      try {
+        const data = await classLinkService.getRosters();
+        if (cancelled) return;
+        setClassLinkClasses(data.classes);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[MiniAppWidget] ClassLink fetch failed:', err);
+        }
       }
-
-      const testList: ClassLinkClass[] =
-        testClassesResult.status === 'fulfilled' && testClassesResult.value
-          ? testClassesResult.value.docs.map((d) => {
-              const data = d.data() as { title?: string; subject?: string };
-              return {
-                sourcedId: d.id,
-                title: `${data.title ?? d.id} (test)`,
-                subject: data.subject,
-              };
-            })
-          : [];
-
-      setClassLinkClasses([...classLinkList, ...testList]);
     })();
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, orgId]);
+  }, []);
+
+  // Test-class fetch is gated on the same role check Firestore rules use.
+  // Skipped when orgId is null — testClasses docs live under a specific org,
+  // so there is no valid query to issue without one.
+  useEffect(() => {
+    if (!canReadTestClasses || !orgId) {
+      setTestClasses([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snap = await getDocs(
+          collection(db, `organizations/${orgId}/testClasses`)
+        );
+        if (cancelled) return;
+        setTestClasses(
+          snap.docs.map((d) => {
+            const data = d.data() as { title?: string; subject?: string };
+            return {
+              sourcedId: d.id,
+              title: `${data.title ?? d.id} (test)`,
+              subject: data.subject,
+            };
+          })
+        );
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[MiniAppWidget] testClasses fetch failed:', err);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadTestClasses, orgId]);
+
+  const mergedClassList = useMemo(
+    () => [...classLinkClasses, ...testClasses],
+    [classLinkClasses, testClasses]
+  );
 
   const buildDefaultAssignmentName = (appTitle: string) => {
     const formatted = new Date().toLocaleString([], {
@@ -470,7 +508,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // removed from the roster. Only forward a classId we can still see.
       const resolvedClassId =
         assignTargetClassId &&
-        classLinkClasses.some((c) => c.sourcedId === assignTargetClassId)
+        mergedClassList.some((c) => c.sourcedId === assignTargetClassId)
           ? assignTargetClassId
           : undefined;
       const sessionId = await createSession(
@@ -941,7 +979,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
-                classLinkClasses={classLinkClasses}
+                classLinkClasses={mergedClassList}
                 selectedClassId={assignTargetClassId}
                 onClassIdChange={setAssignTargetClassId}
                 onConfirm={() => void handleConfirmAssign()}
@@ -1050,7 +1088,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
-                classLinkClasses={classLinkClasses}
+                classLinkClasses={mergedClassList}
                 selectedClassId={assignTargetClassId}
                 onClassIdChange={setAssignTargetClassId}
                 onConfirm={() => void handleConfirmAssign()}

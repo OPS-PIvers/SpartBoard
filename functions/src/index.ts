@@ -2705,9 +2705,9 @@ export const studentLoginV1 = onCall(
       .limit(STUDENT_LOGIN_CLASS_IDS_MAX)
       .get();
     if (!testClassSnap.empty) {
-      const mockClassIds = testClassSnap.docs
-        .map((d) => d.id)
-        .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+      // Query is already bounded by `.limit(STUDENT_LOGIN_CLASS_IDS_MAX)` —
+      // no secondary slice needed.
+      const mockClassIds = testClassSnap.docs.map((d) => d.id);
       // Monitoring counter — surface any prod use of the bypass.
       console.warn('[studentLoginV1] test_bypass_used', { orgId });
       const uid = computeStudentUid(`test:${emailLower}`, hmacSecret);

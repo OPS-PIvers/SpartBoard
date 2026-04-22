@@ -1346,5 +1346,6 @@ describe('organizations/testClasses — admin-only read/write', () => {
       setDoc(doc(asOutsider(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
     );
     await assertFails(getDoc(doc(asAnon(), TEST_CLASS_PATH)));
+    await assertFails(setDoc(doc(asAnon(), TEST_CLASS_PATH), MOCK_CLASS_DATA));
   });
 });
