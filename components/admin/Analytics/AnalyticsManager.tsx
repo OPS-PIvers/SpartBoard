@@ -1377,6 +1377,11 @@ export const AnalyticsManager: React.FC = () => {
       // explicit message rather than a permanent spinner or a blank page. This
       // also handles the case where `orgId` flips back to null after a prior
       // successful load (e.g., the user is removed from the org).
+      //
+      // Bump the request sequence before clearing state so any in-flight
+      // response from a prior org fails its `requestId === requestSequenceRef`
+      // guard and cannot overwrite the cleared state with stale analytics.
+      requestSequenceRef.current += 1;
       if (isMountedRef.current) {
         setLoading(false);
         setData(null);
