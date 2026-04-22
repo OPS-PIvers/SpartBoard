@@ -30,6 +30,7 @@ import { useFolders } from '@/hooks/useFolders';
 import {
   collection,
   doc,
+  getDocs,
   setDoc,
   deleteDoc,
   writeBatch,
@@ -266,7 +267,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   studentPin,
 }) => {
   const { updateWidget, addToast } = useDashboard();
-  const { user } = useAuth();
+  const { user, isAdmin, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
@@ -372,20 +373,41 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[MiniAppWidget] ClassLink fetch failed:', err);
-        }
+      const [rosterResult, testClassesResult] = await Promise.allSettled([
+        classLinkService.getRosters(),
+        isAdmin && orgId
+          ? getDocs(collection(db, `organizations/${orgId}/testClasses`))
+          : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+
+      const classLinkList: ClassLinkClass[] =
+        rosterResult.status === 'fulfilled' ? rosterResult.value.classes : [];
+      if (rosterResult.status === 'rejected' && import.meta.env.DEV) {
+        console.warn(
+          '[MiniAppWidget] ClassLink fetch failed:',
+          rosterResult.reason
+        );
       }
+
+      const testList: ClassLinkClass[] =
+        testClassesResult.status === 'fulfilled' && testClassesResult.value
+          ? testClassesResult.value.docs.map((d) => {
+              const data = d.data() as { title?: string; subject?: string };
+              return {
+                sourcedId: d.id,
+                title: `${data.title ?? d.id} (test)`,
+                subject: data.subject,
+              };
+            })
+          : [];
+
+      setClassLinkClasses([...classLinkList, ...testList]);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin, orgId]);
 
   const buildDefaultAssignmentName = (appTitle: string) => {
     const formatted = new Date().toLocaleString([], {

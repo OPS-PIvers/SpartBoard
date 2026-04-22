@@ -2691,6 +2691,42 @@ export const studentLoginV1 = onCall(
       );
     }
 
+    // 2.5 Mock-class bypass. Admin-managed `testClasses` docs let us exercise
+    //     the end-to-end student SSO flow without provisioning the student in
+    //     ClassLink/OneRoster. If the email matches at least one testClasses
+    //     doc under this org, we short-circuit and mint a custom token whose
+    //     `classIds` are the testClasses doc ids — no OneRoster call is made.
+    //     Test uids are namespaced (`test:email`) so they never collide with
+    //     real OneRoster `sourcedId`-derived uids.
+    const emailLower = email.toLowerCase();
+    const testClassSnap = await db
+      .collection(`organizations/${orgId}/testClasses`)
+      .where('memberEmails', 'array-contains', emailLower)
+      .limit(STUDENT_LOGIN_CLASS_IDS_MAX)
+      .get();
+    if (!testClassSnap.empty) {
+      const mockClassIds = testClassSnap.docs
+        .map((d) => d.id)
+        .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+      // Monitoring counter — surface any prod use of the bypass.
+      console.warn('[studentLoginV1] test_bypass_used', { orgId });
+      const uid = computeStudentUid(`test:${emailLower}`, hmacSecret);
+      try {
+        const customToken = await admin.auth().createCustomToken(uid, {
+          studentRole: true,
+          orgId,
+          classIds: mockClassIds,
+        });
+        return { customToken, orgId, classCount: mockClassIds.length };
+      } catch (err) {
+        console.error(
+          '[studentLoginV1] createCustomToken failed (test bypass):',
+          err
+        );
+        throw new HttpsError('internal', 'Failed to mint auth token.');
+      }
+    }
+
     // 3. ClassLink OneRoster lookup — fetch the student's sourcedId and
     //    classes. Held in memory only, never written to Firestore.
     const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
