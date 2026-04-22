@@ -57,6 +57,20 @@
       ]
     },
     {
+      "collectionGroup": "domains",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "domain",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "video_activity_sessions",
       "queryScope": "COLLECTION",
       "fields": [
