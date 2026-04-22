@@ -36,7 +36,11 @@ import {
 import { Modal } from '@/components/common/Modal';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useAuth } from '@/context/useAuth';
-import type { Building } from '@/config/buildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+  type Building,
+} from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 
 interface EngagementCounts {
@@ -110,14 +114,70 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   {} as Record<string, string>
 );
 
+/**
+ * Folds a record keyed by raw building IDs into a record keyed by canonical
+ * IDs, summing {@link EngagementCounts} when legacy + canonical entries
+ * collide (e.g. `orono-high-school` and `high` both pointed at the same
+ * building). Preserves the special `none` bucket verbatim.
+ *
+ * Done once at the analytics load step so every downstream
+ * chart/table/dropdown sees a single bucket per building rather than a
+ * legacy/canonical pair that would render as two rows or a duplicate
+ * dropdown option.
+ */
+function foldBuildingsByCanonical(
+  buckets: Record<string, EngagementCounts>
+): Record<string, EngagementCounts> {
+  const out: Record<string, EngagementCounts> = {};
+  for (const [rawId, counts] of Object.entries(buckets)) {
+    const id = rawId === 'none' ? 'none' : canonicalBuildingId(rawId);
+    const existing = out[id];
+    if (existing) {
+      out[id] = {
+        total: existing.total + counts.total,
+        monthly: existing.monthly + counts.monthly,
+        daily: existing.daily + counts.daily,
+      };
+    } else {
+      out[id] = { ...counts };
+    }
+  }
+  return out;
+}
+
+/**
+ * Same fold applied to the `domainBuilding` two-level record so per-domain
+ * building breakdowns also collapse legacy + canonical IDs.
+ */
+function foldDomainBuildingsByCanonical(
+  buckets: Record<string, Record<string, EngagementCounts>>
+): Record<string, Record<string, EngagementCounts>> {
+  const out: Record<string, Record<string, EngagementCounts>> = {};
+  for (const [domain, inner] of Object.entries(buckets)) {
+    out[domain] = foldBuildingsByCanonical(inner);
+  }
+  return out;
+}
+
 // `KNOWN_BUILDINGS` is re-derived per component from `useAdminBuildings()`
-// below so analytics labels reflect the org's live building list.
-const useKnownBuildings = (): Map<string, Building> => {
+// below so analytics labels reflect the org's live building list. The
+// returned map exposes a `lookup` helper that normalizes legacy long-form
+// IDs (e.g. `orono-high-school`) to their canonical short forms (`high`)
+// before lookup, so user data written before the Organization buildings
+// panel shipped still resolves to the correct building name instead of
+// rendering as `Unknown (orono-high-school)`.
+interface KnownBuildingLookup {
+  /** Resolve an ID (legacy or canonical) to its `Building`, or undefined. */
+  lookup(id: string): Building | undefined;
+}
+const useKnownBuildings = (): KnownBuildingLookup => {
   const buildings = useAdminBuildings();
-  return React.useMemo(
-    () => new Map(buildings.map((b) => [b.id, b])),
-    [buildings]
-  );
+  return React.useMemo<KnownBuildingLookup>(() => {
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    return {
+      lookup: (id: string) => byId.get(canonicalBuildingId(id)),
+    };
+  }, [buildings]);
 };
 const _CHART_COLORS = [
   '#2d3f89',
@@ -918,7 +978,7 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
           name:
             id === 'none'
               ? 'No Building Assigned'
-              : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`),
+              : (KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`),
           ...counts,
           monthlyRate:
             counts.total > 0 ? (counts.monthly / counts.total) * 100 : 0,
@@ -935,7 +995,7 @@ const UsersPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
           name:
             id === 'none'
               ? 'No Building Assigned'
-              : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`),
+              : (KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`),
           total: counts.total,
         }))
         .sort((a, b) => b.total - a.total),
@@ -1090,7 +1150,7 @@ const KpiUserModal: React.FC<{
       list = list.filter((u) =>
         buildingFilter === 'none'
           ? u.buildings.length === 0
-          : u.buildings.includes(buildingFilter)
+          : u.buildings.some((b) => canonicalBuildingId(b) === buildingFilter)
       );
     }
 
@@ -1103,10 +1163,10 @@ const KpiUserModal: React.FC<{
           break;
         case 'building': {
           const aName = a.buildings[0]
-            ? (KNOWN_BUILDINGS.get(a.buildings[0])?.name ?? a.buildings[0])
+            ? (KNOWN_BUILDINGS.lookup(a.buildings[0])?.name ?? a.buildings[0])
             : '';
           const bName = b.buildings[0]
-            ? (KNOWN_BUILDINGS.get(b.buildings[0])?.name ?? b.buildings[0])
+            ? (KNOWN_BUILDINGS.lookup(b.buildings[0])?.name ?? b.buildings[0])
             : '';
           cmp = aName.localeCompare(bName);
           break;
@@ -1157,7 +1217,7 @@ const KpiUserModal: React.FC<{
               <option key={id} value={id}>
                 {id === 'none'
                   ? 'No Building Assigned'
-                  : (KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`)}
+                  : (KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`)}
               </option>
             ))}
           </select>
@@ -1224,7 +1284,8 @@ const KpiUserModal: React.FC<{
                         ? u.buildings
                             .map(
                               (b) =>
-                                KNOWN_BUILDINGS.get(b)?.name ?? `Unknown (${b})`
+                                KNOWN_BUILDINGS.lookup(b)?.name ??
+                                `Unknown (${b})`
                             )
                             .join(', ')
                         : '—'}
@@ -1432,9 +1493,14 @@ export const AnalyticsManager: React.FC = () => {
           daily: raw.users?.daily ?? 0,
           withDashboards: raw.users?.withDashboards ?? 0,
           domains: raw.users?.domains ?? {},
-          buildings: raw.users?.buildings ?? {},
-          domainBuilding: raw.users?.domainBuilding ?? {},
-          userList: raw.users?.userList,
+          buildings: foldBuildingsByCanonical(raw.users?.buildings ?? {}),
+          domainBuilding: foldDomainBuildingsByCanonical(
+            raw.users?.domainBuilding ?? {}
+          ),
+          userList: raw.users?.userList?.map((u) => ({
+            ...u,
+            buildings: canonicalizeBuildingIds(u.buildings),
+          })),
         },
         widgets: {
           totalInstances: raw.widgets?.totalInstances ?? {},
@@ -1530,7 +1596,12 @@ export const AnalyticsManager: React.FC = () => {
         if (selectedBuilding === 'none') {
           if (u.buildings.length > 0) return false;
         } else {
-          if (!u.buildings.includes(selectedBuilding)) return false;
+          if (
+            !u.buildings.some(
+              (b) => canonicalBuildingId(b) === selectedBuilding
+            )
+          )
+            return false;
         }
       }
       return true;
@@ -1542,19 +1613,28 @@ export const AnalyticsManager: React.FC = () => {
     [data]
   );
 
-  const buildingOptions = useMemo(
-    () =>
-      data
-        ? Object.keys(data.users.buildings)
-            .filter((id) => id !== 'none')
-            .sort()
-            .map((id) => ({
-              id,
-              name: KNOWN_BUILDINGS.get(id)?.name ?? `Unknown (${id})`,
-            }))
-        : [],
-    [data, KNOWN_BUILDINGS]
-  );
+  const buildingOptions = useMemo(() => {
+    if (!data) return [];
+    // Aggregate raw stored building IDs by their canonical form so legacy
+    // long-form IDs (e.g. `orono-high-school`) collapse onto the same
+    // dropdown entry as their canonical short form (`high`). The dropdown
+    // value is the canonical ID, which is what the filter comparisons above
+    // expect after they normalize each user's `buildings` entry.
+    const seen = new Set<string>();
+    const options: { id: string; name: string }[] = [];
+    for (const rawId of Object.keys(data.users.buildings)) {
+      if (rawId === 'none') continue;
+      const id = canonicalBuildingId(rawId);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      options.push({
+        id,
+        name: KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`,
+      });
+    }
+    options.sort((a, b) => a.name.localeCompare(b.name));
+    return options;
+  }, [data, KNOWN_BUILDINGS]);
 
   const hasNoBuildingUsers = Boolean(data?.users.buildings.none);
 

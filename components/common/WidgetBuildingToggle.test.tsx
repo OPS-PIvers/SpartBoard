@@ -97,8 +97,12 @@ describe('WidgetBuildingToggle', () => {
     expect(btn).toBeTruthy();
     fireEvent.click(btn as HTMLElement);
 
+    // Click writes the canonical short-form ID, not the legacy long form
+    // that was passed in as a selectedBuildings entry. Building IDs are
+    // canonicalized at every read/write boundary now (see
+    // BUILDING_ID_ALIASES in config/buildings.ts).
     expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
-      buildingId: 'orono-intermediate-school',
+      buildingId: 'intermediate',
     });
   });
 

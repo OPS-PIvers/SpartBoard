@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalBuildingId } from '@/config/buildings';
 import { WidgetData } from '@/types';
 
 interface WidgetBuildingToggleProps {
@@ -23,15 +24,25 @@ export const WidgetBuildingToggle: React.FC<WidgetBuildingToggleProps> = ({
   const selectedBuildings = auth?.selectedBuildings ?? [];
   const BUILDINGS = useAdminBuildings();
 
-  const userBuildings = BUILDINGS.filter((b) =>
-    selectedBuildings.includes(b.id)
+  // Normalize legacy long-form IDs to canonical short-form so the toggle
+  // renders for users (or test fixtures) whose AuthContext data hasn't yet
+  // been canonicalized. AuthContext itself canonicalizes on read in the
+  // app, but defensive normalization here keeps the component robust to
+  // any non-AuthContext source that hands in raw stored IDs.
+  const canonicalSelected = new Set(
+    selectedBuildings.map((id) => canonicalBuildingId(id))
   );
+  const userBuildings = BUILDINGS.filter((b) => canonicalSelected.has(b.id));
 
   if (userBuildings.length < 2) return null;
 
+  const widgetBuildingCanonical = widget.buildingId
+    ? canonicalBuildingId(widget.buildingId)
+    : undefined;
   const effectiveBuildingId =
-    widget.buildingId && userBuildings.some((b) => b.id === widget.buildingId)
-      ? widget.buildingId
+    widgetBuildingCanonical &&
+    userBuildings.some((b) => b.id === widgetBuildingCanonical)
+      ? widgetBuildingCanonical
       : userBuildings[0]?.id;
 
   return (

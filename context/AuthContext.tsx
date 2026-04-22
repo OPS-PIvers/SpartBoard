@@ -42,6 +42,7 @@ import type { MemberRecord, BuildingRecord } from '../types/organization';
 import { AuthContext } from './AuthContextValue';
 import {
   buildingRecordToBuilding,
+  canonicalizeBuildingIds,
   getBuildingGradeLevels,
 } from '../config/buildings';
 import i18n from '../i18n';
@@ -718,7 +719,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               Array.isArray(selectedBuildings) &&
               selectedBuildings.every((id) => typeof id === 'string')
             ) {
-              setSelectedBuildingsState(selectedBuildings);
+              // Normalize legacy long-form IDs (e.g. `orono-high-school`) to
+              // their canonical short forms (`high`) so all downstream
+              // comparisons and lookups against org-defined Firestore
+              // buildings line up. The on-disk value is rewritten to
+              // canonical form by `setSelectedBuildings` on the next save,
+              // and by `scripts/backfill-user-building-ids.js` for batch
+              // migration.
+              setSelectedBuildingsState(
+                canonicalizeBuildingIds(selectedBuildings)
+              );
             } else {
               setSelectedBuildingsState([]);
             }
@@ -854,20 +864,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setSelectedBuildings = useCallback(
     async (buildings: string[]) => {
-      setSelectedBuildingsState(buildings);
+      // Canonicalize before persisting so legacy IDs that callers may have
+      // passed through (e.g. from old in-memory state) are normalized on the
+      // way to disk. This makes every save self-healing.
+      const canonical = canonicalizeBuildingIds(buildings);
+      setSelectedBuildingsState(canonical);
       if (!user || isAuthBypass) return;
       // Assign a token so we can detect if a newer call supersedes this one
       const myToken = ++writeTokenRef.current;
       try {
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
-          { selectedBuildings: buildings },
+          { selectedBuildings: canonical },
           { merge: true }
         );
-        // Keep root doc buildings in sync for admin analytics
+        // Keep root doc buildings in sync for admin analytics. Use the
+        // canonicalized array so the analytics Cloud Function (which reads
+        // `users/{uid}.buildings` as a fallback) sees aligned IDs.
         void setDoc(
           doc(db, 'users', user.uid),
-          { buildings },
+          { buildings: canonical },
           { merge: true }
         ).catch((err: unknown) =>
           console.error('Error updating root doc buildings:', err)
