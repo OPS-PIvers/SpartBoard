@@ -1,8 +1,8 @@
 /**
- * One-shot recount of the denormalized `users` counters on
- *   /organizations/{orgId}
- *   /organizations/{orgId}/buildings/{buildingId}
- *   /organizations/{orgId}/domains/{domainId}
+ * One-shot recount of the denormalized counters on
+ *   /organizations/{orgId}                    (users + buildings)
+ *   /organizations/{orgId}/buildings/{buildingId}  (users)
+ *   /organizations/{orgId}/domains/{domainId}      (users)
  *
  * WHY THIS EXISTS
  *   These fields display in the Organization panel (All Organizations table,
@@ -210,6 +210,7 @@ async function run() {
   console.log('');
   console.log('Planned counters:');
   console.log('  org "' + orgId + '":              ' + orgTotal);
+  console.log('  org "' + orgId + '" buildings:    ' + buildingDocs.length);
   for (const b of buildingDocs) {
     console.log(
       '  building "' + b.id + '":        ' + (byBuilding.get(b.id) || 0)
@@ -256,7 +257,7 @@ async function run() {
   const batch = db.batch();
   batch.set(
     db.doc('organizations/' + orgId),
-    { users: orgTotal },
+    { users: orgTotal, buildings: buildingDocs.length },
     { merge: true }
   );
   for (const b of buildingDocs) {

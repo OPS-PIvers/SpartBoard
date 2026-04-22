@@ -6,6 +6,7 @@ import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content } from '@google/genai';
+import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
@@ -21,6 +22,7 @@ export {
 } from './organizationInvites';
 export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
+export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { getOrgUserActivity } from './organizationUserActivity';
 
@@ -1986,11 +1988,20 @@ export const adminAnalytics = onRequest(
     invoker: 'public',
   },
   async (req, res) => {
+    // Correlation id for log triage. Emitted on the response (body +
+    // X-Request-Id header) and threaded through every `[getAdminAnalytics]`
+    // log line so a Cloud Logging alert can be pivoted back to the exact
+    // client-visible response.
+    const requestId = randomUUID();
+    res.setHeader('X-Request-Id', requestId);
+
     // 1. Verify caller is authenticated via Bearer token
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[getAdminAnalytics] Unauthenticated access attempt');
-      res.status(401).json({ error: 'unauthenticated' });
+      console.error('[getAdminAnalytics] Unauthenticated access attempt', {
+        requestId,
+      });
+      res.status(401).json({ error: 'unauthenticated', requestId });
       return;
     }
 
@@ -1999,98 +2010,145 @@ export const adminAnalytics = onRequest(
       const idToken = authHeader.split('Bearer ')[1];
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       if (!decodedToken.email) {
-        res.status(401).json({ error: 'unauthenticated' });
+        res.status(401).json({ error: 'unauthenticated', requestId });
         return;
       }
       email = decodedToken.email.toLowerCase();
     } catch {
-      res.status(401).json({ error: 'unauthenticated' });
+      res.status(401).json({ error: 'unauthenticated', requestId });
+      return;
+    }
+
+    // 1b. Require an orgId in the request body so analytics can be scoped to
+    // a single tenant. The previous behavior listed every Firebase Auth user
+    // globally, which leaked foreign-domain accounts into the calling admin's
+    // analytics view.
+    const rawBody = req.body as { orgId?: unknown } | undefined;
+    const orgId =
+      rawBody && typeof rawBody.orgId === 'string' ? rawBody.orgId.trim() : '';
+    if (!orgId) {
+      res.status(400).json({
+        error: 'invalid-argument',
+        message: 'orgId is required',
+        requestId,
+      });
       return;
     }
 
     const db = admin.firestore();
 
-    // 2. Verify caller is an admin
-    const adminDoc = await db.collection('admins').doc(email).get();
-    if (!adminDoc.exists) {
-      console.error(
-        `[getAdminAnalytics] Unauthorized access: ${email} is not an admin`
-      );
-      res.status(403).json({ error: 'permission-denied' });
+    // 2. Verify caller is authorized for the requested org. Two paths:
+    //   - Super admin: exists in `/admins/{email}`. May view any org.
+    //   - Org admin: has a member doc at `/organizations/{orgId}/members/{email}`
+    //     whose `roleId` is in the admin-tier set. Mirrors the role gating in
+    //     `assertCallerIsOrgAdmin` (organizationInvites.ts) but also admits
+    //     building_admin, since reading analytics is a lesser privilege than
+    //     inviting members.
+    const ORG_ADMIN_ROLE_IDS = new Set([
+      'super_admin',
+      'domain_admin',
+      'building_admin',
+    ]);
+    const [adminDoc, memberDoc] = await Promise.all([
+      db.collection('admins').doc(email).get(),
+      db.doc(`organizations/${orgId}/members/${email}`).get(),
+    ]);
+    const memberData = memberDoc.exists
+      ? (memberDoc.data() as { roleId?: unknown })
+      : undefined;
+    const memberRoleId =
+      typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
+    const isSuperAdmin = adminDoc.exists;
+    const isOrgAdmin = memberDoc.exists && ORG_ADMIN_ROLE_IDS.has(memberRoleId);
+    if (!isSuperAdmin && !isOrgAdmin) {
+      console.error('[getAdminAnalytics] Unauthorized access', {
+        requestId,
+        email,
+        orgId,
+      });
+      res.status(403).json({ error: 'permission-denied', requestId });
       return;
     }
 
     try {
       const now = Date.now();
-      // 3a. Collect ALL user data from Firebase Auth (authoritative source
-      // for MAU/DAU). This replaces the previous Firestore-only approach
-      // which missed users without a /users/{uid} root doc.
+      // 3a. Load the org's members as the authoritative user roster. This
+      // replaces the previous global `listUsers()` scan, which pulled in every
+      // Firebase Auth account regardless of org and caused foreign-domain
+      // users to show up in a different org's analytics.
+      //
+      // For each member we need auth metadata (lastSignInTime) to compute
+      // engagement. Members without a `uid` (invited but never signed in)
+      // still count toward totals but have zero engagement.
+      interface MemberLite {
+        email: string;
+        uid: string | null;
+        buildingIds: string[];
+      }
+      const members: MemberLite[] = [];
+      const membersSnap = await db
+        .collection(`organizations/${orgId}/members`)
+        .get();
+      for (const doc of membersSnap.docs) {
+        const data = doc.data() as {
+          email?: unknown;
+          uid?: unknown;
+          buildingIds?: unknown;
+        };
+        const memberEmail =
+          typeof data.email === 'string' ? data.email.toLowerCase() : doc.id;
+        const uid = typeof data.uid === 'string' && data.uid ? data.uid : null;
+        const buildingIds = Array.isArray(data.buildingIds)
+          ? data.buildingIds.filter(
+              (id): id is string => typeof id === 'string' && id.length > 0
+            )
+          : [];
+        members.push({ email: memberEmail, uid, buildingIds });
+      }
+
+      // Resolve Firebase Auth metadata for members that have a linked uid.
+      // `getUsers()` tolerates up to 100 identifiers per call and silently
+      // drops uids that no longer exist in Auth, which is the right behavior
+      // for a member doc whose uid was revoked.
       const authUsersMap = new Map<
         string,
         { email: string; lastSignInMs: number }
       >();
-      let authPageToken: string | undefined;
-      do {
-        const listResult = await admin.auth().listUsers(1000, authPageToken);
-        for (const u of listResult.users) {
-          // Skip anonymous auth users (student accounts) — they have no
-          // linked providers and no email, and should not appear in analytics.
-          if (!u.email && u.providerData.length === 0) continue;
-
-          const lastSignIn = u.metadata.lastSignInTime
-            ? new Date(u.metadata.lastSignInTime).getTime()
-            : 0;
-          authUsersMap.set(u.uid, {
-            email: u.email ?? '',
-            lastSignInMs: lastSignIn,
+      const uidsToResolve = members
+        .map((m) => m.uid)
+        .filter((uid): uid is string => uid !== null);
+      for (let i = 0; i < uidsToResolve.length; i += 100) {
+        const chunk = uidsToResolve.slice(i, i + 100).map((uid) => ({ uid }));
+        if (chunk.length === 0) continue;
+        try {
+          const result = await admin.auth().getUsers(chunk);
+          for (const u of result.users) {
+            const lastSignIn = u.metadata.lastSignInTime
+              ? new Date(u.metadata.lastSignInTime).getTime()
+              : 0;
+            authUsersMap.set(u.uid, {
+              email: u.email ?? '',
+              lastSignInMs: lastSignIn,
+            });
+          }
+        } catch (err) {
+          console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
+            requestId,
+            orgId,
+            chunkSize: chunk.length,
+            error: err instanceof Error ? err.message : String(err),
           });
         }
-        authPageToken = listResult.pageToken;
-      } while (authPageToken);
+      }
 
-      // 3b. Batch-read /users/{uid}/userProfile/profile for building assignments
-      // The source of truth for buildings is the profile subcollection, not the
-      // root user doc (which is only populated on recent logins).
-      const buildingsMap = new Map<string, string[]>();
-      const authUids = Array.from(authUsersMap.keys());
-      const PROFILE_BATCH = 500;
-      const CONCURRENCY_LIMIT = 10;
-
-      for (
-        let i = 0;
-        i < authUids.length;
-        i += PROFILE_BATCH * CONCURRENCY_LIMIT
-      ) {
-        const chunkUids = authUids.slice(
-          i,
-          i + PROFILE_BATCH * CONCURRENCY_LIMIT
-        );
-        const chunkPromises: Promise<admin.firestore.DocumentSnapshot[]>[] = [];
-
-        for (let j = 0; j < chunkUids.length; j += PROFILE_BATCH) {
-          const batch = chunkUids.slice(j, j + PROFILE_BATCH);
-          const refs = batch.map((uid) =>
-            db.doc(`users/${uid}/userProfile/profile`)
-          );
-          chunkPromises.push(db.getAll(...refs));
-        }
-
-        const chunkSnapshots = await Promise.all(chunkPromises);
-        for (const snapshots of chunkSnapshots) {
-          for (const snap of snapshots) {
-            if (!snap.exists) continue;
-            const data = snap.data();
-            if (
-              data &&
-              Array.isArray(data.selectedBuildings) &&
-              data.selectedBuildings.length > 0
-            ) {
-              const uid = snap.ref.parent.parent?.id;
-              if (!uid) continue;
-              buildingsMap.set(uid, data.selectedBuildings.map(String));
-            }
-          }
-        }
+      // 3b. Build a uid → member lookup so downstream dashboard/AI filters can
+      // scope to org members without being gated on a successful
+      // `auth().getUsers()` round-trip. `authUsersMap` is only used to join
+      // lastSignIn metadata; an auth lookup failure must not silently drop a
+      // real member's dashboards or AI usage from the totals.
+      const memberUids = new Set<string>();
+      for (const m of members) {
+        if (m.uid) memberUids.add(m.uid);
       }
 
       // 3c. Time constants & helpers (engagement computed after dashboard
@@ -2141,8 +2199,10 @@ export const adminAnalytics = onRequest(
         // Extract owner UID from path: users/{uid}/dashboards/{dashId}
         const ownerUid: string | null = dashDoc.ref.parent.parent?.id ?? null;
 
-        // Skip dashboards owned by anonymous users (not in filtered auth map)
-        if (!ownerUid || !authUsersMap.has(ownerUid)) continue;
+        // Skip dashboards not owned by a member of this org. Use the member
+        // roster (not `authUsersMap`) so a transient `auth().getUsers()`
+        // failure doesn't silently drop real members' dashboards from totals.
+        if (!ownerUid || !memberUids.has(ownerUid)) continue;
 
         totalDashboards++;
         allDashboardOwnerUids.add(ownerUid);
@@ -2198,11 +2258,18 @@ export const adminAnalytics = onRequest(
         daily: 0,
       };
 
-      for (const [uid, { email: userEmail }] of authUsersMap) {
+      // Iterate the org member roster (not just the auth-resolved subset) so
+      // invited-but-never-signed-in members count toward totals/domain/building
+      // buckets with zero engagement, matching the "totals come from the
+      // member roster; engagement is joined from Auth when available" contract.
+      for (const member of members) {
+        const userEmail = member.email;
         const domain = userEmail.includes('@')
           ? userEmail.split('@')[1]
           : 'unknown';
-        const lastEditMs = lastEditByUser.get(uid) ?? 0;
+        const lastEditMs = member.uid
+          ? (lastEditByUser.get(member.uid) ?? 0)
+          : 0;
         const isMonthlyActive =
           lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
         const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
@@ -2213,7 +2280,7 @@ export const adminAnalytics = onRequest(
 
         increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
 
-        const buildings = buildingsMap.get(uid) ?? [];
+        const buildings = member.buildingIds;
         if (buildings.length === 0) {
           increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
           if (!usersByDomainAndBuilding[domain]) {
@@ -2246,21 +2313,26 @@ export const adminAnalytics = onRequest(
         }
       }
 
-      // 4c. Build per-user detail list for KPI drilldowns
-      const userList = Array.from(authUsersMap.entries()).map(
-        ([uid, { email: userEmail, lastSignInMs }]) => {
-          const lastEditMs = lastEditByUser.get(uid) ?? 0;
-          return {
-            email: userEmail,
-            buildings: buildingsMap.get(uid) ?? [],
-            lastSignInMs,
-            lastEditMs,
-            hasDashboard: allDashboardOwnerUids.has(uid),
-            isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-            isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
-          };
-        }
-      );
+      // 4c. Build per-user detail list for KPI drilldowns. Same rule: iterate
+      // the member roster, join Auth metadata when a uid is present.
+      const userList = members.map((member) => {
+        const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
+        const lastSignInMs = authInfo?.lastSignInMs ?? 0;
+        const lastEditMs = member.uid
+          ? (lastEditByUser.get(member.uid) ?? 0)
+          : 0;
+        return {
+          email: member.email,
+          buildings: member.buildingIds,
+          lastSignInMs,
+          lastEditMs,
+          hasDashboard: member.uid
+            ? allDashboardOwnerUids.has(member.uid)
+            : false,
+          isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
+          isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
+        };
+      });
 
       // Auth data was already collected in step 3a – no separate scan needed
       const totalRegisteredUsers = authUsersMap.size;
@@ -2296,6 +2368,7 @@ export const adminAnalytics = onRequest(
             console.warn(
               `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
               {
+                requestId,
                 chunkSize: chunk.length,
                 chunkStart: i,
                 totalIdentifiers: identifiers.length,
@@ -2383,8 +2456,10 @@ export const adminAnalytics = onRequest(
 
         if (!uid || !datePart) continue;
 
-        // Skip AI usage from anonymous users (not in filtered auth map)
-        if (!authUsersMap.has(uid)) continue;
+        // Skip AI usage not attributed to a member of this org. Scope by the
+        // member roster rather than `authUsersMap` so auth lookup failures
+        // don't silently drop members' AI calls from the totals.
+        if (!memberUids.has(uid)) continue;
 
         const usageData = usageDoc.data();
         const count = typeof usageData.count === 'number' ? usageData.count : 0;
@@ -2485,12 +2560,18 @@ export const adminAnalytics = onRequest(
         },
       });
     } catch (err: unknown) {
-      console.error('[getAdminAnalytics] Error fetching analytics:', err);
+      console.error('[getAdminAnalytics] Error fetching analytics', {
+        requestId,
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
       const errorMessage =
         err instanceof Error
           ? err.message
           : 'An internal error occurred fetching analytics.';
-      res.status(500).json({ error: 'internal', message: errorMessage });
+      res
+        .status(500)
+        .json({ error: 'internal', message: errorMessage, requestId });
     }
   }
 );

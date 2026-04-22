@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useAuth } from '@/context/useAuth';
 import type { Building } from '@/config/buildings';
 import { TOOLS } from '@/config/tools';
 
@@ -1350,6 +1351,7 @@ const DataTable: React.FC<{
 
 export const AnalyticsManager: React.FC = () => {
   const KNOWN_BUILDINGS = useKnownBuildings();
+  const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1370,6 +1372,25 @@ export const AnalyticsManager: React.FC = () => {
   }, []);
 
   const fetchAnalytics = useCallback(async () => {
+    if (!orgId) {
+      // No active org: clear any stale data from a previous org and surface an
+      // explicit message rather than a permanent spinner or a blank page. This
+      // also handles the case where `orgId` flips back to null after a prior
+      // successful load (e.g., the user is removed from the org).
+      //
+      // Bump the request sequence before clearing state so any in-flight
+      // response from a prior org fails its `requestId === requestSequenceRef`
+      // guard and cannot overwrite the cleared state with stale analytics.
+      requestSequenceRef.current += 1;
+      if (isMountedRef.current) {
+        setLoading(false);
+        setData(null);
+        setError(
+          'No organization selected. Analytics require an active organization.'
+        );
+      }
+      return;
+    }
     const requestId = requestSequenceRef.current + 1;
     requestSequenceRef.current = requestId;
 
@@ -1387,7 +1408,7 @@ export const AnalyticsManager: React.FC = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ orgId }),
       });
 
       if (!response.ok) {
@@ -1450,7 +1471,7 @@ export const AnalyticsManager: React.FC = () => {
         setLoading(false);
       }
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     void fetchAnalytics();
