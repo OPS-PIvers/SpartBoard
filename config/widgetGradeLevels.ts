@@ -3,6 +3,7 @@ import {
   GradeLevel,
   GradeFilter,
   InternalToolType,
+  FeaturePermission,
 } from '../types';
 
 export const ALL_GRADE_LEVELS: GradeLevel[] = ['k-2', '3-5', '6-8', '9-12'];
@@ -131,6 +132,31 @@ export function getWidgetGradeLevels(
   if (safeLevels.length === 0) return ALL_GRADE_LEVELS;
 
   return safeLevels;
+}
+
+/**
+ * Returns true when a widget should be visible to a user whose buildings
+ * resolve to `userGradeLevels`. Empty `userGradeLevels` means "no building
+ * filter" — all widgets match.
+ *
+ * The admin override in `featurePermissions[].gradeLevels` only narrows
+ * visibility when it is non-empty. An empty array is treated as "no override"
+ * so an accidental deselect-all in Feature Permissions cannot hide a widget
+ * from every user with a non-empty grade set.
+ */
+export function matchesUserBuilding(
+  type: WidgetType | InternalToolType,
+  userGradeLevels: GradeLevel[],
+  featurePermissions: FeaturePermission[]
+): boolean {
+  if (userGradeLevels.length === 0) return true;
+  const permission = featurePermissions.find((p) => p.widgetType === type);
+  const permLevels = permission?.gradeLevels;
+  const levels =
+    permLevels && permLevels.length > 0
+      ? permLevels
+      : getWidgetGradeLevels(type);
+  return levels.some((l) => userGradeLevels.includes(l));
 }
 
 /**

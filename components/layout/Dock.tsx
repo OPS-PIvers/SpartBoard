@@ -48,7 +48,7 @@ import {
 } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { isLunchCountBuilding } from '@/config/buildings';
-import { getWidgetGradeLevels } from '@/config/widgetGradeLevels';
+import { matchesUserBuilding as matchesUserBuildingLevels } from '@/config/widgetGradeLevels';
 import { AddWidgetOverrides } from '@/types';
 import { getJoinUrl } from '@/utils/urlHelpers';
 import ClassRosterMenu from './ClassRosterMenu';
@@ -172,12 +172,8 @@ export const Dock: React.FC = () => {
    * buildings' grade levels. If no buildings are selected, all widgets match.
    */
   const matchesUserBuilding = useCallback(
-    (type: WidgetType | InternalToolType): boolean => {
-      if (userGradeLevels.length === 0) return true;
-      const permission = featurePermissions.find((p) => p.widgetType === type);
-      const levels = permission?.gradeLevels ?? getWidgetGradeLevels(type);
-      return levels.some((l) => userGradeLevels.includes(l));
-    },
+    (type: WidgetType | InternalToolType): boolean =>
+      matchesUserBuildingLevels(type, userGradeLevels, featurePermissions),
     [userGradeLevels, featurePermissions]
   );
 
