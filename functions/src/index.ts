@@ -678,9 +678,11 @@ B. On load, listen once for an init message from the parent and hide the submit 
      }
    });
 
-C. When (and ONLY when) the user clicks the submit button, post the result to the parent:
+C. When (and ONLY when) the user clicks the submit button, post the result to the parent. Use event delegation on window with closest('[data-spart-submit]') so the handler survives any DOM re-renders and catches multiple submit buttons:
 
-   document.querySelector('[data-spart-submit]').addEventListener('click', () => {
+   window.addEventListener('click', (event) => {
+     const btn = event.target.closest && event.target.closest('[data-spart-submit]');
+     if (!btn) return;
      window.parent.postMessage({
        type: 'SPART_MINIAPP_RESULT',
        payload: { /* whatever data the activity produced — object only, no PII */ }
@@ -723,7 +725,9 @@ Worked example (flashcards app with a "Done" button):
       }
     });
 
-    document.querySelector('[data-spart-submit]').addEventListener('click', () => {
+    window.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('[data-spart-submit]');
+      if (!btn) return;
       window.parent.postMessage({
         type: 'SPART_MINIAPP_RESULT',
         payload: { reviewed: cards.length, completedAt: Date.now() }

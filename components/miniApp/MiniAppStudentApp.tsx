@@ -197,10 +197,22 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
     );
   }, [submissionsEnabled]);
 
+  // Re-post INIT whenever submissionsEnabled flips, so a teacher toggling the
+  // assignment mid-session propagates to already-loaded iframes.
+  useEffect(() => {
+    const target = iframeRef.current?.contentWindow;
+    if (!target) return;
+    target.postMessage(
+      { type: 'SPART_MINIAPP_INIT', payload: { submissionsEnabled } },
+      '*'
+    );
+  }, [submissionsEnabled]);
+
   const submit = useCallback(
     async (payload: unknown) => {
-      if (!submissionsEnabled) {
-        // View-only session: ignore result messages entirely.
+      if (!submissionsEnabled || status.kind === 'submitting') {
+        // View-only session, or a submission is already in flight (guards
+        // against double-clicks / duplicate postMessages).
         return;
       }
       const currentUser = auth.currentUser;
@@ -248,7 +260,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         setStatus({ kind: 'error', payload });
       }
     },
-    [session.id, submissionsEnabled]
+    [session.id, submissionsEnabled, status.kind]
   );
 
   const handleMessage = useCallback(
