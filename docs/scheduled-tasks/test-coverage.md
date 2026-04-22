@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-04-22_
-_Last action: 2026-04-20_
+_Last action: 2026-04-22_
 
 ---
 
@@ -19,8 +19,9 @@ _Nothing currently in progress._
 ### HIGH hooks/ coverage — session hooks still missing tests (partial progress)
 
 - **Detected:** 2026-04-13
+- **Progress (2026-04-22):** Added test coverage for `useQuizSession.ts` (24 tests). Covers pure helpers (`normalizeAnswer`, `gradeAnswer` across MC/FIB/Matching/Ordering, `toPublicQuestion` including `correctAnswer` strip-off for each question type) and `useQuizSessionStudent` student-join logic (`lookupSession` empty/no-match/all-ended/joinable-picker paths; `joinQuizSession` invalid-code/empty-PIN/no-session/all-ended throws, most-recent-joinable selection, PIN truncation to 10 chars, code normalization, and `classPeriod` backfill on existing responses).
 - **Progress (2026-04-20):** Added initial test coverage for `useLiveSession.ts` (9 tests covering `joinSession` input validation and sanitization — code normalization, PIN truncation, duplicate-PIN rejection, self-rejoin allowance, and all error paths). Also confirmed pre-existing coverage for `useGuidedLearningSession.ts` (pure-helper test) and `useGoogleDrive.ts` / `useStorage.ts` (full test files in `tests/hooks/`). Remaining critical hooks with zero coverage:
-  - `useQuizSession.ts` — quiz session state for both teacher and student flows
+  - `useQuizSession.ts` — teacher-side flows (`useQuizSessionTeacher`: `advanceQuestion`, `endQuizSession`, `removeStudent`, `revealAnswer`/`hideAnswer`, auto-progress effect) still untested
   - `useVideoActivity.ts` / `useVideoActivitySession.ts` — video activity session management
   - `useMiniAppSession.ts` — mini-app assignment session lifecycle
   - `useRosters.ts` — roster CRUD, student list management
@@ -30,7 +31,7 @@ _Nothing currently in progress._
   - `useScreenRecord.ts` — screen recording lifecycle
   - `useLiveSession.ts` — needs deeper coverage (teacher actions: `startSession`, `updateSessionConfig`, `endSession`, `toggleFreezeStudent`, `toggleGlobalFreeze`)
 - **File:** hooks/ directory
-- **Fix:** Next priority: add `useQuizSession.ts` coverage, then expand `useLiveSession` to cover teacher-mode actions. Use Vitest with mock Firebase adapters. See `tests/hooks/useLiveSession.test.ts` and `tests/hooks/useMusicStations.test.ts` as reference patterns.
+- **Fix:** Next priority: expand `useQuizSession.ts` to cover `useQuizSessionTeacher` (advance/end/reveal/remove-student), then expand `useLiveSession` to cover teacher-mode actions. Use Vitest with mock Firebase adapters. See `tests/hooks/useLiveSession.test.ts` and `tests/hooks/useQuizSession.test.ts` as reference patterns.
 
 ### MEDIUM utils/ coverage — 28 of 41 utility files have no tests
 
