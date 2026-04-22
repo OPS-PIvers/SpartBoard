@@ -123,13 +123,20 @@ UID and a `classIds` claim. No student PII is persisted in Firebase.
 **Secret:** `STUDENT_PSEUDONYM_HMAC_SECRET` (32+ random bytes).
 
 This secret is the keystone of the grading match-back system. Every response
-doc, submission doc, and pseudonym UID is derived from it.
+doc, submission doc, and pseudonym UID is derived from it. Pseudonyms are
+stable within a semester but unlinkable across semesters or without the
+server secret.
 
-**Set on first deploy:**
+**Generate and set on first deploy:**
 
 ```bash
+# Generate a 32-byte random hex string, then paste when prompted.
+openssl rand -hex 32
 firebase functions:secrets:set STUDENT_PSEUDONYM_HMAC_SECRET
 ```
+
+Consumed by `studentLoginV1`, `getAssignmentPseudonymV1`, and
+`getPseudonymsForAssignmentV1` in `functions/src/index.ts`.
 
 **Rotation rules — read before touching:**
 
@@ -143,6 +150,34 @@ firebase functions:secrets:set STUDENT_PSEUDONYM_HMAC_SECRET
   rotate. Implement dual-key verification first: `getPseudonymsForAssignmentV1`
   tries the new key, falls back to the old key for 30 days, then the old key
   is retired. Budget 1–2 days of dev time.
+
+### Google OAuth client ID
+
+**Secret:** `GOOGLE_OAUTH_CLIENT_ID` — the Web-type OAuth 2.0 client ID from
+your Firebase/GCP project. `studentLoginV1` uses it to verify Google ID
+tokens server-side; without it, student login returns an error.
+
+**Where to find it:**
+
+1. [Google Cloud Console](https://console.cloud.google.com) → your Firebase
+   project.
+2. **APIs & Services** → **Credentials**.
+3. Find the OAuth 2.0 Client ID of type "Web application".
+4. Copy the Client ID.
+
+**Set:**
+
+```bash
+firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_ID
+```
+
+**Client-side counterpart:** the same value is exposed to the student login
+page as `VITE_GOOGLE_CLIENT_ID`. Set it in `.env.local` for local dev, and as
+a GitHub Actions repository secret (`secrets.VITE_GOOGLE_CLIENT_ID`) so the
+production and dev-branch deploy workflows bake it into the build. The
+server-side secret and the client-side Vite variable **must be the same
+client ID** — a mismatch produces audience-failure errors in
+`studentLoginV1`.
 
 ### Per-organization domain configuration
 
