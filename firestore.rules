@@ -321,6 +321,15 @@ service cloud.firestore {
         // from the client — Cloud Functions own this collection.
         allow read, write: if false; // TODO(phase-4)
       }
+
+      // Mock classes for PII-free student SSO testing. Admin-managed allowlist
+      // that the `studentLoginV1` function (Admin SDK, bypasses rules) reads
+      // to mint a custom token without calling OneRoster, and that the teacher
+      // assignment class pickers read to expose test targets. Invisible to
+      // non-admin teachers.
+      match /testClasses/{classId} {
+        allow read, write: if isSuperAdmin() || isDomainAdmin(orgId);
+      }
     }
 
     // Admins collection

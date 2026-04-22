@@ -1299,3 +1299,53 @@ describe('no regression on legacy /admins/{email}', () => {
     );
   });
 });
+
+describe('organizations/testClasses — admin-only read/write', () => {
+  // Mock-class allowlist consumed by studentLoginV1 (Admin SDK bypass) and
+  // the admin-gated teacher assignment class pickers. Invisible to non-admin
+  // teachers so it's safe to leave in prod.
+  const TEST_CLASS_PATH = `organizations/${ORG_ID}/testClasses/mock-period-1`;
+  const MOCK_CLASS_DATA = {
+    title: 'Mock Period 1',
+    memberEmails: ['sample-student@orono.k12.mn.us'],
+    createdAt: 0,
+    createdBy: 'test',
+  };
+
+  it('domain admin can read and write testClasses', async () => {
+    await assertSucceeds(
+      setDoc(doc(asDomainAdmin(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
+    );
+    await assertSucceeds(getDoc(doc(asDomainAdmin(), TEST_CLASS_PATH)));
+  });
+
+  it('super admin can read and write testClasses', async () => {
+    await assertSucceeds(
+      setDoc(doc(asSuper(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
+    );
+    await assertSucceeds(getDoc(doc(asSuper(), TEST_CLASS_PATH)));
+  });
+
+  it('building admin cannot read or write testClasses', async () => {
+    await assertFails(getDoc(doc(asBuildingAdmin(), TEST_CLASS_PATH)));
+    await assertFails(
+      setDoc(doc(asBuildingAdmin(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
+    );
+  });
+
+  it('teacher cannot read or write testClasses', async () => {
+    await assertFails(getDoc(doc(asTeacher(), TEST_CLASS_PATH)));
+    await assertFails(
+      setDoc(doc(asTeacher(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
+    );
+  });
+
+  it('outsider and unauthenticated cannot read or write testClasses', async () => {
+    await assertFails(getDoc(doc(asOutsider(), TEST_CLASS_PATH)));
+    await assertFails(
+      setDoc(doc(asOutsider(), TEST_CLASS_PATH), MOCK_CLASS_DATA)
+    );
+    await assertFails(getDoc(doc(asAnon(), TEST_CLASS_PATH)));
+    await assertFails(setDoc(doc(asAnon(), TEST_CLASS_PATH), MOCK_CLASS_DATA));
+  });
+});
