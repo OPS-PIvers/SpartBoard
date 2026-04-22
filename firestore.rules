@@ -577,12 +577,10 @@ service cloud.firestore {
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
     match /quiz_sessions/{sessionId} {
-      // Students need `list` access to find sessions by join code via a
-      // collection-group query (getDocs + where('code', '==',...)).
-      // Restricting enumeration fully requires a Cloud Function proxy; for now
-      // we accept that authenticated users can list session documents.
-      // `get` allows reading a single known document (students listening for
-      // question index updates after joining).
+      // Students need both `get` (single-doc reads after joining) and `list`
+      // (collection query by join code via `where('code', '==', ...)`) access.
+      // Restricting enumeration fully would require a Cloud Function proxy;
+      // for now we accept that authenticated users can list session documents.
       //
       // studentRole (GIS-authenticated) users must additionally have the
       // session's classId in their classIds custom claim. Non-student callers
@@ -596,10 +594,7 @@ service cloud.firestore {
       // inside a function-call wrapper, even though the OR would short-circuit
       // at runtime. Hoisting matches the pattern already used by
       // `mini_app_sessions` below.
-      allow get: if request.auth != null &&
-        (!isStudentRoleUser() ||
-         passesStudentClassGate(resource.data.get('classId', '')));
-      allow list: if request.auth != null &&
+      allow read: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGate(resource.data.get('classId', '')));
       // Only the teacher (session owner) can create/update/delete the session document.
