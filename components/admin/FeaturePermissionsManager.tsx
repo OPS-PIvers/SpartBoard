@@ -268,8 +268,14 @@ export const FeaturePermissionsManager: React.FC = () => {
       currentLevels.includes(l)
     );
 
+    // When toggling "ALL" off, reset to the widget's configured default
+    // rather than writing an empty array. An empty override is ambiguous and
+    // the Dock filter would hide the widget from every user whose buildings
+    // resolve to a non-empty grade set.
     updatePermission(widgetType, {
-      gradeLevels: allSelected ? [] : [...ALL_GRADE_LEVELS],
+      gradeLevels: allSelected
+        ? [...getWidgetGradeLevels(widgetType)]
+        : [...ALL_GRADE_LEVELS],
     });
   };
 
