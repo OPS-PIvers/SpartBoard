@@ -577,26 +577,37 @@ service cloud.firestore {
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
     match /quiz_sessions/{sessionId} {
-      // Students need both `get` (single-doc reads after joining) and `list`
-      // (collection query by join code via `where('code', '==', ...)`) access.
-      // Restricting enumeration fully would require a Cloud Function proxy;
-      // for now we accept that authenticated users can list session documents.
+      // Reads are split into `get` (single doc) and `list` (collection query)
+      // because Firestore's rules engine treats them differently:
       //
-      // studentRole (GIS-authenticated) users must additionally have the
-      // session's classId in their classIds custom claim. Non-student callers
-      // (teachers, admins, anonymous PIN students) are unaffected.
+      //   - `get` evaluates per-document at read time. The studentRole class
+      //     gate can safely reference `resource.data` because the engine has
+      //     a concrete document to evaluate against.
+      //   - `list` is statically analyzed BEFORE execution. Any `resource.data`
+      //     reference in the predicate is treated as "unprovable for arbitrary
+      //     docs" and the entire list is denied — even when an earlier OR
+      //     branch (`!isStudentRoleUser()`) would short-circuit at runtime.
+      //     This is the failure mode that broke teacher assignment creation
+      //     for ~2 days; the previous "hoist" fix in #1389 was insufficient
+      //     because the static analyzer does not respect short-circuit OR.
       //
-      // The `!isStudentRoleUser()` short-circuit MUST appear at the top level
-      // of the rule rather than buried inside `passesStudentClassGate` — the
-      // Firestore rules engine performs static analysis on `list` queries and
-      // can reject teacher list calls (e.g. `useQuizAssignments.allocateJoinCode`
-      // doing `where code == X`) when a `resource.data` reference appears
-      // inside a function-call wrapper, even though the OR would short-circuit
-      // at runtime. Hoisting matches the pattern already used by
-      // `mini_app_sessions` below.
-      allow read: if request.auth != null &&
+      // Splitting the rule lets the `list` predicate stay free of any
+      // `resource.data` reference. The list rule is the broad "any
+      // authenticated caller can enumerate session docs" allowance —
+      // studentRole users need this so MyAssignmentsPage can run its
+      // `where('classId', 'in', myClassIds)` discovery query, and PIN-flow
+      // students need it for code lookups. Per-class gating is still
+      // enforced at the `get` rule (and at write time on responses), so
+      // a studentRole user can list metadata but cannot open the contents
+      // of a session outside their classIds claim.
+      //
+      // Restricting enumeration further would require a Cloud Function
+      // proxy; for now we accept that any authenticated user can list
+      // session documents (matches the pre-SSO behavior).
+      allow get: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGate(resource.data.get('classId', '')));
+      allow list: if request.auth != null;
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       allow create: if request.auth != null &&
@@ -728,13 +739,16 @@ service cloud.firestore {
 
     // Video Activity Sessions — Teacher creates, anonymous students can read and submit responses
     match /video_activity_sessions/{sessionId} {
-      // Any authenticated user (including anonymous) can read session documents.
-      // studentRole (GIS) users additionally must have the session's classId
-      // in their classIds claim. The `!isStudentRoleUser()` check is hoisted
-      // to the top level (see quiz_sessions for rationale).
-      allow read: if request.auth != null &&
+      // Reads split into `get` + `list`; see quiz_sessions for the rationale
+      // (Firestore static-analyzes `list` predicates and rejects any rule
+      // that touches `resource.data`, even behind a short-circuit OR).
+      // The `list` rule allows any authenticated caller so studentRole users
+      // can run their MyAssignmentsPage class-filtered discovery queries;
+      // per-doc class gating still happens at `get`.
+      allow get: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGate(resource.data.get('classId', '')));
+      allow list: if request.auth != null;
       // Only authenticated (non-anonymous) users can create sessions (teachers)
       allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
       // Teacher owners may rename or end sessions, but not mutate session content.
@@ -810,13 +824,19 @@ service cloud.firestore {
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
     match /mini_app_sessions/{sessionId} {
-      // Any authenticated user (including anonymous) can read session documents.
+      // Reads split into `get` + `list`; see quiz_sessions for the rationale
+      // (Firestore static-analyzes `list` predicates and rejects any rule
+      // that touches `resource.data`, even behind a short-circuit OR).
+      // The `list` rule allows any authenticated caller so studentRole users
+      // can run their MyAssignmentsPage `array-contains-any` discovery query;
+      // per-doc class gating still happens at `get`.
       // studentRole (GIS) users additionally must have at least one of the
       // session's classIds in their classIds claim (or the session must be
       // untargeted — empty classIds — for shareable-link launches).
-      allow read: if request.auth != null &&
+      allow get: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGateList(resource.data.get('classIds', [])));
+      allow list: if request.auth != null;
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -908,13 +928,16 @@ service cloud.firestore {
 
     // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
     match /guided_learning_sessions/{sessionId} {
-      // Any authenticated user (including anonymous) can read session documents.
-      // studentRole (GIS) users additionally must have the session's classId
-      // in their classIds claim. The `!isStudentRoleUser()` check is hoisted
-      // to the top level (see quiz_sessions for rationale).
-      allow read: if request.auth != null &&
+      // Reads split into `get` + `list`; see quiz_sessions for the rationale
+      // (Firestore static-analyzes `list` predicates and rejects any rule
+      // that touches `resource.data`, even behind a short-circuit OR).
+      // The `list` rule allows any authenticated caller so studentRole users
+      // can run their MyAssignmentsPage class-filtered discovery queries;
+      // per-doc class gating still happens at `get`.
+      allow get: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGate(resource.data.get('classId', '')));
+      allow list: if request.auth != null;
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -969,13 +992,16 @@ service cloud.firestore {
     // Activity Wall Sessions — Teacher owns it (UID prefix in sessionId), students submit entries
     // sessionId is formatted as {teacherUid}_{activityId}
     match /activity_wall_sessions/{sessionId} {
-      // Any authenticated user can read the session metadata from a valid share link.
-      // studentRole (GIS) users additionally must have the session's classId
-      // in their classIds claim. The `!isStudentRoleUser()` check is hoisted
-      // to the top level (see quiz_sessions for rationale).
-      allow read: if request.auth != null &&
+      // Reads split into `get` + `list`; see quiz_sessions for the rationale
+      // (Firestore static-analyzes `list` predicates and rejects any rule
+      // that touches `resource.data`, even behind a short-circuit OR).
+      // The `list` rule allows any authenticated caller so studentRole users
+      // can run their MyAssignmentsPage class-filtered discovery queries;
+      // per-doc class gating still happens at `get`.
+      allow get: if request.auth != null &&
         (!isStudentRoleUser() ||
          passesStudentClassGate(resource.data.get('classId', '')));
+      allow list: if request.auth != null;
       // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
       allow create, update: if request.auth != null &&
                             request.auth.token.firebase.sign_in_provider != 'anonymous' &&
