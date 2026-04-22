@@ -6,18 +6,22 @@ import { ClassLinkClass, ClassRoster, Student } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { db } from '@/config/firebase';
 import { classLinkService } from '@/utils/classlinkService';
+import { canReadTestClasses } from '@/utils/testClassAccess';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
 
 const TEST_PREFIX = 'test:';
 
+// PINs match the synthetic sidebar rosters in `useTestClassRosters.ts` so the
+// same test student uses the same PIN whether they're joining through the
+// sidebar roster or a freshly-imported copy.
 const materializeTestClassStudents = (emails: string[]): Student[] =>
-  emails.map((email) => ({
+  emails.map((email, i) => ({
     id: crypto.randomUUID(),
     firstName: email.split('@')[0] || email,
     lastName: '',
-    pin: '',
+    pin: String(i + 1).padStart(2, '0'),
   }));
 
 export type ClassLinkDialogMode =
@@ -48,20 +52,10 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   const { rosters, addRoster, updateRoster, addToast } = useDashboard();
   const { user, userRoles, orgId, roleId } = useAuth();
 
-  const canReadTestClasses = useMemo(() => {
-    if (!orgId) return false;
-    const isSuperAdminByEmail = Boolean(
-      user?.email &&
-      userRoles?.superAdmins?.some(
-        (e) => e.toLowerCase() === user.email?.toLowerCase()
-      )
-    );
-    return (
-      isSuperAdminByEmail ||
-      roleId === 'super_admin' ||
-      roleId === 'domain_admin'
-    );
-  }, [orgId, roleId, userRoles, user?.email]);
+  const canReadTestClassesForOrg = useMemo(
+    () => canReadTestClasses(orgId, roleId, userRoles, user?.email),
+    [orgId, roleId, userRoles, user?.email]
+  );
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +85,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       // Firestore rules enforce; otherwise it's skipped entirely to avoid a
       // guaranteed permission-denied round-trip.
       const testPromise =
-        canReadTestClasses && orgId
+        canReadTestClassesForOrg && orgId
           ? getDocs(collection(db, 'organizations', orgId, 'testClasses'))
               .then((snap) => {
                 const extraClasses: ClassLinkClass[] = [];
@@ -140,7 +134,13 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
           testPromise,
         ]);
         if (cancelled) return;
-        setClasses([...data.classes, ...testResult.extraClasses]);
+        // Sort the merged list alphabetically so the real ClassLink rosters
+        // and synthetic test classes interleave predictably in the picker.
+        const combinedClasses = [
+          ...data.classes,
+          ...testResult.extraClasses,
+        ].sort((a, b) => a.title.localeCompare(b.title));
+        setClasses(combinedClasses);
         setStudentsByClass(data.studentsByClass);
         setTestEmailsByClass(testResult.extraEmails);
       } catch (err) {
@@ -158,7 +158,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, t, canReadTestClasses, orgId]);
+  }, [isOpen, t, canReadTestClassesForOrg, orgId]);
 
   const handleImportNew = async (cls: ClassLinkClass) => {
     setPendingId(cls.sourcedId);

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ClassRoster, Student, UserRolesConfig } from '../types';
+import { canReadTestClasses } from '../utils/testClassAccess';
 
 /**
  * Prefix used for synthetic roster IDs, student IDs, and Drive-less student
@@ -69,20 +70,10 @@ export const useTestClassRosters = (
 ): ClassRoster[] => {
   const [rosters, setRosters] = useState<ClassRoster[]>([]);
 
-  const canRead = useMemo(() => {
-    if (!orgId) return false;
-    const isSuperAdminByEmail = Boolean(
-      userEmail &&
-      userRoles?.superAdmins?.some(
-        (e) => e.toLowerCase() === userEmail.toLowerCase()
-      )
-    );
-    return (
-      isSuperAdminByEmail ||
-      roleId === 'super_admin' ||
-      roleId === 'domain_admin'
-    );
-  }, [orgId, roleId, userRoles, userEmail]);
+  const canRead = useMemo(
+    () => canReadTestClasses(orgId, roleId, userRoles, userEmail),
+    [orgId, roleId, userRoles, userEmail]
+  );
 
   // Render-time reset: when the subscription key changes (can't read anymore
   // or the org switched), clear stale rosters immediately rather than letting

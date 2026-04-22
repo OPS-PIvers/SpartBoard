@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -130,6 +131,16 @@ export const useTestClasses = (orgId: string | null) => {
       trimmedId && trimmedId.length > 0
         ? trimmedId
         : slugOrFallback(input.title, 'testclass');
+    // Guard against slug collisions (explicit ids or auto-slugs that happen
+    // to match an existing class). setDoc without an existence check would
+    // silently overwrite the other admin's class.
+    const ref = doc(db, 'organizations', orgId, 'testClasses', id);
+    const existing = await getDoc(ref);
+    if (existing.exists()) {
+      throw new Error(
+        `A test class with id "${id}" already exists. Choose a different title or class id.`
+      );
+    }
     const payload: Record<string, unknown> = {
       title: input.title.trim(),
       memberEmails: emails,
@@ -137,7 +148,7 @@ export const useTestClasses = (orgId: string | null) => {
       createdBy: user?.uid ?? 'unknown',
     };
     if (input.subject?.trim()) payload.subject = input.subject.trim();
-    await setDoc(doc(db, 'organizations', orgId, 'testClasses', id), payload);
+    await setDoc(ref, payload);
   };
 
   const updateTestClass = async (
