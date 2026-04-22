@@ -134,6 +134,20 @@ export interface ClassRoster extends ClassRosterMeta {
    * unknown" so the UI can show a retry banner instead of "0 students".
    */
   loadError?: string;
+  /**
+   * Where this roster came from. `'user'` (default, omitted) means it lives in
+   * `/users/{uid}/rosters/` and is editable. `'testClass'` means it's a
+   * synthetic adapter for an admin-managed `/organizations/{orgId}/testClasses/`
+   * doc, surfaced read-only so admins can target it without import.
+   */
+  source?: 'user' | 'testClass';
+  /**
+   * True for rosters that must not be mutated through the normal
+   * add/update/delete paths (e.g., testClass-sourced rosters are managed from
+   * the admin panel instead). UI hides Edit/Delete/Sync affordances; the hook
+   * short-circuits mutations defensively.
+   */
+  readOnly?: boolean;
 }
 
 // --- LIVE SESSION TYPES ---
