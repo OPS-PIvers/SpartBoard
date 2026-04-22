@@ -88,6 +88,14 @@ interface KindConfig {
   collectionName: string;
   /** Firestore status filter, or `null` when the collection has no status field. */
   statusFilter: { field: 'status'; value: 'active' } | null;
+  /**
+   * How this collection stores its class targeting:
+   *   - `single` — a string `classId` field (queried with `where(..., 'in', classIds)`)
+   *   - `list`   — an array `classIds` field (queried with `where(..., 'array-contains-any', classIds)`)
+   * Mini-app sessions are `list` (multi-class targeting); every other kind
+   * is still single-class.
+   */
+  classFilterShape: 'single' | 'list';
   /** Subcollection where per-student response/submission docs live; null when absent. */
   responseSubcollection: string | null;
   label: string;
@@ -126,6 +134,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   quiz: {
     collectionName: 'quiz_sessions',
     statusFilter: { field: 'status', value: 'active' },
+    classFilterShape: 'single',
     responseSubcollection: 'responses',
     label: 'Quiz',
     icon: ClipboardList,
@@ -148,6 +157,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   'video-activity': {
     collectionName: 'video_activity_sessions',
     statusFilter: { field: 'status', value: 'active' },
+    classFilterShape: 'single',
     responseSubcollection: 'responses',
     label: 'Video Activity',
     icon: PlayCircle,
@@ -170,6 +180,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   'guided-learning': {
     collectionName: 'guided_learning_sessions',
     statusFilter: null, // No status field; session presence = live.
+    classFilterShape: 'single',
     responseSubcollection: 'responses',
     label: 'Guided Learning',
     icon: Sparkles,
@@ -184,6 +195,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   'mini-app': {
     collectionName: 'mini_app_sessions',
     statusFilter: { field: 'status', value: 'active' },
+    classFilterShape: 'list',
     responseSubcollection: 'submissions',
     label: 'Mini App',
     icon: Puzzle,
@@ -203,6 +215,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   'activity-wall': {
     collectionName: 'activity_wall_sessions',
     statusFilter: null, // No status field on the session doc.
+    classFilterShape: 'single',
     // ActivityWall submissions are a LIST per student (students can post
     // multiple). We still use existence as a "has the student participated
     // yet?" signal — but the doc id is the pseudonym, so this is a
@@ -321,7 +334,10 @@ const MyAssignmentsPage: React.FC = () => {
     for (const kind of SESSION_KINDS) {
       const config = KIND_CONFIG[kind];
       const col = collection(db, config.collectionName);
-      const constraints = [where('classId', 'in', classIds)];
+      const constraints =
+        config.classFilterShape === 'list'
+          ? [where('classIds', 'array-contains-any', classIds)]
+          : [where('classId', 'in', classIds)];
       if (config.statusFilter) {
         constraints.push(
           where(config.statusFilter.field, '==', config.statusFilter.value)

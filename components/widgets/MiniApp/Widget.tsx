@@ -46,7 +46,6 @@ import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
-import { useMiniAppGlobalConfig } from './hooks/useMiniAppGlobalConfig';
 import { useDialog } from '@/context/useDialog';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
@@ -67,9 +66,12 @@ interface MiniAppAssignModalProps {
   onClose: () => void;
   /** ClassLink classes for the target-class picker. Hidden when empty. */
   classLinkClasses: ClassLinkClass[];
-  /** Currently-selected classId, or '' for no class. */
-  selectedClassId: string;
-  onClassIdChange: (next: string) => void;
+  /** Currently-selected ClassLink class sourcedIds (multi-select). */
+  selectedClassIds: string[];
+  onSelectedClassIdsChange: (next: string[]) => void;
+  /** Whether submissions are enabled (Submit button shown, writes allowed). */
+  submissionsEnabled: boolean;
+  onSubmissionsEnabledChange: (next: boolean) => void;
 }
 
 /**
@@ -93,9 +95,20 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   onConfirm,
   onClose,
   classLinkClasses,
-  selectedClassId,
-  onClassIdChange,
+  selectedClassIds,
+  onSelectedClassIdsChange,
+  submissionsEnabled,
+  onSubmissionsEnabledChange,
 }) => {
+  const toggleClassId = (sourcedId: string) => {
+    if (selectedClassIds.includes(sourcedId)) {
+      onSelectedClassIdsChange(
+        selectedClassIds.filter((id) => id !== sourcedId)
+      );
+    } else {
+      onSelectedClassIdsChange([...selectedClassIds, sourcedId]);
+    }
+  };
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
     : null;
@@ -215,32 +228,71 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Users className="w-4 h-4 text-brand-blue-primary" />
-                    <label
-                      htmlFor="miniapp-assign-target-class"
-                      className="text-sm font-bold text-slate-700"
-                    >
-                      Target class (optional)
-                    </label>
+                    <span className="text-sm font-bold text-slate-700">
+                      Target classes (optional)
+                    </span>
                   </div>
-                  <select
-                    id="miniapp-assign-target-class"
-                    value={selectedClassId}
-                    onChange={(e) => onClassIdChange(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                  >
-                    <option value="">No class (shareable link only)</option>
-                    {classLinkClasses.map((cls) => (
-                      <option key={cls.sourcedId} value={cls.sourcedId}>
-                        {formatClassLinkClassLabel(cls)}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Students in this class will see this in their assignments
-                    list. Leave blank to share a link directly.
+                  <div className="max-h-40 overflow-y-auto flex flex-col gap-1.5 pr-1">
+                    {classLinkClasses.map((cls) => {
+                      const checked = selectedClassIds.includes(cls.sourcedId);
+                      return (
+                        <label
+                          key={cls.sourcedId}
+                          className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer rounded-lg px-2 py-1 hover:bg-white"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleClassId(cls.sourcedId)}
+                            className="w-4 h-4 accent-brand-blue-primary"
+                          />
+                          <span className="truncate">
+                            {formatClassLinkClassLabel(cls)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    Enrolled students will see this in their assignments list.
+                    Leave all boxes unchecked to share a link directly.
                   </p>
                 </div>
               )}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <span className="block text-sm font-bold text-slate-700 mb-2">
+                  Submissions
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSubmissionsEnabledChange(false)}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-colors border ${
+                      !submissionsEnabled
+                        ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    View only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSubmissionsEnabledChange(true)}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-colors border ${
+                      submissionsEnabled
+                        ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    Submissions on
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-2">
+                  {submissionsEnabled
+                    ? 'Students will see a Submit button and their answers are saved to the submissions list.'
+                    : 'Students can interact with the app but the Submit button is hidden and nothing is saved.'}
+                </p>
+              </div>
               {error && (
                 <p className="text-sm text-brand-red-primary text-center font-medium">
                   {error}
@@ -270,7 +322,6 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
 export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
-  studentPin,
 }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user, userRoles, orgId, roleId } = useAuth();
@@ -305,60 +356,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } = useMiniAppSessionTeacher();
 
   const { library, globalLibrary } = useMiniAppSync(addToast);
-  const { globalConfig } = useMiniAppGlobalConfig();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // 2. STUDENT LISTENER: Listen for iframe messages and POST to Apps Script
-  const handleMessage = useCallback(
-    async (event: MessageEvent) => {
-      // SECURITY: Verify that the message originated from the specific iframe managed by this widget instance.
-      // This prevents spoofing from other iframes or malicious scripts, and ensures that multiple
-      // widgets on the same dashboard don't trigger each other's submission logic.
-      if (event.source !== iframeRef.current?.contentWindow) return;
-
-      const data = event.data as { type?: string; payload?: unknown } | null;
-      if (
-        data?.type === 'SPART_MINIAPP_RESULT' &&
-        globalConfig?.submissionUrl
-      ) {
-        try {
-          await fetch(globalConfig.submissionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sheetId: config.googleSheetId,
-              studentPin: studentPin ?? 'Anonymous',
-              data: data.payload,
-            }),
-          });
-        } catch (error) {
-          console.error('Submission failed', error);
-        }
-      }
-    },
-    [globalConfig?.submissionUrl, config.googleSheetId, studentPin]
-  );
-
-  useEffect(() => {
-    if (
-      !isStudentView ||
-      !config.collectResults ||
-      !config.googleSheetId ||
-      !globalConfig?.submissionUrl
-    )
-      return;
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [
-    isStudentView,
-    config.collectResults,
-    config.googleSheetId,
-    globalConfig?.submissionUrl,
-    handleMessage,
-  ]);
 
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
@@ -380,7 +378,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
-  const [assignTargetClassId, setAssignTargetClassId] = useState('');
+  const [assignTargetClassIds, setAssignTargetClassIds] = useState<string[]>(
+    []
+  );
+  const [assignSubmissionsEnabled, setAssignSubmissionsEnabled] =
+    useState(false);
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
 
@@ -471,9 +473,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentName(buildDefaultAssignmentName(app.title));
     setCreatedSessionId(null);
     setAssignError(null);
-    // Pre-populate the class picker with whatever the teacher picked last
-    // time for this app, so repeated assignments don't require re-picking.
-    setAssignTargetClassId(config.lastClassIdByAppId?.[app.id] ?? '');
+    // Pre-populate the class picker and toggle with whatever the teacher
+    // picked last time for this app, so repeated assignments don't require
+    // re-picking.
+    setAssignTargetClassIds(config.lastClassIdsByAppId?.[app.id] ?? []);
+    setAssignSubmissionsEnabled(
+      config.lastSubmissionsEnabledByAppId?.[app.id] ?? false
+    );
   };
 
   const handleOpenAssignments = (app: MiniAppItem) => {
@@ -505,23 +511,21 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setIsCreatingSession(true);
     setAssignError(null);
     try {
-      // Guard against a stale-selection state: the class list refreshes on
-      // mount, and a teacher could have picked a class that's since been
-      // removed from the roster. Only forward a classId we can still see.
-      const resolvedClassId =
-        assignTargetClassId &&
-        mergedClassList.some((c) => c.sourcedId === assignTargetClassId)
-          ? assignTargetClassId
-          : undefined;
+      // Guard against stale selections: the class list refreshes on mount,
+      // and a teacher could have picked classes that have since been removed
+      // from the roster. Drop any sourcedIds we can't still see.
+      const visibleClassIds = new Set(mergedClassList.map((c) => c.sourcedId));
+      const resolvedClassIds = assignTargetClassIds.filter((id) =>
+        visibleClassIds.has(id)
+      );
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
-        // Legacy submissionUrl/googleSheetId — no longer threaded. Phase 3E
-        // migrates submissions to the Firestore `submissions/` subcollection.
-        undefined,
-        undefined,
-        resolvedClassId
+        {
+          classIds: resolvedClassIds,
+          submissionsEnabled: assignSubmissionsEnabled,
+        }
       );
       // Mirror the new session into the per-teacher archive so it shows up
       // in the In Progress / Archive tabs. Failures here are non-fatal —
@@ -531,7 +535,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
-          ...(resolvedClassId ? { classId: resolvedClassId } : {}),
+          classIds: resolvedClassIds,
+          submissionsEnabled: assignSubmissionsEnabled,
         });
       } catch (archiveErr) {
         console.warn(
@@ -539,22 +544,30 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           archiveErr
         );
       }
-      // Remember this choice for next time (or clear it if the teacher
-      // deliberately picked "No class").
+      // Remember the teacher's choices for next time.
       try {
-        const prevMap = config.lastClassIdByAppId ?? {};
-        const nextMap: Record<string, string> = { ...prevMap };
-        if (resolvedClassId) {
-          nextMap[assigningApp.id] = resolvedClassId;
+        const prevClasses = config.lastClassIdsByAppId ?? {};
+        const nextClasses: Record<string, string[]> = { ...prevClasses };
+        if (resolvedClassIds.length > 0) {
+          nextClasses[assigningApp.id] = resolvedClassIds;
         } else {
-          delete nextMap[assigningApp.id];
+          delete nextClasses[assigningApp.id];
         }
+        const prevToggle = config.lastSubmissionsEnabledByAppId ?? {};
+        const nextToggle: Record<string, boolean> = {
+          ...prevToggle,
+          [assigningApp.id]: assignSubmissionsEnabled,
+        };
         updateWidget(widget.id, {
-          config: { ...config, lastClassIdByAppId: nextMap } as MiniAppConfig,
+          config: {
+            ...config,
+            lastClassIdsByAppId: nextClasses,
+            lastSubmissionsEnabledByAppId: nextToggle,
+          } as MiniAppConfig,
         });
       } catch (cfgErr) {
         console.warn(
-          '[MiniAppWidget] Failed to persist lastClassIdByAppId',
+          '[MiniAppWidget] Failed to persist last-assign config',
           cfgErr
         );
       }
@@ -982,14 +995,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 createdSessionId={createdSessionId}
                 error={assignError}
                 classLinkClasses={mergedClassList}
-                selectedClassId={assignTargetClassId}
-                onClassIdChange={setAssignTargetClassId}
+                selectedClassIds={assignTargetClassIds}
+                onSelectedClassIdsChange={setAssignTargetClassIds}
+                submissionsEnabled={assignSubmissionsEnabled}
+                onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
-                  setAssignTargetClassId('');
+                  setAssignTargetClassIds([]);
+                  setAssignSubmissionsEnabled(false);
                 }}
               />
             )}
@@ -1016,7 +1032,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       <MiniAppEditorModal
         isOpen={!!editingApp}
         app={editingApp}
-        widget={widget}
         folders={editingApp ? miniAppFolders : undefined}
         folderId={editingApp?.folderId ?? null}
         onFolderChange={
@@ -1091,14 +1106,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 createdSessionId={createdSessionId}
                 error={assignError}
                 classLinkClasses={mergedClassList}
-                selectedClassId={assignTargetClassId}
-                onClassIdChange={setAssignTargetClassId}
+                selectedClassIds={assignTargetClassIds}
+                onSelectedClassIdsChange={setAssignTargetClassIds}
+                submissionsEnabled={assignSubmissionsEnabled}
+                onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
-                  setAssignTargetClassId('');
+                  setAssignTargetClassIds([]);
+                  setAssignSubmissionsEnabled(false);
                 }}
               />
             )}

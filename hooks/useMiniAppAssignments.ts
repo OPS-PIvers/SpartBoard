@@ -36,10 +36,11 @@ export interface CreateMiniAppAssignmentInput {
   sessionId: string;
   app: Pick<MiniAppItem, 'id' | 'title'>;
   assignmentName: string;
-  /** Optional ClassLink classId the teacher targeted. */
-  classId?: string;
-  submissionUrl?: string;
-  googleSheetId?: string;
+  /** ClassLink class sourcedIds the teacher targeted (multi-select). */
+  classIds?: string[];
+  /** Whether submissions are enabled for this assignment. Mirrors
+   *  MiniAppSession.submissionsEnabled. */
+  submissionsEnabled?: boolean;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -112,6 +113,10 @@ export const useMiniAppAssignments = (
       const now = Date.now();
       const trimmedName = input.assignmentName.trim();
 
+      const cleanedClassIds = (input.classIds ?? []).filter(
+        (c): c is string => typeof c === 'string' && c.length > 0
+      );
+
       const assignment: MiniAppAssignment = {
         id: assignmentId,
         sessionId: input.sessionId,
@@ -125,9 +130,8 @@ export const useMiniAppAssignments = (
         status: 'active',
         createdAt: now,
         updatedAt: now,
-        ...(input.classId ? { classId: input.classId } : {}),
-        ...(input.submissionUrl ? { submissionUrl: input.submissionUrl } : {}),
-        ...(input.googleSheetId ? { googleSheetId: input.googleSheetId } : {}),
+        ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
+        submissionsEnabled: input.submissionsEnabled === true,
       };
 
       await setDoc(

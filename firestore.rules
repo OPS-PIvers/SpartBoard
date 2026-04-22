@@ -42,6 +42,20 @@ service cloud.firestore {
              studentRoleCanAccessClass(sessionClassId);
     }
 
+    // List-aware variant: passes when the caller is not a studentRole user,
+    // when the session has no class targeting (empty/missing list — the
+    // mini-app flow treats class selection as metadata rather than a hard
+    // gate, so untargeted sessions are open to any studentRole user with
+    // the link), or when any of the session's classIds appears in the
+    // caller's classIds claim. Used by mini_app_sessions.
+    function passesStudentClassGateList(sessionClassIds) {
+      return !isStudentRoleUser() ||
+             !(sessionClassIds is list) ||
+             sessionClassIds.size() == 0 ||
+             (request.auth.token.classIds is list &&
+              sessionClassIds.hasAny(request.auth.token.classIds));
+    }
+
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
     // Super admins are listed on the legacy admin_settings/user_roles doc.
@@ -789,10 +803,12 @@ service cloud.firestore {
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
     match /mini_app_sessions/{sessionId} {
       // Any authenticated user (including anonymous) can read session documents.
-      // studentRole (GIS) users additionally must have the session's classId
-      // in their classIds claim.
+      // studentRole (GIS) users additionally must have at least one of the
+      // session's classIds in their classIds claim (or the session must be
+      // untargeted — empty classIds — for shareable-link launches).
       allow read: if request.auth != null &&
-        passesStudentClassGate(resource.data.get('classId', ''));
+        (!isStudentRoleUser() ||
+         passesStudentClassGateList(resource.data.get('classIds', [])));
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -815,37 +831,46 @@ service cloud.firestore {
         function maSessionData() {
           return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
         }
-        function maSessionClassId() {
-          return maSessionData().get('classId', '');
+        function maSessionClassIds() {
+          return maSessionData().get('classIds', []);
         }
 
         // Session owner (teacher) and admins can read all submissions.
         // A student may read their own submission doc (used for the
-        // completion-badge check in /my-assignments). Anonymous students'
-        // doc ID is their auth uid; studentRole students know only their
-        // own pseudonym, so the same `submissionId == request.auth.uid`
-        // check naturally applies to anonymous-launch completion checks,
-        // while studentRole users read via the getDoc path they already
-        // obtained the pseudonym for.
+        // completion-badge check in /my-assignments). Identity on a doc is
+        // carried by the `studentUid` field (= the submitter's auth uid at
+        // write time), so the same check applies to both studentRole
+        // launches (where docId is an opaque pseudonym) and anonymous
+        // launches (where docId happens to equal auth.uid).
         allow read: if request.auth != null && (
           isAdmin() ||
           maSessionData().teacherUid == request.auth.uid ||
-          submissionId == request.auth.uid
+          resource.data.studentUid == request.auth.uid
         );
 
         // Any authenticated user (anonymous or studentRole) may create or
-        // update their own submission while the session is active.
-        // - Anonymous launches must use their auth uid as the doc ID.
-        // - studentRole launches use an opaque per-assignment pseudonym;
-        //   the class gate blocks cross-class writes and the HMAC secret
-        //   server-side prevents forging another student's pseudonym.
+        // update their own submission while the session is active and
+        // submissions are enabled.
+        // - Every submission must carry a `studentUid` field equal to the
+        //   caller's auth.uid so the doc is attributable and the student
+        //   can read it back via the rule above.
+        // - Anonymous launches must additionally use their auth uid as the
+        //   doc ID so the docId == studentUid invariant keeps them from
+        //   spraying extra docs under different keys.
+        // - studentRole launches use an opaque per-assignment pseudonym as
+        //   the docId. The HMAC secret server-side prevents forging another
+        //   student's pseudonym, and the class gate blocks cross-class
+        //   writes. The studentUid field still pins the submitter for read
+        //   authorization and accountability.
         // Payload shape is validated to prevent junk writes bloating the
         // subcollection.
         allow create, update: if request.auth != null &&
           maSessionData().status == 'active' &&
-          passesStudentClassGate(maSessionClassId()) &&
+          maSessionData().get('submissionsEnabled', false) == true &&
+          passesStudentClassGateList(maSessionClassIds()) &&
           (isStudentRoleUser() || submissionId == request.auth.uid) &&
-          request.resource.data.keys().hasOnly(['submittedAt', 'payload']) &&
+          request.resource.data.studentUid == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['submittedAt', 'studentUid', 'payload']) &&
           request.resource.data.submittedAt is int &&
           request.resource.data.payload is map &&
           request.resource.data.payload.size() <= 50;

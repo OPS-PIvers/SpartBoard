@@ -182,9 +182,6 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 600,
     config: {
       activeApp: null,
-      collectResults: false,
-      googleSheetId: undefined,
-      googleSheetUrl: undefined,
     },
   },
   materials: {

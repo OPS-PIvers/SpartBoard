@@ -155,3 +155,72 @@ export function formatStudentName(name: StudentName | undefined): string {
   const full = `${name.givenName} ${name.familyName}`.trim();
   return full;
 }
+
+/**
+ * Multi-class variant of `useAssignmentPseudonyms` for sessions targeted to
+ * more than one ClassLink class (currently just mini-app sessions, which
+ * store `classIds: string[]`). Fetches the pseudonym map per classId and
+ * merges the results into a single pair of reverse maps. A student enrolled
+ * in multiple selected classes will resolve to the same name from either.
+ */
+export function useAssignmentPseudonymsMulti(
+  assignmentId: string | null | undefined,
+  classIds: readonly string[] | null | undefined
+): AssignmentPseudonymMaps {
+  // `classIdsKey` is the canonical, value-stable identity for the caller's
+  // class list. Deriving it from the raw prop (instead of from a pre-filtered
+  // array) lets the effect depend on just `[assignmentId, classIdsKey]`
+  // without an exhaustive-deps suppression — the effect itself re-derives
+  // the cleaned list from `classIdsKey`.
+  const classIdsKey = (classIds ?? [])
+    .filter((c): c is string => typeof c === 'string' && c.length > 0)
+    .slice()
+    .sort()
+    .join('|');
+  const [resolved, setResolved] = useState<{
+    key: string;
+    maps: AssignmentPseudonymMaps;
+  }>({ key: '', maps: EMPTY_MAPS });
+
+  useEffect(() => {
+    if (!assignmentId || classIdsKey.length === 0) return;
+    const teacherUid = auth.currentUser?.uid ?? '';
+    if (!teacherUid) return;
+    const cleanedInEffect = classIdsKey.split('|');
+    let cancelled = false;
+    const key = `${assignmentId}::${classIdsKey}`;
+    Promise.all(
+      cleanedInEffect.map((cid) =>
+        fetchPseudonymMaps(assignmentId, cid, teacherUid)
+      )
+    )
+      .then((all) => {
+        if (cancelled) return;
+        const byStudentUid = new Map<string, StudentName>();
+        const byAssignmentPseudonym = new Map<string, StudentName>();
+        for (const maps of all) {
+          for (const [k, v] of maps.byStudentUid) byStudentUid.set(k, v);
+          for (const [k, v] of maps.byAssignmentPseudonym)
+            byAssignmentPseudonym.set(k, v);
+        }
+        setResolved({ key, maps: { byStudentUid, byAssignmentPseudonym } });
+      })
+      .catch((err) => {
+        console.warn(
+          '[useAssignmentPseudonymsMulti] Name resolution failed:',
+          err
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId, classIdsKey]);
+
+  const currentKey =
+    assignmentId && classIdsKey.length > 0
+      ? `${assignmentId}::${classIdsKey}`
+      : '';
+  return resolved.key === currentKey && currentKey !== ''
+    ? resolved.maps
+    : EMPTY_MAPS;
+}

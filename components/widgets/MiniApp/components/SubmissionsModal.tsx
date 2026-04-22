@@ -8,10 +8,10 @@
  * No PII is persisted; the payload is arbitrary JSON forwarded from the
  * sandboxed mini-app iframe's postMessage.
  *
- * When the session was class-targeted (`classId` present), we call
- * `getPseudonymsForAssignmentV1` to build a pseudonym -> name reverse map
- * in teacher-browser memory so grading shows real names. Unmatched doc IDs
- * (legacy shared-link launches) fall back to the opaque id.
+ * When the session was class-targeted (`classIds` non-empty), we call
+ * `getPseudonymsForAssignmentV1` per class to build a pseudonym -> name
+ * reverse map in teacher-browser memory so grading shows real names.
+ * Unmatched doc IDs (legacy shared-link launches) fall back to the opaque id.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -19,7 +19,7 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { X, Loader2, Inbox, ChevronDown, ChevronRight } from 'lucide-react';
 import { db } from '@/config/firebase';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 
@@ -32,19 +32,19 @@ interface SubmissionRow {
 interface SubmissionsModalProps {
   sessionId: string;
   assignmentName: string;
-  classId?: string;
+  classIds?: string[];
   onClose: () => void;
 }
 
 export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   sessionId,
   assignmentName,
-  classId,
+  classIds,
   onClose,
 }) => {
-  const { byAssignmentPseudonym } = useAssignmentPseudonyms(
+  const { byAssignmentPseudonym } = useAssignmentPseudonymsMulti(
     sessionId,
-    classId ?? null
+    classIds ?? null
   );
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);

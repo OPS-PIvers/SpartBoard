@@ -289,7 +289,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
         <SubmissionsModal
           sessionId={viewingSubmissionsFor.id}
           assignmentName={viewingSubmissionsFor.assignmentName}
-          classId={viewingSubmissionsFor.classId}
+          classIds={viewingSubmissionsFor.classIds}
           onClose={() => setViewingSubmissionsFor(null)}
         />
       )}

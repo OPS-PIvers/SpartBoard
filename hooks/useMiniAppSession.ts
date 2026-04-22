@@ -32,6 +32,12 @@ const normalizeSession = (
   const appTitle = data.appTitle ?? 'Mini App';
   const createdAt = data.createdAt ?? Date.now();
 
+  const classIds = Array.isArray(data.classIds)
+    ? data.classIds.filter(
+        (c): c is string => typeof c === 'string' && c.length > 0
+      )
+    : [];
+
   return {
     id: sessionId,
     appId: data.appId ?? '',
@@ -45,11 +51,18 @@ const normalizeSession = (
     status: data.status === 'ended' ? 'ended' : 'active',
     createdAt,
     ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
-    ...(data.classId ? { classId: data.classId } : {}),
-    ...(data.submissionUrl ? { submissionUrl: data.submissionUrl } : {}),
-    ...(data.googleSheetId ? { googleSheetId: data.googleSheetId } : {}),
+    ...(classIds.length > 0 ? { classIds } : {}),
+    ...(data.submissionsEnabled === true ? { submissionsEnabled: true } : {}),
   };
 };
+
+export interface CreateMiniAppSessionOptions {
+  /** ClassLink class sourcedIds the teacher targeted (multi-select). */
+  classIds?: string[];
+  /** Whether the runner should reveal the Submit button and persist
+   *  submissions. Defaults to `false` (view-only). */
+  submissionsEnabled?: boolean;
+}
 
 export interface UseMiniAppSessionTeacherResult {
   /** Create a session for an app and return the sessionId (used as the share link). */
@@ -57,10 +70,7 @@ export interface UseMiniAppSessionTeacherResult {
     app: MiniAppItem,
     teacherUid: string,
     assignmentName: string,
-    submissionUrl?: string,
-    googleSheetId?: string,
-    /** Optional ClassLink classId the teacher targeted. */
-    classId?: string
+    options?: CreateMiniAppSessionOptions
   ) => Promise<string>;
   /** Sessions created by this teacher for the currently subscribed app. */
   sessions: MiniAppSession[];
@@ -85,12 +95,14 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       app: MiniAppItem,
       teacherUid: string,
       assignmentName: string,
-      submissionUrl?: string,
-      googleSheetId?: string,
-      classId?: string
+      options?: CreateMiniAppSessionOptions
     ): Promise<string> => {
       const sessionId = crypto.randomUUID();
       const trimmedName = assignmentName.trim();
+      const cleanedClassIds = (options?.classIds ?? []).filter(
+        (c): c is string => typeof c === 'string' && c.length > 0
+      );
+      const submissionsEnabled = options?.submissionsEnabled === true;
 
       const session: MiniAppSession = {
         id: sessionId,
@@ -104,9 +116,8 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
             : `${app.title} — ${new Date().toLocaleString()}`,
         status: 'active',
         createdAt: Date.now(),
-        ...(classId ? { classId } : {}),
-        ...(submissionUrl ? { submissionUrl } : {}),
-        ...(googleSheetId ? { googleSheetId } : {}),
+        ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
+        submissionsEnabled,
       };
 
       await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

@@ -179,9 +179,42 @@ function getCachedPseudonym(
 const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [status, setStatus] = useState<SubmissionStatus>({ kind: 'idle' });
+  const submissionsEnabled = session.submissionsEnabled === true;
+
+  // Handshake: post SPART_MINIAPP_INIT into the iframe once it loads so the
+  // app knows whether to reveal its [data-spart-submit] button. The app is
+  // expected to listen for this message and hide submit controls when
+  // submissionsEnabled is false.
+  const handleIframeLoad = useCallback(() => {
+    const target = iframeRef.current?.contentWindow;
+    if (!target) return;
+    target.postMessage(
+      {
+        type: 'SPART_MINIAPP_INIT',
+        payload: { submissionsEnabled },
+      },
+      '*'
+    );
+  }, [submissionsEnabled]);
+
+  // Re-post INIT whenever submissionsEnabled flips, so a teacher toggling the
+  // assignment mid-session propagates to already-loaded iframes.
+  useEffect(() => {
+    const target = iframeRef.current?.contentWindow;
+    if (!target) return;
+    target.postMessage(
+      { type: 'SPART_MINIAPP_INIT', payload: { submissionsEnabled } },
+      '*'
+    );
+  }, [submissionsEnabled]);
 
   const submit = useCallback(
     async (payload: unknown) => {
+      if (!submissionsEnabled || status.kind === 'submitting') {
+        // View-only session, or a submission is already in flight (guards
+        // against double-clicks / duplicate postMessages).
+        return;
+      }
       const currentUser = auth.currentUser;
       if (!currentUser) {
         console.warn('[MiniAppStudentApp] No auth user; skipping submission.');
@@ -214,6 +247,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
 
         const submission: MiniAppSubmission = {
           submittedAt: Date.now(),
+          studentUid: currentUser.uid,
           payload: normalisedPayload,
         };
 
@@ -227,7 +261,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         setStatus({ kind: 'error', payload });
       }
     },
-    [session.id]
+    [session.id, submissionsEnabled, status.kind]
   );
 
   const handleMessage = useCallback(
@@ -263,6 +297,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         sandbox="allow-scripts allow-forms allow-modals"
         className="flex-1 w-full border-0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+        onLoad={handleIframeLoad}
       />
       <SubmissionStatusOverlay status={status} onRetry={submit} />
     </div>
