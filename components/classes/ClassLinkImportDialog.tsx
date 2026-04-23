@@ -43,9 +43,11 @@ const buildClassLinkRosterMeta = (
   return meta;
 };
 
-// PINs match the synthetic sidebar rosters in `useTestClassRosters.ts` so the
-// same test student uses the same PIN whether they're joining through the
-// sidebar roster or a freshly-imported copy.
+// Materialize test-class member emails into placeholder students. The email
+// local-part becomes the display name and PINs are sequential zero-padded
+// two-digit strings (01, 02, …) so the teacher has something to hand out
+// before editing. The imported roster is a normal user-owned roster and can
+// be renamed, PIN-edited, or deleted afterwards like any ClassLink import.
 const materializeTestClassStudents = (emails: string[]): Student[] =>
   emails.map((email, i) => ({
     id: crypto.randomUUID(),

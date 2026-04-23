@@ -54,7 +54,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
 
   const editingRoster: ClassRoster | null =
     editingRosterId && editingRosterId !== 'new'
-      ? (rosters.find((r) => r.id === editingRosterId && !r.readOnly) ?? null)
+      ? (rosters.find((r) => r.id === editingRosterId) ?? null)
       : null;
 
   const handleSaveRoster = async (name: string, students: Student[]) => {
@@ -183,7 +183,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                 <div className="flex flex-col gap-2">
                   {rosters.map((r) => {
                     const isActive = activeRosterId === r.id;
-                    const isTestClass = r.source === 'testClass';
                     return (
                       <div
                         key={r.id}
@@ -231,19 +230,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                             <div className="text-sm font-bold text-slate-800 truncate">
                               {r.name}
                             </div>
-                            {isTestClass && (
-                              <span
-                                className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200"
-                                title={t('sidebar.classes.testBadgeTitle', {
-                                  defaultValue:
-                                    'Admin-managed mock class for SSO testing',
-                                })}
-                              >
-                                {t('sidebar.classes.testBadge', {
-                                  defaultValue: 'TEST',
-                                })}
-                              </span>
-                            )}
                           </div>
                           {r.loadError ? (
                             <div
@@ -265,78 +251,72 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                           )}
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">
-                          {!isTestClass && (
-                            <>
-                              <button
-                                onClick={() => setEditingRosterId(r.id)}
-                                className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                                title={t('sidebar.classes.edit', {
-                                  defaultValue: 'Edit Class',
-                                })}
-                                aria-label={t('sidebar.classes.edit', {
-                                  defaultValue: 'Edit Class',
-                                })}
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              {classLinkEnabled &&
-                                (() => {
-                                  // Rosters whose students carry
-                                  // `classLinkSourcedId` but whose doc lacks
-                                  // `classlinkClassId` predate the unified
-                                  // metadata and are invisible to the student
-                                  // SSO gate. Surface an amber dot on Sync so
-                                  // the teacher knows to re-sync — the merge
-                                  // handler now backfills metadata for them.
-                                  const needsBackfill =
-                                    !r.classlinkClassId &&
-                                    r.students.some(
-                                      (s) => s.classLinkSourcedId
-                                    );
-                                  const syncLabel = needsBackfill
-                                    ? t('sidebar.classes.linkClassLink', {
-                                        defaultValue: 'Link to ClassLink class',
-                                      })
-                                    : t('sidebar.classes.syncClassLink', {
-                                        defaultValue: 'Sync with ClassLink',
-                                      });
-                                  return (
-                                    <button
-                                      onClick={() =>
-                                        setClassLinkMode({
-                                          kind: 'merge',
-                                          rosterId: r.id,
-                                          rosterName: r.name,
-                                        })
-                                      }
-                                      className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                                      title={syncLabel}
-                                      aria-label={syncLabel}
-                                    >
-                                      <RefreshCw className="w-3.5 h-3.5" />
-                                      {needsBackfill && (
-                                        <span
-                                          aria-hidden="true"
-                                          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
-                                        />
-                                      )}
-                                    </button>
-                                  );
-                                })()}
-                              <button
-                                onClick={() => void handleDelete(r)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title={t('sidebar.classes.delete', {
-                                  defaultValue: 'Delete Class',
-                                })}
-                                aria-label={t('sidebar.classes.delete', {
-                                  defaultValue: 'Delete Class',
-                                })}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
+                          <button
+                            onClick={() => setEditingRosterId(r.id)}
+                            className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                            title={t('sidebar.classes.edit', {
+                              defaultValue: 'Edit Class',
+                            })}
+                            aria-label={t('sidebar.classes.edit', {
+                              defaultValue: 'Edit Class',
+                            })}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {classLinkEnabled &&
+                            (() => {
+                              // Rosters whose students carry
+                              // `classLinkSourcedId` but whose doc lacks
+                              // `classlinkClassId` predate the unified
+                              // metadata and are invisible to the student
+                              // SSO gate. Surface an amber dot on Sync so
+                              // the teacher knows to re-sync — the merge
+                              // handler now backfills metadata for them.
+                              const needsBackfill =
+                                !r.classlinkClassId &&
+                                r.students.some((s) => s.classLinkSourcedId);
+                              const syncLabel = needsBackfill
+                                ? t('sidebar.classes.linkClassLink', {
+                                    defaultValue: 'Link to ClassLink class',
+                                  })
+                                : t('sidebar.classes.syncClassLink', {
+                                    defaultValue: 'Sync with ClassLink',
+                                  });
+                              return (
+                                <button
+                                  onClick={() =>
+                                    setClassLinkMode({
+                                      kind: 'merge',
+                                      rosterId: r.id,
+                                      rosterName: r.name,
+                                    })
+                                  }
+                                  className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                                  title={syncLabel}
+                                  aria-label={syncLabel}
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  {needsBackfill && (
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })()}
+                          <button
+                            onClick={() => void handleDelete(r)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title={t('sidebar.classes.delete', {
+                              defaultValue: 'Delete Class',
+                            })}
+                            aria-label={t('sidebar.classes.delete', {
+                              defaultValue: 'Delete Class',
+                            })}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     );
