@@ -17,7 +17,7 @@
  *     specific toggles flow through that slot, not by forking the primitive.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -62,7 +62,6 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import type {
-  ClassLinkClass,
   ClassRoster,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
@@ -70,13 +69,12 @@ import type {
   VideoActivitySession,
   VideoActivitySessionSettings,
 } from '@/types';
-import { classLinkService } from '@/utils/classlinkService';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
-  formatClassLinkClassLabel,
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
+import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -101,30 +99,24 @@ export interface VideoActivityManagerProps {
     activity: VideoActivityMetadata,
     settings: VideoActivitySessionSettings,
     assignmentName: string,
-    /**
-     * Selected ClassLink class `sourcedId`s (Phase 5A multi-class). Empty
-     * array means the teacher targeted local rosters or no classes at all.
-     */
-    classIds: string[],
-    /**
-     * Selected local-roster period names (Phase 5A). Populated when the
-     * teacher picked local rosters; when they picked ClassLink classes these
-     * are the ClassLink class labels so the post-PIN period picker + any
-     * export respect the teacher's intent.
-     */
-    selectedPeriodNames: string[]
+    /** Selected roster IDs (unified picker output). */
+    rosterIds: string[]
   ) => Promise<string>;
-  /** Local rosters used to populate the "Local rosters" source in the picker. */
+  /** Rosters to populate the picker. */
   rosters: ClassRoster[];
   /**
-   * @deprecated Phase 5A — replaced by `lastClassIdsByActivityId`.
+   * Per-activity memory of the last roster selection. Pre-selects the picker
+   * on re-launch.
    */
-  lastClassIdByActivityId?: Record<string, string>;
+  lastRosterIdsByActivityId?: Record<string, string[]>;
   /**
-   * Multi-class per-activity memory of the last ClassLink classes the
-   * teacher targeted. Pre-selects the picker on re-launch.
+   * @deprecated Read-only fallback for pre-unification widget configs.
+   * Holds ClassLink class `sourcedId`s; mapped to rosterIds via
+   * `mapLegacyClassIdsToRosterIds` when `lastRosterIdsByActivityId` is absent.
    */
   lastClassIdsByActivityId?: Record<string, string[]>;
+  /** @deprecated See `lastClassIdsByActivityId`. */
+  lastClassIdByActivityId?: Record<string, string>;
   /**
    * Optional persistence hook for manual drag-reorder of the library. Drag
    * reordering is only enabled when this callback is provided; otherwise the
@@ -245,8 +237,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   initialLibraryViewMode,
   onLibraryViewModeChange,
   rosters,
-  lastClassIdByActivityId,
+  lastRosterIdsByActivityId,
   lastClassIdsByActivityId,
+  lastClassIdByActivityId,
 }) => {
   const [tab, setTab] = useState<LibraryTab>('library');
 
@@ -257,10 +250,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
-  // Phase 5A: unified class-assignment picker state. Source defaults to
-  // ClassLink when any classes are available, otherwise falls back to Local.
+  // Unified roster picker state. Seeded from the per-activity roster memory
+  // on open so repeated assignments don't require re-picking.
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
-    makeEmptyPickerValue('classlink')
+    makeEmptyPickerValue()
   );
 
   // Adjust state during render when the assign target changes — avoids the
@@ -273,47 +266,27 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignError(null);
-    const rememberedMulti = lastClassIdsByActivityId?.[assignTarget.id];
-    const rememberedSingle = lastClassIdByActivityId?.[assignTarget.id];
-    const classIds =
-      rememberedMulti ?? (rememberedSingle ? [rememberedSingle] : []);
-    setPickerValue(
-      classIds.length > 0
-        ? { source: 'classlink', classIds, periodNames: [] }
-        : makeEmptyPickerValue('classlink')
-    );
+    // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+    // maps so teachers upgrading from pre-unification configs don't lose
+    // their per-activity preselection on first launch.
+    let rememberedRosters = lastRosterIdsByActivityId?.[assignTarget.id] ?? [];
+    if (rememberedRosters.length === 0) {
+      const legacyMulti = lastClassIdsByActivityId?.[assignTarget.id];
+      const legacySingle = lastClassIdByActivityId?.[assignTarget.id];
+      const legacyClassIds =
+        legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+      rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
+    }
+    setPickerValue({ rosterIds: rememberedRosters });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
   }
 
-  // ─── ClassLink target-class fetch (Phase 3B) ──────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per manager
-  // mount via the existing `classLinkService` (5-min cache — cheap). If the
-  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
-  // the selector is hidden entirely. Errors are swallowed: ClassLink being
-  // unreachable must not block classic join-URL launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to join-URL-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[VideoActivityManager] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // NOTE: The legacy `classLinkService.getRosters()` fetch was removed when
+  // the picker moved to roster-only targeting. Imported ClassLink rosters
+  // carry their own metadata (classlinkClassId) so the student SSO gate
+  // still works; live ClassLink data is now reached only via the Import
+  // dialog.
 
   // Delete confirmation state
   const [confirmDeleteActivityId, setConfirmDeleteActivityId] = useState<
@@ -501,28 +474,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       return;
     }
     setAssignError(null);
-    // Guard: filter stale sourcedIds that aren't in the latest ClassLink
-    // list. Selected local-roster names fall through unchanged.
-    const validClassIds =
-      pickerValue.source === 'classlink'
-        ? pickerValue.classIds.filter((id) =>
-            classLinkClasses.some((c) => c.sourcedId === id)
-          )
-        : [];
-    const selectedPeriodNames =
-      pickerValue.source === 'classlink'
-        ? validClassIds
-            .map((id) => classLinkClasses.find((c) => c.sourcedId === id))
-            .filter((cls): cls is ClassLinkClass => Boolean(cls))
-            .map(formatClassLinkClassLabel)
-        : pickerValue.periodNames;
+    // Guard against stale rosterIds — rosters can be deleted or fail to
+    // load (`loadError`) after the teacher's last assignment.
+    const visibleRosterIds = new Set(
+      rosters.filter((r) => !r.loadError).map((r) => r.id)
+    );
+    const validRosterIds = pickerValue.rosterIds.filter((id) =>
+      visibleRosterIds.has(id)
+    );
     try {
       await onAssign(
         assignTarget,
         assignOptions,
         assignmentName.trim(),
-        validClassIds,
-        selectedPeriodNames
+        validRosterIds
       );
       setAssignTarget(null);
     } catch (err) {
@@ -1009,7 +974,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           extraSlot={
             <div className="space-y-3">
               <AssignClassPicker
-                classLinkClasses={classLinkClasses}
                 rosters={rosters}
                 value={pickerValue}
                 onChange={setPickerValue}

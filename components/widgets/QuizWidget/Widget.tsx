@@ -32,6 +32,7 @@ import {
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
@@ -668,10 +669,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           mode,
           plcOptions: PlcOptions,
           sessionOptions: QuizSessionOptions,
-          classIds: string[]
+          rosterIds: string[]
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
+          // Derive session targets from selected rosters — `classIds` feeds
+          // the student SSO gate via Firestore rules; `rosterIds` is mirrored
+          // onto both assignment and session for reverse lookup.
+          const selectedRosters = rosters.filter((r) =>
+            rosterIds.includes(r.id)
+          );
+          const derived = deriveSessionTargetsFromRosters(selectedRosters);
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -691,24 +699,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 plcSheetUrl: plcOptions.plcSheetUrl,
               },
               'paused',
-              classIds
+              derived.classIds,
+              derived.rosterIds
             );
-            // Persist the teacher's last-used ClassLink classes per quiz so
+            // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
-            // Clearing removes the entry rather than writing an empty array.
-            const prevMap = config.lastClassIdsByQuizId ?? {};
+            const prevMap = config.lastRosterIdsByQuizId ?? {};
             const nextMap: Record<string, string[]> = { ...prevMap };
-            if (classIds.length > 0) {
-              nextMap[meta.id] = classIds;
+            if (rosterIds.length > 0) {
+              nextMap[meta.id] = rosterIds;
             } else {
               delete nextMap[meta.id];
             }
-            // Also clear the legacy single-class map entry so the picker
-            // doesn't see a stale single-id override after the teacher
-            // explicitly cleared or changed their selection.
-            const prevLegacyMap = config.lastClassIdByQuizId ?? {};
-            const nextLegacyMap: Record<string, string> = { ...prevLegacyMap };
-            delete nextLegacyMap[meta.id];
             updateWidget(widget.id, {
               config: {
                 ...config,
@@ -723,8 +725,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 plcSheetUrl: plcOptions.plcSheetUrl ?? '',
-                lastClassIdsByQuizId: nextMap,
-                lastClassIdByQuizId: nextLegacyMap,
+                lastRosterIdsByQuizId: nextMap,
               } as QuizConfig,
             });
             const url = `${window.location.origin}/quiz?code=${code}`;

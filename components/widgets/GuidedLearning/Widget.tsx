@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { doc, writeBatch } from 'firebase/firestore';
 import {
   WidgetData,
-  ClassLinkClass,
   GuidedLearningConfig,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
@@ -15,15 +14,17 @@ import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
-import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { AssignModal } from '@/components/common/library';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
-  formatClassLinkClassLabel,
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
+import {
+  deriveSessionTargetsFromRosters,
+  mapLegacyClassIdsToRosterIds,
+} from '@/utils/resolveAssignmentTargets';
 import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
@@ -103,46 +104,19 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     Record<string, string>
   >({});
 
-  // ─── ClassLink target-class fetch (Phase 3C) ────────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per Widget
-  // mount via the shared `classLinkService` (5-min cache). If the teacher
-  // isn't on a ClassLink-provisioned org, the list stays empty and the
-  // Assign dialog is skipped entirely. Errors are swallowed: ClassLink
-  // being unreachable must not block classic join-link launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to classic join-link-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[GuidedLearning] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Live ClassLink fetching is no longer performed at assign time; imported
+  // ClassLink rosters carry their own `classlinkClassId` metadata so the
+  // student SSO gate resolves purely from rosters. Live ClassLink data is
+  // reached only via the Classes sidebar's Import dialog.
 
-  // ─── Assign dialog state (Phase 3C, Phase 5A multi-class) ─────────────────
+  // ─── Assign dialog state ─────────────────────────────────────────────────
   // When a teacher clicks "Assign", we pause to let them optionally pick
-  // target classes (ClassLink) or period rosters (local) before actually
-  // creating the session. `assignTarget` holds the already-loaded set along
-  // with the source hint so we can create the assignment doc after
-  // confirmation.
+  // target rosters before actually creating the session.
   const [assignTarget, setAssignTarget] = useState<AssignDialogTarget | null>(
     null
   );
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
-    makeEmptyPickerValue('classlink')
+    makeEmptyPickerValue()
   );
 
   // Reset the picker when the dialog re-opens for a different set
@@ -152,17 +126,24 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
-      const rememberedMulti =
-        config.lastClassIdsBySetId?.[assignTarget.originSetId];
-      const rememberedSingle =
-        config.lastClassIdBySetId?.[assignTarget.originSetId];
-      const classIds =
-        rememberedMulti ?? (rememberedSingle ? [rememberedSingle] : []);
-      setPickerValue(
-        classIds.length > 0
-          ? { source: 'classlink', classIds, periodNames: [] }
-          : makeEmptyPickerValue('classlink')
-      );
+      // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+      // maps so teachers upgrading from pre-unification configs don't lose
+      // their per-set preselection on first launch.
+      let rememberedRosters =
+        config.lastRosterIdsBySetId?.[assignTarget.originSetId] ?? [];
+      if (rememberedRosters.length === 0) {
+        const legacyMulti =
+          config.lastClassIdsBySetId?.[assignTarget.originSetId];
+        const legacySingle =
+          config.lastClassIdBySetId?.[assignTarget.originSetId];
+        const legacyClassIds =
+          legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+        rememberedRosters = mapLegacyClassIdsToRosterIds(
+          legacyClassIds,
+          rosters
+        );
+      }
+      setPickerValue({ rosterIds: rememberedRosters });
     }
   }
 
@@ -270,11 +251,17 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       data: GuidedLearningSet,
       source: 'personal' | 'building',
       originSetId: string,
-      classIds: string[],
-      periodNames: string[]
+      rosterIds: string[]
     ) => {
       try {
-        const url = await createSession(data, classIds, periodNames);
+        const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
+        const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const url = await createSession(
+          data,
+          derived.classIds,
+          derived.periodNames,
+          derived.rosterIds
+        );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
           ...prev,
@@ -287,28 +274,24 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               setId: data.id,
               setTitle: data.title,
               source,
+              rosterIds: derived.rosterIds,
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
           }
         }
-        // Persist the teacher's last-used ClassLink selection per set.
-        const prevMap = config.lastClassIdsBySetId ?? {};
+        // Persist the teacher's last-used roster selection per set.
+        const prevMap = config.lastRosterIdsBySetId ?? {};
         const nextMap: Record<string, string[]> = { ...prevMap };
-        if (classIds.length > 0) {
-          nextMap[originSetId] = classIds;
+        if (rosterIds.length > 0) {
+          nextMap[originSetId] = rosterIds;
         } else {
           delete nextMap[originSetId];
         }
-        // Drop any legacy single-class entry.
-        const prevLegacyMap = config.lastClassIdBySetId ?? {};
-        const nextLegacyMap: Record<string, string> = { ...prevLegacyMap };
-        delete nextLegacyMap[originSetId];
         updateWidget(widget.id, {
           config: {
             ...config,
-            lastClassIdsBySetId: nextMap,
-            lastClassIdBySetId: nextLegacyMap,
+            lastRosterIdsBySetId: nextMap,
           } as GuidedLearningConfig,
         });
         await navigator.clipboard.writeText(url);
@@ -319,7 +302,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         addToast(msg, 'error');
       }
     },
-    [createSession, createAssignment, addToast, config, updateWidget, widget.id]
+    [
+      rosters,
+      createSession,
+      createAssignment,
+      addToast,
+      config,
+      updateWidget,
+      widget.id,
+    ]
   );
 
   const handleAssign = async (
@@ -332,42 +323,29 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const source: 'personal' | 'building' = buildingSet
       ? 'building'
       : 'personal';
-    // If the teacher has neither ClassLink nor local rosters, skip the
-    // dialog entirely and preserve the classic join-link flow.
-    if (classLinkClasses.length === 0 && rosters.length === 0) {
-      await performAssign(data, source, setId, [], []);
+    // If the teacher has no rosters at all, skip the dialog entirely and
+    // preserve the classic join-link flow.
+    if (rosters.length === 0) {
+      await performAssign(data, source, setId, []);
       return;
     }
-    // Otherwise open the dialog so they can optionally pick targets.
+    // Otherwise open the dialog so they can optionally pick rosters.
     setAssignTarget({ set: data, source, originSetId: setId });
   };
 
   const handleAssignConfirm = async (): Promise<void> => {
     if (!assignTarget) return;
-    // Guard: filter stale sourcedIds that aren't in the latest ClassLink
-    // list. Local roster names fall through unchanged.
-    const validClassIds =
-      pickerValue.source === 'classlink'
-        ? pickerValue.classIds.filter((id) =>
-            classLinkClasses.some((c) => c.sourcedId === id)
-          )
-        : [];
-    const selectedPeriodNames =
-      pickerValue.source === 'classlink'
-        ? validClassIds
-            .map((id) => classLinkClasses.find((c) => c.sourcedId === id))
-            .filter((cls): cls is ClassLinkClass => Boolean(cls))
-            .map(formatClassLinkClassLabel)
-        : pickerValue.periodNames;
+    // Guard against stale rosterIds — rosters can be deleted or fail to
+    // load (`loadError`) after the teacher's last assignment.
+    const visibleRosterIds = new Set(
+      rosters.filter((r) => !r.loadError).map((r) => r.id)
+    );
+    const validRosterIds = pickerValue.rosterIds.filter((id) =>
+      visibleRosterIds.has(id)
+    );
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
-    await performAssign(
-      set,
-      source,
-      originSetId,
-      validClassIds,
-      selectedPeriodNames
-    );
+    await performAssign(set, source, originSetId, validRosterIds);
   };
 
   const handleViewResultsForRecent = async (sessionId: string) => {
@@ -666,7 +644,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           onOptionsChange={setPickerValue}
           extraSlot={
             <AssignClassPicker
-              classLinkClasses={classLinkClasses}
               rosters={rosters}
               value={pickerValue}
               onChange={setPickerValue}

@@ -137,16 +137,29 @@ export interface UseGuidedLearningSessionTeacherResult {
   /**
    * Create a new session and return its URL.
    *
-   * `classIds` is the list of ClassLink class `sourcedId`s this session is
-   * targeted at (Phase 5A multi-class). When non-empty, the session doc
-   * stores them on `classIds` (and transitionally mirrors `classIds[0]` to
-   * `classId`). `periodNames` is the list of class-period labels used by
-   * the post-PIN picker on the student app.
+   * Post-unification, `rosterIds` is the canonical input — callers derive
+   * it from the shared `AssignClassPicker` selection. `classIds` and
+   * `periodNames` are the denormalised outputs the caller computes via
+   * `deriveSessionTargetsFromRosters(selectedRosters)`:
+   *
+   * - `classIds`: ClassLink `sourcedId`s drawn from the selected rosters'
+   *   `classlinkClassId` metadata. Drives the student SSO gate
+   *   (`passesStudentClassGate` in firestore.rules). `classIds[0]` is also
+   *   mirrored onto the session's legacy `classId` field so pre-Phase-5A
+   *   rules keep working.
+   * - `periodNames`: roster names (de-duped) used for the student app's
+   *   post-PIN period picker.
+   * - `rosterIds`: written onto the session doc for reverse lookup and
+   *   future migration to a single-source-of-truth roster-only model.
+   *
+   * All three are optional and independent for backwards compatibility
+   * with callers that still target the legacy shapes directly.
    */
   createSession: (
     set: GuidedLearningSet,
     classIds?: string[],
-    periodNames?: string[]
+    periodNames?: string[],
+    rosterIds?: string[]
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -167,7 +180,8 @@ export const useGuidedLearningSessionTeacher = (
     async (
       set: GuidedLearningSet,
       classIds: string[] = [],
-      periodNames: string[] = []
+      periodNames: string[] = [],
+      rosterIds: string[] = []
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
@@ -188,6 +202,7 @@ export const useGuidedLearningSessionTeacher = (
         // Firestore rules keep gating correctly.
         ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
         ...(periodNames.length > 0 ? { periodNames } : {}),
+        ...(rosterIds.length > 0 ? { rosterIds } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

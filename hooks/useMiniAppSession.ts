@@ -38,6 +38,12 @@ const normalizeSession = (
       )
     : [];
 
+  const rosterIds = Array.isArray(data.rosterIds)
+    ? data.rosterIds.filter(
+        (r): r is string => typeof r === 'string' && r.length > 0
+      )
+    : [];
+
   return {
     id: sessionId,
     appId: data.appId ?? '',
@@ -52,13 +58,22 @@ const normalizeSession = (
     createdAt,
     ...(typeof data.endedAt === 'number' ? { endedAt: data.endedAt } : {}),
     ...(classIds.length > 0 ? { classIds } : {}),
+    ...(rosterIds.length > 0 ? { rosterIds } : {}),
     ...(data.submissionsEnabled === true ? { submissionsEnabled: true } : {}),
   };
 };
 
 export interface CreateMiniAppSessionOptions {
-  /** ClassLink class sourcedIds the teacher targeted (multi-select). */
+  /**
+   * ClassLink `sourcedId`s for the student SSO gate. Derived upstream from
+   * the targeted rosters' `classlinkClassId` metadata. Empty when all
+   * targeted rosters are locally created — the rules' `passesStudentClassGateList`
+   * treats the empty list as "open to any student-role user," which matches
+   * today's behavior for the MiniApp session collection.
+   */
   classIds?: string[];
+  /** Roster IDs backing this session (unified targeting). */
+  rosterIds?: string[];
   /** Whether the runner should reveal the Submit button and persist
    *  submissions. Defaults to `false` (view-only). */
   submissionsEnabled?: boolean;
@@ -102,6 +117,9 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       const cleanedClassIds = (options?.classIds ?? []).filter(
         (c): c is string => typeof c === 'string' && c.length > 0
       );
+      const cleanedRosterIds = (options?.rosterIds ?? []).filter(
+        (r): r is string => typeof r === 'string' && r.length > 0
+      );
       const submissionsEnabled = options?.submissionsEnabled === true;
 
       const session: MiniAppSession = {
@@ -117,6 +135,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         status: 'active',
         createdAt: Date.now(),
         ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
+        ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         submissionsEnabled,
       };
 

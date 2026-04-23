@@ -120,6 +120,27 @@ export interface ClassRosterMeta {
    * from prior days are auto-ignored without needing cleanup.
    */
   absent?: { date: string; studentIds: string[] };
+  /**
+   * Where the roster originated. Absent on legacy docs → treat as 'local'.
+   * Named `origin` (not `source`) to avoid collision with `ClassRoster.source`
+   * ('user' | 'testClass'), which describes storage location, not provenance.
+   */
+  origin?: 'classlink' | 'local';
+  /**
+   * ClassLink class `sourcedId`. Present iff the roster was imported or merged
+   * from a ClassLink class. Drives session `classIds[]` derivation so the
+   * student-side ClassLink SSO gate (firestore.rules `passesStudentClassGate`)
+   * resolves without the assignment layer having to know about ClassLink.
+   */
+  classlinkClassId?: string;
+  /** ClassLink class code (e.g. "MATH-7-P3"); rendered in the picker badge tooltip. */
+  classlinkClassCode?: string;
+  /** ClassLink subject label; used for reconciliation and teacher-visible filters. */
+  classlinkSubject?: string;
+  /** ClassLink tenant/organization ID; required to scope re-sync API calls. */
+  classlinkOrgId?: string;
+  /** Epoch ms of the last ClassLink import or merge for this roster. */
+  classlinkSyncedAt?: number;
 }
 
 /**
@@ -1242,12 +1263,17 @@ export interface MiniAppConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Remembers the last ClassLink class selection the teacher made per app,
-   * keyed by appId. Used to pre-populate the target-class picker on
-   * subsequent assigns so teachers don't have to re-pick the same classes
-   * each time.
+   * @deprecated Pre-unification memory, written as ClassLink class
+   * `sourcedId`s. Read as a fallback (via `mapLegacyClassIdsToRosterIds`) to
+   * seed the picker only when `lastRosterIdsByAppId` is absent; never written
+   * by new code.
    */
   lastClassIdsByAppId?: Record<string, string[]>;
+  /**
+   * Remembers the last roster selection the teacher made per app, keyed by
+   * appId. Used to pre-populate the picker on subsequent assigns.
+   */
+  lastRosterIdsByAppId?: Record<string, string[]>;
   /**
    * Remembers the last submissions-enabled choice the teacher made per app,
    * keyed by appId. Used to pre-populate the toggle on subsequent assigns.
@@ -1278,6 +1304,12 @@ export interface MiniAppSession {
    * student across any of the selected classes.
    */
   classIds?: string[];
+  /**
+   * Roster IDs backing this session (new unified path). Derived from the
+   * teacher's picker selection; `classIds[]` above is derived from these
+   * rosters' `classlinkClassId` for the SSO gate. Absent on legacy sessions.
+   */
+  rosterIds?: string[];
   /**
    * Whether the sandboxed mini-app iframe should show its Submit button and
    * accept student submissions into the `submissions/` subcollection. Absent
@@ -1755,6 +1787,11 @@ export interface QuizSession {
    * no-op for non-studentRole users.
    */
   classIds?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 export interface QuizResponseAnswer {
@@ -1848,20 +1885,19 @@ export interface QuizConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * @deprecated Phase 5A — replaced by `lastClassIdsByQuizId` (multi-class).
-   * Retained for a transitional release so existing widget configs don't
-   * lose their pre-selection on first render. Readers prefer the multi-
-   * class map; fallback to this when the new key is absent.
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdByQuizId?: Record<string, string>;
   /**
-   * Per-quiz memory of the last ClassLink target classes (`sourcedId`s) the
-   * teacher picked in the Assign modal. Key is quizId, value is a list of
-   * ClassLink class sourcedIds. Used to pre-select the picker on re-launch
-   * of the same quiz so teachers don't have to re-pick every time. Missing
-   * keys mean "use the default (no classes selected)".
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsByQuizId`.
    */
   lastClassIdsByQuizId?: Record<string, string[]>;
+  /**
+   * Per-quiz memory of the last roster selection in the Assign modal.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsByQuizId?: Record<string, string[]>;
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -1912,6 +1948,9 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   status: QuizAssignmentStatus;
   createdAt: number;
   updatedAt: number;
+  /** Unified roster targeting (new post-unification assignments). Legacy
+   *  assignments read via `periodNames` / session `classIds` only. */
+  rosterIds?: string[];
 }
 
 /**
@@ -1991,22 +2030,19 @@ export interface VideoActivityConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-activity memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign modal. Key is activityId, value is the
-   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
-   * of the same activity so teachers don't have to re-pick every time.
-   * Undefined means "use the default (No class)".
-   *
-   * @deprecated Phase 5A — replaced by `lastClassIdsByActivityId` (multi).
-   * Retained for a transitional release so existing widget configs don't
-   * lose their pre-selection on first render.
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdByActivityId?: Record<string, string>;
   /**
-   * Multi-class variant of the per-activity memory (Phase 5A). Preferred
-   * over the legacy single-class map.
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsByActivityId`.
    */
   lastClassIdsByActivityId?: Record<string, string[]>;
+  /**
+   * Per-activity memory of the last roster selection in the Assign modal.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsByActivityId?: Record<string, string[]>;
 }
 
 export interface VideoActivitySessionSettings {
@@ -2071,6 +2107,11 @@ export interface VideoActivitySession {
    * the response's `classPeriod` field. Mirrors the QuizSession pattern.
    */
   periodNames?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2698,6 +2739,11 @@ export interface GuidedLearningSession {
    * the response's `classPeriod` field. Mirrors the QuizSession pattern.
    */
   periodNames?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -2731,22 +2777,19 @@ export interface GuidedLearningConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-set memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign dialog. Key is the Guided Learning set id,
-   * value is the ClassLink class sourcedId. Used to pre-select the selector
-   * on re-launch of the same set so teachers don't have to re-pick every
-   * time. Undefined means "use the default (No class)".
-   *
-   * @deprecated Phase 5A — replaced by `lastClassIdsBySetId` (multi).
-   * Retained for a transitional release so existing widget configs don't
-   * lose their pre-selection on first render.
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdBySetId?: Record<string, string>;
   /**
-   * Multi-class variant of the per-set memory (Phase 5A). Preferred over
-   * the legacy single-class map.
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsBySetId`.
    */
   lastClassIdsBySetId?: Record<string, string[]>;
+  /**
+   * Per-set memory of the last roster selection in the Assign dialog.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
 // Union of all widget configs
@@ -3763,6 +3806,10 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   status: VideoActivityAssignmentStatus;
   createdAt: number;
   updatedAt: number;
+  /** Unified roster targeting. New (post-unification) assignments write this;
+   *  legacy assignments read via `className` / session.classIds only. See
+   *  `utils/resolveAssignmentTargets.ts`. */
+  rosterIds?: string[];
 }
 
 // === MiniApp assignments ===
@@ -3791,9 +3838,17 @@ export interface MiniAppAssignment {
   status: 'active' | 'inactive';
   createdAt: number;
   updatedAt: number;
-  /** Mirrors `MiniAppSession.classIds`. Present when assigned via the
-   * class-targeted picker; absent (or empty) for shareable-link launches. */
-  classIds?: string[];
+  /** Unified roster targeting. Present on new (post-unification) assignments.
+   *
+   *  The student SSO gate lives on the session doc (`MiniAppSession.classIds`,
+   *  derived at assign time from these rosters' `classlinkClassId`); the
+   *  assignment doc intentionally does NOT mirror `classIds`, matching the
+   *  Quiz / VideoActivity / GuidedLearning assignment shapes.
+   *
+   *  Legacy pre-unification assignments may have no targeting fields at all
+   *  and read their targeting via the paired session doc. See
+   *  `utils/resolveAssignmentTargets.ts`. */
+  rosterIds?: string[];
   /** Mirrors `MiniAppSession.submissionsEnabled`. When true, the runner
    * reveals the Submit button and persists student submissions. */
   submissionsEnabled?: boolean;
@@ -3830,6 +3885,8 @@ export interface GuidedLearningAssignment {
   archivedAt?: number | null;
   /** Optional origin set: 'personal' (Drive) or 'building' (Firestore). */
   source?: 'personal' | 'building';
+  /** Unified roster targeting (new post-unification assignments). */
+  rosterIds?: string[];
 }
 
 // === Library folders (Wave 3) ===

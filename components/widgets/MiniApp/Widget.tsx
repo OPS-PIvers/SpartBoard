@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   MiniAppItem,
@@ -12,7 +6,6 @@ import {
   GlobalMiniAppItem,
   MiniAppAssignment,
   WidgetComponentProps,
-  ClassLinkClass,
 } from '@/types';
 import {
   LayoutGrid,
@@ -25,9 +18,7 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
-  Users,
 } from 'lucide-react';
-import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -36,12 +27,21 @@ import { useFolders } from '@/hooks/useFolders';
 import {
   collection,
   doc,
-  getDocs,
   setDoc,
   deleteDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  makeEmptyPickerValue,
+  resolveSelectedRosters,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
+import {
+  deriveSessionTargetsFromRosters,
+  mapLegacyClassIdsToRosterIds,
+} from '@/utils/resolveAssignmentTargets';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
@@ -64,26 +64,15 @@ interface MiniAppAssignModalProps {
   error: string | null;
   onConfirm: () => void;
   onClose: () => void;
-  /** ClassLink classes for the target-class picker. Hidden when empty. */
-  classLinkClasses: ClassLinkClass[];
-  /** Currently-selected ClassLink class sourcedIds (multi-select). */
-  selectedClassIds: string[];
-  onSelectedClassIdsChange: (next: string[]) => void;
+  /** Rosters available for targeting (unified picker). */
+  rosters: import('@/types').ClassRoster[];
+  /** Current picker selection. */
+  pickerValue: AssignClassPickerValue;
+  onPickerChange: (next: AssignClassPickerValue) => void;
   /** Whether submissions are enabled (Submit button shown, writes allowed). */
   submissionsEnabled: boolean;
   onSubmissionsEnabledChange: (next: boolean) => void;
 }
-
-/**
- * Human-readable label for a ClassLink class. Mirrors the format used by
- * `QuizManager` / `ActivityWallWidget` / etc. so teachers see the same class
- * names across every assignment-targeting flow.
- */
-const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-};
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   appTitle,
@@ -94,21 +83,12 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   error,
   onConfirm,
   onClose,
-  classLinkClasses,
-  selectedClassIds,
-  onSelectedClassIdsChange,
+  rosters,
+  pickerValue,
+  onPickerChange,
   submissionsEnabled,
   onSubmissionsEnabledChange,
 }) => {
-  const toggleClassId = (sourcedId: string) => {
-    if (selectedClassIds.includes(sourcedId)) {
-      onSelectedClassIdsChange(
-        selectedClassIds.filter((id) => id !== sourcedId)
-      );
-    } else {
-      onSelectedClassIdsChange([...selectedClassIds, sourcedId]);
-    }
-  };
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
     : null;
@@ -224,41 +204,17 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
                 />
               </div>
-              {classLinkClasses.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Users className="w-4 h-4 text-brand-blue-primary" />
-                    <span className="text-sm font-bold text-slate-700">
-                      Target classes (optional)
-                    </span>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto flex flex-col gap-1.5 pr-1">
-                    {classLinkClasses.map((cls) => {
-                      const checked = selectedClassIds.includes(cls.sourcedId);
-                      return (
-                        <label
-                          key={cls.sourcedId}
-                          className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer rounded-lg px-2 py-1 hover:bg-white"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleClassId(cls.sourcedId)}
-                            className="w-4 h-4 accent-brand-blue-primary"
-                          />
-                          <span className="truncate">
-                            {formatClassLinkClassLabel(cls)}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-2">
-                    Enrolled students will see this in their assignments list.
-                    Leave all boxes unchecked to share a link directly.
-                  </p>
-                </div>
-              )}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <AssignClassPicker
+                  rosters={rosters}
+                  value={pickerValue}
+                  onChange={onPickerChange}
+                />
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Enrolled students will see this in their assignments list.
+                  Leave unselected to share the link directly.
+                </p>
+              </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                 <span className="block text-sm font-bold text-slate-700 mb-2">
                   Submissions
@@ -323,24 +279,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, addToast } = useDashboard();
-  const { user, userRoles, orgId, roleId } = useAuth();
-  // Gate testClasses read on the same role check the Firestore rules enforce
-  // (`isSuperAdmin() || isDomainAdmin(orgId)`) rather than the legacy
-  // `/admins/` membership flag. Building admins appear in `/admins/` in some
-  // deployments — querying on that flag would trigger a permission-denied
-  // round-trip for them. See `resolveActorRole` in OrganizationPanel for the
-  // reference pattern.
-  const isSuperAdminByEmail = Boolean(
-    user?.email &&
-    userRoles?.superAdmins?.some(
-      (e) => e.toLowerCase() === user.email?.toLowerCase()
-    )
-  );
-  const canReadTestClasses =
-    isSuperAdminByEmail ||
-    roleId === 'super_admin' ||
-    roleId === 'domain_admin';
+  const { updateWidget, addToast, rosters } = useDashboard();
+  const { user } = useAuth();
   const { showConfirm } = useDialog();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
@@ -378,85 +318,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
-  const [assignTargetClassIds, setAssignTargetClassIds] = useState<string[]>(
-    []
-  );
+  const [assignPickerValue, setAssignPickerValue] =
+    useState<AssignClassPickerValue>(makeEmptyPickerValue());
   const [assignSubmissionsEnabled, setAssignSubmissionsEnabled] =
     useState(false);
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
-
-  // ─── ClassLink target-class fetch (Phase 3E) ────────────────────────────────
-  // Fetched once per widget mount via the shared classLinkService (5-min
-  // cache). Hidden entirely when the teacher isn't on a ClassLink-provisioned
-  // org. Errors are swallowed: ClassLink being unreachable must not block
-  // shareable-link launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  const [testClasses, setTestClasses] = useState<ClassLinkClass[]>([]);
-
-  // ClassLink roster fetch runs once per mount and does not depend on admin
-  // state — splitting it from the test-class fetch avoids re-issuing the
-  // ClassLink request when `roleId` hydrates from null.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[MiniAppWidget] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Test-class fetch is gated on the same role check Firestore rules use.
-  // Skipped when orgId is null — testClasses docs live under a specific org,
-  // so there is no valid query to issue without one.
-  useEffect(() => {
-    if (!canReadTestClasses || !orgId) {
-      setTestClasses([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const snap = await getDocs(
-          collection(db, `organizations/${orgId}/testClasses`)
-        );
-        if (cancelled) return;
-        setTestClasses(
-          snap.docs.map((d) => {
-            const data = d.data() as { title?: string; subject?: string };
-            return {
-              sourcedId: d.id,
-              title: `${data.title ?? d.id} (test)`,
-              subject: data.subject,
-            };
-          })
-        );
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('[MiniAppWidget] testClasses fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [canReadTestClasses, orgId]);
-
-  const mergedClassList = useMemo(
-    () => [...classLinkClasses, ...testClasses],
-    [classLinkClasses, testClasses]
-  );
 
   const buildDefaultAssignmentName = (appTitle: string) => {
     const formatted = new Date().toLocaleString([], {
@@ -473,10 +340,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentName(buildDefaultAssignmentName(app.title));
     setCreatedSessionId(null);
     setAssignError(null);
-    // Pre-populate the class picker and toggle with whatever the teacher
-    // picked last time for this app, so repeated assignments don't require
-    // re-picking.
-    setAssignTargetClassIds(config.lastClassIdsByAppId?.[app.id] ?? []);
+    // Pre-populate the roster picker with the teacher's last selection for
+    // this app. Prefer unified roster memory; fall back to the legacy
+    // ClassLink-sourcedId map so teachers upgrading from pre-unification
+    // configs keep their preselection.
+    let lastRosterIds = config.lastRosterIdsByAppId?.[app.id] ?? [];
+    if (lastRosterIds.length === 0) {
+      lastRosterIds = mapLegacyClassIdsToRosterIds(
+        config.lastClassIdsByAppId?.[app.id],
+        rosters
+      );
+    }
+    setAssignPickerValue({ rosterIds: lastRosterIds });
     setAssignSubmissionsEnabled(
       config.lastSubmissionsEnabledByAppId?.[app.id] ?? false
     );
@@ -516,31 +391,44 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setIsCreatingSession(true);
     setAssignError(null);
     try {
-      // Guard against stale selections: the class list refreshes on mount,
-      // and a teacher could have picked classes that have since been removed
-      // from the roster. Drop any sourcedIds we can't still see.
-      const visibleClassIds = new Set(mergedClassList.map((c) => c.sourcedId));
-      const resolvedClassIds = assignTargetClassIds.filter((id) =>
-        visibleClassIds.has(id)
-      );
+      // Resolve the picker selection against current rosters — dropped IDs
+      // (deleted) or rosters that failed to load students from Drive
+      // (`loadError`) are silently filtered so we never produce a session
+      // with zero PINs that no student can join.
+      const selectedRosters = resolveSelectedRosters(
+        assignPickerValue,
+        rosters
+      ).filter((r) => !r.loadError);
+      const derived = deriveSessionTargetsFromRosters(selectedRosters);
+
+      // NOTE ON GATING ASYMMETRY: `mini_app_sessions` Firestore rules use
+      // `passesStudentClassGateList`, which treats an empty `classIds[]` as
+      // "open to any student-role user." This means local-only rosters (no
+      // `classlinkClassId` metadata) still let any SSO student see the
+      // session — matching today's behavior. For the strict-gate collections
+      // (quiz, video activity, guided learning), empty classIds block SSO
+      // students entirely; PIN-joining students still pass.
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
         {
-          classIds: resolvedClassIds,
+          classIds: derived.classIds,
+          rosterIds: derived.rosterIds,
           submissionsEnabled: assignSubmissionsEnabled,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
       // in the In Progress / Archive tabs. Failures here are non-fatal —
-      // the session itself still exists.
+      // the session itself still exists. NOTE: only roster-level targeting
+      // (`rosterIds`) is mirrored; `classIds` lives on the session doc for
+      // the student SSO gate, matching the Quiz/VA/GL assignment shape.
       try {
         await createAssignment({
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
-          classIds: resolvedClassIds,
+          rosterIds: derived.rosterIds,
           submissionsEnabled: assignSubmissionsEnabled,
         });
       } catch (archiveErr) {
@@ -551,12 +439,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       }
       // Remember the teacher's choices for next time.
       try {
-        const prevClasses = config.lastClassIdsByAppId ?? {};
-        const nextClasses: Record<string, string[]> = { ...prevClasses };
-        if (resolvedClassIds.length > 0) {
-          nextClasses[assigningApp.id] = resolvedClassIds;
+        const prevRosters = config.lastRosterIdsByAppId ?? {};
+        const nextRosters: Record<string, string[]> = { ...prevRosters };
+        if (derived.rosterIds.length > 0) {
+          nextRosters[assigningApp.id] = derived.rosterIds;
         } else {
-          delete nextClasses[assigningApp.id];
+          delete nextRosters[assigningApp.id];
         }
         const prevToggle = config.lastSubmissionsEnabledByAppId ?? {};
         const nextToggle: Record<string, boolean> = {
@@ -566,7 +454,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         updateWidget(widget.id, {
           config: {
             ...config,
-            lastClassIdsByAppId: nextClasses,
+            lastRosterIdsByAppId: nextRosters,
             lastSubmissionsEnabledByAppId: nextToggle,
           } as MiniAppConfig,
         });
@@ -999,9 +887,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
-                classLinkClasses={mergedClassList}
-                selectedClassIds={assignTargetClassIds}
-                onSelectedClassIdsChange={setAssignTargetClassIds}
+                rosters={rosters}
+                pickerValue={assignPickerValue}
+                onPickerChange={setAssignPickerValue}
                 submissionsEnabled={assignSubmissionsEnabled}
                 onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
                 onConfirm={() => void handleConfirmAssign()}
@@ -1009,7 +897,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
-                  setAssignTargetClassIds([]);
+                  setAssignPickerValue(makeEmptyPickerValue());
                   setAssignSubmissionsEnabled(false);
                 }}
               />
@@ -1110,9 +998,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 isCreating={isCreatingSession}
                 createdSessionId={createdSessionId}
                 error={assignError}
-                classLinkClasses={mergedClassList}
-                selectedClassIds={assignTargetClassIds}
-                onSelectedClassIdsChange={setAssignTargetClassIds}
+                rosters={rosters}
+                pickerValue={assignPickerValue}
+                onPickerChange={setAssignPickerValue}
                 submissionsEnabled={assignSubmissionsEnabled}
                 onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
                 onConfirm={() => void handleConfirmAssign()}
@@ -1120,7 +1008,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
-                  setAssignTargetClassIds([]);
+                  setAssignPickerValue(makeEmptyPickerValue());
                   setAssignSubmissionsEnabled(false);
                 }}
               />

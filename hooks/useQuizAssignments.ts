@@ -75,7 +75,8 @@ export interface UseQuizAssignmentsResult {
     quiz: AssignmentQuizRef,
     settings: QuizAssignmentSettings,
     initialStatus?: QuizAssignmentStatus,
-    classIds?: string[]
+    classIds?: string[],
+    rosterIds?: string[]
   ) => Promise<{ id: string; code: string }>;
   /** Set both assignment.status and session.status to 'paused'. */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -184,9 +185,12 @@ export const useQuizAssignments = (
   const createAssignment = useCallback<
     UseQuizAssignmentsResult['createAssignment']
   >(
-    async (quiz, settings, initialStatus = 'active', classIds) => {
+    async (quiz, settings, initialStatus = 'active', classIds, rosterIds) => {
       if (!userId) throw new Error('Not authenticated');
       const targetClassIds = classIds ?? [];
+      const targetRosterIds = (rosterIds ?? []).filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
 
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
@@ -211,6 +215,7 @@ export const useQuizAssignments = (
         periodName: settings.periodName,
         periodNames: settings.periodNames,
         plcMemberEmails: settings.plcMemberEmails,
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -258,6 +263,7 @@ export const useQuizAssignments = (
         ...(targetClassIds.length > 0
           ? { classIds: targetClassIds, classId: targetClassIds[0] }
           : {}),
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       const batch = writeBatch(db);
@@ -501,6 +507,11 @@ export const useQuizAssignments = (
         periodName: undefined,
         periodNames: undefined,
       };
+      // Intentionally omit classIds/rosterIds: the shared doc's targeting
+      // refers to rosters in the ORIGINATOR's account and would be dangling
+      // refs here. The importer retargets on first launch via AssignClassPicker,
+      // which pre-seeds empty because lastRosterIdsByQuizId is only written at
+      // assign-confirm time (QuizWidget/Widget.tsx) — never during import.
       const created = await createAssignment(
         {
           id: savedMeta.id,

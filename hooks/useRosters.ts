@@ -100,7 +100,12 @@ class MockRosterStore {
     return [...this.rosters].sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  addRoster(id: string, name: string, students: Student[]): void {
+  addRoster(
+    id: string,
+    name: string,
+    students: Student[],
+    meta?: Partial<ClassRosterMeta>
+  ): void {
     const withPins = assignPins(students);
     const newRoster: ClassRoster = {
       id,
@@ -109,6 +114,7 @@ class MockRosterStore {
       driveFileId: null,
       studentCount: withPins.length,
       createdAt: Date.now(),
+      ...meta,
     };
     this.rosters.push(newRoster);
     this.notifyListeners();
@@ -201,8 +207,41 @@ const validateRosterMeta = (
       };
     }
   }
+  if (d.origin === 'classlink' || d.origin === 'local') {
+    meta.origin = d.origin;
+  }
+  if (typeof d.classlinkClassId === 'string') {
+    meta.classlinkClassId = d.classlinkClassId;
+  }
+  if (typeof d.classlinkClassCode === 'string') {
+    meta.classlinkClassCode = d.classlinkClassCode;
+  }
+  if (typeof d.classlinkSubject === 'string') {
+    meta.classlinkSubject = d.classlinkSubject;
+  }
+  if (typeof d.classlinkOrgId === 'string') {
+    meta.classlinkOrgId = d.classlinkOrgId;
+  }
+  if (typeof d.classlinkSyncedAt === 'number') {
+    meta.classlinkSyncedAt = d.classlinkSyncedAt;
+  }
   return meta;
 };
+
+/**
+ * Optional ClassLink metadata accepted by `addRoster`. Passed through to the
+ * Firestore doc so assignment pickers can treat a ClassLink-imported roster as
+ * the single source of truth (no more "is it ClassLink or local?" branching).
+ */
+export type RosterCreateMeta = Pick<
+  ClassRosterMeta,
+  | 'origin'
+  | 'classlinkClassId'
+  | 'classlinkClassCode'
+  | 'classlinkSubject'
+  | 'classlinkOrgId'
+  | 'classlinkSyncedAt'
+>;
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -487,23 +526,27 @@ export const useRosters = (user: User | null) => {
   // ─── CRUD actions ─────────────────────────────────────────────────────────
 
   const addRoster = useCallback(
-    async (name: string, students: Student[] = []) => {
+    async (name: string, students: Student[] = [], meta?: RosterCreateMeta) => {
       if (!user) throw new Error('No user');
 
       if (isAuthBypass) {
         const id = 'mock-roster-id-' + Date.now();
-        mockRosterStore.addRoster(id, name, students);
+        mockRosterStore.addRoster(id, name, students, meta);
         return id;
       }
 
       const withPins = assignPins(students);
 
-      // Write metadata-only to Firestore first to get the document ID
+      // Write metadata-only to Firestore first to get the document ID.
+      // ClassLink metadata (origin, classlinkClassId, etc.) is spread in here
+      // so the roster doc itself carries its provenance; individual students
+      // continue to track their own classLinkSourcedId separately.
       const firestoreData: Omit<ClassRosterMeta, 'id'> = {
         name,
         driveFileId: null,
         studentCount: withPins.length,
         createdAt: Date.now(),
+        ...meta,
       };
       const ref = await addDoc(
         collection(db, 'users', user.uid, 'rosters'),

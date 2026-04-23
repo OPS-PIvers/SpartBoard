@@ -29,6 +29,7 @@ import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
+import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -311,47 +312,43 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (
-          meta,
-          sessionSettings,
-          assignmentName,
-          classIds,
-          selectedPeriodNames
-        ) => {
+        onAssign={async (meta, sessionSettings, assignmentName, rosterIds) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
           if (!data) throw new Error('Failed to load activity data');
+          // Resolve rosterIds against the current rosters and derive
+          // ClassLink sourcedIds / period names / students in one shot.
+          const selectedRosters = rosters.filter((r) =>
+            rosterIds.includes(r.id)
+          );
+          const derived = deriveSessionTargetsFromRosters(selectedRosters);
           const sessionId = await createSession(
             data,
             user.uid,
             [],
             sessionSettings,
             assignmentName,
-            classIds,
-            selectedPeriodNames
+            derived.classIds,
+            derived.periodNames,
+            derived.rosterIds
           );
 
-          // Phase 5A: persist per-activity memory of the last ClassLink
-          // target classes so the next launch pre-selects the same set.
-          const prevMap = config.lastClassIdsByActivityId ?? {};
+          // Persist per-activity memory of the last roster selection so
+          // subsequent launches pre-fill the picker.
+          const prevMap = config.lastRosterIdsByActivityId ?? {};
           const nextMap: Record<string, string[]> = { ...prevMap };
-          if (classIds.length > 0) {
-            nextMap[meta.id] = classIds;
+          if (rosterIds.length > 0) {
+            nextMap[meta.id] = rosterIds;
           } else {
             delete nextMap[meta.id];
           }
-          // Drop any legacy single-class entry to avoid stale pre-selection.
-          const prevLegacyMap = config.lastClassIdByActivityId ?? {};
-          const nextLegacyMap: Record<string, string> = { ...prevLegacyMap };
-          delete nextLegacyMap[meta.id];
 
           updateWidget(widget.id, {
             config: {
               ...config,
               resultsSessionId: sessionId,
-              lastClassIdsByActivityId: nextMap,
-              lastClassIdByActivityId: nextLegacyMap,
+              lastRosterIdsByActivityId: nextMap,
             } as VideoActivityConfig,
           });
 
@@ -362,8 +359,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
           return sessionId;
         }}
-        lastClassIdByActivityId={config.lastClassIdByActivityId}
+        lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
+        lastClassIdByActivityId={config.lastClassIdByActivityId}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);
