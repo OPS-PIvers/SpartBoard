@@ -3838,11 +3838,15 @@ export interface MiniAppAssignment {
   status: 'active' | 'inactive';
   createdAt: number;
   updatedAt: number;
-  /** Mirrors `MiniAppSession.classIds` — ClassLink `sourcedId`s derived from
-   *  targeted rosters (via `classlinkClassId`) for the student SSO gate. */
-  classIds?: string[];
-  /** Unified roster targeting. Present on new (post-unification) assignments;
-   *  legacy assignments read via `classIds` only. See
+  /** Unified roster targeting. Present on new (post-unification) assignments.
+   *
+   *  The student SSO gate lives on the session doc (`MiniAppSession.classIds`,
+   *  derived at assign time from these rosters' `classlinkClassId`); the
+   *  assignment doc intentionally does NOT mirror `classIds`, matching the
+   *  Quiz / VideoActivity / GuidedLearning assignment shapes.
+   *
+   *  Legacy pre-unification assignments may have no targeting fields at all
+   *  and read their targeting via the paired session doc. See
    *  `utils/resolveAssignmentTargets.ts`. */
   rosterIds?: string[];
   /** Mirrors `MiniAppSession.submissionsEnabled`. When true, the runner

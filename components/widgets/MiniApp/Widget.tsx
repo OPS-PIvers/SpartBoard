@@ -420,14 +420,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       );
       // Mirror the new session into the per-teacher archive so it shows up
       // in the In Progress / Archive tabs. Failures here are non-fatal —
-      // the session itself still exists.
+      // the session itself still exists. NOTE: only roster-level targeting
+      // (`rosterIds`) is mirrored; `classIds` lives on the session doc for
+      // the student SSO gate, matching the Quiz/VA/GL assignment shape.
       try {
         await createAssignment({
           sessionId,
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
           rosterIds: derived.rosterIds,
-          classIds: derived.classIds,
           submissionsEnabled: assignSubmissionsEnabled,
         });
       } catch (archiveErr) {

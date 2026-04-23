@@ -507,6 +507,11 @@ export const useQuizAssignments = (
         periodName: undefined,
         periodNames: undefined,
       };
+      // Intentionally omit classIds/rosterIds: the shared doc's targeting
+      // refers to rosters in the ORIGINATOR's account and would be dangling
+      // refs here. The importer retargets on first launch via AssignClassPicker,
+      // which pre-seeds empty because lastRosterIdsByQuizId is only written at
+      // assign-confirm time (QuizWidget/Widget.tsx) — never during import.
       const created = await createAssignment(
         {
           id: savedMeta.id,

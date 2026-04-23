@@ -36,12 +36,11 @@ export interface CreateMiniAppAssignmentInput {
   sessionId: string;
   app: Pick<MiniAppItem, 'id' | 'title'>;
   assignmentName: string;
-  /** Roster IDs the teacher targeted (unified picker output). */
+  /** Roster IDs the teacher targeted (unified picker output). Mirrored onto
+   *  the assignment doc to match the Quiz/VA/GL shape so any future filtering
+   *  in the Library shell can key off the assignment list without a
+   *  session-doc join. */
   rosterIds?: string[];
-  /** ClassLink `sourcedId`s derived from the targeted rosters'
-   *  `classlinkClassId`. Written to the session doc so the student SSO gate
-   *  resolves; mirrored onto the assignment for legacy readers. */
-  classIds?: string[];
   /** Whether submissions are enabled for this assignment. Mirrors
    *  MiniAppSession.submissionsEnabled. */
   submissionsEnabled?: boolean;
@@ -117,13 +116,16 @@ export const useMiniAppAssignments = (
       const now = Date.now();
       const trimmedName = input.assignmentName.trim();
 
-      const cleanedClassIds = (input.classIds ?? []).filter(
-        (c): c is string => typeof c === 'string' && c.length > 0
-      );
       const cleanedRosterIds = (input.rosterIds ?? []).filter(
         (r): r is string => typeof r === 'string' && r.length > 0
       );
 
+      // Intentionally do NOT mirror `classIds` onto the assignment doc.
+      // The student SSO gate reads `classIds[]` from the MiniAppSession (see
+      // `mini_app_sessions` Firestore rules); the assignment archive only
+      // needs targeting metadata that teacher-side code actually reads back,
+      // and no caller reads `assignment.classIds`. Matches the Quiz/VA/GL
+      // shape (their assignment docs also store `rosterIds` only).
       const assignment: MiniAppAssignment = {
         id: assignmentId,
         sessionId: input.sessionId,
@@ -138,7 +140,6 @@ export const useMiniAppAssignments = (
         createdAt: now,
         updatedAt: now,
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
-        ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
         submissionsEnabled: input.submissionsEnabled === true,
       };
 
