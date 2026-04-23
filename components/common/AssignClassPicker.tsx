@@ -88,11 +88,13 @@ export const AssignClassPicker: React.FC<AssignClassPickerProps> = ({
         ...value,
         source: 'classlink',
         classIds: classLinkClasses.map((c) => c.sourcedId),
+        periodNames: [],
       });
     } else {
       onChange({
         ...value,
         source: 'local',
+        classIds: [],
         periodNames: rosters.map((r) => r.name),
       });
     }
