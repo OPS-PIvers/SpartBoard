@@ -75,10 +75,13 @@ export function resolveAssignmentTargets(
       }
     }
 
+    // De-dupe periodNames — two local rosters can share a name, and the
+    // student app keys its post-PIN period picker on the period string, so
+    // duplicates collide on React keys.
     return {
       rosterIds: matched.map((r) => r.id),
       classIds,
-      periodNames: matched.map((r) => r.name),
+      periodNames: Array.from(new Set(matched.map((r) => r.name))),
       students: Array.from(studentsById.values()),
       source: 'rosterIds',
     };
@@ -142,7 +145,8 @@ export function deriveSessionTargetsFromRosters(
   return {
     rosterIds: rosters.map((r) => r.id),
     classIds,
-    periodNames: rosters.map((r) => r.name),
+    // De-dupe periodNames — see note in `resolveAssignmentTargets`.
+    periodNames: Array.from(new Set(rosters.map((r) => r.name))),
     students: Array.from(studentsById.values()),
   };
 }

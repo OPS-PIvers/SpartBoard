@@ -123,10 +123,13 @@ function resolveEffectivePeriodNames(
 ): string[] {
   if (picker.rosterIds.length === 0) return [];
   const byId = new Map(rosters.map((r) => [r.id, r]));
-  return picker.rosterIds
+  const names = picker.rosterIds
     .map((id) => byId.get(id))
     .filter((r): r is ClassRoster => r !== undefined)
     .map((r) => r.name);
+  // De-dupe — roster names aren't unique, and the student app keys its
+  // post-PIN period picker on the period string.
+  return Array.from(new Set(names));
 }
 
 function buildDefaultAssignOptions(
