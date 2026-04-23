@@ -253,9 +253,8 @@ export const useQuizAssignments = (
         periodNames: settings.periodNames,
         // Phase 5A: multi-class ClassLink targeting. Write `classIds` when
         // non-empty; also mirror `classIds[0]` to the legacy `classId` field
-        // so the transitional Firestore rule (which reads
-        // `resource.data.get('classIds', [resource.data.get('classId', '')])`)
-        // keeps gating correctly until the fallback is removed.
+        // so both multi-class targeting and the legacy single-class fallback
+        // continue to gate access correctly until the fallback is removed.
         ...(targetClassIds.length > 0
           ? { classIds: targetClassIds, classId: targetClassIds[0] }
           : {}),
