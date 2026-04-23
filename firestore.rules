@@ -50,11 +50,20 @@ service cloud.firestore {
              classId in request.auth.token.classIds;
     }
 
-    // Gate helper used inside session rules: "either this caller is NOT a
-    // studentRole user, OR the session's classId is in their classIds claim".
-    // Used on both reads (resource.data) and writes (parent get()).
+    // Gate helper used inside session rules: passes when the caller is NOT a
+    // studentRole user, when the session has no class targeting (empty/missing
+    // classId — treat as "open to any studentRole holder with the PIN"), or
+    // when the session's classId is in their classIds claim.
+    //
+    // The untargeted-open branch mirrors the policy already documented on
+    // passesStudentClassGateList. Without it, a studentRole token (real SSO
+    // student or test-class-bypass super admin) joining a session whose
+    // creator did not pick a ClassLink class is denied — the per-join PIN is
+    // the secret in that path, not class membership.
     function passesStudentClassGate(sessionClassId) {
       return !isStudentRoleUser() ||
+             !(sessionClassId is string) ||
+             sessionClassId.size() == 0 ||
              studentRoleCanAccessClass(sessionClassId);
     }
 
