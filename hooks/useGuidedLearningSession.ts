@@ -137,13 +137,30 @@ export interface UseGuidedLearningSessionTeacherResult {
   /**
    * Create a new session and return its URL.
    *
-   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
-   * written onto the session doc so that ClassLink-authenticated students
-   * see this session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate`) enforce class-based access. Omitting it
-   * preserves the classic join-link flow.
+   * Post-unification, `rosterIds` is the canonical input — callers derive
+   * it from the shared `AssignClassPicker` selection. `classIds` and
+   * `periodNames` are the denormalised outputs the caller computes via
+   * `deriveSessionTargetsFromRosters(selectedRosters)`:
+   *
+   * - `classIds`: ClassLink `sourcedId`s drawn from the selected rosters'
+   *   `classlinkClassId` metadata. Drives the student SSO gate
+   *   (`passesStudentClassGate` in firestore.rules). `classIds[0]` is also
+   *   mirrored onto the session's legacy `classId` field so pre-Phase-5A
+   *   rules keep working.
+   * - `periodNames`: roster names (de-duped) used for the student app's
+   *   post-PIN period picker.
+   * - `rosterIds`: written onto the session doc for reverse lookup and
+   *   future migration to a single-source-of-truth roster-only model.
+   *
+   * All three are optional and independent for backwards compatibility
+   * with callers that still target the legacy shapes directly.
    */
-  createSession: (set: GuidedLearningSet, classId?: string) => Promise<string>;
+  createSession: (
+    set: GuidedLearningSet,
+    classIds?: string[],
+    periodNames?: string[],
+    rosterIds?: string[]
+  ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
   /** Export responses as a CSV blob string */
@@ -160,7 +177,12 @@ export const useGuidedLearningSessionTeacher = (
   const [responsesLoading, setResponsesLoading] = useState(false);
 
   const createSession = useCallback(
-    async (set: GuidedLearningSet, classId?: string): Promise<string> => {
+    async (
+      set: GuidedLearningSet,
+      classIds: string[] = [],
+      periodNames: string[] = [],
+      rosterIds: string[] = []
+    ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
       const sessionId = crypto.randomUUID();
@@ -174,11 +196,13 @@ export const useGuidedLearningSessionTeacher = (
         publicSteps,
         teacherUid,
         createdAt: Date.now(),
-        // Phase 3C: optional ClassLink target class. Only write when a
-        // non-empty sourcedId was supplied so sessions created without a
-        // target keep a clean doc shape (and the rules no-op branch kicks in
-        // via `resource.data.get('classId', '')`).
-        ...(classId ? { classId } : {}),
+        // Phase 5A: multi-class ClassLink targeting + post-PIN period
+        // picker support. `classIds` is authoritative; `classId` is
+        // transitionally mirrored to `classIds[0]` so pre-Phase-5A
+        // Firestore rules keep gating correctly.
+        ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
+        ...(periodNames.length > 0 ? { periodNames } : {}),
+        ...(rosterIds.length > 0 ? { rosterIds } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { doc, writeBatch } from 'firebase/firestore';
 import {
   WidgetData,
-  ClassLinkClass,
   GuidedLearningConfig,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
@@ -15,14 +14,22 @@ import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
-import { classLinkService } from '@/utils/classlinkService';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { AssignModal } from '@/components/common/library';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  makeEmptyPickerValue,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
+import {
+  deriveSessionTargetsFromRosters,
+  mapLegacyClassIdsToRosterIds,
+} from '@/utils/resolveAssignmentTargets';
 import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
 import { GuidedLearningResults } from './components/GuidedLearningResults';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 // ─── AI generation modal (admin only) ────────────────────────────────────────
 import { GuidedLearningAIGenerator } from './components/GuidedLearningAIGenerator';
@@ -45,7 +52,7 @@ interface AssignDialogTarget {
 export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, rosters } = useDashboard();
   const { user, isAdmin } = useAuth();
   const rawConfig = widget.config as GuidedLearningConfig;
   // Normalize legacy 'editor' view — the inline editor is removed; use the modal instead
@@ -97,58 +104,46 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     Record<string, string>
   >({});
 
-  // ─── ClassLink target-class fetch (Phase 3C) ────────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per Widget
-  // mount via the shared `classLinkService` (5-min cache). If the teacher
-  // isn't on a ClassLink-provisioned org, the list stays empty and the
-  // Assign dialog is skipped entirely. Errors are swallowed: ClassLink
-  // being unreachable must not block classic join-link launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to classic join-link-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[GuidedLearning] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Live ClassLink fetching is no longer performed at assign time; imported
+  // ClassLink rosters carry their own `classlinkClassId` metadata so the
+  // student SSO gate resolves purely from rosters. Live ClassLink data is
+  // reached only via the Classes sidebar's Import dialog.
 
-  // ─── Assign dialog state (Phase 3C) ─────────────────────────────────────────
-  // When a teacher clicks "Assign" and a ClassLink-provisioned org is in
-  // play, we pause to let them optionally pick a target class before
-  // actually creating the session. `assignTarget` holds the already-loaded
-  // set along with the source hint so we can create the assignment doc
-  // after confirmation.
+  // ─── Assign dialog state ─────────────────────────────────────────────────
+  // When a teacher clicks "Assign", we pause to let them optionally pick
+  // target rosters before actually creating the session.
   const [assignTarget, setAssignTarget] = useState<AssignDialogTarget | null>(
     null
   );
-  const [assignOptions, setAssignOptions] = useState<{ classId: string }>({
-    classId: '',
-  });
+  const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
+    makeEmptyPickerValue()
+  );
 
-  // Reset the pending classId when the dialog re-opens for a different set
+  // Reset the picker when the dialog re-opens for a different set
   // (adjust-state-while-rendering pattern — no effect needed).
   const [prevAssignTarget, setPrevAssignTarget] =
     useState<AssignDialogTarget | null>(null);
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
-      setAssignOptions({
-        classId: config.lastClassIdBySetId?.[assignTarget.originSetId] ?? '',
-      });
+      // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+      // maps so teachers upgrading from pre-unification configs don't lose
+      // their per-set preselection on first launch.
+      let rememberedRosters =
+        config.lastRosterIdsBySetId?.[assignTarget.originSetId] ?? [];
+      if (rememberedRosters.length === 0) {
+        const legacyMulti =
+          config.lastClassIdsBySetId?.[assignTarget.originSetId];
+        const legacySingle =
+          config.lastClassIdBySetId?.[assignTarget.originSetId];
+        const legacyClassIds =
+          legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+        rememberedRosters = mapLegacyClassIdsToRosterIds(
+          legacyClassIds,
+          rosters
+        );
+      }
+      setPickerValue({ rosterIds: rememberedRosters });
     }
   }
 
@@ -247,18 +242,26 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   // Actually create the session + matching assignment doc. Shared between
-  // the classic direct-assign path (no ClassLink org) and the target-class
-  // dialog confirm path. `classId` is the ClassLink class sourcedId, or
-  // `null` for "No class".
+  // the classic direct-assign path (no ClassLink/rosters) and the picker
+  // dialog confirm path. `classIds` is the selected ClassLink sourcedId
+  // list; `periodNames` is the list of post-PIN period labels (empty when
+  // the teacher targeted nothing).
   const performAssign = useCallback(
     async (
       data: GuidedLearningSet,
       source: 'personal' | 'building',
       originSetId: string,
-      classId: string | null
+      rosterIds: string[]
     ) => {
       try {
-        const url = await createSession(data, classId ?? undefined);
+        const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
+        const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const url = await createSession(
+          data,
+          derived.classIds,
+          derived.periodNames,
+          derived.rosterIds
+        );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
           ...prev,
@@ -271,26 +274,24 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               setId: data.id,
               setTitle: data.title,
               source,
+              rosterIds: derived.rosterIds,
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
           }
         }
-        // Persist the teacher's last-used classId per set so re-launching
-        // the same set pre-selects the same class. Clearing (picking "No
-        // class") removes the entry rather than writing an empty string to
-        // keep the config map small.
-        const prevMap = config.lastClassIdBySetId ?? {};
-        const nextMap: Record<string, string> = { ...prevMap };
-        if (classId) {
-          nextMap[originSetId] = classId;
+        // Persist the teacher's last-used roster selection per set.
+        const prevMap = config.lastRosterIdsBySetId ?? {};
+        const nextMap: Record<string, string[]> = { ...prevMap };
+        if (rosterIds.length > 0) {
+          nextMap[originSetId] = rosterIds;
         } else {
           delete nextMap[originSetId];
         }
         updateWidget(widget.id, {
           config: {
             ...config,
-            lastClassIdBySetId: nextMap,
+            lastRosterIdsBySetId: nextMap,
           } as GuidedLearningConfig,
         });
         await navigator.clipboard.writeText(url);
@@ -301,7 +302,15 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         addToast(msg, 'error');
       }
     },
-    [createSession, createAssignment, addToast, config, updateWidget, widget.id]
+    [
+      rosters,
+      createSession,
+      createAssignment,
+      addToast,
+      config,
+      updateWidget,
+      widget.id,
+    ]
   );
 
   const handleAssign = async (
@@ -314,30 +323,29 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const source: 'personal' | 'building' = buildingSet
       ? 'building'
       : 'personal';
-    // If the teacher isn't on a ClassLink-provisioned org (or the fetch
-    // failed), skip the dialog entirely and preserve the classic
-    // join-link flow.
-    if (classLinkClasses.length === 0) {
-      await performAssign(data, source, setId, null);
+    // If the teacher has no rosters at all, skip the dialog entirely and
+    // preserve the classic join-link flow.
+    if (rosters.length === 0) {
+      await performAssign(data, source, setId, []);
       return;
     }
-    // Otherwise open the dialog so they can optionally pick a target class.
+    // Otherwise open the dialog so they can optionally pick rosters.
     setAssignTarget({ set: data, source, originSetId: setId });
   };
 
   const handleAssignConfirm = async (): Promise<void> => {
     if (!assignTarget) return;
-    // Guard: if the teacher somehow picked a classId that's no longer in the
-    // fetched ClassLink list (e.g. rosters changed between fetch and confirm),
-    // fall through to no-class rather than writing a stale id.
-    const selectedClassId =
-      assignOptions.classId &&
-      classLinkClasses.some((c) => c.sourcedId === assignOptions.classId)
-        ? assignOptions.classId
-        : null;
+    // Guard against stale rosterIds — rosters can be deleted or fail to
+    // load (`loadError`) after the teacher's last assignment.
+    const visibleRosterIds = new Set(
+      rosters.filter((r) => !r.loadError).map((r) => r.id)
+    );
+    const validRosterIds = pickerValue.rosterIds.filter((id) =>
+      visibleRosterIds.has(id)
+    );
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
-    await performAssign(set, source, originSetId, selectedClassId);
+    await performAssign(set, source, originSetId, validRosterIds);
   };
 
   const handleViewResultsForRecent = async (sessionId: string) => {
@@ -628,17 +636,17 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
 
       {assignTarget && (
-        <AssignModal<{ classId: string }>
+        <AssignModal<AssignClassPickerValue>
           isOpen={!!assignTarget}
           onClose={() => setAssignTarget(null)}
           itemTitle={assignTarget.set.title || 'Untitled set'}
-          options={assignOptions}
-          onOptionsChange={setAssignOptions}
+          options={pickerValue}
+          onOptionsChange={setPickerValue}
           extraSlot={
-            <GuidedLearningAssignTargetClassRow
-              classes={classLinkClasses}
-              value={assignOptions.classId}
-              onChange={(v) => setAssignOptions({ classId: v })}
+            <AssignClassPicker
+              rosters={rosters}
+              value={pickerValue}
+              onChange={setPickerValue}
             />
           }
           onAssign={() => handleAssignConfirm()}
@@ -646,59 +654,5 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
     </>
-  );
-};
-
-/**
- * Build a human-readable label for a ClassLink class. Mirrors the format
- * used by `ClassLinkImportDialog` and `QuizManager` so teachers see the
- * same class names across flows.
- */
-function formatClassLinkClassLabel(cls: ClassLinkClass): string {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-}
-
-/**
- * Target-class selector rendered inside the Guided Learning Assign modal's
- * `extraSlot`. Lets the teacher pick an optional ClassLink class to target
- * this set at so that students who signed in via ClassLink see it on their
- * `/my-assignments` page. Phase 3C — fan-out of the Quiz pilot.
- */
-const GuidedLearningAssignTargetClassRow: React.FC<{
-  classes: ClassLinkClass[];
-  value: string;
-  onChange: (next: string) => void;
-}> = ({ classes, value, onChange }) => {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="w-4 h-4 text-brand-blue-primary" />
-        <label
-          htmlFor="gl-assign-target-class"
-          className="text-sm font-bold text-brand-blue-dark"
-        >
-          Target class (optional)
-        </label>
-      </div>
-      <select
-        id="gl-assign-target-class"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      >
-        <option value="">No class (use join code)</option>
-        {classes.map((cls) => (
-          <option key={cls.sourcedId} value={cls.sourcedId}>
-            {formatClassLinkClassLabel(cls)}
-          </option>
-        ))}
-      </select>
-      <p className="text-xxs text-slate-500 mt-1">
-        Students in this class will see this activity in their assignments list.
-        Leave blank to use a join code.
-      </p>
-    </div>
   );
 };

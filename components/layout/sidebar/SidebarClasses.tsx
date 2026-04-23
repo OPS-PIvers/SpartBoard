@@ -279,27 +279,50 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
-                              {classLinkEnabled && (
-                                <button
-                                  onClick={() =>
-                                    setClassLinkMode({
-                                      kind: 'merge',
-                                      rosterId: r.id,
-                                      rosterName: r.name,
-                                    })
-                                  }
-                                  className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                                  title={t('sidebar.classes.syncClassLink', {
-                                    defaultValue: 'Sync with ClassLink',
-                                  })}
-                                  aria-label={t(
-                                    'sidebar.classes.syncClassLink',
-                                    { defaultValue: 'Sync with ClassLink' }
-                                  )}
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              {classLinkEnabled &&
+                                (() => {
+                                  // Rosters whose students carry
+                                  // `classLinkSourcedId` but whose doc lacks
+                                  // `classlinkClassId` predate the unified
+                                  // metadata and are invisible to the student
+                                  // SSO gate. Surface an amber dot on Sync so
+                                  // the teacher knows to re-sync — the merge
+                                  // handler now backfills metadata for them.
+                                  const needsBackfill =
+                                    !r.classlinkClassId &&
+                                    r.students.some(
+                                      (s) => s.classLinkSourcedId
+                                    );
+                                  const syncLabel = needsBackfill
+                                    ? t('sidebar.classes.linkClassLink', {
+                                        defaultValue: 'Link to ClassLink class',
+                                      })
+                                    : t('sidebar.classes.syncClassLink', {
+                                        defaultValue: 'Sync with ClassLink',
+                                      });
+                                  return (
+                                    <button
+                                      onClick={() =>
+                                        setClassLinkMode({
+                                          kind: 'merge',
+                                          rosterId: r.id,
+                                          rosterName: r.name,
+                                        })
+                                      }
+                                      className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                                      title={syncLabel}
+                                      aria-label={syncLabel}
+                                    >
+                                      <RefreshCw className="w-3.5 h-3.5" />
+                                      {needsBackfill && (
+                                        <span
+                                          aria-hidden="true"
+                                          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
+                                        />
+                                      )}
+                                    </button>
+                                  );
+                                })()}
                               <button
                                 onClick={() => void handleDelete(r)}
                                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

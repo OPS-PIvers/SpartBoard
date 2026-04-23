@@ -62,17 +62,21 @@ export interface UseQuizAssignmentsResult {
    * Create a new assignment + its matching session doc in one batch.
    * Returns the new assignment's id (== sessionId) and the allocated join code.
    *
-   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
-   * written onto the session doc so that ClassLink-authenticated students
-   * see this session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate`) enforce class-based access. Omitting it
-   * preserves the classic code/PIN-only flow.
+   * `classIds` is the list of ClassLink class `sourcedId`s this session is
+   * targeted at (Phase 5A multi-class). When non-empty, the session doc
+   * stores them on `classIds` (and transitionally mirrors `classIds[0]` to
+   * `classId` so pre-Phase-5A Firestore rules still gate correctly).
+   * Firestore rules (`passesStudentClassGateList`) enforce that ClassLink-
+   * authenticated students can only read sessions whose classIds overlap
+   * their auth-token classIds claim. An empty/missing list preserves the
+   * classic code/PIN-only flow.
    */
   createAssignment: (
     quiz: AssignmentQuizRef,
     settings: QuizAssignmentSettings,
     initialStatus?: QuizAssignmentStatus,
-    classId?: string
+    classIds?: string[],
+    rosterIds?: string[]
   ) => Promise<{ id: string; code: string }>;
   /** Set both assignment.status and session.status to 'paused'. */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -181,8 +185,12 @@ export const useQuizAssignments = (
   const createAssignment = useCallback<
     UseQuizAssignmentsResult['createAssignment']
   >(
-    async (quiz, settings, initialStatus = 'active', classId) => {
+    async (quiz, settings, initialStatus = 'active', classIds, rosterIds) => {
       if (!userId) throw new Error('Not authenticated');
+      const targetClassIds = classIds ?? [];
+      const targetRosterIds = (rosterIds ?? []).filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
 
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
@@ -207,6 +215,7 @@ export const useQuizAssignments = (
         periodName: settings.periodName,
         periodNames: settings.periodNames,
         plcMemberEmails: settings.plcMemberEmails,
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -247,11 +256,14 @@ export const useQuizAssignments = (
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
         questionPhase: 'answering',
         periodNames: settings.periodNames,
-        // Phase 3A: optional ClassLink target class. Only write when a
-        // non-empty sourcedId was supplied so sessions created without a
-        // target keep a clean doc shape (and the rules no-op branch kicks in
-        // via `resource.data.get('classId', '')`).
-        ...(classId ? { classId } : {}),
+        // Phase 5A: multi-class ClassLink targeting. Write `classIds` when
+        // non-empty; also mirror `classIds[0]` to the legacy `classId` field
+        // so both multi-class targeting and the legacy single-class fallback
+        // continue to gate access correctly until the fallback is removed.
+        ...(targetClassIds.length > 0
+          ? { classIds: targetClassIds, classId: targetClassIds[0] }
+          : {}),
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       const batch = writeBatch(db);
@@ -495,6 +507,11 @@ export const useQuizAssignments = (
         periodName: undefined,
         periodNames: undefined,
       };
+      // Intentionally omit classIds/rosterIds: the shared doc's targeting
+      // refers to rosters in the ORIGINATOR's account and would be dangling
+      // refs here. The importer retargets on first launch via AssignClassPicker,
+      // which pre-seeds empty because lastRosterIdsByQuizId is only written at
+      // assign-confirm time (QuizWidget/Widget.tsx) — never during import.
       const created = await createAssignment(
         {
           id: savedMeta.id,

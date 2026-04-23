@@ -32,6 +32,7 @@ import {
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
@@ -668,10 +669,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           mode,
           plcOptions: PlcOptions,
           sessionOptions: QuizSessionOptions,
-          classId: string | null
+          rosterIds: string[]
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
+          // Derive session targets from selected rosters — `classIds` feeds
+          // the student SSO gate via Firestore rules; `rosterIds` is mirrored
+          // onto both assignment and session for reverse lookup.
+          const selectedRosters = rosters.filter((r) =>
+            rosterIds.includes(r.id)
+          );
+          const derived = deriveSessionTargetsFromRosters(selectedRosters);
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -691,16 +699,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 plcSheetUrl: plcOptions.plcSheetUrl,
               },
               'paused',
-              classId ?? undefined
+              derived.classIds,
+              derived.rosterIds
             );
-            // Persist the teacher's last-used classId per quiz so re-launching
-            // the same quiz pre-selects the same class. Clearing (picking "No
-            // class") removes the entry rather than writing an empty string
-            // to keep the config map small.
-            const prevMap = config.lastClassIdByQuizId ?? {};
-            const nextMap: Record<string, string> = { ...prevMap };
-            if (classId) {
-              nextMap[meta.id] = classId;
+            // Persist the teacher's last-used rosters per quiz so
+            // re-launching the same quiz pre-selects the same classes.
+            const prevMap = config.lastRosterIdsByQuizId ?? {};
+            const nextMap: Record<string, string[]> = { ...prevMap };
+            if (rosterIds.length > 0) {
+              nextMap[meta.id] = rosterIds;
             } else {
               delete nextMap[meta.id];
             }
@@ -718,7 +725,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 plcSheetUrl: plcOptions.plcSheetUrl ?? '',
-                lastClassIdByQuizId: nextMap,
+                lastRosterIdsByQuizId: nextMap,
               } as QuizConfig,
             });
             const url = `${window.location.origin}/quiz?code=${code}`;

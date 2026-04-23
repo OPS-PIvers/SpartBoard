@@ -120,6 +120,27 @@ export interface ClassRosterMeta {
    * from prior days are auto-ignored without needing cleanup.
    */
   absent?: { date: string; studentIds: string[] };
+  /**
+   * Where the roster originated. Absent on legacy docs → treat as 'local'.
+   * Named `origin` (not `source`) to avoid collision with `ClassRoster.source`
+   * ('user' | 'testClass'), which describes storage location, not provenance.
+   */
+  origin?: 'classlink' | 'local';
+  /**
+   * ClassLink class `sourcedId`. Present iff the roster was imported or merged
+   * from a ClassLink class. Drives session `classIds[]` derivation so the
+   * student-side ClassLink SSO gate (firestore.rules `passesStudentClassGate`)
+   * resolves without the assignment layer having to know about ClassLink.
+   */
+  classlinkClassId?: string;
+  /** ClassLink class code (e.g. "MATH-7-P3"); rendered in the picker badge tooltip. */
+  classlinkClassCode?: string;
+  /** ClassLink subject label; used for reconciliation and teacher-visible filters. */
+  classlinkSubject?: string;
+  /** ClassLink tenant/organization ID; required to scope re-sync API calls. */
+  classlinkOrgId?: string;
+  /** Epoch ms of the last ClassLink import or merge for this roster. */
+  classlinkSyncedAt?: number;
 }
 
 /**
@@ -1242,12 +1263,17 @@ export interface MiniAppConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Remembers the last ClassLink class selection the teacher made per app,
-   * keyed by appId. Used to pre-populate the target-class picker on
-   * subsequent assigns so teachers don't have to re-pick the same classes
-   * each time.
+   * @deprecated Pre-unification memory, written as ClassLink class
+   * `sourcedId`s. Read as a fallback (via `mapLegacyClassIdsToRosterIds`) to
+   * seed the picker only when `lastRosterIdsByAppId` is absent; never written
+   * by new code.
    */
   lastClassIdsByAppId?: Record<string, string[]>;
+  /**
+   * Remembers the last roster selection the teacher made per app, keyed by
+   * appId. Used to pre-populate the picker on subsequent assigns.
+   */
+  lastRosterIdsByAppId?: Record<string, string[]>;
   /**
    * Remembers the last submissions-enabled choice the teacher made per app,
    * keyed by appId. Used to pre-populate the toggle on subsequent assigns.
@@ -1278,6 +1304,12 @@ export interface MiniAppSession {
    * student across any of the selected classes.
    */
   classIds?: string[];
+  /**
+   * Roster IDs backing this session (new unified path). Derived from the
+   * teacher's picker selection; `classIds[]` above is derived from these
+   * rosters' `classlinkClassId` for the SSO gate. Absent on legacy sessions.
+   */
+  rosterIds?: string[];
   /**
    * Whether the sandboxed mini-app iframe should show its Submit button and
    * accept student submissions into the `submissions/` subcollection. Absent
@@ -1737,17 +1769,29 @@ export interface QuizSession {
   /** Selected class period roster names available for students to join. */
   periodNames?: string[];
 
-  // ─── ClassLink target class (Phase 3A) ─────────────────────────────────────
+  // ─── ClassLink target class (Phase 3A, Phase 5A multi-class) ───────────────
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * present, students who signed in via the ClassLink / Google flow will see
-   * this session on their `/my-assignments` page, and Firestore rules
-   * enforce (via `passesStudentClassGate`) that only students enrolled in
-   * this class can read the session doc. Omit (or leave as an empty string)
-   * to preserve the classic code/PIN-only flow — the gate is a no-op for
-   * non-studentRole users.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target: the list of ClassLink class `sourcedId`s
+   * this session is targeted at. When non-empty, students who signed in via
+   * the ClassLink / Google flow will see this session on their
+   * `/my-assignments` page, and Firestore rules (via
+   * `passesStudentClassGateList`) enforce that the student has at least one
+   * of these classes in their `classIds` auth-token claim. An empty or
+   * missing list preserves the classic code/PIN-only flow — the gate is a
+   * no-op for non-studentRole users.
+   */
+  classIds?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 export interface QuizResponseAnswer {
@@ -1841,13 +1885,19 @@ export interface QuizConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-quiz memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign modal. Key is quizId, value is the
-   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
-   * of the same quiz so teachers don't have to re-pick every time.
-   * Undefined means "use the default (No class)".
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdByQuizId?: Record<string, string>;
+  /**
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsByQuizId`.
+   */
+  lastClassIdsByQuizId?: Record<string, string[]>;
+  /**
+   * Per-quiz memory of the last roster selection in the Assign modal.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsByQuizId?: Record<string, string[]>;
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -1898,6 +1948,9 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   status: QuizAssignmentStatus;
   createdAt: number;
   updatedAt: number;
+  /** Unified roster targeting (new post-unification assignments). Legacy
+   *  assignments read via `periodNames` / session `classIds` only. */
+  rosterIds?: string[];
 }
 
 /**
@@ -1977,13 +2030,19 @@ export interface VideoActivityConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-activity memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign modal. Key is activityId, value is the
-   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
-   * of the same activity so teachers don't have to re-pick every time.
-   * Undefined means "use the default (No class)".
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdByActivityId?: Record<string, string>;
+  /**
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsByActivityId`.
+   */
+  lastClassIdsByActivityId?: Record<string, string[]>;
+  /**
+   * Per-activity memory of the last roster selection in the Assign modal.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsByActivityId?: Record<string, string[]>;
 }
 
 export interface VideoActivitySessionSettings {
@@ -2028,13 +2087,31 @@ export interface VideoActivitySession {
   /** Optional Unix timestamp when the session link expires. */
   expiresAt?: number;
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * set, ClassLink-authenticated students whose token includes this classId
-   * see the session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
-   * access. Undefined preserves the classic code/PIN-only flow.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target list. ClassLink-authenticated students whose
+   * token `classIds` claim overlaps this list see the session on their
+   * `/my-assignments` page; Firestore rules (`passesStudentClassGateList`)
+   * enforce the class gate. An empty/missing list preserves the classic
+   * PIN-only flow.
+   */
+  classIds?: string[];
+  /**
+   * Optional class-period names (typically local roster names) available for
+   * students to choose from after entering their PIN. When present and > 1,
+   * the student app shows a post-PIN picker and writes the chosen value to
+   * the response's `classPeriod` field. Mirrors the QuizSession pattern.
+   */
+  periodNames?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2061,6 +2138,8 @@ export interface VideoActivityResponse {
   answers: VideoActivityAnswer[];
   completedAt: number | null;
   score: number | null;
+  /** Which class period the student selected when joining (multi-class support). */
+  classPeriod?: string;
 }
 
 export interface TalkingToolConfig {
@@ -2638,17 +2717,33 @@ export interface GuidedLearningSession {
   teacherUid: string;
   createdAt: number;
   expiresAt?: number;
-  // ─── ClassLink target class (Phase 3C) ─────────────────────────────────────
+  // ─── ClassLink target class (Phase 3C, Phase 5A multi-class) ───────────────
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * present, students who signed in via the ClassLink / Google flow will see
-   * this session on their `/my-assignments` page, and Firestore rules
-   * enforce (via `passesStudentClassGate`) that only students enrolled in
-   * this class can read the session doc. Omit (or leave as an empty string)
-   * to preserve the classic join-link flow — the gate is a no-op for
-   * non-studentRole users.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target list. ClassLink-authenticated students whose
+   * token `classIds` claim overlaps this list see the session on their
+   * `/my-assignments` page; Firestore rules (`passesStudentClassGateList`)
+   * enforce the class gate. An empty/missing list preserves the classic
+   * join-link flow.
+   */
+  classIds?: string[];
+  /**
+   * Optional class-period names (typically local roster names) available for
+   * students to choose from after entering their PIN. When present and > 1,
+   * the student app shows a post-PIN picker and writes the chosen value to
+   * the response's `classPeriod` field. Mirrors the QuizSession pattern.
+   */
+  periodNames?: string[];
+  /**
+   * Roster IDs backing this session (unified targeting). `classIds` above is
+   * derived from these rosters' `classlinkClassId` metadata.
+   */
+  rosterIds?: string[];
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -2664,6 +2759,8 @@ export interface GuidedLearningResponse {
   completedAt: number | null;
   startedAt: number;
   score: number | null;
+  /** Which class period the student selected when joining (multi-class support). */
+  classPeriod?: string;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -2680,13 +2777,19 @@ export interface GuidedLearningConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-set memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign dialog. Key is the Guided Learning set id,
-   * value is the ClassLink class sourcedId. Used to pre-select the selector
-   * on re-launch of the same set so teachers don't have to re-pick every
-   * time. Undefined means "use the default (No class)".
+   * @deprecated Pre-Phase-5A single-class memory. Read-only fallback now.
    */
   lastClassIdBySetId?: Record<string, string>;
+  /**
+   * @deprecated Phase 5A ClassLink-sourcedId map. Read-only fallback for
+   * pre-unification configs; new code writes `lastRosterIdsBySetId`.
+   */
+  lastClassIdsBySetId?: Record<string, string[]>;
+  /**
+   * Per-set memory of the last roster selection in the Assign dialog.
+   * Pre-selects the picker on re-launch.
+   */
+  lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
 // Union of all widget configs
@@ -3703,6 +3806,10 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   status: VideoActivityAssignmentStatus;
   createdAt: number;
   updatedAt: number;
+  /** Unified roster targeting. New (post-unification) assignments write this;
+   *  legacy assignments read via `className` / session.classIds only. See
+   *  `utils/resolveAssignmentTargets.ts`. */
+  rosterIds?: string[];
 }
 
 // === MiniApp assignments ===
@@ -3731,9 +3838,17 @@ export interface MiniAppAssignment {
   status: 'active' | 'inactive';
   createdAt: number;
   updatedAt: number;
-  /** Mirrors `MiniAppSession.classIds`. Present when assigned via the
-   * class-targeted picker; absent (or empty) for shareable-link launches. */
-  classIds?: string[];
+  /** Unified roster targeting. Present on new (post-unification) assignments.
+   *
+   *  The student SSO gate lives on the session doc (`MiniAppSession.classIds`,
+   *  derived at assign time from these rosters' `classlinkClassId`); the
+   *  assignment doc intentionally does NOT mirror `classIds`, matching the
+   *  Quiz / VideoActivity / GuidedLearning assignment shapes.
+   *
+   *  Legacy pre-unification assignments may have no targeting fields at all
+   *  and read their targeting via the paired session doc. See
+   *  `utils/resolveAssignmentTargets.ts`. */
+  rosterIds?: string[];
   /** Mirrors `MiniAppSession.submissionsEnabled`. When true, the runner
    * reveals the Submit button and persists student submissions. */
   submissionsEnabled?: boolean;
@@ -3770,6 +3885,8 @@ export interface GuidedLearningAssignment {
   archivedAt?: number | null;
   /** Optional origin set: 'personal' (Drive) or 'building' (Firestore). */
   source?: 'personal' | 'building';
+  /** Unified roster targeting (new post-unification assignments). */
+  rosterIds?: string[];
 }
 
 // === Library folders (Wave 3) ===

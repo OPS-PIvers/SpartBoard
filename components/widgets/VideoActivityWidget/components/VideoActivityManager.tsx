@@ -17,7 +17,7 @@
  *     specific toggles flow through that slot, not by forking the primitive.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -32,7 +32,6 @@ import {
   PlayCircle,
   Plus,
   Trash2,
-  Users,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -63,14 +62,19 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import type {
-  ClassLinkClass,
+  ClassRoster,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
   VideoActivitySession,
   VideoActivitySessionSettings,
 } from '@/types';
-import { classLinkService } from '@/utils/classlinkService';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  makeEmptyPickerValue,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
+import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -95,18 +99,23 @@ export interface VideoActivityManagerProps {
     activity: VideoActivityMetadata,
     settings: VideoActivitySessionSettings,
     assignmentName: string,
-    /**
-     * ClassLink target class `sourcedId`, or `null` when the teacher chose
-     * "No class" (classic join-URL-only flow). Phase 3B.
-     */
-    classId: string | null
+    /** Selected roster IDs (unified picker output). */
+    rosterIds: string[]
   ) => Promise<string>;
+  /** Rosters to populate the picker. */
+  rosters: ClassRoster[];
   /**
-   * Per-activity memory of the last ClassLink class the teacher targeted.
-   * Used to pre-select the target-class selector on re-launch of the same
-   * activity. Passed through from widget config; missing keys fall through
-   * to "No class". Phase 3B.
+   * Per-activity memory of the last roster selection. Pre-selects the picker
+   * on re-launch.
    */
+  lastRosterIdsByActivityId?: Record<string, string[]>;
+  /**
+   * @deprecated Read-only fallback for pre-unification widget configs.
+   * Holds ClassLink class `sourcedId`s; mapped to rosterIds via
+   * `mapLegacyClassIdsToRosterIds` when `lastRosterIdsByActivityId` is absent.
+   */
+  lastClassIdsByActivityId?: Record<string, string[]>;
+  /** @deprecated See `lastClassIdsByActivityId`. */
   lastClassIdByActivityId?: Record<string, string>;
   /**
    * Optional persistence hook for manual drag-reorder of the library. Drag
@@ -227,6 +236,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveResults,
   initialLibraryViewMode,
   onLibraryViewModeChange,
+  rosters,
+  lastRosterIdsByActivityId,
+  lastClassIdsByActivityId,
   lastClassIdByActivityId,
 }) => {
   const [tab, setTab] = useState<LibraryTab>('library');
@@ -238,9 +250,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
-  // Phase 3B: selected ClassLink target class `sourcedId`, or `''` for
-  // "No class" (classic join-URL-only flow).
-  const [assignClassId, setAssignClassId] = useState<string>('');
+  // Unified roster picker state. Seeded from the per-activity roster memory
+  // on open so repeated assignments don't require re-picking.
+  const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
+    makeEmptyPickerValue()
+  );
 
   // Adjust state during render when the assign target changes — avoids the
   // set-state-in-effect anti-pattern while keeping form fields reset per open.
@@ -252,39 +266,27 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignError(null);
-    setAssignClassId(lastClassIdByActivityId?.[assignTarget.id] ?? '');
+    // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+    // maps so teachers upgrading from pre-unification configs don't lose
+    // their per-activity preselection on first launch.
+    let rememberedRosters = lastRosterIdsByActivityId?.[assignTarget.id] ?? [];
+    if (rememberedRosters.length === 0) {
+      const legacyMulti = lastClassIdsByActivityId?.[assignTarget.id];
+      const legacySingle = lastClassIdByActivityId?.[assignTarget.id];
+      const legacyClassIds =
+        legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+      rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
+    }
+    setPickerValue({ rosterIds: rememberedRosters });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
   }
 
-  // ─── ClassLink target-class fetch (Phase 3B) ──────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per manager
-  // mount via the existing `classLinkService` (5-min cache — cheap). If the
-  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
-  // the selector is hidden entirely. Errors are swallowed: ClassLink being
-  // unreachable must not block classic join-URL launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to join-URL-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[VideoActivityManager] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // NOTE: The legacy `classLinkService.getRosters()` fetch was removed when
+  // the picker moved to roster-only targeting. Imported ClassLink rosters
+  // carry their own metadata (classlinkClassId) so the student SSO gate
+  // still works; live ClassLink data is now reached only via the Import
+  // dialog.
 
   // Delete confirmation state
   const [confirmDeleteActivityId, setConfirmDeleteActivityId] = useState<
@@ -472,20 +474,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       return;
     }
     setAssignError(null);
-    // Guard: if the teacher somehow picked a classId that's no longer in the
-    // fetched ClassLink list (e.g. rosters changed between fetch and confirm),
-    // fall through to no-class rather than writing a stale id.
-    const selectedClassId =
-      assignClassId &&
-      classLinkClasses.some((c) => c.sourcedId === assignClassId)
-        ? assignClassId
-        : null;
+    // Guard against stale rosterIds — rosters can be deleted or fail to
+    // load (`loadError`) after the teacher's last assignment.
+    const visibleRosterIds = new Set(
+      rosters.filter((r) => !r.loadError).map((r) => r.id)
+    );
+    const validRosterIds = pickerValue.rosterIds.filter((id) =>
+      visibleRosterIds.has(id)
+    );
     try {
       await onAssign(
         assignTarget,
         assignOptions,
         assignmentName.trim(),
-        selectedClassId
+        validRosterIds
       );
       setAssignTarget(null);
     } catch (err) {
@@ -971,13 +973,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           onAssign={handleAssignConfirm}
           extraSlot={
             <div className="space-y-3">
-              {classLinkClasses.length > 0 && (
-                <AssignTargetClassRow
-                  classes={classLinkClasses}
-                  value={assignClassId}
-                  onChange={setAssignClassId}
-                />
-              )}
+              <AssignClassPicker
+                rosters={rosters}
+                value={pickerValue}
+                onChange={setPickerValue}
+              />
 
               {assignError && (
                 <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
@@ -1066,61 +1066,3 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
     />
   </div>
 );
-
-/* ─── AssignTargetClassRow — ClassLink target-class selector (Phase 3B) ──── */
-
-/**
- * Build a human-readable label for a ClassLink class. Mirrors the format
- * used by `ClassLinkImportDialog` and `QuizManager` so teachers see the same
- * class names across all assign flows.
- */
-function formatClassLinkClassLabel(cls: ClassLinkClass): string {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-}
-
-/**
- * Target-class selector rendered inside the Assign modal's `extraSlot`.
- * Lets the teacher pick an optional ClassLink class to target this activity
- * at so that students who signed in via ClassLink see it on their
- * `/my-assignments` page. Phase 3B — fan-out of the Phase 3A quiz pilot.
- * Hidden entirely when the teacher isn't on a ClassLink org (empty classes
- * list).
- */
-const AssignTargetClassRow: React.FC<{
-  classes: ClassLinkClass[];
-  value: string;
-  onChange: (next: string) => void;
-}> = ({ classes, value, onChange }) => {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="w-4 h-4 text-brand-blue-primary" />
-        <label
-          htmlFor="video-activity-assign-target-class"
-          className="text-sm font-bold text-brand-blue-dark"
-        >
-          Target class (optional)
-        </label>
-      </div>
-      <select
-        id="video-activity-assign-target-class"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      >
-        <option value="">No class (use code/PIN only)</option>
-        {classes.map((cls) => (
-          <option key={cls.sourcedId} value={cls.sourcedId}>
-            {formatClassLinkClassLabel(cls)}
-          </option>
-        ))}
-      </select>
-      <p className="text-xxs text-slate-500 mt-1">
-        Students in this class will see this activity in their assignments list.
-        Leave blank to use a join code.
-      </p>
-    </div>
-  );
-};

@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
@@ -12,6 +6,7 @@ import {
   onSnapshot,
   query,
   where,
+  type Query,
   type QuerySnapshot,
   type DocumentData,
 } from 'firebase/firestore';
@@ -38,8 +33,16 @@ import { useStudentAuth } from '@/context/useStudentAuth';
  *
  * Landing page for a signed-in student. Subscribes to the five session
  * collections (`quiz_sessions`, `video_activity_sessions`,
- * `guided_learning_sessions`, `mini_app_sessions`, `activity_wall_sessions`),
- * filtered by `classId in classIds`, and renders the union as a single list.
+ * `guided_learning_sessions`, `mini_app_sessions`, `activity_wall_sessions`)
+ * and renders the union as a single list.
+ *
+ * Query strategy: quiz / video-activity / guided-learning subscribe to TWO
+ * queries each — one on the Phase 5A `classIds` array (array-contains-any)
+ * and one on the legacy `classId` string (in) — merging by sessionId so
+ * students in *any* class targeted by a multi-class assignment are covered
+ * while legacy single-class sessions still surface. Mini-app is list-only
+ * (its sessions have always been multi-class) and activity-wall is
+ * single-only (has not been migrated to multi-class yet).
  *
  * PII-free: reads only session-level fields (title, status, code, classId).
  * Never reads, logs, or persists email / displayName / sub. The only
@@ -86,14 +89,29 @@ type LoadState = 'loading' | 'ready';
 
 interface KindConfig {
   collectionName: string;
-  /** Firestore status filter, or `null` when the collection has no status field. */
-  statusFilter: { field: 'status'; value: 'active' } | null;
   /**
-   * How this collection stores its class targeting:
+   * When true, subscribe to TWO queries per kind and merge results by
+   * `sessionId` (de-duping any overlap):
+   *   - `list`   — `where('classIds', 'array-contains-any', classIds)` — Phase 5A multi-class
+   *   - `single` — `where('classId', 'in', classIds)`                   — legacy single-class
+   * This is required for quiz/video-activity/guided-learning so that
+   * multi-class assignments (Phase 5A) are discovered for students in
+   * *any* targeted class — not just `classIds[0]` — while legacy
+   * single-class sessions (with no `classIds` array) still surface.
+   *
+   * When false, a single query is issued using `classFilterShape`.
+   */
+  dualQuery: boolean;
+  /** Firestore status filter, or `null` when the collection has no status field. */
+  statusFilter:
+    | { field: 'status'; value: 'active' }
+    | { field: 'status'; valueIn: readonly string[] }
+    | null;
+  /**
+   * Shape used when `dualQuery` is false. Describes how this collection
+   * stores its class targeting:
    *   - `single` — a string `classId` field (queried with `where(..., 'in', classIds)`)
    *   - `list`   — an array `classIds` field (queried with `where(..., 'array-contains-any', classIds)`)
-   * Mini-app sessions are `list` (multi-class targeting); every other kind
-   * is still single-class.
    */
   classFilterShape: 'single' | 'list';
   /** Subcollection where per-student response/submission docs live; null when absent. */
@@ -133,7 +151,11 @@ interface KindConfig {
 const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   quiz: {
     collectionName: 'quiz_sessions',
-    statusFilter: { field: 'status', value: 'active' },
+    dualQuery: true,
+    // Include `waiting` so teacher-paced quizzes (which sit in 'waiting'
+    // after Play but before the teacher advances to Q1) surface on
+    // `/my-assignments` — matching the PIN-flow experience.
+    statusFilter: { field: 'status', valueIn: ['waiting', 'active'] },
     classFilterShape: 'single',
     responseSubcollection: 'responses',
     label: 'Quiz',
@@ -156,6 +178,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   },
   'video-activity': {
     collectionName: 'video_activity_sessions',
+    dualQuery: true,
     statusFilter: { field: 'status', value: 'active' },
     classFilterShape: 'single',
     responseSubcollection: 'responses',
@@ -179,6 +202,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   },
   'guided-learning': {
     collectionName: 'guided_learning_sessions',
+    dualQuery: true,
     statusFilter: null, // No status field; session presence = live.
     classFilterShape: 'single',
     responseSubcollection: 'responses',
@@ -194,6 +218,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   },
   'mini-app': {
     collectionName: 'mini_app_sessions',
+    dualQuery: false,
     statusFilter: { field: 'status', value: 'active' },
     classFilterShape: 'list',
     responseSubcollection: 'submissions',
@@ -214,6 +239,7 @@ const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   },
   'activity-wall': {
     collectionName: 'activity_wall_sessions',
+    dualQuery: false,
     statusFilter: null, // No status field on the session doc.
     classFilterShape: 'single',
     // ActivityWall submissions are a LIST per student (students can post
@@ -260,10 +286,6 @@ const MyAssignmentsPage: React.FC = () => {
   );
   const [loadState, setLoadState] = useState<LoadState>('loading');
 
-  // Track which kinds have delivered their first snapshot so we can flip
-  // from `loading` -> `ready` only once every subscription has settled.
-  const settledKindsRef = useRef<Set<SessionKind>>(new Set());
-
   // Stable subscription identity: we only re-subscribe when classIds actually
   // changes, not on every render.
   const classIdsKey = useMemo(
@@ -280,76 +302,148 @@ const MyAssignmentsPage: React.FC = () => {
     }
 
     setLoadState('loading');
-    settledKindsRef.current = new Set();
 
-    const unsubs: Array<() => void> = [];
+    type QueryShape = 'list' | 'single';
+    const bucketKey = (kind: SessionKind, shape: QueryShape) =>
+      `${kind}:${shape}`;
 
-    const handleSnapshot = (
-      kind: SessionKind,
-      snap: QuerySnapshot<DocumentData>
-    ) => {
+    // Plan every (kind, shape) subscription up front so we know the total
+    // count and can flip to `ready` exactly when every subscription has
+    // delivered its first snapshot (success OR error).
+    const subs: Array<{ kind: SessionKind; shape: QueryShape }> = [];
+    for (const kind of SESSION_KINDS) {
       const config = KIND_CONFIG[kind];
-      const items: AssignmentSummary[] = snap.docs.map((d) => {
-        const data = d.data();
-        const createdAtRaw: unknown = (data as Record<string, unknown>)
-          .createdAt;
-        return {
-          compositeId: `${kind}:${d.id}`,
-          kind,
-          sessionId: d.id,
-          title: config.titleFrom(data),
-          openHref: config.hrefFrom(d.id, data),
-          createdAt:
-            typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
-        };
-      });
+      if (config.dualQuery) {
+        subs.push({ kind, shape: 'list' }, { kind, shape: 'single' });
+      } else {
+        subs.push({ kind, shape: config.classFilterShape });
+      }
+    }
+    const totalSubscriptions = subs.length;
 
-      setByKind((prev) => ({ ...prev, [kind]: items }));
-      settledKindsRef.current.add(kind);
-      if (settledKindsRef.current.size === SESSION_KINDS.length) {
+    // Per-(kind, shape) result buckets. When a kind has two subscriptions
+    // we merge both buckets by `sessionId` before emitting `byKind`, so a
+    // Phase 5A session whose `classIds[0]` equals one of the student's
+    // classIds (and therefore matches BOTH queries) is counted exactly
+    // once.
+    const buckets = new Map<string, AssignmentSummary[]>();
+    const settled = new Set<string>();
+
+    const docToSummary = (
+      kind: SessionKind,
+      config: KindConfig,
+      d: QuerySnapshot<DocumentData>['docs'][number]
+    ): AssignmentSummary => {
+      const data = d.data();
+      const createdAtRaw: unknown = (data as Record<string, unknown>).createdAt;
+      return {
+        compositeId: `${kind}:${d.id}`,
+        kind,
+        sessionId: d.id,
+        title: config.titleFrom(data),
+        openHref: config.hrefFrom(d.id, data),
+        createdAt: typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
+      };
+    };
+
+    const emitMerged = (kind: SessionKind) => {
+      const listBucket = buckets.get(bucketKey(kind, 'list')) ?? [];
+      const singleBucket = buckets.get(bucketKey(kind, 'single')) ?? [];
+      if (listBucket.length === 0 && singleBucket.length === 0) {
+        setByKind((prev) =>
+          prev[kind] && prev[kind].length === 0 ? prev : { ...prev, [kind]: [] }
+        );
+        return;
+      }
+      const merged = new Map<string, AssignmentSummary>();
+      for (const a of listBucket) merged.set(a.sessionId, a);
+      for (const a of singleBucket) merged.set(a.sessionId, a);
+      setByKind((prev) => ({ ...prev, [kind]: Array.from(merged.values()) }));
+    };
+
+    const markSettled = (kind: SessionKind, shape: QueryShape) => {
+      settled.add(bucketKey(kind, shape));
+      if (settled.size === totalSubscriptions) {
         setLoadState('ready');
       }
     };
 
-    const handleError = (kind: SessionKind, err: unknown) => {
-      // PII safety: never log the error message or data — it may contain
-      // diagnostic data derived from the query. Log only the collection
-      // name and Firestore error code.
+    const handleSnapshot = (
+      kind: SessionKind,
+      shape: QueryShape,
+      snap: QuerySnapshot<DocumentData>
+    ) => {
+      const config = KIND_CONFIG[kind];
+      buckets.set(
+        bucketKey(kind, shape),
+        snap.docs.map((d) => docToSummary(kind, config, d))
+      );
+      emitMerged(kind);
+      markSettled(kind, shape);
+    };
+
+    const handleError = (
+      kind: SessionKind,
+      shape: QueryShape,
+      err: unknown
+    ) => {
       const code =
         err && typeof err === 'object' && 'code' in err
           ? String((err as { code?: unknown }).code)
           : 'unknown';
-      console.warn(
-        `[MyAssignments] snapshot failed for ${KIND_CONFIG[kind].collectionName}:`,
-        code
+      // Firestore missing-index errors embed a one-click index-creation
+      // URL in `err.message` — invaluable the next time something silently
+      // empties the list. Messages from Firestore do not include any of
+      // the classId values passed into the query, so this remains PII-safe.
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message)
+          : '';
+      console.error(
+        `[MyAssignments] snapshot failed for ${KIND_CONFIG[kind].collectionName} (${shape}) [${code}]:`,
+        message
       );
-      // Mark as settled with an empty list so loading state can progress.
-      setByKind((prev) => ({ ...prev, [kind]: [] }));
-      settledKindsRef.current.add(kind);
-      if (settledKindsRef.current.size === SESSION_KINDS.length) {
-        setLoadState('ready');
-      }
+      buckets.set(bucketKey(kind, shape), []);
+      emitMerged(kind);
+      markSettled(kind, shape);
     };
 
-    for (const kind of SESSION_KINDS) {
-      const config = KIND_CONFIG[kind];
+    const buildQuery = (
+      config: KindConfig,
+      shape: QueryShape
+    ): Query<DocumentData> => {
       const col = collection(db, config.collectionName);
       const constraints =
-        config.classFilterShape === 'list'
+        shape === 'list'
           ? [where('classIds', 'array-contains-any', classIds)]
           : [where('classId', 'in', classIds)];
       if (config.statusFilter) {
-        constraints.push(
-          where(config.statusFilter.field, '==', config.statusFilter.value)
-        );
+        if ('valueIn' in config.statusFilter) {
+          constraints.push(
+            where(config.statusFilter.field, 'in', [
+              ...config.statusFilter.valueIn,
+            ])
+          );
+        } else {
+          constraints.push(
+            where(config.statusFilter.field, '==', config.statusFilter.value)
+          );
+        }
       }
-      const q = query(col, ...constraints);
-      const unsub = onSnapshot(
-        q,
-        (snap) => handleSnapshot(kind, snap),
-        (err) => handleError(kind, err)
+      return query(col, ...constraints);
+    };
+
+    const unsubs: Array<() => void> = [];
+    for (const { kind, shape } of subs) {
+      const config = KIND_CONFIG[kind];
+      const q = buildQuery(config, shape);
+      unsubs.push(
+        onSnapshot(
+          q,
+          (snap) => handleSnapshot(kind, shape, snap),
+          (err) => handleError(kind, shape, err)
+        )
       );
-      unsubs.push(unsub);
     }
 
     return () => {
