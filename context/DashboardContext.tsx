@@ -29,7 +29,7 @@ import { useAuth } from './useAuth';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { useFirestore } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
-import { canonicalizeBuildingKeyedRecord } from '../config/buildings';
+import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 import {
   migrateLocalStorageToFirestore,

@@ -140,7 +140,10 @@ export function canonicalBuildingId(id: string): string {
 export function canonicalizeBuildingKeyedRecord<T>(
   record: Readonly<Record<string, T>>
 ): Record<string, T> {
-  const out: Record<string, T> = {};
+  // Object.create(null) instead of {} so that a stored key like
+  // "__proto__" (however unlikely) doesn't walk the prototype chain or
+  // trigger the __proto__ setter.
+  const out = Object.create(null) as Record<string, T>;
   for (const [rawKey, value] of Object.entries(record)) {
     out[canonicalBuildingId(rawKey)] = value;
   }

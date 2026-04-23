@@ -13,12 +13,26 @@
  *   like `dockDefaults['high']` silently missed and every teacher fell
  *   through to the `['time-tool']` fallback in getDefaultDockTools().
  *
- *   The app code now normalizes feature-permission keys at the read site
- *   via canonicalizeBuildingKeyedRecord (see config/buildings.ts and
- *   context/DashboardContext.tsx), so the runtime is safe regardless of
- *   whether this script has run. This script does the rewrite ahead of
- *   time so the alias step can eventually retire and Firestore data
- *   matches the admin-panel's current writes.
+ *   The app code now normalizes feature-permission keys at the two dock
+ *   lookup sites (getDefaultDockTools + getAdminBuildingConfig in
+ *   context/DashboardContext.tsx) via canonicalizeBuildingKeyedRecord
+ *   from config/buildings.ts. That covers the dock tool list and
+ *   newly-placed widget seeding; it does NOT cover the ~dozen per-widget
+ *   hooks that read `buildingDefaults[buildingId]` directly (BloomsTaxonomy,
+ *   Calendar, Embed, MaterialsWidget, QR, Schedule, SpecialistSchedule,
+ *   Soundboard, useClassLinkEnabled, etc.) — those still miss until
+ *   Firestore holds canonical keys. So THIS SCRIPT IS REQUIRED for
+ *   already-placed widgets to start picking up their per-building
+ *   overrides. The runtime fix is a belt for the dock; the backfill is
+ *   the suspenders for everything else.
+ *
+ * CONCURRENCY NOTE
+ *   The Feature Permissions admin UI does a full `setDoc` replacement on
+ *   save (no merge) and modal-based widget configs do `setDoc({ merge:
+ *   true })`. Either path, if saved with a stale in-memory copy AFTER
+ *   this backfill runs, can reintroduce or even wipe the canonical keys.
+ *   Run outside admin working hours, or re-run the backfill (idempotent)
+ *   if you know an admin save happened after the rewrite.
  *
  * WHAT THIS SCRIPT DOES
  *   - Enumerates every doc in /feature_permissions/*.
@@ -91,16 +105,16 @@ function canonicalizeBuildingKeyedRecord(record) {
   if (!record || typeof record !== 'object') {
     return { canonical: record, changed: false, collisions: [] };
   }
-  const out = {};
+  // Object.create(null) so a stored key like "__proto__" (however
+  // unlikely) doesn't walk the prototype chain or trigger the setter.
+  const out = Object.create(null);
   const collisions = [];
-  const sourceKeyFor = new Map(); // canonicalKey -> original source key (for detecting legacy vs canonical origin)
 
   // First pass: collect canonical-origin entries so they win collisions.
   for (const [rawKey, value] of Object.entries(record)) {
     const canonical = canonicalBuildingId(rawKey);
     if (rawKey === canonical) {
       out[canonical] = value;
-      sourceKeyFor.set(canonical, rawKey);
     }
   }
   // Second pass: fill in from legacy-origin entries where no canonical
@@ -120,7 +134,6 @@ function canonicalizeBuildingKeyedRecord(record) {
       continue;
     }
     out[canonical] = value;
-    sourceKeyFor.set(canonical, rawKey);
   }
 
   const inputKeys = Object.keys(record);
