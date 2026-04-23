@@ -388,6 +388,29 @@ describe('quiz_sessions/responses — student-role gate', () => {
     );
   });
 
+  // Covers the test-class-bypass path (and the equivalent real-SSO case): a
+  // studentRole user joining a session whose creator did not pick a class.
+  // Such sessions omit `classId`/`classIds` entirely, so the compat wrapper
+  // falls through to `passesStudentClassGate('')`. Before the untargeted-open
+  // branch was added, this denied any studentRole token — breaking the
+  // super-admin "log in as test student" workflow and any real SSO student
+  // PIN-joining a quiz that wasn't targeted to a ClassLink class.
+  it('student-role user can create response on untargeted session (no classId)', async () => {
+    const UNTARGETED = 'session-untargeted';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${UNTARGETED}`), {
+        teacherUid: TEACHER_UID,
+        status: 'active',
+      });
+    });
+    await assertSucceeds(
+      setDoc(
+        doc(asStudentA(), `quiz_sessions/${UNTARGETED}/responses/${STUDENT_A_UID}`),
+        { ...baseResp(), joinedAt: 2000 }
+      )
+    );
+  });
+
   it('anonymous PIN student can create response without studentRole restriction', async () => {
     await assertSucceeds(
       setDoc(
