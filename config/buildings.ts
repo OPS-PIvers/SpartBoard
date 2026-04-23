@@ -126,6 +126,28 @@ export function canonicalBuildingId(id: string): string {
 }
 
 /**
+ * Returns a new record whose keys have been normalized via
+ * {@link canonicalBuildingId}. Use when reading Firestore data that is
+ * keyed by building ID (e.g. `feature_permissions.*.config.dockDefaults`,
+ * `buildingDefaults`) so legacy stored keys (`orono-high-school`) resolve
+ * against canonical lookup IDs (`high`).
+ *
+ * If two source keys collapse to the same canonical ID, the later entry
+ * in `Object.entries` iteration order wins. In practice this doesn't
+ * occur today — the admin panel writes canonical keys only — but the
+ * alias is deterministic regardless.
+ */
+export function canonicalizeBuildingKeyedRecord<T>(
+  record: Readonly<Record<string, T>>
+): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [rawKey, value] of Object.entries(record)) {
+    out[canonicalBuildingId(rawKey)] = value;
+  }
+  return out;
+}
+
+/**
  * Normalizes an array of building IDs in-place: legacy IDs become
  * canonical, and duplicates are dropped (preserving insertion order of
  * first occurrence). Returns a new array; the input is not mutated.

@@ -29,6 +29,7 @@ import { useAuth } from './useAuth';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { useFirestore } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
+import { canonicalizeBuildingKeyedRecord } from '../config/buildings';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 import {
   migrateLocalStorageToFirestore,
@@ -347,9 +348,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const buildingId = selectedBuildings[0];
 
     (featurePermissions ?? []).forEach((perm) => {
-      const dockDefaults = perm.config?.dockDefaults as
+      const rawDockDefaults = perm.config?.dockDefaults as
         | Record<string, boolean>
         | undefined;
+
+      // Canonicalize stored keys so legacy IDs (`orono-high-school`) still
+      // match the canonical `buildingId` (`high`). Without this, every
+      // teacher would fall through to the `time-tool` fallback below,
+      // because admin-panel writes from before canonicalization landed
+      // are keyed on legacy IDs and `selectedBuildings` is always
+      // canonicalized in AuthContext.
+      const dockDefaults = rawDockDefaults
+        ? canonicalizeBuildingKeyedRecord(rawDockDefaults)
+        : undefined;
 
       const isDefaultForBuilding =
         dockDefaults !== undefined && dockDefaults[buildingId] === true;
@@ -2104,11 +2115,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!selectedBuildings.length) return {};
       const buildingId = selectedBuildings[0];
       const perm = featurePermissions.find((p) => p.widgetType === type);
-      const raw = (
+      const rawBuildingDefaults = (
         perm?.config as
           | { buildingDefaults?: Record<string, Record<string, unknown>> }
           | undefined
-      )?.buildingDefaults?.[buildingId];
+      )?.buildingDefaults;
+      // Same legacy-key issue as `dockDefaults` above — canonicalize so
+      // `orono-high-school`-keyed entries still resolve for canonical
+      // `buildingId` lookups.
+      const buildingDefaults = rawBuildingDefaults
+        ? canonicalizeBuildingKeyedRecord(rawBuildingDefaults)
+        : undefined;
+      const raw = buildingDefaults?.[buildingId];
       if (!raw) return {};
 
       const out: Record<string, unknown> = {};
