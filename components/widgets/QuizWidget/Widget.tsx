@@ -668,7 +668,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           mode,
           plcOptions: PlcOptions,
           sessionOptions: QuizSessionOptions,
-          classId: string | null
+          classIds: string[]
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
@@ -691,19 +691,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 plcSheetUrl: plcOptions.plcSheetUrl,
               },
               'paused',
-              classId ?? undefined
+              classIds
             );
-            // Persist the teacher's last-used classId per quiz so re-launching
-            // the same quiz pre-selects the same class. Clearing (picking "No
-            // class") removes the entry rather than writing an empty string
-            // to keep the config map small.
-            const prevMap = config.lastClassIdByQuizId ?? {};
-            const nextMap: Record<string, string> = { ...prevMap };
-            if (classId) {
-              nextMap[meta.id] = classId;
+            // Persist the teacher's last-used ClassLink classes per quiz so
+            // re-launching the same quiz pre-selects the same classes.
+            // Clearing removes the entry rather than writing an empty array.
+            const prevMap = config.lastClassIdsByQuizId ?? {};
+            const nextMap: Record<string, string[]> = { ...prevMap };
+            if (classIds.length > 0) {
+              nextMap[meta.id] = classIds;
             } else {
               delete nextMap[meta.id];
             }
+            // Also clear the legacy single-class map entry so the picker
+            // doesn't see a stale single-id override after the teacher
+            // explicitly cleared or changed their selection.
+            const prevLegacyMap = config.lastClassIdByQuizId ?? {};
+            const nextLegacyMap: Record<string, string> = { ...prevLegacyMap };
+            delete nextLegacyMap[meta.id];
             updateWidget(widget.id, {
               config: {
                 ...config,
@@ -718,7 +723,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 plcSheetUrl: plcOptions.plcSheetUrl ?? '',
-                lastClassIdByQuizId: nextMap,
+                lastClassIdsByQuizId: nextMap,
+                lastClassIdByQuizId: nextLegacyMap,
               } as QuizConfig,
             });
             const url = `${window.location.origin}/quiz?code=${code}`;

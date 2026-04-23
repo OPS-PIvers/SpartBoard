@@ -15,7 +15,9 @@ import {
   PlayCircle,
   Loader2,
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
+  ClipboardList,
   Trophy,
 } from 'lucide-react';
 import { auth } from '@/config/firebase';
@@ -79,10 +81,22 @@ const JoinAndPlay: React.FC = () => {
     myResponse,
     joinStatus,
     error,
+    lookupSession,
     joinSession,
     submitAnswer,
     completeActivity,
   } = useVideoActivitySessionStudent();
+
+  // Multi-period selection step — shown when the session has more than one
+  // class-period name configured, so students pick their period before the
+  // response doc is created (mirrors the Quiz pattern).
+  const [periodStep, setPeriodStep] = useState<string[] | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  // Local guard for the async `lookupSession` leg of `handleJoin` — the
+  // hook's `joinStatus` only flips to `loading` once `joinSession` starts,
+  // so without this the button would stay clickable during the lookup and
+  // a double-tap could fan out parallel requests.
+  const [lookingUp, setLookingUp] = useState(false);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer
   const answeredQuestionIds = React.useMemo(
@@ -96,8 +110,26 @@ const JoinAndPlay: React.FC = () => {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !pin.trim() || !sessionId) return;
-    await joinSession(sessionId, pin.trim(), name.trim());
+    if (lookingUp || joinStatus === 'loading') return;
+    setLookingUp(true);
+    try {
+      const sessionInfo = await lookupSession(sessionId);
+      const periodNames = sessionInfo?.periodNames ?? [];
+      if (periodNames.length > 1) {
+        setPeriodStep(periodNames);
+        return;
+      }
+      const autoClassPeriod = periodNames[0];
+      await joinSession(sessionId, pin.trim(), name.trim(), autoClassPeriod);
+    } finally {
+      setLookingUp(false);
+    }
   };
+
+  const handlePeriodConfirm = useCallback(async () => {
+    if (!selectedPeriod || !sessionId) return;
+    await joinSession(sessionId, pin.trim(), name.trim(), selectedPeriod);
+  }, [joinSession, sessionId, pin, name, selectedPeriod]);
 
   const handleQuestionTrigger = useCallback(
     (question: VideoActivityQuestion) => {
@@ -148,6 +180,77 @@ const JoinAndPlay: React.FC = () => {
   if (!sessionId || sessionId.includes('/')) {
     return (
       <ErrorScreen message="Invalid activity link. Please ask your teacher for the correct URL." />
+    );
+  }
+
+  // ── Period selection step (multi-period sessions) ────────────────────────
+
+  if (periodStep && joinStatus !== 'joined') {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center mb-8">
+            <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
+            <span className="text-sm text-slate-300 font-semibold">
+              Video Activity
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-black text-white mb-2 text-center">
+            Select Your Class
+          </h1>
+          <p className="text-slate-400 text-sm text-center mb-6">
+            Which class period are you in?
+          </p>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2 mb-6">
+            {periodStep.map((period) => (
+              <button
+                key={period}
+                onClick={() => setSelectedPeriod(period)}
+                className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
+                  selectedPeriod === period
+                    ? 'bg-brand-blue-primary text-white ring-2 ring-brand-blue-light'
+                    : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => void handlePeriodConfirm()}
+            disabled={joinStatus === 'loading' || !selectedPeriod}
+            className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
+          >
+            {joinStatus === 'loading' ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Continue <ArrowRight className="w-5 h-5" />
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              setPeriodStep(null);
+              setSelectedPeriod(null);
+            }}
+            className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -220,11 +323,14 @@ const JoinAndPlay: React.FC = () => {
               <button
                 type="submit"
                 disabled={
-                  joinStatus === 'loading' || !name.trim() || !pin.trim()
+                  joinStatus === 'loading' ||
+                  lookingUp ||
+                  !name.trim() ||
+                  !pin.trim()
                 }
                 className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                {joinStatus === 'loading' ? (
+                {joinStatus === 'loading' || lookingUp ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Joining…

@@ -14,10 +14,12 @@ export default mergeConfig(
       exclude: [
         ...configDefaults.exclude,
         'tests/e2e/**',
-        // Firestore rules tests need the Firestore emulator; they run via
-        // the `test:rules` script under `firebase emulators:exec`. Excluded
-        // from the default vitest run so `pnpm test` / CI stays green
-        // without an emulator.
+        // Firestore rules tests need the Firestore emulator. Excluded from
+        // the default vitest run (`pnpm test`) so a dev doesn't need Java
+        // installed locally; they run via `pnpm test:rules` (which wraps
+        // them in `firebase emulators:exec --only firestore`). CI runs
+        // them as a dedicated job — see `.github/workflows/pr-validation.yml`
+        // (the `rules` job).
         'tests/rules/**',
         'functions/**',
         '.claude/worktrees/**',

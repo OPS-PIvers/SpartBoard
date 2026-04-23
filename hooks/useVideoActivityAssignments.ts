@@ -57,17 +57,18 @@ export interface UseVideoActivityAssignmentsResult {
    * Create a new assignment + its matching session doc in one batch.
    * Returns the new assignment's id (== sessionId).
    *
-   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
-   * written onto the session doc so that ClassLink-authenticated students
-   * see this session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
-   * access. Omitting it preserves the classic join-URL-only flow.
+   * `classIds` is the list of ClassLink class `sourcedId`s this session is
+   * targeted at (Phase 5A multi-class). When non-empty, the session doc
+   * stores them on `classIds` (and transitionally mirrors `classIds[0]` to
+   * `classId`). `periodNames` is the list of class-period labels available
+   * for the post-PIN picker.
    */
   createAssignment: (
     activity: AssignmentActivityRef,
     settings: VideoActivityAssignmentSettings,
     initialStatus?: VideoActivityAssignmentStatus,
-    classId?: string
+    classIds?: string[],
+    periodNames?: string[]
   ) => Promise<{ id: string }>;
   /** Set both assignment.status and session.status to 'paused' (assignment) / 'ended' (session). */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -135,9 +136,16 @@ export const useVideoActivityAssignments = (
   const createAssignment = useCallback<
     UseVideoActivityAssignmentsResult['createAssignment']
   >(
-    async (activity, settings, initialStatus = 'active', classId) => {
+    async (
+      activity,
+      settings,
+      initialStatus = 'active',
+      classIds,
+      periodNames
+    ) => {
       if (!userId) throw new Error('Not authenticated');
-
+      const targetClassIds = classIds ?? [];
+      const targetPeriodNames = periodNames ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
 
@@ -173,11 +181,16 @@ export const useVideoActivityAssignments = (
         allowedPins: [],
         createdAt: now,
         ...(sessionStatus === 'ended' ? { endedAt: now } : {}),
-        // Phase 3B: optional ClassLink target class. Only write when a
-        // non-empty sourcedId was supplied so sessions created without a
-        // target keep a clean doc shape (and the rules no-op branch kicks in
-        // via `resource.data.get('classId', '')`).
-        ...(classId ? { classId } : {}),
+        // Phase 5A: multi-class ClassLink targeting + post-PIN period picker.
+        // Mirror `classIds[0]` into the legacy `classId` field so
+        // pre-Phase-5A rules keep gating correctly until the fallback is
+        // removed.
+        ...(targetClassIds.length > 0
+          ? { classIds: targetClassIds, classId: targetClassIds[0] }
+          : {}),
+        ...(targetPeriodNames.length > 0
+          ? { periodNames: targetPeriodNames }
+          : {}),
       };
 
       const batch = writeBatch(db);

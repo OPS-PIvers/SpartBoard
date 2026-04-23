@@ -1737,17 +1737,24 @@ export interface QuizSession {
   /** Selected class period roster names available for students to join. */
   periodNames?: string[];
 
-  // ─── ClassLink target class (Phase 3A) ─────────────────────────────────────
+  // ─── ClassLink target class (Phase 3A, Phase 5A multi-class) ───────────────
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * present, students who signed in via the ClassLink / Google flow will see
-   * this session on their `/my-assignments` page, and Firestore rules
-   * enforce (via `passesStudentClassGate`) that only students enrolled in
-   * this class can read the session doc. Omit (or leave as an empty string)
-   * to preserve the classic code/PIN-only flow — the gate is a no-op for
-   * non-studentRole users.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target: the list of ClassLink class `sourcedId`s
+   * this session is targeted at. When non-empty, students who signed in via
+   * the ClassLink / Google flow will see this session on their
+   * `/my-assignments` page, and Firestore rules (via
+   * `passesStudentClassGateList`) enforce that the student has at least one
+   * of these classes in their `classIds` auth-token claim. An empty or
+   * missing list preserves the classic code/PIN-only flow — the gate is a
+   * no-op for non-studentRole users.
+   */
+  classIds?: string[];
 }
 
 export interface QuizResponseAnswer {
@@ -1841,13 +1848,20 @@ export interface QuizConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * Per-quiz memory of the last ClassLink target class (`sourcedId`) the
-   * teacher picked in the Assign modal. Key is quizId, value is the
-   * ClassLink class sourcedId. Used to pre-select the selector on re-launch
-   * of the same quiz so teachers don't have to re-pick every time.
-   * Undefined means "use the default (No class)".
+   * @deprecated Phase 5A — replaced by `lastClassIdsByQuizId` (multi-class).
+   * Retained for a transitional release so existing widget configs don't
+   * lose their pre-selection on first render. Readers prefer the multi-
+   * class map; fallback to this when the new key is absent.
    */
   lastClassIdByQuizId?: Record<string, string>;
+  /**
+   * Per-quiz memory of the last ClassLink target classes (`sourcedId`s) the
+   * teacher picked in the Assign modal. Key is quizId, value is a list of
+   * ClassLink class sourcedIds. Used to pre-select the picker on re-launch
+   * of the same quiz so teachers don't have to re-pick every time. Missing
+   * keys mean "use the default (no classes selected)".
+   */
+  lastClassIdsByQuizId?: Record<string, string[]>;
 }
 
 // --- QUIZ ASSIGNMENT TYPES ---
@@ -1982,8 +1996,17 @@ export interface VideoActivityConfig {
    * ClassLink class sourcedId. Used to pre-select the selector on re-launch
    * of the same activity so teachers don't have to re-pick every time.
    * Undefined means "use the default (No class)".
+   *
+   * @deprecated Phase 5A — replaced by `lastClassIdsByActivityId` (multi).
+   * Retained for a transitional release so existing widget configs don't
+   * lose their pre-selection on first render.
    */
   lastClassIdByActivityId?: Record<string, string>;
+  /**
+   * Multi-class variant of the per-activity memory (Phase 5A). Preferred
+   * over the legacy single-class map.
+   */
+  lastClassIdsByActivityId?: Record<string, string[]>;
 }
 
 export interface VideoActivitySessionSettings {
@@ -2028,13 +2051,26 @@ export interface VideoActivitySession {
   /** Optional Unix timestamp when the session link expires. */
   expiresAt?: number;
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * set, ClassLink-authenticated students whose token includes this classId
-   * see the session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
-   * access. Undefined preserves the classic code/PIN-only flow.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target list. ClassLink-authenticated students whose
+   * token `classIds` claim overlaps this list see the session on their
+   * `/my-assignments` page; Firestore rules (`passesStudentClassGateList`)
+   * enforce the class gate. An empty/missing list preserves the classic
+   * PIN-only flow.
+   */
+  classIds?: string[];
+  /**
+   * Optional class-period names (typically local roster names) available for
+   * students to choose from after entering their PIN. When present and > 1,
+   * the student app shows a post-PIN picker and writes the chosen value to
+   * the response's `classPeriod` field. Mirrors the QuizSession pattern.
+   */
+  periodNames?: string[];
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2061,6 +2097,8 @@ export interface VideoActivityResponse {
   answers: VideoActivityAnswer[];
   completedAt: number | null;
   score: number | null;
+  /** Which class period the student selected when joining (multi-class support). */
+  classPeriod?: string;
 }
 
 export interface TalkingToolConfig {
@@ -2638,17 +2676,28 @@ export interface GuidedLearningSession {
   teacherUid: string;
   createdAt: number;
   expiresAt?: number;
-  // ─── ClassLink target class (Phase 3C) ─────────────────────────────────────
+  // ─── ClassLink target class (Phase 3C, Phase 5A multi-class) ───────────────
   /**
-   * Optional ClassLink class `sourcedId` this session is targeted at. When
-   * present, students who signed in via the ClassLink / Google flow will see
-   * this session on their `/my-assignments` page, and Firestore rules
-   * enforce (via `passesStudentClassGate`) that only students enrolled in
-   * this class can read the session doc. Omit (or leave as an empty string)
-   * to preserve the classic join-link flow — the gate is a no-op for
-   * non-studentRole users.
+   * @deprecated Phase 5A — retained only for transitional compatibility.
+   * Populated to `classIds[0]` when `classIds` is non-empty so older clients
+   * and pre-migration Firestore rules keep working. Prefer `classIds`.
    */
   classId?: string;
+  /**
+   * Multi-class ClassLink target list. ClassLink-authenticated students whose
+   * token `classIds` claim overlaps this list see the session on their
+   * `/my-assignments` page; Firestore rules (`passesStudentClassGateList`)
+   * enforce the class gate. An empty/missing list preserves the classic
+   * join-link flow.
+   */
+  classIds?: string[];
+  /**
+   * Optional class-period names (typically local roster names) available for
+   * students to choose from after entering their PIN. When present and > 1,
+   * the student app shows a post-PIN picker and writes the chosen value to
+   * the response's `classPeriod` field. Mirrors the QuizSession pattern.
+   */
+  periodNames?: string[];
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -2664,6 +2713,8 @@ export interface GuidedLearningResponse {
   completedAt: number | null;
   startedAt: number;
   score: number | null;
+  /** Which class period the student selected when joining (multi-class support). */
+  classPeriod?: string;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -2685,8 +2736,17 @@ export interface GuidedLearningConfig {
    * value is the ClassLink class sourcedId. Used to pre-select the selector
    * on re-launch of the same set so teachers don't have to re-pick every
    * time. Undefined means "use the default (No class)".
+   *
+   * @deprecated Phase 5A — replaced by `lastClassIdsBySetId` (multi).
+   * Retained for a transitional release so existing widget configs don't
+   * lose their pre-selection on first render.
    */
   lastClassIdBySetId?: Record<string, string>;
+  /**
+   * Multi-class variant of the per-set memory (Phase 5A). Preferred over
+   * the legacy single-class map.
+   */
+  lastClassIdsBySetId?: Record<string, string[]>;
 }
 
 // Union of all widget configs

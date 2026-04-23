@@ -7,6 +7,14 @@
 // Covers the five session collections where passesStudentClassGate() is applied:
 //   quiz_sessions, video_activity_sessions, guided_learning_sessions,
 //   mini_app_sessions, activity_wall_sessions
+//
+// Contract: session reads are intentionally permissive for any authenticated
+// caller (teacher single-doc subscriptions otherwise fail with
+// permission-denied after a status transition — see PR #1391). studentRole
+// class gating is enforced exclusively on the response/submission *write*
+// rules, which dereference the parent session's `classId` via a runtime
+// `get()`. A studentRole user can see session metadata by id but cannot
+// submit to a session outside their `classIds` claim.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,7 +25,17 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, addDoc, collection, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  getDocs,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  query,
+  where,
+} from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -44,19 +62,39 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
+// Token shape note: the Firestore rules engine in the emulator throws
+// "Property X is undefined on object" when a rule expression reads a token
+// claim that isn't present (even behind a `!= null` short-circuit). Real
+// Firebase Auth tokens carry the full claim surface; the emulator test
+// harness does not auto-populate it. We therefore spell out every claim
+// the rules may touch — `email`, `studentRole`, `classIds`, and
+// `firebase.sign_in_provider` — in every context, using empty/false
+// defaults for claims that don't apply to that role. This matches what
+// production Auth tokens look like for real sign-ins.
+//
+// Intentional exception: `asAnonStudentBareToken` below deliberately omits
+// `email`, `studentRole`, and `classIds` to reproduce the shape of a
+// production Firebase anonymous-auth token verbatim, which carries none of
+// those claims. That lock-in context exists to catch regressions in any
+// rule helper that reads a custom claim via direct dot access.
+
 const asStudentA = () =>
   testEnv
     .authenticatedContext(STUDENT_A_UID, {
+      email: '',
       studentRole: true,
       classIds: [CLASS_A],
+      firebase: { sign_in_provider: 'custom' },
     })
     .firestore();
 
 const asStudentEmpty = () =>
   testEnv
     .authenticatedContext(STUDENT_EMPTY_UID, {
+      email: '',
       studentRole: true,
       classIds: [],
+      firebase: { sign_in_provider: 'custom' },
     })
     .firestore();
 
@@ -64,11 +102,32 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@school.edu',
+      studentRole: false,
+      classIds: [],
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
 
 const asAnonStudent = () =>
+  testEnv
+    .authenticatedContext(ANON_UID, {
+      email: '',
+      studentRole: false,
+      classIds: [],
+      firebase: { sign_in_provider: 'anonymous' },
+    })
+    .firestore();
+
+// Real production anonymous Firebase Auth tokens do NOT carry `studentRole`,
+// `classIds`, or `email` at all — those claims are only minted for
+// ClassLink SSO via studentLoginV1 (or for Google sign-in via GIS in the
+// case of `email`). Prior to the isStudentRoleUser() hardening, any rule
+// that reached a direct claim access threw "Property X is undefined" and
+// denied the operation. This context reproduces that token shape verbatim
+// — omitting every custom claim — so the test suite locks in the fix and
+// catches regressions on any helper that reads a claim without the safe
+// `.get(key, default)` accessor.
+const asAnonStudentBareToken = () =>
   testEnv
     .authenticatedContext(ANON_UID, {
       firebase: { sign_in_provider: 'anonymous' },
@@ -174,6 +233,7 @@ async function seedSessions(cols: string[], opts: SeedOptions = {}) {
             {
               studentAnonymousId: STUDENT_A_UID,
               sessionId: SESSION_A,
+              startedAt: 1000,
               score: null,
               answers: [],
             }
@@ -196,7 +256,7 @@ const ALL_SESSION_COLS = [
   'activity_wall_sessions',
 ];
 
-describe('student-role class gate — session reads', () => {
+describe('session reads — authenticated access (class gate moved to writes)', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await seedSessions(ALL_SESSION_COLS);
@@ -208,13 +268,17 @@ describe('student-role class gate — session reads', () => {
         await assertSucceeds(getDoc(doc(asStudentA(), `${col}/${SESSION_A}`)));
       });
 
-      it('student with matching classId cannot read session-B (wrong class)', async () => {
-        await assertFails(getDoc(doc(asStudentA(), `${col}/${SESSION_B}`)));
+      it('student can read session-B (out-of-class metadata is no longer gated at reads; write rules enforce the class gate)', async () => {
+        await assertSucceeds(getDoc(doc(asStudentA(), `${col}/${SESSION_B}`)));
       });
 
-      it('student with empty classIds cannot read any session', async () => {
-        await assertFails(getDoc(doc(asStudentEmpty(), `${col}/${SESSION_A}`)));
-        await assertFails(getDoc(doc(asStudentEmpty(), `${col}/${SESSION_B}`)));
+      it('student with empty classIds can still read session metadata', async () => {
+        await assertSucceeds(
+          getDoc(doc(asStudentEmpty(), `${col}/${SESSION_A}`))
+        );
+        await assertSucceeds(
+          getDoc(doc(asStudentEmpty(), `${col}/${SESSION_B}`))
+        );
       });
 
       it('teacher (no studentRole claim) can read any session', async () => {
@@ -261,6 +325,11 @@ describe('quiz_sessions/responses — student-role gate', () => {
   });
 
   it('student in class-A can create response on session-A', async () => {
+    // seedSessions(withResponses) pre-creates a response for STUDENT_A_UID.
+    // Clear it so this test truly exercises the create rule.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), respPath(SESSION_A)));
+    });
     await assertSucceeds(
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp(),
@@ -338,6 +407,63 @@ describe('quiz_sessions/responses — student-role gate', () => {
       )
     );
   });
+
+  // Lock-in for the missing-claim hardening. Real production anon tokens
+  // omit studentRole / classIds / email entirely; if any rule helper
+  // reverts to direct dot-access on one of those claims, the rules
+  // engine can throw "Property X is undefined" and this test reds.
+  //
+  // Exercises the full anon PIN quiz lifecycle inside
+  // `match /quiz_sessions/{sessionId}/responses/{studentUid}`:
+  //   1. `getDoc(responseRef)` — traverses `allow read`. Guards
+  //      `isStudentRoleUser()` (now `.get()`-safe).
+  //   2. `setDoc(responseRef, …)` on a non-existent doc — traverses
+  //      `allow create`. Guards `passesStudentClassGate` →
+  //      `isStudentRoleUser()`.
+  //   3. `setDoc(responseRef, …)` on the existing doc to submit an
+  //      answer — traverses `allow update`. In that OR chain
+  //      `isAdmin()` sits BEFORE the student branch, which is why
+  //      this PR hardens `isAdmin()` alongside `isStudentRoleUser()`:
+  //      if `isAdmin()` threw on a missing `email` claim, the throw
+  //      could deny the update before the student branch is reached.
+  //
+  // All three must succeed under a bare anon token for real answer
+  // submission to work end-to-end.
+  it('anonymous PIN student with bare token (no custom claims) can get + create + update response', async () => {
+    const responseRef = doc(
+      asAnonStudentBareToken(),
+      `quiz_sessions/${SESSION_A}/responses/${ANON_UID}`
+    );
+
+    await assertSucceeds(getDoc(responseRef));
+
+    await assertSucceeds(
+      setDoc(responseRef, {
+        studentUid: ANON_UID,
+        pin: '5678',
+        joinedAt: 2000,
+        score: null,
+        answers: [],
+        status: 'active',
+        tabSwitchWarnings: 0,
+      })
+    );
+
+    // Submit an answer: update only the fields the rule allows students
+    // to change (answers, status, submittedAt, tabSwitchWarnings).
+    await assertSucceeds(
+      setDoc(responseRef, {
+        studentUid: ANON_UID,
+        pin: '5678',
+        joinedAt: 2000,
+        score: null,
+        answers: [{ questionId: 'q1', value: 'B' }],
+        status: 'submitted',
+        submittedAt: 3000,
+        tabSwitchWarnings: 0,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -364,6 +490,11 @@ describe('video_activity_sessions/responses — student-role gate', () => {
   });
 
   it('student in class-A can create response on session-A', async () => {
+    // seedSessions(withResponses) pre-creates a response for STUDENT_A_UID.
+    // Clear it so this test truly exercises the create rule.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), respPath(SESSION_A)));
+    });
     await assertSucceeds(
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp(),
@@ -438,6 +569,7 @@ describe('guided_learning_sessions/responses — student-role gate', () => {
   const baseResp = (session = SESSION_A) => ({
     studentAnonymousId: STUDENT_A_UID,
     sessionId: session,
+    startedAt: 1000,
     score: null,
     answers: [],
   });
@@ -448,6 +580,12 @@ describe('guided_learning_sessions/responses — student-role gate', () => {
   });
 
   it('student in class-A can create response on session-A', async () => {
+    // seedSessions(withResponses) pre-creates a response for STUDENT_A_UID,
+    // so a bare setDoc would hit the update rule, not create. Clear the
+    // seeded doc first so this test actually exercises the create path.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), respPath(SESSION_A)));
+    });
     await assertSucceeds(
       setDoc(doc(asStudentA(), respPath(SESSION_A)), baseResp())
     );
@@ -575,25 +713,54 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
   const col = 'mini_app_sessions';
   const subPath = (session: string, uid: string) =>
     `${col}/${session}/submissions/${uid}`;
-  const validSub = () => ({
+  // The mini_app submission rule enforces a strict key whitelist:
+  // ['submittedAt', 'studentUid', 'payload']. `studentUid` must equal
+  // request.auth.uid. validSub() takes the submitter uid so the test
+  // parameterizes it correctly.
+  const validSub = (uid: string) => ({
     submittedAt: 1000,
+    studentUid: uid,
     payload: { score: 42, answers: [1, 2, 3] } as Record<string, unknown>,
   });
 
   beforeEach(async () => {
     await testEnv.clearFirestore();
-    await seedSessions([col]);
+    // mini_app_sessions docs require `submissionsEnabled: true` on the
+    // parent session for submissions to be accepted. The generic seed
+    // helper doesn't set that field (it seeds a bare sessionDoc), so we
+    // re-seed here with the mini-app-specific shape.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `${col}/${SESSION_A}`), {
+        teacherUid: TEACHER_UID,
+        classIds: [CLASS_A],
+        status: 'active',
+        submissionsEnabled: true,
+      });
+      await setDoc(doc(db, `${col}/${SESSION_B}`), {
+        teacherUid: TEACHER_UID,
+        classIds: [CLASS_B],
+        status: 'active',
+        submissionsEnabled: true,
+      });
+    });
   });
 
   it('student in class-A can submit to session-A under their own pseudonym', async () => {
     await assertSucceeds(
-      setDoc(doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)), validSub())
+      setDoc(
+        doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)),
+        validSub(STUDENT_A_UID)
+      )
     );
   });
 
   it('student in class-A cannot submit to session-B (wrong class)', async () => {
     await assertFails(
-      setDoc(doc(asStudentA(), subPath(SESSION_B, STUDENT_A_UID)), validSub())
+      setDoc(
+        doc(asStudentA(), subPath(SESSION_B, STUDENT_A_UID)),
+        validSub(STUDENT_A_UID)
+      )
     );
   });
 
@@ -601,14 +768,17 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await assertFails(
       setDoc(
         doc(asStudentEmpty(), subPath(SESSION_A, STUDENT_EMPTY_UID)),
-        validSub()
+        validSub(STUDENT_EMPTY_UID)
       )
     );
   });
 
   it('anonymous PIN student can submit under their own auth uid', async () => {
     await assertSucceeds(
-      setDoc(doc(asAnonStudent(), subPath(SESSION_A, ANON_UID)), validSub())
+      setDoc(
+        doc(asAnonStudent(), subPath(SESSION_A, ANON_UID)),
+        validSub(ANON_UID)
+      )
     );
   });
 
@@ -616,21 +786,21 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await assertFails(
       setDoc(
         doc(asAnonStudent(), subPath(SESSION_A, 'some-other-uid')),
-        validSub()
+        validSub('some-other-uid')
       )
     );
   });
 
   it('unauthenticated caller cannot submit', async () => {
     await assertFails(
-      setDoc(doc(asUnauth(), subPath(SESSION_A, 'x')), validSub())
+      setDoc(doc(asUnauth(), subPath(SESSION_A, 'x')), validSub('x'))
     );
   });
 
   it('submission with extra keys is rejected', async () => {
     await assertFails(
       setDoc(doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)), {
-        ...validSub(),
+        ...validSub(STUDENT_A_UID),
         sneaky: 'extra-field',
       })
     );
@@ -640,6 +810,7 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await assertFails(
       setDoc(doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)), {
         submittedAt: 1000,
+        studentUid: STUDENT_A_UID,
         payload: 'just-a-string',
       })
     );
@@ -649,6 +820,7 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await assertFails(
       setDoc(doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)), {
         submittedAt: 'not-a-number',
+        studentUid: STUDENT_A_UID,
         payload: { score: 1 },
       })
     );
@@ -658,12 +830,16 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `${col}/${SESSION_A}`), {
         teacherUid: TEACHER_UID,
-        classId: CLASS_A,
+        classIds: [CLASS_A],
         status: 'ended',
+        submissionsEnabled: true,
       });
     });
     await assertFails(
-      setDoc(doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)), validSub())
+      setDoc(
+        doc(asStudentA(), subPath(SESSION_A, STUDENT_A_UID)),
+        validSub(STUDENT_A_UID)
+      )
     );
   });
 
@@ -671,11 +847,11 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), subPath(SESSION_A, STUDENT_A_UID)),
-        validSub()
+        validSub(STUDENT_A_UID)
       );
       await setDoc(
         doc(ctx.firestore(), subPath(SESSION_A, 'other-uid')),
-        validSub()
+        validSub('other-uid')
       );
     });
     await assertSucceeds(
@@ -690,11 +866,315 @@ describe('mini_app_sessions/submissions — student-role gate', () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), subPath(SESSION_A, 'anyone')),
-        validSub()
+        validSub('anyone')
       );
     });
     await assertSucceeds(
       getDoc(doc(asTeacher(), subPath(SESSION_A, 'anyone')))
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end lifecycle — walks the real client sequence for the full quiz
+// flow so a rules regression on any step fails a test. Reproduces:
+//   - The join-code probe (where('code', '==', X)) from PR #1390.
+//   - The single-doc onSnapshot listener from PR #1391.
+//   - The studentRole MyAssignmentsPage discovery query.
+//   - The response create + submit-answers + teacher-finalize sequence.
+// ---------------------------------------------------------------------------
+
+describe('quiz_sessions — end-to-end lifecycle', () => {
+  const SESSION_ID = 'lifecycle-session';
+  const JOIN_CODE = 'TESTCD';
+  const STUDENT_B_UID = 'student-b-uid';
+
+  const asStudentB = () =>
+    testEnv
+      .authenticatedContext(STUDENT_B_UID, {
+        studentRole: true,
+        classIds: [CLASS_B],
+      })
+      .firestore();
+
+  const baseSessionShape = {
+    id: SESSION_ID,
+    assignmentId: SESSION_ID,
+    teacherUid: TEACHER_UID,
+    classId: CLASS_A,
+    code: JOIN_CODE,
+    sessionMode: 'teacher',
+    currentQuestionIndex: -1,
+    startedAt: null,
+    endedAt: null,
+    totalQuestions: 2,
+    publicQuestions: [],
+  };
+
+  const baseStudentResp = (uid: string, pin: string) => ({
+    studentUid: uid,
+    pin,
+    joinedAt: 1000,
+    score: null,
+    answers: [] as unknown[],
+    status: 'active',
+    tabSwitchWarnings: 0,
+  });
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+  });
+
+  it('teacher create → query by code → get → resume → advance — no permission-denied', async () => {
+    // 1. createAssignment: teacher writes a paused session doc.
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`), {
+        ...baseSessionShape,
+        status: 'paused',
+      })
+    );
+
+    // 2. allocateJoinCode: teacher LIST query by code (was broken pre-#1390).
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asTeacher(), 'quiz_sessions'),
+          where('code', '==', JOIN_CODE)
+        )
+      )
+    );
+
+    // 3. useQuizSessionTeacher: single-doc GET (was broken pre-#1391 — the
+    //    Start bug this PR fixes).
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`))
+    );
+
+    // 4. resumeAssignment: paused → waiting.
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), `quiz_sessions/${SESSION_ID}`),
+        { status: 'waiting' },
+        { merge: true }
+      )
+    );
+
+    // 5. advanceQuestion: waiting → active, currentQuestionIndex = 0.
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), `quiz_sessions/${SESSION_ID}`),
+        { status: 'active', currentQuestionIndex: 0, startedAt: 1000 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('studentRole in-class: discovery → get → create response → submit answers', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        ...baseSessionShape,
+        status: 'active',
+      });
+    });
+
+    // 6. MyAssignmentsPage: where('classId', 'in', myClassIds).
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asStudentA(), 'quiz_sessions'),
+          where('classId', 'in', [CLASS_A])
+        )
+      )
+    );
+
+    // 7. Student renders the session: single-doc GET.
+    await assertSucceeds(
+      getDoc(doc(asStudentA(), `quiz_sessions/${SESSION_ID}`))
+    );
+
+    // 8. Student joins: creates response doc.
+    const respPath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_A_UID}`;
+    await assertSucceeds(
+      setDoc(
+        doc(asStudentA(), respPath),
+        baseStudentResp(STUDENT_A_UID, '1234')
+      )
+    );
+
+    // 9. Student submits answers: update with only allowed field changes.
+    await assertSucceeds(
+      setDoc(doc(asStudentA(), respPath), {
+        ...baseStudentResp(STUDENT_A_UID, '1234'),
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        status: 'submitted',
+        submittedAt: 2000,
+      })
+    );
+  });
+
+  it('studentRole out-of-class: can read session metadata but cannot submit', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        ...baseSessionShape,
+        status: 'active',
+      });
+    });
+
+    // Out-of-class student CAN get the session doc (intentional post-PR #1391).
+    await assertSucceeds(
+      getDoc(doc(asStudentB(), `quiz_sessions/${SESSION_ID}`))
+    );
+
+    // But CANNOT create a response: write-side class gate denies.
+    const respPath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_B_UID}`;
+    await assertFails(
+      setDoc(
+        doc(asStudentB(), respPath),
+        baseStudentResp(STUDENT_B_UID, '5555')
+      )
+    );
+
+    // Nor update an existing response (even if one were seeded).
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), respPath),
+        baseStudentResp(STUDENT_B_UID, '5555')
+      );
+    });
+    await assertFails(
+      setDoc(doc(asStudentB(), respPath), {
+        ...baseStudentResp(STUDENT_B_UID, '5555'),
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        status: 'submitted',
+        submittedAt: 2000,
+      })
+    );
+  });
+
+  it('studentRole cannot read another student response', async () => {
+    const otherUid = 'student-other-uid';
+    const otherRespPath = `quiz_sessions/${SESSION_ID}/responses/${otherUid}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        ...baseSessionShape,
+        status: 'active',
+      });
+      await setDoc(
+        doc(ctx.firestore(), otherRespPath),
+        baseStudentResp(otherUid, '7777')
+      );
+    });
+
+    await assertFails(getDoc(doc(asStudentA(), otherRespPath)));
+  });
+
+  it('teacher reads all responses (list) and finalizes a score', async () => {
+    const respPath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_A_UID}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+        ...baseSessionShape,
+        status: 'ended',
+      });
+      await setDoc(doc(ctx.firestore(), respPath), {
+        ...baseStudentResp(STUDENT_A_UID, '1234'),
+        answers: [{ questionId: 'q1', answer: 'A' }],
+        status: 'submitted',
+        submittedAt: 2000,
+      });
+    });
+
+    // 13. Teacher lists all responses on the session.
+    await assertSucceeds(
+      getDocs(collection(asTeacher(), `quiz_sessions/${SESSION_ID}/responses`))
+    );
+
+    // 14. Teacher sets score — a field students are forbidden from writing.
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), respPath), { score: 85 }, { merge: true })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PR #1391 regression smoke — teacher create → teacher single-doc read on
+// every session collection that uses the `allow read: if request.auth != null;`
+// shape. A rules regression that re-introduces `resource.data` into any of
+// these read rules will show up here.
+// ---------------------------------------------------------------------------
+
+describe('PR #1391 regression — teacher create + single-doc read on all session collections', () => {
+  const SESSION_ID = 'pr1391-regression';
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+  });
+
+  it('quiz_sessions: teacher create → single-doc get succeeds', async () => {
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        code: 'CODE01',
+        status: 'paused',
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `quiz_sessions/${SESSION_ID}`))
+    );
+  });
+
+  it('video_activity_sessions: teacher create → single-doc get succeeds', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), `video_activity_sessions/${SESSION_ID}`),
+        vaFields(SESSION_ID, CLASS_A)
+      )
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `video_activity_sessions/${SESSION_ID}`))
+    );
+  });
+
+  it('guided_learning_sessions: teacher create → single-doc get succeeds', async () => {
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), `guided_learning_sessions/${SESSION_ID}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `guided_learning_sessions/${SESSION_ID}`))
+    );
+  });
+
+  it('mini_app_sessions: teacher create → single-doc get succeeds', async () => {
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), `mini_app_sessions/${SESSION_ID}`), {
+        teacherUid: TEACHER_UID,
+        classIds: [CLASS_A],
+        status: 'active',
+        assignmentName: 'Mini',
+        submissionsEnabled: true,
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `mini_app_sessions/${SESSION_ID}`))
+    );
+  });
+
+  it('activity_wall_sessions: teacher create → single-doc get succeeds', async () => {
+    // activity_wall sessionId convention: {teacherUid}_{activityId}
+    const awSessionId = `${TEACHER_UID}_activity-x`;
+    await assertSucceeds(
+      setDoc(doc(asTeacher(), `activity_wall_sessions/${awSessionId}`), {
+        teacherUid: TEACHER_UID,
+        classId: CLASS_A,
+        status: 'active',
+      })
+    );
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), `activity_wall_sessions/${awSessionId}`))
     );
   });
 });

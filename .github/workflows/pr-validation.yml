@@ -77,6 +77,27 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  rules:
+    runs-on: ubuntu-24.04
+    name: Firestore Rules Tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      # firebase-tools is in the root lockfile (pnpm exec firebase).
+      # The Firestore emulator is a Java process, so we need a JDK.
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Run Firestore rules tests
+        run: pnpm run test:rules
+
   build:
     runs-on: ubuntu-24.04
     name: Build
@@ -101,12 +122,12 @@ jobs:
           VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY || 'test-key' }}
 
   summary:
-    needs: [quality, test, build, e2e]
+    needs: [quality, test, rules, build, e2e]
     runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Add PR Comment
-        if: ${{ needs.quality.result == 'success' && needs.test.result == 'success' && needs.build.result == 'success' && needs.e2e.result == 'success' }}
+        if: ${{ needs.quality.result == 'success' && needs.test.result == 'success' && needs.rules.result == 'success' && needs.build.result == 'success' && needs.e2e.result == 'success' }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:
@@ -120,7 +141,7 @@ jobs:
             })
 
       - name: Add PR Comment on Failure
-        if: ${{ needs.quality.result == 'failure' || needs.test.result == 'failure' || needs.build.result == 'failure' || needs.e2e.result == 'failure' }}
+        if: ${{ needs.quality.result == 'failure' || needs.test.result == 'failure' || needs.rules.result == 'failure' || needs.build.result == 'failure' || needs.e2e.result == 'failure' }}
         continue-on-error: true
         uses: actions/github-script@v7
         with:

@@ -32,7 +32,6 @@ import {
   PlayCircle,
   Plus,
   Trash2,
-  Users,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -64,6 +63,7 @@ import type {
 } from '@/components/common/library/types';
 import type {
   ClassLinkClass,
+  ClassRoster,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
@@ -71,6 +71,12 @@ import type {
   VideoActivitySessionSettings,
 } from '@/types';
 import { classLinkService } from '@/utils/classlinkService';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  formatClassLinkClassLabel,
+  makeEmptyPickerValue,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -96,18 +102,29 @@ export interface VideoActivityManagerProps {
     settings: VideoActivitySessionSettings,
     assignmentName: string,
     /**
-     * ClassLink target class `sourcedId`, or `null` when the teacher chose
-     * "No class" (classic join-URL-only flow). Phase 3B.
+     * Selected ClassLink class `sourcedId`s (Phase 5A multi-class). Empty
+     * array means the teacher targeted local rosters or no classes at all.
      */
-    classId: string | null
+    classIds: string[],
+    /**
+     * Selected local-roster period names (Phase 5A). Populated when the
+     * teacher picked local rosters; when they picked ClassLink classes these
+     * are the ClassLink class labels so the post-PIN period picker + any
+     * export respect the teacher's intent.
+     */
+    selectedPeriodNames: string[]
   ) => Promise<string>;
+  /** Local rosters used to populate the "Local rosters" source in the picker. */
+  rosters: ClassRoster[];
   /**
-   * Per-activity memory of the last ClassLink class the teacher targeted.
-   * Used to pre-select the target-class selector on re-launch of the same
-   * activity. Passed through from widget config; missing keys fall through
-   * to "No class". Phase 3B.
+   * @deprecated Phase 5A — replaced by `lastClassIdsByActivityId`.
    */
   lastClassIdByActivityId?: Record<string, string>;
+  /**
+   * Multi-class per-activity memory of the last ClassLink classes the
+   * teacher targeted. Pre-selects the picker on re-launch.
+   */
+  lastClassIdsByActivityId?: Record<string, string[]>;
   /**
    * Optional persistence hook for manual drag-reorder of the library. Drag
    * reordering is only enabled when this callback is provided; otherwise the
@@ -227,7 +244,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveResults,
   initialLibraryViewMode,
   onLibraryViewModeChange,
+  rosters,
   lastClassIdByActivityId,
+  lastClassIdsByActivityId,
 }) => {
   const [tab, setTab] = useState<LibraryTab>('library');
 
@@ -238,9 +257,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
-  // Phase 3B: selected ClassLink target class `sourcedId`, or `''` for
-  // "No class" (classic join-URL-only flow).
-  const [assignClassId, setAssignClassId] = useState<string>('');
+  // Phase 5A: unified class-assignment picker state. Source defaults to
+  // ClassLink when any classes are available, otherwise falls back to Local.
+  const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
+    makeEmptyPickerValue('classlink')
+  );
 
   // Adjust state during render when the assign target changes — avoids the
   // set-state-in-effect anti-pattern while keeping form fields reset per open.
@@ -252,7 +273,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignError(null);
-    setAssignClassId(lastClassIdByActivityId?.[assignTarget.id] ?? '');
+    const rememberedMulti = lastClassIdsByActivityId?.[assignTarget.id];
+    const rememberedSingle = lastClassIdByActivityId?.[assignTarget.id];
+    const classIds =
+      rememberedMulti ?? (rememberedSingle ? [rememberedSingle] : []);
+    setPickerValue(
+      classIds.length > 0
+        ? { source: 'classlink', classIds, periodNames: [] }
+        : makeEmptyPickerValue('classlink')
+    );
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
   }
@@ -472,20 +501,28 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       return;
     }
     setAssignError(null);
-    // Guard: if the teacher somehow picked a classId that's no longer in the
-    // fetched ClassLink list (e.g. rosters changed between fetch and confirm),
-    // fall through to no-class rather than writing a stale id.
-    const selectedClassId =
-      assignClassId &&
-      classLinkClasses.some((c) => c.sourcedId === assignClassId)
-        ? assignClassId
-        : null;
+    // Guard: filter stale sourcedIds that aren't in the latest ClassLink
+    // list. Selected local-roster names fall through unchanged.
+    const validClassIds =
+      pickerValue.source === 'classlink'
+        ? pickerValue.classIds.filter((id) =>
+            classLinkClasses.some((c) => c.sourcedId === id)
+          )
+        : [];
+    const selectedPeriodNames =
+      pickerValue.source === 'classlink'
+        ? validClassIds
+            .map((id) => classLinkClasses.find((c) => c.sourcedId === id))
+            .filter((cls): cls is ClassLinkClass => Boolean(cls))
+            .map(formatClassLinkClassLabel)
+        : pickerValue.periodNames;
     try {
       await onAssign(
         assignTarget,
         assignOptions,
         assignmentName.trim(),
-        selectedClassId
+        validClassIds,
+        selectedPeriodNames
       );
       setAssignTarget(null);
     } catch (err) {
@@ -971,13 +1008,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           onAssign={handleAssignConfirm}
           extraSlot={
             <div className="space-y-3">
-              {classLinkClasses.length > 0 && (
-                <AssignTargetClassRow
-                  classes={classLinkClasses}
-                  value={assignClassId}
-                  onChange={setAssignClassId}
-                />
-              )}
+              <AssignClassPicker
+                classLinkClasses={classLinkClasses}
+                rosters={rosters}
+                value={pickerValue}
+                onChange={setPickerValue}
+              />
 
               {assignError && (
                 <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
@@ -1066,61 +1102,3 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
     />
   </div>
 );
-
-/* ─── AssignTargetClassRow — ClassLink target-class selector (Phase 3B) ──── */
-
-/**
- * Build a human-readable label for a ClassLink class. Mirrors the format
- * used by `ClassLinkImportDialog` and `QuizManager` so teachers see the same
- * class names across all assign flows.
- */
-function formatClassLinkClassLabel(cls: ClassLinkClass): string {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-}
-
-/**
- * Target-class selector rendered inside the Assign modal's `extraSlot`.
- * Lets the teacher pick an optional ClassLink class to target this activity
- * at so that students who signed in via ClassLink see it on their
- * `/my-assignments` page. Phase 3B — fan-out of the Phase 3A quiz pilot.
- * Hidden entirely when the teacher isn't on a ClassLink org (empty classes
- * list).
- */
-const AssignTargetClassRow: React.FC<{
-  classes: ClassLinkClass[];
-  value: string;
-  onChange: (next: string) => void;
-}> = ({ classes, value, onChange }) => {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="w-4 h-4 text-brand-blue-primary" />
-        <label
-          htmlFor="video-activity-assign-target-class"
-          className="text-sm font-bold text-brand-blue-dark"
-        >
-          Target class (optional)
-        </label>
-      </div>
-      <select
-        id="video-activity-assign-target-class"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      >
-        <option value="">No class (use code/PIN only)</option>
-        {classes.map((cls) => (
-          <option key={cls.sourcedId} value={cls.sourcedId}>
-            {formatClassLinkClassLabel(cls)}
-          </option>
-        ))}
-      </select>
-      <p className="text-xxs text-slate-500 mt-1">
-        Students in this class will see this activity in their assignments list.
-        Leave blank to use a join code.
-      </p>
-    </div>
-  );
-};
