@@ -1474,11 +1474,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return next;
       });
 
+      // Derive add vs remove from `prev` (dockItems) itself, not from the
+      // outer `visibleTools` closure. Reading the closure desyncs the two
+      // stores when React batches a previous setVisibleTools update that
+      // hasn't flushed yet — the library then filters using a visibleTools
+      // that no longer matches dockItems.
       setDockItems((prev) => {
-        const isVisible = visibleTools.includes(type);
+        const exists = prev.some(
+          (item) =>
+            (item.type === 'tool' && item.toolType === type) ||
+            (item.type === 'folder' && item.folder.items.includes(type))
+        );
         let next: DockItem[];
 
-        if (isVisible) {
+        if (exists) {
           // Remove from dockItems (search globally in tools and folders)
           next = prev
             .map((item) => {
@@ -1497,20 +1506,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               (item) => !(item.type === 'tool' && item.toolType === type)
             );
         } else {
-          // Add to dockItems (if not already present)
-          const exists = prev.some(
-            (item) =>
-              (item.type === 'tool' && item.toolType === type) ||
-              (item.type === 'folder' && item.folder.items.includes(type))
-          );
-          next = exists ? prev : [...prev, { type: 'tool', toolType: type }];
+          next = [...prev, { type: 'tool', toolType: type }];
         }
 
         localStorage.setItem('classroom_dock_items', JSON.stringify(next));
         return next;
       });
     },
-    [visibleTools]
+    []
   );
 
   const setAllToolsVisibility = useCallback((visible: boolean) => {

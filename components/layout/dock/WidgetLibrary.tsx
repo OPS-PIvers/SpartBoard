@@ -212,36 +212,39 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       [effectiveOrder, onReorderLibrary]
     );
 
+    // Tools the user could add given their role + building — NOT accounting
+    // for what's already in the dock. Used to distinguish "your buildings
+    // match nothing" from "everything that matches is already in your dock"
+    // in the empty state, which otherwise always blamed the building filter.
+    const buildingAccessibleTools = useMemo(() => {
+      return effectiveOrder
+        .map((type) => TOOLS_MAP.get(type))
+        .filter((tool): tool is (typeof TOOLS)[0] => {
+          if (!tool) return false;
+          if (!canAccess(tool.type)) return false;
+          if (
+            !isEditMode &&
+            matchesUserBuilding &&
+            !matchesUserBuilding(tool.type)
+          )
+            return false;
+          return true;
+        });
+    }, [effectiveOrder, canAccess, isEditMode, matchesUserBuilding]);
+
     // Filter tools: must be accessible AND NOT already in the dock,
     // and in normal mode must match the user's selected buildings
     const availableTools = useMemo(() => {
       const visibleToolsSet = new Set(visibleTools);
-      return (
-        effectiveOrder
-          // Replaced TOOLS.find with TOOLS_MAP.get to eliminate O(N^2) complexity in rendering loop.
-          .map((type) => TOOLS_MAP.get(type))
-          .filter((tool): tool is (typeof TOOLS)[0] => {
-            if (!tool) return false;
-            if (!canAccess(tool.type)) return false;
-            // Hide if already in the dock
-            if (visibleToolsSet.has(tool.type)) return false;
-            // In normal (non-edit) mode, apply building-based grade-level filter
-            if (
-              !isEditMode &&
-              matchesUserBuilding &&
-              !matchesUserBuilding(tool.type)
-            )
-              return false;
-            return true;
-          })
+      return buildingAccessibleTools.filter(
+        (tool) => !visibleToolsSet.has(tool.type)
       );
-    }, [
-      effectiveOrder,
-      visibleTools,
-      canAccess,
-      isEditMode,
-      matchesUserBuilding,
-    ]);
+    }, [buildingAccessibleTools, visibleTools]);
+
+    const emptyStateMessage =
+      buildingAccessibleTools.length === 0
+        ? 'No widgets available for your buildings'
+        : 'All widgets are in your dock';
 
     return createPortal(
       <div className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none">
@@ -344,9 +347,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               <div className="flex flex-col items-center justify-center py-12 text-center opacity-40">
                 <LayoutGrid className="w-12 h-12 mb-4 text-slate-400" />
                 <p className="text-sm font-black uppercase tracking-widest text-slate-600">
-                  {isEditMode
-                    ? 'All widgets are in your dock'
-                    : 'No widgets available for your buildings'}
+                  {emptyStateMessage}
                 </p>
               </div>
             )}
@@ -357,9 +358,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 ? isEditMode
                   ? 'Drag to reorder • Tap to add to dock'
                   : 'Drag to reorder • Tap to add to board'
-                : isEditMode
-                  ? 'All widgets are in your dock'
-                  : 'No widgets available for your selected buildings'}
+                : emptyStateMessage}
             </p>
 
             <button
