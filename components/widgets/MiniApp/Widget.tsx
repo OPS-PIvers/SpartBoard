@@ -38,7 +38,10 @@ import {
   resolveSelectedRosters,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
-import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
+import {
+  deriveSessionTargetsFromRosters,
+  mapLegacyClassIdsToRosterIds,
+} from '@/utils/resolveAssignmentTargets';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
@@ -338,10 +341,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setCreatedSessionId(null);
     setAssignError(null);
     // Pre-populate the roster picker with the teacher's last selection for
-    // this app. Only new-shape `lastRosterIdsByAppId` is honored — legacy
-    // `lastClassIdsByAppId` held ClassLink sourcedIds that no longer map
-    // cleanly to the roster-only picker, so those defaults simply reset.
-    const lastRosterIds = config.lastRosterIdsByAppId?.[app.id] ?? [];
+    // this app. Prefer unified roster memory; fall back to the legacy
+    // ClassLink-sourcedId map so teachers upgrading from pre-unification
+    // configs keep their preselection.
+    let lastRosterIds = config.lastRosterIdsByAppId?.[app.id] ?? [];
+    if (lastRosterIds.length === 0) {
+      lastRosterIds = mapLegacyClassIdsToRosterIds(
+        config.lastClassIdsByAppId?.[app.id],
+        rosters
+      );
+    }
     setAssignPickerValue({ rosterIds: lastRosterIds });
     setAssignSubmissionsEnabled(
       config.lastSubmissionsEnabledByAppId?.[app.id] ?? false

@@ -360,6 +360,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           return sessionId;
         }}
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
+        lastClassIdsByActivityId={config.lastClassIdsByActivityId}
+        lastClassIdByActivityId={config.lastClassIdByActivityId}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);

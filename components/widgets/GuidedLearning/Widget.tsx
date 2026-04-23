@@ -21,7 +21,10 @@ import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
-import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
+import {
+  deriveSessionTargetsFromRosters,
+  mapLegacyClassIdsToRosterIds,
+} from '@/utils/resolveAssignmentTargets';
 import { GuidedLearningManager } from './components/GuidedLearningManager';
 import { GuidedLearningEditorModal } from './components/GuidedLearningEditorModal';
 import { GuidedLearningPlayer } from './components/GuidedLearningPlayer';
@@ -123,8 +126,23 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
-      const rememberedRosters =
+      // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+      // maps so teachers upgrading from pre-unification configs don't lose
+      // their per-set preselection on first launch.
+      let rememberedRosters =
         config.lastRosterIdsBySetId?.[assignTarget.originSetId] ?? [];
+      if (rememberedRosters.length === 0) {
+        const legacyMulti =
+          config.lastClassIdsBySetId?.[assignTarget.originSetId];
+        const legacySingle =
+          config.lastClassIdBySetId?.[assignTarget.originSetId];
+        const legacyClassIds =
+          legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+        rememberedRosters = mapLegacyClassIdsToRosterIds(
+          legacyClassIds,
+          rosters
+        );
+      }
       setPickerValue({ rosterIds: rememberedRosters });
     }
   }

@@ -57,6 +57,7 @@ import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
+import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 import {
   LibraryShell,
   LibraryToolbar,
@@ -134,11 +135,23 @@ function resolveEffectivePeriodNames(
 
 function buildDefaultAssignOptions(
   config: QuizConfig,
-  quizId?: string
+  quizId: string | undefined,
+  rosters: ClassRoster[]
 ): QuizAssignOptions {
-  const rememberedRosters = quizId
+  // Prefer the unified `lastRosterIdsByQuizId` memory. Fall back to legacy
+  // ClassLink-sourcedId maps (`lastClassIdsByQuizId` / `lastClassIdByQuizId`)
+  // so teachers who upgraded from pre-unification configs don't lose their
+  // per-quiz preselection on first launch.
+  let rememberedRosters = quizId
     ? (config.lastRosterIdsByQuizId?.[quizId] ?? [])
     : [];
+  if (rememberedRosters.length === 0 && quizId) {
+    const legacyMulti = config.lastClassIdsByQuizId?.[quizId];
+    const legacySingle = config.lastClassIdByQuizId?.[quizId];
+    const legacyClassIds =
+      legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+    rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
+  }
   return {
     tabWarningsEnabled: true,
     showResultToStudent: false,
@@ -339,7 +352,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     null
   );
   const [assignOptions, setAssignOptions] = useState<QuizAssignOptions>(() =>
-    buildDefaultAssignOptions(config)
+    buildDefaultAssignOptions(config, undefined, rosters)
   );
 
   // Reset assign form when modal re-opens (adjust-state-while-rendering)
@@ -350,7 +363,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
       setSelectedMode(null);
-      setAssignOptions(buildDefaultAssignOptions(config, assignTarget.id));
+      setAssignOptions(
+        buildDefaultAssignOptions(config, assignTarget.id, rosters)
+      );
     }
   }
 

@@ -17,7 +17,7 @@
  *   4. none          → untargeted (code/PIN-only join).
  */
 
-import type { ClassRoster, Student } from '../types';
+import type { ClassRoster, Student } from '@/types';
 
 /** Minimal shape of any assignment doc's class-targeting fields. */
 export interface AssignmentTargetInput {
@@ -117,6 +117,36 @@ export function resolveAssignmentTargets(
     students: [],
     source: 'none',
   };
+}
+
+/**
+ * Map legacy ClassLink `sourcedId`s (from pre-unification per-app config keys
+ * like `lastClassIdsByQuizId`) to rosterIds by matching against the current
+ * rosters' `classlinkClassId` metadata. Used to seed the picker default for
+ * teachers whose configs predate the unified `lastRosterIdsBy*` keys.
+ *
+ * Returns an empty array when the teacher hasn't (re-)imported the ClassLink
+ * class — we can't recover a preselection that no longer has a roster.
+ */
+export function mapLegacyClassIdsToRosterIds(
+  legacyClassIds: string[] | undefined,
+  rosters: ClassRoster[]
+): string[] {
+  if (!legacyClassIds || legacyClassIds.length === 0) return [];
+  const rosterByClassLinkId = new Map<string, string>();
+  for (const r of rosters) {
+    if (r.classlinkClassId) rosterByClassLinkId.set(r.classlinkClassId, r.id);
+  }
+  const mapped: string[] = [];
+  const seen = new Set<string>();
+  for (const cid of legacyClassIds) {
+    const rosterId = rosterByClassLinkId.get(cid);
+    if (rosterId && !seen.has(rosterId)) {
+      mapped.push(rosterId);
+      seen.add(rosterId);
+    }
+  }
+  return mapped;
 }
 
 /**

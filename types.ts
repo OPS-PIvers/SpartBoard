@@ -1263,9 +1263,10 @@ export interface MiniAppConfig {
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';
   /**
-   * @deprecated Read-only fallback for pre-unification configs. Written as
-   * ClassLink class `sourcedId`s; new code uses `lastRosterIdsByAppId`.
-   * Still read when present so teachers don't lose their per-app last-selection.
+   * @deprecated Pre-unification memory, written as ClassLink class
+   * `sourcedId`s. Read as a fallback (via `mapLegacyClassIdsToRosterIds`) to
+   * seed the picker only when `lastRosterIdsByAppId` is absent; never written
+   * by new code.
    */
   lastClassIdsByAppId?: Record<string, string[]>;
   /**

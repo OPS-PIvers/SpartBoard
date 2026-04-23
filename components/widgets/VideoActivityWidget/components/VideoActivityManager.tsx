@@ -74,6 +74,7 @@ import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
+import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -108,6 +109,14 @@ export interface VideoActivityManagerProps {
    * on re-launch.
    */
   lastRosterIdsByActivityId?: Record<string, string[]>;
+  /**
+   * @deprecated Read-only fallback for pre-unification widget configs.
+   * Holds ClassLink class `sourcedId`s; mapped to rosterIds via
+   * `mapLegacyClassIdsToRosterIds` when `lastRosterIdsByActivityId` is absent.
+   */
+  lastClassIdsByActivityId?: Record<string, string[]>;
+  /** @deprecated See `lastClassIdsByActivityId`. */
+  lastClassIdByActivityId?: Record<string, string>;
   /**
    * Optional persistence hook for manual drag-reorder of the library. Drag
    * reordering is only enabled when this callback is provided; otherwise the
@@ -229,6 +238,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onLibraryViewModeChange,
   rosters,
   lastRosterIdsByActivityId,
+  lastClassIdsByActivityId,
+  lastClassIdByActivityId,
 }) => {
   const [tab, setTab] = useState<LibraryTab>('library');
 
@@ -255,8 +266,17 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setAssignOptions(defaultSessionSettings);
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignError(null);
-    const rememberedRosters =
-      lastRosterIdsByActivityId?.[assignTarget.id] ?? [];
+    // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
+    // maps so teachers upgrading from pre-unification configs don't lose
+    // their per-activity preselection on first launch.
+    let rememberedRosters = lastRosterIdsByActivityId?.[assignTarget.id] ?? [];
+    if (rememberedRosters.length === 0) {
+      const legacyMulti = lastClassIdsByActivityId?.[assignTarget.id];
+      const legacySingle = lastClassIdByActivityId?.[assignTarget.id];
+      const legacyClassIds =
+        legacyMulti ?? (legacySingle ? [legacySingle] : undefined);
+      rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
+    }
     setPickerValue({ rosterIds: rememberedRosters });
   } else if (!assignTarget && prevAssignTargetId !== null) {
     setPrevAssignTargetId(null);
