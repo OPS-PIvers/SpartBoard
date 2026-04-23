@@ -72,6 +72,21 @@ service cloud.firestore {
               sessionClassIds.hasAny(request.auth.token.classIds));
     }
 
+    // Phase 5A transitional compatibility helper. Sessions created after
+    // Phase 5A write a multi-value `classIds` list; sessions created before
+    // Phase 5A write the single `classId` field. This helper selects the
+    // right gate based on which field is populated on the session doc:
+    //   - if `classIds` is a non-empty list, use `passesStudentClassGateList`
+    //   - otherwise, fall back to the legacy single-class gate
+    // Callers pass `resource.data.get('classIds', [])` and
+    // `resource.data.get('classId', '')` so the field-absent case safely
+    // falls through (empty list / empty string → no-op gate).
+    function passesStudentClassGateCompat(sessionClassIds, sessionClassId) {
+      return sessionClassIds is list && sessionClassIds.size() > 0
+             ? passesStudentClassGateList(sessionClassIds)
+             : passesStudentClassGate(sessionClassId);
+    }
+
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
     // Super admins are listed on the legacy admin_settings/user_roles doc.
@@ -642,10 +657,13 @@ service cloud.firestore {
         function sessionClassId() {
           return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classId', '');
         }
+        function sessionClassIds() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classIds', []);
+        }
 
         allow read: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() ||
-           (request.auth.uid == studentUid && passesStudentClassGate(sessionClassId())) ||
+           (request.auth.uid == studentUid && passesStudentClassGateCompat(sessionClassIds(), sessionClassId())) ||
            isAdmin());
         allow create: if request.auth != null &&
           request.auth.uid == studentUid &&
@@ -653,7 +671,7 @@ service cloud.firestore {
           // Students cannot forge a score on creation
           request.resource.data.score == null &&
           // studentRole users must be enrolled in the session's class
-          passesStudentClassGate(sessionClassId());
+          passesStudentClassGateCompat(sessionClassIds(), sessionClassId());
         allow update: if request.auth != null && (
           // Teacher and admins can update any field
           request.auth.uid == sessionTeacherUid() || isAdmin() ||
@@ -663,7 +681,7 @@ service cloud.firestore {
           // score is never written by students.
           // tabSwitchWarnings may only increase (monotonic) to prevent tampering.
           (request.auth.uid == studentUid &&
-           passesStudentClassGate(sessionClassId()) &&
+           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            request.resource.data.studentUid == resource.data.studentUid &&
            request.resource.data.pin == resource.data.pin &&
            request.resource.data.joinedAt == resource.data.joinedAt &&
@@ -790,12 +808,15 @@ service cloud.firestore {
         function vaSessionClassId() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classId', '');
         }
+        function vaSessionClassIds() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classIds', []);
+        }
 
         // Teacher can read all responses; students can only read their own (doc ID == auth UID)
         allow read: if request.auth != null && (
           isAdmin() ||
           get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
-          (studentUid == request.auth.uid && passesStudentClassGate(vaSessionClassId()))
+          (studentUid == request.auth.uid && passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()))
         );
         // Students create their own response; document ID and studentUid field must match their auth UID.
         // studentRole users must also be enrolled in the session's class.
@@ -804,12 +825,12 @@ service cloud.firestore {
           request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.score == null &&
           request.resource.data.completedAt == null &&
-          passesStudentClassGate(vaSessionClassId());
+          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId());
         // Students can update only their own response to add answers or set completedAt;
         // identity fields and score are immutable from the client; answers array may only grow
         allow update: if request.auth != null &&
           studentUid == request.auth.uid &&
-          passesStudentClassGate(vaSessionClassId()) &&
+          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           request.resource.data.studentUid == resource.data.studentUid &&
           request.resource.data.pin == resource.data.pin &&
           request.resource.data.name == resource.data.name &&
@@ -955,12 +976,15 @@ service cloud.firestore {
         function glSessionClassId() {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classId', '');
         }
+        function glSessionClassIds() {
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classIds', []);
+        }
 
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
           isAdmin() ||
           get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
-          (studentUid == request.auth.uid && passesStudentClassGate(glSessionClassId()))
+          (studentUid == request.auth.uid && passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()))
         );
         // Students create their own response; doc ID, studentAnonymousId, and sessionId must match.
         // studentRole users must also be enrolled in the session's class.
@@ -969,12 +993,12 @@ service cloud.firestore {
           request.resource.data.studentAnonymousId == request.auth.uid &&
           request.resource.data.sessionId == sessionId &&
           request.resource.data.score == null &&
-          passesStudentClassGate(glSessionClassId());
+          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId());
         // Students can update only their own response to add answers or set completedAt;
         // identity fields and score are immutable from the client
         allow update: if request.auth != null &&
           studentUid == request.auth.uid &&
-          passesStudentClassGate(glSessionClassId()) &&
+          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
           request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
           request.resource.data.sessionId == resource.data.sessionId &&
           request.resource.data.startedAt == resource.data.startedAt &&

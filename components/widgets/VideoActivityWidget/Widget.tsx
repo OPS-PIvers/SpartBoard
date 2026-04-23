@@ -62,7 +62,7 @@ async function copyUrlToClipboard(
 export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast } = useDashboard();
+  const { updateWidget, addToast, rosters } = useDashboard();
   const {
     user,
     googleAccessToken,
@@ -310,7 +310,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           }
         }}
         defaultSessionSettings={defaultSessionSettings}
-        onAssign={async (meta, sessionSettings, assignmentName, classId) => {
+        rosters={rosters}
+        onAssign={async (
+          meta,
+          sessionSettings,
+          assignmentName,
+          classIds,
+          selectedPeriodNames
+        ) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -321,26 +328,30 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             [],
             sessionSettings,
             assignmentName,
-            classId ?? undefined
+            classIds,
+            selectedPeriodNames
           );
 
-          // Phase 3B: persist per-activity memory of the last ClassLink target
-          // so the next launch of the same activity pre-selects the class the
-          // teacher used last time. Clearing the selection ("No class") also
-          // clears the remembered id so we don't stick on stale values.
-          const prevMap = config.lastClassIdByActivityId ?? {};
-          const nextMap: Record<string, string> = { ...prevMap };
-          if (classId) {
-            nextMap[meta.id] = classId;
+          // Phase 5A: persist per-activity memory of the last ClassLink
+          // target classes so the next launch pre-selects the same set.
+          const prevMap = config.lastClassIdsByActivityId ?? {};
+          const nextMap: Record<string, string[]> = { ...prevMap };
+          if (classIds.length > 0) {
+            nextMap[meta.id] = classIds;
           } else {
             delete nextMap[meta.id];
           }
+          // Drop any legacy single-class entry to avoid stale pre-selection.
+          const prevLegacyMap = config.lastClassIdByActivityId ?? {};
+          const nextLegacyMap: Record<string, string> = { ...prevLegacyMap };
+          delete nextLegacyMap[meta.id];
 
           updateWidget(widget.id, {
             config: {
               ...config,
               resultsSessionId: sessionId,
-              lastClassIdByActivityId: nextMap,
+              lastClassIdsByActivityId: nextMap,
+              lastClassIdByActivityId: nextLegacyMap,
             } as VideoActivityConfig,
           });
 
@@ -352,6 +363,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           return sessionId;
         }}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
+        lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);

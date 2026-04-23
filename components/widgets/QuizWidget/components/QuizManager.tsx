@@ -42,7 +42,6 @@ import {
   Loader2,
   AlertCircle,
   CheckSquare,
-  Users,
 } from 'lucide-react';
 import {
   ClassLinkClass,
@@ -55,6 +54,12 @@ import {
 import { classLinkService } from '@/utils/classlinkService';
 import { type QuizSessionOptions } from '@/hooks/useQuizSession';
 import { Toggle } from '@/components/common/Toggle';
+import { AssignClassPicker } from '@/components/common/AssignClassPicker';
+import {
+  formatClassLinkClassLabel,
+  makeEmptyPickerValue,
+  type AssignClassPickerValue,
+} from '@/components/common/AssignClassPicker.helpers';
 import {
   LibraryShell,
   LibraryToolbar,
@@ -105,21 +110,47 @@ interface QuizAssignOptions {
   soundEffectsEnabled: boolean;
   plcMode: boolean;
   teacherName: string;
-  selectedPeriodNames: string[];
   plcSheetUrl: string;
   /**
-   * ClassLink class `sourcedId` this quiz is targeted at, or `''` for the
-   * "No class" option (classic code/PIN-only flow). Written onto the
-   * `quiz_sessions/{sessionId}` document when non-empty so students who
-   * signed in via ClassLink see the session on their /my-assignments page.
+   * Unified class-target picker state (Phase 5A). `classIds` is the list of
+   * ClassLink class `sourcedId`s when source === 'classlink'. `periodNames`
+   * is the list of local roster names when source === 'local'. One of the
+   * two is populated at a time — switching source clears the other.
    */
-  classId: string;
+  picker: AssignClassPickerValue;
+}
+
+/**
+ * Resolve the effective class-period labels for a picker value. When the
+ * teacher picks ClassLink classes, the labels used for the post-PIN period
+ * picker and the PLC Google Sheet export are the ClassLink class titles
+ * themselves; when they pick local rosters, the labels are the roster names.
+ */
+function resolveEffectivePeriodNames(
+  picker: AssignClassPickerValue,
+  classLinkClasses: ClassLinkClass[]
+): string[] {
+  if (picker.source === 'classlink') {
+    return picker.classIds
+      .map((id) => classLinkClasses.find((c) => c.sourcedId === id))
+      .filter((cls): cls is ClassLinkClass => Boolean(cls))
+      .map(formatClassLinkClassLabel);
+  }
+  return picker.periodNames;
 }
 
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId?: string
 ): QuizAssignOptions {
+  const rememberedMulti = quizId
+    ? (config.lastClassIdsByQuizId?.[quizId] ?? null)
+    : null;
+  const rememberedSingle = quizId
+    ? (config.lastClassIdByQuizId?.[quizId] ?? null)
+    : null;
+  const classIds =
+    rememberedMulti ?? (rememberedSingle ? [rememberedSingle] : []);
   return {
     tabWarningsEnabled: true,
     showResultToStudent: false,
@@ -131,10 +162,19 @@ function buildDefaultAssignOptions(
     soundEffectsEnabled: false,
     plcMode: config.plcMode ?? false,
     teacherName: config.teacherName ?? '',
-    selectedPeriodNames:
-      config.periodNames ?? (config.periodName ? [config.periodName] : []),
     plcSheetUrl: config.plcSheetUrl ?? '',
-    classId: (quizId && config.lastClassIdByQuizId?.[quizId]) ?? '',
+    picker:
+      classIds.length > 0
+        ? { source: 'classlink', classIds, periodNames: [] }
+        : config.periodNames && config.periodNames.length > 0
+          ? { source: 'local', classIds: [], periodNames: config.periodNames }
+          : config.periodName
+            ? {
+                source: 'local',
+                classIds: [],
+                periodNames: [config.periodName],
+              }
+            : makeEmptyPickerValue('classlink'),
   };
 }
 
@@ -177,10 +217,11 @@ interface QuizManagerProps {
     plcOptions: PlcOptions,
     sessionOptions: QuizSessionOptions,
     /**
-     * ClassLink target class `sourcedId`, or `null` when the teacher chose
-     * "No class" (classic code/PIN-only flow). Phase 3A.
+     * Selected ClassLink class `sourcedId`s (Phase 5A multi-class). Empty
+     * array when the teacher chose local rosters or no classes at all —
+     * preserves the classic code/PIN-only flow.
      */
-    classId: string | null
+    classIds: string[]
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
@@ -648,14 +689,25 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget || !selectedMode) return;
+    // Guard: filter out any selected classId that's no longer in the fetched
+    // ClassLink list (e.g. rosters changed between fetch and confirm), so we
+    // never write stale sourcedIds.
+    const validClassIds =
+      assignOptions.picker.source === 'classlink'
+        ? assignOptions.picker.classIds.filter((id) =>
+            classLinkClasses.some((c) => c.sourcedId === id)
+          )
+        : [];
+    const effectivePeriodNames = resolveEffectivePeriodNames(
+      { ...assignOptions.picker, classIds: validClassIds },
+      classLinkClasses
+    );
     const plcOptions: PlcOptions = {
       plcMode: assignOptions.plcMode,
       teacherName: assignOptions.teacherName || undefined,
-      periodName: assignOptions.selectedPeriodNames[0] || undefined,
+      periodName: effectivePeriodNames[0] || undefined,
       periodNames:
-        assignOptions.selectedPeriodNames.length > 0
-          ? assignOptions.selectedPeriodNames
-          : undefined,
+        effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
       plcSheetUrl: assignOptions.plcSheetUrl || undefined,
     };
     const sessionOptions: QuizSessionOptions = {
@@ -668,20 +720,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       showPodiumBetweenQuestions: assignOptions.showPodiumBetweenQuestions,
       soundEffectsEnabled: assignOptions.soundEffectsEnabled,
     };
-    // Guard: if the teacher somehow picked a classId that's no longer in the
-    // fetched ClassLink list (e.g. rosters changed between fetch and confirm),
-    // fall through to no-class rather than writing a stale id.
-    const selectedClassId =
-      assignOptions.classId &&
-      classLinkClasses.some((c) => c.sourcedId === assignOptions.classId)
-        ? assignOptions.classId
-        : null;
     onAssign(
       assignTarget,
       selectedMode,
       plcOptions,
       sessionOptions,
-      selectedClassId
+      validClassIds
     );
     setAssignTarget(null);
     setSelectedMode(null);
@@ -1004,14 +1048,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               classLinkClasses={classLinkClasses}
+              rosters={rosters}
             />
           }
           plcSlot={
             <AssignPlcSlot
-              rosters={rosters}
               options={assignOptions}
               onChange={setAssignOptions}
               plcSheetUrlInvalid={plcSheetUrlInvalid}
+              effectivePeriodCount={
+                resolveEffectivePeriodNames(
+                  assignOptions.picker,
+                  classLinkClasses
+                ).length
+              }
             />
           }
           onAssign={() => handleAssignConfirm()}
@@ -1280,7 +1330,8 @@ const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
   classLinkClasses: ClassLinkClass[];
-}> = ({ options, onChange, classLinkClasses }) => {
+  rosters: ClassRoster[];
+}> = ({ options, onChange, classLinkClasses, rosters }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -1288,13 +1339,12 @@ const AssignExtraSlot: React.FC<{
 
   return (
     <>
-      {classLinkClasses.length > 0 && (
-        <AssignTargetClassRow
-          classes={classLinkClasses}
-          value={options.classId}
-          onChange={(v) => update('classId', v)}
-        />
-      )}
+      <AssignClassPicker
+        classLinkClasses={classLinkClasses}
+        rosters={rosters}
+        value={options.picker}
+        onChange={(picker) => update('picker', picker)}
+      />
 
       <SectionHeader label="Quiz Integrity" />
       <ToggleRow
@@ -1354,79 +1404,21 @@ const AssignExtraSlot: React.FC<{
   );
 };
 
-/**
- * Build a human-readable label for a ClassLink class. Mirrors the format
- * used by `ClassLinkImportDialog` so teachers see the same class names in
- * both flows.
- */
-function formatClassLinkClassLabel(cls: ClassLinkClass): string {
-  const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
-  const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
-  return `${subjectPrefix}${cls.title}${codeSuffix}`;
-}
-
-/**
- * Target-class selector rendered inside the Assign modal's `extraSlot`.
- * Lets the teacher pick an optional ClassLink class to target this quiz at
- * so that students who signed in via ClassLink see it on their
- * `/my-assignments` page. Phase 3A — pilot for class-targeted session
- * launches. Hidden entirely when the teacher isn't on a ClassLink org
- * (empty classes list).
- */
-const AssignTargetClassRow: React.FC<{
-  classes: ClassLinkClass[];
-  value: string;
-  onChange: (next: string) => void;
-}> = ({ classes, value, onChange }) => {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="w-4 h-4 text-brand-blue-primary" />
-        <label
-          htmlFor="quiz-assign-target-class"
-          className="text-sm font-bold text-brand-blue-dark"
-        >
-          Target class (optional)
-        </label>
-      </div>
-      <select
-        id="quiz-assign-target-class"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-      >
-        <option value="">No class (use code/PIN only)</option>
-        {classes.map((cls) => (
-          <option key={cls.sourcedId} value={cls.sourcedId}>
-            {formatClassLinkClassLabel(cls)}
-          </option>
-        ))}
-      </select>
-      <p className="text-xxs text-slate-500 mt-1">
-        Students in this class will see this quiz in their assignments list.
-        Leave blank to use a join code.
-      </p>
-    </div>
-  );
-};
-
 const AssignPlcSlot: React.FC<{
-  rosters: ClassRoster[];
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
   plcSheetUrlInvalid: boolean;
-}> = ({ rosters, options, onChange, plcSheetUrlInvalid }) => {
+  /**
+   * Number of class periods the picker is contributing (ClassLink class
+   * labels or local roster names). Drives the "students will see a picker"
+   * hint without this slot needing to recompute the derivation itself.
+   */
+  effectivePeriodCount: number;
+}> = ({ options, onChange, plcSheetUrlInvalid, effectivePeriodCount }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
   ) => onChange({ ...options, [key]: value });
-
-  const togglePeriod = (name: string) => {
-    const next = options.selectedPeriodNames.includes(name)
-      ? options.selectedPeriodNames.filter((n) => n !== name)
-      : [...options.selectedPeriodNames, name];
-    update('selectedPeriodNames', next);
-  };
 
   return (
     <>
@@ -1445,54 +1437,16 @@ const AssignPlcSlot: React.FC<{
         />
       </div>
       <p className="text-xxs text-slate-500 -mt-1">
-        Export results to a shared Google Sheet for your PLC team.
-      </p>
-
-      <div>
-        <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-          Class Periods
-        </label>
-        {rosters.length > 0 ? (
-          <div className="space-y-1.5 max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">
-            {rosters.map((r) => {
-              const checked = options.selectedPeriodNames.includes(r.name);
-              return (
-                <label
-                  key={r.id}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 rounded px-1.5 py-1"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => togglePeriod(r.name)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-slate-800">{r.name}</span>
-                </label>
-              );
-            })}
-          </div>
+        Export results to a shared Google Sheet for your PLC team.{' '}
+        {effectivePeriodCount > 1 ? (
+          <>Students will see a class-period picker after entering their PIN.</>
         ) : (
-          <input
-            type="text"
-            value={options.selectedPeriodNames.join(', ')}
-            onChange={(e) => {
-              const names = e.target.value
-                .split(',')
-                .map((n) => n.trim())
-                .filter(Boolean);
-              update('selectedPeriodNames', [...new Set(names)]);
-            }}
-            placeholder="e.g. Period 1, Period 2"
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <>
+            Pick two or more classes above to give students a period picker when
+            they join.
+          </>
         )}
-        <p className="text-xxs text-slate-400 mt-0.5">
-          {options.selectedPeriodNames.length > 1
-            ? 'Students will see a class-period picker after entering their PIN.'
-            : 'Select class periods for this assignment. Pick two or more to give students a picker when they join.'}
-        </p>
-      </div>
+      </p>
 
       {options.plcMode && (
         <div className="space-y-3 bg-slate-50 rounded-xl p-3 border border-slate-100">

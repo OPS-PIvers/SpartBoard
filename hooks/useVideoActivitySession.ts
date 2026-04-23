@@ -77,11 +77,12 @@ export interface UseVideoActivitySessionTeacherResult {
   /**
    * Create a session for a class and return the sessionId (used as the share link).
    *
-   * `classId` is an optional ClassLink class `sourcedId`. When provided, it's
-   * written onto the session doc so that ClassLink-authenticated students
-   * see this session on their `/my-assignments` page, and Firestore rules
-   * (`passesStudentClassGate(vaSessionClassId())`) enforce class-based
-   * access. Omitting it preserves the classic code/PIN-only flow.
+   * `classIds` is the list of ClassLink class `sourcedId`s this session is
+   * targeted at (Phase 5A multi-class). When non-empty, the session doc
+   * stores them on `classIds` (and transitionally mirrors `classIds[0]` to
+   * `classId`). `periodNames` drives the post-PIN class-period picker and
+   * is either the list of chosen local roster names or the ClassLink class
+   * labels (mirroring the teacher's picker source).
    */
   createSession: (
     activity: VideoActivityData,
@@ -89,7 +90,8 @@ export interface UseVideoActivitySessionTeacherResult {
     allowedPins?: string[],
     settings?: Partial<VideoActivitySessionSettings>,
     assignmentName?: string,
-    classId?: string
+    classIds?: string[],
+    periodNames?: string[]
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -127,7 +129,8 @@ export const useVideoActivitySessionTeacher =
         allowedPins: string[] = [],
         settings?: Partial<VideoActivitySessionSettings>,
         assignmentName?: string,
-        classId?: string
+        classIds: string[] = [],
+        periodNames: string[] = []
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -152,11 +155,12 @@ export const useVideoActivitySessionTeacher =
           status: 'active',
           allowedPins,
           createdAt: Date.now(),
-          // Phase 3B: optional ClassLink target class. Only write when a
-          // non-empty sourcedId was supplied so sessions created without a
-          // target keep a clean doc shape (and the rules no-op branch kicks in
-          // via `resource.data.get('classId', '')`).
-          ...(classId ? { classId } : {}),
+          // Phase 5A: multi-class ClassLink targeting + post-PIN period
+          // picker support. `classIds` is authoritative; `classId` is
+          // transitionally mirrored to `classIds[0]` so pre-Phase-5A
+          // Firestore rules keep gating correctly.
+          ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
+          ...(periodNames.length > 0 ? { periodNames } : {}),
         };
 
         await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);
@@ -309,7 +313,18 @@ export interface UseVideoActivitySessionStudentResult {
   myResponse: VideoActivityResponse | null;
   joinStatus: StudentJoinStatus;
   error: string | null;
-  joinSession: (sessionId: string, pin: string, name: string) => Promise<void>;
+  /**
+   * Look up a session by id without creating a response — used by the
+   * student-app join flow to decide whether to show a post-PIN period
+   * picker before committing the join.
+   */
+  lookupSession: (sessionId: string) => Promise<VideoActivitySession | null>;
+  joinSession: (
+    sessionId: string,
+    pin: string,
+    name: string,
+    classPeriod?: string
+  ) => Promise<void>;
   submitAnswer: (questionId: string, answer: string) => Promise<void>;
   completeActivity: () => Promise<void>;
 }
@@ -376,11 +391,31 @@ export const useVideoActivitySessionStudent =
       return unsub;
     }, [sessionId, responseDocId]);
 
+    const lookupSession = useCallback(
+      async (targetSessionId: string): Promise<VideoActivitySession | null> => {
+        try {
+          const snap = await getDoc(
+            doc(db, SESSIONS_COLLECTION, targetSessionId)
+          );
+          if (!snap.exists()) return null;
+          return snap.data() as VideoActivitySession;
+        } catch (err) {
+          console.error(
+            '[useVideoActivitySessionStudent] lookupSession error:',
+            err
+          );
+          return null;
+        }
+      },
+      []
+    );
+
     const joinSession = useCallback(
       async (
         targetSessionId: string,
         studentPin: string,
-        studentName: string
+        studentName: string,
+        classPeriod?: string
       ): Promise<void> => {
         setJoinStatus('loading');
         setError(null);
@@ -454,6 +489,7 @@ export const useVideoActivitySessionStudent =
               answers: [],
               completedAt: null,
               score: null,
+              ...(classPeriod ? { classPeriod } : {}),
             };
             await setDoc(responseRef, newResponse);
           }
@@ -527,6 +563,7 @@ export const useVideoActivitySessionStudent =
       myResponse,
       joinStatus,
       error,
+      lookupSession,
       joinSession,
       submitAnswer,
       completeActivity,
