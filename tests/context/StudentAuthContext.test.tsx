@@ -182,12 +182,12 @@ describe('StudentAuthContext — claim validation', () => {
     expect(firebaseAuth.signOut).toHaveBeenCalledWith(auth);
   });
 
-  it('accepts an empty classIds array (no classes assigned yet) — currently authenticated', async () => {
-    // NOTE: `extractStudentClaims` accepts `classIds: []` because the
-    // validator only requires the value be an array of strings — it does
-    // not enforce non-empty membership. This test pins that current
-    // behavior. If the product decides empty enrollments should be
-    // rejected, update `extractStudentClaims` AND this test together.
+  it('rejects an empty classIds array and signs out', async () => {
+    // `extractStudentClaims` deliberately rejects `classIds: []` — a student
+    // with zero classes has no Firestore paths they're allowed to read under
+    // rules, so we'd strand them on MyAssignmentsPage with a silent empty
+    // list and no recovery path. Better to fail sign-in and let the teacher
+    // fix the enrollment. Pins this invariant.
     renderProvider();
     const listener = captureListener();
 
@@ -207,12 +207,10 @@ describe('StudentAuthContext — claim validation', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('status').textContent).toBe('authenticated');
+      expect(screen.getByTestId('status').textContent).toBe('unauthenticated');
     });
-    expect(firebaseAuth.signOut).not.toHaveBeenCalled();
-    expect(screen.getByTestId('uid').textContent).toBe('pseudo-3');
-    expect(screen.getByTestId('org').textContent).toBe('org-1');
-    expect(screen.getByTestId('classes').textContent).toBe('');
+    expect(firebaseAuth.signOut).toHaveBeenCalledTimes(1);
+    expect(firebaseAuth.signOut).toHaveBeenCalledWith(auth);
   });
 
   it('rejects a user whose orgId claim is empty and signs out', async () => {

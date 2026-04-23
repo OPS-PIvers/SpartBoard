@@ -6,6 +6,7 @@ import {
   X,
   GripVertical,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   DndContext,
@@ -163,6 +164,11 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [error, setError] = useState('');
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  // Pending result + clamp-warning state. When Gemini returns steps whose
+  // imageIndex referenced an image that doesn't exist, we clamp to 0 and pause
+  // here so the teacher gets an explicit heads-up before the editor opens.
+  const [pendingSet, setPendingSet] = useState<GuidedLearningSet | null>(null);
+  const [clampWarning, setClampWarning] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
@@ -334,7 +340,19 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         isBuilding: true,
         authorUid: user?.uid,
       };
-      onGenerated(set);
+      // If any steps had their imageIndex clamped, pause so the teacher sees
+      // the warning before the editor takes over the surface.
+      if (result.clampedSteps.length > 0) {
+        const n = result.clampedSteps.length;
+        setPendingSet(set);
+        setClampWarning(
+          `AI suggested ${n} step${n === 1 ? '' : 's'} with image references that didn't exist — ${
+            n === 1 ? 'it has' : 'they have'
+          } been moved to image 1. Please review.`
+        );
+      } else {
+        onGenerated(set);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Generation failed';
       setError(msg);
@@ -472,25 +490,50 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             {error}
           </p>
         )}
+
+        {clampWarning && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 text-amber-200 text-xs bg-amber-900/25 border border-amber-500/30 px-3 py-2 rounded-lg"
+          >
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-300" />
+            <span className="whitespace-pre-wrap">{clampWarning}</span>
+          </div>
+        )}
       </div>
 
-      <button
-        onClick={handleGenerate}
-        disabled={images.length === 0 || busy}
-        className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
-      >
-        {generating ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Generating…
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </>
-        )}
-      </button>
+      {pendingSet ? (
+        <button
+          onClick={() => {
+            const set = pendingSet;
+            setPendingSet(null);
+            setClampWarning('');
+            onGenerated(set);
+          }}
+          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl transition-colors font-medium text-sm"
+        >
+          <Sparkles className="w-4 h-4" />
+          Open in editor to review
+        </button>
+      ) : (
+        <button
+          onClick={handleGenerate}
+          disabled={images.length === 0 || busy}
+          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
+        >
+          {generating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating…
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Draft with AI
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };
