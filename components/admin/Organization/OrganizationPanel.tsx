@@ -10,6 +10,9 @@ import {
   ChevronLeft,
   Loader2,
   FlaskConical,
+  KeyRound,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
@@ -39,6 +42,8 @@ import { UsersView } from './views/UsersView';
 import { StudentPageView } from './views/StudentPageView';
 import { TestClassesView } from './views/TestClassesView';
 import {
+  Btn,
+  LocalModal,
   OrgLogoTile,
   OrgToast,
   type OrgToastType,
@@ -275,6 +280,13 @@ export const OrganizationPanel: React.FC = () => {
   const [toast, setToast] = useState<{
     message: string;
     type: OrgToastType;
+  } | null>(null);
+  // When the org's email queue is disabled, the reset-password CF returns the
+  // minted URL so the admin can deliver it manually. We surface it in a modal
+  // (sensitive — never logged, never toasted, never persisted).
+  const [manualResetLink, setManualResetLink] = useState<{
+    email: string;
+    url: string;
   } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (message: string, type: OrgToastType = 'info') => {
@@ -540,11 +552,20 @@ export const OrganizationPanel: React.FC = () => {
   };
 
   // Password reset goes through a dedicated callable (`resetOrganizationUserPassword`)
-  // that uses the Admin SDK and gates on domain-admin-of-orgId.
+  // that uses the Admin SDK and gates on domain-admin-of-orgId. When the org's
+  // email queue is disabled, the CF returns the minted reset URL on the
+  // response — we open a modal so the admin can copy it. We deliberately do
+  // NOT toast or log the URL (it grants password reset capability).
   const handleResetPassword = (target: UserRecord) => {
     if (!writesEnabled) return comingSoon('Reset password');
     resetPassword(target.email)
-      .then(() => showToast(`Sent reset email to ${target.email}`, 'success'))
+      .then((response) => {
+        if (response.resetUrl) {
+          setManualResetLink({ email: target.email, url: response.resetUrl });
+          return;
+        }
+        showToast(`Sent reset email to ${target.email}`, 'success');
+      })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         showToast(`Reset failed: ${msg}`, 'error');
@@ -829,7 +850,101 @@ export const OrganizationPanel: React.FC = () => {
       </div>
 
       {toast && <OrgToast message={toast.message} type={toast.type} />}
+
+      <ManualResetLinkModal
+        link={manualResetLink}
+        onClose={() => setManualResetLink(null)}
+      />
     </div>
+  );
+};
+
+// Surfaces the minted password-reset URL to the admin when the org's email
+// queue is disabled. Sensitive — rendered in a modal, click-to-copy only;
+// never toasted, never logged. Local to this file because there's no other
+// caller and we want the security posture to live next to the handler.
+const ManualResetLinkModal: React.FC<{
+  link: { email: string; url: string } | null;
+  onClose: () => void;
+}> = ({ link, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset the "Copied!" affordance whenever a fresh link opens. We compare the
+  // url in render rather than reaching for useEffect; CLAUDE.md flags effect
+  // chains for derived state as the wrong tool here.
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  if (link && link.url !== lastUrl) {
+    setLastUrl(link.url);
+    setCopied(false);
+  }
+  if (!link && lastUrl !== null) {
+    setLastUrl(null);
+  }
+
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    },
+    []
+  );
+
+  const handleCopy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopied(true);
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard may be unavailable (insecure origin, permissions). The link
+      // is still visible in the input for manual selection — no further
+      // recovery needed here.
+    }
+  };
+
+  return (
+    <LocalModal
+      isOpen={link !== null}
+      onClose={onClose}
+      title="Copy password-reset link"
+      icon={<KeyRound size={18} />}
+      footer={
+        <Btn variant="secondary" onClick={onClose}>
+          Done
+        </Btn>
+      }
+    >
+      <div className="space-y-4 text-sm text-slate-700">
+        <p>
+          Email delivery is disabled for this organization. Copy the link below
+          and send it to{' '}
+          <strong className="text-slate-900">{link?.email ?? ''}</strong>{' '}
+          through your preferred channel.
+        </p>
+        <div className="flex items-stretch gap-2">
+          <input
+            type="text"
+            readOnly
+            value={link?.url ?? ''}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label="Password reset URL"
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
+          />
+          <Btn
+            variant="primary"
+            onClick={handleCopy}
+            icon={copied ? <Check size={14} /> : <Copy size={14} />}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </Btn>
+        </div>
+        <p className="text-xs text-slate-500">
+          This link grants access to reset the user&apos;s password. Don&apos;t
+          share it in public channels.
+        </p>
+      </div>
+    </LocalModal>
   );
 };
 

@@ -29,13 +29,21 @@
  *   linger with legacy IDs and so analytics buckets collapse cleanly.
  *
  * WHAT THIS SCRIPT DOES
- *   - Enumerates every doc under /users/* (collection group not needed —
- *     the two affected fields live on /users/{uid} and
- *     /users/{uid}/userProfile/profile).
- *   - Rewrites `selectedBuildings` (on userProfile/profile) and `buildings`
- *     (on the root /users/{uid} doc) to canonical IDs, deduplicating in
- *     the process.
- *   - Skips writes when the array is already canonical (idempotent).
+ *   - PASS 1: enumerates /users/* and rewrites BOTH fields:
+ *       /users/{uid}.buildings        (root doc)
+ *       /users/{uid}/userProfile/profile.selectedBuildings
+ *   - PASS 2: collectionGroup sweep over `userProfile` docs to catch
+ *     orphan profiles whose parent /users/{uid} doc is a Firestore
+ *     "phantom" (exists only as the implicit ancestor of subcollection
+ *     writes, no fields, so PASS 1's collection() query skips it), and
+ *     rewrites only `selectedBuildings` on those profile docs. PASS 2
+ *     does NOT write a root `buildings` field — phantom parents have no
+ *     existing `buildings` to canonicalize, and the app self-heals the
+ *     root field on next login via `canonicalizeBuildingIds()`.
+ *   - Rewrites stored building-ID arrays to canonical IDs, deduplicating
+ *     in the process.
+ *   - Skips writes when the array is already canonical (idempotent —
+ *     safe to re-run).
  *
  * WHAT THIS SCRIPT DOES NOT DO
  *   - Does NOT touch /organizations/{orgId}/members/* — those are already
@@ -205,9 +213,15 @@ async function main() {
   let profilesScanned = 0;
   let profilesChanged = 0;
 
+  // Track which UIDs PASS 1 already covered, so PASS 2 can skip them.
+  // PASS 1 is needed because it's the only way we can enumerate the root
+  // /users/{uid}.buildings field via a straightforward collection().get()
+  // (collectionGroup can't reach arbitrary root-doc fields).
+  const uidsProcessed = new Set();
+
   const usersSnap = await db.collection('users').get();
   console.log(
-    `[backfill-user-building-ids] enumerated ${usersSnap.size} /users docs`
+    `[backfill-user-building-ids] PASS 1: enumerated ${usersSnap.size} /users docs`
   );
 
   for (const userDoc of usersSnap.docs) {
@@ -243,6 +257,7 @@ async function main() {
       .collection('userProfile')
       .doc('profile');
     const profileSnap = await profileRef.get();
+    uidsProcessed.add(uid);
     if (!profileSnap.exists) {
       if (args.verbose) {
         console.log(`  [users/${uid}/userProfile/profile] missing, skipping`);
@@ -271,6 +286,56 @@ async function main() {
       );
     }
   }
+
+  // PASS 2: collectionGroup sweep for orphan profile docs whose parent
+  // /users/{uid} doc is a Firestore "phantom" (no fields → invisible to
+  // collection().get()). We discovered 33 such profiles in prod the
+  // first time we ran this script with PASS 1 only.
+  console.log('');
+  console.log(
+    '[backfill-user-building-ids] PASS 2: collectionGroup sweep for orphan profile docs…'
+  );
+  let orphanProfilesScanned = 0;
+  let orphanProfilesChanged = 0;
+  const cgSnap = await db.collectionGroup('userProfile').get();
+  for (const profileDoc of cgSnap.docs) {
+    if (profileDoc.id !== 'profile') continue;
+    // Walk up to verify the parent is /users/{uid}, not some other
+    // collection that also happens to have a `userProfile` subcollection.
+    const parentUserRef = profileDoc.ref.parent.parent;
+    if (!parentUserRef || parentUserRef.parent.id !== 'users') continue;
+    const uid = parentUserRef.id;
+    if (uidsProcessed.has(uid)) continue;
+    orphanProfilesScanned++;
+    const profileData = profileDoc.data() ?? {};
+    if (!Array.isArray(profileData.selectedBuildings)) continue;
+    const { canonical, changed } = canonicalizeBuildingIds(
+      profileData.selectedBuildings
+    );
+    if (changed) {
+      orphanProfilesChanged++;
+      if (args.verbose || args.dryRun) {
+        console.log(
+          `  [orphan users/${uid}/userProfile/profile] selectedBuildings: ${JSON.stringify(profileData.selectedBuildings)} → ${JSON.stringify(canonical)}`
+        );
+      }
+      if (!args.dryRun) {
+        await profileDoc.ref.set(
+          { selectedBuildings: canonical },
+          { merge: true }
+        );
+      }
+    } else if (args.verbose) {
+      console.log(
+        `  [orphan users/${uid}/userProfile/profile] selectedBuildings already canonical, skipping`
+      );
+    }
+  }
+  profilesScanned += orphanProfilesScanned;
+  profilesChanged += orphanProfilesChanged;
+  console.log(
+    `[backfill-user-building-ids] PASS 2 found ${orphanProfilesScanned} orphan profiles, ${orphanProfilesChanged} needed canonicalization`
+  );
 
   console.log('');
   console.log('[backfill-user-building-ids] summary');

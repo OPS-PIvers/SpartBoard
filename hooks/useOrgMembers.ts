@@ -377,13 +377,13 @@ export const useOrgMembers = (orgId: string | null) => {
   // server-side; we only need to provide orgId + target email here.
   const resetPassword = async (
     email: string
-  ): Promise<{ sent: boolean; email: string }> => {
+  ): Promise<{ sent: boolean; email: string; resetUrl?: string }> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
     const callable = httpsCallable<
       { orgId: string; email: string },
-      { sent: boolean; email: string }
+      { sent: boolean; email: string; resetUrl?: string }
     >(functions, 'resetOrganizationUserPassword');
     const result = await callable({ orgId, email: email.toLowerCase() });
     return result.data;
