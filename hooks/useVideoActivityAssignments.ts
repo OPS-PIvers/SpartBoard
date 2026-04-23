@@ -68,7 +68,8 @@ export interface UseVideoActivityAssignmentsResult {
     settings: VideoActivityAssignmentSettings,
     initialStatus?: VideoActivityAssignmentStatus,
     classIds?: string[],
-    periodNames?: string[]
+    periodNames?: string[],
+    rosterIds?: string[]
   ) => Promise<{ id: string }>;
   /** Set both assignment.status and session.status to 'paused' (assignment) / 'ended' (session). */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -141,11 +142,13 @@ export const useVideoActivityAssignments = (
       settings,
       initialStatus = 'active',
       classIds,
-      periodNames
+      periodNames,
+      rosterIds
     ) => {
       if (!userId) throw new Error('Not authenticated');
       const targetClassIds = classIds ?? [];
       const targetPeriodNames = periodNames ?? [];
+      const targetRosterIds = rosterIds ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
 
@@ -160,6 +163,7 @@ export const useVideoActivityAssignments = (
         updatedAt: now,
         className: settings.className,
         sessionSettings: settings.sessionSettings,
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       // Session's status is binary — if the assignment is paused or inactive,
@@ -191,6 +195,7 @@ export const useVideoActivityAssignments = (
         ...(targetPeriodNames.length > 0
           ? { periodNames: targetPeriodNames }
           : {}),
+        ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
       const batch = writeBatch(db);

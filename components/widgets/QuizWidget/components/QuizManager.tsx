@@ -16,7 +16,7 @@
  * only, not functionality.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -44,19 +44,16 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import {
-  ClassLinkClass,
   QuizMetadata,
   QuizSessionMode,
   QuizConfig,
   ClassRoster,
   QuizAssignment,
 } from '@/types';
-import { classLinkService } from '@/utils/classlinkService';
 import { type QuizSessionOptions } from '@/hooks/useQuizSession';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
-  formatClassLinkClassLabel,
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
@@ -111,46 +108,34 @@ interface QuizAssignOptions {
   plcMode: boolean;
   teacherName: string;
   plcSheetUrl: string;
-  /**
-   * Unified class-target picker state (Phase 5A). `classIds` is the list of
-   * ClassLink class `sourcedId`s when source === 'classlink'. `periodNames`
-   * is the list of local roster names when source === 'local'. One of the
-   * two is populated at a time — switching source clears the other.
-   */
+  /** Unified roster picker state. */
   picker: AssignClassPickerValue;
 }
 
 /**
- * Resolve the effective class-period labels for a picker value. When the
- * teacher picks ClassLink classes, the labels used for the post-PIN period
- * picker and the PLC Google Sheet export are the ClassLink class titles
- * themselves; when they pick local rosters, the labels are the roster names.
+ * Resolve the effective period-name labels from selected rosters. These
+ * labels drive the post-PIN period picker on the student app and the PLC
+ * Google Sheet export.
  */
 function resolveEffectivePeriodNames(
   picker: AssignClassPickerValue,
-  classLinkClasses: ClassLinkClass[]
+  rosters: ClassRoster[]
 ): string[] {
-  if (picker.source === 'classlink') {
-    return picker.classIds
-      .map((id) => classLinkClasses.find((c) => c.sourcedId === id))
-      .filter((cls): cls is ClassLinkClass => Boolean(cls))
-      .map(formatClassLinkClassLabel);
-  }
-  return picker.periodNames;
+  if (picker.rosterIds.length === 0) return [];
+  const byId = new Map(rosters.map((r) => [r.id, r]));
+  return picker.rosterIds
+    .map((id) => byId.get(id))
+    .filter((r): r is ClassRoster => r !== undefined)
+    .map((r) => r.name);
 }
 
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId?: string
 ): QuizAssignOptions {
-  const rememberedMulti = quizId
-    ? (config.lastClassIdsByQuizId?.[quizId] ?? null)
-    : null;
-  const rememberedSingle = quizId
-    ? (config.lastClassIdByQuizId?.[quizId] ?? null)
-    : null;
-  const classIds =
-    rememberedMulti ?? (rememberedSingle ? [rememberedSingle] : []);
+  const rememberedRosters = quizId
+    ? (config.lastRosterIdsByQuizId?.[quizId] ?? [])
+    : [];
   return {
     tabWarningsEnabled: true,
     showResultToStudent: false,
@@ -164,17 +149,9 @@ function buildDefaultAssignOptions(
     teacherName: config.teacherName ?? '',
     plcSheetUrl: config.plcSheetUrl ?? '',
     picker:
-      classIds.length > 0
-        ? { source: 'classlink', classIds, periodNames: [] }
-        : config.periodNames && config.periodNames.length > 0
-          ? { source: 'local', classIds: [], periodNames: config.periodNames }
-          : config.periodName
-            ? {
-                source: 'local',
-                classIds: [],
-                periodNames: [config.periodName],
-              }
-            : makeEmptyPickerValue('classlink'),
+      rememberedRosters.length > 0
+        ? { rosterIds: rememberedRosters }
+        : makeEmptyPickerValue(),
   };
 }
 
@@ -216,12 +193,8 @@ interface QuizManagerProps {
     mode: QuizSessionMode,
     plcOptions: PlcOptions,
     sessionOptions: QuizSessionOptions,
-    /**
-     * Selected ClassLink class `sourcedId`s (Phase 5A multi-class). Empty
-     * array when the teacher chose local rosters or no classes at all —
-     * preserves the classic code/PIN-only flow.
-     */
-    classIds: string[]
+    /** Selected roster IDs (unified picker output). */
+    rosterIds: string[]
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
@@ -378,34 +351,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   }
 
-  // ─── ClassLink target-class fetch (Phase 3A) ──────────────────────────────
-  // Teacher's ClassLink classes (if provisioned). Fetched once per QuizManager
-  // mount via the existing `classLinkService` (5-min cache — cheap). If the
-  // teacher isn't on a ClassLink-provisioned org, the list stays empty and
-  // the selector is hidden entirely. Errors are swallowed: ClassLink being
-  // unreachable must not block code+PIN launches.
-  const [classLinkClasses, setClassLinkClasses] = useState<ClassLinkClass[]>(
-    []
-  );
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const data = await classLinkService.getRosters();
-        if (cancelled) return;
-        setClassLinkClasses(data.classes);
-      } catch (err) {
-        // Silent: no-ClassLink orgs and transient failures both fall back
-        // to code+PIN-only launches, so the selector stays hidden.
-        if (import.meta.env.DEV) {
-          console.warn('[QuizManager] ClassLink fetch failed:', err);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Live ClassLink fetching is no longer performed at assign time. Imported
+  // ClassLink rosters carry their own `classlinkClassId` metadata so the
+  // student SSO gate resolves purely from rosters; live ClassLink data is
+  // reached only via the Classes sidebar's Import dialog.
 
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
@@ -689,18 +638,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget || !selectedMode) return;
-    // Guard: filter out any selected classId that's no longer in the fetched
-    // ClassLink list (e.g. rosters changed between fetch and confirm), so we
-    // never write stale sourcedIds.
-    const validClassIds =
-      assignOptions.picker.source === 'classlink'
-        ? assignOptions.picker.classIds.filter((id) =>
-            classLinkClasses.some((c) => c.sourcedId === id)
-          )
-        : [];
+    // Guard against stale rosterIds — rosters can be deleted between the
+    // teacher's last assignment and the current one.
+    const visibleRosterIds = new Set(rosters.map((r) => r.id));
+    const validRosterIds = assignOptions.picker.rosterIds.filter((id) =>
+      visibleRosterIds.has(id)
+    );
     const effectivePeriodNames = resolveEffectivePeriodNames(
-      { ...assignOptions.picker, classIds: validClassIds },
-      classLinkClasses
+      { rosterIds: validRosterIds },
+      rosters
     );
     const plcOptions: PlcOptions = {
       plcMode: assignOptions.plcMode,
@@ -725,7 +671,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       selectedMode,
       plcOptions,
       sessionOptions,
-      validClassIds
+      validRosterIds
     );
     setAssignTarget(null);
     setSelectedMode(null);
@@ -1047,7 +993,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             <AssignExtraSlot
               options={assignOptions}
               onChange={setAssignOptions}
-              classLinkClasses={classLinkClasses}
               rosters={rosters}
             />
           }
@@ -1057,10 +1002,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               onChange={setAssignOptions}
               plcSheetUrlInvalid={plcSheetUrlInvalid}
               effectivePeriodCount={
-                resolveEffectivePeriodNames(
-                  assignOptions.picker,
-                  classLinkClasses
-                ).length
+                resolveEffectivePeriodNames(assignOptions.picker, rosters)
+                  .length
               }
             />
           }
@@ -1329,9 +1272,8 @@ const AssignmentsList: React.FC<{
 const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
-  classLinkClasses: ClassLinkClass[];
   rosters: ClassRoster[];
-}> = ({ options, onChange, classLinkClasses, rosters }) => {
+}> = ({ options, onChange, rosters }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -1340,7 +1282,6 @@ const AssignExtraSlot: React.FC<{
   return (
     <>
       <AssignClassPicker
-        classLinkClasses={classLinkClasses}
         rosters={rosters}
         value={options.picker}
         onChange={(picker) => update('picker', picker)}

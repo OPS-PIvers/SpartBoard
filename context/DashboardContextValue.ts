@@ -15,6 +15,7 @@ import {
   GridPosition,
   DrawableObject,
 } from '../types';
+import type { RosterCreateMeta } from '../hooks/useRosters';
 
 export interface AnnotationState {
   objects: DrawableObject[];
@@ -124,7 +125,11 @@ export interface DashboardContextValue {
   // Roster system
   rosters: ClassRoster[];
   activeRosterId: string | null;
-  addRoster: (name: string, students: Student[]) => Promise<string>;
+  addRoster: (
+    name: string,
+    students: Student[],
+    meta?: RosterCreateMeta
+  ) => Promise<string>;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
   deleteRoster: (id: string) => Promise<void>;
   setActiveRoster: (id: string | null) => void;

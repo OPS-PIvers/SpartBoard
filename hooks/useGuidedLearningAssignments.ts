@@ -42,6 +42,10 @@ export interface CreateAssignmentInput {
   setTitle: string;
   /** Whether the set came from the personal (Drive) or building library. */
   source?: 'personal' | 'building';
+  /** Unified roster targeting (rosters are the single source of truth for
+   *  assignments; ClassLink-imported rosters carry `classlinkClassId` so the
+   *  student SSO gate resolves via session derivation). */
+  rosterIds?: string[];
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -116,6 +120,9 @@ export const useGuidedLearningAssignments = (
     async (input) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      const rosterIds = (input.rosterIds ?? []).filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
       const assignment: GuidedLearningAssignment = {
         id: input.sessionId,
         sessionId: input.sessionId,
@@ -127,6 +134,7 @@ export const useGuidedLearningAssignments = (
         updatedAt: now,
         archivedAt: null,
         source: input.source,
+        ...(rosterIds.length > 0 ? { rosterIds } : {}),
       };
       await setDoc(
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, input.sessionId),

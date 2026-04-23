@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, getDocs } from 'firebase/firestore';
 import { Download, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
-import { ClassLinkClass, ClassRoster, Student } from '@/types';
+import { ClassLinkClass, ClassRoster, ClassRosterMeta, Student } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { db } from '@/config/firebase';
 import { classLinkService } from '@/utils/classlinkService';
@@ -12,6 +12,28 @@ import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
 
 const TEST_PREFIX = 'test:';
+
+/**
+ * Build the ClassLink provenance metadata to persist on a roster document.
+ * Returns `null` for test classes (they aren't real ClassLink classes and
+ * must not claim `origin: 'classlink'` — they'd otherwise feed garbage
+ * sourcedIds into session `classIds[]` and break the student SSO gate).
+ */
+const buildClassLinkRosterMeta = (
+  cls: ClassLinkClass,
+  orgId: string | null | undefined
+): Partial<ClassRosterMeta> | null => {
+  if (cls.sourcedId.startsWith(TEST_PREFIX)) return null;
+  const meta: Partial<ClassRosterMeta> = {
+    origin: 'classlink',
+    classlinkClassId: cls.sourcedId,
+    classlinkSyncedAt: Date.now(),
+  };
+  if (cls.classCode) meta.classlinkClassCode = cls.classCode;
+  if (cls.subject) meta.classlinkSubject = cls.subject;
+  if (orgId) meta.classlinkOrgId = orgId;
+  return meta;
+};
 
 // PINs match the synthetic sidebar rosters in `useTestClassRosters.ts` so the
 // same test student uses the same PIN whether they're joining through the
@@ -176,7 +198,8 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
       const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';
       const displayName = `${subjectPrefix}${cls.title}${codeSuffix}`;
-      await addRoster(displayName, students);
+      const rosterMeta = buildClassLinkRosterMeta(cls, orgId);
+      await addRoster(displayName, students, rosterMeta ?? undefined);
       addToast(
         t('toasts.classLink.imported', {
           defaultValue: 'Imported {{name}}',
@@ -220,7 +243,15 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
         target.students,
         studentsByClass[cls.sourcedId] ?? []
       );
-      await updateRoster(mode.rosterId, { students: result.students });
+      // Backfill ClassLink provenance on the roster doc itself — rosters
+      // imported before the metadata fields existed (or merged with a new
+      // ClassLink class) still need `classlinkClassId` so the student SSO
+      // gate resolves via session `classIds[]` derivation downstream.
+      const rosterMeta = buildClassLinkRosterMeta(cls, orgId);
+      await updateRoster(mode.rosterId, {
+        students: result.students,
+        ...(rosterMeta ?? {}),
+      });
       if (result.addedCount === 0 && result.matchedCount === 0) {
         addToast(
           t('toasts.classLink.noStudents', {

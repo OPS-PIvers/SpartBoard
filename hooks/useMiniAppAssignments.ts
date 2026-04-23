@@ -36,7 +36,11 @@ export interface CreateMiniAppAssignmentInput {
   sessionId: string;
   app: Pick<MiniAppItem, 'id' | 'title'>;
   assignmentName: string;
-  /** ClassLink class sourcedIds the teacher targeted (multi-select). */
+  /** Roster IDs the teacher targeted (unified picker output). */
+  rosterIds?: string[];
+  /** ClassLink `sourcedId`s derived from the targeted rosters'
+   *  `classlinkClassId`. Written to the session doc so the student SSO gate
+   *  resolves; mirrored onto the assignment for legacy readers. */
   classIds?: string[];
   /** Whether submissions are enabled for this assignment. Mirrors
    *  MiniAppSession.submissionsEnabled. */
@@ -116,6 +120,9 @@ export const useMiniAppAssignments = (
       const cleanedClassIds = (input.classIds ?? []).filter(
         (c): c is string => typeof c === 'string' && c.length > 0
       );
+      const cleanedRosterIds = (input.rosterIds ?? []).filter(
+        (r): r is string => typeof r === 'string' && r.length > 0
+      );
 
       const assignment: MiniAppAssignment = {
         id: assignmentId,
@@ -130,6 +137,7 @@ export const useMiniAppAssignments = (
         status: 'active',
         createdAt: now,
         updatedAt: now,
+        ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
         submissionsEnabled: input.submissionsEnabled === true,
       };

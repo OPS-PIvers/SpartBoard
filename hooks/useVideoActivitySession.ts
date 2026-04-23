@@ -91,7 +91,8 @@ export interface UseVideoActivitySessionTeacherResult {
     settings?: Partial<VideoActivitySessionSettings>,
     assignmentName?: string,
     classIds?: string[],
-    periodNames?: string[]
+    periodNames?: string[],
+    rosterIds?: string[]
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -130,7 +131,8 @@ export const useVideoActivitySessionTeacher =
         settings?: Partial<VideoActivitySessionSettings>,
         assignmentName?: string,
         classIds: string[] = [],
-        periodNames: string[] = []
+        periodNames: string[] = [],
+        rosterIds: string[] = []
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -161,6 +163,7 @@ export const useVideoActivitySessionTeacher =
           // Firestore rules keep gating correctly.
           ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
           ...(periodNames.length > 0 ? { periodNames } : {}),
+          ...(rosterIds.length > 0 ? { rosterIds } : {}),
         };
 
         await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

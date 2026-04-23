@@ -146,7 +146,8 @@ export interface UseGuidedLearningSessionTeacherResult {
   createSession: (
     set: GuidedLearningSet,
     classIds?: string[],
-    periodNames?: string[]
+    periodNames?: string[],
+    rosterIds?: string[]
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -167,7 +168,8 @@ export const useGuidedLearningSessionTeacher = (
     async (
       set: GuidedLearningSet,
       classIds: string[] = [],
-      periodNames: string[] = []
+      periodNames: string[] = [],
+      rosterIds: string[] = []
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
@@ -188,6 +190,7 @@ export const useGuidedLearningSessionTeacher = (
         // Firestore rules keep gating correctly.
         ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
         ...(periodNames.length > 0 ? { periodNames } : {}),
+        ...(rosterIds.length > 0 ? { rosterIds } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);
