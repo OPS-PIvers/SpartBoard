@@ -47,6 +47,7 @@ import {
 } from '../config/buildings';
 import i18n from '../i18n';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
+import { shouldWriteLastActive } from '../utils/lastActiveThrottle';
 
 // Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
 // dynamically once `admin_settings/user_roles` (or an org-index collection)
@@ -844,11 +845,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // the Organization admin panel's "Last active" column reflects real sign-ins
   // (and not just invitation-claim time, which is the only other write path).
   // Gated by a self-write branch in firestore.rules that only permits writing
-  // the `lastActive` field to one's own member doc. Fires once per session.
+  // the `lastActive` field to one's own member doc. Throttled to at most once
+  // per hour per browser via localStorage to avoid blasting the member doc on
+  // every reload (see utils/lastActiveThrottle.ts).
   useEffect(() => {
     if (!user || isAuthBypass) return;
     if (!orgId || !user.email) return;
     if (memberLastActiveSyncedRef.current) return;
+    if (!shouldWriteLastActive(user.uid, orgId)) {
+      memberLastActiveSyncedRef.current = true;
+      return;
+    }
     memberLastActiveSyncedRef.current = true;
 
     const emailLower = user.email.toLowerCase();
