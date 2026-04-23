@@ -92,6 +92,11 @@ const JoinAndPlay: React.FC = () => {
   // response doc is created (mirrors the Quiz pattern).
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  // Local guard for the async `lookupSession` leg of `handleJoin` — the
+  // hook's `joinStatus` only flips to `loading` once `joinSession` starts,
+  // so without this the button would stay clickable during the lookup and
+  // a double-tap could fan out parallel requests.
+  const [lookingUp, setLookingUp] = useState(false);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer
   const answeredQuestionIds = React.useMemo(
@@ -105,14 +110,20 @@ const JoinAndPlay: React.FC = () => {
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !pin.trim() || !sessionId) return;
-    const sessionInfo = await lookupSession(sessionId);
-    const periodNames = sessionInfo?.periodNames ?? [];
-    if (periodNames.length > 1) {
-      setPeriodStep(periodNames);
-      return;
+    if (lookingUp || joinStatus === 'loading') return;
+    setLookingUp(true);
+    try {
+      const sessionInfo = await lookupSession(sessionId);
+      const periodNames = sessionInfo?.periodNames ?? [];
+      if (periodNames.length > 1) {
+        setPeriodStep(periodNames);
+        return;
+      }
+      const autoClassPeriod = periodNames[0];
+      await joinSession(sessionId, pin.trim(), name.trim(), autoClassPeriod);
+    } finally {
+      setLookingUp(false);
     }
-    const autoClassPeriod = periodNames[0];
-    await joinSession(sessionId, pin.trim(), name.trim(), autoClassPeriod);
   };
 
   const handlePeriodConfirm = useCallback(async () => {
@@ -312,11 +323,14 @@ const JoinAndPlay: React.FC = () => {
               <button
                 type="submit"
                 disabled={
-                  joinStatus === 'loading' || !name.trim() || !pin.trim()
+                  joinStatus === 'loading' ||
+                  lookingUp ||
+                  !name.trim() ||
+                  !pin.trim()
                 }
                 className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                {joinStatus === 'loading' ? (
+                {joinStatus === 'loading' || lookingUp ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Joining…
