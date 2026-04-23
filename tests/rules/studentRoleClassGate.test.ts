@@ -408,27 +408,35 @@ describe('quiz_sessions/responses — student-role gate', () => {
     );
   });
 
-  // Lock-in for isStudentRoleUser() hardening. Real production anon tokens
+  // Lock-in for the missing-claim hardening. Real production anon tokens
   // omit studentRole / classIds / email entirely; if any rule helper
-  // reverts to direct dot-access on one of those claims, the rules engine
-  // throws "Property X is undefined" and this test reds.
+  // reverts to direct dot-access on one of those claims, the rules
+  // engine can throw "Property X is undefined" and this test reds.
   //
-  // Exercises both halves of the quiz-join client sequence:
-  //   1. hooks/useQuizSession.ts:604 does `getDoc(responseRef)` first,
-  //      which traverses the response `allow read` rule at
-  //      firestore.rules:630-633 (includes `isAdmin()` and
-  //      `passesStudentClassGate` as OR branches).
-  //   2. joinQuizSession then calls `setDoc` to create the response,
-  //      which traverses the `allow create` rule at firestore.rules:634-640
-  //      (calls `passesStudentClassGate`).
-  // Both must succeed under a bare anon token for the join to work.
-  it('anonymous PIN student with bare token (no custom claims) can get + create response', async () => {
+  // Exercises the full anon PIN quiz lifecycle inside
+  // `match /quiz_sessions/{sessionId}/responses/{studentUid}`:
+  //   1. `getDoc(responseRef)` — traverses `allow read`. Guards
+  //      `isStudentRoleUser()` (now `.get()`-safe).
+  //   2. `setDoc(responseRef, …)` on a non-existent doc — traverses
+  //      `allow create`. Guards `passesStudentClassGate` →
+  //      `isStudentRoleUser()`.
+  //   3. `setDoc(responseRef, …)` on the existing doc to submit an
+  //      answer — traverses `allow update`. In that OR chain
+  //      `isAdmin()` sits BEFORE the student branch, which is why
+  //      this PR hardens `isAdmin()` alongside `isStudentRoleUser()`:
+  //      if `isAdmin()` threw on a missing `email` claim, the throw
+  //      could deny the update before the student branch is reached.
+  //
+  // All three must succeed under a bare anon token for real answer
+  // submission to work end-to-end.
+  it('anonymous PIN student with bare token (no custom claims) can get + create + update response', async () => {
     const responseRef = doc(
       asAnonStudentBareToken(),
       `quiz_sessions/${SESSION_A}/responses/${ANON_UID}`
     );
 
     await assertSucceeds(getDoc(responseRef));
+
     await assertSucceeds(
       setDoc(responseRef, {
         studentUid: ANON_UID,
@@ -437,6 +445,21 @@ describe('quiz_sessions/responses — student-role gate', () => {
         score: null,
         answers: [],
         status: 'active',
+        tabSwitchWarnings: 0,
+      })
+    );
+
+    // Submit an answer: update only the fields the rule allows students
+    // to change (answers, status, submittedAt, tabSwitchWarnings).
+    await assertSucceeds(
+      setDoc(responseRef, {
+        studentUid: ANON_UID,
+        pin: '5678',
+        joinedAt: 2000,
+        score: null,
+        answers: [{ questionId: 'q1', value: 'B' }],
+        status: 'submitted',
+        submittedAt: 3000,
         tabSwitchWarnings: 0,
       })
     );

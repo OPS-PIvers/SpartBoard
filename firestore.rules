@@ -3,10 +3,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is an admin
+    // Helper function to check if user is an admin.
+    //
+    // Uses `request.auth.token.get('email', '')` rather than direct
+    // `.email` access. The rules engine throws "Property email is
+    // undefined" when the claim is absent (production Firebase anonymous
+    // tokens carry no `email`), even behind a `!= null` guard on
+    // `request.auth`. After the `.get(...) != ''` check succeeds, the
+    // claim is guaranteed to exist, so the subsequent direct `.email`
+    // access below is safe. Matters for `allow update` on quiz responses
+    // (`isAdmin()` sits before the student branch in the OR chain there,
+    // so any throw during isAdmin evaluation could block anon PIN answer
+    // submission depending on CEL semantics).
     function isAdmin() {
       return request.auth != null &&
-             request.auth.token.email != null &&
+             request.auth.token.get('email', '') != '' &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
