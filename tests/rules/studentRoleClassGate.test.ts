@@ -7,6 +7,14 @@
 // Covers the five session collections where passesStudentClassGate() is applied:
 //   quiz_sessions, video_activity_sessions, guided_learning_sessions,
 //   mini_app_sessions, activity_wall_sessions
+//
+// Contract: session reads are intentionally permissive for any authenticated
+// caller (teacher single-doc subscriptions otherwise fail with
+// permission-denied after a status transition — see PR #1391). studentRole
+// class gating is enforced exclusively on the response/submission *write*
+// rules, which dereference the parent session's `classId` via a runtime
+// `get()`. A studentRole user can see session metadata by id but cannot
+// submit to a session outside their `classIds` claim.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -196,7 +204,7 @@ const ALL_SESSION_COLS = [
   'activity_wall_sessions',
 ];
 
-describe('student-role class gate — session reads', () => {
+describe('session reads — authenticated access (class gate moved to writes)', () => {
   beforeEach(async () => {
     await testEnv.clearFirestore();
     await seedSessions(ALL_SESSION_COLS);
@@ -208,13 +216,17 @@ describe('student-role class gate — session reads', () => {
         await assertSucceeds(getDoc(doc(asStudentA(), `${col}/${SESSION_A}`)));
       });
 
-      it('student with matching classId cannot read session-B (wrong class)', async () => {
-        await assertFails(getDoc(doc(asStudentA(), `${col}/${SESSION_B}`)));
+      it('student can read session-B (out-of-class metadata is no longer gated at reads; write rules enforce the class gate)', async () => {
+        await assertSucceeds(getDoc(doc(asStudentA(), `${col}/${SESSION_B}`)));
       });
 
-      it('student with empty classIds cannot read any session', async () => {
-        await assertFails(getDoc(doc(asStudentEmpty(), `${col}/${SESSION_A}`)));
-        await assertFails(getDoc(doc(asStudentEmpty(), `${col}/${SESSION_B}`)));
+      it('student with empty classIds can still read session metadata', async () => {
+        await assertSucceeds(
+          getDoc(doc(asStudentEmpty(), `${col}/${SESSION_A}`))
+        );
+        await assertSucceeds(
+          getDoc(doc(asStudentEmpty(), `${col}/${SESSION_B}`))
+        );
       });
 
       it('teacher (no studentRole claim) can read any session', async () => {
