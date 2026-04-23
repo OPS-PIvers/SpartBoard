@@ -71,6 +71,12 @@ let testEnv: RulesTestEnvironment;
 // `firebase.sign_in_provider` — in every context, using empty/false
 // defaults for claims that don't apply to that role. This matches what
 // production Auth tokens look like for real sign-ins.
+//
+// Intentional exception: `asAnonStudentBareToken` below deliberately omits
+// `email`, `studentRole`, and `classIds` to reproduce the shape of a
+// production Firebase anonymous-auth token verbatim, which carries none of
+// those claims. That lock-in context exists to catch regressions in any
+// rule helper that reads a custom claim via direct dot access.
 
 const asStudentA = () =>
   testEnv
@@ -108,6 +114,22 @@ const asAnonStudent = () =>
       email: '',
       studentRole: false,
       classIds: [],
+      firebase: { sign_in_provider: 'anonymous' },
+    })
+    .firestore();
+
+// Real production anonymous Firebase Auth tokens do NOT carry `studentRole`,
+// `classIds`, or `email` at all — those claims are only minted for
+// ClassLink SSO via studentLoginV1 (or for Google sign-in via GIS in the
+// case of `email`). Prior to the isStudentRoleUser() hardening, any rule
+// that reached a direct claim access threw "Property X is undefined" and
+// denied the operation. This context reproduces that token shape verbatim
+// — omitting every custom claim — so the test suite locks in the fix and
+// catches regressions on any helper that reads a claim without the safe
+// `.get(key, default)` accessor.
+const asAnonStudentBareToken = () =>
+  testEnv
+    .authenticatedContext(ANON_UID, {
       firebase: { sign_in_provider: 'anonymous' },
     })
     .firestore();
@@ -383,6 +405,63 @@ describe('quiz_sessions/responses — student-role gate', () => {
           tabSwitchWarnings: 0,
         }
       )
+    );
+  });
+
+  // Lock-in for the missing-claim hardening. Real production anon tokens
+  // omit studentRole / classIds / email entirely; if any rule helper
+  // reverts to direct dot-access on one of those claims, the rules
+  // engine can throw "Property X is undefined" and this test reds.
+  //
+  // Exercises the full anon PIN quiz lifecycle inside
+  // `match /quiz_sessions/{sessionId}/responses/{studentUid}`:
+  //   1. `getDoc(responseRef)` — traverses `allow read`. Guards
+  //      `isStudentRoleUser()` (now `.get()`-safe).
+  //   2. `setDoc(responseRef, …)` on a non-existent doc — traverses
+  //      `allow create`. Guards `passesStudentClassGate` →
+  //      `isStudentRoleUser()`.
+  //   3. `setDoc(responseRef, …)` on the existing doc to submit an
+  //      answer — traverses `allow update`. In that OR chain
+  //      `isAdmin()` sits BEFORE the student branch, which is why
+  //      this PR hardens `isAdmin()` alongside `isStudentRoleUser()`:
+  //      if `isAdmin()` threw on a missing `email` claim, the throw
+  //      could deny the update before the student branch is reached.
+  //
+  // All three must succeed under a bare anon token for real answer
+  // submission to work end-to-end.
+  it('anonymous PIN student with bare token (no custom claims) can get + create + update response', async () => {
+    const responseRef = doc(
+      asAnonStudentBareToken(),
+      `quiz_sessions/${SESSION_A}/responses/${ANON_UID}`
+    );
+
+    await assertSucceeds(getDoc(responseRef));
+
+    await assertSucceeds(
+      setDoc(responseRef, {
+        studentUid: ANON_UID,
+        pin: '5678',
+        joinedAt: 2000,
+        score: null,
+        answers: [],
+        status: 'active',
+        tabSwitchWarnings: 0,
+      })
+    );
+
+    // Submit an answer: update only the fields the rule allows students
+    // to change (answers, status, submittedAt, tabSwitchWarnings).
+    await assertSucceeds(
+      setDoc(responseRef, {
+        studentUid: ANON_UID,
+        pin: '5678',
+        joinedAt: 2000,
+        score: null,
+        answers: [{ questionId: 'q1', value: 'B' }],
+        status: 'submitted',
+        submittedAt: 3000,
+        tabSwitchWarnings: 0,
+      })
     );
   });
 });
