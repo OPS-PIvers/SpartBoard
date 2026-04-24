@@ -59,10 +59,18 @@ type MenuSection =
   | 'buildings'
   | 'preferences';
 
-const PlcsMenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+interface PlcsMenuButtonProps {
+  onClick: () => void;
+  plcCount: number;
+  pendingInviteCount: number;
+}
+
+const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
+  onClick,
+  plcCount,
+  pendingInviteCount,
+}) => {
   const { t } = useTranslation();
-  const { plcs } = usePlcs();
-  const { pendingInvites } = usePlcInvitations();
   return (
     <button
       onClick={onClick}
@@ -70,7 +78,7 @@ const PlcsMenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
     >
       <div className="relative w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
         <Users2 className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
-        {pendingInvites.length > 0 && (
+        {pendingInviteCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white" />
         )}
       </div>
@@ -78,7 +86,7 @@ const PlcsMenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
         {t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
       </span>
       <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
-        {plcs.length}
+        {plcCount}
       </span>
       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
     </button>
@@ -103,6 +111,15 @@ export const Sidebar: React.FC = () => {
     addToast,
     rosters,
   } = useDashboard();
+
+  // Mount the PLC listeners once at the Sidebar level and drill the data into
+  // the two consumers (`PlcsMenuButton`, `SidebarPlcs`) that are both always
+  // rendered while the sidebar is open. Without this, each consumer calls
+  // `usePlcs()` + `usePlcInvitations()` independently, duplicating the three
+  // Firestore `onSnapshot` subscriptions (1 from usePlcs, 2 from
+  // usePlcInvitations) for data that's semantically a singleton per session.
+  const plcsHook = usePlcs();
+  const plcInvitationsHook = usePlcInvitations();
 
   const { isConnected: isDriveConnected } = useGoogleDrive();
 
@@ -450,7 +467,13 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
-                  <PlcsMenuButton onClick={() => setActiveSection('plcs')} />
+                  <PlcsMenuButton
+                    onClick={() => setActiveSection('plcs')}
+                    plcCount={plcsHook.plcs.length}
+                    pendingInviteCount={
+                      plcInvitationsHook.pendingInvites.length
+                    }
+                  />
                   <button
                     onClick={() => setActiveSection('buildings')}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
@@ -578,7 +601,15 @@ export const Sidebar: React.FC = () => {
               <SidebarClasses isVisible={activeSection === 'classes'} />
 
               {/* PLCS SECTION */}
-              <SidebarPlcs isVisible={activeSection === 'plcs'} />
+              <SidebarPlcs
+                isVisible={activeSection === 'plcs'}
+                plcs={plcsHook.plcs}
+                plcsLoading={plcsHook.loading}
+                createPlc={plcsHook.createPlc}
+                leavePlc={plcsHook.leavePlc}
+                deletePlc={plcsHook.deletePlc}
+                pendingInvites={plcInvitationsHook.pendingInvites}
+              />
 
               {/* STYLE SECTION */}
               <StylePanel
