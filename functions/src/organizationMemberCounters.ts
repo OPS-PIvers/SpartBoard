@@ -120,8 +120,15 @@ export function resolveDomainDocId(
  *    on building and domain docs so a deleted building/domain is NOT
  *    resurrected if a stale member doc still references it; the per-path
  *    `update` fails with "No document to update", which we log and skip.
- *  - The org doc always exists, so its increment uses `update()` and is
- *    treated as an error if it fails.
+ *  - The org doc always exists, so its increment uses `update()`. If this
+ *    increment fails (rules tightened, org doc deleted mid-flight, transient
+ *    error), we treat it as an ALL-OR-NOTHING signal: we log a structured
+ *    `error` (with the per-building / per-domain deltas that were skipped
+ *    plus an `action_required:run scripts/recount-org-members.js` marker for
+ *    log-based alerting) and RETURN without applying any per-building or
+ *    per-domain writes. Applying just the per-path deltas after the org
+ *    write fails would drift the counters in opposite directions — exactly
+ *    the situation this trigger exists to prevent.
  *  - NEVER throws. Throwing from the handler triggers Firestore's
  *    handler-level retry, which on a counter trigger would deterministically
  *    double-apply every per-path increment that succeeded before the throw.
@@ -174,18 +181,37 @@ export const organizationMemberCounters = onDocumentWritten(
 
     const db = admin.firestore();
 
+    const memberDocPath = `organizations/${orgId}/members/${emailLower}`;
+
     if (orgDelta !== 0) {
       try {
         await db
           .doc(`organizations/${orgId}`)
           .update({ users: FieldValue.increment(orgDelta) });
       } catch (err) {
-        logger.error('organizationMemberCounters: org increment failed', {
-          orgId,
-          emailLower,
-          orgDelta,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        const errCode =
+          err && typeof err === 'object' && 'code' in err
+            ? String((err as { code: unknown }).code)
+            : undefined;
+        logger.error(
+          'organizationMemberCounters: org increment failed; skipping per-building and per-domain writes to avoid opposite-direction drift. action_required:run scripts/recount-org-members.js',
+          {
+            orgId,
+            memberDocPath,
+            orgDelta,
+            pendingBuildingDeltas: Object.fromEntries(buildingDeltas),
+            pendingDomainDeltas: Object.fromEntries(emailDomainDeltas),
+            errorCode: errCode,
+            error: err instanceof Error ? err.message : String(err),
+            action_required: 'run scripts/recount-org-members.js',
+          }
+        );
+        // Bail without throwing — throwing would trigger Firestore handler
+        // retry, and any per-path writes that succeed before the next org
+        // failure would double-apply on the retry. Returning gives clean
+        // drift (org-only stale, no per-path writes) plus a loud error log
+        // that log-based alerting can match on `action_required`.
+        return;
       }
     }
 

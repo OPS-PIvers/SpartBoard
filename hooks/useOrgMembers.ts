@@ -149,6 +149,14 @@ export const useOrgMembers = (orgId: string | null) => {
   const [activityMs, setActivityMs] = useState<Map<string, number | null>>(
     () => new Map()
   );
+  // `true` when at least one `admin.auth().getUsers()` batch failed server-side.
+  // The activity map still populates for every successful batch, but some rows
+  // will render as "Never signed in" that might actually be active — the UI
+  // must surface a banner so admins don't mistake an Auth outage for idleness.
+  const [activityPartial, setActivityPartial] = useState<{
+    partial: boolean;
+    failedBatchCount: number;
+  }>({ partial: false, failedBatchCount: 0 });
 
   const shouldSubscribe = !isAuthBypass && Boolean(user) && Boolean(orgId);
   const [loading, setLoading] = useState<boolean>(shouldSubscribe);
@@ -159,6 +167,7 @@ export const useOrgMembers = (orgId: string | null) => {
     setPrevKey(nextKey);
     setLoading(shouldSubscribe);
     setActivityMs(new Map());
+    setActivityPartial({ partial: false, failedBatchCount: 0 });
     if (!shouldSubscribe) {
       setMembers([]);
       setError(null);
@@ -196,7 +205,11 @@ export const useOrgMembers = (orgId: string | null) => {
     let cancelled = false;
     const callable = httpsCallable<
       { orgId: string },
-      { activity: { email: string; lastActiveMs: number | null }[] }
+      {
+        activity: { email: string; lastActiveMs: number | null }[];
+        partial?: boolean;
+        failedBatchCount?: number;
+      }
     >(functions, 'getOrgUserActivity');
     callable({ orgId })
       .then((result) => {
@@ -206,9 +219,22 @@ export const useOrgMembers = (orgId: string | null) => {
           next.set(entry.email.toLowerCase(), entry.lastActiveMs);
         }
         setActivityMs(next);
+        setActivityPartial({
+          partial: result.data.partial === true,
+          failedBatchCount:
+            typeof result.data.failedBatchCount === 'number'
+              ? result.data.failedBatchCount
+              : 0,
+        });
       })
       .catch((err) => {
         console.error(`[useOrgMembers:${orgId}] getOrgUserActivity:`, err);
+        // A total call failure is different from a partial batch failure:
+        // `activityMs` stays empty, so every row shows "Never signed in" —
+        // flag that as partial too so the UI surfaces the same banner.
+        if (!cancelled) {
+          setActivityPartial({ partial: true, failedBatchCount: 0 });
+        }
       });
     return () => {
       cancelled = true;
@@ -377,13 +403,13 @@ export const useOrgMembers = (orgId: string | null) => {
   // server-side; we only need to provide orgId + target email here.
   const resetPassword = async (
     email: string
-  ): Promise<{ sent: boolean; email: string }> => {
+  ): Promise<{ sent: boolean; email: string; resetUrl?: string }> => {
     if (!orgId) {
       throw new Error('No organization selected.');
     }
     const callable = httpsCallable<
       { orgId: string; email: string },
-      { sent: boolean; email: string }
+      { sent: boolean; email: string; resetUrl?: string }
     >(functions, 'resetOrganizationUserPassword');
     const result = await callable({ orgId, email: email.toLowerCase() });
     return result.data;
@@ -394,6 +420,8 @@ export const useOrgMembers = (orgId: string | null) => {
     users,
     loading,
     error,
+    activityPartial: activityPartial.partial,
+    activityFailedBatchCount: activityPartial.failedBatchCount,
     updateMember,
     bulkUpdateMembers,
     removeMembers,

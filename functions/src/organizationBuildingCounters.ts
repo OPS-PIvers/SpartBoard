@@ -7,6 +7,25 @@ if (!admin.apps.length) {
 }
 
 /**
+ * Maximum age (in seconds) of an inbound event that this trigger will still
+ * attempt to process. Older deliveries are dropped with a structured error so
+ * a persistent permission/quota failure does not log-spam for the v2 default
+ * `retry`-on-error budget (Eventarc retries failures for up to 7 days).
+ *
+ * Firebase Functions v2 does NOT expose `maxRetrySeconds` on the trigger
+ * options object (the v1 retry-config knob is not on
+ * `EventHandlerOptions`); the documented v2 pattern for bounding retries is
+ * to enable `retry: true` and check the event age in-handler. After this
+ * budget is exhausted the failure dead-letters quietly and the next
+ * create/delete recount will self-heal.
+ *
+ * 600s (10 min) was chosen to allow a few minutes of transient Firestore /
+ * Eventarc instability while keeping the failure feedback loop short for
+ * permission/quota-class regressions that are not going to self-resolve.
+ */
+const MAX_EVENT_AGE_SECONDS = 600;
+
+/**
  * Firestore trigger that keeps the denormalized `buildings` count on
  * `/organizations/{orgId}` in sync with the live
  * `/organizations/{orgId}/buildings` subcollection.
@@ -18,12 +37,43 @@ if (!admin.apps.length) {
  * Uses a recount-on-every-write strategy (rather than `FieldValue.increment`)
  * because the collection is tiny (≤ dozens of buildings per org) and recount
  * self-heals any drift from at-least-once event delivery or pre-trigger state.
+ *
+ * `retry: true` on the trigger lets Cloud Functions retry transient recount
+ * failures (recount IS idempotent, unlike increment). The in-handler
+ * `MAX_EVENT_AGE_SECONDS` guard caps the effective retry budget — see the
+ * constant doc-comment for the rationale.
  */
 export const organizationBuildingCounters = onDocumentWritten(
-  'organizations/{orgId}/buildings/{buildingId}',
+  {
+    document: 'organizations/{orgId}/buildings/{buildingId}',
+    retry: true,
+  },
   async (event) => {
     const { orgId, buildingId } = event.params;
     const change = event.data;
+
+    // Bound the effective retry budget. v2 lacks a `maxRetrySeconds` option;
+    // dropping events older than the budget lets persistent failures
+    // dead-letter quietly instead of log-spamming for the v2 default of
+    // ~7 days of retries.
+    const eventTimeMs = event.time ? Date.parse(event.time) : NaN;
+    if (Number.isFinite(eventTimeMs)) {
+      const ageSeconds = (Date.now() - eventTimeMs) / 1000;
+      if (ageSeconds > MAX_EVENT_AGE_SECONDS) {
+        logger.error(
+          'organizationBuildingCounters: dropping event past retry budget; counter may be stale until next create/delete. action_required:run a manual recount if drift persists',
+          {
+            orgId,
+            buildingId,
+            ageSeconds,
+            maxEventAgeSeconds: MAX_EVENT_AGE_SECONDS,
+            eventTime: event.time,
+            action_required: 'verify buildings counter; rerun create/delete',
+          }
+        );
+        return;
+      }
+    }
     if (!change) {
       logger.warn('organizationBuildingCounters: received event without data', {
         orgId,

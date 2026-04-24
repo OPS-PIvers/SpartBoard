@@ -31,6 +31,19 @@ export interface OrgUserActivityEntry {
 
 export interface OrgUserActivityResponse {
   activity: OrgUserActivityEntry[];
+  /**
+   * `true` when one or more `admin.auth().getUsers()` batches failed (e.g. Auth
+   * outage, transient 5xx, rate limit). The `activity` array still reflects all
+   * data we DID retrieve — emails belonging to a failed batch are returned with
+   * `lastActiveMs: null`, indistinguishable on the wire from "never signed in".
+   *
+   * Consumers MUST inspect this flag and surface a "data is incomplete — refresh
+   * to retry" affordance when it is `true`, otherwise users will mistake an Auth
+   * outage for a roster of inactive members.
+   */
+  partial: boolean;
+  /** Number of `getUsers` batches that failed. `0` when `partial` is `false`. */
+  failedBatchCount: number;
 }
 
 // Admin-tier roles that can view the org's member activity. Broader than the
@@ -135,7 +148,7 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
 
     const emails = await listMemberEmails(db, orgId);
     if (emails.length === 0) {
-      return { activity: [] };
+      return { activity: [], partial: false, failedBatchCount: 0 };
     }
 
     // Populate from Auth in parallel batches. Each getUsers call returns only
@@ -145,35 +158,68 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
     for (const email of emails) lastActive.set(email, null);
 
     const batches = chunk(emails, AUTH_LOOKUP_BATCH);
-    const results = await Promise.all(
+    // Track per-batch failures so we can surface `partial: true` to the caller
+    // instead of silently masking an Auth outage as "everyone is inactive".
+    type BatchOutcome =
+      | { ok: true; result: admin.auth.GetUsersResult }
+      | { ok: false; error: unknown };
+    const outcomes: BatchOutcome[] = await Promise.all(
       batches.map((batch) =>
         admin
           .auth()
           .getUsers(batch.map((email) => ({ email })))
-          .catch((err) => {
-            console.error('[getOrgUserActivity] getUsers batch failed:', err);
-            const empty: admin.auth.GetUsersResult = {
-              users: [],
-              notFound: [],
-            };
-            return empty;
-          })
+          .then<BatchOutcome>((result) => ({ ok: true, result }))
+          .catch<BatchOutcome>((error: unknown) => ({ ok: false, error }))
       )
     );
 
-    for (const result of results) {
-      for (const user of result.users) {
-        const email = user.email?.toLowerCase();
-        if (!email) continue;
-        if (!lastActive.has(email)) continue;
-        lastActive.set(email, parseLastSignIn(user.metadata));
+    let failedBatchCount = 0;
+    let firstFailureCode: string | undefined;
+    let firstFailureMessage: string | undefined;
+    for (const outcome of outcomes) {
+      if (outcome.ok) {
+        for (const user of outcome.result.users) {
+          const email = user.email?.toLowerCase();
+          if (!email) continue;
+          if (!lastActive.has(email)) continue;
+          lastActive.set(email, parseLastSignIn(user.metadata));
+        }
+      } else {
+        failedBatchCount += 1;
+        if (firstFailureCode === undefined) {
+          const err = outcome.error as
+            | { code?: unknown; message?: unknown }
+            | undefined;
+          firstFailureCode =
+            typeof err?.code === 'string' ? err.code : 'unknown';
+          firstFailureMessage =
+            typeof err?.message === 'string'
+              ? err.message
+              : err instanceof Error
+                ? err.message
+                : JSON.stringify(outcome.error);
+        }
       }
+    }
+
+    const partial = failedBatchCount > 0;
+    if (partial) {
+      // Structured fields so Cloud Logging can group/alert on this. Logged at
+      // `error` level (not `warn`) because a partial response means at least
+      // one row in the admin UI will mis-display until refresh.
+      console.error('[getOrgUserActivity] partial response', {
+        orgId,
+        totalBatches: batches.length,
+        failedBatchCount,
+        firstFailureCode,
+        firstFailureMessage,
+      });
     }
 
     const activity: OrgUserActivityEntry[] = emails.map((email) => ({
       email,
       lastActiveMs: lastActive.get(email) ?? null,
     }));
-    return { activity };
+    return { activity, partial, failedBatchCount };
   }
 );
