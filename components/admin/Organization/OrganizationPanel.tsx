@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Building2,
   LayoutGrid,
@@ -284,11 +290,16 @@ export const OrganizationPanel: React.FC = () => {
   } | null>(null);
   // When the org's email queue is disabled, the reset-password CF returns the
   // minted URL so the admin can deliver it manually. We surface it in a modal
-  // (sensitive — never logged, never toasted, never persisted).
-  const [manualResetLink, setManualResetLink] = useState<{
-    email: string;
-    url: string;
-  } | null>(null);
+  // (sensitive — never logged, never toasted, never persisted). The URL itself
+  // lives in a ref rather than state so it doesn't appear in component-state
+  // snapshots (React DevTools state panel, error-boundary breadcrumbs, future
+  // session-replay tooling). Email-as-state is fine — it's not the credential.
+  const manualResetUrlRef = useRef<string | null>(null);
+  const [manualResetEmail, setManualResetEmail] = useState<string | null>(null);
+  const closeManualResetLink = () => {
+    manualResetUrlRef.current = null;
+    setManualResetEmail(null);
+  };
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (message: string, type: OrgToastType = 'info') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -562,7 +573,8 @@ export const OrganizationPanel: React.FC = () => {
     resetPassword(target.email)
       .then((response) => {
         if (response.resetUrl) {
-          setManualResetLink({ email: target.email, url: response.resetUrl });
+          manualResetUrlRef.current = response.resetUrl;
+          setManualResetEmail(target.email);
           return;
         }
         showToast(`Sent reset email to ${target.email}`, 'success');
@@ -854,8 +866,9 @@ export const OrganizationPanel: React.FC = () => {
       {toast && <OrgToast message={toast.message} type={toast.type} />}
 
       <ManualResetLinkModal
-        link={manualResetLink}
-        onClose={() => setManualResetLink(null)}
+        email={manualResetEmail}
+        getUrl={() => manualResetUrlRef.current}
+        onClose={closeManualResetLink}
       />
     </div>
   );
@@ -865,26 +878,42 @@ export const OrganizationPanel: React.FC = () => {
 // queue is disabled. Sensitive — rendered in a modal, click-to-copy only;
 // never toasted, never logged. Local to this file because there's no other
 // caller and we want the security posture to live next to the handler.
+//
+// The URL itself is *not* a prop: the parent passes a `getUrl` callback that
+// closes over its ref. The modal writes the value imperatively into the input
+// after mount and reads it on copy. This keeps the URL out of the React
+// state/props/hooks tree of every component that touches it (only the parent's
+// ref holds it), so DevTools and any state-snapshotting observability tooling
+// see only the email + a function reference.
 const ManualResetLinkModal: React.FC<{
-  link: { email: string; url: string } | null;
+  email: string | null;
+  getUrl: () => string | null;
   onClose: () => void;
-}> = ({ link, onClose }) => {
+}> = ({ email, getUrl, onClose }) => {
   type CopyState = 'idle' | 'copied' | 'failed';
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const urlInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Reset the copy-affordance state whenever a fresh link opens. We compare the
-  // url in render rather than reaching for useEffect; CLAUDE.md flags effect
-  // chains for derived state as the wrong tool here.
-  const [lastUrl, setLastUrl] = useState<string | null>(null);
-  if (link && link.url !== lastUrl) {
-    setLastUrl(link.url);
+  // Reset the copy-affordance state whenever a fresh link opens. We compare in
+  // render rather than reaching for useEffect; CLAUDE.md flags effect chains
+  // for derived state as the wrong tool here.
+  const [lastEmail, setLastEmail] = useState<string | null>(null);
+  if (email !== null && email !== lastEmail) {
+    setLastEmail(email);
     setCopyState('idle');
   }
-  if (!link && lastUrl !== null) {
-    setLastUrl(null);
+  if (email === null && lastEmail !== null) {
+    setLastEmail(null);
   }
+
+  // Push the URL into the DOM imperatively (rather than through `value` /
+  // `defaultValue`) so it never appears as a prop on the input element.
+  useLayoutEffect(() => {
+    if (urlInputRef.current) {
+      urlInputRef.current.value = email !== null ? (getUrl() ?? '') : '';
+    }
+  }, [email, getUrl]);
 
   useEffect(
     () => () => {
@@ -894,9 +923,10 @@ const ManualResetLinkModal: React.FC<{
   );
 
   const handleCopy = async () => {
-    if (!link) return;
+    const url = getUrl();
+    if (!url) return;
     try {
-      await navigator.clipboard.writeText(link.url);
+      await navigator.clipboard.writeText(url);
       setCopyState('copied');
       if (copyTimer.current) clearTimeout(copyTimer.current);
       copyTimer.current = setTimeout(() => setCopyState('idle'), 2000);
@@ -923,7 +953,7 @@ const ManualResetLinkModal: React.FC<{
 
   return (
     <LocalModal
-      isOpen={link !== null}
+      isOpen={email !== null}
       onClose={onClose}
       title="Copy password-reset link"
       icon={<KeyRound size={18} />}
@@ -937,15 +967,15 @@ const ManualResetLinkModal: React.FC<{
         <p>
           Email delivery is disabled for this organization. Copy the link below
           and send it to{' '}
-          <strong className="text-slate-900">{link?.email ?? ''}</strong>{' '}
-          through your preferred channel.
+          <strong className="text-slate-900">{email ?? ''}</strong> through your
+          preferred channel.
         </p>
         <div className="flex items-stretch gap-2">
           <input
             ref={urlInputRef}
             type="text"
             readOnly
-            value={link?.url ?? ''}
+            defaultValue=""
             onFocus={(e) => e.currentTarget.select()}
             aria-label="Password reset URL"
             className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"

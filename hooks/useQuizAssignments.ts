@@ -372,9 +372,41 @@ export const useQuizAssignments = (
     UseQuizAssignmentsResult['reopenAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'paused', 'paused');
+      if (!userId) throw new Error('Not authenticated');
+      // Auto-end advances `currentQuestionIndex` to `totalQuestions` (see the
+      // end-of-quiz branch in useQuizSession.advanceQuestion). If we just
+      // flipped status back to 'paused' here, the next resume would jump to
+      // 'active' and every student would look up `publicQuestions[totalQuestions]`
+      // — undefined — and stall on the loading UI. Clamp the index back into
+      // bounds (last question) so stragglers can finish, and re-arm
+      // `questionPhase` to 'answering'.
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
+      const snap = await getDoc(sessionRef);
+      const session = snap.data() as QuizSession | undefined;
+      const now = Date.now();
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { status: 'paused', updatedAt: now }
+      );
+      const sessionPatch: Record<string, unknown> = {
+        status: 'paused',
+        autoProgressAt: null,
+        endedAt: null,
+      };
+      if (
+        session &&
+        typeof session.totalQuestions === 'number' &&
+        session.totalQuestions > 0 &&
+        session.currentQuestionIndex >= session.totalQuestions
+      ) {
+        sessionPatch.currentQuestionIndex = session.totalQuestions - 1;
+        sessionPatch.questionPhase = 'answering';
+      }
+      batch.update(sessionRef, sessionPatch);
+      await batch.commit();
     },
-    [setStatus]
+    [userId]
   );
 
   const deleteAssignment = useCallback<
