@@ -675,8 +675,15 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classIds', []);
         }
 
+        // `resource == null` short-circuits reads on non-existent docs: the
+        // student-app join flow calls getDoc() to probe whether a response
+        // already exists before deciding to create or resume, and the rules
+        // engine throws a Null value error on `resource.data.studentUid`
+        // when the doc doesn't exist. Permitting the empty-snapshot read
+        // leaks nothing (response keys are already predictable via PIN).
         allow read: if request.auth != null &&
-          (request.auth.uid == sessionTeacherUid() ||
+          (resource == null ||
+           request.auth.uid == sessionTeacherUid() ||
            (request.auth.uid == resource.data.studentUid && passesStudentClassGateCompat(sessionClassIds(), sessionClassId())) ||
            isAdmin());
         // Create is only ever invoked when the doc doesn't yet exist
