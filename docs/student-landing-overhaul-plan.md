@@ -24,13 +24,13 @@ This plan is designed to be **executed in independent chunks across multiple ses
 ## Status
 
 - [ ] **Phase 1** — Types + `StudentPageConfig` extension
-- [ ] **Phase 2** — Firestore rules + indexes + rules tests *(checkpoint after)*
+- [ ] **Phase 2** — Firestore rules + indexes + rules tests _(checkpoint after)_
 - [ ] **Phase 3** — Teacher UI toggles on 4 non-quiz assignment modals + new-session defaults
 - [ ] **Phase 4** — `teacherDirectory` Cloud Function projection + one-off backfill script
-- [ ] **Phase 5** — Student-side hooks + section components *(checkpoint after)*
+- [ ] **Phase 5** — Student-side hooks + section components _(checkpoint after)_
 - [ ] **Phase 6** — Landing wire-up (refactor `MyAssignmentsPage.tsx`)
 - [ ] **Phase 7** — Admin section-order UI in `StudentPageView.tsx`
-- [ ] **Phase 8** — `ResultsModal` + per-kind renderers + CTA gating *(checkpoint after)*
+- [ ] **Phase 8** — `ResultsModal` + per-kind renderers + CTA gating _(checkpoint after)_
 - [ ] **Phase 9** — Polish: i18n strings, roadmap doc entry, PR cleanup
 
 Branch: work on the current worktree's branch (`claude/nostalgic-hypatia-5b412c` at time of writing) or a fresh feature branch off `dev-paul`. Do NOT target `main`.
@@ -39,19 +39,19 @@ Branch: work on the current worktree's branch (`claude/nostalgic-hypatia-5b412c`
 
 ## Locked decisions (do not re-open without user approval)
 
-| Decision | Value |
-|---|---|
-| Flow model | Unify SSO landing + live-session entry. PIN flow unchanged. |
-| Layout | Fixed sections with admin visibility + order toggles. No widget grid. |
-| Results gating | Reuse existing `showResultToStudent` field name from quiz, extend to the other 4 session types. |
-| Default `showResultToStudent` on new sessions | **Quiz: `false`** (unchanged). **Video-activity / guided-learning / activity-wall / mini-app: `true`** (no regression). |
-| Rules enforcement | Student response read requires `get(session).showResultToStudent == true`. UI-only gating is insufficient. |
-| Results modal content | Student's own submission + score only. No correct answers, no peer data. |
-| Mini-app results | **Skipped this PR.** Completed mini-app cards do not get a "View results" CTA. |
-| Live-session CTA | Inline "Join now" button on the active-assignment card. No persistent banner. |
-| Teacher directory fields | Name + email only. No class list, no building label visible to students. |
-| Teacher directory data path | `/organizations/{orgId}/teacherDirectory/{emailLower}` — student-readable projection written by Cloud Function. Not raw `members`. |
-| Lunch menu module | Out of scope. Keep the existing admin toggle; don't wire a consumer. |
+| Decision                                      | Value                                                                                                                              |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Flow model                                    | Unify SSO landing + live-session entry. PIN flow unchanged.                                                                        |
+| Layout                                        | Fixed sections with admin visibility + order toggles. No widget grid.                                                              |
+| Results gating                                | Reuse existing `showResultToStudent` field name from quiz, extend to the other 4 session types.                                    |
+| Default `showResultToStudent` on new sessions | **Quiz: `false`** (unchanged). **Video-activity / guided-learning / activity-wall / mini-app: `true`** (no regression).            |
+| Rules enforcement                             | Student response read requires `get(session).showResultToStudent == true`. UI-only gating is insufficient.                         |
+| Results modal content                         | Student's own submission + score only. No correct answers, no peer data.                                                           |
+| Mini-app results                              | **Skipped this PR.** Completed mini-app cards do not get a "View results" CTA.                                                     |
+| Live-session CTA                              | Inline "Join now" button on the active-assignment card. No persistent banner.                                                      |
+| Teacher directory fields                      | Name + email only. No class list, no building label visible to students.                                                           |
+| Teacher directory data path                   | `/organizations/{orgId}/teacherDirectory/{emailLower}` — student-readable projection written by Cloud Function. Not raw `members`. |
+| Lunch menu module                             | Out of scope. Keep the existing admin toggle; don't wire a consumer.                                                               |
 
 ---
 
@@ -103,7 +103,7 @@ _To be filled by the implementing agent. Include: actual field names used, any t
 
 ---
 
-## Phase 2 — Firestore rules + indexes + rules tests *(checkpoint after)*
+## Phase 2 — Firestore rules + indexes + rules tests _(checkpoint after)_
 
 **Goal:** server-side enforcement of results release, and the new `teacherDirectory` read rule. Nothing can regress when Phase 3+ actually start setting the flag.
 
@@ -131,6 +131,7 @@ _Fill in: exact rule function names used, whether `passesStudentClassGateCompat`
 ### Checkpoint 1 — after Phase 2
 
 Re-read Phases 3–9. Verify:
+
 - Do the rule changes you wrote match the field names in the `types.ts` changes from Phase 1?
 - Does the teacher-directory claim field you chose match what Phase 5 will pass from `StudentAuthContext`? (If `buildingIds` isn't on the claim yet, flag it as a Phase 5 prerequisite.)
 - Log what you confirmed in the **Checkpoint log** at the bottom.
@@ -190,7 +191,7 @@ _Fill in: the exact teacher-role predicate used (roleId check? claim check?), th
 
 ---
 
-## Phase 5 — Student hooks + section components *(checkpoint after)*
+## Phase 5 — Student hooks + section components _(checkpoint after)_
 
 **Goal:** extract reusable data hooks and build the presentational section components. No landing rewire yet.
 
@@ -220,6 +221,7 @@ _Fill in: whether `buildingIds` needed to be added to the student claim (and the
 ### Checkpoint 2 — after Phase 5
 
 Re-read Phases 6–9. Verify:
+
 - Does your `useStudentAssignments` return shape match what Phase 6's wire-up expects?
 - Is the "active vs. completed" split cleanly derivable client-side, or does Phase 6 need a second subscription?
 - Has the `buildingIds` claim plumbing landed? If yes, Phase 7's admin UI doesn't need to touch auth.
@@ -280,7 +282,7 @@ _Fill in: UI pattern chosen (buttons vs. actual drag), any awkwardness reconcili
 
 ---
 
-## Phase 8 — `ResultsModal` + per-kind renderers *(checkpoint after)*
+## Phase 8 — `ResultsModal` + per-kind renderers _(checkpoint after)_
 
 **Goal:** students can open a completed assignment and see their own submission + score, gated on `showResultToStudent`.
 
@@ -311,6 +313,7 @@ _Fill in: which existing result components were reusable vs. had to be re-writte
 ### Checkpoint 3 — after Phase 8
 
 Re-read Phase 9. Verify:
+
 - Are there i18n strings in the sections/modal that need to be registered?
 - Is the roadmap doc entry accurate given what actually shipped?
 - Any lingering `TODO` or `@deprecated` comments that should be resolved before PR?
