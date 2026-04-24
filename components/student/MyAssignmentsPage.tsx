@@ -282,7 +282,11 @@ const MyAssignmentsPage: React.FC = () => {
     Object.fromEntries(SESSION_KINDS.map((k) => [k, []]))
   );
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [erroredKinds, setErroredKinds] = useState<Set<SessionKind>>(
+  // Keyed on `${kind}:${shape}` so dual-query kinds (one list + one single
+  // subscription) track each bucket independently. Keying on `kind` alone
+  // let a succeeding shape clear the error for its still-failing sibling,
+  // which would hide half-missing data behind a "loaded" state.
+  const [erroredBuckets, setErroredBuckets] = useState<Set<string>>(
     () => new Set()
   );
   const [retryNonce, setRetryNonce] = useState(0);
@@ -298,13 +302,13 @@ const MyAssignmentsPage: React.FC = () => {
     // No classes → no queries (Firestore rejects `in` with []).
     if (classIds.length === 0) {
       setByKind(Object.fromEntries(SESSION_KINDS.map((k) => [k, []])));
-      setErroredKinds(new Set());
+      setErroredBuckets(new Set());
       setLoadState('ready');
       return;
     }
 
     setLoadState('loading');
-    setErroredKinds(new Set());
+    setErroredBuckets(new Set());
 
     type QueryShape = 'list' | 'single';
     const bucketKey = (kind: SessionKind, shape: QueryShape) =>
@@ -371,20 +375,22 @@ const MyAssignmentsPage: React.FC = () => {
       }
     };
 
-    const clearKindError = (kind: SessionKind) => {
-      setErroredKinds((prev) => {
-        if (!prev.has(kind)) return prev;
+    const clearBucketError = (kind: SessionKind, shape: QueryShape) => {
+      const key = bucketKey(kind, shape);
+      setErroredBuckets((prev) => {
+        if (!prev.has(key)) return prev;
         const next = new Set(prev);
-        next.delete(kind);
+        next.delete(key);
         return next;
       });
     };
 
-    const markKindErrored = (kind: SessionKind) => {
-      setErroredKinds((prev) => {
-        if (prev.has(kind)) return prev;
+    const markBucketErrored = (kind: SessionKind, shape: QueryShape) => {
+      const key = bucketKey(kind, shape);
+      setErroredBuckets((prev) => {
+        if (prev.has(key)) return prev;
         const next = new Set(prev);
-        next.add(kind);
+        next.add(key);
         return next;
       });
     };
@@ -400,11 +406,11 @@ const MyAssignmentsPage: React.FC = () => {
         snap.docs.map((d) => docToSummary(kind, config, d))
       );
       emitMerged(kind);
-      // A successful snapshot clears the kind's error flag. If the *other*
-      // shape for this kind is still failing, its own handleError call
-      // will re-set the flag. We bias toward "show the banner only while
-      // something is broken" rather than sticky errors after recovery.
-      clearKindError(kind);
+      // Clear only this bucket's error. Dual-query kinds have a sibling
+      // bucket that may still be failing; its own error flag stays set
+      // independently so the banner reflects "half your data is missing"
+      // instead of "all good" just because the healthy half recovered.
+      clearBucketError(kind, shape);
       markSettled(kind, shape);
     };
 
@@ -431,7 +437,7 @@ const MyAssignmentsPage: React.FC = () => {
       );
       buckets.set(bucketKey(kind, shape), []);
       emitMerged(kind);
-      markKindErrored(kind);
+      markBucketErrored(kind, shape);
       markSettled(kind, shape);
     };
 
@@ -534,7 +540,7 @@ const MyAssignmentsPage: React.FC = () => {
             classIds={classIds}
             assignments={assignments}
             pseudonymUid={pseudonymUid}
-            hasErrors={erroredKinds.size > 0}
+            hasErrors={erroredBuckets.size > 0}
             onRetry={handleRetry}
           />
         </main>

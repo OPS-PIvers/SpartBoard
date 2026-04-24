@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  shouldWriteLastActive,
+  canWriteLastActive,
+  stampLastActive,
   lastActiveStorageKey,
   LAST_ACTIVE_THROTTLE_MS,
 } from '@/utils/lastActiveThrottle';
@@ -48,7 +49,7 @@ class ThrowingStorage implements Storage {
   }
 }
 
-describe('shouldWriteLastActive', () => {
+describe('canWriteLastActive / stampLastActive', () => {
   let storage: MemoryStorage;
   const uid = 'user-1';
   const orgId = 'orono';
@@ -58,60 +59,63 @@ describe('shouldWriteLastActive', () => {
     storage = new MemoryStorage();
   });
 
-  it('writes on first call and stamps localStorage', () => {
-    expect(shouldWriteLastActive(uid, orgId, t0, storage)).toBe(true);
-    const stored = storage.getItem(lastActiveStorageKey(uid, orgId));
-    expect(stored).toBe(new Date(t0).toISOString());
-  });
-
-  it('skips a second call within the throttle window', () => {
-    expect(shouldWriteLastActive(uid, orgId, t0, storage)).toBe(true);
-    const within = t0 + LAST_ACTIVE_THROTTLE_MS - 1;
-    expect(shouldWriteLastActive(uid, orgId, within, storage)).toBe(false);
-    // Stored timestamp should not have advanced.
+  it('allows the first write; stampLastActive records the timestamp', () => {
+    expect(canWriteLastActive(uid, orgId, t0, storage)).toBe(true);
+    // Critical: check alone must NOT stamp — callers stamp only on success.
+    expect(storage.getItem(lastActiveStorageKey(uid, orgId))).toBeNull();
+    stampLastActive(uid, orgId, t0, storage);
     expect(storage.getItem(lastActiveStorageKey(uid, orgId))).toBe(
       new Date(t0).toISOString()
     );
   });
 
-  it('writes again after the throttle window elapses', () => {
-    expect(shouldWriteLastActive(uid, orgId, t0, storage)).toBe(true);
+  it('blocks a second write within the throttle window once stamped', () => {
+    stampLastActive(uid, orgId, t0, storage);
+    const within = t0 + LAST_ACTIVE_THROTTLE_MS - 1;
+    expect(canWriteLastActive(uid, orgId, within, storage)).toBe(false);
+  });
+
+  it('allows a retry after a failed write (no stamp)', () => {
+    // Simulate: canWriteLastActive returned true, Firestore write failed,
+    // caller did NOT call stampLastActive. Next call in the same window
+    // should still allow the write — this is the exact behavior the
+    // previous eager-stamp implementation got wrong.
+    expect(canWriteLastActive(uid, orgId, t0, storage)).toBe(true);
+    expect(canWriteLastActive(uid, orgId, t0 + 1000, storage)).toBe(true);
+  });
+
+  it('allows a write again after the throttle window elapses', () => {
+    stampLastActive(uid, orgId, t0, storage);
     const after = t0 + LAST_ACTIVE_THROTTLE_MS + 1;
-    expect(shouldWriteLastActive(uid, orgId, after, storage)).toBe(true);
-    expect(storage.getItem(lastActiveStorageKey(uid, orgId))).toBe(
-      new Date(after).toISOString()
-    );
+    expect(canWriteLastActive(uid, orgId, after, storage)).toBe(true);
   });
 
-  it('falls back to writing when localStorage throws', () => {
+  it('falls back to allowing writes when localStorage throws', () => {
     const throwing = new ThrowingStorage();
-    expect(shouldWriteLastActive(uid, orgId, t0, throwing)).toBe(true);
-    // Even on a "second" call within the window, throwing storage means we
-    // cannot read prior state and must allow the caller's in-memory ref to
-    // gate further writes.
-    expect(shouldWriteLastActive(uid, orgId, t0 + 1000, throwing)).toBe(true);
+    expect(canWriteLastActive(uid, orgId, t0, throwing)).toBe(true);
+    // stampLastActive must not propagate the throw.
+    expect(() => stampLastActive(uid, orgId, t0, throwing)).not.toThrow();
+    expect(canWriteLastActive(uid, orgId, t0 + 1000, throwing)).toBe(true);
   });
 
-  it('falls back to writing when storage is null (SSR / unavailable)', () => {
-    expect(shouldWriteLastActive(uid, orgId, t0, null)).toBe(true);
+  it('falls back to allowing writes when storage is null (SSR / unavailable)', () => {
+    expect(canWriteLastActive(uid, orgId, t0, null)).toBe(true);
+    expect(() => stampLastActive(uid, orgId, t0, null)).not.toThrow();
   });
 
   it('throttles per uid independently', () => {
-    expect(shouldWriteLastActive('user-a', orgId, t0, storage)).toBe(true);
-    // Different user, same window — should still write.
-    expect(shouldWriteLastActive('user-b', orgId, t0, storage)).toBe(true);
-    // Each user is now individually throttled.
-    expect(shouldWriteLastActive('user-a', orgId, t0 + 1000, storage)).toBe(
-      false
-    );
-    expect(shouldWriteLastActive('user-b', orgId, t0 + 1000, storage)).toBe(
-      false
-    );
+    stampLastActive('user-a', orgId, t0, storage);
+    stampLastActive('user-b', orgId, t0, storage);
+    expect(canWriteLastActive('user-a', orgId, t0 + 1000, storage)).toBe(false);
+    expect(canWriteLastActive('user-b', orgId, t0 + 1000, storage)).toBe(false);
+    expect(canWriteLastActive('user-c', orgId, t0 + 1000, storage)).toBe(true);
   });
 
   it('throttles per orgId independently (org switch on same uid)', () => {
-    expect(shouldWriteLastActive(uid, 'orono', t0, storage)).toBe(true);
-    expect(shouldWriteLastActive(uid, 'other-org', t0, storage)).toBe(true);
-    expect(shouldWriteLastActive(uid, 'orono', t0 + 1000, storage)).toBe(false);
+    stampLastActive(uid, 'orono', t0, storage);
+    expect(canWriteLastActive(uid, 'orono', t0 + 1000, storage)).toBe(false);
+    // Switching orgs inside the window must still allow a fresh write for
+    // the new org — otherwise the new org's member doc never gets stamped.
+    expect(canWriteLastActive(uid, 'other-org', t0 + 1000, storage)).toBe(true);
   });
 });
