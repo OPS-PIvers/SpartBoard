@@ -84,6 +84,11 @@ const InviteAcceptance = lazy(() =>
     default: module.InviteAcceptance,
   }))
 );
+const PlcInviteAcceptance = lazy(() =>
+  import('./components/auth/PlcInviteAcceptance').then((module) => ({
+    default: module.PlcInviteAcceptance,
+  }))
+);
 const DashboardView = lazy(() =>
   import('./components/layout/DashboardView').then((module) => ({
     default: module.DashboardView,
@@ -192,6 +197,7 @@ const App: React.FC = () => {
   const isActivityWallRoute =
     pathname === '/activity-wall' || pathname.startsWith('/activity-wall/');
   const isInviteRoute = pathname.startsWith('/invite/');
+  const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
@@ -360,6 +366,23 @@ const App: React.FC = () => {
         <AuthProvider>
           <Suspense fallback={<FullPageLoader />}>
             <InviteAcceptance />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // PLC-invite landing route — separate from the org-invite route because
+  // PLC invites live in a different collection (`plc_invitations`) and are
+  // sent/accepted through `usePlcInvitations` rather than the callable
+  // claim function.
+  if (isPlcInviteRoute) {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <PlcInviteAcceptance />
           </Suspense>
         </AuthProvider>
         <DialogContainer />

@@ -25,6 +25,7 @@ export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { getOrgUserActivity } from './organizationUserActivity';
+export { plcInvitationEmail } from './plcInviteEmails';
 
 setGlobalOptions({ region: 'us-central1' });
 
