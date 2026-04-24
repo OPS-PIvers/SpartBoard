@@ -11,7 +11,6 @@ export interface NeedDoPutThenGlobalConfig {
 
 interface Props {
   config: NeedDoPutThenGlobalConfig;
-  onChange: (newConfig: NeedDoPutThenGlobalConfig) => void;
 }
 
 export const NeedDoPutThenConfigurationPanel: React.FC<Props> = ({

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -60,11 +60,9 @@ const TileGrid: React.FC<TileGridProps> = ({
 }) => {
   const numItems = items.length;
 
-  const cols = useMemo(() => {
+  const cols = (() => {
     if (numItems <= 1) return 1;
-    if (orientation === 'portrait') {
-      return numItems >= 7 ? 2 : 1;
-    }
+    if (orientation === 'portrait') return numItems >= 7 ? 2 : 1;
     if (orientation === 'landscape') {
       if (numItems <= 2) return numItems;
       if (numItems <= 6) return Math.ceil(numItems / 2);
@@ -73,7 +71,7 @@ const TileGrid: React.FC<TileGridProps> = ({
     if (numItems <= 4) return 2;
     if (numItems <= 9) return 3;
     return 4;
-  }, [numItems, orientation]);
+  })();
 
   if (numItems === 0) {
     return (
@@ -465,14 +463,8 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
     fontColor = '#1e293b',
   } = config;
 
-  const visibleNeedItems = useMemo(
-    () => needItems.filter((t) => t.checked !== false),
-    [needItems]
-  );
-  const visiblePutItems = useMemo(
-    () => putItems.filter((t) => t.checked !== false),
-    [putItems]
-  );
+  const visibleNeedItems = needItems.filter((t) => t.checked !== false);
+  const visiblePutItems = putItems.filter((t) => t.checked !== false);
 
   const [openDrawers, setOpenDrawers] = useState<{
     need: boolean;
