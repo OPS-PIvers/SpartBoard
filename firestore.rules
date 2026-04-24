@@ -707,9 +707,15 @@ service cloud.firestore {
         && request.resource.data.status in ['accepted', 'declined']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']);
 
-      // Lead can revoke (delete) outstanding invites.
+      // Lead can revoke (delete) outstanding invites. The inviter can also
+      // always delete their own invites — same semantic, plus it lets the
+      // lead clean up any orphans should the parent PLC ever go missing
+      // (the get() below would otherwise fail on a deleted parent).
       allow delete: if request.auth != null
-        && get(/databases/$(database)/documents/plcs/$(resource.data.plcId)).data.leadUid == request.auth.uid;
+        && (
+          request.auth.uid == resource.data.invitedByUid
+          || get(/databases/$(database)/documents/plcs/$(resource.data.plcId)).data.leadUid == request.auth.uid
+        );
     }
 
     // Sessions - Teacher owns it, Students can join

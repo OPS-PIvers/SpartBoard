@@ -6,7 +6,8 @@ import {
   onSnapshot,
   doc,
   setDoc,
-  deleteDoc,
+  getDocs,
+  writeBatch,
   runTransaction,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -14,6 +15,9 @@ import { useAuth } from '@/context/useAuth';
 import { Plc } from '@/types';
 
 const PLCS_COLLECTION = 'plcs';
+// Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
+// sweep outstanding invites in the same batch as the PLC doc.
+const INVITATIONS_COLLECTION = 'plc_invitations';
 
 interface UsePlcsResult {
   plcs: Plc[];
@@ -203,7 +207,22 @@ export const usePlcs = (): UsePlcsResult => {
   const deletePlc = useCallback(
     async (plcId: string) => {
       if (!user) return;
-      await deleteDoc(doc(db, PLCS_COLLECTION, plcId));
+      // Sweep outstanding invitations in the same atomic batch as the PLC
+      // doc. The invite-delete rule does a get() on the parent PLC, so the
+      // invite deletes must commit alongside (not after) the PLC delete —
+      // batch operations evaluate rules against the pre-batch state, so
+      // the PLC is still readable while each invite-delete is authorized.
+      // Without this, pending invites would orphan in /plc_invitations and
+      // become unrevokable.
+      const invitesQuery = query(
+        collection(db, INVITATIONS_COLLECTION),
+        where('plcId', '==', plcId)
+      );
+      const invitesSnap = await getDocs(invitesQuery);
+      const batch = writeBatch(db);
+      invitesSnap.forEach((d) => batch.delete(d.ref));
+      batch.delete(doc(db, PLCS_COLLECTION, plcId));
+      await batch.commit();
     },
     [user]
   );
