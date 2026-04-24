@@ -218,17 +218,28 @@ async function findExistingResponseDoc(
     return { key: deterministicKey, snap: deterministicSnap };
   }
   if (isAnonymous && deterministicKey !== authUid) {
-    const legacySnap = await getDoc(
-      doc(
-        db,
-        QUIZ_SESSIONS_COLLECTION,
-        sessionId,
-        RESPONSES_COLLECTION,
-        authUid
-      )
-    );
-    if (legacySnap.exists()) {
-      return { key: authUid, snap: legacySnap };
+    // Probe the legacy authUid-keyed slot. The doc, if it exists, was created
+    // by a previous device/session whose anon UID is no longer ours, so its
+    // `studentUid` field will not match `request.auth.uid` — and the response
+    // read rule rejects with permission-denied. Treat that rejection as
+    // "no legacy doc here" rather than letting it bubble out as a generic
+    // joinQuizSession error toast on the student side.
+    try {
+      const legacySnap = await getDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          authUid
+        )
+      );
+      if (legacySnap.exists()) {
+        return { key: authUid, snap: legacySnap };
+      }
+    } catch (err) {
+      const code = (err as { code?: unknown }).code;
+      if (code !== 'permission-denied') throw err;
     }
   }
   return { key: deterministicKey, snap: deterministicSnap };
