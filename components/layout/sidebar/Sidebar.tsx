@@ -46,8 +46,6 @@ import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 
-const isPlcsEnabled = import.meta.env.VITE_ENABLE_PLCS === 'true';
-
 type MenuSection =
   | 'main'
   | 'boards'
@@ -61,11 +59,6 @@ type MenuSection =
   | 'buildings'
   | 'preferences';
 
-/**
- * Menu entry for "My PLCs". Lives in a subcomponent so `usePlcs` /
- * `usePlcInvitations` only spin up their Firestore listeners when the PLC
- * feature flag is actually on.
- */
 const PlcsMenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const { t } = useTranslation();
   const { plcs } = usePlcs();
@@ -457,9 +450,7 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
-                  {isPlcsEnabled && (
-                    <PlcsMenuButton onClick={() => setActiveSection('plcs')} />
-                  )}
+                  <PlcsMenuButton onClick={() => setActiveSection('plcs')} />
                   <button
                     onClick={() => setActiveSection('buildings')}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
@@ -587,9 +578,7 @@ export const Sidebar: React.FC = () => {
               <SidebarClasses isVisible={activeSection === 'classes'} />
 
               {/* PLCS SECTION */}
-              {isPlcsEnabled && (
-                <SidebarPlcs isVisible={activeSection === 'plcs'} />
-              )}
+              <SidebarPlcs isVisible={activeSection === 'plcs'} />
 
               {/* STYLE SECTION */}
               <StylePanel
