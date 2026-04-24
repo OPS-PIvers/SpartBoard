@@ -131,8 +131,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
   const renderFrayer = () => (
     <div className="grid grid-cols-2 grid-rows-2 h-full gap-2 p-2 relative">
       <div
-        className="border-2 border-slate-300 rounded p-4 relative"
-        style={{ backgroundColor: cellBg }}
+        className="border-2 border-slate-300 rounded relative"
+        style={{
+          backgroundColor: cellBg,
+          padding: 'min(16px, 3cqmin)',
+        }}
       >
         <div
           className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
@@ -149,8 +152,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded p-4 relative"
-        style={{ backgroundColor: cellBg }}
+        className="border-2 border-slate-300 rounded relative"
+        style={{
+          backgroundColor: cellBg,
+          padding: 'min(16px, 3cqmin)',
+        }}
       >
         <div
           className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
@@ -167,8 +173,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded p-4 relative"
-        style={{ backgroundColor: cellBg }}
+        className="border-2 border-slate-300 rounded relative"
+        style={{
+          backgroundColor: cellBg,
+          padding: 'min(16px, 3cqmin)',
+        }}
       >
         <div
           className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
@@ -185,8 +194,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         />
       </div>
       <div
-        className="border-2 border-slate-300 rounded p-4 relative"
-        style={{ backgroundColor: cellBg }}
+        className="border-2 border-slate-300 rounded relative"
+        style={{
+          backgroundColor: cellBg,
+          padding: 'min(16px, 3cqmin)',
+        }}
       >
         <div
           className="absolute top-2 left-2 font-bold text-slate-500 uppercase"
@@ -202,7 +214,14 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomRight ?? 'non-examples'}...`}
         />
       </div>
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-100 border-4 border-indigo-300 rounded-full w-32 h-32 flex items-center justify-center p-4 shadow-lg text-center z-10">
+      <div
+        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-100 border-4 border-indigo-300 rounded-full flex items-center justify-center shadow-lg text-center z-10"
+        style={{
+          width: 'min(128px, 22cqmin)',
+          height: 'min(128px, 22cqmin)',
+          padding: 'min(16px, 3cqmin)',
+        }}
+      >
         <EditableNode
           id="center"
           initialText={nodes['center']?.text ?? ''}
@@ -216,15 +235,26 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
 
   const renderTChart = () => (
     <div
-      className="grid grid-cols-2 h-full gap-0 p-4 relative"
-      style={{ backgroundColor: cellBg }}
+      className="grid grid-cols-2 h-full gap-0 relative"
+      style={{
+        backgroundColor: cellBg,
+        padding: 'min(16px, 3cqmin)',
+      }}
     >
-      <div className="border-r-4 border-slate-400 p-4">
+      <div
+        className="border-r-4 border-slate-400"
+        style={{ padding: 'min(16px, 3cqmin)' }}
+      >
         <EditableNode
           id="left-header"
           initialText={nodes['left-header']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="font-bold text-center border-b-4 border-slate-400 pb-2 mb-4 text-xl"
+          className="font-bold text-center border-b-4 border-slate-400"
+          style={{
+            fontSize: 'min(20px, 7cqmin)',
+            paddingBottom: 'min(8px, 2cqmin)',
+            marginBottom: 'min(16px, 3cqmin)',
+          }}
           placeholder={selectedTemplate?.defaultNodes?.leftHeader ?? 'Pros'}
         />
         <EditableNode
@@ -237,12 +267,17 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           }
         />
       </div>
-      <div className="p-4">
+      <div style={{ padding: 'min(16px, 3cqmin)' }}>
         <EditableNode
           id="right-header"
           initialText={nodes['right-header']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="font-bold text-center border-b-4 border-slate-400 pb-2 mb-4 text-xl"
+          className="font-bold text-center border-b-4 border-slate-400"
+          style={{
+            fontSize: 'min(20px, 7cqmin)',
+            paddingBottom: 'min(8px, 2cqmin)',
+            marginBottom: 'min(16px, 3cqmin)',
+          }}
           placeholder={selectedTemplate?.defaultNodes?.rightHeader ?? 'Cons'}
         />
         <EditableNode
@@ -260,14 +295,20 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
 
   const renderVenn = () => (
     <div
-      className="flex h-full items-center justify-center relative overflow-hidden p-4"
-      style={{ backgroundColor: cellBg }}
+      className="flex h-full items-center justify-center relative overflow-hidden"
+      style={{
+        backgroundColor: cellBg,
+        padding: 'min(16px, 3cqmin)',
+      }}
     >
       <div className="absolute w-[60%] h-[80%] left-[10%] border-4 border-blue-400 rounded-full opacity-30 bg-blue-100" />
       <div className="absolute w-[60%] h-[80%] right-[10%] border-4 border-green-400 rounded-full opacity-30 bg-green-100" />
 
       <div className="flex w-full h-[60%] z-10 text-center">
-        <div className="w-[35%] p-4 flex flex-col justify-center">
+        <div
+          className="w-[35%] flex flex-col justify-center"
+          style={{ padding: 'min(16px, 3cqmin)' }}
+        >
           <EditableNode
             id="left-header"
             initialText={nodes['left-header']?.text ?? ''}
@@ -285,7 +326,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             placeholder="Unique to A"
           />
         </div>
-        <div className="w-[30%] p-4 flex flex-col justify-center border-x-2 border-dashed border-slate-300">
+        <div
+          className="w-[30%] flex flex-col justify-center border-x-2 border-dashed border-slate-300"
+          style={{ padding: 'min(16px, 3cqmin)' }}
+        >
           <EditableNode
             id="center-header"
             initialText={nodes['center-header']?.text ?? ''}
@@ -301,7 +345,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             placeholder="Shared"
           />
         </div>
-        <div className="w-[35%] p-4 flex flex-col justify-center">
+        <div
+          className="w-[35%] flex flex-col justify-center"
+          style={{ padding: 'min(16px, 3cqmin)' }}
+        >
           <EditableNode
             id="right-header"
             initialText={nodes['right-header']?.text ?? ''}
@@ -329,7 +376,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
       style={{ backgroundColor: cellBg }}
     >
       <div className="border-r-2 border-slate-300 flex flex-col h-full">
-        <div className="bg-blue-100 p-3 text-center border-b-2 border-slate-300">
+        <div
+          className="bg-blue-100 text-center border-b-2 border-slate-300"
+          style={{ padding: 'min(12px, 3cqmin)' }}
+        >
           <div
             className="font-black text-blue-800"
             style={{ fontSize: 'min(30px, 12cqmin)' }}
@@ -347,12 +397,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="know"
           initialText={nodes['know']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="p-4 flex-grow h-full"
+          className="flex-grow h-full"
+          style={{ padding: 'min(16px, 3cqmin)' }}
           placeholder="Type here..."
         />
       </div>
       <div className="border-r-2 border-slate-300 flex flex-col h-full">
-        <div className="bg-amber-100 p-3 text-center border-b-2 border-slate-300">
+        <div
+          className="bg-amber-100 text-center border-b-2 border-slate-300"
+          style={{ padding: 'min(12px, 3cqmin)' }}
+        >
           <div
             className="font-black text-amber-800"
             style={{ fontSize: 'min(30px, 12cqmin)' }}
@@ -370,12 +424,16 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="wonder"
           initialText={nodes['wonder']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="p-4 flex-grow h-full"
+          className="flex-grow h-full"
+          style={{ padding: 'min(16px, 3cqmin)' }}
           placeholder="Type here..."
         />
       </div>
       <div className="flex flex-col h-full">
-        <div className="bg-green-100 p-3 text-center border-b-2 border-slate-300">
+        <div
+          className="bg-green-100 text-center border-b-2 border-slate-300"
+          style={{ padding: 'min(12px, 3cqmin)' }}
+        >
           <div
             className="font-black text-green-800"
             style={{ fontSize: 'min(30px, 12cqmin)' }}
@@ -393,7 +451,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="learn"
           initialText={nodes['learn']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="p-4 flex-grow h-full"
+          className="flex-grow h-full"
+          style={{ padding: 'min(16px, 3cqmin)' }}
           placeholder="Type here..."
         />
       </div>
@@ -402,8 +461,11 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
 
   const renderCauseEffect = () => (
     <div
-      className="flex items-center justify-center h-full p-6 gap-4"
-      style={{ backgroundColor: cellBg }}
+      className="flex items-center justify-center h-full gap-4"
+      style={{
+        backgroundColor: cellBg,
+        padding: 'min(24px, 5cqmin)',
+      }}
     >
       <div
         className="flex-1 border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col"
@@ -416,7 +478,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="cause"
           initialText={nodes['cause']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="p-4 flex-grow"
+          className="flex-grow"
+          style={{ padding: 'min(16px, 3cqmin)' }}
           placeholder={
             selectedTemplate?.defaultNodes?.cause1 ?? 'Why it happened...'
           }
@@ -450,7 +513,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           id="effect"
           initialText={nodes['effect']?.text ?? ''}
           onUpdate={handleUpdate}
-          className="p-4 flex-grow"
+          className="flex-grow"
+          style={{ padding: 'min(16px, 3cqmin)' }}
           placeholder={
             selectedTemplate?.defaultNodes?.effect ?? 'What happened...'
           }

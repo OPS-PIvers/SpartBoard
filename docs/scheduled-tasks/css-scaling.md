@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-04-24_
-_Last action: 2026-04-19_
+_Last action: 2026-04-24_
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM GraphicOrganizerWidget has hardcoded padding throughout node layouts (post-text-fix)
-
-- **Detected:** 2026-04-14
-- **File:** components/widgets/GraphicOrganizer/Widget.tsx
-- **Detail:** The previous fix (2026-04-13) converted all hardcoded Tailwind text-size classes to `cqmin`. However, structural padding remains hardcoded: `p-4` on Frayer cell divs (×4), `w-32 h-32` on the Frayer center circle, `pb-2 mb-4` and `text-xl` on T-chart headers, and multiple `p-3`/`p-4`/`p-6` instances in Venn, KWL, and Cause-Effect layouts. Widget has `skipScaling: true`. Fixed padding compresses content proportionally less as the widget grows, creating a poor density experience at large sizes.
-- **Fix:** Convert all `p-4`, `p-3`, `p-6` padding to `style={{ padding: 'min(16px, 3cqmin)' }}` pattern. Convert `w-32 h-32` Frayer center circle to `style={{ width: 'min(128px, 22cqmin)', height: 'min(128px, 22cqmin)' }}`. Replace `text-xl` T-chart header with `style={{ fontSize: 'min(20px, 7cqmin)' }}`.
 
 ### MEDIUM StarterPackWidget has hardcoded icon size and spacing in addition to text sizes
 
@@ -63,6 +56,22 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM GraphicOrganizerWidget has hardcoded padding throughout node layouts (post-text-fix)
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-24
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx
+- **Detail:** Structural padding remained hardcoded after the 2026-04-13 text-size fix: `p-4` on Frayer cell divs (×4), `w-32 h-32` + `p-4` on the Frayer center circle, `pb-2 mb-4` and `text-xl` on T-chart headers, `p-4` outer + column wrappers on Venn, `p-3` headers and `p-4` EditableNode wrappers on KWL (×3 each), and `p-6` outer + `p-4` EditableNode wrappers on Cause-Effect. Widget has `skipScaling: true`, so fixed-pixel padding compressed content proportionally less as the widget grew.
+- **Resolution:** Converted all `p-4`, `p-3`, `p-6` instances to inline `cqmin` styles using the project pattern:
+  - `p-4` → `padding: 'min(16px, 3cqmin)'` (15 instances across Frayer cells, T-chart cells, Venn outer + columns, KWL EditableNodes, Cause-Effect EditableNodes)
+  - `p-3` → `padding: 'min(12px, 3cqmin)'` (3 KWL header containers)
+  - `p-6` → `padding: 'min(24px, 5cqmin)'` (Cause-Effect outer wrapper)
+  - `w-32 h-32` (Frayer center circle) → `width: 'min(128px, 22cqmin)', height: 'min(128px, 22cqmin)'`
+  - `text-xl` (T-chart headers) → `fontSize: 'min(20px, 7cqmin)'`
+  - `pb-2 mb-4` (T-chart headers) → `paddingBottom: 'min(8px, 2cqmin)', marginBottom: 'min(16px, 3cqmin)'`
+  - Moved padding out of `EditableNode` `className` prop into its `style` prop to avoid className/style conflicts.
+    `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` all clean.
 
 ### MEDIUM MathToolsWidget uses `h-32` to cap an empty-state content container
 
