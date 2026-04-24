@@ -461,16 +461,14 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
 
   const renderCauseEffect = () => (
     <div
-      className="flex items-center justify-center h-full gap-4"
+      className="flex items-center justify-center h-full"
       style={{
         backgroundColor: cellBg,
         padding: 'min(24px, 5cqmin)',
+        gap: 'min(16px, 3.5cqmin)',
       }}
     >
-      <div
-        className="flex-1 border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col"
-        style={{ backgroundColor: cellBg }}
-      >
+      <div className="flex-1 border-2 border-rose-300 rounded-lg shadow-sm h-full flex flex-col">
         <div className="bg-rose-100 p-2 text-center rounded-t-md border-b-2 border-rose-300 font-bold text-rose-800 uppercase tracking-wider">
           Cause
         </div>
@@ -502,10 +500,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         </svg>
       </div>
 
-      <div
-        className="flex-1 border-2 border-emerald-300 rounded-lg shadow-sm h-full flex flex-col"
-        style={{ backgroundColor: cellBg }}
-      >
+      <div className="flex-1 border-2 border-emerald-300 rounded-lg shadow-sm h-full flex flex-col">
         <div className="bg-emerald-100 p-2 text-center rounded-t-md border-b-2 border-emerald-300 font-bold text-emerald-800 uppercase tracking-wider">
           Effect
         </div>
