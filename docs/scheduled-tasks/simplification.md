@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-04-17_
+_Last audited: 2026-04-24_
 _Last action: never_
 
 ---
@@ -19,7 +19,7 @@ _Nothing currently in progress._
 ### MEDIUM Duplicated config layer-merge pattern in DashboardContext — extraction candidate
 
 - **Detected:** 2026-04-17
-- **File:** context/DashboardContext.tsx:2464, :2543
+- **File:** context/DashboardContext.tsx:2482, :2561 (line numbers shift with each context addition)
 - **Detail:** Two `Object.assign` call sites (one for the widget-open path at line 2464, one for the add-widget path at line 2543) implement an identical four-layer config merge: `defaults.config → adminConfig → savedWidgetConfigs → overrides`. The pattern and argument list are visually identical; only variable names differ. Any change to the merge order or the inclusion of a new layer (e.g. user preferences) must be made in two places.
 - **Fix:** Extract a helper function such as `mergeWidgetConfig(defaults, adminConfig, saved, overrides)` that performs the `Object.assign` and documents the layer order. Call it from both sites. The function is a pure utility — no hook dependencies — and belongs in utils/ or as a module-level function in DashboardContext.tsx.
 
@@ -33,9 +33,16 @@ _Nothing currently in progress._
 ### LOW useQuizSession and useVideoActivitySession have high internal state density
 
 - **Detected:** 2026-04-17
-- **File:** hooks/useQuizSession.ts (17 useState/useRef calls), hooks/useVideoActivitySession.ts (13 useState/useRef calls)
+- **File:** hooks/useQuizSession.ts (18 useState/useRef calls as of 2026-04-24), hooks/useVideoActivitySession.ts (13 useState/useRef calls)
 - **Detail:** Both hooks accumulate many individual `useState`/`useRef` declarations rather than grouping related values into a single state object or sub-hook. High state density increases cognitive load when tracing data flow and makes it easy to introduce stale-closure bugs via missing dependencies.
 - **Fix:** Audit both hooks and group tightly-coupled state variables into sub-objects (e.g. `sessionStatus`, `studentResponses`, `timerState`) using a single `useState` or `useReducer` per group. Extract repeated logic (e.g. Firestore listener setup) into smaller helper hooks. Prioritize `useQuizSession.ts` first as it has the highest count.
+
+### LOW useScreenRecord and useLiveSession exceed 5 state/ref calls
+
+- **Detected:** 2026-04-24
+- **File:** hooks/useScreenRecord.ts (7 useState/useRef: 3 state + 4 refs), hooks/useLiveSession.ts (7 useState/useRef calls)
+- **Detail:** Both hooks exceed the 5-call threshold. `useScreenRecord` manages 3 logically-grouped pieces of UI state (isRecording, duration, error) plus 4 DOM/API refs (MediaRecorder, Blob[], timer, MediaStream). `useLiveSession` has 6 useState calls (session, students, loading, studentId, studentPin, individualFrozen, prevDeps). The refs in useScreenRecord are all distinct external resources, so grouping has lower ROI here than in the session hooks. However, they should be documented.
+- **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
 
