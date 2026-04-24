@@ -429,4 +429,96 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(updateDocMock).toHaveBeenCalledTimes(1);
     expect(updateDocMock.mock.calls[0][1]).toEqual({ classPeriod: 'Period 2' });
   });
+
+  // Regression: PR #1409 review. An anonymous student whose device has a
+  // stale in-flight response doc keyed by a PRIOR anon uid will trigger a
+  // legacy-key getDoc that Firestore rejects with permission-denied (the
+  // updated response-read rule requires request.auth.uid ==
+  // resource.data.studentUid, and the stale doc's studentUid is the old
+  // uid). The fallback must swallow that rejection and treat it as
+  // "no legacy doc" rather than bubbling out as a generic join error toast.
+  it('treats permission-denied on the legacy-key getDoc as "no legacy doc" for anon joiners', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = {
+      uid: 'new-anon-uid',
+      isAnonymous: true,
+    };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    // 1st call: deterministic pin-based key — no doc yet.
+    getDocMock.mockResolvedValueOnce({ exists: () => false });
+    // 2nd call: legacy authUid-keyed slot — a doc exists from a previous
+    // anon session on this device, but its studentUid field is the OLD uid,
+    // so the security rule rejects the read.
+    const permissionDenied = Object.assign(
+      new Error('Missing or insufficient permissions.'),
+      { code: 'permission-denied' }
+    );
+    getDocMock.mockRejectedValueOnce(permissionDenied);
+
+    const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    setDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    let sessionId = '';
+    await act(async () => {
+      sessionId = await result.current.joinQuizSession('ABC123', '1234');
+    });
+
+    expect(sessionId).toBe('s1');
+    // New response doc was written at the deterministic key (legacy slot
+    // was ignored), and the permission-denied error did NOT propagate.
+    expect(setDocMock).toHaveBeenCalledTimes(1);
+    const writtenResponse = setDocMock.mock.calls[0][1] as {
+      studentUid: string;
+      status: string;
+    };
+    expect(writtenResponse.studentUid).toBe('new-anon-uid');
+    expect(writtenResponse.status).toBe('joined');
+  });
+
+  // Guard the blast radius of the above catch: only permission-denied is
+  // swallowed. Any other Firestore failure (unavailable, network, etc.)
+  // must still propagate so it's not silently treated as "no legacy doc".
+  it('still propagates non-permission-denied errors from the legacy-key getDoc', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = {
+      uid: 'new-anon-uid',
+      isAnonymous: true,
+    };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDocMock.mockResolvedValueOnce({ exists: () => false });
+    const unavailable = Object.assign(new Error('Backend unavailable.'), {
+      code: 'unavailable',
+    });
+    getDocMock.mockRejectedValueOnce(unavailable);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(
+        result.current.joinQuizSession('ABC123', '1234')
+      ).rejects.toThrow('Backend unavailable.');
+    });
+  });
 });
