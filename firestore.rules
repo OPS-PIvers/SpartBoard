@@ -586,6 +586,105 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // ---- PLC (Professional Learning Community) helpers + rules ----
+    //
+    // PLCs are top-level so cross-teacher reads work — every member needs to
+    // read the doc, not just the lead. The lead has full write authority;
+    // non-leads can only self-add (accepting an invite) or self-remove (leaving).
+    //
+    // Invitations use a deterministic doc id `<plcId>_<emailLower>` so the
+    // accept-flow rule can verify an outstanding invite without enumerating.
+    // Resending an invite to the same email overwrites the previous record,
+    // which is the desired behavior (re-arms a declined invite).
+    function plcInviteDocId(plcId, emailLower) {
+      return plcId + '_' + emailLower;
+    }
+
+    function plcInviteExists(plcId, emailLower) {
+      return exists(/databases/$(database)/documents/plc_invitations/$(plcInviteDocId(plcId, emailLower)));
+    }
+
+    // True iff the pending update is the caller self-adding to memberUids
+    // (i.e. accepting an invitation). Verified against the existence of a
+    // matching deterministic invitation doc.
+    function isAcceptingPlcInvite(plcId) {
+      return request.auth.token.get('email', '') != ''
+        && !(request.auth.uid in resource.data.memberUids)
+        && (request.auth.uid in request.resource.data.memberUids)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['memberUids', 'memberEmails', 'updatedAt'])
+        && request.resource.data.memberEmails.get(request.auth.uid, '')
+             == request.auth.token.email.lower()
+        && plcInviteExists(plcId, request.auth.token.email.lower());
+    }
+
+    // True iff the pending update is the caller self-removing from
+    // memberUids (i.e. leaving the PLC). The lead can't use this path —
+    // they must transfer leadership first or delete the PLC outright.
+    function isLeavingPlc() {
+      return (request.auth.uid in resource.data.memberUids)
+        && !(request.auth.uid in request.resource.data.memberUids)
+        && request.auth.uid != resource.data.leadUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['memberUids', 'memberEmails', 'updatedAt']);
+    }
+
+    match /plcs/{plcId} {
+      // Members can read; non-members get nothing — keeps PLC names and
+      // member lists scoped to the actual community.
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.memberUids;
+
+      // The creating teacher is the lead and the only initial member.
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.leadUid
+        && request.resource.data.memberUids == [request.auth.uid];
+
+      // Lead can rename, add/remove members, transfer leadership, etc.
+      // Non-leads can only self-add via accepted invite or self-remove (leave).
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.leadUid
+        || isAcceptingPlcInvite(plcId)
+        || isLeavingPlc()
+      );
+
+      // Only the lead can dissolve the PLC.
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.leadUid;
+    }
+
+    match /plc_invitations/{inviteId} {
+      // Invitee can see their own pending/terminal invites; lead sees the
+      // ones they sent. Both are needed for the sidebar UI to render
+      // "Pending invites" and "Outstanding invitations" panels.
+      allow read: if request.auth != null
+        && request.auth.token.get('email', '') != ''
+        && (
+          resource.data.inviteeEmailLower == request.auth.token.email.lower()
+          || request.auth.uid == resource.data.invitedByUid
+        );
+
+      // Lead of the target PLC creates (or re-creates) the invite. The doc
+      // id is forced to the deterministic format so isAcceptingPlcInvite
+      // can verify by id without a query.
+      allow create, update: if request.auth != null
+        && request.resource.data.invitedByUid == request.auth.uid
+        && get(/databases/$(database)/documents/plcs/$(request.resource.data.plcId)).data.leadUid == request.auth.uid
+        && inviteId == plcInviteDocId(request.resource.data.plcId, request.resource.data.inviteeEmailLower);
+
+      // Invitee can patch only status + respondedAt to mark accepted/declined.
+      // Note: the invitee never deletes the invite — the lead can revoke it,
+      // and accepted invites are kept for audit (the sidebar filters to pending).
+      allow update: if request.auth != null
+        && request.auth.token.get('email', '') != ''
+        && resource.data.inviteeEmailLower == request.auth.token.email.lower()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']);
+
+      // Lead can revoke (delete) outstanding invites.
+      allow delete: if request.auth != null
+        && get(/databases/$(database)/documents/plcs/$(resource.data.plcId)).data.leadUid == request.auth.uid;
+    }
+
     // Sessions - Teacher owns it, Students can join
     match /sessions/{userId} {
       // Only authenticated users (including anonymous) can read sessions

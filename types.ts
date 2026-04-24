@@ -153,6 +153,55 @@ export interface ClassRoster extends ClassRosterMeta {
   loadError?: string;
 }
 
+// --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
+
+/**
+ * A Professional Learning Community: a small group of teachers who
+ * collaborate on the same assignments and share aggregated student results.
+ *
+ * Stored at the top level (`/plcs/{plcId}`) rather than under a single user
+ * because reads must work for every member, not just the lead.
+ */
+export interface Plc {
+  id: string;
+  name: string;
+  /** UID of the teacher who owns the PLC. Only the lead can rename, invite, remove members, or delete the PLC. */
+  leadUid: string;
+  /** All current members, including the lead. Drives the `array-contains` snapshot query in `usePlcs`. */
+  memberUids: string[];
+  /**
+   * uid → lowercased email for each current member. Persisted so PR2's
+   * Drive-share step can address members without an extra `/users` lookup
+   * per export. Always written alongside `memberUids`.
+   */
+  memberEmails: Record<string, string>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * An outstanding invitation for a teacher to join a PLC. Top-level keyed by
+ * a random id so the invitee can read pending invites by email without being
+ * a member of the target PLC yet.
+ *
+ * State machine: `pending` → `accepted` (joins PLC) | `declined` (no-op).
+ * Terminal states are kept for audit; the invitee panel filters to `pending`.
+ */
+export interface PlcInvitation {
+  id: string;
+  plcId: string;
+  /** Denormalized so the invite UI can render the PLC name without reading `/plcs/{plcId}` (which the invitee can't read until accepted). */
+  plcName: string;
+  /** Lowercased to match `request.auth.token.email.lower()` in Firestore rules. */
+  inviteeEmailLower: string;
+  invitedByUid: string;
+  /** Denormalized inviter display name for the invitee panel. */
+  invitedByName: string;
+  invitedAt: number;
+  status: 'pending' | 'accepted' | 'declined';
+  respondedAt?: number;
+}
+
 // --- LIVE SESSION TYPES ---
 
 export interface LiveSession {
