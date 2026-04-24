@@ -148,6 +148,15 @@ export const usePlcs = (): UsePlcsResult => {
         const snap = await tx.get(ref);
         if (!snap.exists()) return;
         const data = snap.data();
+        // Defensive: the rules' lead-update branch requires the lead remain in
+        // memberUids, so removing the lead via this hook would be rejected at
+        // the server with PERMISSION_DENIED. The UI never surfaces this path,
+        // but guard the public hook surface explicitly.
+        if (uid === data.leadUid) {
+          throw new Error(
+            'The lead cannot be removed; transfer leadership or delete the PLC'
+          );
+        }
         const memberUids = (data.memberUids ?? []) as string[];
         const memberEmails = {
           ...((data.memberEmails ?? {}) as Record<string, string>),

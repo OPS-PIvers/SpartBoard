@@ -211,6 +211,12 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
       if (invite.inviteeEmailLower !== myEmailLower) {
         throw new Error('Invitation is addressed to a different account');
       }
+      // Mirror the rules' status check client-side so a stale invite (e.g.
+      // already declined in another tab) surfaces a friendly message instead
+      // of a raw PERMISSION_DENIED from the rejected transaction.
+      if (invite.status !== 'pending') {
+        throw new Error('Invitation is no longer pending');
+      }
       const inviteRef = doc(db, INVITATIONS_COLLECTION, invite.id);
       const plcRef = doc(db, PLCS_COLLECTION, invite.plcId);
       await runTransaction(db, async (tx) => {

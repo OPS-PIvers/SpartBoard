@@ -24,7 +24,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({ isVisible }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
-  const { plcs, createPlc, leavePlc, deletePlc } = usePlcs();
+  const { plcs, loading, createPlc, leavePlc, deletePlc } = usePlcs();
   const { pendingInvites } = usePlcInvitations();
 
   // `editingPlcId === null` while no modal is open. The modal is open whenever
@@ -143,7 +143,12 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({ isVisible }) => {
             </div>
 
             {/* PLC list */}
-            {plcs.length === 0 ? (
+            {loading ? (
+              // Render an inert placeholder during the initial snapshot so we
+              // don't briefly flash "No PLCs yet" for users who actually have
+              // some.
+              <div className="py-12" aria-hidden />
+            ) : plcs.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
                 <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
                   <Users2 className="w-6 h-6 text-slate-300" />
