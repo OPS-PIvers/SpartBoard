@@ -44,6 +44,7 @@ import {
   MessagesSquare,
   Image as ImageIcon,
   Triangle,
+  Workflow,
 } from 'lucide-react';
 import { ToolMetadata } from '../types';
 
@@ -279,5 +280,11 @@ export const TOOLS: ToolMetadata[] = [
     icon: Triangle,
     label: "Bloom's Taxonomy",
     color: 'bg-indigo-600',
+  },
+  {
+    type: 'need-do-put-then',
+    icon: Workflow,
+    label: 'Need / Do / Put / Then',
+    color: 'bg-cyan-600',
   },
 ];

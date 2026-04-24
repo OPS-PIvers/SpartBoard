@@ -192,6 +192,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./BloomsTaxonomy/DetailWidget'),
     'BloomsDetailWidget'
   ),
+  'need-do-put-then': lazyNamed(
+    () => import('./NeedDoPutThen/Widget'),
+    'NeedDoPutThenWidget'
+  ),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -338,6 +342,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./TalkingTool'),
     'TalkingToolSettings'
   ),
+  'need-do-put-then': lazyNamed(
+    () => import('./NeedDoPutThen/Settings'),
+    'NeedDoPutThenSettings'
+  ),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -437,6 +445,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'work-symbols': lazyNamed(
     () => import('./WorkSymbols/Settings'),
     'WorkSymbolsAppearanceSettings'
+  ),
+  'need-do-put-then': lazyNamed(
+    () => import('./NeedDoPutThen/Settings'),
+    'NeedDoPutThenAppearanceSettings'
   ),
 };
 
@@ -869,6 +881,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'blooms-detail': {
     baseWidth: 450,
     baseHeight: 300,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'need-do-put-then': {
+    baseWidth: 340,
+    baseHeight: 320,
     canSpread: true,
     skipScaling: true,
     padding: 0,

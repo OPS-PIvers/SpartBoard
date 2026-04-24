@@ -59,6 +59,7 @@ import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
 import { First5ConfigurationPanel } from './First5ConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { LunchCountConfigurationPanel } from './LunchCountConfigurationPanel';
+import { NeedDoPutThenConfigurationPanel } from './NeedDoPutThenConfigurationPanel';
 import { Toggle } from '../common/Toggle';
 
 // Shared prop shape for all "building-defaults" config panels
@@ -134,6 +135,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   remote: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
   'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
+  'need-do-put-then':
+    NeedDoPutThenConfigurationPanel as unknown as BuildingConfigPanel,
 };
 
 interface FeatureConfigurationPanelProps {
