@@ -907,10 +907,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 `${withArchived.length} ${withArchived.length === 1 ? 'has' : 'have'} archived assignments — ` +
                 `deleting will prevent viewing their monitor and results. This cannot be undone.`
               : `Delete ${deletable.length} quiz${deletable.length === 1 ? '' : 'zes'}? This cannot be undone.`;
+          const hasArchivedWarning = withArchived.length > 0;
           const ok = await showConfirm(confirmMsg, {
             title: 'Delete Quizzes',
-            variant: 'danger',
-            confirmLabel: 'Delete',
+            variant: hasArchivedWarning ? 'warning' : 'danger',
+            confirmLabel: hasArchivedWarning ? 'Delete Anyway' : 'Delete',
           });
           if (!ok) return false;
 

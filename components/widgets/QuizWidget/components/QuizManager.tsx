@@ -246,10 +246,10 @@ interface QuizManagerProps {
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
   onArchiveShare?: (assignment: QuizAssignment) => void;
   onArchivePauseResume?: (assignment: QuizAssignment) => void;
-  onArchiveDeactivate?: (assignment: QuizAssignment) => void;
+  onArchiveDeactivate?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Reopen an ended assignment back to a paused state. */
   onArchiveReopen?: (assignment: QuizAssignment) => void;
-  onArchiveDelete?: (assignment: QuizAssignment) => void;
+  onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
 }
@@ -603,7 +603,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               confirmLabel: 'Make Inactive',
             }
           );
-          if (ok) (onArchiveDeactivate ?? noop)(a);
+          if (ok) await (onArchiveDeactivate ?? noop)(a);
         },
       });
       secondaries.push({
@@ -620,7 +620,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               confirmLabel: 'Delete',
             }
           );
-          if (ok) (onArchiveDelete ?? noop)(a);
+          if (ok) await (onArchiveDelete ?? noop)(a);
         },
       });
       // Filter any item matching the primary label to avoid duplication.
@@ -674,7 +674,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             confirmLabel: 'Delete',
           }
         );
-        if (ok) (onArchiveDelete ?? noop)(a);
+        if (ok) await (onArchiveDelete ?? noop)(a);
       },
     });
     return {
