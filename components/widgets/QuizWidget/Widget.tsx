@@ -96,6 +96,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
+  // Bump a token whenever the user navigates INTO the results view so the
+  // QuizResults consumer remounts with fresh memos over the current live
+  // `responses` — guarantees aggregate stats recompute after a mid-view
+  // submission delete even if the upstream snapshot state lagged.
+  const [resultsEnterToken, setResultsEnterToken] = useState(0);
+  const [prevView, setPrevView] = useState(config.view);
+  if (config.view !== prevView) {
+    setPrevView(config.view);
+    if (config.view === 'results') {
+      setResultsEnterToken((n) => n + 1);
+    }
+  }
+
   // Editor modal state — ephemeral, not persisted to Firestore.
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
@@ -535,6 +548,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // separately; config.resultsSessionId is reserved for future per-session history.
     return (
       <QuizResults
+        key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
         quiz={loadedQuizData}
         responses={responses}
         config={config}
