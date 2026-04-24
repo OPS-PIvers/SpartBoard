@@ -35,6 +35,7 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizDriveService } from '@/utils/quizDriveService';
+import { getPlcTeammateEmails } from '@/utils/plc';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
@@ -731,20 +732,44 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               const cached = await getPlcSharedSheetUrl(plcOptions.plcId);
               if (cached) {
                 resolvedPlcSheetUrl = cached;
+                // Even though invite-accept already runs reconcilation,
+                // it can fail silently (no Drive token at accept time,
+                // accepter wasn't the sheet owner). Re-running on every
+                // PLC assignment costs one Drive list call per assign
+                // and lets the actual sheet owner top up writer access
+                // for teammates joined since the sheet was created.
+                // Best-effort — failures here don't block the assignment.
+                if (plc && user) {
+                  const driveService = new QuizDriveService(googleAccessToken);
+                  void driveService
+                    .reconcilePlcSheetPermissions({
+                      sheetUrl: cached,
+                      memberEmailsToShareWith: getPlcTeammateEmails(
+                        plc,
+                        user.uid
+                      ),
+                    })
+                    .catch((err: unknown) => {
+                      console.error(
+                        '[QuizWidget] PLC sheet permission reconcile failed:',
+                        err
+                      );
+                    });
+                }
               } else if (plc && user) {
-                const teammateEmails = plc.memberUids
-                  .filter((uid) => uid !== user.uid)
-                  .map((uid) => plc.memberEmails[uid])
-                  .filter(
-                    (e): e is string => typeof e === 'string' && e.length > 0
-                  );
                 const driveService = new QuizDriveService(googleAccessToken);
                 const created = await driveService.createPlcSheetAndShare({
                   plcName: plc.name,
-                  memberEmailsToShareWith: teammateEmails,
+                  memberEmailsToShareWith: getPlcTeammateEmails(plc, user.uid),
                 });
-                await setPlcSharedSheetUrl(plcOptions.plcId, created.url);
-                resolvedPlcSheetUrl = created.url;
+                // Transactional set-if-empty — if a racing teammate beat
+                // us to the punch, switch to their canonical URL and
+                // accept that our just-created sheet is orphaned in our
+                // Drive (rare race).
+                resolvedPlcSheetUrl = await setPlcSharedSheetUrl(
+                  plcOptions.plcId,
+                  created.url
+                );
               }
             } catch (err) {
               console.error('[QuizWidget] PLC sheet auto-create failed:', err);

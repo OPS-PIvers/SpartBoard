@@ -631,8 +631,16 @@ service cloud.firestore {
     // does. Constrained so this branch can't be used to smuggle other
     // field changes (memberUids, leadUid, name, etc.).
     //
-    // The value may be a string (setting the URL) or null (clearing after
-    // a stale-sheet 404/403, so the next assignment regenerates).
+    // Allowed transitions:
+    //   - null/absent → string  (first member sets the URL)
+    //   - string → null         (clear, e.g. after a 404 stale-sheet)
+    //   - string → same string  (idempotent set, e.g. retried write)
+    //
+    // Rejected: string → different string. That would let one member
+    // overwrite another's already-cached PLC sheet URL and orphan the
+    // original sheet for everyone else. The client-side
+    // `setPlcSharedSheetUrl` is also transactional, but we enforce the
+    // invariant in rules too as defense-in-depth.
     function isSettingPlcSharedSheetUrl() {
       return (request.auth.uid in resource.data.memberUids)
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -640,6 +648,11 @@ service cloud.firestore {
         && (
              request.resource.data.sharedSheetUrl is string
              || request.resource.data.sharedSheetUrl == null
+           )
+        && (
+             resource.data.get('sharedSheetUrl', null) == null
+             || request.resource.data.sharedSheetUrl == null
+             || request.resource.data.sharedSheetUrl == resource.data.sharedSheetUrl
            );
     }
 

@@ -380,6 +380,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     buildDefaultAssignOptions(config, undefined, rosters)
   );
 
+  // Subscribed at the parent so both AssignPlcSlot (UI) and
+  // handleAssignConfirm (effective-id resolution) read the same source.
+  const { plcs } = usePlcs();
+
   // Reset assign form when modal re-opens (adjust-state-while-rendering)
   const [prevAssignTarget, setPrevAssignTarget] = useState<QuizMetadata | null>(
     null
@@ -702,6 +706,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       { rosterIds: validRosterIds },
       rosters
     );
+    // Mirror AssignPlcSlot's effective-id derivation: an explicit choice
+    // wins; otherwise auto-select when there's exactly one PLC. Computed
+    // inline here so a teacher who never touched the dropdown (because
+    // there's only one PLC) still gets that PLC piped through.
+    const explicitPlc = plcs.find((p) => p.id === assignOptions.plcId);
+    const effectivePlcId =
+      explicitPlc?.id ?? (plcs.length === 1 ? plcs[0].id : '');
     const plcOptions: PlcOptions = {
       plcMode: assignOptions.plcMode,
       teacherName: assignOptions.teacherName || undefined,
@@ -709,7 +720,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       periodNames:
         effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
       plcSheetUrl: assignOptions.plcSheetUrl || undefined,
-      plcId: assignOptions.plcId || undefined,
+      plcId: effectivePlcId || undefined,
     };
     const sessionOptions: QuizSessionOptions = {
       tabWarningsEnabled: assignOptions.tabWarningsEnabled,
@@ -1056,6 +1067,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             <AssignPlcSlot
               options={assignOptions}
               onChange={setAssignOptions}
+              plcs={plcs}
               plcSheetUrlInvalid={plcSheetUrlInvalid}
               effectivePeriodCount={
                 resolveEffectivePeriodNames(assignOptions.picker, rosters)
@@ -1408,6 +1420,12 @@ const AssignExtraSlot: React.FC<{
 const AssignPlcSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
+  /**
+   * Teacher's PLC memberships, threaded down from the parent so the
+   * parent can also derive the effective PLC selection at
+   * handleAssignConfirm time without re-subscribing to the same hook.
+   */
+  plcs: import('@/types').Plc[];
   plcSheetUrlInvalid: boolean;
   /**
    * Number of class periods the picker is contributing (ClassLink class
@@ -1415,35 +1433,32 @@ const AssignPlcSlot: React.FC<{
    * hint without this slot needing to recompute the derivation itself.
    */
   effectivePeriodCount: number;
-}> = ({ options, onChange, plcSheetUrlInvalid, effectivePeriodCount }) => {
+}> = ({
+  options,
+  onChange,
+  plcs,
+  plcSheetUrlInvalid,
+  effectivePeriodCount,
+}) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
   ) => onChange({ ...options, [key]: value });
 
-  // Teacher's PLC memberships drive the selector below. If the teacher
-  // belongs to zero PLCs, the modal falls back to the manual-URL field so
-  // the feature isn't locked behind joining a PLC first. When they
-  // belong to exactly one PLC, pre-select it so enabling Share-with-PLC is
-  // truly a one-toggle action.
-  const { plcs } = usePlcs();
-
-  // Auto-select the sole PLC so toggling Share-with-PLC doesn't stall on
-  // an empty selector. Uses the "adjust state during render" pattern to
-  // avoid an effect-driven sync loop.
-  const [prevPlcKey, setPrevPlcKey] = useState('');
-  const plcKey = plcs.map((p) => p.id).join(',');
-  if (prevPlcKey !== plcKey) {
-    setPrevPlcKey(plcKey);
-    if (plcs.length === 1 && options.plcId !== plcs[0].id) {
-      onChange({ ...options, plcId: plcs[0].id });
-    } else if (options.plcId && !plcs.some((p) => p.id === options.plcId)) {
-      // Selected PLC disappeared (deleted / member removed) — clear it.
-      onChange({ ...options, plcId: '' });
-    }
-  }
-
-  const selectedPlc = plcs.find((p) => p.id === options.plcId) ?? null;
+  // Compute the effective selection on the fly instead of syncing with
+  // an effect. Two cases:
+  //   1. User has explicitly picked a still-existing PLC → use it
+  //   2. Otherwise → auto-select the sole PLC when there's exactly one,
+  //      else show no selection
+  // A stale options.plcId (PLC was deleted while the modal was open)
+  // collapses to ''; the assign-flow in Widget.tsx already tolerates an
+  // empty plcId, so no separate cleanup is required. Computing this
+  // derived value inline avoids the "calling a parent setter during
+  // render" / "useEffect to sync state across components" antipatterns.
+  const explicitlyChosen = plcs.find((p) => p.id === options.plcId) ?? null;
+  const effectivePlcId =
+    explicitlyChosen?.id ?? (plcs.length === 1 ? plcs[0].id : '');
+  const selectedPlc = explicitlyChosen ?? (plcs.length === 1 ? plcs[0] : null);
   const hasCachedSheet = Boolean(selectedPlc?.sharedSheetUrl);
   const hasPlcs = plcs.length > 0;
 
@@ -1483,7 +1498,7 @@ const AssignPlcSlot: React.FC<{
                 PLC
               </label>
               <select
-                value={options.plcId}
+                value={effectivePlcId}
                 onChange={(e) => update('plcId', e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >

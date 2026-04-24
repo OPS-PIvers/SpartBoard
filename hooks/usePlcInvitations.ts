@@ -16,6 +16,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcInvitation } from '@/types';
 import { QuizDriveService } from '@/utils/quizDriveService';
+import { getPlcMemberEmails } from '@/utils/plc';
 
 const INVITATIONS_COLLECTION = 'plc_invitations';
 const PLCS_COLLECTION = 'plcs';
@@ -277,16 +278,40 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
             const data = plcSnap.data() as {
               sharedSheetUrl?: unknown;
               memberEmails?: Record<string, unknown>;
+              memberUids?: unknown;
+              leadUid?: unknown;
+              name?: unknown;
+              createdAt?: unknown;
+              updatedAt?: unknown;
             };
             const sheetUrl =
               typeof data.sharedSheetUrl === 'string'
                 ? data.sharedSheetUrl
                 : null;
             if (sheetUrl) {
-              const emails: string[] = [];
-              for (const v of Object.values(data.memberEmails ?? {})) {
-                if (typeof v === 'string' && v.length > 0) emails.push(v);
+              // Reconstruct the minimal Plc shape the helper consumes.
+              // The accept transaction has just committed so the post-
+              // accept doc must include this user in memberEmails.
+              const memberEmails: Record<string, string> = {};
+              for (const [k, v] of Object.entries(data.memberEmails ?? {})) {
+                if (typeof v === 'string') memberEmails[k] = v;
               }
+              const emails = getPlcMemberEmails({
+                id: invite.plcId,
+                name: typeof data.name === 'string' ? data.name : '',
+                leadUid: typeof data.leadUid === 'string' ? data.leadUid : '',
+                memberUids: Array.isArray(data.memberUids)
+                  ? data.memberUids.filter(
+                      (u): u is string => typeof u === 'string'
+                    )
+                  : [],
+                memberEmails,
+                sharedSheetUrl: sheetUrl,
+                createdAt:
+                  typeof data.createdAt === 'number' ? data.createdAt : 0,
+                updatedAt:
+                  typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+              });
               const service = new QuizDriveService(googleAccessToken);
               await service.reconcilePlcSheetPermissions({
                 sheetUrl,

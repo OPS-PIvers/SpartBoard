@@ -33,6 +33,7 @@ import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { PlcSheetMissingError } from '@/utils/quizDriveService';
+import { getPlcTeammateEmails } from '@/utils/plc';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { gradeAnswer, getResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
@@ -254,51 +255,64 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           exportOpts
         );
       } catch (exportErr) {
-        // Stale PLC sheet recovery: the cached URL points at a sheet
-        // that's been deleted (404) or unshared (403). Clear the cached
-        // URL on the owning PLC doc, create a fresh sheet in this
-        // teacher's Drive, share it with teammates, and retry the
-        // append. Only attempt this when we can pin the URL to exactly
-        // one PLC the teacher is a member of — otherwise we don't know
-        // which plcs/{id} to update.
+        // Stale PLC sheet recovery, narrow:
+        //   - 404 = the sheet is gone in Drive. Clear cached URL on the
+        //     owning PLC, create a fresh sheet in this teacher's Drive,
+        //     share with teammates, retry. Safe because no one else has
+        //     a working URL either.
+        //   - 403 = the sheet exists, but THIS teacher lacks access.
+        //     Almost always means they're a member who joined after the
+        //     sheet was created and reconciliation hasn't run / failed.
+        //     Do NOT regenerate — that would orphan the existing sheet
+        //     for every teammate who can still reach it. Instead surface
+        //     a clear "ask the PLC lead for access" toast.
         if (
-          exportErr instanceof PlcSheetMissingError &&
-          config.plcMode &&
-          config.plcSheetUrl &&
-          user
+          !(exportErr instanceof PlcSheetMissingError) ||
+          !config.plcMode ||
+          !config.plcSheetUrl ||
+          !user
         ) {
-          const owningPlc = plcs.find(
-            (p) => p.sharedSheetUrl === config.plcSheetUrl
-          );
-          if (owningPlc) {
-            await clearPlcSharedSheetUrl(owningPlc.id);
-            const teammateEmails = owningPlc.memberUids
-              .filter((uid) => uid !== user.uid)
-              .map((uid) => owningPlc.memberEmails[uid])
-              .filter(
-                (e): e is string => typeof e === 'string' && e.length > 0
-              );
-            const created = await svc.createPlcSheetAndShare({
-              plcName: owningPlc.name,
-              memberEmailsToShareWith: teammateEmails,
-            });
-            await setPlcSharedSheetUrl(owningPlc.id, created.url);
-            url = await svc.exportResultsToSheet(
-              quiz.title,
-              responses,
-              quiz.questions,
-              { ...exportOpts, plcSheetUrl: created.url }
-            );
-            addToast(
-              'The previous PLC sheet was missing — created a fresh one.',
-              'info'
-            );
-          } else {
-            throw exportErr;
-          }
-        } else {
           throw exportErr;
         }
+        // Use filter + require exactly-one match. `find` would silently
+        // pick the first when two PLCs accidentally share the same URL
+        // (legacy manual-paste assignments); we'd rather surface the
+        // original error than touch the wrong plcs/{id}.
+        const matchingPlcs = plcs.filter(
+          (p) => p.sharedSheetUrl === config.plcSheetUrl
+        );
+        const owningPlc = matchingPlcs.length === 1 ? matchingPlcs[0] : null;
+        if (exportErr.status === 403) {
+          addToast(
+            owningPlc
+              ? `You don't have access to the ${owningPlc.name} PLC sheet yet — ask the PLC lead to grant you writer access.`
+              : "You don't have access to this PLC sheet — ask the PLC lead to grant you writer access.",
+            'error'
+          );
+          throw exportErr;
+        }
+        // 404 → regenerate, but only when we can pin the URL to a single
+        // PLC. Multiple matches → ambiguous, single none → we don't know
+        // which plcs/{id} to update.
+        if (!owningPlc) {
+          throw exportErr;
+        }
+        await clearPlcSharedSheetUrl(owningPlc.id);
+        const created = await svc.createPlcSheetAndShare({
+          plcName: owningPlc.name,
+          memberEmailsToShareWith: getPlcTeammateEmails(owningPlc, user.uid),
+        });
+        const canonical = await setPlcSharedSheetUrl(owningPlc.id, created.url);
+        url = await svc.exportResultsToSheet(
+          quiz.title,
+          responses,
+          quiz.questions,
+          { ...exportOpts, plcSheetUrl: canonical }
+        );
+        addToast(
+          'The previous PLC sheet was missing — created a fresh one.',
+          'info'
+        );
       }
       setExportUrl(url);
       if (config.plcMode) {

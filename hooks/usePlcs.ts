@@ -36,11 +36,18 @@ interface UsePlcsResult {
   deletePlc: (plcId: string) => Promise<void>;
   /**
    * Any member: persist the auto-created PLC Google Sheet URL on the PLC
-   * doc so teammates reuse it on subsequent assignments. No-ops when the
-   * PLC already has a URL set (first-writer-wins). Rejected by rules if
-   * the caller is not a member.
+   * doc so teammates reuse it on subsequent assignments. Implemented as a
+   * transactional "set-if-empty" so two members assigning their first
+   * PLC quiz simultaneously can't both stomp `sharedSheetUrl`. The caller
+   * passes the URL of the sheet they just created; the resolved URL the
+   * PLC actually ended up with is returned (so the caller can detect a
+   * race-loss and switch to the canonical URL — their own freshly-
+   * created sheet may be orphaned in their Drive in that case, which is
+   * an acceptable rare-race outcome).
+   *
+   * Rejected by rules if the caller is not a member of the PLC.
    */
-  setPlcSharedSheetUrl: (plcId: string, url: string) => Promise<void>;
+  setPlcSharedSheetUrl: (plcId: string, url: string) => Promise<string>;
   /**
    * Any member: clear the cached sheet URL (e.g. after discovering the
    * sheet was deleted in Drive). The next PLC assignment will create a
@@ -260,12 +267,41 @@ export const usePlcs = (): UsePlcsResult => {
   // Any member of the PLC can set sharedSheetUrl when it is currently
   // null/absent. The rule branch restricts the diff to sharedSheetUrl +
   // updatedAt so one member can't also mutate memberUids on this path.
+  //
+  // Transactional set-if-empty: two members concurrently assigning their
+  // first PLC quiz could both call this. Without the transaction, the
+  // last write wins and one teammate's freshly-created sheet would be
+  // pointed at by the URL while the other's becomes a phantom in their
+  // Drive. With the transaction, we read the current value first; if a
+  // racing teammate has already populated `sharedSheetUrl`, we skip our
+  // write and return the existing URL — the caller then uses that
+  // canonical URL (and reconciles permissions for it) instead of the
+  // sheet they just created.
   const setPlcSharedSheetUrl = useCallback(
-    async (plcId: string, url: string) => {
-      if (!user) return;
-      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
-        sharedSheetUrl: url,
-        updatedAt: Date.now(),
+    async (plcId: string, url: string): Promise<string> => {
+      if (!user) return url;
+      return runTransaction(db, async (tx) => {
+        const ref = doc(db, PLCS_COLLECTION, plcId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) {
+          throw new Error('PLC not found');
+        }
+        const data = snap.data() as { sharedSheetUrl?: unknown };
+        const existing =
+          typeof data.sharedSheetUrl === 'string' && data.sharedSheetUrl
+            ? data.sharedSheetUrl
+            : null;
+        if (existing) {
+          // Race lost — keep the canonical URL, our own sheet becomes
+          // orphaned (rare; acceptable for a true concurrent-create
+          // collision).
+          return existing;
+        }
+        tx.update(ref, {
+          sharedSheetUrl: url,
+          updatedAt: Date.now(),
+        });
+        return url;
       });
     },
     [user]
