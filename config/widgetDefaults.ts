@@ -8,8 +8,15 @@ import {
   QRConfig,
   BloomsTaxonomyConfig,
   BloomsDetailConfig,
+  NeedDoPutThenConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
+import {
+  DEFAULT_NEED_ITEMS,
+  DEFAULT_PUT_ITEMS,
+  DEFAULT_DO_ITEMS,
+  DEFAULT_THEN_ITEMS,
+} from '@/components/widgets/NeedDoPutThen/constants';
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   url: {
@@ -494,5 +501,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       parentWidgetId: '',
       level: 'remember',
     } satisfies BloomsDetailConfig,
+  },
+  'need-do-put-then': {
+    w: 340,
+    h: 320,
+    config: {
+      needItems: DEFAULT_NEED_ITEMS,
+      doItems: DEFAULT_DO_ITEMS,
+      putItems: DEFAULT_PUT_ITEMS,
+      thenItems: DEFAULT_THEN_ITEMS,
+    } satisfies NeedDoPutThenConfig,
   },
 };

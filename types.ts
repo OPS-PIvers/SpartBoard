@@ -58,7 +58,8 @@ export type WidgetType =
   | 'first-5'
   | 'work-symbols'
   | 'blooms-taxonomy'
-  | 'blooms-detail';
+  | 'blooms-detail'
+  | 'need-do-put-then';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2774,6 +2775,27 @@ export interface GuidedLearningConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
+export interface NeedDoPutThenTile {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  checked?: boolean;
+}
+
+export interface NeedDoPutThenConfig {
+  needItems?: NeedDoPutThenTile[];
+  doItems?: string[];
+  putItems?: NeedDoPutThenTile[];
+  thenItems?: NeedDoPutThenTile[];
+  fontFamily?: string;
+  fontColor?: string;
+  textSizePreset?: 'small' | 'medium' | 'large' | 'x-large';
+  scaleMultiplier?: number;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -2834,7 +2856,8 @@ export type WidgetConfig =
   | ActivityWallConfig
   | WorkSymbolsConfig
   | BloomsTaxonomyConfig
-  | BloomsDetailConfig;
+  | BloomsDetailConfig
+  | NeedDoPutThenConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -2955,7 +2978,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                     ? BloomsTaxonomyConfig
                                                                                                                     : T extends 'blooms-detail'
                                                                                                                       ? BloomsDetailConfig
-                                                                                                                      : never;
+                                                                                                                      : T extends 'need-do-put-then'
+                                                                                                                        ? NeedDoPutThenConfig
+                                                                                                                        : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;

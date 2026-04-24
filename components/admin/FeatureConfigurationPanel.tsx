@@ -685,6 +685,7 @@ export const FeatureConfigurationPanel: React.FC<
         'guided-learning',
         'instructionalRoutines',
         'miniApp',
+        'need-do-put-then',
         'quiz',
         'stickers',
         'talking-tool',
