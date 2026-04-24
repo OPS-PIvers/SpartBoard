@@ -8,6 +8,8 @@ import {
   setDoc,
   deleteDoc,
   runTransaction,
+  arrayUnion,
+  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -219,35 +221,40 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
       }
       const inviteRef = doc(db, INVITATIONS_COLLECTION, invite.id);
       const plcRef = doc(db, PLCS_COLLECTION, invite.plcId);
-      await runTransaction(db, async (tx) => {
-        const plcSnap = await tx.get(plcRef);
-        if (!plcSnap.exists()) {
-          throw new Error('PLC no longer exists');
-        }
-        const plcData = plcSnap.data();
-        const memberUids = (plcData.memberUids ?? []) as string[];
-        if (memberUids.includes(user.uid)) {
-          // Already a member — just close out the invite.
+      // Blind write: the accept-flow rule (isAcceptingPlcInvite) validates
+      // the update without requiring the invitee to read the PLC doc first —
+      // which they can't, because non-members can't read `/plcs/{plcId}`.
+      // `arrayUnion` satisfies the rule's size-delta check and dotted-path
+      // `memberEmails.<uid>` keeps the diff scoped to a single key.
+      try {
+        await runTransaction(db, (tx) => {
+          tx.update(plcRef, {
+            memberUids: arrayUnion(user.uid),
+            [`memberEmails.${user.uid}`]: myEmailLower,
+            updatedAt: Date.now(),
+          });
           tx.update(inviteRef, {
+            status: 'accepted',
+            respondedAt: Date.now(),
+          });
+          return Promise.resolve();
+        });
+      } catch (err) {
+        // Edge case: the lead added this teacher to memberUids manually
+        // between send and accept. The rule's `newMembers.size() ==
+        // oldMembers.size() + 1` check then refuses the PLC update (arrayUnion
+        // becomes a no-op). Close out the invite on its own so the UI stops
+        // showing it as pending.
+        const code = (err as { code?: string } | null)?.code;
+        if (code === 'permission-denied') {
+          await updateDoc(inviteRef, {
             status: 'accepted',
             respondedAt: Date.now(),
           });
           return;
         }
-        const memberEmails = {
-          ...((plcData.memberEmails ?? {}) as Record<string, string>),
-          [user.uid]: myEmailLower,
-        };
-        tx.update(plcRef, {
-          memberUids: [...memberUids, user.uid],
-          memberEmails,
-          updatedAt: Date.now(),
-        });
-        tx.update(inviteRef, {
-          status: 'accepted',
-          respondedAt: Date.now(),
-        });
-      });
+        throw err;
+      }
     },
     [user, myEmailLower]
   );
