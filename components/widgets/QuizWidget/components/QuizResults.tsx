@@ -535,6 +535,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 tabWarningsEnabled={tabWarningsEnabled ?? true}
                 session={session}
                 onDeleteResponse={onDeleteResponse}
+                addToast={addToast}
               />
             )}
           </div>
@@ -807,6 +808,7 @@ const StudentsTab: React.FC<{
   tabWarningsEnabled: boolean;
   session?: import('@/types').QuizSession | null;
   onDeleteResponse?: (responseKey: string) => Promise<void>;
+  addToast: (message: string, type?: import('@/types').Toast['type']) => void;
 }> = ({
   responses,
   questions,
@@ -815,6 +817,7 @@ const StudentsTab: React.FC<{
   tabWarningsEnabled,
   session,
   onDeleteResponse,
+  addToast,
 }) => {
   const [showResults, setShowResults] = useState(false);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -920,8 +923,9 @@ const StudentsTab: React.FC<{
                             '[QuizResults] failed to delete response',
                             err
                           );
-                          window.alert(
-                            `Failed to delete ${displayName}\u2019s submission. Please try again.`
+                          addToast(
+                            `Failed to delete ${displayName}\u2019s submission. Please try again.`,
+                            'error'
                           );
                         })
                         .finally(() => {

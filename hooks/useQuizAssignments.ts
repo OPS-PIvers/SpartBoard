@@ -307,7 +307,14 @@ export const useQuizAssignments = (
       if (sessionStatus === 'paused' || sessionStatus === 'ended') {
         sessionPatch.autoProgressAt = null;
       }
-      if (sessionStatus === 'ended') sessionPatch.endedAt = now;
+      if (sessionStatus === 'ended') {
+        sessionPatch.endedAt = now;
+      } else {
+        // Clear `endedAt` on any transition away from 'ended' so a reopened
+        // session doesn't carry stale end-timestamp state that downstream
+        // consumers would misread as "session is over".
+        sessionPatch.endedAt = null;
+      }
       batch.update(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
         sessionPatch
