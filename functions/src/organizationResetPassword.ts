@@ -40,6 +40,14 @@ export interface ResetPasswordPayload {
 export interface ResetPasswordResponse {
   sent: boolean;
   email: string;
+  /**
+   * The minted Firebase Auth password-reset URL. Only populated when the
+   * `invite-emails` global permission is disabled — in that case the org
+   * admin needs the link to copy/paste manually. When the email queue is
+   * enabled and the queue write succeeds, the URL is intentionally omitted
+   * so admins cannot bypass the audit trail (they must trust the queue).
+   */
+  resetUrl?: string;
 }
 
 function parsePayload(data: unknown): ResetPasswordPayload {
@@ -203,8 +211,11 @@ export const resetOrganizationUserPassword = onCall(
     }
 
     const emailConfig = await loadEmailConfig(db);
-    let sent = false;
     if (emailConfig.enabled) {
+      // Queue the email through the Trigger Email extension. If this write
+      // fails we let the error propagate — the caller should retry rather
+      // than silently fall back to handing the URL to the admin, because
+      // doing so would bypass the audit trail the queue provides.
       const mailId = crypto.randomBytes(16).toString('hex');
       const mailRef = db.collection('mail').doc(`pwreset-${mailId}`);
       const body = buildResetEmail({ resetUrl, targetEmail: email });
@@ -215,9 +226,12 @@ export const resetOrganizationUserPassword = onCall(
       if (emailConfig.from) mailDoc.from = emailConfig.from;
       if (emailConfig.replyTo) mailDoc.replyTo = emailConfig.replyTo;
       await mailRef.set(mailDoc);
-      sent = true;
+      return { sent: true, email };
     }
 
-    return { sent, email };
+    // Email queue disabled: hand the minted URL back so the admin can copy
+    // and deliver it manually. Per the doc-string contract at the top of
+    // this file, this is the documented fallback path.
+    return { sent: false, email, resetUrl };
   }
 );

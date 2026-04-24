@@ -47,6 +47,10 @@ import {
 } from '../config/buildings';
 import i18n from '../i18n';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
+import {
+  canWriteLastActive,
+  stampLastActive,
+} from '@/utils/lastActiveThrottle';
 
 // Phase 2 ships with the single seeded `orono` org. Phase 3+ resolves this
 // dynamically once `admin_settings/user_roles` (or an org-index collection)
@@ -247,7 +251,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Prevents duplicate root-doc syncs within the same session
   const rootDocSyncedRef = useRef(false);
   // Prevents duplicate member-doc `lastActive` stamps within the same session
-  const memberLastActiveSyncedRef = useRef(false);
+  // Scopes the in-flight guard per (uid, orgId) so switching orgs in the
+  // same JS context (or signing out and back in as a different user)
+  // re-arms the write. A plain boolean would latch the first target
+  // forever within a session.
+  const memberLastActiveSyncedKeyRef = useRef<string | null>(null);
 
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
@@ -844,22 +852,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // the Organization admin panel's "Last active" column reflects real sign-ins
   // (and not just invitation-claim time, which is the only other write path).
   // Gated by a self-write branch in firestore.rules that only permits writing
-  // the `lastActive` field to one's own member doc. Fires once per session.
+  // the `lastActive` field to one's own member doc. Throttled to at most once
+  // per hour per browser via localStorage to avoid blasting the member doc on
+  // every reload (see utils/lastActiveThrottle.ts).
   useEffect(() => {
     if (!user || isAuthBypass) return;
     if (!orgId || !user.email) return;
-    if (memberLastActiveSyncedRef.current) return;
-    memberLastActiveSyncedRef.current = true;
+    const syncKey = `${user.uid}:${orgId}`;
+    // Already attempted (or succeeded) for this (uid, orgId) in this JS
+    // context — don't re-fire on unrelated renders. A different org will
+    // produce a different key and re-arm naturally.
+    if (memberLastActiveSyncedKeyRef.current === syncKey) return;
+    if (!canWriteLastActive(user.uid, orgId)) {
+      // Throttle window hasn't elapsed — still claim the key so we don't
+      // re-check on every render until the window expires.
+      memberLastActiveSyncedKeyRef.current = syncKey;
+      return;
+    }
+    memberLastActiveSyncedKeyRef.current = syncKey;
 
     const emailLower = user.email.toLowerCase();
     void setDoc(
       doc(db, 'organizations', orgId, 'members', emailLower),
       { lastActive: new Date().toISOString() },
       { merge: true }
-    ).catch((err: unknown) => {
-      console.error('Error stamping member lastActive:', err);
-      memberLastActiveSyncedRef.current = false;
-    });
+    )
+      .then(() => {
+        // Only stamp localStorage on success. A failed write (transient
+        // network, rules deny) would otherwise consume the 1h throttle
+        // window silently and delay the next attempt by up to an hour.
+        stampLastActive(user.uid, orgId);
+      })
+      .catch((err: unknown) => {
+        console.error('Error stamping member lastActive:', err);
+        // Release the in-flight guard so the next render re-attempts.
+        if (memberLastActiveSyncedKeyRef.current === syncKey) {
+          memberLastActiveSyncedKeyRef.current = null;
+        }
+      });
   }, [user, orgId]);
 
   const setSelectedBuildings = useCallback(
@@ -1064,7 +1094,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setUser(null);
             setGoogleAccessToken(null);
             rootDocSyncedRef.current = false;
-            memberLastActiveSyncedRef.current = false;
+            memberLastActiveSyncedKeyRef.current = null;
             setLoading(false);
             void firebaseSignOut(auth).catch((err: unknown) => {
               console.error(
@@ -1083,7 +1113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!firebaseUser) {
         setGoogleAccessToken(null);
         rootDocSyncedRef.current = false;
-        memberLastActiveSyncedRef.current = false;
+        memberLastActiveSyncedKeyRef.current = null;
       }
       setLoading(false);
     });

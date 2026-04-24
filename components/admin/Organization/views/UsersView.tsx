@@ -12,6 +12,7 @@ import {
   Edit3,
   Check,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import type {
   BuildingRecord,
@@ -44,6 +45,13 @@ interface Props {
   buildings: BuildingRecord[];
   actorRole: 'super_admin' | 'domain_admin' | 'building_admin';
   actorBuildingIds: string[];
+  /**
+   * `true` when the `getOrgUserActivity` callable reported a partial result —
+   * at least one Firebase Auth `getUsers` batch failed. Some "Never signed in"
+   * rows may actually be active; the banner prompts admins to refresh rather
+   * than act on incomplete data.
+   */
+  activityPartial: boolean;
   onUpdate: (id: string, patch: Partial<UserRecord>) => void;
   onBulkUpdate: (ids: string[], patch: Partial<UserRecord>) => void;
   onRemove: (ids: string[]) => void;
@@ -120,6 +128,7 @@ export const UsersView: React.FC<Props> = ({
   buildings,
   actorRole,
   actorBuildingIds,
+  activityPartial,
   onUpdate,
   onBulkUpdate,
   onRemove,
@@ -274,6 +283,25 @@ export const UsersView: React.FC<Props> = ({
           ) : null
         }
       />
+
+      {activityPartial && (
+        <div
+          role="status"
+          className="mb-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+        >
+          <AlertTriangle
+            size={16}
+            className="mt-0.5 flex-shrink-0 text-amber-600"
+          />
+          <div>
+            <div className="font-medium">Last-active data is incomplete.</div>
+            <div className="text-amber-800/90">
+              Some members may show &ldquo;Never signed in&rdquo; while actually
+              being active. Refresh the page to retry.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative w-full sm:w-80">

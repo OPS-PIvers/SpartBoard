@@ -27,11 +27,12 @@ import {
   EyeOff,
   User,
   Hash,
+  Trash2,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
-import { gradeAnswer } from '@/hooks/useQuizSession';
+import { gradeAnswer, getResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import {
   buildPinToNameMap,
@@ -56,6 +57,13 @@ interface QuizResultsProps {
   onBack: () => void;
   tabWarningsEnabled?: boolean;
   session?: import('@/types').QuizSession | null;
+  /**
+   * Delete a single student response by its deterministic Firestore doc key
+   * (falls back to `studentUid` for legacy docs written before keying moved
+   * to `pin-{period}-{pin}`). The snapshot listener will remove the row and
+   * all derived stats/exports will recompute automatically.
+   */
+  onDeleteResponse?: (responseKey: string) => Promise<void>;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -65,6 +73,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onBack,
   tabWarningsEnabled,
   session,
+  onDeleteResponse,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -525,6 +534,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 byStudentUid={byStudentUid}
                 tabWarningsEnabled={tabWarningsEnabled ?? true}
                 session={session}
+                onDeleteResponse={onDeleteResponse}
+                addToast={addToast}
               />
             )}
           </div>
@@ -796,6 +807,8 @@ const StudentsTab: React.FC<{
   >;
   tabWarningsEnabled: boolean;
   session?: import('@/types').QuizSession | null;
+  onDeleteResponse?: (responseKey: string) => Promise<void>;
+  addToast: (message: string, type?: import('@/types').Toast['type']) => void;
 }> = ({
   responses,
   questions,
@@ -803,8 +816,12 @@ const StudentsTab: React.FC<{
   byStudentUid,
   tabWarningsEnabled,
   session,
+  onDeleteResponse,
+  addToast,
 }) => {
   const [showResults, setShowResults] = useState(false);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   const gamified = isGamificationActive(session);
   const suffix = getScoreSuffix(session);
@@ -874,10 +891,67 @@ const StudentsTab: React.FC<{
             const rosterName = pinToName[r.pin];
             const displayName = classLinkName || rosterName || `PIN ${r.pin}`;
             const isResolved = Boolean(classLinkName || rosterName);
+            const rowKey = getResponseDocKey(r);
+            const canDelete = Boolean(onDeleteResponse);
+            const isConfirming = confirmDeleteKey === rowKey;
+            const isDeleting = deletingKey === rowKey;
+
+            if (isConfirming) {
+              return (
+                <div
+                  key={rowKey}
+                  className="flex items-center rounded-xl border bg-red-50 border-red-200 p-3 gap-2"
+                >
+                  <span
+                    className="flex-1 text-red-700 font-bold truncate"
+                    style={{ fontSize: 'min(12px, 4cqmin)' }}
+                  >
+                    Delete {displayName}&rsquo;s submission?
+                  </span>
+                  <button
+                    onClick={() => {
+                      setDeletingKey(rowKey);
+                      setConfirmDeleteKey(null);
+                      const pending = onDeleteResponse?.(rowKey);
+                      if (!pending) {
+                        setDeletingKey((k) => (k === rowKey ? null : k));
+                        return;
+                      }
+                      void pending
+                        .catch((err: unknown) => {
+                          console.error(
+                            '[QuizResults] failed to delete response',
+                            err
+                          );
+                          addToast(
+                            `Failed to delete ${displayName}\u2019s submission. Please try again.`,
+                            'error'
+                          );
+                        })
+                        .finally(() => {
+                          setDeletingKey((k) => (k === rowKey ? null : k));
+                        });
+                    }}
+                    disabled={isDeleting}
+                    className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-bold rounded-lg px-3 py-1"
+                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteKey(null)}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg px-3 py-1"
+                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              );
+            }
 
             return (
               <div
-                key={r.studentUid}
+                key={rowKey}
                 className="flex items-center bg-white border border-brand-blue-primary/10 rounded-xl p-3 shadow-sm hover:shadow-md transition-all"
               >
                 <div className="flex-1 min-w-0">
@@ -928,6 +1002,33 @@ const StudentsTab: React.FC<{
                     </div>
                   )}
                 </div>
+
+                {canDelete && (
+                  <button
+                    onClick={() => setConfirmDeleteKey(rowKey)}
+                    disabled={isDeleting}
+                    title="Delete this submission"
+                    aria-label={`Delete ${displayName}'s submission`}
+                    className="ml-2 shrink-0 p-1.5 rounded-lg text-brand-red-primary/50 hover:text-brand-red-primary hover:bg-brand-red-primary/10 disabled:opacity-30 transition-colors"
+                  >
+                    {isDeleting ? (
+                      <Loader2
+                        className="animate-spin"
+                        style={{
+                          width: 'min(14px, 4cqmin)',
+                          height: 'min(14px, 4cqmin)',
+                        }}
+                      />
+                    ) : (
+                      <Trash2
+                        style={{
+                          width: 'min(14px, 4cqmin)',
+                          height: 'min(14px, 4cqmin)',
+                        }}
+                      />
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}

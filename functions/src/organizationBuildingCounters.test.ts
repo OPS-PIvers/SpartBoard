@@ -10,7 +10,10 @@ const triggerHolder = vi.hoisted(() => ({
 }));
 
 vi.mock('firebase-functions/v2/firestore', () => ({
-  onDocumentWritten: (_path: string, handler: TriggerHandler) => {
+  onDocumentWritten: (
+    _pathOrOpts: string | Record<string, unknown>,
+    handler: TriggerHandler
+  ) => {
     triggerHolder.handler = handler;
     return handler;
   },
@@ -196,6 +199,27 @@ describe('organizationBuildingCounters trigger', () => {
       )
     ).rejects.toThrow();
 
+    expect(mockState.updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('drops events older than the retry budget without recounting (bounded retry)', async () => {
+    mockState.buildingsByOrg.set('orono', 6);
+
+    // Event timestamp ~1 hour ago — well past the 600s budget.
+    const staleTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const event = {
+      ...makeEvent({
+        orgId: 'orono',
+        buildingId: 'orono-new',
+        beforeExists: false,
+        afterExists: true,
+      }),
+      time: staleTime,
+    };
+
+    await invoke(event);
+
+    expect(mockState.countGetSpy).not.toHaveBeenCalled();
     expect(mockState.updateSpy).not.toHaveBeenCalled();
   });
 });

@@ -156,14 +156,32 @@ type Status =
   | { kind: 'success' }
   | { kind: 'error'; error: ErrorKind };
 
+/**
+ * Read a one-shot bounce reason from the URL (set by `StudentAuthContext`
+ * when it rejects a signed-in user from a protected page). We only trust
+ * a fixed allow-list of values to avoid surfacing arbitrary attacker text.
+ */
+function readInitialBounceReason(): ErrorKind | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get('reason');
+    if (reason === 'no-classes') return 'not-in-roster';
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const StudentLoginPage: React.FC = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
-  const [status, setStatus] = useState<Status>(() =>
-    !clientId
-      ? { kind: 'error', error: 'config-missing' }
-      : { kind: 'loading-sdk' }
-  );
+  const [status, setStatus] = useState<Status>(() => {
+    if (!clientId) return { kind: 'error', error: 'config-missing' };
+    const bounceError = readInitialBounceReason();
+    if (bounceError) return { kind: 'error', error: bounceError };
+    return { kind: 'loading-sdk' };
+  });
   const buttonContainerRef = useRef<HTMLDivElement | null>(null);
 
   // The callable handle is stable across retries — create once.

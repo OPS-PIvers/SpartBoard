@@ -46,7 +46,7 @@ import {
   QuizConfig,
   ClassRoster,
 } from '@/types';
-import { gradeAnswer } from '@/hooks/useQuizSession';
+import { gradeAnswer, getResponseDocKey } from '@/hooks/useQuizSession';
 import {
   buildLiveLeaderboard,
   buildPinToNameMap,
@@ -79,7 +79,13 @@ interface QuizLiveMonitorProps {
   config: QuizConfig;
   rosters: ClassRoster[];
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
-  onRemoveStudent?: (studentUid: string) => Promise<void>;
+  /**
+   * Remove a student by Firestore response-doc key. For PIN/anonymous
+   * joiners the key is `pin-{period}-{pin}`; for studentRole joiners it
+   * equals the auth uid. Pass `response._responseKey` (snapshot doc id),
+   * NOT the `studentUid` field.
+   */
+  onRemoveStudent?: (responseKey: string) => Promise<void>;
   onRevealAnswer?: (questionId: string, correctAnswer: string) => Promise<void>;
   onHideAnswer?: (questionId: string) => Promise<void>;
   /** Navigate back to the manager view without ending the quiz. */
@@ -1305,7 +1311,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               onRemoveStudent
                                 ? () => {
                                     void Promise.resolve(
-                                      onRemoveStudent(r.studentUid)
+                                      onRemoveStudent(getResponseDocKey(r))
                                     )
                                       .then(() => setConfirmRemove(null))
                                       .catch(() => undefined);
@@ -1683,7 +1689,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               onRemoveStudent
                                 ? () => {
                                     void Promise.resolve(
-                                      onRemoveStudent(r.studentUid)
+                                      onRemoveStudent(getResponseDocKey(r))
                                     )
                                       .then(() => setConfirmRemove(null))
                                       .catch(() => undefined);

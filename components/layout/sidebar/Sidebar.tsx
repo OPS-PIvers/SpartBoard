@@ -24,6 +24,7 @@ import {
   Building2,
   SlidersHorizontal,
   Users,
+  Users2,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -41,18 +42,55 @@ import { SidebarLanguageRegion } from './SidebarLanguageRegion';
 import { SidebarBuildings } from './SidebarBuildings';
 import { SidebarPreferences } from './SidebarPreferences';
 import { SidebarClasses } from './SidebarClasses';
+import { SidebarPlcs } from './SidebarPlcs';
+import { usePlcs } from '@/hooks/usePlcs';
+import { usePlcInvitations } from '@/hooks/usePlcInvitations';
+
+const isPlcsEnabled = import.meta.env.VITE_ENABLE_PLCS === 'true';
 
 type MenuSection =
   | 'main'
   | 'boards'
   | 'backgrounds'
   | 'classes'
+  | 'plcs'
   | 'style'
   | 'quick-access'
   | 'google-drive'
   | 'language'
   | 'buildings'
   | 'preferences';
+
+/**
+ * Menu entry for "My PLCs". Lives in a subcomponent so `usePlcs` /
+ * `usePlcInvitations` only spin up their Firestore listeners when the PLC
+ * feature flag is actually on.
+ */
+const PlcsMenuButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+  const { t } = useTranslation();
+  const { plcs } = usePlcs();
+  const { pendingInvites } = usePlcInvitations();
+  return (
+    <button
+      onClick={onClick}
+      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+    >
+      <div className="relative w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+        <Users2 className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+        {pendingInvites.length > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white" />
+        )}
+      </div>
+      <span className="flex-grow text-[13px]">
+        {t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
+      </span>
+      <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
+        {plcs.length}
+      </span>
+      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+    </button>
+  );
+};
 
 export const Sidebar: React.FC = () => {
   const { t } = useTranslation();
@@ -419,6 +457,9 @@ export const Sidebar: React.FC = () => {
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
+                  {isPlcsEnabled && (
+                    <PlcsMenuButton onClick={() => setActiveSection('plcs')} />
+                  )}
                   <button
                     onClick={() => setActiveSection('buildings')}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
@@ -544,6 +585,11 @@ export const Sidebar: React.FC = () => {
 
               {/* CLASSES SECTION */}
               <SidebarClasses isVisible={activeSection === 'classes'} />
+
+              {/* PLCS SECTION */}
+              {isPlcsEnabled && (
+                <SidebarPlcs isVisible={activeSection === 'plcs'} />
+              )}
 
               {/* STYLE SECTION */}
               <StylePanel

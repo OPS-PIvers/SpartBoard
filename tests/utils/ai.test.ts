@@ -40,6 +40,24 @@ vi.mock('firebase/functions', () => {
               },
             };
           }
+          if (data.prompt && data.prompt.includes('clamp-imageindex')) {
+            return {
+              data: {
+                suggestedTitle: 'Learning Module',
+                suggestedMode: 'guided',
+                steps: [
+                  {
+                    id: 'step-1',
+                    xPct: 50,
+                    yPct: 50,
+                    interactionType: 'tooltip',
+                    imageIndex: 5,
+                    text: 'Step 1',
+                  },
+                ],
+              },
+            };
+          }
           return {
             data: {
               suggestedTitle: 'Learning Module',
@@ -317,6 +335,22 @@ describe('generateGuidedLearning', () => {
     expect(result.suggestedMode).toBe('guided');
     expect(result.steps).toHaveLength(1);
     expect(result.steps[0].interactionType).toBe('tooltip');
+    expect(result.clampedSteps).toEqual([]);
+  });
+
+  it('reports clamped imageIndex values without dropping the step', async () => {
+    const result = await generateGuidedLearning(img(), 'clamp-imageindex');
+    // Single input image → maxImageIndex = 0; the mock returns a step with
+    // imageIndex 5, which should get clamped down and reported.
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0].imageIndex).toBe(0);
+    expect(result.clampedSteps).toHaveLength(1);
+    expect(result.clampedSteps[0]).toMatchObject({
+      stepIndex: 0,
+      stepId: 'step-1',
+      originalImageIndex: 5,
+      clampedTo: 0,
+    });
   });
 
   it('surfaces the real server error on failure', async () => {

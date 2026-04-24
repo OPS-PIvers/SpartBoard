@@ -512,6 +512,7 @@ const ActiveQuiz: React.FC<{
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fibAnswer, setFibAnswer] = useState('');
+  const [draftMcAnswer, setDraftMcAnswer] = useState<string | null>(null);
 
   const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -546,6 +547,7 @@ const ActiveQuiz: React.FC<{
     setSelectedAnswer(null);
     setSubmitted(alreadyAnswered);
     setFibAnswer('');
+    setDraftMcAnswer(null);
     setAutoSubmitTriggeredFor(null);
     setAnswerFeedback(null);
     setRevealedAnswer(null);
@@ -572,14 +574,16 @@ const ActiveQuiz: React.FC<{
   const currentQuestionRef = useRef(currentQuestion);
   const selectedAnswerRef = useRef(selectedAnswer);
   const fibAnswerRef = useRef(fibAnswer);
+  const draftMcAnswerRef = useRef(draftMcAnswer);
   const onAnswerRef = useRef(onAnswer);
 
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
     selectedAnswerRef.current = selectedAnswer;
     fibAnswerRef.current = fibAnswer;
+    draftMcAnswerRef.current = draftMcAnswer;
     onAnswerRef.current = onAnswer;
-  }, [currentQuestion, selectedAnswer, fibAnswer, onAnswer]);
+  }, [currentQuestion, selectedAnswer, fibAnswer, draftMcAnswer, onAnswer]);
 
   // Countdown — only runs the interval; auto-submit is handled above.
   useEffect(() => {
@@ -611,7 +615,10 @@ const ActiveQuiz: React.FC<{
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
-        selectedAnswerRef.current ?? fibAnswerRef.current ?? '',
+        selectedAnswerRef.current ??
+          draftMcAnswerRef.current ??
+          fibAnswerRef.current ??
+          '',
         0 // Speed bonus is 0 when timer expires
       )
       .catch((err: unknown) => {
@@ -847,7 +854,9 @@ const ActiveQuiz: React.FC<{
         {currentQuestion.type === 'MC' && (
           <div className="space-y-3 flex-1">
             {options.map((opt) => {
-              const isSelected = selectedAnswer === opt;
+              const isSelected = submitted
+                ? selectedAnswer === opt
+                : draftMcAnswer === opt;
               let cls =
                 'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
               if (!submitted) {
@@ -862,7 +871,7 @@ const ActiveQuiz: React.FC<{
               return (
                 <button
                   key={opt}
-                  onClick={() => !submitted && void handleSubmit(opt)}
+                  onClick={() => !submitted && setDraftMcAnswer(opt)}
                   disabled={submitted || submitting}
                   className={cls}
                 >
@@ -871,34 +880,51 @@ const ActiveQuiz: React.FC<{
               );
             })}
 
-            {submitted && (
-              <div className="pt-4 animate-in fade-in slide-in-from-bottom-2 space-y-3">
-                <AnswerFeedbackBanner
-                  feedback={answerFeedback}
-                  revealedAnswer={revealedAnswer}
-                  speedBonus={speedBonusEarned}
-                  streakCount={streakCount}
-                  streakEnabled={session.streakBonusEnabled}
-                />
-                {isStudentPaced && currentIndex < session.totalQuestions - 1 ? (
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      {currentIndex < session.totalQuestions - 1
-                        ? 'Waiting for teacher…'
-                        : 'Quiz complete!'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="animate-in fade-in slide-in-from-bottom-2">
+              {!submitted ? (
+                <button
+                  onClick={() =>
+                    draftMcAnswer && void handleSubmit(draftMcAnswer)
+                  }
+                  disabled={!draftMcAnswer || submitting}
+                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    'Submit Answer'
+                  )}
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <AnswerFeedbackBanner
+                    feedback={answerFeedback}
+                    revealedAnswer={revealedAnswer}
+                    speedBonus={speedBonusEarned}
+                    streakCount={streakCount}
+                    streakEnabled={session.streakBonusEnabled}
+                  />
+                  {isStudentPaced &&
+                  currentIndex < session.totalQuestions - 1 ? (
+                    <button
+                      onClick={handleNext}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                    </button>
+                  ) : (
+                    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                      <p className="text-emerald-300 text-sm font-bold">
+                        {currentIndex < session.totalQuestions - 1
+                          ? 'Waiting for teacher…'
+                          : 'Quiz complete!'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

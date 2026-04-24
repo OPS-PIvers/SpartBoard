@@ -67,14 +67,21 @@ interface ValidatedStudentClaims {
   classIds: string[];
 }
 
+/** Reason a claim set was rejected — surfaced on the login screen. */
+export type StudentClaimRejectionReason = 'no-classes' | 'invalid-claims';
+
+type ClaimExtractionResult =
+  | { ok: true; value: ValidatedStudentClaims }
+  | { ok: false; reason: StudentClaimRejectionReason };
+
 /**
  * Validate that the signed-in user carries the custom claims we mint in
- * `studentLoginV1`. Returns `null` if any claim is missing / wrong shape —
- * callers should treat `null` as "not a student" and sign out.
+ * `studentLoginV1`. On failure returns a reason so the login screen can
+ * explain why the student was bounced (instead of a silent redirect loop).
  */
 async function extractStudentClaims(
   user: User
-): Promise<ValidatedStudentClaims | null> {
+): Promise<ClaimExtractionResult> {
   // Force a refresh on the first call per mount so a stale cached token
   // from a previous student's session can't leak into this one. Firebase
   // transparently uses the refresh token; no network round-trip when the
@@ -82,17 +89,27 @@ async function extractStudentClaims(
   const result = await user.getIdTokenResult();
   const claims = result.claims;
 
-  if (claims.studentRole !== true) return null;
+  if (claims.studentRole !== true) {
+    return { ok: false, reason: 'invalid-claims' };
+  }
   if (typeof claims.orgId !== 'string' || claims.orgId.length === 0) {
-    return null;
+    return { ok: false, reason: 'invalid-claims' };
   }
   const rawClassIds: unknown = claims.classIds;
-  if (!Array.isArray(rawClassIds)) return null;
+  if (!Array.isArray(rawClassIds)) {
+    return { ok: false, reason: 'invalid-claims' };
+  }
   if (!rawClassIds.every((c): c is string => typeof c === 'string')) {
-    return null;
+    return { ok: false, reason: 'invalid-claims' };
+  }
+  // Distinguish "no classes yet" from other malformed-claim cases: the
+  // student is a valid account but isn't on any roster. This is the most
+  // common soft-failure path and deserves its own login-screen message.
+  if (rawClassIds.length === 0) {
+    return { ok: false, reason: 'no-classes' };
   }
 
-  return { orgId: claims.orgId, classIds: rawClassIds };
+  return { ok: true, value: { orgId: claims.orgId, classIds: rawClassIds } };
 }
 
 // ---------------------------------------------------------------------------
@@ -136,13 +153,19 @@ const UNAUTH_STATE: ProviderState = {
 /**
  * Redirect to `/student/login` iff we're currently on a protected route.
  * Never yanks a user away from the login page itself (which would cause an
- * infinite reload loop) or from unrelated app surfaces.
+ * infinite reload loop) or from unrelated app surfaces. An optional reason
+ * is forwarded as `?reason=<kind>` so the login screen can explain the bounce
+ * instead of leaving the student to guess.
  */
-function redirectToLoginIfProtected(): void {
+function redirectToLoginIfProtected(
+  reason?: StudentClaimRejectionReason
+): void {
   if (typeof window === 'undefined') return;
-  if (isProtectedStudentRoute(window.location.pathname)) {
-    window.location.assign(STUDENT_LOGIN_PATH);
-  }
+  if (!isProtectedStudentRoute(window.location.pathname)) return;
+  const target = reason
+    ? `${STUDENT_LOGIN_PATH}?reason=${encodeURIComponent(reason)}`
+    : STUDENT_LOGIN_PATH;
+  window.location.assign(target);
 }
 
 export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -186,35 +209,37 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Resolve claims asynchronously; guard against races by capturing the
       // user reference we started with.
       void extractStudentClaims(user).then(
-        (claims) => {
+        (outcome) => {
           if (!mountedRef.current) return;
           // If the user changed between resolution starting and finishing,
           // a newer callback will reset state — bail to avoid clobbering.
           if (auth.currentUser?.uid !== user.uid) return;
 
-          if (!claims) {
-            // Signed in, but not a student (e.g. teacher account) OR claims
-            // are malformed. Force a sign-out so the stale session can't
-            // linger on a shared device, then redirect if appropriate.
+          if (!outcome.ok) {
+            // Signed in, but not a student (e.g. teacher account), claims
+            // are malformed, OR the student is valid but isn't on any
+            // roster yet. Force a sign-out so the stale session can't
+            // linger on a shared device, then redirect with a reason so
+            // the login screen can explain the bounce.
             void firebaseSignOut(auth).catch(() => {
               // Swallow — the redirect below is the actual remediation.
             });
             setState(UNAUTH_STATE);
-            redirectToLoginIfProtected();
+            redirectToLoginIfProtected(outcome.reason);
             return;
           }
 
           setState({
             status: 'authenticated',
             pseudonymUid: user.uid,
-            orgId: claims.orgId,
-            classIds: claims.classIds,
+            orgId: outcome.value.orgId,
+            classIds: outcome.value.classIds,
           });
         },
         () => {
           if (!mountedRef.current) return;
           setState(UNAUTH_STATE);
-          redirectToLoginIfProtected();
+          redirectToLoginIfProtected('invalid-claims');
         }
       );
     });

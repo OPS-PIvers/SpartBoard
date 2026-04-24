@@ -36,6 +36,7 @@ import {
   Settings as SettingsIcon,
   Pause,
   PowerOff,
+  RefreshCw,
   Calendar,
   Radio,
   Inbox,
@@ -51,6 +52,7 @@ import {
   QuizAssignment,
 } from '@/types';
 import { type QuizSessionOptions } from '@/hooks/useQuizSession';
+import { AttemptLimitRow } from './AttemptLimitRow';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -109,6 +111,8 @@ interface QuizAssignOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  /** Max completed submissions per student. null = unlimited. Default 1. */
+  attemptLimit: number | null;
   plcMode: boolean;
   teacherName: string;
   plcSheetUrl: string;
@@ -157,6 +161,9 @@ function buildDefaultAssignOptions(
     streakBonusEnabled: false,
     showPodiumBetweenQuestions: true,
     soundEffectsEnabled: false,
+    // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
+    // in the assign modal or later in the assignment settings.
+    attemptLimit: 1,
     plcMode: config.plcMode ?? false,
     teacherName: config.teacherName ?? '',
     plcSheetUrl: config.plcSheetUrl ?? '',
@@ -206,7 +213,9 @@ interface QuizManagerProps {
     plcOptions: PlcOptions,
     sessionOptions: QuizSessionOptions,
     /** Selected roster IDs (unified picker output). */
-    rosterIds: string[]
+    rosterIds: string[],
+    /** Max completed submissions per student; null = unlimited. */
+    attemptLimit: number | null
   ) => void;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
@@ -237,6 +246,8 @@ interface QuizManagerProps {
   onArchiveShare?: (assignment: QuizAssignment) => void;
   onArchivePauseResume?: (assignment: QuizAssignment) => void;
   onArchiveDeactivate?: (assignment: QuizAssignment) => void;
+  /** Reopen an ended assignment back to a paused state. */
+  onArchiveReopen?: (assignment: QuizAssignment) => void;
   onArchiveDelete?: (assignment: QuizAssignment) => void;
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
@@ -335,6 +346,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveShare,
   onArchivePauseResume,
   onArchiveDeactivate,
+  onArchiveReopen,
   onArchiveDelete,
   onLibraryViewModeChange,
 }) => {
@@ -625,6 +637,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       onClick: () => (onArchiveShare ?? noop)(a),
     });
     secondaries.push({
+      id: 'reopen',
+      label: 'Reopen',
+      icon: RefreshCw,
+      onClick: () => (onArchiveReopen ?? noop)(a),
+    });
+    secondaries.push({
       id: 'delete',
       label: 'Delete',
       icon: Trash2,
@@ -690,7 +708,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       selectedMode,
       plcOptions,
       sessionOptions,
-      validRosterIds
+      validRosterIds,
+      assignOptions.attemptLimit
     );
     setAssignTarget(null);
     setSelectedMode(null);
@@ -1307,6 +1326,10 @@ const AssignExtraSlot: React.FC<{
       />
 
       <SectionHeader label="Quiz Integrity" />
+      <AttemptLimitRow
+        value={options.attemptLimit}
+        onChange={(v) => update('attemptLimit', v)}
+      />
       <ToggleRow
         label="Tab Switch Detection"
         checked={options.tabWarningsEnabled}

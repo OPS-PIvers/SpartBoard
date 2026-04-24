@@ -73,6 +73,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
     shareAssignment,
@@ -543,6 +544,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
         session={liveSession}
+        onDeleteResponse={removeStudent}
       />
     );
   }
@@ -669,7 +671,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           mode,
           plcOptions: PlcOptions,
           sessionOptions: QuizSessionOptions,
-          rosterIds: string[]
+          rosterIds: string[],
+          attemptLimit: number | null
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
@@ -691,6 +694,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {
                 sessionMode: mode,
                 sessionOptions,
+                attemptLimit,
                 plcMode: plcOptions.plcMode,
                 teacherName: plcOptions.teacherName,
                 periodName:
@@ -1085,6 +1089,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Failed to deactivate',
+              'error'
+            );
+          }
+        }}
+        onArchiveReopen={async (a) => {
+          try {
+            await reopenAssignment(a.id);
+            addToast(
+              'Reopened — click Resume to accept submissions.',
+              'success'
+            );
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to reopen',
               'error'
             );
           }

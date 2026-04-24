@@ -16,7 +16,14 @@
  * shared `LibraryBadgeTone` convention.
  */
 
-import React, { useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type {
@@ -75,8 +82,43 @@ interface OverflowMenuProps {
 
 const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
+    null
+  );
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss on outside click — covers both the trigger wrapper and the
+  // portalled menu, so clicks inside the menu don't close it. Memoized
+  // so `useClickOutside` doesn't re-subscribe DOM listeners every render.
+  const ignoreRefs = useMemo(() => [menuRef], []);
+  useClickOutside(wrapperRef, () => setOpen(false), ignoreRefs);
+
+  // Measure trigger position when the menu opens so the portal renders
+  // flush under it. `opacity-70` on archive cards creates a stacking
+  // context that traps absolute-positioned children, hence the portal.
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuPos({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [open]);
+
+  // Close the menu if the page scrolls or resizes (portal position is
+  // fixed at open time; staying open after layout shifts looks broken).
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
 
   if (actions.length === 0) return null;
 
@@ -87,8 +129,9 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   const orderedActions = [...normalActions, ...destructiveActions];
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={wrapperRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center justify-center w-7 h-7 rounded-lg text-brand-blue-dark/60 hover:text-brand-blue-dark hover:bg-brand-blue-lighter/30 transition-colors"
@@ -99,38 +142,48 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
       >
         <MoreHorizontal size={16} />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1 min-w-[160px] bg-white rounded-lg shadow-lg border border-brand-blue-primary/15 py-1 z-50"
-        >
-          {orderedActions.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  if (item.disabled) return;
-                  setOpen(false);
-                  item.onClick();
-                }}
-                disabled={item.disabled}
-                title={item.disabled ? item.disabledReason : undefined}
-                className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  item.destructive
-                    ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
-                    : 'text-brand-blue-dark hover:bg-brand-blue-lighter/30'
-                }`}
-              >
-                {Icon && <Icon size={12} className="shrink-0" />}
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: menuPos.top,
+              right: menuPos.right,
+              zIndex: 60,
+            }}
+            className="min-w-[160px] bg-white rounded-lg shadow-lg border border-brand-blue-primary/15 py-1"
+          >
+            {orderedActions.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    if (item.disabled) return;
+                    setOpen(false);
+                    item.onClick();
+                  }}
+                  disabled={item.disabled}
+                  title={item.disabled ? item.disabledReason : undefined}
+                  className={`w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    item.destructive
+                      ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
+                      : 'text-brand-blue-dark hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {Icon && <Icon size={12} className="shrink-0" />}
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

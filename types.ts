@@ -120,11 +120,7 @@ export interface ClassRosterMeta {
    * from prior days are auto-ignored without needing cleanup.
    */
   absent?: { date: string; studentIds: string[] };
-  /**
-   * Where the roster originated. Absent on legacy docs → treat as 'local'.
-   * Named `origin` (not `source`) to avoid collision with `ClassRoster.source`
-   * ('user' | 'testClass'), which describes storage location, not provenance.
-   */
+  /** Where the roster originated. Absent on legacy docs → treat as 'local'. */
   origin?: 'classlink' | 'local';
   /**
    * ClassLink class `sourcedId`. Present iff the roster was imported or merged
@@ -155,20 +151,60 @@ export interface ClassRoster extends ClassRosterMeta {
    * unknown" so the UI can show a retry banner instead of "0 students".
    */
   loadError?: string;
+}
+
+// --- PLC (PROFESSIONAL LEARNING COMMUNITY) TYPES ---
+
+/**
+ * A Professional Learning Community: a small group of teachers who
+ * collaborate on the same assignments and share aggregated student results.
+ *
+ * Stored at the top level (`/plcs/{plcId}`) rather than under a single user
+ * because reads must work for every member, not just the lead.
+ */
+export interface Plc {
+  id: string;
+  name: string;
+  /** UID of the teacher who owns the PLC. Only the lead can rename, invite, remove members, or delete the PLC. */
+  leadUid: string;
+  /** All current members, including the lead. Drives the `array-contains` snapshot query in `usePlcs`. */
+  memberUids: string[];
   /**
-   * Where this roster came from. `'user'` (default, omitted) means it lives in
-   * `/users/{uid}/rosters/` and is editable. `'testClass'` means it's a
-   * synthetic adapter for an admin-managed `/organizations/{orgId}/testClasses/`
-   * doc, surfaced read-only so admins can target it without import.
+   * uid → lowercased email for each current member. Persisted so PR2's
+   * Drive-share step can address members without an extra `/users` lookup
+   * per export. Always written alongside `memberUids`.
    */
-  source?: 'user' | 'testClass';
-  /**
-   * True for rosters that must not be mutated through the normal
-   * add/update/delete paths (e.g., testClass-sourced rosters are managed from
-   * the admin panel instead). UI hides Edit/Delete/Sync affordances; the hook
-   * short-circuits mutations defensively.
-   */
-  readOnly?: boolean;
+  memberEmails: Record<string, string>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * An outstanding invitation for a teacher to join a PLC. Top-level so the
+ * invitee can read pending invites by email without being a member of the
+ * target PLC yet. The doc id is *deterministic* — `<plcId>_<emailLower>`
+ * (see `plcInvitationDocId` in `usePlcInvitations` and `plcInviteDocId` in
+ * `firestore.rules`) — which lets the accept-flow rule verify an outstanding
+ * pending invite via an O(1) `get()` without enumerating the collection.
+ * Re-sending an invite to the same email overwrites the prior record,
+ * re-arming a declined invite.
+ *
+ * State machine: `pending` → `accepted` (joins PLC) | `declined` (no-op).
+ * Terminal states are kept for audit; the invitee panel filters to `pending`.
+ */
+export interface PlcInvitation {
+  id: string;
+  plcId: string;
+  /** Denormalized so the invite UI can render the PLC name without reading `/plcs/{plcId}` (which the invitee can't read until accepted). */
+  plcName: string;
+  /** Lowercased to match `request.auth.token.email.lower()` in Firestore rules. */
+  inviteeEmailLower: string;
+  invitedByUid: string;
+  /** Denormalized inviter display name for the invitee panel. */
+  invitedByName: string;
+  invitedAt: number;
+  status: 'pending' | 'accepted' | 'declined';
+  respondedAt?: number;
 }
 
 // --- LIVE SESSION TYPES ---
@@ -1792,6 +1828,13 @@ export interface QuizSession {
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+
+  /**
+   * Max completed submissions allowed per student (mirrored from the
+   * assignment so student-side code can read it without a second fetch).
+   * `null`/`undefined` = unlimited (legacy sessions).
+   */
+  attemptLimit?: number | null;
 }
 
 export interface QuizResponseAnswer {
@@ -1812,11 +1855,32 @@ export interface QuizResponseAnswer {
 
 export type QuizResponseStatus = 'joined' | 'in-progress' | 'completed';
 
-/** Per-student response document in Firestore (/quiz_sessions/{sessionId}/responses/{anonymousUid}) */
+/**
+ * Per-student response document in Firestore
+ * (/quiz_sessions/{sessionId}/responses/{responseKey}).
+ *
+ * `responseKey` (the Firestore doc id) is deterministic:
+ *   - For studentRole (SSO) auth: equals the student's auth uid.
+ *   - For PIN/anonymous auth: derived from pin + classPeriod so it survives
+ *     storage/device resets, preventing attempt-limit bypass.
+ *
+ * The `studentUid` field below still carries the Firebase auth uid of whoever
+ * wrote the doc — Firestore rules enforce ownership against this field
+ * (not the key), since the key is no longer guaranteed to match the uid.
+ */
 export interface QuizResponse {
   /**
-   * Firebase anonymous auth UID — used as the Firestore document key.
-   * Not PII: ephemeral, not linked to any identity without the Drive roster.
+   * The Firestore doc key under /responses. Populated at read time by the
+   * teacher/student hooks from snapshot.doc.id; never persisted as a field.
+   * Callers should use this (rather than `studentUid`) when deleting a
+   * response, since the key may be pin-derived for anonymous joiners.
+   */
+  _responseKey?: string;
+  /**
+   * Firebase Auth UID of the student who wrote the doc — anonymous for PIN
+   * joiners, the SSO uid for studentRole joiners. Used for ownership checks
+   * in Firestore rules. Historically also served as the doc key; that is no
+   * longer guaranteed for anonymous joiners (see `_responseKey`).
    */
   studentUid: string;
   /**
@@ -1842,6 +1906,17 @@ export interface QuizResponse {
   tabSwitchWarnings?: number;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /**
+   * Number of times this student has completed the quiz under this response
+   * doc. Incremented on the transition `in-progress -> completed` via
+   * `completeQuiz`. Used together with `QuizSession.attemptLimit` to enforce
+   * the attempts cap: a student can re-join (and the doc is reset to
+   * `status: 'joined'`) until `completedAttempts >= attemptLimit`.
+   *
+   * Undefined on legacy docs written before multi-attempt support; the hook
+   * treats missing+`status==='completed'` as a single completed attempt.
+   */
+  completedAttempts?: number;
 }
 
 /** Global admin configuration for the Quiz widget */
@@ -1928,6 +2003,14 @@ export interface QuizAssignmentSettings {
   /** Selected class period roster names. Replaces singular periodName. */
   periodNames?: string[];
   plcMemberEmails?: string[];
+  /**
+   * Max completed submissions allowed per student. `null`/`undefined` means
+   * unlimited (legacy). `1` (default for new assignments) means one-and-done.
+   * Enforced at `joinQuizSession` time by checking the student's own existing
+   * response doc; teachers can reset a student's attempt by removing them from
+   * the live monitor, which deletes the response doc.
+   */
+  attemptLimit?: number | null;
 }
 
 /**

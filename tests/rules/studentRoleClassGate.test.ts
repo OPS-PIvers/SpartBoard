@@ -415,11 +415,14 @@ describe('quiz_sessions/responses — student-role gate', () => {
   });
 
   it('anonymous PIN student can create response without studentRole restriction', async () => {
+    // Anon students use deterministic doc keys matching
+    // `^pin-[a-z0-9_]+-[a-z0-9_]+$` (see `encodeResponseKeySegment` /
+    // firestore.rules).
     await assertSucceeds(
       setDoc(
         doc(
           asAnonStudent(),
-          `quiz_sessions/${SESSION_A}/responses/${ANON_UID}`
+          `quiz_sessions/${SESSION_A}/responses/pin-p1-5678`
         ),
         {
           studentUid: ANON_UID,
@@ -430,6 +433,40 @@ describe('quiz_sessions/responses — student-role gate', () => {
           status: 'active',
           tabSwitchWarnings: 0,
         }
+      )
+    );
+  });
+
+  it('anonymous PIN student cannot create response with arbitrary key shape', async () => {
+    // Locks in the key-format tightening: a grief-create that tries to
+    // occupy a victim's slot under an unrelated key is rejected at the
+    // rules layer even if studentUid == auth.uid.
+    await assertFails(
+      setDoc(
+        doc(
+          asAnonStudent(),
+          `quiz_sessions/${SESSION_A}/responses/victim-arbitrary-key`
+        ),
+        {
+          studentUid: ANON_UID,
+          pin: '5678',
+          joinedAt: 2000,
+          score: null,
+          answers: [],
+          status: 'active',
+          tabSwitchWarnings: 0,
+        }
+      )
+    );
+  });
+
+  it('studentRole user cannot create response under a pin-scheme key', async () => {
+    // Cross-auth-type grief is also blocked: an SSO user cannot pretend
+    // to be an anon PIN joiner by writing to `pin-...` keys.
+    await assertFails(
+      setDoc(
+        doc(asStudentA(), `quiz_sessions/${SESSION_A}/responses/pin-p1-1234`),
+        { ...baseResp(), joinedAt: 2000 }
       )
     );
   });
@@ -456,9 +493,12 @@ describe('quiz_sessions/responses — student-role gate', () => {
   // All three must succeed under a bare anon token for real answer
   // submission to work end-to-end.
   it('anonymous PIN student with bare token (no custom claims) can get + create + update response', async () => {
+    // Uses the new deterministic anon key format `pin-{period}-{pin}` that
+    // the client computes via encodeResponseKeySegment(). The rules layer
+    // enforces this shape via regex on create.
     const responseRef = doc(
       asAnonStudentBareToken(),
-      `quiz_sessions/${SESSION_A}/responses/${ANON_UID}`
+      `quiz_sessions/${SESSION_A}/responses/pin-p1-5678`
     );
 
     await assertSucceeds(getDoc(responseRef));
@@ -472,11 +512,14 @@ describe('quiz_sessions/responses — student-role gate', () => {
         answers: [],
         status: 'active',
         tabSwitchWarnings: 0,
+        completedAttempts: 0,
       })
     );
 
     // Submit an answer: update only the fields the rule allows students
-    // to change (answers, status, submittedAt, tabSwitchWarnings).
+    // to change (answers, status, submittedAt, tabSwitchWarnings,
+    // completedAttempts, classPeriod, score). completedAttempts is
+    // monotonic — we hold it at 0 here since this is a mid-attempt update.
     await assertSucceeds(
       setDoc(responseRef, {
         studentUid: ANON_UID,
@@ -487,6 +530,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         status: 'submitted',
         submittedAt: 3000,
         tabSwitchWarnings: 0,
+        completedAttempts: 0,
       })
     );
   });

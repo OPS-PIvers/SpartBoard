@@ -84,6 +84,12 @@ export interface UseQuizAssignmentsResult {
   resumeAssignment: (assignmentId: string) => Promise<void>;
   /** Kills the student URL; preserves responses. assignment='inactive', session='ended'. */
   deactivateAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Reopen a previously deactivated (inactive) assignment. Returns it to
+   * 'paused' so the teacher can review state before resuming; they must
+   * explicitly call `resumeAssignment` to start accepting submissions again.
+   */
+  reopenAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
   /** Update editable settings (className, PLC fields, session toggles). */
@@ -215,6 +221,7 @@ export const useQuizAssignments = (
         periodName: settings.periodName,
         periodNames: settings.periodNames,
         plcMemberEmails: settings.plcMemberEmails,
+        attemptLimit: settings.attemptLimit ?? null,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
 
@@ -264,6 +271,7 @@ export const useQuizAssignments = (
           ? { classIds: targetClassIds, classId: targetClassIds[0] }
           : {}),
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
+        attemptLimit: settings.attemptLimit ?? null,
       };
 
       const batch = writeBatch(db);
@@ -299,7 +307,14 @@ export const useQuizAssignments = (
       if (sessionStatus === 'paused' || sessionStatus === 'ended') {
         sessionPatch.autoProgressAt = null;
       }
-      if (sessionStatus === 'ended') sessionPatch.endedAt = now;
+      if (sessionStatus === 'ended') {
+        sessionPatch.endedAt = now;
+      } else {
+        // Clear `endedAt` on any transition away from 'ended' so a reopened
+        // session doesn't carry stale end-timestamp state that downstream
+        // consumers would misread as "session is over".
+        sessionPatch.endedAt = null;
+      }
       batch.update(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
         sessionPatch
@@ -353,6 +368,47 @@ export const useQuizAssignments = (
     [setStatus]
   );
 
+  const reopenAssignment = useCallback<
+    UseQuizAssignmentsResult['reopenAssignment']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      // Auto-end advances `currentQuestionIndex` to `totalQuestions` (see the
+      // end-of-quiz branch in useQuizSession.advanceQuestion). If we just
+      // flipped status back to 'paused' here, the next resume would jump to
+      // 'active' and every student would look up `publicQuestions[totalQuestions]`
+      // — undefined — and stall on the loading UI. Clamp the index back into
+      // bounds (last question) so stragglers can finish, and re-arm
+      // `questionPhase` to 'answering'.
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
+      const snap = await getDoc(sessionRef);
+      const session = snap.data() as QuizSession | undefined;
+      const now = Date.now();
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { status: 'paused', updatedAt: now }
+      );
+      const sessionPatch: Record<string, unknown> = {
+        status: 'paused',
+        autoProgressAt: null,
+        endedAt: null,
+      };
+      if (
+        session &&
+        typeof session.totalQuestions === 'number' &&
+        session.totalQuestions > 0 &&
+        session.currentQuestionIndex >= session.totalQuestions
+      ) {
+        sessionPatch.currentQuestionIndex = session.totalQuestions - 1;
+        sessionPatch.questionPhase = 'answering';
+      }
+      batch.update(sessionRef, sessionPatch);
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const deleteAssignment = useCallback<
     UseQuizAssignmentsResult['deleteAssignment']
   >(
@@ -404,6 +460,8 @@ export const useQuizAssignments = (
       const sessionPatch: Record<string, unknown> = {};
       if ('periodNames' in patch) sessionPatch.periodNames = patch.periodNames;
       if ('periodName' in patch) sessionPatch.periodName = patch.periodName;
+      if ('attemptLimit' in patch)
+        sessionPatch.attemptLimit = patch.attemptLimit ?? null;
       if (patch.sessionOptions) {
         const o = patch.sessionOptions;
         if (o.tabWarningsEnabled !== undefined)
@@ -535,6 +593,7 @@ export const useQuizAssignments = (
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
     shareAssignment,

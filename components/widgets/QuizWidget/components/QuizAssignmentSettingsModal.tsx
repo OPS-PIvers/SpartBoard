@@ -20,6 +20,7 @@ import type {
   ClassRoster,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { AttemptLimitRow } from './AttemptLimitRow';
 import {
   AssignModal,
   type AssignModeOption,
@@ -43,6 +44,8 @@ interface SettingsOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  /** null = unlimited; any positive int = hard cap. */
+  attemptLimit: number | null;
   plcMode: boolean;
   teacherName: string;
   selectedPeriodNames: string[];
@@ -61,6 +64,9 @@ function initialOptionsFor(a: QuizAssignment): SettingsOptions {
     streakBonusEnabled: opts.streakBonusEnabled ?? false,
     showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? true,
     soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
+    // Legacy assignments have no attemptLimit — preserve "unlimited" for
+    // those rather than retroactively capping ongoing sessions.
+    attemptLimit: a.attemptLimit ?? null,
     plcMode: a.plcMode ?? false,
     teacherName: a.teacherName ?? '',
     selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
@@ -132,6 +138,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       className: options.className.trim(),
       sessionMode: modeLocked ? assignment.sessionMode : sessionMode,
       sessionOptions,
+      attemptLimit: options.attemptLimit,
       plcMode: options.plcMode,
       teacherName: options.teacherName.trim(),
       periodName: options.selectedPeriodNames[0] ?? '',
@@ -179,6 +186,10 @@ export const QuizAssignmentSettingsModal: React.FC<
           )}
 
           <SectionHeader label="Quiz Integrity" />
+          <AttemptLimitRow
+            value={options.attemptLimit}
+            onChange={(v) => setOptions((p) => ({ ...p, attemptLimit: v }))}
+          />
           <ToggleRow
             label="Tab Switch Detection"
             checked={options.tabWarningsEnabled}

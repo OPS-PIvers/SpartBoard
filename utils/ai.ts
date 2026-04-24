@@ -344,10 +344,34 @@ export async function transcribeVideoWithGemini(
 
 // ─── Guided Learning Generation ───────────────────────────────────────────────
 
+/**
+ * Records a step whose `imageIndex` came back from Gemini pointing at an
+ * image that didn't exist (out of range or not a number). The step is kept
+ * — we clamp to image 0 rather than dropping content — but the caller is
+ * expected to surface this to the teacher so they can fix the anchor before
+ * sharing the activity.
+ */
+export interface ClampedStepInfo {
+  /** Position of the step in the validated steps array (0-based). */
+  stepIndex: number;
+  /** The step's stable id (matches `GuidedLearningStep.id`). */
+  stepId: string;
+  /** Whatever Gemini returned (may be a number outside range or non-number). */
+  originalImageIndex: unknown;
+  /** Always 0 — we clamp to the first image. */
+  clampedTo: 0;
+}
+
 export interface GeneratedGuidedLearning {
   suggestedTitle: string;
   suggestedMode: GuidedLearningMode;
   steps: GuidedLearningStep[];
+  /**
+   * Steps whose `imageIndex` was rewritten because Gemini referenced an image
+   * that doesn't exist in the input set. Empty array when nothing was clamped.
+   * Callers should warn the teacher when this is non-empty.
+   */
+  clampedSteps: ClampedStepInfo[];
 }
 
 interface AIGuidedLearningResponse {
@@ -371,7 +395,9 @@ export interface GuidedLearningImageInput {
  * Admin-only. Sends the images inline to the Cloud Function which calls Gemini.
  *
  * Returned steps reference images by `imageIndex` (0-based). Indices outside
- * the `images.length` range are clamped to 0 rather than dropping the step.
+ * the `images.length` range are clamped to 0 rather than dropping the step,
+ * and any clamped steps are reported via `clampedSteps` on the result so the
+ * caller can warn the teacher to re-anchor them before sharing.
  */
 export async function generateGuidedLearning(
   images: GuidedLearningImageInput[],
@@ -421,6 +447,7 @@ export async function generateGuidedLearning(
     ];
 
     const maxImageIndex = images.length - 1;
+    const clampedSteps: ClampedStepInfo[] = [];
     const validatedSteps = data.steps
       .map((step, index) => {
         if (typeof step !== 'object' || step === null) return null;
@@ -447,8 +474,19 @@ export async function generateGuidedLearning(
         if (xPct === null || yPct === null || interactionType === null)
           return null;
         const rawIndex = typeof s.imageIndex === 'number' ? s.imageIndex : 0;
-        const imageIndex =
-          rawIndex >= 0 && rawIndex <= maxImageIndex ? rawIndex : 0;
+        const inRange = rawIndex >= 0 && rawIndex <= maxImageIndex;
+        const imageIndex = inRange ? rawIndex : 0;
+        // Only flag as clamped when the AI sent an explicit value that we
+        // actually had to rewrite — a missing/non-number `imageIndex` falls
+        // back to 0 silently because there's no teacher intent to surface.
+        if (typeof s.imageIndex === 'number' && !inRange) {
+          clampedSteps.push({
+            stepIndex: index,
+            stepId: id,
+            originalImageIndex: s.imageIndex,
+            clampedTo: 0,
+          });
+        }
         return {
           ...s,
           id,
@@ -470,10 +508,24 @@ export async function generateGuidedLearning(
       throw new Error('AI returned no valid guided learning steps');
     }
 
+    if (clampedSteps.length > 0) {
+      // Surface to logs so the bug is debuggable even when the UI banner is
+      // dismissed. Includes the image count so we can tell at a glance whether
+      // Gemini hallucinated past the input or just off-by-one.
+      console.warn(
+        `[generateGuidedLearning] Clamped ${clampedSteps.length} step(s) to imageIndex 0 (input had ${images.length} image(s)):`,
+        clampedSteps.map((c) => ({
+          stepId: c.stepId,
+          originalImageIndex: c.originalImageIndex,
+        }))
+      );
+    }
+
     return {
       suggestedTitle: data.suggestedTitle,
       suggestedMode,
       steps: validatedSteps,
+      clampedSteps,
     };
   } catch (error) {
     console.error('Guided Learning Generation Error:', error);

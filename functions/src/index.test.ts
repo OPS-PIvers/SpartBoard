@@ -261,6 +261,7 @@ import {
   fetchExternalProxy,
   checkUrlCompatibility,
   adminAnalytics,
+  getPseudonymsForAssignmentV1,
 } from './index';
 
 describe('fetchExternalProxy', () => {
@@ -1208,4 +1209,311 @@ describe('adminAnalytics', () => {
     );
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
   });
+
+  it('rejects cross-org callers and never reads the requested orgs data', async () => {
+    // Cross-tenant isolation contract: a caller who is a member of org-a must
+    // not be able to receive org-b analytics by passing `orgId: 'org-b'`.
+    // Membership is decided by the per-org member doc at
+    // `/organizations/{orgId}/members/{email}`. Existing nonMember tests prove
+    // that a non-member's *own* data is excluded from totals — they do NOT
+    // prove that a member of one org is rejected when probing another org.
+    // Locks in the auth gate at the top of `adminAnalytics` (see lines
+    // ~2113-2144 of functions/src/index.ts) and guarantees the function never
+    // touches `organizations/org-b/*` Firestore paths after the gate fails.
+
+    // No super-admin entry; alice is not in /admins.
+    mockFirestoreState.admins = new Set<string>();
+
+    // Caller is alice@org-a.com (the verifyIdToken mock normally returns
+    // admin@school.org — override for this test only).
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const adminMock = (await import('firebase-admin')) as any;
+    const originalAuth = adminMock.auth;
+    adminMock.auth = vi.fn(() => ({
+      verifyIdToken: vi.fn().mockResolvedValue({ email: 'alice@org-a.com' }),
+      listUsers: vi.fn().mockResolvedValue({ users: [], pageToken: undefined }),
+      getUsers: vi.fn().mockResolvedValue({ users: [] }),
+    }));
+
+    // Spy on Firestore reads. The default `mockFirestore.doc(...).get()` returns
+    // `{ exists: false }`, so the per-org member doc lookup at
+    // `organizations/org-b/members/alice@org-a.com` resolves to "not a member"
+    // and the function must short-circuit with 403 before reading the org-b
+    // members collection.
+    const docSpy = vi.spyOn(mockFirestore, 'doc');
+    const collectionSpy = vi.spyOn(mockFirestore, 'collection');
+
+    // Org-b is seeded with data that MUST NOT leak. If the auth gate ever
+    // misfires and the streaming reads run, these values would surface in the
+    // response.
+    mockFirestoreState.users = [
+      {
+        id: 'uid_orgb_member',
+        data: {
+          email: 'secret@org-b.com',
+          lastLogin: Date.now(),
+          buildings: ['org-b-north'],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-orgb-secret',
+        ownerUid: 'uid_orgb_member',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [{ type: 'org-b-only-widget' }],
+        },
+      },
+    ];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid_orgb_member_2026-03-30', data: { count: 999 } },
+    ];
+
+    const statusSpy = vi.fn().mockReturnThis();
+    const jsonSpy = vi.fn().mockReturnThis();
+    const setHeaderSpy = vi.fn().mockReturnThis();
+    const mockRes = {
+      status: statusSpy,
+      json: jsonSpy,
+      setHeader: setHeaderSpy,
+      getHeader: vi.fn().mockReturnValue(''),
+    };
+
+    const mockReq = {
+      headers: {
+        origin: 'http://localhost',
+        authorization: 'Bearer alice-token',
+      },
+      body: { orgId: 'org-b' },
+    };
+
+    try {
+      await (adminAnalytics as any)(mockReq, mockRes);
+
+      // Forbidden: alice is not a member of org-b and not a super admin.
+      expect(statusSpy).toHaveBeenCalledWith(403);
+      const jsonCall = jsonSpy.mock.calls[0]?.[0] as
+        | { error?: string }
+        | undefined;
+      expect(jsonCall?.error).toBe('permission-denied');
+
+      // Tenant isolation: the auth gate must run BEFORE any reads against
+      // `organizations/org-b/*`. The post-gate code paths read
+      // `collection('organizations/org-b/members')`, `collectionGroup('dashboards')`,
+      // etc. None of those should have fired.
+      const orgBMembersCalled = collectionSpy.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string' &&
+          (call[0].includes('organizations/org-b') ||
+            call[0] === 'ai_usage' ||
+            call[0] === 'users')
+      );
+      expect(orgBMembersCalled).toBe(false);
+
+      // The org-b roster fetch is also exposed via `db.doc()` in adjacent
+      // helpers; assert nothing under organizations/org-b was fetched beyond
+      // the gate's single member-doc lookup.
+      const orgBDocReads = docSpy.mock.calls.filter(
+        (call) =>
+          typeof call[0] === 'string' &&
+          call[0].startsWith('organizations/org-b/')
+      );
+      // Exactly one allowed read: the auth gate's
+      // `organizations/org-b/members/{email}` probe. Anything else is a leak.
+      expect(orgBDocReads.length).toBe(1);
+      expect(orgBDocReads[0][0]).toBe(
+        'organizations/org-b/members/alice@org-a.com'
+      );
+
+      // The actual streaming reads (collectionGroup('dashboards')) must not
+      // have run either. `mockFirestore.collectionGroup` is the entry point;
+      // assert it was never called.
+      expect(mockFirestore.collectionGroup).not.toHaveBeenCalled();
+    } finally {
+      adminMock.auth = originalAuth;
+      docSpy.mockRestore();
+      collectionSpy.mockRestore();
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+  });
+});
+
+describe('getPseudonymsForAssignmentV1', () => {
+  // The PII gate at functions/src/index.ts ~3087-3137 verifies that the
+  // calling teacher actually teaches the requested class via
+  //   (classesResp.data.classes ?? []).some((c) => c.sourcedId === classId)
+  // before disclosing student names + pseudonyms. A regression here would
+  // leak student PII across teacher boundaries. These tests pin the
+  // behaviour of that predicate (strict ===, no normalization, deny on
+  // missing/empty teacher records).
+  const TEACHER_AUTH = {
+    uid: 'teacher-uid',
+    token: {
+      email: 'teacher@district.org',
+      // studentRole intentionally absent (false) — teachers never carry it.
+    },
+  };
+
+  // Build URL-aware axios.get mock: dispatches by URL substring so that the
+  // teacher lookup, the teacher's classes lookup, and the class students
+  // lookup can each return distinct payloads.
+  const installAxiosMock = (responses: {
+    teacher?: unknown;
+    classes?: unknown;
+    students?: unknown;
+  }) => {
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      // Teacher lookup: /ims/oneroster/v1p1/users (with email filter)
+      if (url.endsWith('/ims/oneroster/v1p1/users')) {
+        return Promise.resolve({ data: responses.teacher ?? { users: [] } });
+      }
+      // Teacher's classes: /ims/oneroster/v1p1/users/{sourcedId}/classes
+      if (
+        url.includes('/ims/oneroster/v1p1/users/') &&
+        url.endsWith('/classes')
+      ) {
+        return Promise.resolve({ data: responses.classes ?? { classes: [] } });
+      }
+      // Class students: /ims/oneroster/v1p1/classes/{classId}/students
+      if (
+        url.includes('/ims/oneroster/v1p1/classes/') &&
+        url.endsWith('/students')
+      ) {
+        return Promise.resolve({ data: responses.students ?? { users: [] } });
+      }
+      return Promise.reject(new Error(`Unexpected URL in test: ${url}`));
+    });
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    mockFirestoreState.users = [];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [];
+    // Provide non-empty secret values so the early "Server configuration
+    // missing" guard is not hit; the defineSecret mock falls back to
+    // `mock-${name}` when env vars are absent.
+    process.env.STUDENT_PSEUDONYM_HMAC_SECRET = 'test-hmac-secret';
+    process.env.CLASSLINK_CLIENT_ID = 'test-client-id';
+    process.env.CLASSLINK_CLIENT_SECRET = 'test-client-secret';
+    process.env.CLASSLINK_TENANT_URL = 'https://example.classlink.test';
+  });
+
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
+
+  it('returns pseudonyms when the teacher actually teaches the requested class', async () => {
+    installAxiosMock({
+      teacher: {
+        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+      },
+      classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
+      students: {
+        users: [
+          {
+            sourcedId: 'student-1-sid',
+            givenName: 'Alex',
+            familyName: 'Stone',
+            email: 's1@district.org',
+          },
+        ],
+      },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    const result = (await handler(
+      { assignmentId: 'asn-1', classId: 'c-1' },
+      { auth: TEACHER_AUTH }
+    )) as { pseudonyms: Record<string, unknown> };
+
+    expect(result.pseudonyms['student-1-sid']).toBeDefined();
+  });
+
+  it("rejects with permission-denied when the requested classId isn't in the teacher's classes", async () => {
+    installAxiosMock({
+      teacher: {
+        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+      },
+      classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
+      // students should never be requested if the gate denies — but harmless if it is.
+      students: { users: [] },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler({ assignmentId: 'asn-1', classId: 'c-2' }, { auth: TEACHER_AUTH })
+    ).rejects.toThrow('Not a teacher of this class.');
+  });
+
+  it('rejects on case-mismatched classId because the predicate is strict equality', async () => {
+    // The predicate is `c.sourcedId === classId` with no normalization. 'C-1'
+    // and 'c-1' must not match. If this test ever fails, someone introduced
+    // case-folding into the gate — re-evaluate whether that's safe before
+    // updating the test.
+    installAxiosMock({
+      teacher: {
+        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+      },
+      classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
+      students: { users: [] },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler({ assignmentId: 'asn-1', classId: 'C-1' }, { auth: TEACHER_AUTH })
+    ).rejects.toThrow('Not a teacher of this class.');
+  });
+
+  it('rejects when the teacher record has no classes', async () => {
+    installAxiosMock({
+      teacher: {
+        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+      },
+      classes: { classes: [] },
+      students: { users: [] },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler({ assignmentId: 'asn-1', classId: 'c-1' }, { auth: TEACHER_AUTH })
+    ).rejects.toThrow('Not a teacher of this class.');
+  });
+
+  it('rejects when OneRoster returns an empty users array (teacher not in roster)', async () => {
+    // Production short-circuits on `(teacherResp.data.users ?? [])[0]` being
+    // undefined and throws not-found rather than crashing on `.classes` of
+    // undefined. This locks in the "deny, not crash" behaviour.
+    installAxiosMock({
+      teacher: { users: [] },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler({ assignmentId: 'asn-1', classId: 'c-1' }, { auth: TEACHER_AUTH })
+    ).rejects.toThrow('Teacher not found in ClassLink roster.');
+  });
+
+  it('rejects callers whose token carries studentRole=true', async () => {
+    // Students must never reach the teacher-only endpoint, even if they
+    // somehow obtain an email-bearing token. The gate at lines ~3053-3056
+    // throws permission-denied with "Teacher account required.".
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler(
+        { assignmentId: 'asn-1', classId: 'c-1' },
+        {
+          auth: {
+            uid: 'student-uid',
+            token: {
+              email: 'student@district.org',
+              studentRole: true,
+            },
+          },
+        }
+      )
+    ).rejects.toThrow('Teacher account required.');
+  });
+
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 });
