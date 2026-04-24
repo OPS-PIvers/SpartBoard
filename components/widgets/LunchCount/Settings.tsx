@@ -5,6 +5,7 @@ import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { toLunchCountSchoolSite } from '@/config/buildings';
 import { School, Users, Clock, GraduationCap } from 'lucide-react';
 
 const SCHOOL_OPTIONS = [
@@ -52,7 +53,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboard();
   const config = widget.config as LunchCountConfig;
   const {
-    schoolSite = 'schumann-elementary',
+    schoolSite: rawSchoolSite,
     isManualMode = false,
     manualHotLunch = '',
     manualBentoBox = '',
@@ -63,6 +64,12 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
     gradeLevel = '',
   } = config;
 
+  // Legacy widget configs may contain a canonical short-form building ID
+  // (e.g. `schumann`) instead of the long-form `schoolSite` this widget
+  // expects. Normalize before any lookup so the settings panel never crashes
+  // on stale data.
+  const schoolSite: LunchCountConfig['schoolSite'] =
+    toLunchCountSchoolSite(rawSchoolSite ?? '') ?? 'schumann-elementary';
   const gradeOptions = GRADE_OPTIONS[schoolSite];
 
   /** When the school site changes, clear the grade selection if it's no longer valid */

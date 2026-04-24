@@ -47,7 +47,7 @@ import {
   InternalToolType,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
-import { isLunchCountBuilding } from '@/config/buildings';
+import { toLunchCountSchoolSite } from '@/config/buildings';
 import { matchesUserBuilding as matchesUserBuildingLevels } from '@/config/widgetGradeLevels';
 import { AddWidgetOverrides } from '@/types';
 import { getJoinUrl } from '@/utils/urlHelpers';
@@ -157,9 +157,11 @@ export const Dock: React.FC = () => {
   const getBuildingAwareOverrides = useCallback(
     (type: WidgetType): AddWidgetOverrides | undefined => {
       if (type === 'lunchCount') {
-        const schoolBuilding = selectedBuildings.find(isLunchCountBuilding);
-        if (schoolBuilding) {
-          return { config: { schoolSite: schoolBuilding } };
+        for (const id of selectedBuildings) {
+          const schoolSite = toLunchCountSchoolSite(id);
+          if (schoolSite) {
+            return { config: { schoolSite } };
+          }
         }
       }
       return undefined;

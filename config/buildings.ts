@@ -182,15 +182,48 @@ export const LUNCH_COUNT_BUILDING_IDS: ReadonlySet<string> = new Set(
 );
 
 /**
- * Narrows a building ID string to the LunchCountConfig['schoolSite'] literal
- * union, allowing type-safe use of the value as a config field without
- * requiring `as` assertions at call sites. Normalizes legacy IDs first so
- * stored values like `schumann-elementary` are recognized.
+ * Canonical (short) → LunchCount long-form ID map.
+ *
+ * `LunchCountConfig['schoolSite']` still uses the legacy long-form IDs
+ * (`schumann-elementary`, `orono-high-school`, ...) as Firestore doc keys for
+ * Nutrislice menu lookups. User profiles, however, store `selectedBuildings`
+ * in canonical short form (`schumann`, `high`, ...) after being normalized on
+ * load. Callers that need to translate a canonical building ID into a valid
+ * `schoolSite` value should go through this map.
  */
-export function isLunchCountBuilding(
-  id: string
-): id is LunchCountConfig['schoolSite'] {
+const LUNCH_COUNT_SCHOOL_SITE_BY_CANONICAL: Readonly<
+  Record<string, LunchCountConfig['schoolSite']>
+> = {
+  schumann: 'schumann-elementary',
+  intermediate: 'orono-intermediate-school',
+  middle: 'orono-middle-school',
+  high: 'orono-high-school',
+};
+
+/**
+ * Returns true when a building ID — canonical or legacy long-form — maps to
+ * a building that supports the LunchCount widget.
+ *
+ * Note: does NOT narrow to `LunchCountConfig['schoolSite']`, because the
+ * runtime value may be a canonical short ID (e.g. `schumann`) that is not in
+ * that literal union. Use {@link toLunchCountSchoolSite} to get a value that
+ * is safe to store in `LunchCountConfig['schoolSite']`.
+ */
+export function isLunchCountBuilding(id: string): boolean {
   return LUNCH_COUNT_BUILDING_IDS.has(canonicalBuildingId(id));
+}
+
+/**
+ * Converts any recognized building ID (canonical short or legacy long form)
+ * to the long-form `LunchCountConfig['schoolSite']` value used by the widget
+ * config and Nutrislice API. Returns `null` for unknown or non-LunchCount
+ * buildings so callers can fall back to a safe default.
+ */
+export function toLunchCountSchoolSite(
+  id: string
+): LunchCountConfig['schoolSite'] | null {
+  const canonical = canonicalBuildingId(id);
+  return LUNCH_COUNT_SCHOOL_SITE_BY_CANONICAL[canonical] ?? null;
 }
 
 /**

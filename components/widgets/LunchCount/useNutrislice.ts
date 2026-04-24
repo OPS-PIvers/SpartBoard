@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LunchCountConfig, LunchMenuDay, WidgetData } from '@/types';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
+import { toLunchCountSchoolSite } from '@/config/buildings';
 
 interface UseNutrisliceProps {
   widgetId: string;
@@ -75,7 +76,9 @@ export const useNutrislice = ({
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
-      const schoolSite = configRef.current.schoolSite || 'schumann-elementary';
+      const schoolSite =
+        toLunchCountSchoolSite(configRef.current.schoolSite ?? '') ??
+        'schumann-elementary';
 
       const apiUrl = `https://orono.api.nutrislice.com/menu/api/weeks/school/${schoolSite}/menu-type/lunch/${year}/${month}/${day}/`;
       const data = await fetchWithFallback(apiUrl);
