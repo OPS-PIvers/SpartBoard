@@ -22,13 +22,6 @@ _Nothing currently in progress._
 
 ## Open
 
-### MEDIUM StarterPackWidget has hardcoded icon size and spacing in addition to text sizes
-
-- **Detected:** 2026-04-12 (expanded 2026-04-14)
-- **File:** components/widgets/StarterPack/Widget.tsx:48, :54, :55, :59, :96, :100
-- **Detail:** In addition to the previously noted `text-sm`/`text-xs` on card titles (lines 96, 100), the widget also has: `p-4` hardcoded outer wrapper (line 48), `gap-2` on empty state (line 54), `w-8 h-8` on the Wand2 icon (line 55), `gap-4` on the template grid (line 59). Widget has `skipScaling: true`.
-- **Fix:** Replace `text-sm` with `style={{ fontSize: 'min(14px, 5.5cqmin)' }}` and `text-xs` with `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Replace `p-4` with `style={{ padding: 'min(16px, 3.5cqmin)' }}`, `w-8 h-8` Wand2 with `style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}`, `gap-4` grid with `style={{ gap: 'min(16px, 3cqmin)' }}`.
-
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels
 
 - **Detected:** 2026-04-12 (expanded 2026-04-14)
@@ -56,6 +49,20 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM StarterPackWidget has hardcoded icon size and spacing in addition to text sizes
+
+- **Detected:** 2026-04-12 (expanded 2026-04-14)
+- **Completed:** 2026-04-25
+- **File:** components/widgets/StarterPack/Widget.tsx
+- **Detail:** Outer wrapper used `p-4`, empty-state used `gap-2` + `w-8 h-8` on the Wand2 icon, the template grid used `gap-4`, and card titles/descriptions used `text-sm`/`text-xs`. Button cards also carried hardcoded `gap-3 p-4`, inner icon chip `p-3`, inner `IconComponent` `w-8 h-8`, and title `mb-1`. Widget has `skipScaling: true`, so none of this responded to container size.
+- **Resolution:** Converted all hardcoded front-face Tailwind sizing to inline `cqmin` styles:
+  - outer wrapper `p-4` → `padding: 'min(16px, 3.5cqmin)'`
+  - empty-state `gap-2` → `gap: 'min(8px, 2cqmin)'`; Wand2 `w-8 h-8` → `width/height: 'min(32px, 8cqmin)'`
+  - grid `gap-4` → `gap: 'min(16px, 3cqmin)'`
+  - button `gap-3 p-4` → `gap: 'min(12px, 2.5cqmin)'` / `padding: 'min(16px, 3.5cqmin)'`
+  - inner icon chip `p-3` → `padding: 'min(12px, 2.5cqmin)'`; inner `IconComponent` `w-8 h-8` → `width/height: 'min(32px, 8cqmin)'` (added `style?: React.CSSProperties` to the LucideIcons cast so the dynamic component accepts inline styles)
+  - title `text-sm mb-1` → `fontSize: 'min(14px, 5.5cqmin)'` + `marginBottom: 'min(4px, 1cqmin)'`; description `text-xs` → `fontSize: 'min(11px, 4cqmin)'`.
 
 ### MEDIUM GraphicOrganizerWidget has hardcoded padding throughout node layouts (post-text-fix)
 

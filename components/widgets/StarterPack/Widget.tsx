@@ -45,24 +45,39 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
   }
 
   return (
-    <div className="p-4 h-full flex-1 overflow-y-auto min-h-0">
+    <div
+      className="h-full flex-1 overflow-y-auto min-h-0"
+      style={{ padding: 'min(16px, 3.5cqmin)' }}
+    >
       {loading ? (
         <div className="flex items-center justify-center h-full text-slate-500">
           Loading packs...
         </div>
       ) : allPacks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full text-slate-400 text-center gap-2">
-          <LucideIcons.Wand2 className="w-8 h-8 opacity-50" />
+        <div
+          className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          <LucideIcons.Wand2
+            className="opacity-50"
+            style={{
+              width: 'min(32px, 8cqmin)',
+              height: 'min(32px, 8cqmin)',
+            }}
+          />
           <p>No starter packs available.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2" style={{ gap: 'min(16px, 3cqmin)' }}>
           {allPacks.map((pack) => {
             const IconComponent =
               (
                 LucideIcons as unknown as Record<
                   string,
-                  React.ComponentType<{ className?: string }>
+                  React.ComponentType<{
+                    className?: string;
+                    style?: React.CSSProperties;
+                  }>
                 >
               )[pack.icon] ?? LucideIcons.Wand2;
 
@@ -70,10 +85,12 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
               <button
                 key={pack.id}
                 onClick={() => handleExecute(pack)}
-                className="flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all hover:-translate-y-1 hover:shadow-md bg-white border-slate-200 group"
+                className="flex flex-col items-center rounded-xl border-2 transition-all hover:-translate-y-1 hover:shadow-md bg-white border-slate-200 group"
                 style={
                   {
                     '--hover-border-color': `var(--color-${pack.color}-500, currentColor)`,
+                    gap: 'min(12px, 2.5cqmin)',
+                    padding: 'min(16px, 3.5cqmin)',
                   } as React.CSSProperties
                 }
                 onMouseEnter={(e) => {
@@ -84,20 +101,35 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
                 }}
               >
                 <div
-                  className="p-3 rounded-xl group-hover:scale-110 transition-transform"
+                  className="rounded-xl group-hover:scale-110 transition-transform"
                   style={{
                     backgroundColor: `var(--color-${pack.color}-100, #dbeafe)`,
                     color: `var(--color-${pack.color}-600, #2563eb)`,
+                    padding: 'min(12px, 2.5cqmin)',
                   }}
                 >
-                  <IconComponent className="w-8 h-8" />
+                  <IconComponent
+                    style={{
+                      width: 'min(32px, 8cqmin)',
+                      height: 'min(32px, 8cqmin)',
+                    }}
+                  />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-bold text-slate-800 text-sm leading-tight mb-1">
+                  <h3
+                    className="font-bold text-slate-800 leading-tight"
+                    style={{
+                      fontSize: 'min(14px, 5.5cqmin)',
+                      marginBottom: 'min(4px, 1cqmin)',
+                    }}
+                  >
                     {pack.name}
                   </h3>
                   {pack.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2">
+                    <p
+                      className="text-slate-500 line-clamp-2"
+                      style={{ fontSize: 'min(11px, 4cqmin)' }}
+                    >
                       {pack.description}
                     </p>
                   )}
