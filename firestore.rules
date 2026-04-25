@@ -1149,10 +1149,11 @@ service cloud.firestore {
         // Two write paths are allowed:
         //   1. Full submission (submissionsEnabled must be true) — payload
         //      can be any valid map up to 50 keys.
-        //   2. Completion marker (any session) — payload must be exactly
-        //      {completed: true}. This lets students mark view-only (no
-        //      submissions) assignments as done so the completion badge
-        //      appears in /my-assignments without requiring submissionsEnabled.
+        //   2. Completion marker (any active session regardless of
+        //      submissionsEnabled) — payload must be exactly {completed: true}.
+        //      This lets students mark view-only (no submissions) assignments
+        //      as done so the completion badge appears in /my-assignments
+        //      without requiring submissionsEnabled.
         allow create, update: if request.auth != null &&
           maSessionData().status == 'active' &&
           passesStudentClassGateList(maSessionClassIds()) &&

@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   Loader2,
@@ -185,6 +185,30 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const submissionsEnabled = session.submissionsEnabled === true;
 
+  // On mount, check Firestore for an existing submission so `hasSubmitted`
+  // survives page refreshes. If the doc already exists we hide the "I'm Done"
+  // button immediately without waiting for a user action.
+  useEffect(() => {
+    const checkExisting = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      try {
+        const tokenResult = await currentUser.getIdTokenResult();
+        const isStudentRole = tokenResult.claims?.studentRole === true;
+        const docId = isStudentRole
+          ? await getCachedPseudonym(session.id, currentUser.uid)
+          : currentUser.uid;
+        const snap = await getDoc(
+          doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId)
+        );
+        if (snap.exists()) setHasSubmitted(true);
+      } catch {
+        // Doc doesn't exist yet or network error — leave hasSubmitted false.
+      }
+    };
+    void checkExisting();
+  }, [session.id]);
+
   // Handshake: post SPART_MINIAPP_INIT into the iframe once it loads so the
   // app knows whether to reveal its [data-spart-submit] button. The app is
   // expected to listen for this message and hide submit controls when
@@ -292,9 +316,16 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         studentUid: currentUser.uid,
         payload: { completed: true },
       };
+      // Use mergeFields so we only touch these specific fields. This avoids
+      // overwriting a real submission payload if the student already submitted
+      // work via the app's own SPART_MINIAPP_RESULT button and then reloaded
+      // the page (resetting hasSubmitted) before clicking "I'm Done".
+      // payload.completed is merged into the existing payload map rather than
+      // replacing it, preserving any prior work data.
       await setDoc(
         doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId),
-        completion
+        completion,
+        { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
       );
       setStatus({ kind: 'saved', at: Date.now() });
       setHasSubmitted(true);
