@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { useQuiz } from '@/hooks/useQuiz';
 import {
   useQuizSessionTeacher,
@@ -38,6 +39,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
     useDashboard();
   const { user, googleAccessToken } = useAuth();
+  const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
 
   const {
@@ -812,10 +814,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             return;
           }
           if (related.length > 0) {
-            const ok = window.confirm(
+            const ok = await showConfirm(
               `This quiz has ${related.length} archived assignment(s). ` +
                 `Deleting the quiz will prevent viewing their monitor and results. ` +
-                `Continue anyway?`
+                `Continue anyway?`,
+              {
+                title: 'Delete Quiz',
+                variant: 'warning',
+                confirmLabel: 'Delete Anyway',
+              }
             );
             if (!ok) return;
           }
@@ -900,7 +907,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 `${withArchived.length} ${withArchived.length === 1 ? 'has' : 'have'} archived assignments — ` +
                 `deleting will prevent viewing their monitor and results. This cannot be undone.`
               : `Delete ${deletable.length} quiz${deletable.length === 1 ? '' : 'zes'}? This cannot be undone.`;
-          const ok = window.confirm(confirmMsg);
+          const hasArchivedWarning = withArchived.length > 0;
+          const ok = await showConfirm(confirmMsg, {
+            title: 'Delete Quizzes',
+            variant: hasArchivedWarning ? 'warning' : 'danger',
+            confirmLabel: hasArchivedWarning ? 'Delete Anyway' : 'Delete',
+          });
           if (!ok) return false;
 
           const results = await Promise.allSettled(

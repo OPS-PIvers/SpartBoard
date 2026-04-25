@@ -55,6 +55,7 @@ import {
   isGamificationActive,
 } from '../utils/quizScoreboard';
 import { db } from '@/config/firebase';
+import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   playPodiumFanfare,
@@ -262,6 +263,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onHideAnswer,
   onBack,
 }) => {
+  const { showConfirm } = useDialog();
   const pinToName = useMemo(
     () =>
       buildPinToNameMap(
@@ -475,8 +477,13 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   };
 
   const handleEnd = async () => {
-    const ok = window.confirm(
-      'Make this assignment inactive?\n\nThe student URL will stop working. Responses are preserved and will still be viewable from the Archive.'
+    const ok = await showConfirm(
+      'Make this assignment inactive? The student URL will stop working. Responses are preserved and will still be viewable from the Archive.',
+      {
+        title: 'Make Inactive',
+        variant: 'warning',
+        confirmLabel: 'Make Inactive',
+      }
     );
     if (!ok) return;
     setEnding(true);
