@@ -89,6 +89,16 @@ function parseInvite(
   return invite;
 }
 
+interface UsePlcInvitationsOptions {
+  /**
+   * Skip the Firestore `onSnapshot` subscriptions when false. Mutators stay
+   * usable so callers can still send/accept/decline from a disabled state.
+   * Used by `Sidebar` to avoid keeping listeners alive while the drawer is
+   * closed. Defaults to true.
+   */
+  enabled?: boolean;
+}
+
 /**
  * Live PLC invitation queries:
  *   - `pendingInvites` — addressed to the current user's email, status pending.
@@ -99,7 +109,10 @@ function parseInvite(
  * Mutations live alongside the queries because send/accept/decline all share
  * the deterministic doc id and email-normalization logic.
  */
-export const usePlcInvitations = (): UsePlcInvitationsResult => {
+export const usePlcInvitations = (
+  options?: UsePlcInvitationsOptions
+): UsePlcInvitationsResult => {
+  const enabled = options?.enabled ?? true;
   const { user } = useAuth();
   const [pendingInvites, setPendingInvites] = useState<PlcInvitation[]>([]);
   const [sentInvites, setSentInvites] = useState<PlcInvitation[]>([]);
@@ -109,7 +122,7 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
   const myEmailLower = (user?.email ?? '').toLowerCase();
 
   useEffect(() => {
-    if (!user || isAuthBypass || !myEmailLower) {
+    if (!enabled || !user || isAuthBypass || !myEmailLower) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
       // useRosters.ts for the signed-out branch.
       const timer = setTimeout(() => {
@@ -141,10 +154,10 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
       }
     );
     return () => unsubscribe();
-  }, [user, myEmailLower]);
+  }, [user, myEmailLower, enabled]);
 
   useEffect(() => {
-    if (!user || isAuthBypass) {
+    if (!enabled || !user || isAuthBypass) {
       // Defer so we don't trip react-hooks/set-state-in-effect.
       const timer = setTimeout(() => {
         setSentInvites([]);
@@ -174,7 +187,7 @@ export const usePlcInvitations = (): UsePlcInvitationsResult => {
       }
     );
     return () => unsubscribe();
-  }, [user]);
+  }, [user, enabled]);
 
   const sendInvite = useCallback(
     async ({ plcId, plcName, inviteeEmail }: SendInviteArgs) => {

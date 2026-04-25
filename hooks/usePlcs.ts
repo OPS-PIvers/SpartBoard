@@ -59,19 +59,30 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   };
 }
 
+interface UsePlcsOptions {
+  /**
+   * Skip the Firestore `onSnapshot` subscription when false. Mutators stay
+   * usable so callers can still call `createPlc` etc. from a disabled state.
+   * Used by `Sidebar` to avoid keeping a listener alive while the drawer is
+   * closed. Defaults to true.
+   */
+  enabled?: boolean;
+}
+
 /**
  * Live subscription to all PLCs the current user belongs to. Backed by an
  * `array-contains` query on `memberUids` so members and the lead see the same
  * list. Mutations enforce role checks at the rules layer; the hook surfaces
  * thrown errors so callers can toast them.
  */
-export const usePlcs = (): UsePlcsResult => {
+export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
+  const enabled = options?.enabled ?? true;
   const { user } = useAuth();
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || isAuthBypass) {
+    if (!enabled || !user || isAuthBypass) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
       // useRosters.ts for the signed-out branch.
       const timer = setTimeout(() => {
@@ -103,7 +114,7 @@ export const usePlcs = (): UsePlcsResult => {
       }
     );
     return () => unsubscribe();
-  }, [user]);
+  }, [user, enabled]);
 
   const createPlc = useCallback(
     async (name: string): Promise<string> => {
