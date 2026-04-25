@@ -1502,7 +1502,15 @@ const AssignPlcSlot: React.FC<{
                 onChange={(e) => update('plcId', e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Select a PLC…</option>
+                {/*
+                 * Only render the empty placeholder when there are 2+ PLCs.
+                 * With exactly one PLC, `effectivePlcId` always derives to
+                 * that PLC's id, so picking "Select a PLC…" would snap right
+                 * back to the auto-selection — the option was unreachable
+                 * UI debt. Teachers in a one-PLC org opt out by toggling
+                 * Share-with-PLC off entirely.
+                 */}
+                {plcs.length > 1 && <option value="">Select a PLC…</option>}
                 {plcs.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}

@@ -10,7 +10,6 @@ import {
   getDocs,
   writeBatch,
   runTransaction,
-  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -311,12 +310,31 @@ export const usePlcs = (): UsePlcsResult => {
     [user]
   );
 
+  // Idempotent transactional clear: only writes when sharedSheetUrl is
+  // currently a non-empty string. The tightened rule
+  // `isSettingPlcSharedSheetUrl()` requires `sharedSheetUrl` to appear
+  // in `affectedKeys()`, so a redundant null→null write would be
+  // rejected with PERMISSION_DENIED. This guards the 404 recovery
+  // flow against the case where a racing teammate already cleared the
+  // URL between our 404 detection and our own clear call.
   const clearPlcSharedSheetUrl = useCallback(
     async (plcId: string) => {
       if (!user) return;
-      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
-        sharedSheetUrl: null,
-        updatedAt: Date.now(),
+      await runTransaction(db, async (tx) => {
+        const ref = doc(db, PLCS_COLLECTION, plcId);
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return;
+        const raw = (snap.data() as { sharedSheetUrl?: unknown })
+          .sharedSheetUrl;
+        const isNonEmptyString = typeof raw === 'string' && raw.length > 0;
+        if (!isNonEmptyString) {
+          // Already null/absent — nothing to clear. Skip the write.
+          return;
+        }
+        tx.update(ref, {
+          sharedSheetUrl: null,
+          updatedAt: Date.now(),
+        });
       });
     },
     [user]
