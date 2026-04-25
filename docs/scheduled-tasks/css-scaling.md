@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-04-24_
-_Last action: 2026-04-19_
+_Last action: 2026-04-25_
 
 ---
 
@@ -21,13 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM GraphicOrganizerWidget has hardcoded padding throughout node layouts (post-text-fix)
-
-- **Detected:** 2026-04-14
-- **File:** components/widgets/GraphicOrganizer/Widget.tsx
-- **Detail:** The previous fix (2026-04-13) converted all hardcoded Tailwind text-size classes to `cqmin`. However, structural padding remains hardcoded: `p-4` on Frayer cell divs (×4), `w-32 h-32` on the Frayer center circle, `pb-2 mb-4` and `text-xl` on T-chart headers, and multiple `p-3`/`p-4`/`p-6` instances in Venn, KWL, and Cause-Effect layouts. Widget has `skipScaling: true`. Fixed padding compresses content proportionally less as the widget grows, creating a poor density experience at large sizes.
-- **Fix:** Convert all `p-4`, `p-3`, `p-6` padding to `style={{ padding: 'min(16px, 3cqmin)' }}` pattern. Convert `w-32 h-32` Frayer center circle to `style={{ width: 'min(128px, 22cqmin)', height: 'min(128px, 22cqmin)' }}`. Replace `text-xl` T-chart header with `style={{ fontSize: 'min(20px, 7cqmin)' }}`.
 
 ### MEDIUM StarterPackWidget has hardcoded icon size and spacing in addition to text sizes
 
@@ -63,6 +56,20 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM GraphicOrganizerWidget has hardcoded padding throughout node layouts (post-text-fix)
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-25
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx
+- **Detail:** Structural padding and sizing remained hardcoded after the 2026-04-13 text-size fix: `p-4` on Frayer cell divs (×4), `w-32 h-32` on the Frayer center circle, `pb-2 mb-4` / `text-xl` on T-chart headers, plus `p-3`/`p-4`/`p-6` across Venn, KWL, and Cause-Effect layouts. Widget has `skipScaling: true`.
+- **Resolution:** Converted all hardcoded structural Tailwind classes to inline `cqmin` styles across all five layout renderers:
+  - Frayer: outer `gap-2 p-2` → inline `min(8px, 1.5cqmin)`; four cell `p-4` → `min(16px, 3cqmin)`; absolute `top-2 left-2` header pins converted to inline `cqmin` values; four `mt-4` EditableNode margins → inline `min(16px, 3cqmin)`; center circle `w-32 h-32 p-4` → `min(128px, 22cqmin)` / `min(16px, 3cqmin)`.
+  - T-chart: container `p-4` and both cell `p-4` → `min(16px, 3cqmin)`; both headers' `pb-2 mb-4 text-xl` → inline `min(20px, 7cqmin)` / `min(8px, 1.5cqmin)` / `min(16px, 3cqmin)`.
+  - Venn: container `p-4` and three column `p-4` → `min(16px, 3cqmin)`; three header `mb-2` → `min(8px, 1.5cqmin)`.
+  - KWL: three header `p-3` → `min(12px, 2.5cqmin)`; three content `p-4` → `min(16px, 3cqmin)`.
+  - Cause-Effect: container `p-6 gap-4` → `min(24px, 4.5cqmin)` / `min(16px, 3cqmin)`; both header `p-2` → `min(8px, 1.5cqmin)`; both content `p-4` → `min(16px, 3cqmin)`; arrow SVG `width/height="48"` → inline `min(48px, 10cqmin)`.
+    All 1423 unit tests pass; `pnpm type-check`, `pnpm lint --max-warnings 0`, and prettier check on the changed file all clean.
 
 ### MEDIUM MathToolsWidget uses `h-32` to cap an empty-state content container
 
