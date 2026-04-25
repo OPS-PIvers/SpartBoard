@@ -118,8 +118,14 @@ export const Sidebar: React.FC = () => {
   // `usePlcs()` + `usePlcInvitations()` independently, duplicating the three
   // Firestore `onSnapshot` subscriptions (1 from usePlcs, 2 from
   // usePlcInvitations) for data that's semantically a singleton per session.
-  const plcsHook = usePlcs();
-  const plcInvitationsHook = usePlcInvitations();
+  //
+  // `enabled: isOpen` keeps the subscriptions paused while the drawer is
+  // closed — the consumers (`PlcsMenuButton`, `SidebarPlcs`) only render
+  // inside `{isOpen && (...)}`, so paying for those listeners while the
+  // sidebar is hidden buys nothing. `Sidebar` itself is always mounted by
+  // `DashboardView`, so we can't rely on unmounting alone to release them.
+  const plcsHook = usePlcs({ enabled: isOpen });
+  const plcInvitationsHook = usePlcInvitations({ enabled: isOpen });
 
   const { isConnected: isDriveConnected } = useGoogleDrive();
 
