@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-04-16_
+_Last audited: 2026-04-26_
 _Last action: never_
 
 ---
@@ -27,17 +27,17 @@ _Nothing currently in progress._
 
 ## Clean (no issues found)
 
-Migration code audit (2026-04-16):
+Migration code audit (2026-04-26):
 
-- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts` migrateWidget() handler — correct.
-- Old type string 'workSymbols': Zero usage outside `utils/migration.ts` — data fully migrated.
-- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx` lines 1065–1089 with proper guard (`!migrated`). Still needed.
+- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts` migrateWidget() handler — correct. `utils/migration.ts:71-80` transforms to 'time-tool'.
+- Old type string 'workSymbols': Only referenced in `utils/migration.ts:93` — transforms to 'expectations'. Zero usage elsewhere.
+- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx:1092-1094` with proper guard. Still needed.
 
-Commented-out code (2026-04-16): No blocks of 10+ consecutive commented lines found in components/, context/, hooks/, or utils/.
+Commented-out code (2026-04-26): No blocks of 10+ consecutive commented lines found in components/, context/, hooks/, or utils/.
 
-Dead exports (2026-04-16): All sampled utils/ exports are actively used. No abandoned exports found.
+Dead exports (2026-04-26): No new abandoned exports found.
 
-console.log() calls (2026-04-16): Zero `console.log()` calls in components/, context/, hooks/, utils/. Only `console.error()` and `console.warn()` calls exist (by design).
+console.log() calls (2026-04-26): Zero `console.log()` calls in components/, context/, hooks/, utils/. Clean.
 
 ---
 

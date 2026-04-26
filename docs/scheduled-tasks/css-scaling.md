@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-25_
+_Last audited: 2026-04-26_
 _Last action: 2026-04-25_
 
 ---
@@ -52,6 +52,20 @@ _Nothing currently in progress._
   - `TalkingTool/Widget.tsx:80, :109, :135` — `p-2 space-y-2`, `mb-2`, `mb-4`
   - `Webcam/Widget.tsx:457, :470, :480, :497, :527, :531, :542, :547, :558` — `p-6`, `p-6 mb-4`, `px-4 py-2`, `gap-2`, `p-4` (multiple), `gap-3`, `gap-2` (multiple)
 - **Fix:** For each widget, convert hardcoded spacing and icon-size Tailwind classes to inline `cqmin` equivalents. Example: `gap-2` → `style={{ gap: 'min(8px, 2cqmin)' }}`, `w-8 h-8` → `style={{ width: 'min(32px, 8cqmin)', height: 'min(32px, 8cqmin)' }}`. Prioritize widgets visible in default-size teacher dashboards (DiceWidget, NextUp, SoundWidget) over utility widgets.
+
+### LOW MiniApp internal dialog overlays use hardcoded Tailwind text sizes
+
+- **Detected:** 2026-04-26
+- **File:** components/widgets/MiniApp/Widget.tsx:134, :138, :142, :148, :166, :177, :187, :194, :204, :219, :226, :237, :253, :260, :848, :866, :874
+- **Detail:** The widget has two internal overlay dialogs rendered inside the container-query context: (1) the "Start Live Session" / "Share Link" dialog shown when the user launches a live session (lines 120–260), and (2) the "Save to Library" overlay shown when pasting HTML into the widget (lines 848–880). Both use hardcoded Tailwind classes `text-base`, `text-sm`, `text-xs` on labels, body text, code blocks, and buttons. Widget has `skipScaling: true`. At small widget sizes these overlays will show unscaled text and potentially overflow the widget bounds. The prior 2026-04-14 completion entry "MiniAppWidget uses hardcoded Tailwind text sizes — Resolved outside journal workflow" was inaccurate; these overlay states were not assessed.
+- **Fix:** For both overlay dialogs, replace `text-base` → `style={{ fontSize: 'min(16px, 6cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Also convert any `w-4 h-4` icon sizes and `gap-2`, `p-3`/`p-5` spacing to `cqmin` equivalents.
+
+### LOW NumberLineWidget hover hint `text-xs` still present — prior completion was inaccurate
+
+- **Detected:** 2026-04-26 (re-flagged; originally detected 2026-04-12, incorrectly closed 2026-04-14)
+- **File:** components/widgets/NumberLine/Widget.tsx:339
+- **Detail:** `className="absolute bottom-2 left-4 text-xs text-slate-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"` is still present. The 2026-04-14 completion note "Resolved outside journal workflow. 2026-04-14 audit confirmed widget is clean" was inaccurate — the `text-xs` at line 339 was never removed. The hint is invisible by default (opacity-0) and only visible on hover, so impact is very low, but the pattern is inconsistent for a `skipScaling: true` widget.
+- **Fix:** Replace `text-xs` with `style={{ fontSize: 'min(10px, 3.5cqmin)' }}` on the hint div and remove the `bottom-2 left-4` Tailwind positional classes, replacing them with equivalent inline styles `style={{ bottom: 'min(8px, 1.5cqmin)', left: 'min(16px, 3cqmin)' }}`.
 
 ---
 

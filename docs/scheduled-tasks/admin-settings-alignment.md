@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-04-16_
+_Last audited: 2026-04-26_
 _Last action: 2026-04-16_
 
 ---
@@ -52,6 +52,13 @@ _Nothing currently in progress._
 - **File:** types.ts (ChecklistConfig / BuildingChecklistDefaults), context/DashboardContext.tsx (~line 2183)
 - **Detail:** `ChecklistConfig` has a `rosterMode` field that controls whether the checklist uses a manually-entered list or a synced class roster. Users can toggle this in Settings.tsx. `BuildingChecklistDefaults` does not include `rosterMode`, so admins cannot set a default roster mode per building.
 - **Fix:** Add `rosterMode` to `BuildingChecklistDefaults` in types.ts. Add it to the `case 'checklist'` handler in `getAdminBuildingConfig()`. Expose a toggle in `ChecklistConfigurationPanel.tsx`.
+
+### MEDIUM `need-do-put-then` has stub admin config panel but no getAdminBuildingConfig handler
+
+- **Detected:** 2026-04-26
+- **File:** components/admin/NeedDoPutThenConfigurationPanel.tsx, context/DashboardContext.tsx (getAdminBuildingConfig)
+- **Detail:** `need-do-put-then` was added with `NeedDoPutThenConfigurationPanel.tsx` registered in `BUILDING_CONFIG_PANELS`. However: (1) the panel is a non-functional stub showing "No building-level defaults yet" with no input controls; (2) there is no `case 'need-do-put-then':` in `getAdminBuildingConfig()` in DashboardContext.tsx; (3) `NeedDoPutThenConfig` (types.ts:2897) has no building defaults interface. When a teacher adds the widget, `getAdminBuildingConfig('need-do-put-then')` falls through to `default: break` and returns `{}`. The admin gear button for this widget opens a panel but provides no functional controls and stores nothing useful.
+- **Fix:** Either (a) implement building-level defaults for the widget: add a `NeedDoPutThenBuildingDefaults` interface to types.ts, add a `case 'need-do-put-then':` handler in `getAdminBuildingConfig()`, and replace the stub panel with actual form controls for preset items per column; or (b) remove `NeedDoPutThenConfigurationPanel` from `BUILDING_CONFIG_PANELS` so the admin UI shows the standard "No global settings available" placeholder instead of a misleading stub.
 
 ---
 
