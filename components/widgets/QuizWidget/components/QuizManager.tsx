@@ -256,16 +256,16 @@ interface QuizManagerProps {
   assignments?: QuizAssignment[];
   assignmentsLoading?: boolean;
   onArchiveCopyUrl?: (assignment: QuizAssignment) => void;
-  onArchiveMonitor?: (assignment: QuizAssignment) => void;
+  onArchiveMonitor?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Start a paused assignment: resume + navigate to monitor. */
-  onArchiveStart?: (assignment: QuizAssignment) => void;
-  onArchiveResults?: (assignment: QuizAssignment) => void;
+  onArchiveStart?: (assignment: QuizAssignment) => void | Promise<void>;
+  onArchiveResults?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
-  onArchiveShare?: (assignment: QuizAssignment) => void;
-  onArchivePauseResume?: (assignment: QuizAssignment) => void;
+  onArchiveShare?: (assignment: QuizAssignment) => void | Promise<void>;
+  onArchivePauseResume?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDeactivate?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Reopen an ended assignment back to a paused state. */
-  onArchiveReopen?: (assignment: QuizAssignment) => void;
+  onArchiveReopen?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
@@ -561,12 +561,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? {
             label: 'Monitor',
             icon: Monitor,
-            onClick: () => (onArchiveMonitor ?? noop)(a),
+            onClick: () => void (onArchiveMonitor ?? noop)(a),
           }
         : {
             label: 'Start',
             icon: Rocket,
-            onClick: () => (onArchiveStart ?? noop)(a),
+            onClick: () => void (onArchiveStart ?? noop)(a),
           };
 
       secondaries.push({
@@ -581,14 +581,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           id: 'monitor',
           label: 'Monitor',
           icon: Monitor,
-          onClick: () => (onArchiveMonitor ?? noop)(a),
+          onClick: () => void (onArchiveMonitor ?? noop)(a),
         });
       }
       secondaries.push({
         id: 'results',
         label: 'Results',
         icon: BarChart3,
-        onClick: () => (onArchiveResults ?? noop)(a),
+        onClick: () => void (onArchiveResults ?? noop)(a),
       });
       secondaries.push({
         id: 'settings',
@@ -600,14 +600,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         id: 'share',
         label: 'Share',
         icon: Share2,
-        onClick: () => (onArchiveShare ?? noop)(a),
+        onClick: () => void (onArchiveShare ?? noop)(a),
       });
       if (isActive) {
         secondaries.push({
           id: 'pause',
           label: 'Pause',
           icon: Pause,
-          onClick: () => (onArchivePauseResume ?? noop)(a),
+          onClick: () => void (onArchivePauseResume ?? noop)(a),
         });
       }
       secondaries.push({
@@ -655,13 +655,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     const primary = {
       label: 'Results',
       icon: BarChart3,
-      onClick: () => (onArchiveResults ?? noop)(a),
+      onClick: () => void (onArchiveResults ?? noop)(a),
     };
     secondaries.push({
       id: 'monitor',
       label: 'Monitor',
       icon: Monitor,
-      onClick: () => (onArchiveMonitor ?? noop)(a),
+      onClick: () => void (onArchiveMonitor ?? noop)(a),
     });
     secondaries.push({
       id: 'settings',
@@ -673,13 +673,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       id: 'share',
       label: 'Share',
       icon: Share2,
-      onClick: () => (onArchiveShare ?? noop)(a),
+      onClick: () => void (onArchiveShare ?? noop)(a),
     });
     secondaries.push({
       id: 'reopen',
       label: 'Reopen',
       icon: RefreshCw,
-      onClick: () => (onArchiveReopen ?? noop)(a),
+      onClick: () => void (onArchiveReopen ?? noop)(a),
     });
     secondaries.push({
       id: 'delete',
