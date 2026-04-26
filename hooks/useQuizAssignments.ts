@@ -22,6 +22,7 @@ import {
   query,
   where,
   orderBy,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -97,6 +98,13 @@ export interface UseQuizAssignmentsResult {
     assignmentId: string,
     patch: Partial<QuizAssignmentSettings>
   ) => Promise<void>;
+  /**
+   * Persist the Drive export URL onto the assignment doc so re-entering
+   * Results after navigating away (which remounts QuizResults and wipes its
+   * local state) shows the "Open Sheet" shortcut instead of reverting to
+   * "Export".
+   */
+  setAssignmentExportUrl: (assignmentId: string, url: string) => Promise<void>;
   /** Publish this assignment as a shareable link. Returns the /share/assignment/{id} URL. */
   shareAssignment: (
     assignmentId: string,
@@ -494,6 +502,19 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const setAssignmentExportUrl = useCallback<
+    UseQuizAssignmentsResult['setAssignmentExportUrl']
+  >(
+    async (assignmentId, url) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        { exportUrl: url, updatedAt: Date.now() }
+      );
+    },
+    [userId]
+  );
+
   const shareAssignment = useCallback<
     UseQuizAssignmentsResult['shareAssignment']
   >(
@@ -596,6 +617,7 @@ export const useQuizAssignments = (
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentExportUrl,
     shareAssignment,
     importSharedAssignment,
   };

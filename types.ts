@@ -2045,6 +2045,14 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Unified roster targeting (new post-unification assignments). Legacy
    *  assignments read via `periodNames` / session `classIds` only. */
   rosterIds?: string[];
+  /**
+   * URL of the Google Sheet produced by the teacher's last Results → Export.
+   * Persisted so re-entering the Results view after navigating away keeps the
+   * "Open Sheet" shortcut instead of reverting to "Export". Export is
+   * idempotent (same title ⇒ same sheet) so a stale URL safely regenerates
+   * the same sheet if re-exported.
+   */
+  exportUrl?: string;
 }
 
 /**

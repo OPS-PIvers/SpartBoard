@@ -81,6 +81,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentExportUrl,
     shareAssignment,
   } = useQuizAssignments(user?.uid);
 
@@ -556,6 +557,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // This means results are only available while the session data is in Firestore
     // (immediately after or during a session). Historical sessions are not yet persisted
     // separately; config.resultsSessionId is reserved for future per-session history.
+    const activeAssignmentId = config.activeAssignmentId;
+    const activeAssignment = activeAssignmentId
+      ? assignments.find((a) => a.id === activeAssignmentId)
+      : undefined;
     return (
       <QuizResults
         key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
@@ -591,6 +596,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }
           }
         }}
+        initialExportUrl={activeAssignment?.exportUrl ?? null}
+        onExportUrlSaved={
+          activeAssignmentId
+            ? (url) => setAssignmentExportUrl(activeAssignmentId, url)
+            : undefined
+        }
       />
     );
   }

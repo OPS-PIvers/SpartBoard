@@ -76,6 +76,18 @@ interface QuizResultsProps {
    * keep re-triggering the regenerate flow against the stale URL.
    */
   onPlcSheetUrlReplaced?: (newUrl: string) => Promise<void> | void;
+  /**
+   * Previously saved export URL for this assignment, read from the
+   * `quiz_assignments` doc. When present, the Export button is replaced by
+   * "Open Sheet" on mount so re-entering Results doesn't require re-exporting.
+   */
+  initialExportUrl?: string | null;
+  /**
+   * Persist a fresh export URL back to the assignment doc so it survives
+   * QuizResults remounts (the parent remounts it on Results re-entry to
+   * recompute aggregate stats) and full tab reloads.
+   */
+  onExportUrlSaved?: (url: string) => Promise<void> | void;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -87,13 +99,30 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   session,
   onDeleteResponse,
   onPlcSheetUrlReplaced,
+  initialExportUrl,
+  onExportUrlSaved,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
   const { googleAccessToken, user } = useAuth();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
-  const [exportUrl, setExportUrl] = useState<string | null>(null);
+  const [exportUrl, setExportUrl] = useState<string | null>(
+    initialExportUrl ?? null
+  );
+  // Sync from the prop when the parent hydrates assignments after mount —
+  // e.g. a hard reload where `assignments` is briefly empty before Firestore
+  // populates it, so `initialExportUrl` starts null and transitions to a real
+  // URL. Uses the "adjusting state while rendering" pattern so the button
+  // swap ("EXPORT" → "OPEN SHEET") happens in the same commit as the prop
+  // change, without an extra render pass from useEffect.
+  const [lastInitialExportUrl, setLastInitialExportUrl] = useState<
+    string | null | undefined
+  >(initialExportUrl);
+  if (initialExportUrl !== lastInitialExportUrl) {
+    setLastInitialExportUrl(initialExportUrl);
+    setExportUrl(initialExportUrl ?? null);
+  }
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students'
@@ -341,6 +370,20 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         );
       }
       setExportUrl(url);
+      if (onExportUrlSaved) {
+        // Fire-and-forget: the sheet already exists and the local button is
+        // wired up for this session, so we don't want to keep `exporting`
+        // true (and delay the success toast) waiting on a Firestore round
+        // trip. A failed persist just means the button reverts to EXPORT
+        // on the next remount; log so the teacher isn't surprised without
+        // any diagnostic trail.
+        void Promise.resolve(onExportUrlSaved(url)).catch((err: unknown) => {
+          console.warn(
+            '[QuizResults] failed to persist exportUrl to assignment doc',
+            err
+          );
+        });
+      }
       if (config.plcMode) {
         addToast('Results exported to shared PLC sheet', 'success');
       }
