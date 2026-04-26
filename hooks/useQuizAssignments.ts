@@ -373,13 +373,17 @@ export const useQuizAssignments = (
   >(
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
-      // Auto-end advances `currentQuestionIndex` to `totalQuestions` (see the
-      // end-of-quiz branch in useQuizSession.advanceQuestion). If we just
-      // flipped status back to 'paused' here, the next resume would jump to
-      // 'active' and every student would look up `publicQuestions[totalQuestions]`
-      // — undefined — and stall on the loading UI. Clamp the index back into
-      // bounds (last question) so stragglers can finish, and re-arm
-      // `questionPhase` to 'answering'.
+      // A "natural" auto-end (useQuizSession.advanceQuestion end-of-quiz
+      // branch) leaves `currentQuestionIndex == totalQuestions`, which is
+      // out-of-bounds for `publicQuestions`. If we just flipped status back
+      // to 'paused', the next resume would jump to 'active' and every
+      // student would look up `publicQuestions[totalQuestions]` — undefined
+      // — and stall on the loading UI. Reset the index to a sensible resume
+      // point: -1 for teacher-paced sessions (teacher re-advances from the
+      // lobby) and 0 for student-paced sessions (students pick up from the
+      // start). A "manual stop" (deactivateAssignment) doesn't touch
+      // currentQuestionIndex, so we only reset when the index is actually
+      // out-of-bounds.
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
       const snap = await getDoc(sessionRef);
       const session = snap.data() as QuizSession | undefined;
@@ -400,7 +404,8 @@ export const useQuizAssignments = (
         session.totalQuestions > 0 &&
         session.currentQuestionIndex >= session.totalQuestions
       ) {
-        sessionPatch.currentQuestionIndex = session.totalQuestions - 1;
+        sessionPatch.currentQuestionIndex =
+          session.sessionMode === 'student' ? 0 : -1;
         sessionPatch.questionPhase = 'answering';
       }
       batch.update(sessionRef, sessionPatch);
