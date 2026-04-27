@@ -5,7 +5,8 @@
  * `classIds[]` (ClassLink-only) or local roster names under `periodNames[]`
  * (local-only). After the roster-as-single-source-of-truth unification,
  * new assignments write `rosterIds[]` — rosters imported from ClassLink carry
- * their own `classlinkClassId` metadata so the student SSO gate still works.
+ * their own `classlinkClassId` metadata, and rosters imported from admin
+ * test classes carry `testClassId`, so the student SSO gate still works.
  *
  * Legacy in-flight assignments are NOT migrated; they continue reading via
  * their existing `classIds`/`periodNames` fields until they expire.
@@ -30,9 +31,12 @@ export interface ResolvedAssignmentTargets {
   /** Roster IDs backing this assignment (empty for legacy docs). */
   rosterIds: string[];
   /**
-   * ClassLink `sourcedId`s to write onto the session doc for the student
-   * SSO gate. Empty when no selected roster has `classlinkClassId` (purely
-   * local targeting — SSO students get blocked, PIN students still pass).
+   * Class identifiers to write onto the session doc for the student SSO gate.
+   * Sourced from `classlinkClassId` (real ClassLink rosters) and `testClassId`
+   * (admin test-class imports); both end up in this same array since the
+   * student-side claim and Firestore gate read a single `classIds[]` field.
+   * Empty when no selected roster carries either (purely local targeting —
+   * SSO students get blocked, PIN students still pass).
    */
   classIds: string[];
   /** Period names (local roster names) for PIN-flow routing. */
@@ -57,7 +61,13 @@ export interface ResolvedAssignmentTargets {
  * Dedup rationale:
  * - `classIds`: two rosters can share the same `classlinkClassId` (teacher
  *   imported the same ClassLink class twice under different local names);
- *   we'd otherwise waste the Firestore rules' 20-entry budget.
+ *   we'd otherwise waste the Firestore rules' 20-entry budget. Test-class
+ *   `testClassId` slugs share this output array because the student-side SSO
+ *   gate (`MyAssignmentsPage` queries + `firestore.rules`) keys on a single
+ *   `classIds[]` field — the cloud function (`studentLoginV1`) populates the
+ *   same claim from either source. Collisions are not possible: ClassLink
+ *   sourcedIds are opaque OneRoster identifiers, test-class IDs are
+ *   admin-chosen slugs.
  * - `students`: a student enrolled in two targeted classes shouldn't appear
  *   twice in the session student list.
  * - `periodNames`: two local rosters can share a name; the student app keys
@@ -73,7 +83,7 @@ function deriveTargetsFromRosterList(rosters: ClassRoster[]): {
   const classIds = Array.from(
     new Set(
       rosters
-        .map((r) => r.classlinkClassId)
+        .flatMap((r) => [r.classlinkClassId, r.testClassId])
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     )
   );

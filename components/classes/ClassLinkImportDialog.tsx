@@ -14,10 +14,20 @@ import { mergeClassLinkStudents } from './mergeClassLinkStudents';
 const TEST_PREFIX = 'test:';
 
 /**
- * Build the ClassLink provenance metadata to persist on a roster document.
- * Returns `null` for test classes (they aren't real ClassLink classes and
- * must not claim `origin: 'classlink'` — they'd otherwise feed garbage
- * sourcedIds into session `classIds[]` and break the student SSO gate).
+ * Build the provenance metadata to persist on a roster document.
+ *
+ * For real ClassLink classes: stamps `origin: 'classlink'` and the full set of
+ * `classlink*` fields so downstream features (badge, merge dedup, sync) can
+ * recognize this as a ClassLink-imported roster.
+ *
+ * For admin test classes: returns only `testClassId` (the bare slug, with the
+ * `test:` prefix stripped). We deliberately do NOT set `origin: 'classlink'`
+ * or `classlinkClassId`, because the prefixed `cls.sourcedId` would corrupt
+ * real ClassLink session gates and the picker would mislabel test rosters
+ * with a "CL" badge. The bare slug routes through `deriveTargetsFromRoster
+ * List` into session `classIds[]` so test-bypass SSO students (whose custom
+ * token from `studentLoginV1` carries `classIds: [<slug>]`) can find the
+ * assignment on `/my-assignments`.
  *
  * NOTE: fields missing from `cls` (e.g., `classCode` cleared upstream) are
  * omitted rather than set to `deleteField()`, so `updateRoster` at merge
@@ -31,7 +41,9 @@ const buildClassLinkRosterMeta = (
   cls: ClassLinkClass,
   orgId: string | null | undefined
 ): Partial<ClassRosterMeta> | null => {
-  if (cls.sourcedId.startsWith(TEST_PREFIX)) return null;
+  if (cls.sourcedId.startsWith(TEST_PREFIX)) {
+    return { testClassId: cls.sourcedId.slice(TEST_PREFIX.length) };
+  }
   const meta: Partial<ClassRosterMeta> = {
     origin: 'classlink',
     classlinkClassId: cls.sourcedId,

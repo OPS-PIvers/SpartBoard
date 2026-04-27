@@ -117,6 +117,33 @@ describe('resolveAssignmentTargets', () => {
     expect(out.classIds).toEqual(['cl-1']);
     expect(out.rosterIds).toEqual(['r1', 'r2']);
   });
+
+  it('includes testClassId in derived classIds for test-class rosters', () => {
+    // Roster imported from an admin-managed test class. The test-bypass SSO
+    // student's custom token carries `classIds: ['mock-period-1']`, so the
+    // session must surface that slug or the student sees an empty list.
+    const r1 = roster('r1', 'Mock Period 1 (test)', [s1], {
+      testClassId: 'mock-period-1',
+    });
+    const out = resolveAssignmentTargets({ rosterIds: ['r1'] }, [r1]);
+    expect(out.classIds).toEqual(['mock-period-1']);
+  });
+
+  it('merges classIds across mixed ClassLink + test-class rosters', () => {
+    const r1 = roster('r1', 'Period 1', [s1], { classlinkClassId: 'cl-1' });
+    const r2 = roster('r2', 'Mock Period 1 (test)', [s2], {
+      testClassId: 'mock-period-1',
+    });
+    const out = resolveAssignmentTargets({ rosterIds: ['r1', 'r2'] }, [r1, r2]);
+    expect(out.classIds.sort()).toEqual(['cl-1', 'mock-period-1']);
+  });
+
+  it('omits rosters with neither classlinkClassId nor testClassId', () => {
+    const r1 = roster('r1', 'Local only', [s1]); // truly local, both absent
+    const out = resolveAssignmentTargets({ rosterIds: ['r1'] }, [r1]);
+    expect(out.classIds).toEqual([]);
+    expect(out.rosterIds).toEqual(['r1']);
+  });
 });
 
 describe('deriveSessionTargetsFromRosters', () => {

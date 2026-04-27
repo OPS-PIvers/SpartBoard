@@ -130,6 +130,16 @@ export interface ClassRosterMeta {
    * resolves without the assignment layer having to know about ClassLink.
    */
   classlinkClassId?: string;
+  /**
+   * Test-class slug (the `testClasses/{id}` doc id, without the `test:` prefix).
+   * Present iff the roster was imported from an admin-managed test class. Drives
+   * session `classIds[]` derivation so the test-bypass SSO student's custom-token
+   * claim (`classIds: [<slug>]`, minted by `studentLoginV1`) matches the
+   * assignment session — without claiming `origin: 'classlink'`, which would
+   * falsely tag this as a real ClassLink roster in the picker badge and merge
+   * logic.
+   */
+  testClassId?: string;
   /** ClassLink class code (e.g. "MATH-7-P3"); rendered in the picker badge tooltip. */
   classlinkClassCode?: string;
   /** ClassLink subject label; used for reconciliation and teacher-visible filters. */
