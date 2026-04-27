@@ -10,7 +10,12 @@ _Last action: 2026-04-22_
 
 ## In Progress
 
-_Nothing currently in progress._
+### HIGH hooks/ coverage — `useQuizSessionTeacher` teacher-side action tests
+
+- **Detected:** 2026-04-13 (parent: HIGH `hooks/ coverage` partial-progress entry below)
+- **Started:** 2026-04-27
+- **File:** hooks/useQuizSession.ts, tests/hooks/useQuizSession.test.ts
+- **Plan:** Add Vitest coverage for the teacher-side actions of `useQuizSessionTeacher`: `removeStudent` (deleteDoc by responseKey), `revealAnswer`/`hideAnswer` (updateDoc with dotted path / deleteField sentinel), `endQuizSession` (status='ended', endedAt set, finalizeAllResponses sweeps in-progress and joined responses), and `advanceQuestion` (review-phase gate when showPodiumBetweenQuestions is set; advance-to-next-index path; advance-past-end path that flips status to 'ended' and finalizes responses; student-paced mode skips review). Use the same mocked `firebase/firestore` pattern as the existing student-side tests in this file.
 
 ---
 
