@@ -60,12 +60,15 @@ const buildClassLinkRosterMeta = (
 // two-digit strings (01, 02, …) so the teacher has something to hand out
 // before editing. The imported roster is a normal user-owned roster and can
 // be renamed, PIN-edited, or deleted afterwards like any ClassLink import.
+// Email is preserved on the student record so it round-trips through the
+// editor and can be displayed in the optional EMAIL column.
 const materializeTestClassStudents = (emails: string[]): Student[] =>
   emails.map((email, i) => ({
     id: crypto.randomUUID(),
     firstName: email.split('@')[0] || email,
     lastName: '',
     pin: String(i + 1).padStart(2, '0'),
+    email,
   }));
 
 export type ClassLinkDialogMode =
@@ -216,6 +219,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
             lastName: s.familyName,
             pin: '',
             classLinkSourcedId: s.sourcedId,
+            ...(s.email ? { email: s.email } : {}),
           }));
       const subjectPrefix = cls.subject ? `${cls.subject} - ` : '';
       const codeSuffix = cls.classCode ? ` (${cls.classCode})` : '';

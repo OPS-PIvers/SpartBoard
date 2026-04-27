@@ -22,6 +22,7 @@ import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { useAuth } from '@/context/useAuth';
 
 interface SubmissionRow {
   id: string;
@@ -42,9 +43,11 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   classIds,
   onClose,
 }) => {
+  const { orgId } = useAuth();
   const { byAssignmentPseudonym } = useAssignmentPseudonymsMulti(
     sessionId,
-    classIds ?? null
+    classIds ?? null,
+    orgId
   );
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);

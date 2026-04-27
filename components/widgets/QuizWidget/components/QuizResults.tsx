@@ -102,7 +102,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { googleAccessToken, user } = useAuth();
+  const { googleAccessToken, user, orgId } = useAuth();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(
@@ -158,7 +158,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // maps are empty and pinToName handles display.
   const { byStudentUid } = useAssignmentPseudonyms(
     session?.id ?? null,
-    session?.classId ?? null
+    session?.classId ?? null,
+    orgId
   );
   const exportPinToName = useMemo(
     () => buildPinToExportNameMap(rosters, resolvedPeriods),

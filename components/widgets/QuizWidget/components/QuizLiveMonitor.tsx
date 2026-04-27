@@ -57,6 +57,7 @@ import {
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { db } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
@@ -266,6 +267,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onBack,
 }) => {
   const { showConfirm } = useDialog();
+  const { orgId } = useAuth();
   const pinToName = useMemo(
     () =>
       buildPinToNameMap(
@@ -286,7 +288,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   }, [session.classIds, session.classId]);
   const { byStudentUid } = useAssignmentPseudonymsMulti(
     session.id,
-    sessionClassIds
+    sessionClassIds,
+    orgId
   );
   const scoringConfig = useMemo(
     () => ({

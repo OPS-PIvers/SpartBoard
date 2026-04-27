@@ -35,10 +35,11 @@ export const Results: React.FC<ResultsProps> = ({
   responses,
   onBack,
 }) => {
-  const { googleAccessToken } = useAuth();
+  const { googleAccessToken, orgId } = useAuth();
   const { byStudentUid } = useAssignmentPseudonyms(
     session.id,
-    session.classId ?? null
+    session.classId ?? null,
+    orgId
   );
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);

@@ -95,6 +95,14 @@ export interface Student {
    */
   classLinkSourcedId?: string;
   /**
+   * Student email. Captured from ClassLink imports and from test-class member
+   * lists. Lives only in the Drive student-list JSON alongside name/PIN — per
+   * the existing PII architecture (see `useRosters.ts` PII migration), this
+   * field is NOT written to any Firestore document. Surfaced as an optional
+   * column in `RosterEditorModal` so teachers can verify imports.
+   */
+  email?: string;
+  /**
    * Stable IDs of classmates this student must never be grouped with in the
    * Randomizer's group-maker mode. Maintained bidirectionally: if B is in A's
    * list, A is in B's list.

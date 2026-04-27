@@ -3059,10 +3059,15 @@ export const getPseudonymsForAssignmentV1 = onCall(
     const data = request.data as {
       assignmentId?: unknown;
       classId?: unknown;
+      orgId?: unknown;
     };
     const assignmentId =
       typeof data?.assignmentId === 'string' ? data.assignmentId : '';
     const classId = typeof data?.classId === 'string' ? data.classId : '';
+    // orgId is optional for backwards compatibility (older clients). The
+    // test-class branch only activates when it's provided AND the requested
+    // classId resolves to a `testClasses` doc under that org.
+    const orgId = typeof data?.orgId === 'string' ? data.orgId : '';
     if (!assignmentId || !classId) {
       throw new HttpsError(
         'invalid-argument',
@@ -3081,6 +3086,99 @@ export const getPseudonymsForAssignmentV1 = onCall(
       !tenantUrl
     ) {
       throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    // ── Test-class branch ────────────────────────────────────────────────
+    // Test classes (admin-managed mocks under `organizations/{orgId}/testClasses`)
+    // bypass ClassLink entirely. Their students log in via the `studentLoginV1`
+    // test bypass, which mints UIDs as `HMAC("sid:test:{emailLower}", secret)`.
+    // ClassLink OneRoster has no record of them, so the standard branch returns
+    // an empty pseudonym map and the teacher monitor falls back to "Student".
+    // This branch resolves names from the `memberEmails` array on the test-class
+    // doc, using the email local-part as the display name (matching what
+    // `materializeTestClassStudents` shows in the import dialog).
+    if (orgId) {
+      const db = admin.firestore();
+      const teacherEmailLower = teacherEmail.toLowerCase();
+      const memberRef = db.doc(
+        `organizations/${orgId}/members/${teacherEmailLower}`
+      );
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        throw new HttpsError(
+          'permission-denied',
+          'Not a member of this organization.'
+        );
+      }
+
+      const testClassRef = db.doc(
+        `organizations/${orgId}/testClasses/${classId}`
+      );
+      const testClassSnap = await testClassRef.get();
+      if (testClassSnap.exists) {
+        // Authorize: teacher must own a roster whose `testClassId` matches.
+        // Roster metadata lives in Firestore (no Drive read needed for this
+        // gate). Same trust model as the ClassLink branch's "teaches this
+        // class" check, but anchored to the teacher's own roster ownership.
+        const ownedRosters = await db
+          .collection(`users/${request.auth.uid}/rosters`)
+          .where('testClassId', '==', classId)
+          .limit(1)
+          .get();
+        if (ownedRosters.empty) {
+          throw new HttpsError(
+            'permission-denied',
+            'Not a teacher of this test class.'
+          );
+        }
+
+        const testClassData = (testClassSnap.data() ?? {}) as {
+          memberEmails?: unknown;
+        };
+        const memberEmails = Array.isArray(testClassData.memberEmails)
+          ? testClassData.memberEmails.filter(
+              (e): e is string => typeof e === 'string' && e.length > 0
+            )
+          : [];
+
+        const pseudonyms: Record<
+          string,
+          {
+            studentUid: string;
+            assignmentPseudonym: string;
+            givenName: string;
+            familyName: string;
+          }
+        > = {};
+        for (const rawEmail of memberEmails) {
+          const emailLower = rawEmail.toLowerCase();
+          // Mirrors `studentLoginV1` test-bypass UID minting at
+          // functions/src/index.ts ~2868: HMAC over "sid:test:{emailLower}".
+          const studentUid = computeStudentUid(
+            `test:${emailLower}`,
+            hmacSecret
+          );
+          // Display name = email local-part. This matches what the import
+          // dialog already shows (`materializeTestClassStudents` line 66:
+          // `firstName: email.split('@')[0]`), so the monitor view stays
+          // consistent with the roster.
+          const localPart = emailLower.split('@')[0] || emailLower;
+          // Key by the lowercased email (no `sourcedId` exists for test
+          // students). The client-side hook only iterates `Object.values`
+          // and re-keys by `studentUid`, so the key choice is internal.
+          pseudonyms[emailLower] = {
+            studentUid,
+            assignmentPseudonym: computeAssignmentPseudonym(
+              studentUid,
+              assignmentId,
+              hmacSecret
+            ),
+            givenName: localPart,
+            familyName: '',
+          };
+        }
+        return { pseudonyms };
+      }
     }
 
     const cleanTenantUrl = tenantUrl.replace(/\/$/, '');

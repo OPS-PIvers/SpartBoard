@@ -12,6 +12,7 @@ export interface DraftRow {
   lastName: string;
   pin: string;
   classLinkSourcedId?: string;
+  email?: string;
   restrictedStudentIds?: string[];
 }
 
@@ -36,6 +37,7 @@ export function useRosterRowsState(roster: ClassRoster | null) {
         lastName: s.lastName,
         pin: s.pin,
         classLinkSourcedId: s.classLinkSourcedId,
+        email: s.email,
         restrictedStudentIds: s.restrictedStudentIds,
       })) ?? []
   );
@@ -44,6 +46,12 @@ export function useRosterRowsState(roster: ClassRoster | null) {
   );
   const [showPins, setShowPins] = useState(
     roster?.students.some((s) => s.pin.trim() !== '') ?? false
+  );
+  // Auto-show email column when at least one student has an email — so
+  // freshly imported ClassLink/test-class rosters reveal it immediately
+  // without requiring the teacher to find the toggle.
+  const [showEmails, setShowEmails] = useState(
+    roster?.students.some((s) => (s.email ?? '').trim() !== '') ?? false
   );
   const [showRestrictions, setShowRestrictions] = useState(
     roster?.students.some((s) => (s.restrictedStudentIds?.length ?? 0) > 0) ??
@@ -220,6 +228,10 @@ export function useRosterRowsState(roster: ClassRoster | null) {
             if (r.classLinkSourcedId !== undefined) {
               student.classLinkSourcedId = r.classLinkSourcedId;
             }
+            const trimmedEmail = (r.email ?? '').trim();
+            if (trimmedEmail) {
+              student.email = trimmedEmail;
+            }
             if (r.restrictedStudentIds && r.restrictedStudentIds.length > 0) {
               student.restrictedStudentIds = r.restrictedStudentIds;
             }
@@ -247,6 +259,8 @@ export function useRosterRowsState(roster: ClassRoster | null) {
     handleToggleLastNames,
     showPins,
     setShowPins,
+    showEmails,
+    setShowEmails,
     showRestrictions,
     setShowRestrictions,
     toggleRestriction,

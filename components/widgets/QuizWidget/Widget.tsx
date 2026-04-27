@@ -47,7 +47,7 @@ import { getPlcTeammateEmails } from '@/utils/plc';
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
     useDashboard();
-  const { user, googleAccessToken } = useAuth();
+  const { user, googleAccessToken, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
 
@@ -217,7 +217,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         : [];
   const { byStudentUid } = useAssignmentPseudonymsMulti(
     liveSession?.id ?? null,
-    liveClassIds
+    liveClassIds,
+    orgId
   );
   const byStudentUidRef = useRef(byStudentUid);
   byStudentUidRef.current = byStudentUid;
