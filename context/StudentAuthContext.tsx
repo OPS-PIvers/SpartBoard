@@ -19,6 +19,7 @@ import {
 import {
   StudentAuthContext,
   STUDENT_FIRST_NAME_KEY,
+  clearStudentFirstName,
   type StudentAuthStatus,
   type StudentAuthValue,
 } from './StudentAuthContextValue';
@@ -36,16 +37,6 @@ const readFirstName = (): string | null => {
     return raw && raw.length > 0 ? raw : null;
   } catch {
     return null;
-  }
-};
-
-const clearFirstName = (): void => {
-  if (typeof window === 'undefined') return;
-  try {
-    window.sessionStorage.removeItem(STUDENT_FIRST_NAME_KEY);
-  } catch {
-    // Storage disabled — nothing to clear; the value couldn't have been
-    // written either.
   }
 };
 
@@ -252,7 +243,10 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // are malformed, OR the student is valid but isn't on any
             // roster yet. Force a sign-out so the stale session can't
             // linger on a shared device, then redirect with a reason so
-            // the login screen can explain the bounce.
+            // the login screen can explain the bounce. Clear the cached
+            // first name so a non-student bounce doesn't leave the
+            // previous session's greeting parked in sessionStorage.
+            clearStudentFirstName();
             void firebaseSignOut(auth).catch(() => {
               // Swallow — the redirect below is the actual remediation.
             });
@@ -271,6 +265,9 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
         },
         () => {
           if (!mountedRef.current) return;
+          // Claim resolution threw — no firstName remains valid for this
+          // session. Clear before bouncing back to login.
+          clearStudentFirstName();
           setState(UNAUTH_STATE);
           redirectToLoginIfProtected('invalid-claims');
         }
@@ -290,7 +287,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Always clear the first-name cache before tearing down the session so
     // the next student on a shared device doesn't inherit the previous
     // student's greeting.
-    clearFirstName();
+    clearStudentFirstName();
     if (isAuthBypass) {
       // Bypass mode: simulate a sign-out by flipping to unauthenticated and
       // redirecting. Real Firebase Auth isn't involved.

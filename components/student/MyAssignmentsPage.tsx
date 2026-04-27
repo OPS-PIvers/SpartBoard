@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -85,6 +91,34 @@ const MyAssignmentsPage: React.FC = () => {
       setSidebarOpen(false);
     }
   }, []);
+
+  // Hamburger-button ref so we can restore focus when the sidebar closes.
+  // The closed sidebar is `inert`, which means any focus left inside its
+  // subtree at close time would be stranded — restoring to the trigger is
+  // the standard a11y pattern (matches WAI-ARIA disclosure / dialog
+  // recommendations).
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const prevSidebarOpenRef = useRef(sidebarOpen);
+  useEffect(() => {
+    if (prevSidebarOpenRef.current && !sidebarOpen) {
+      menuButtonRef.current?.focus();
+    }
+    prevSidebarOpenRef.current = sidebarOpen;
+  }, [sidebarOpen]);
+
+  // Esc closes the sidebar. Mounted only while open so we don't add an
+  // always-on listener for what is otherwise a quiet page.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sidebarOpen]);
 
   // Filter mode persists to sessionStorage so a refresh keeps it but the
   // choice never follows the student onto a shared device.
@@ -254,6 +288,7 @@ const MyAssignmentsPage: React.FC = () => {
         onDone={handleDone}
         onToggleMenu={toggleSidebar}
         menuOpen={sidebarOpen}
+        menuButtonRef={menuButtonRef}
         hideDoneButton
       >
         {hasErrors && <PartialFailureBanner onRetry={retry} className="mb-4" />}
@@ -301,6 +336,13 @@ interface PageShellProps {
   onToggleMenu?: () => void;
   menuOpen?: boolean;
   /**
+   * Ref forwarded to the hamburger menu button so the page can restore
+   * focus there when the sidebar closes (e.g. via Esc, backdrop tap, or
+   * auto-close on class selection). Without this, focus left inside the
+   * now-`inert` sidebar would be stranded for keyboard users.
+   */
+  menuButtonRef?: React.Ref<HTMLButtonElement>;
+  /**
    * When true, suppresses the header's Done button. Sign-out lives in the
    * sidebar footer once the student is past the gate paths.
    */
@@ -312,6 +354,7 @@ const PageShell: React.FC<PageShellProps> = ({
   onDone,
   onToggleMenu,
   menuOpen,
+  menuButtonRef,
   hideDoneButton,
   children,
 }) => (
@@ -328,6 +371,7 @@ const PageShell: React.FC<PageShellProps> = ({
         <div className="flex min-w-0 items-center gap-3">
           {onToggleMenu ? (
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={onToggleMenu}
               aria-label={menuOpen ? 'Close class menu' : 'Open class menu'}

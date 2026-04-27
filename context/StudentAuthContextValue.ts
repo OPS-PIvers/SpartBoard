@@ -55,6 +55,23 @@ export interface StudentAuthValue {
 /** Tab-scoped sessionStorage key for the student's first name. */
 export const STUDENT_FIRST_NAME_KEY = 'sb_student_first_name';
 
+/**
+ * Remove the student's first name from tab-scoped `sessionStorage`. Must be
+ * called on every sign-out path (explicit `signOut()`, idle-timeout
+ * auto-logout, and the StudentAuthContext claim-rejection path) so the
+ * next student on a shared device never inherits the previous student's
+ * greeting. Safe to call when storage is empty or disabled.
+ */
+export const clearStudentFirstName = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(STUDENT_FIRST_NAME_KEY);
+  } catch {
+    // Storage disabled — nothing to clear; the value couldn't have been
+    // written either.
+  }
+};
+
 export const StudentAuthContext = createContext<StudentAuthValue | undefined>(
   undefined
 );
