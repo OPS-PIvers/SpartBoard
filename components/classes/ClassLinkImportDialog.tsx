@@ -24,10 +24,10 @@ const TEST_PREFIX = 'test:';
  * `test:` prefix stripped). We deliberately do NOT set `origin: 'classlink'`
  * or `classlinkClassId`, because the prefixed `cls.sourcedId` would corrupt
  * real ClassLink session gates and the picker would mislabel test rosters
- * with a "CL" badge. The bare slug routes through `deriveTargetsFromRoster
- * List` into session `classIds[]` so test-bypass SSO students (whose custom
- * token from `studentLoginV1` carries `classIds: [<slug>]`) can find the
- * assignment on `/my-assignments`.
+ * with a "CL" badge. The bare slug routes through
+ * `deriveTargetsFromRosterList` into session `classIds[]` so test-bypass SSO
+ * students (whose custom token from `studentLoginV1` carries
+ * `classIds: [<slug>]`) can find the assignment on `/my-assignments`.
  *
  * NOTE: fields missing from `cls` (e.g., `classCode` cleared upstream) are
  * omitted rather than set to `deleteField()`, so `updateRoster` at merge
