@@ -942,9 +942,26 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       myResponseRef.current?.tabSwitchWarnings ?? 0
     );
 
-    await updateDoc(responseRef, {
-      tabSwitchWarnings: increment(1),
-    });
+    try {
+      await updateDoc(responseRef, {
+        tabSwitchWarnings: increment(1),
+      });
+    } catch (err) {
+      // Re-throw with extra context so the caller's catch surfaces enough
+      // diagnostic info to bisect intermittent rule failures (PIN-bypass
+      // SSO students vs anonymous PIN students, missing fields, etc.).
+      console.error('[reportTabSwitch] update failed', {
+        sessionId,
+        responseKey,
+        authUid: auth.currentUser?.uid,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        baseCount,
+        hasPinField: myResponseRef.current?.pin !== undefined,
+        hasTabSwitchField:
+          myResponseRef.current?.tabSwitchWarnings !== undefined,
+      });
+      throw err;
+    }
 
     const newCount = baseCount + 1;
     warningCountRef.current = newCount;

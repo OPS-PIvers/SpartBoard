@@ -305,15 +305,17 @@ const App: React.FC = () => {
     );
   }
 
-  // Quiz student route — requires real Firebase auth (org Google account)
+  // Quiz student route — QuizStudentApp self-handles Firebase auth
+  // (signInAnonymously when no current user; preserves the SSO student-
+  // custom-token user otherwise). No teacher AuthContext consumers in the
+  // quiz tree, so wrapping in <AuthProvider> would only mount admin-only
+  // Firestore listeners that fail with permission-denied for students.
   if (isQuizRoute) {
     return (
       <DialogProvider>
-        <AuthProvider>
-          <Suspense fallback={<FullPageLoader />}>
-            <QuizStudentApp />
-          </Suspense>
-        </AuthProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <QuizStudentApp />
+        </Suspense>
         <DialogContainer />
       </DialogProvider>
     );
