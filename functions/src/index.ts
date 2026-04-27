@@ -3016,6 +3016,230 @@ export const getAssignmentPseudonymV1 = onCall(
 );
 
 /**
+ * getStudentClassDirectoryV1
+ *
+ * Returns class metadata (name, teacher display name, subject, code) for the
+ * authenticated student's claim-bound `classIds`. Powers the sidebar on
+ * `/my-assignments` so a student sees "English 9 / Ms. Halverson" instead of
+ * an opaque sourcedId.
+ *
+ * Lookup order per classId:
+ *   1. `collectionGroup('rosters').where('classlinkClassId', '==', classId)` —
+ *      real ClassLink imports. Parent path gives teacher uid.
+ *   2. `collectionGroup('rosters').where('testClassId', '==', classId)` —
+ *      admin-managed test classes a teacher has imported.
+ *   3. `organizations/{orgId}/testClasses/{classId}` — admin-managed test
+ *      class with no teacher import yet (graceful fallback).
+ *
+ * PII: this function never returns student names, emails, or any field from
+ * the per-roster Drive file. Only Firestore-side roster meta (which is
+ * itself PII-free) plus the teacher's own `displayName` from Firebase Auth.
+ * Teacher names are organizational data, not student PII.
+ *
+ * Failure: classIds that match nothing are silently dropped from the
+ * response so the sidebar simply omits them. The page renders a fallback
+ * label client-side rather than treating a missing entry as an error.
+ */
+export const getStudentClassDirectoryV1 = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (request.auth.token.studentRole !== true) {
+      throw new HttpsError('permission-denied', 'Student role required.');
+    }
+
+    const rawClassIds: unknown = request.auth.token.classIds;
+    if (!Array.isArray(rawClassIds)) {
+      throw new HttpsError('failed-precondition', 'No classes on token.');
+    }
+    const classIds = rawClassIds
+      .filter((c): c is string => typeof c === 'string' && c.length > 0)
+      .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+    if (classIds.length === 0) {
+      return { classes: [] };
+    }
+
+    const orgId =
+      typeof request.auth.token.orgId === 'string'
+        ? request.auth.token.orgId
+        : '';
+
+    const db = admin.firestore();
+
+    // Per-call cache: many classes may share a teacher; one Auth lookup
+    // suffices.
+    const teacherNameCache = new Map<string, string>();
+    const resolveTeacherName = async (teacherUid: string): Promise<string> => {
+      const cached = teacherNameCache.get(teacherUid);
+      if (cached !== undefined) return cached;
+      try {
+        const user = await admin.auth().getUser(teacherUid);
+        const displayName =
+          (typeof user.displayName === 'string' && user.displayName) ||
+          (typeof user.email === 'string' ? user.email.split('@')[0] : '') ||
+          '';
+        teacherNameCache.set(teacherUid, displayName);
+        return displayName;
+      } catch {
+        // Auth lookup can fail for legacy / deleted teacher accounts. Caller
+        // falls back to an empty teacher name; the row still renders.
+        teacherNameCache.set(teacherUid, '');
+        return '';
+      }
+    };
+
+    interface DirectoryEntry {
+      classId: string;
+      name: string;
+      teacherDisplayName: string;
+      subject?: string;
+      code?: string;
+    }
+
+    // Batch the per-classId collectionGroup queries instead of fanning out
+    // 2-3 queries per id (up to 60 queries for STUDENT_LOGIN_CLASS_IDS_MAX
+    // = 20). Firestore caps `in`-array size at 30; we chunk at 10 to stay
+    // safely under the limit and to fit the typical `STUDENT_LOGIN_CLASS_IDS_MAX`
+    // payload in 2-3 chunks.
+    const FIRESTORE_IN_CHUNK_SIZE = 10;
+    const chunk = <T>(arr: readonly T[], size: number): T[][] => {
+      const chunks: T[][] = [];
+      for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size));
+      }
+      return chunks;
+    };
+
+    /**
+     * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
+     * chunk of `ids`, then index the matching roster docs by their
+     * `field`-value. First match wins on duplicates so the teacher whose
+     * roster Firestore returns first deterministically owns the directory
+     * entry for that class.
+     */
+    const batchLookupByField = async (
+      field: 'classlinkClassId' | 'testClassId',
+      ids: readonly string[]
+    ): Promise<Map<string, FirebaseFirestore.QueryDocumentSnapshot>> => {
+      const out = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+      if (ids.length === 0) return out;
+      const snapshots = await Promise.all(
+        chunk(ids, FIRESTORE_IN_CHUNK_SIZE).map((idChunk) =>
+          db.collectionGroup('rosters').where(field, 'in', idChunk).get()
+        )
+      );
+      for (const snap of snapshots) {
+        for (const doc of snap.docs) {
+          const value: unknown = doc.get(field);
+          if (typeof value === 'string' && !out.has(value)) {
+            out.set(value, doc);
+          }
+        }
+      }
+      return out;
+    };
+
+    const buildEntryFromRoster = async (
+      classId: string,
+      rosterDoc: FirebaseFirestore.QueryDocumentSnapshot,
+      includeCode: boolean
+    ): Promise<DirectoryEntry> => {
+      const data = rosterDoc.data();
+      const teacherUid = rosterDoc.ref.parent.parent?.id ?? '';
+      const teacherDisplayName = teacherUid
+        ? await resolveTeacherName(teacherUid)
+        : '';
+      return {
+        classId,
+        name: typeof data.name === 'string' ? data.name : classId,
+        teacherDisplayName,
+        subject:
+          typeof data.classlinkSubject === 'string'
+            ? data.classlinkSubject
+            : undefined,
+        code:
+          includeCode && typeof data.classlinkClassCode === 'string'
+            ? data.classlinkClassCode
+            : undefined,
+      };
+    };
+
+    // 1 + 2. Batched collectionGroup lookups: classlinkClassId first, then
+    // testClassId for whatever didn't resolve. Two `in` queries per field
+    // chunk replace what was up to 40 separate equality queries.
+    const classlinkMatches = await batchLookupByField(
+      'classlinkClassId',
+      classIds
+    );
+    const unresolvedAfterClasslink = classIds.filter(
+      (id) => !classlinkMatches.has(id)
+    );
+    const testIdMatches = await batchLookupByField(
+      'testClassId',
+      unresolvedAfterClasslink
+    );
+
+    // 3. Direct testClasses doc reads — only for classIds still unresolved
+    // after the two batched roster passes. These are the admin-managed
+    // test classes that no teacher has imported yet.
+    const unresolvedAfterTestId = unresolvedAfterClasslink.filter(
+      (id) => !testIdMatches.has(id)
+    );
+    const testClassDocs = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+    if (orgId && unresolvedAfterTestId.length > 0) {
+      const docs = await Promise.all(
+        unresolvedAfterTestId.map((id) =>
+          db
+            .doc(`organizations/${orgId}/testClasses/${id}`)
+            .get()
+            .catch(() => null)
+        )
+      );
+      for (let i = 0; i < unresolvedAfterTestId.length; i++) {
+        const d = docs[i];
+        if (d && d.exists) testClassDocs.set(unresolvedAfterTestId[i], d);
+      }
+    }
+
+    const entries = await Promise.all(
+      classIds.map(async (classId): Promise<DirectoryEntry | null> => {
+        const fromClasslink = classlinkMatches.get(classId);
+        if (fromClasslink) {
+          return buildEntryFromRoster(classId, fromClasslink, true);
+        }
+        const fromTestId = testIdMatches.get(classId);
+        if (fromTestId) {
+          return buildEntryFromRoster(classId, fromTestId, false);
+        }
+        const fromTestClassDoc = testClassDocs.get(classId);
+        if (fromTestClassDoc) {
+          const data = fromTestClassDoc.data() ?? {};
+          return {
+            classId,
+            name:
+              typeof data.title === 'string' && data.title.length > 0
+                ? data.title
+                : classId,
+            teacherDisplayName: '',
+            subject:
+              typeof data.subject === 'string' ? data.subject : undefined,
+          };
+        }
+        return null;
+      })
+    );
+
+    const classes = entries.filter((e): e is DirectoryEntry => e !== null);
+    return { classes };
+  }
+);
+
+/**
  * getPseudonymsForAssignmentV1
  *
  * Called by a teacher's client when rendering the grading view for an

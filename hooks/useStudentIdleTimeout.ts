@@ -14,6 +14,7 @@
 import { useEffect } from 'react';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
+import { clearStudentFirstName } from '@/context/StudentAuthContextValue';
 
 export const STUDENT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const INTERACTION_THROTTLE_MS = 5 * 1000;
@@ -31,6 +32,12 @@ export function useStudentIdleTimeout(
     let lastInteractionAt = Date.now();
 
     const triggerIdleSignOut = () => {
+      // Always clear the cached first name before tearing down the
+      // session — same hygiene as the explicit `signOut()` and the
+      // claim-rejection path. Without this, a tab that idles out on a
+      // shared cart leaves the previous student's greeting in
+      // sessionStorage until the next successful login overwrites it.
+      clearStudentFirstName();
       void firebaseSignOut(auth).catch(() => {
         // Swallow — redirect below is the actual remediation.
       });

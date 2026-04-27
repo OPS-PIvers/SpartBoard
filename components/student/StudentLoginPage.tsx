@@ -4,15 +4,22 @@ import { httpsCallable, FunctionsError } from 'firebase/functions';
 import { Loader2, GraduationCap, AlertCircle, Inbox } from 'lucide-react';
 import { auth, functions } from '@/config/firebase';
 import { APP_NAME } from '@/config/constants';
+import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
 
 /**
  * Student login page (Phase 2A of the ClassLink-via-Google auth flow).
  *
- * This page is intentionally PII-free on the client:
- *   - We never render, log, or persist the student's email, name, or `sub`.
- *   - The Google ID token is passed directly to `studentLoginV1` and discarded.
+ * This page is intentionally Firestore-PII-free:
+ *   - We never log or persist the student's email or `sub` — anywhere.
+ *   - The Google ID token is passed to `studentLoginV1` and discarded.
  *   - Firebase Auth only ever sees the minted custom token, which contains an
  *     opaque pseudonym UID.
+ *
+ * The one personalization we keep: extracting the student's first name from
+ * the ID token at sign-in time and parking it in tab-scoped `sessionStorage`
+ * for the sidebar greeting on `/my-assignments`. The name never leaves the
+ * tab — never written to Firestore, never sent to any server we own, and
+ * cleared on `signOut()` (see `StudentAuthContext`).
  *
  * We use Google Identity Services (GIS) directly — NOT
  * `signInWithPopup(googleProvider)` — because the built-in provider writes
@@ -71,6 +78,64 @@ declare global {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Decode the student's first name from the Google ID token. The token's
+// signature has already been verified by GIS (the SDK rejects tampered
+// tokens before invoking our callback). We parse the payload purely to
+// read `given_name` (preferred) or fall back to the first word of `name`.
+//
+// The result is stored in tab-scoped `sessionStorage` and is the *only*
+// piece of student PII that ever survives the verifying step. It's
+// cleared on `signOut()` and never written to Firestore.
+// ---------------------------------------------------------------------------
+
+const base64UrlDecode = (input: string): string => {
+  const base64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = base64.length % 4 === 0 ? 0 : 4 - (base64.length % 4);
+  // `atob` interprets the decoded bytes as Latin-1, which garbles any
+  // non-ASCII glyph in the JWT payload (accented student names, non-Latin
+  // scripts). Pipe through TextDecoder so the JSON parses as UTF-8.
+  const binary = atob(base64 + '='.repeat(pad));
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+};
+
+const extractFirstNameFromIdToken = (idToken: string): string | null => {
+  try {
+    const parts = idToken.split('.');
+    if (parts.length !== 3) return null;
+    const json = base64UrlDecode(parts[1]);
+    const payload = JSON.parse(json) as Record<string, unknown>;
+    const givenName =
+      typeof payload.given_name === 'string' ? payload.given_name.trim() : '';
+    if (givenName.length > 0) return givenName;
+    const fullName =
+      typeof payload.name === 'string' ? payload.name.trim() : '';
+    if (fullName.length > 0) {
+      const first = fullName.split(/\s+/)[0];
+      if (first && first.length > 0) return first;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const persistFirstName = (idToken: string): void => {
+  if (typeof window === 'undefined') return;
+  const first = extractFirstNameFromIdToken(idToken);
+  try {
+    if (first && first.length > 0 && first.length <= 60) {
+      window.sessionStorage.setItem(STUDENT_FIRST_NAME_KEY, first);
+    } else {
+      window.sessionStorage.removeItem(STUDENT_FIRST_NAME_KEY);
+    }
+  } catch {
+    // Privacy mode / disabled storage — non-fatal. Footer falls back to
+    // the generic "Signed in" copy.
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Response + error-code shapes for the studentLoginV1 callable.
@@ -209,6 +274,11 @@ const StudentLoginPage: React.FC = () => {
           setStatus({ kind: 'error', error: 'generic' });
           return;
         }
+
+        // Capture the first name into tab-scoped sessionStorage BEFORE
+        // we drop the ID token. Cleared on signOut(); never sent to
+        // Firestore. See class-doc at top of file.
+        persistFirstName(response.credential);
 
         await signInWithCustomToken(auth, customToken);
         setStatus({ kind: 'success' });
