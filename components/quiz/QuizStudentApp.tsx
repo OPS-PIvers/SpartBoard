@@ -125,6 +125,11 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   // below from triggering twice in StrictMode and keeps the form invisible
   // while the lookup+join is in flight.
   const ssoAutoJoinStartedRef = useRef(false);
+  // Local error state for SSO auto-join. The hook's `error` state only fires
+  // from `joinQuizSession` itself; if `lookupSession` throws first (network
+  // failure, Firestore unavailable) the hook stays silent, so without this
+  // the student would sit on the "Joining quiz…" loader forever.
+  const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
 
   const {
     session,
@@ -186,9 +191,16 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
         await joinQuizSession(urlCode, undefined, autoClassPeriod);
         setJoined(true);
       } catch (err) {
-        // The hook's `error` state surfaces the message in the UI; we only
-        // log here to aid debugging shared-device sign-in issues.
         console.warn('[QuizStudentApp] SSO auto-join failed:', err);
+        // Surface the failure to the UI. Either step (lookupSession or
+        // joinQuizSession) can throw; if it was joinQuizSession the hook's
+        // own `error` state will also be populated, and the render branch
+        // below prefers that more detailed message when available.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your quiz. Please refresh and try again.";
+        setSsoAutoJoinError(message);
         // Re-arm so a retry button (if added later) can re-trigger.
         ssoAutoJoinStartedRef.current = false;
       }
@@ -293,16 +305,21 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   // Not yet joined
   if (!joined || !session) {
     // SSO students never see the PIN form — the auto-join effect above
-    // handles them. Show a quiet loader (or the error if lookup failed)
-    // until `joined` flips. Periods picker is rendered earlier in the
-    // function and short-circuits before we reach this branch.
+    // handles them. Show a quiet loader (or the error if lookup/join
+    // failed) until `joined` flips. Periods picker is rendered earlier in
+    // the function and short-circuits before we reach this branch.
+    //
+    // Prefer the hook's `error` (more specific, e.g. attempt-limit reached)
+    // when available, falling back to `ssoAutoJoinError` which captures
+    // failures from `lookupSession` that never reach the hook.
     if (isStudentRole) {
-      if (error) {
+      const ssoError = error ?? ssoAutoJoinError;
+      if (ssoError) {
         return (
           <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
             <AlertCircle className="w-10 h-10 text-red-400" />
             <p className="text-slate-300 text-sm text-center max-w-sm">
-              {error}
+              {ssoError}
             </p>
           </div>
         );

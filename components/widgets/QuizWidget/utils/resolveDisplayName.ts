@@ -29,7 +29,7 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 
 /** Fallback rendered when no name source resolves. */
-export const ANONYMOUS_SSO_LABEL = 'Student';
+export const UNKNOWN_STUDENT_LABEL = 'Student';
 
 /**
  * Resolve a friendly display name for a response. See module docstring for
@@ -51,7 +51,7 @@ export function resolveResponseDisplayName(
     return `PIN ${response.pin}`;
   }
 
-  return ANONYMOUS_SSO_LABEL;
+  return UNKNOWN_STUDENT_LABEL;
 }
 
 /**

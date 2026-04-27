@@ -51,10 +51,10 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
     matchesMe(entry, myPin, myStudentUid)
   );
   const topFive = entries.slice(0, 5);
-  const isMyPinInTopFive = topFive.some((entry) =>
+  const isMeInTopFive = topFive.some((entry) =>
     matchesMe(entry, myPin, myStudentUid)
   );
-  const rows = isMyPinInTopFive
+  const rows = isMeInTopFive
     ? topFive
     : myEntry
       ? [...entries.slice(0, 4), myEntry]
@@ -68,7 +68,7 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
       <div className="space-y-2">
         {rows.map((entry, index) => {
           const isMine = matchesMe(entry, myPin, myStudentUid);
-          const showDivider = !isMyPinInTopFive && index === 4;
+          const showDivider = !isMeInTopFive && index === 4;
           // Stable per-entry key: pin for anonymous joiners, studentUid for
           // SSO joiners. Combined with rank to disambiguate in the rare case
           // of duplicate identifiers (e.g. legacy data).

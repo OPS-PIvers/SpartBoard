@@ -51,10 +51,7 @@ import {
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import {
-  useAssignmentPseudonyms,
-  formatStudentName,
-} from '@/hooks/useAssignmentPseudonyms';
+import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
 
 interface QuizResultsProps {
   quiz: QuizData;
@@ -1030,14 +1027,11 @@ const StudentsTab: React.FC<{
               pinToName,
               byStudentUid
             );
-            // "Resolved" = a real name was found (ClassLink or roster PIN
-            // match), as opposed to the literal `PIN <num>` or `Student`
-            // fallback. Drives the mono-face vs sans-face decision below.
-            const classLinkName = formatStudentName(
-              byStudentUid.get(r.studentUid)
-            );
-            const rosterName = r.pin ? pinToName[r.pin] : undefined;
-            const isResolved = Boolean(classLinkName || rosterName);
+            // Mono face is reserved for the literal `PIN <num>` fallback —
+            // anything else (real name, ClassLink name, or the "Student"
+            // SSO fallback) renders in the regular sans face. Mirrors the
+            // contract used by QuizLiveMonitor's StudentRow.
+            const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
             const rowKey = getResponseDocKey(r);
             const canDelete = Boolean(onDeleteResponse);
             const isConfirming = confirmDeleteKey === rowKey;

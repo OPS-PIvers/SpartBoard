@@ -708,9 +708,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           throw new Error('Anonymous auth failed — no current user.');
         const studentUid = currentUser.uid;
 
-        // PIN is required only for anonymous joiners. SSO `studentRole`
-        // users identify by `auth.uid` (carried in `studentUid` and used as
-        // the response doc key by `computeResponseKey`).
+        // Contract: PIN is required iff the caller is an anonymous Firebase
+        // user. Anonymous joiners arrived via the public `/join` /
+        // `/quiz?code=…` URL with no other identity, so the PIN is what
+        // ties them to a roster row. Non-anonymous joiners (SSO
+        // `studentRole` from `/my-assignments`, plus dev auth-bypass) carry
+        // a stable uid in `auth.uid` — `computeResponseKey` keys their
+        // response doc by that uid, and Firestore rules are the source of
+        // truth for whether the uid is actually allowed to write.
         const sanitizedPin = (pin ?? '').trim().substring(0, 10);
         if (currentUser.isAnonymous && !sanitizedPin) {
           throw new Error('PIN is required');
