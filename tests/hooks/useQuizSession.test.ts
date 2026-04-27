@@ -6,9 +6,15 @@ import {
   gradeAnswer,
   toPublicQuestion,
   useQuizSessionStudent,
+  useQuizSessionTeacher,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
-import type { QuizQuestion, QuizSession } from '@/types';
+import type {
+  QuizQuestion,
+  QuizResponse,
+  QuizSession,
+  QuizPublicQuestion,
+} from '@/types';
 
 vi.mock('firebase/firestore');
 vi.mock('firebase/auth', () => ({
@@ -520,5 +526,545 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
         result.current.joinQuizSession('ABC123', '1234')
       ).rejects.toThrow('Backend unavailable.');
     });
+  });
+});
+
+// ─── Teacher hook ─────────────────────────────────────────────────────────────
+
+const DELETE_FIELD_SENTINEL = Symbol('__deleteField__');
+
+type SnapshotCallback = (snap: unknown) => void;
+
+interface TeacherMockEnv {
+  /** Latest captured session-doc snapshot callback. */
+  sessionCallback: SnapshotCallback | null;
+  /** Latest captured responses-collection snapshot callback. */
+  responsesCallback: SnapshotCallback | null;
+  /** All `doc(...)` calls in argument-array form (post-db). */
+  docCalls: unknown[][];
+  /** All `collection(...)` calls in argument-array form (post-db). */
+  collectionCalls: unknown[][];
+  /** Mock writeBatch instance the hook will use during finalize. */
+  batch: { update: ReturnType<typeof vi.fn>; commit: ReturnType<typeof vi.fn> };
+}
+
+/**
+ * Wire up the firebase/firestore mocks for the teacher hook.
+ *
+ * The teacher hook subscribes via two `onSnapshot` calls — first to the
+ * session doc, then (gated on `hasSession`) to the responses subcollection.
+ * We capture each callback so tests can drive state transitions
+ * deterministically (no fake timers needed).
+ */
+function setupTeacherMocks(): TeacherMockEnv {
+  const env: TeacherMockEnv = {
+    sessionCallback: null,
+    responsesCallback: null,
+    docCalls: [],
+    collectionCalls: [],
+    batch: {
+      update: vi.fn(),
+      commit: vi.fn().mockResolvedValue(undefined),
+    },
+  };
+
+  (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (...args: unknown[]) => {
+      // Drop the db ref (first arg) — tests assert on the path segments.
+      env.docCalls.push(args.slice(1));
+      return { __type: 'doc', path: args.slice(1) };
+    }
+  );
+  (
+    firestore.collection as unknown as ReturnType<typeof vi.fn>
+  ).mockImplementation((...args: unknown[]) => {
+    env.collectionCalls.push(args.slice(1));
+    return { __type: 'collection', path: args.slice(1) };
+  });
+
+  let snapshotCallIndex = 0;
+  (
+    firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+  ).mockImplementation((_target: unknown, onNext: SnapshotCallback) => {
+    if (snapshotCallIndex === 0) env.sessionCallback = onNext;
+    else env.responsesCallback = onNext;
+    snapshotCallIndex += 1;
+    return vi.fn();
+  });
+
+  (
+    firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+  ).mockResolvedValue(undefined);
+  (
+    firestore.deleteDoc as unknown as ReturnType<typeof vi.fn>
+  ).mockResolvedValue(undefined);
+  (
+    firestore.deleteField as unknown as ReturnType<typeof vi.fn>
+  ).mockReturnValue(DELETE_FIELD_SENTINEL);
+  (firestore.writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+    env.batch
+  );
+
+  return env;
+}
+
+interface ResponseDocFixture {
+  id: string;
+  data: QuizResponse;
+}
+
+function buildResponseDocs(fixtures: ResponseDocFixture[]) {
+  return fixtures.map((f) => ({
+    id: f.id,
+    ref: {
+      __type: 'doc',
+      path: ['quiz_sessions', 'sess-1', 'responses', f.id],
+    },
+    data: () => f.data,
+  }));
+}
+
+function buildSession(
+  partial: Partial<QuizSession> & { status: QuizSession['status'] }
+): QuizSession {
+  // Cast through unknown — only the fields the hook reads are required for
+  // these unit tests, and inventing a fully-typed session would make the
+  // fixtures noisy without exercising additional code paths.
+  return {
+    code: 'ABC123',
+    publicQuestions: [] as QuizPublicQuestion[],
+    currentQuestionIndex: 0,
+    totalQuestions: 0,
+    sessionMode: 'auto',
+    showPodiumBetweenQuestions: false,
+    revealedAnswers: {},
+    autoProgressAt: null,
+    startedAt: null,
+    endedAt: null,
+    questionPhase: 'answering',
+    ...partial,
+  } as unknown as QuizSession;
+}
+
+describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', () => {
+  let env: TeacherMockEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env = setupTeacherMocks();
+  });
+
+  it('deletes the response doc keyed by responseKey (not studentUid)', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      // PIN-derived key — distinct from any studentUid value in the doc.
+      await result.current.removeStudent('pin-period_1-9999');
+    });
+
+    expect(firestore.deleteDoc).toHaveBeenCalledTimes(1);
+    // Confirm the path segments target the responses subcollection at the
+    // PIN-derived key, which is what the teacher monitor passes in.
+    const lastDocCall = env.docCalls.at(-1);
+    expect(lastDocCall).toEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+    ]);
+  });
+
+  it('removeStudent is a no-op when sessionId is null', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher(null));
+
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-9999');
+    });
+
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+  });
+
+  it('revealAnswer writes a dotted-path map entry on the session doc', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.revealAnswer('q-7', 'Paris');
+    });
+
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
+    const updatePayload = (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1];
+    expect(updatePayload).toEqual({ 'revealedAnswers.q-7': 'Paris' });
+  });
+
+  it('hideAnswer writes deleteField() at the dotted path', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.hideAnswer('q-7');
+    });
+
+    expect(firestore.deleteField).toHaveBeenCalledTimes(1);
+    const updatePayload = (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1];
+    expect(updatePayload).toEqual({
+      'revealedAnswers.q-7': DELETE_FIELD_SENTINEL,
+    });
+  });
+});
+
+describe('useQuizSessionTeacher — endQuizSession', () => {
+  let env: TeacherMockEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env = setupTeacherMocks();
+  });
+
+  it('flips the session to ended and finalizes only joined / in-progress responses', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      docs: buildResponseDocs([
+        {
+          id: 'pin-default-aaa',
+          data: {
+            studentUid: 'a',
+            pin: 'aaa',
+            joinedAt: 1,
+            status: 'in-progress',
+            answers: [],
+            score: null,
+            submittedAt: null,
+          } as QuizResponse,
+        },
+        {
+          id: 'pin-default-bbb',
+          data: {
+            studentUid: 'b',
+            pin: 'bbb',
+            joinedAt: 2,
+            status: 'joined',
+            answers: [],
+            score: null,
+            submittedAt: null,
+          } as QuizResponse,
+        },
+        {
+          id: 'pin-default-ccc',
+          data: {
+            studentUid: 'c',
+            pin: 'ccc',
+            joinedAt: 3,
+            status: 'completed',
+            answers: [],
+            score: null,
+            submittedAt: 999,
+          } as QuizResponse,
+        },
+      ]),
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    const before = Date.now();
+    await act(async () => {
+      await result.current.endQuizSession();
+    });
+    const after = Date.now();
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const sessionPatch = updateMock.mock.calls[0][1] as {
+      status: string;
+      endedAt: number;
+      autoProgressAt: null;
+    };
+    expect(sessionPatch.status).toBe('ended');
+    expect(sessionPatch.autoProgressAt).toBeNull();
+    expect(sessionPatch.endedAt).toBeGreaterThanOrEqual(before);
+    expect(sessionPatch.endedAt).toBeLessThanOrEqual(after);
+
+    // finalizeAllResponses must touch only the two non-completed docs.
+    expect(env.batch.update).toHaveBeenCalledTimes(2);
+    const updateCalls = env.batch.update.mock.calls as Array<
+      [{ path: string[] }, { status: string; submittedAt: unknown }]
+    >;
+    const updatedRefs = updateCalls.map((c) => c[0].path[3]);
+    expect(updatedRefs).toEqual(
+      expect.arrayContaining(['pin-default-aaa', 'pin-default-bbb'])
+    );
+    expect(updatedRefs).not.toContain('pin-default-ccc');
+    for (const call of updateCalls) {
+      expect(call[1]).toMatchObject({ status: 'completed' });
+      expect(typeof call[1].submittedAt).toBe('number');
+    }
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the batch commit when no responses need finalizing', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      docs: buildResponseDocs([
+        {
+          id: 'pin-default-ccc',
+          data: {
+            studentUid: 'c',
+            pin: 'ccc',
+            joinedAt: 3,
+            status: 'completed',
+            answers: [],
+            score: null,
+            submittedAt: 999,
+          } as QuizResponse,
+        },
+      ]),
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.endQuizSession();
+    });
+
+    expect(env.batch.update).not.toHaveBeenCalled();
+    expect(env.batch.commit).not.toHaveBeenCalled();
+  });
+
+  it('endQuizSession is a no-op when sessionId is null', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher(null));
+
+    await act(async () => {
+      await result.current.endQuizSession();
+    });
+
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+  });
+});
+
+describe('useQuizSessionTeacher — advanceQuestion', () => {
+  let env: TeacherMockEnv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    env = setupTeacherMocks();
+  });
+
+  /** Drive the session listener to populate hook state with `session`. */
+  function emitSession(session: QuizSession) {
+    if (!env.sessionCallback) {
+      throw new Error('Session listener was never subscribed');
+    }
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => session,
+      });
+    });
+  }
+
+  it('returns early without writing when no session has loaded yet', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('enters the review phase when podium-between is enabled and not yet reviewing', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 5,
+        sessionMode: 'auto',
+        showPodiumBetweenQuestions: true,
+        questionPhase: 'answering',
+      })
+    );
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(updateMock.mock.calls[0][1]).toEqual({
+      questionPhase: 'reviewing',
+      autoProgressAt: null,
+    });
+  });
+
+  it('skips the review-phase gate for student-paced sessions', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 5,
+        sessionMode: 'student',
+        showPodiumBetweenQuestions: true,
+        questionPhase: 'answering',
+        startedAt: 1234,
+      })
+    );
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    // Should advance directly, not enter review.
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch.currentQuestionIndex).toBe(1);
+    expect(patch.questionPhase).toBe('answering');
+    expect(patch).not.toHaveProperty('startedAt');
+  });
+
+  it('advances to the next question and sets startedAt on the first advance', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        sessionMode: 'auto',
+        showPodiumBetweenQuestions: false,
+        startedAt: null,
+      })
+    );
+
+    const before = Date.now();
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+    const after = Date.now();
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch.status).toBe('active');
+    expect(patch.currentQuestionIndex).toBe(1);
+    expect(patch.questionPhase).toBe('answering');
+    expect(patch.autoProgressAt).toBeNull();
+    expect(typeof patch.startedAt).toBe('number');
+    expect(patch.startedAt as number).toBeGreaterThanOrEqual(before);
+    expect(patch.startedAt as number).toBeLessThanOrEqual(after);
+  });
+
+  it('does not overwrite startedAt on subsequent advances', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 1,
+        totalQuestions: 3,
+        sessionMode: 'auto',
+        showPodiumBetweenQuestions: false,
+        startedAt: 5555,
+      })
+    );
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    const patch = (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][1] as Record<string, unknown>;
+    expect(patch).not.toHaveProperty('startedAt');
+    expect(patch.currentQuestionIndex).toBe(2);
+  });
+
+  it('passes through the review gate when already in the reviewing phase', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        sessionMode: 'auto',
+        showPodiumBetweenQuestions: true,
+        questionPhase: 'reviewing',
+        startedAt: 1000,
+      })
+    );
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    const patch = (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls[0][1] as Record<string, unknown>;
+    // Already reviewing → must advance to next question, not re-enter review.
+    expect(patch.currentQuestionIndex).toBe(1);
+    expect(patch.questionPhase).toBe('answering');
+  });
+
+  it('flips the session to ended and finalizes responses when advancing past the last question', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      docs: buildResponseDocs([
+        {
+          id: 'pin-default-aaa',
+          data: {
+            studentUid: 'a',
+            pin: 'aaa',
+            joinedAt: 1,
+            status: 'in-progress',
+            answers: [],
+            score: null,
+            submittedAt: null,
+          } as QuizResponse,
+        },
+      ]),
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 2, // last index — advancing rolls past the end
+        totalQuestions: 3,
+        sessionMode: 'auto',
+        showPodiumBetweenQuestions: false,
+        startedAt: 1000,
+      })
+    );
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    const updateMock = firestore.updateDoc as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(patch.status).toBe('ended');
+    expect(patch.currentQuestionIndex).toBe(3);
+    expect(patch.autoProgressAt).toBeNull();
+    expect(patch.questionPhase).toBe(DELETE_FIELD_SENTINEL);
+    expect(typeof patch.endedAt).toBe('number');
+
+    // finalizeAllResponses ran inside the same advance call.
+    expect(env.batch.update).toHaveBeenCalledTimes(1);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
   });
 });

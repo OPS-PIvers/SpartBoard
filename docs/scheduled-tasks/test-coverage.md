@@ -4,18 +4,13 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-04-22_
-_Last action: 2026-04-22_
+_Last action: 2026-04-27_
 
 ---
 
 ## In Progress
 
-### HIGH hooks/ coverage — `useQuizSessionTeacher` teacher-side action tests
-
-- **Detected:** 2026-04-13 (parent: HIGH `hooks/ coverage` partial-progress entry below)
-- **Started:** 2026-04-27
-- **File:** hooks/useQuizSession.ts, tests/hooks/useQuizSession.test.ts
-- **Plan:** Add Vitest coverage for the teacher-side actions of `useQuizSessionTeacher`: `removeStudent` (deleteDoc by responseKey), `revealAnswer`/`hideAnswer` (updateDoc with dotted path / deleteField sentinel), `endQuizSession` (status='ended', endedAt set, finalizeAllResponses sweeps in-progress and joined responses), and `advanceQuestion` (review-phase gate when showPodiumBetweenQuestions is set; advance-to-next-index path; advance-past-end path that flips status to 'ended' and finalizes responses; student-paced mode skips review). Use the same mocked `firebase/firestore` pattern as the existing student-side tests in this file.
+_Nothing currently in progress._
 
 ---
 
@@ -24,9 +19,10 @@ _Last action: 2026-04-22_
 ### HIGH hooks/ coverage — session hooks still missing tests (partial progress)
 
 - **Detected:** 2026-04-13
+- **Progress (2026-04-27):** Added test coverage for `useQuizSessionTeacher` (16 tests). Covers `removeStudent` (deleteDoc-by-responseKey path + null-sessionId no-op), `revealAnswer` (dotted-path updateDoc), `hideAnswer` (deleteField sentinel at dotted path), `endQuizSession` (status='ended' + endedAt + autoProgressAt-null patch, finalizeAllResponses sweep that touches only joined/in-progress responses and skips already-completed ones, no batch.commit when nothing needs finalizing, null-sessionId no-op), and `advanceQuestion` (no-op before session loads, review-phase gate when `showPodiumBetweenQuestions` is enabled, student-paced mode skipping review, advance-to-next-index path, `startedAt` set on first advance and preserved on later ones, pass-through when already in `reviewing` phase, and the advance-past-end path that flips to 'ended' + clears `questionPhase` via `deleteField` + invokes `finalizeAllResponses`). Test count for this file is now 40 (24 prior + 16 new). The auto-progress effect is the remaining untested teacher-side path; deferred because driving it requires a real-time mock of the responses subcollection callback in tandem with the session state.
 - **Progress (2026-04-22):** Added test coverage for `useQuizSession.ts` (24 tests). Covers pure helpers (`normalizeAnswer`, `gradeAnswer` across MC/FIB/Matching/Ordering, `toPublicQuestion` including `correctAnswer` strip-off for each question type) and `useQuizSessionStudent` student-join logic (`lookupSession` empty/no-match/all-ended/joinable-picker paths; `joinQuizSession` invalid-code/empty-PIN/no-session/all-ended throws, most-recent-joinable selection, PIN truncation to 10 chars, code normalization, and `classPeriod` backfill on existing responses).
 - **Progress (2026-04-20):** Added initial test coverage for `useLiveSession.ts` (9 tests covering `joinSession` input validation and sanitization — code normalization, PIN truncation, duplicate-PIN rejection, self-rejoin allowance, and all error paths). Also confirmed pre-existing coverage for `useGuidedLearningSession.ts` (pure-helper test) and `useGoogleDrive.ts` / `useStorage.ts` (full test files in `tests/hooks/`). Remaining critical hooks with zero coverage:
-  - `useQuizSession.ts` — teacher-side flows (`useQuizSessionTeacher`: `advanceQuestion`, `endQuizSession`, `removeStudent`, `revealAnswer`/`hideAnswer`, auto-progress effect) still untested
+  - `useQuizSession.ts` — teacher-side action tests landed 2026-04-27 (advance/end/reveal/remove). Auto-progress effect (responses-listener-driven) still untested.
   - `useVideoActivity.ts` / `useVideoActivitySession.ts` — video activity session management
   - `useMiniAppSession.ts` — mini-app assignment session lifecycle
   - `useRosters.ts` — roster CRUD, student list management
@@ -36,7 +32,7 @@ _Last action: 2026-04-22_
   - `useScreenRecord.ts` — screen recording lifecycle
   - `useLiveSession.ts` — needs deeper coverage (teacher actions: `startSession`, `updateSessionConfig`, `endSession`, `toggleFreezeStudent`, `toggleGlobalFreeze`)
 - **File:** hooks/ directory
-- **Fix:** Next priority: expand `useQuizSession.ts` to cover `useQuizSessionTeacher` (advance/end/reveal/remove-student), then expand `useLiveSession` to cover teacher-mode actions. Use Vitest with mock Firebase adapters. See `tests/hooks/useLiveSession.test.ts` and `tests/hooks/useQuizSession.test.ts` as reference patterns.
+- **Fix:** Next priority: cover `useQuizSession`'s auto-progress effect (drive both `onSnapshot` callbacks so the responses-listener-driven advance fires), then expand `useLiveSession` to cover teacher-mode actions (`startSession`, `updateSessionConfig`, `endSession`, `toggleFreezeStudent`, `toggleGlobalFreeze`). Use Vitest with mock Firebase adapters. See `tests/hooks/useLiveSession.test.ts` and the `useQuizSessionTeacher` block in `tests/hooks/useQuizSession.test.ts` as reference patterns.
 
 ### MEDIUM utils/ coverage — 28 of 41 utility files have no tests
 
