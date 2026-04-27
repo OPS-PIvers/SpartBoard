@@ -217,3 +217,33 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1393 head SHA `969c5cfa` — 6 markdown journals; date-only changes plus one new MEDIUM finding (generateGuidedLearning post-#1368 regression) and one new LOW finding (useScreenRecord/useLiveSession state density)
   - PR #1366 head SHA `7ffde284` — unchanged from previous entries; 9/9 CI checks green including CodeQL
   - Branch-safety: no head branches match `main` or `dev-*`; all 5 PRs eligible for pushes, but no pushes were needed this run
+
+## 2026-04-27
+
+- PRs reviewed:
+  - #1429 — test(useQuizSession): cover useQuizSessionTeacher actions (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+  - #1428 — fix: quiz menu callback types + dialog focus on destructive variants (head `claude/quiz-menu-and-dialog-hardening`, base `dev-paul`)
+  - #1422 — (dev-paul → main) Refactor quiz and PLC features with multiple fixes and enhancements (head `dev-paul`, base `main`) — read-only for pushes per branch-safety
+  - #1414 — chore(plcs): retire VITE_ENABLE_PLCS dev feature flag (head `claude/adoring-ramanujan-cr4CY`, base `main`, DRAFT)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 11 inline review threads + 5 PR-level issue comments — 0 new fixes, all already addressed by prior author replies
+  - PR #1429: 0 inline threads; 1 bot summary review (gemini) with no findings
+  - PR #1428: 0 inline threads; 2 bot summary reviews (gemini + copilot) with no findings
+  - PR #1422: 2 inline threads (gemini) — both `is_outdated: true` and already replied to with "fixed in 163e577" (`useCallback` import + memoized `getManualResetUrl` for `ManualResetLinkModal`); 3 PR-level comments from OPS-PIvers flagging follow-up issues (AssignmentArchiveCard a11y, PlcInviteAcceptance stuck-state, hardcoded `CLAIM_URL_ORIGIN`) — surfaced into Phase 2 review
+  - PR #1414: 3 inline threads (1 gemini + 2 copilot) — all replied to: 2 fixed in `07cfae3` (lifted `usePlcs`/`usePlcInvitations` to Sidebar parent), 1 fixed in `693ebf3` (added `enabled?: boolean` option to both hooks); 1 PR-level OPS-PIvers comment about #1422 cross-PR coordination already on file
+  - PR #1366: 6 inline threads (all `is_outdated: true`) + 1 OPS-PIvers PR-level comment — all addressed in the current head doc since the 2026-04-21 iteration; previously confirmed across three prior automated runs
+- Fixes pushed: none
+  - No unaddressed comments required a code fix on any PR. All actionable gemini/copilot suggestions are already implemented in each PR's current head. The three flagged PR-level items on #1422 (a11y, stuck-state, CLAIM_URL_ORIGIN) were rolled into the Phase 2 review as merge-blocking notes since they affect production correctness and touch a `dev-paul → main` integration.
+- Reviews posted: 5
+  - PR #1429: Ready — 16 well-structured Vitest tests (~547 LoC) closing the `useQuizSessionTeacher` coverage gap (`removeStudent`, reveal/hide, `endQuizSession`, `advanceQuestion` including review-phase gate, startedAt-once, advance-past-end with finalize). Auto-progress effect remains the next gap, documented in `test-coverage.md`.
+  - PR #1428: Ready with minor notes — clean dialog safety + type-widening fix; suggested adding a Vitest covering the destructive-variant Enter-suppression + Cancel-autofocus contract so the UX guarantee is regression-protected.
+  - PR #1422: Needs changes — 89-file integration of PLCs + NeedDoPutThen widget + quiz hardening + reset-link modal + user-activity throttle. CI green and test discipline strong on most surfaces. Three blockers before merge to main: (1) author-flagged AssignmentArchiveCard `OverflowMenu` missing `aria-label` / `aria-haspopup` / `aria-expanded` / Escape handler (WCAG AA), (2) author-flagged `PlcInviteAcceptance` stuck `wrong-account` state after sign-out → sign-in (`if (load.kind !== 'idle') return;` guard short-circuits before re-fetch), (3) no `tests/rules/plc.test.ts` despite +255-line firestore.rules change for new PLC collections. Also flagged: hardcoded `CLAIM_URL_ORIGIN` in `plcInviteEmails.ts` breaks dev-preview testing; `DashboardContext.tsx` -28 net-line change warrants careful review of `getAdminBuildingConfig`; multi-feature dev-branch PR shape is a process observation worth discussing.
+  - PR #1414: Ready with minor notes — clean retirement of `VITE_ENABLE_PLCS` flag plus thoughtful listener consolidation (Sidebar owns single `usePlcs`/`usePlcInvitations` pair; `enabled: isOpen` pauses subscriptions when drawer closed; net 6 → 3 → 0 listener reduction). Two follow-ups: (1) coordinate workflow-level `# DEV-FLAG` cleanup with #1422's flag introduction, (2) add Vitest covering the `enabled: false` gate on both hooks.
+  - PR #1366: Ready — fourth automated daily review on this branch with no content change since 2026-04-21; nothing material to add. All six prior threads still addressed. Plan execution still gated on "no open PRs" precondition (5 open today, so not yet eligible).
+- Notes:
+  - PR #1429 head SHA `9a27ff99` — tests + journal updates only; CI 7/7 green (Build, Unit Tests, E2E, Code Quality, Firestore Rules, Docker, summary)
+  - PR #1428 head SHA `e9c6c1dd` — 2 files (`DialogContainer.tsx` +6/-3, `QuizManager.tsx` +16/-16); CI 11/11 green
+  - PR #1422 head SHA `163e577f` — 89 files, +~9k LoC; new PLC subsystem (`hooks/usePlcs.ts`, `hooks/usePlcInvitations.ts`, `components/auth/PlcInviteAcceptance.tsx`, `functions/src/plcInviteEmails.ts`, `utils/plc.ts`), new `NeedDoPutThen` widget (Widget 706 LoC + Settings 379 LoC + admin panel 65 LoC + 4 config-file additions), quiz hardening (deterministic response-key + permission-denied legacy-key fallback + Drive export service), `firestore.rules` +255/-23, `types.ts` +150/-25, `context/DashboardContext.tsx` +38/-66, hooks: `useTestClassRosters.ts` deleted (-113); CI 7/7 green
+  - PR #1414 head SHA `693ebf39` — 4 files (`Sidebar.tsx` +44/-18, `SidebarPlcs.tsx` +19/-6, `usePlcInvitations.ts` +18/-5, `usePlcs.ts` +14/-3); CI 10/10 green
+  - PR #1366 head SHA `7ffde284` — unchanged since 2026-04-21; 9/9 CI checks green
+  - Branch-safety: PR #1422 is on `dev-paul` (matches `dev-*`) — pushes prohibited by policy, comment-only scope observed; the other 4 PRs are on safe branches
