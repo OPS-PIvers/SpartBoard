@@ -13,6 +13,12 @@ import {
 } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
+import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import {
+  resolveResponseDisplayName,
+  responseColorIndex,
+  responseTeamId,
+} from './resolveDisplayName';
 
 type QuizScoringSession =
   | Pick<QuizSession, 'speedBonusEnabled' | 'streakBonusEnabled'>
@@ -195,13 +201,20 @@ export function buildPinToExportNameMap(
 
 /**
  * Build scoreboard teams from quiz responses.
+ *
+ * `byStudentUid` (optional) supplies ClassLink names for SSO `studentRole`
+ * joiners that have no `pin`. When omitted, SSO rows fall back to the
+ * generic `Student` label (see `resolveResponseDisplayName`). For pin-mode
+ * scoreboards SSO rows render their resolved name regardless of mode,
+ * because the literal `PIN undefined` is never useful.
  */
 export function buildScoreboardTeams(
   completedResponses: QuizResponse[],
   questions: QuizQuestion[],
   mode: 'pin' | 'name',
   pinToName: Record<string, string>,
-  session?: QuizSession | null
+  session?: QuizSession | null,
+  byStudentUid?: Map<string, StudentName>
 ): ScoreboardTeam[] {
   return completedResponses
     .map((r) => ({
@@ -209,34 +222,47 @@ export function buildScoreboardTeams(
       score: getDisplayScore(r, questions, session),
     }))
     .sort((a, b) => b.score - a.score)
-    .map(({ response, score }) => ({
-      id: `pin-${response.pin}`,
-      name:
-        mode === 'name'
-          ? (pinToName[response.pin] ?? `PIN ${response.pin}`)
-          : `PIN ${response.pin}`,
-      score,
-      color:
-        SCOREBOARD_COLORS[
-          parseInt(response.pin, 10) % SCOREBOARD_COLORS.length
-        ],
-    }));
+    .map(({ response, score }) => {
+      const resolvedName = resolveResponseDisplayName(
+        response,
+        pinToName,
+        byStudentUid
+      );
+      const pinModeName = response.pin ? `PIN ${response.pin}` : resolvedName;
+      return {
+        id: responseTeamId(response),
+        name: mode === 'name' ? resolvedName : pinModeName,
+        score,
+        color:
+          SCOREBOARD_COLORS[
+            responseColorIndex(response, SCOREBOARD_COLORS.length)
+          ],
+      };
+    });
 }
 
 /**
  * Build ranked leaderboard entries for student-facing live leaderboard views.
+ *
+ * Mirrors `buildScoreboardTeams` for SSO support: `byStudentUid` resolves
+ * names for `studentRole` joiners. The leaderboard's `pin` field stays
+ * optional in the entry type — students see `name` (or `Student` fallback).
  */
 export function buildLiveLeaderboard(
   responses: QuizResponse[],
   questions: QuizQuestion[],
   session: QuizScoringSession,
-  pinToName: Record<string, string>
+  pinToName: Record<string, string>,
+  byStudentUid?: Map<string, StudentName>
 ): QuizLeaderboardEntry[] {
   return responses
     .filter((response) => response.status !== 'joined')
     .map((response) => ({
-      pin: response.pin,
-      name: pinToName[response.pin],
+      // `pin` is set only for anonymous joiners; SSO joiners use `studentUid`
+      // for self-identification on the student-side leaderboard view.
+      ...(response.pin ? { pin: response.pin } : {}),
+      studentUid: response.studentUid,
+      name: resolveResponseDisplayName(response, pinToName, byStudentUid),
       score: getDisplayScore(response, questions, session),
     }))
     .sort((a, b) => b.score - a.score)

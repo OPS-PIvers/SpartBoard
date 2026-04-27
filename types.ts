@@ -1760,7 +1760,14 @@ export interface QuizPublicQuestion {
 }
 
 export interface QuizLeaderboardEntry {
-  pin: string;
+  /** Optional — SSO `studentRole` joiners have no PIN; identity is `name`. */
+  pin?: string;
+  /**
+   * Auth uid of the student who owns this row. Lets the student-side
+   * leaderboard highlight "my row" for SSO joiners (whose `pin` is missing)
+   * by matching `auth.currentUser.uid` instead of a roster PIN.
+   */
+  studentUid?: string;
   name?: string;
   score: number;
   rank: number;
@@ -1907,8 +1914,13 @@ export interface QuizResponse {
   /**
    * Student's roster PIN. Teacher cross-references this with the Drive roster
    * to identify the student. No name or email is stored in Firestore.
+   *
+   * Optional because SSO `studentRole` joiners (launched from /my-assignments)
+   * have no PIN — their identity is `studentUid`, resolved to a name via
+   * `getPseudonymsForAssignmentV1` on the teacher side. Anonymous PIN joiners
+   * always set this field.
    */
-  pin: string;
+  pin?: string;
   joinedAt: number;
   status: QuizResponseStatus;
   answers: QuizResponseAnswer[];

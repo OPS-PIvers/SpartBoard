@@ -665,9 +665,19 @@ describe('quizScoreboard', () => {
         '01': 'Alice',
       });
 
+      // Roster-PIN match resolves to "Alice"; the unmapped row falls back to
+      // its literal `PIN <pin>` label rather than `undefined` so the student-
+      // side leaderboard always has something legible to render.
+      // `studentUid` is now also surfaced so SSO joiners can self-identify.
       expect(entries).toEqual([
-        { pin: '01', name: 'Alice', score: 100, rank: 1 },
-        { pin: '02', name: undefined, score: 0, rank: 2 },
+        { pin: '01', studentUid: 'uid-01', name: 'Alice', score: 100, rank: 1 },
+        {
+          pin: '02',
+          studentUid: 'uid-02',
+          name: 'PIN 02',
+          score: 0,
+          rank: 2,
+        },
       ]);
     });
 

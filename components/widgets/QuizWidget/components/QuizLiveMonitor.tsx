@@ -54,6 +54,8 @@ import {
   getScoreSuffix,
   isGamificationActive,
 } from '../utils/quizScoreboard';
+import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { db } from '@/config/firebase';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -272,6 +274,20 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       ),
     [rosters, config.periodNames, config.periodName]
   );
+  // ClassLink name resolution for SSO `studentRole` joiners. Empty for
+  // legacy code+PIN-only sessions (`classIds` and `classId` both unset);
+  // pinToName handles those rows. Use the multi variant so Phase 5A
+  // multi-class quizzes resolve names from any targeted class, not just
+  // the legacy `classIds[0]` shadowed onto `classId`.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
+    session.id,
+    sessionClassIds
+  );
   const scoringConfig = useMemo(
     () => ({
       speedBonusEnabled: session.speedBonusEnabled,
@@ -356,7 +372,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         responses,
         quizData.questions,
         scoringConfig,
-        pinToName
+        pinToName,
+        byStudentUid
       );
 
       const fingerprint = JSON.stringify(entries);
@@ -376,6 +393,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     responses,
     quizData.questions,
     pinToName,
+    byStudentUid,
     session.id,
     session.status,
     scoringConfig,
@@ -523,25 +541,32 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       let _inProgress = 0;
       let _joined = 0;
       const byStatus: {
-        joined: { pin: string; name: string }[];
-        active: { pin: string; name: string }[];
-        finished: { pin: string; name: string }[];
+        joined: StatBoxStudent[];
+        active: StatBoxStudent[];
+        finished: StatBoxStudent[];
       } = { joined: [], active: [], finished: [] };
 
       for (const r of responses) {
         if (currentQ && r.answers.some((a) => a.questionId === currentQ.id)) {
           _answered++;
         }
-        const name = pinToName[r.pin] ?? `PIN ${r.pin}`;
+        const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+        // SSO joiners have no PIN — key the stat-row by studentUid so React
+        // gets a stable, unique key. Either side guarantees uniqueness
+        // within a session.
+        const row: StatBoxStudent = {
+          key: r.pin ?? r.studentUid,
+          name,
+        };
         if (r.status === 'completed') {
           _completed++;
-          byStatus.finished.push({ pin: r.pin, name });
+          byStatus.finished.push(row);
         } else if (r.status === 'in-progress') {
           _inProgress++;
-          byStatus.active.push({ pin: r.pin, name });
+          byStatus.active.push(row);
         } else if (r.status === 'joined') {
           _joined++;
-          byStatus.joined.push({ pin: r.pin, name });
+          byStatus.joined.push(row);
         }
       }
 
@@ -552,7 +577,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         joined: _joined,
         studentsByStatus: byStatus,
       };
-    }, [responses, currentQ, pinToName]);
+    }, [responses, currentQ, pinToName, byStudentUid]);
 
   const modeIcon =
     session.sessionMode === 'auto' ? (
@@ -986,6 +1011,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   questions={quizData.questions}
                   session={session}
                   pinToName={pinToName}
+                  byStudentUid={byStudentUid}
                   onDismiss={() => {
                     /* persists until teacher clicks advance */
                   }}
@@ -1293,7 +1319,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     >
                       {responses
                         .slice()
-                        .sort((a, b) => a.pin.localeCompare(b.pin))
+                        .sort((a, b) =>
+                          (a.pin ?? '').localeCompare(b.pin ?? '')
+                        )
                         .map((r) => (
                           <StudentRow
                             key={r.studentUid}
@@ -1326,6 +1354,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                 : undefined
                             }
                             pinToName={pinToName}
+                            byStudentUid={byStudentUid}
                           />
                         ))}
                     </div>
@@ -1671,7 +1700,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     >
                       {responses
                         .slice()
-                        .sort((a, b) => a.pin.localeCompare(b.pin))
+                        .sort((a, b) =>
+                          (a.pin ?? '').localeCompare(b.pin ?? '')
+                        )
                         .map((r) => (
                           <StudentRow
                             key={r.studentUid}
@@ -1704,6 +1735,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                 : undefined
                             }
                             pinToName={pinToName}
+                            byStudentUid={byStudentUid}
                           />
                         ))}
                     </div>
@@ -1815,6 +1847,16 @@ const StatBox: React.FC<{
   );
 };
 
+/**
+ * Row shape passed to `InteractiveStatBox`. `key` is whatever uniquely
+ * identifies the student within the session — `pin` for anonymous joiners,
+ * `studentUid` for SSO joiners.
+ */
+interface StatBoxStudent {
+  key: string;
+  name: string;
+}
+
 const InteractiveStatBox: React.FC<{
   label: string;
   value: number;
@@ -1822,7 +1864,7 @@ const InteractiveStatBox: React.FC<{
   color: 'blue' | 'amber' | 'green';
   expanded: boolean;
   onToggle: () => void;
-  students: { pin: string; name: string }[];
+  students: StatBoxStudent[];
 }> = ({ label, value, icon, color, expanded, onToggle, students }) => {
   const themes = {
     blue: 'bg-brand-blue-lighter border-brand-blue-primary/10 text-brand-blue-primary',
@@ -1880,7 +1922,7 @@ const InteractiveStatBox: React.FC<{
         >
           {students.map((s) => (
             <p
-              key={s.pin}
+              key={s.key}
               className="truncate font-bold"
               style={{
                 fontSize: 'min(10px, 2.8cqmin)',
@@ -1907,6 +1949,10 @@ const StudentRow: React.FC<{
   onConfirmRemoveToggle: () => void;
   onRemove?: () => void;
   pinToName: Record<string, string>;
+  byStudentUid?: Map<
+    string,
+    import('@/hooks/useAssignmentPseudonyms').StudentName
+  >;
 }> = ({
   response,
   totalQuestions,
@@ -1918,6 +1964,7 @@ const StudentRow: React.FC<{
   onConfirmRemoveToggle,
   onRemove,
   pinToName,
+  byStudentUid,
 }) => {
   const warnings = response.tabSwitchWarnings ?? 0;
 
@@ -1960,9 +2007,11 @@ const StudentRow: React.FC<{
     joined: 'text-brand-gray-primary font-medium',
   };
 
-  const displayName = pinToName[response.pin]
-    ? pinToName[response.pin]
-    : `PIN ${response.pin}`;
+  const displayName = resolveResponseDisplayName(
+    response,
+    pinToName,
+    byStudentUid
+  );
 
   if (confirmRemove) {
     return (
@@ -2019,7 +2068,16 @@ const StudentRow: React.FC<{
         className="flex-1 flex items-center gap-1.5 text-brand-blue-dark font-bold truncate"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
-        <span className={pinToName[response.pin] ? '' : 'font-mono'}>
+        <span
+          className={
+            // Use the mono face only when we're rendering a literal `PIN <num>`
+            // fallback (no roster or ClassLink name resolved) — names should
+            // render in the regular sans face.
+            response.pin && displayName === `PIN ${response.pin}`
+              ? 'font-mono'
+              : ''
+          }
+        >
           {displayName}
         </span>
 
@@ -2075,15 +2133,27 @@ const PodiumView: React.FC<{
   questions: QuizQuestion[];
   session: QuizSession;
   pinToName: Record<string, string>;
+  byStudentUid?: Map<
+    string,
+    import('@/hooks/useAssignmentPseudonyms').StudentName
+  >;
   onDismiss: () => void;
-}> = ({ responses, questions, session, pinToName, onDismiss }) => {
+}> = ({
+  responses,
+  questions,
+  session,
+  pinToName,
+  byStudentUid,
+  onDismiss,
+}) => {
   // Use shared scoring utility for consistency with scoreboard
   const suffix = getScoreSuffix(session);
   const scored = responses
     .map((r) => {
       const score = getDisplayScore(r, questions, session);
-      const name = pinToName[r.pin] ?? `PIN ${r.pin}`;
-      return { name, score, pin: r.pin };
+      const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+      // `key` disambiguates rows for React: PIN for anonymous, uid for SSO.
+      return { name, score, key: r.pin ?? r.studentUid };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -2130,7 +2200,7 @@ const PodiumView: React.FC<{
       <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
         {top3.map((entry, i) => (
           <div
-            key={entry.pin}
+            key={entry.key}
             className="flex items-center bg-slate-50 border border-slate-100 rounded-xl"
             style={{
               gap: 'min(10px, 2.5cqmin)',

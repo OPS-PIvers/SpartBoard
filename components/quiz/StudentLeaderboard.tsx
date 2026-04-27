@@ -5,7 +5,13 @@ import { QuizLeaderboardEntry } from '@/types';
 
 interface StudentLeaderboardProps {
   entries: QuizLeaderboardEntry[];
+  /** Roster PIN for anonymous joiners. Empty for SSO joiners. */
   myPin: string;
+  /**
+   * Auth uid for SSO `studentRole` joiners. Used as a fallback identity
+   * when `myPin` is empty so SSO students still see "(you)" on their row.
+   */
+  myStudentUid?: string;
   scoreSuffix: string;
 }
 
@@ -15,9 +21,20 @@ const medalByRank: Record<number, string> = {
   3: 'text-orange-500',
 };
 
+const matchesMe = (
+  entry: QuizLeaderboardEntry,
+  myPin: string,
+  myStudentUid: string | undefined
+): boolean => {
+  if (myPin && entry.pin === myPin) return true;
+  if (myStudentUid && entry.studentUid === myStudentUid) return true;
+  return false;
+};
+
 export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
   entries,
   myPin,
+  myStudentUid,
   scoreSuffix,
 }) => {
   const { t } = useTranslation();
@@ -30,10 +47,14 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
     );
   }
 
-  const myEntry = entries.find((entry) => entry.pin === myPin);
+  const myEntry = entries.find((entry) =>
+    matchesMe(entry, myPin, myStudentUid)
+  );
   const topFive = entries.slice(0, 5);
-  const isMyPinInTopFive = topFive.some((entry) => entry.pin === myPin);
-  const rows = isMyPinInTopFive
+  const isMeInTopFive = topFive.some((entry) =>
+    matchesMe(entry, myPin, myStudentUid)
+  );
+  const rows = isMeInTopFive
     ? topFive
     : myEntry
       ? [...entries.slice(0, 4), myEntry]
@@ -46,11 +67,15 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
       </p>
       <div className="space-y-2">
         {rows.map((entry, index) => {
-          const isMine = entry.pin === myPin;
-          const showDivider = !isMyPinInTopFive && index === 4;
+          const isMine = matchesMe(entry, myPin, myStudentUid);
+          const showDivider = !isMeInTopFive && index === 4;
+          // Stable per-entry key: pin for anonymous joiners, studentUid for
+          // SSO joiners. Combined with rank to disambiguate in the rare case
+          // of duplicate identifiers (e.g. legacy data).
+          const entryKey = `${entry.pin ?? entry.studentUid ?? 'anon'}-${entry.rank}`;
 
           return (
-            <React.Fragment key={entry.pin}>
+            <React.Fragment key={entryKey}>
               {showDivider && (
                 <div className="text-center text-slate-500 text-xs py-1">…</div>
               )}
@@ -69,7 +94,7 @@ export const StudentLeaderboard: React.FC<StudentLeaderboardProps> = ({
                   </span>
                 )}
                 <span className="flex-1 text-sm font-semibold text-white truncate">
-                  {entry.name ?? `PIN ${entry.pin}`}
+                  {entry.name ?? (entry.pin ? `PIN ${entry.pin}` : 'Student')}
                   {isMine ? ` ${t('widgets.quiz.leaderboard.youSuffix')}` : ''}
                 </span>
                 <span className="text-amber-300 text-sm font-black">
