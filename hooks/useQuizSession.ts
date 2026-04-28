@@ -671,12 +671,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKeyState
       ),
-      (snap) =>
+      (snap) => {
         setMyResponse(
           snap.exists()
             ? { ...(snap.data() as QuizResponse), _responseKey: snap.id }
             : null
-        ),
+        );
+        // Mirror the session-listener pattern at L630 — clear any
+        // stale error from a transient transport blip so the UI
+        // doesn't stay stuck on "Lost connection" once the snapshot
+        // recovers.
+        setError(null);
+      },
       (err) => {
         // Same rationale as the session listener above — without this
         // callback a permission-denied silently freezes the student's

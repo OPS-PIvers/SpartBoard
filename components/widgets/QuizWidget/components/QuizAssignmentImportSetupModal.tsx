@@ -12,11 +12,16 @@
  * primary assign flow. Period selection is implicit — derived from the
  * picked rosters via `deriveSessionTargetsFromRosters`, the same helper
  * `createAssignment` uses at first-create time.
+ *
+ * Built on the shared `Modal` primitive so it inherits `role="dialog"`,
+ * `aria-modal="true"`, Escape-to-close, body scroll locking, and portal
+ * rendering — no need to re-roll any of those concerns here.
  */
 
 import React, { useState } from 'react';
 import { ClipboardList, X } from 'lucide-react';
 import type { ClassRoster, QuizAssignment } from '@/types';
+import { Modal } from '@/components/common/Modal';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -70,17 +75,15 @@ export const QuizAssignmentImportSetupModal: React.FC<
     }
   };
 
-  // While Save is in flight we lock the dismissal controls (X /
-  // backdrop / Skip / Edit-all). Without this guard, clicking any of
-  // them mid-save would unmount the modal while `setAssignmentRosters`
-  // is still pending — React then warns about state updates on an
-  // unmounted component, and "Edit all settings…" would open the full
-  // settings modal against pre-update assignment data.
-  const handleBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (saving) return;
-    if (e.target === e.currentTarget) onClose();
-  };
-  const handleClose = () => {
+  // While Save is in flight every dismissal path (Escape, X button,
+  // backdrop click, Skip, Edit-all) becomes a no-op. Without this guard,
+  // any of them would unmount the modal mid-Firestore-write — React then
+  // warns about state updates on an unmounted component, and "Edit all
+  // settings…" specifically would open the full settings modal against
+  // pre-update assignment data. Gating onClose at the Modal boundary
+  // handles Escape + backdrop in one shot; the inline buttons gate
+  // themselves below.
+  const guardedClose = () => {
     if (saving) return;
     onClose();
   };
@@ -90,11 +93,13 @@ export const QuizAssignmentImportSetupModal: React.FC<
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onMouseDown={handleBackdropMouseDown}
-    >
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <Modal
+      isOpen
+      onClose={guardedClose}
+      ariaLabel="Set up imported assignment"
+      maxWidth="max-w-md"
+      contentClassName=""
+      customHeader={
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
           <div className="flex items-start gap-3">
             <div className="shrink-0 w-9 h-9 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center">
@@ -111,7 +116,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           </div>
           <button
             type="button"
-            onClick={handleClose}
+            onClick={guardedClose}
             disabled={saving}
             className="text-slate-400 hover:text-slate-600 p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Close"
@@ -119,31 +124,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        <div className="px-5 py-4 space-y-4">
-          {noRosters ? (
-            <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3">
-              You don&apos;t have any classes yet. Add a class in{' '}
-              <span className="font-bold">My Classes</span> first, then come
-              back to assign this quiz.
-            </p>
-          ) : (
-            <>
-              <p className="text-sm text-slate-600">
-                Pick the classes that should take this quiz. Students will pick
-                their period after entering the join code.
-              </p>
-              <AssignClassPicker
-                rosters={rosters}
-                value={pickerValue}
-                onChange={setPickerValue}
-                disabled={saving}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
+      }
+      footer={
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={handleEditAllSettings}
@@ -155,7 +138,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleClose}
+              onClick={guardedClose}
               disabled={saving}
               className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -171,7 +154,31 @@ export const QuizAssignmentImportSetupModal: React.FC<
             </button>
           </div>
         </div>
+      }
+      footerClassName="px-5 py-3 bg-slate-50 border-t border-slate-100 shrink-0"
+    >
+      <div className="px-5 py-4 space-y-4">
+        {noRosters ? (
+          <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3">
+            You don&apos;t have any classes yet. Add a class in{' '}
+            <span className="font-bold">My Classes</span> first, then come back
+            to assign this quiz.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-slate-600">
+              Pick the classes that should take this quiz. Students will pick
+              their period after entering the join code.
+            </p>
+            <AssignClassPicker
+              rosters={rosters}
+              value={pickerValue}
+              onChange={setPickerValue}
+              disabled={saving}
+            />
+          </>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };
