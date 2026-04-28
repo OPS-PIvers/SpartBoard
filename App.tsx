@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
@@ -147,8 +147,22 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
-  const { isAdmin, profileLoaded, setupCompleted } = useAuth();
+  const { isAdmin, profileLoaded, setupCompleted, roleId, signOut } = useAuth();
   const { loading: dashLoading, activeDashboard } = useDashboard();
+
+  // Bounce studentRole members out of the teacher app. The Firestore rule on
+  // /users/{uid}/dashboards is the actual security boundary; this just keeps
+  // a student who lands on the main URL from briefly seeing the empty
+  // teacher shell before the rule denies their writes.
+  useEffect(() => {
+    if (!profileLoaded || roleId !== 'student') return;
+    void signOut();
+    window.location.replace('/my-assignments');
+  }, [profileLoaded, roleId, signOut]);
+
+  if (roleId === 'student') {
+    return <FullPageLoader />;
+  }
 
   // Wait for the user's profile and first dashboard load before deciding what to show.
   // Also wait for an active dashboard: DashboardContext can emit loading=false before

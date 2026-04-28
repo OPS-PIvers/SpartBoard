@@ -91,6 +91,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const {
     user,
     isAdmin,
+    roleId,
     refreshGoogleToken,
     featurePermissions,
     selectedBuildings,
@@ -1073,8 +1074,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           updateActiveId(defaultDb ? defaultDb.id : migratedDashboards[0].id);
         }
 
-        // Create default dashboard if none exist
-        if (updatedDashboards.length === 0 && !migrated) {
+        // Create default dashboard if none exist. Skip for studentRole
+        // members — students should never own a teacher-style board, and
+        // the Firestore rule will reject the write anyway. AppContent
+        // redirects them to /my-assignments; this just avoids a noisy
+        // permission-denied error in the gap before that fires.
+        if (
+          updatedDashboards.length === 0 &&
+          !migrated &&
+          roleId !== 'student'
+        ) {
           const defaultDb: Dashboard = {
             id: crypto.randomUUID(),
             name: 'My First Board',
@@ -1133,7 +1142,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       unsubscribe();
     };
-  }, [user, subscribeToDashboards, migrated, saveDashboard, updateActiveId]);
+  }, [
+    user,
+    subscribeToDashboards,
+    migrated,
+    saveDashboard,
+    updateActiveId,
+    roleId,
+  ]);
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

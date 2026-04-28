@@ -396,9 +396,16 @@ service cloud.firestore {
       allow write: if false; // Only create via Firebase Console or Admin SDK
     }
 
-    // Dashboards - users can only access their own dashboards in their subcollection
+    // Dashboards - users can only access their own dashboards in their subcollection.
+    // studentRole tokens (minted by studentLoginV1) are denied outright: students
+    // do not own a teacher-style dashboard, and the main app's AppContent guard
+    // will redirect them to /my-assignments. This rule is the actual security
+    // boundary — without it, a studentRole user calling Firestore directly
+    // could still create a dashboard doc under their own uid.
     match /users/{userId}/dashboards/{dashboardId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser();
     }
 
     // Rosters - users can only access their own rosters in their subcollection
