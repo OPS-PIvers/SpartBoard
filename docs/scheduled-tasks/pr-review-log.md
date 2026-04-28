@@ -247,3 +247,25 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1414 head SHA `693ebf39` — 4 files (`Sidebar.tsx` +44/-18, `SidebarPlcs.tsx` +19/-6, `usePlcInvitations.ts` +18/-5, `usePlcs.ts` +14/-3); CI 10/10 green
   - PR #1366 head SHA `7ffde284` — unchanged since 2026-04-21; 9/9 CI checks green
   - Branch-safety: PR #1422 is on `dev-paul` (matches `dev-*`) — pushes prohibited by policy, comment-only scope observed; the other 4 PRs are on safe branches
+
+## 2026-04-28
+
+- PRs reviewed:
+  - #1437 — audit + fix(deps,hono): Tuesday 2026-04-28 — patch hono CVEs + journal updates (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+  - #1414 — chore(plcs): retire VITE_ENABLE_PLCS dev feature flag (head `claude/adoring-ramanujan-cr4CY`, base `main`, DRAFT)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 10 inline review threads + 1 PR-level issue comment — 1 fix pushed, 9 + 1 explained
+  - PR #1437: 1 inline thread (gemini, `is_outdated: true`) flagging EmbedWidget audit-entry inaccuracies (portal context, line numbers) — already addressed in current branch state of `css-scaling.md` (entry now explicitly notes `createPortal` to `document.body`, corrected line numbers 443/437/457/426, presents two fix options instead of a non-working `cqmin` conversion); replied with explanation, no fix pushed
+  - PR #1414: 3 inline threads — all `is_outdated: true` and previously addressed in earlier commits (`07cfae3` lifted hooks to `Sidebar`, `693ebf3` added `enabled?: boolean` option); 1 of 3 now `is_resolved: true`; no new action needed
+  - PR #1366: 6 inline threads (all `is_outdated: true` from 2026-04-21 round, all with addressing replies in commit `7ffde28`) + 1 PR-level issue comment from 2026-04-22 about reversed `--ours`/`--theirs` semantics during `git rebase` — the issue comment was a valid, concrete documentation improvement not yet in the doc; pushed fix `af5c404` adding a sub-bullet under Step 5 explaining the reversed semantics and warning against swapping to `--ours`; replied to the issue comment
+- Fixes pushed: 1
+  - PR #1366 / `docs/line-endings-normalization-plan` → commit `af5c404` "docs(line-endings): note reversed --ours/--theirs semantics during rebase" — addresses 2026-04-22 issue comment about rebase-vs-merge `--ours`/`--theirs` semantics; one-line addition, prettier check clean
+- Reviews posted: 3
+  - PR #1437: Ready — surgical Tuesday run with double-bumped hono in both `devDependencies` and `pnpm.overrides` (necessary because the override pinned the dep graph at 4.11.4 even though semver allowed newer); closes the open HIGH hono CVE class; 7/7 CI green; recommends `@google/genai@^1.50.1` as the natural follow-up to clear the new HIGH protobufjs entry + the existing MCP SDK MEDIUM in one shot
+  - PR #1414: Ready with minor notes — same assessment as 2026-04-27 since head sha `693ebf39` unchanged; flag-retirement + listener-consolidation (0 listeners closed, 3 open vs prior 6) all sound; cross-PR coordination with #1422's `VITE_ENABLE_PLCS: 'true'` workflow addition still outstanding; tests for `enabled: false` gate still missing
+  - PR #1366: Ready — new commit `af5c404` addresses the open `--theirs`/`--ours` rebase-semantics issue comment; all six prior review threads still have addressing replies; plan execution still gated on "no open PRs" precondition (3 open today, so not eligible to execute yet)
+- Notes:
+  - PR #1437 head SHA `4fc7e9fd` — 6 files: 4 markdown audit journals + `package.json` (hono override + devDep bump 4.11.4 → 4.12.14) + `pnpm-lock.yaml` (resolved 4.12.15 propagating through `@hono/node-server`, `@modelcontextprotocol/sdk`, `@google/genai`, `firebase-tools` peer brackets); 7/7 CI green; 1511 tests pass per PR description
+  - PR #1414 head SHA `693ebf39` — unchanged from 2026-04-27 entry; 10/10 CI green
+  - PR #1366 head SHA `af5c404a` (was `7ffde284` before this run) — added one commit in this run; CI re-running at time of review; doc grew by exactly one bulleted sentence under Step 5
+  - Branch-safety: no head branches match `main` or `dev-*`; all 3 PRs eligible for pushes; only PR #1366 received a push this run
