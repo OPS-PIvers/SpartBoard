@@ -415,6 +415,7 @@ describe('EmbedWidget', () => {
         updateAccountPreferences: vi.fn(),
         orgId: null,
         roleId: null,
+        isStudentRole: false,
         buildingIds: [],
         orgBuildings: [],
       });
