@@ -26,8 +26,8 @@ _Nothing currently in progress._
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.14.0 — updating may resolve several transitively.
-- **Fix:** `pnpm up firebase-tools@^15.14.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.15.0 — updating may resolve several transitively.
+- **Fix:** `pnpm up firebase-tools@^15.15.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -50,8 +50,8 @@ _Nothing currently in progress._
 
 - **Detected:** 2026-04-14
 - **File:** package.json (transitive via `@google/genai`)
-- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.0.
-- **Fix:** `pnpm up @google/genai@^1.50.0` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
+- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.1.
+- **Fix:** `pnpm up @google/genai@^1.50.1` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
 
 ### MEDIUM Functions: `lodash` code injection via `firebase-functions-test`
 
@@ -64,7 +64,7 @@ _Nothing currently in progress._
 
 - **Detected:** 2026-04-28
 - **File:** package.json (transitive via `@google/genai > protobufjs`), functions/package.json (same path)
-- **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affects both root (`@google/genai: 1.39.0`, a devDependency used for functions/Gemini calls) and functions/ (`@google/genai: 1.38.0`). The `protobufjs` package requires build scripts that are currently in the `pnpm approve-builds` ignored list — this means the vulnerable version may be installed but its postinstall was blocked. Even so, the runtime code path remains vulnerable to crafted input.
+- **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affects both root (`@google/genai: 1.39.0`, a devDependency used for functions/Gemini calls) and functions/ (`@google/genai: 1.38.0`). The runtime code path remains vulnerable to crafted input until the transitive dependency is upgraded to a patched version.
 - **Fix:** Update `@google/genai` to >=1.50.1 in both root and functions/ (current: root 1.39.0, functions 1.38.0, latest 1.50.1). Newer versions should pin `protobufjs >= 7.5.5`. This fix is doubly important because it also resolves the previously documented `@modelcontextprotocol/sdk` cross-client data leak (MEDIUM). Verify with `pnpm why protobufjs` after upgrade. Command: `pnpm up "@google/genai@^1.50.1"` in root and `pnpm -C functions up "@google/genai@^1.50.1"`.
 
 ### MEDIUM `dompurify` has multiple XSS/sanitization bypasses — three CVEs
