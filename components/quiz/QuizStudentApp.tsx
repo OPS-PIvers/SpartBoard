@@ -167,12 +167,13 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const handlePeriodConfirm = useCallback(async () => {
     if (!selectedPeriod) return;
-    // SSO joiners pass `undefined` as the PIN — the hook keys the response
-    // doc by auth.uid in that case. Anonymous joiners send the form `pin`.
-    const joinPin = isStudentRole ? undefined : pin;
-    await joinQuizSession(code, joinPin, selectedPeriod);
+    // Only anonymous joiners reach the period picker (SSO students auto-join
+    // via the effect below and skip period selection entirely), so PIN is
+    // always populated here. The hook keys their response doc by
+    // `pin-{period}-{pin}`.
+    await joinQuizSession(code, pin, selectedPeriod);
     setJoined(true);
-  }, [joinQuizSession, code, pin, selectedPeriod, isStudentRole]);
+  }, [joinQuizSession, code, pin, selectedPeriod]);
 
   // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
   // students arrive with a stable identity (auth.uid via /student/login),

@@ -38,8 +38,8 @@ const ANON_A_UID = 'anon-a-uid';
 const ANON_B_UID = 'anon-b-uid';
 
 // Deterministic key encoding mirrors `encodeResponseKeySegment()` on the
-// client (utils/quizSession). For inputs without special characters the
-// encoding is identity, which is all this test needs.
+// client (`hooks/useQuizSession.ts`). For inputs without special characters
+// the encoding is identity, which is all this test needs.
 const PERIOD = 'period_1';
 const PIN = '01';
 const COLLIDING_KEY = `pin-${PERIOD}-${PIN}`;
