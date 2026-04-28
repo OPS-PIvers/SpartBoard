@@ -3025,11 +3025,13 @@ export const getAssignmentPseudonymV1 = onCall(
  *
  * Lookup order per classId:
  *   1. `collectionGroup('rosters').where('classlinkClassId', '==', classId)` —
- *      real ClassLink imports. Parent path gives teacher uid.
- *   2. `collectionGroup('rosters').where('testClassId', '==', classId)` —
- *      admin-managed test classes a teacher has imported.
- *   3. `organizations/{orgId}/testClasses/{classId}` — admin-managed test
- *      class with no teacher import yet (graceful fallback).
+ *      real ClassLink imports. Parent path gives teacher uid. Safe across
+ *      orgs because ClassLink-issued sourcedIds are not admin-controlled.
+ *   2. `organizations/{orgId}/testClasses/{classId}` — admin-managed test
+ *      classes. Always read via the org-scoped doc path (never via a
+ *      collectionGroup lookup on `testClassId`) because test class IDs are
+ *      admin-chosen slugs that can collide across orgs; a collectionGroup
+ *      query would risk returning another org's roster.
  *
  * PII: this function never returns student names, emails, or any field from
  * the per-roster Drive file. Only Firestore-side roster meta (which is
@@ -3102,10 +3104,9 @@ export const getStudentClassDirectoryV1 = onCall(
     }
 
     // Batch the per-classId collectionGroup queries instead of fanning out
-    // 2-3 queries per id (up to 60 queries for STUDENT_LOGIN_CLASS_IDS_MAX
-    // = 20). Firestore caps `in`-array size at 30; we chunk at 10 to stay
-    // safely under the limit and to fit the typical `STUDENT_LOGIN_CLASS_IDS_MAX`
-    // payload in 2-3 chunks.
+    // a separate equality query per id. Firestore caps `in`-array size at
+    // 30; we chunk at 10 to stay safely under the limit and to fit the
+    // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
     const FIRESTORE_IN_CHUNK_SIZE = 10;
     const chunk = <T>(arr: readonly T[], size: number): T[][] => {
       const chunks: T[][] = [];
@@ -3123,7 +3124,7 @@ export const getStudentClassDirectoryV1 = onCall(
      * entry for that class.
      */
     const batchLookupByField = async (
-      field: 'classlinkClassId' | 'testClassId',
+      field: 'classlinkClassId',
       ids: readonly string[]
     ): Promise<Map<string, FirebaseFirestore.QueryDocumentSnapshot>> => {
       const out = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
@@ -3169,9 +3170,11 @@ export const getStudentClassDirectoryV1 = onCall(
       };
     };
 
-    // 1 + 2. Batched collectionGroup lookups: classlinkClassId first, then
-    // testClassId for whatever didn't resolve. Two `in` queries per field
-    // chunk replace what was up to 40 separate equality queries.
+    // 1. Batched collectionGroup lookup for ClassLink classes. Two `in`
+    // queries per field chunk replace what was up to 20 separate equality
+    // queries. Real ClassLink sourcedIds are issued globally by ClassLink
+    // and are not admin-controlled, so collisions across orgs are not a
+    // realistic risk on this branch.
     const classlinkMatches = await batchLookupByField(
       'classlinkClassId',
       classIds
@@ -3179,30 +3182,32 @@ export const getStudentClassDirectoryV1 = onCall(
     const unresolvedAfterClasslink = classIds.filter(
       (id) => !classlinkMatches.has(id)
     );
-    const testIdMatches = await batchLookupByField(
-      'testClassId',
-      unresolvedAfterClasslink
-    );
 
-    // 3. Direct testClasses doc reads — only for classIds still unresolved
-    // after the two batched roster passes. These are the admin-managed
-    // test classes that no teacher has imported yet.
-    const unresolvedAfterTestId = unresolvedAfterClasslink.filter(
-      (id) => !testIdMatches.has(id)
-    );
+    // 2. Direct testClasses doc reads — for every classId not resolved as
+    // ClassLink. We deliberately do NOT use a `collectionGroup('rosters')
+    // .where('testClassId', 'in', …)` lookup here: testClassIds are
+    // admin-chosen slugs (default `testclass`, or a slugified title) and
+    // can collide across orgs, so a collectionGroup query would risk
+    // returning another org's roster doc and leaking that teacher's name
+    // and class metadata to the student. The org-scoped document path is
+    // gated by the student's verified `orgId` claim, so it cannot cross
+    // org boundaries. The trade-off is that we no longer surface the
+    // importing teacher's display name on test-class directory entries —
+    // these are admin-managed mocks where teacher attribution is
+    // cosmetic.
     const testClassDocs = new Map<string, FirebaseFirestore.DocumentSnapshot>();
-    if (orgId && unresolvedAfterTestId.length > 0) {
+    if (orgId && unresolvedAfterClasslink.length > 0) {
       const docs = await Promise.all(
-        unresolvedAfterTestId.map((id) =>
+        unresolvedAfterClasslink.map((id) =>
           db
             .doc(`organizations/${orgId}/testClasses/${id}`)
             .get()
             .catch(() => null)
         )
       );
-      for (let i = 0; i < unresolvedAfterTestId.length; i++) {
+      for (let i = 0; i < unresolvedAfterClasslink.length; i++) {
         const d = docs[i];
-        if (d && d.exists) testClassDocs.set(unresolvedAfterTestId[i], d);
+        if (d && d.exists) testClassDocs.set(unresolvedAfterClasslink[i], d);
       }
     }
 
@@ -3211,10 +3216,6 @@ export const getStudentClassDirectoryV1 = onCall(
         const fromClasslink = classlinkMatches.get(classId);
         if (fromClasslink) {
           return buildEntryFromRoster(classId, fromClasslink, true);
-        }
-        const fromTestId = testIdMatches.get(classId);
-        if (fromTestId) {
-          return buildEntryFromRoster(classId, fromTestId, false);
         }
         const fromTestClassDoc = testClassDocs.get(classId);
         if (fromTestClassDoc) {
