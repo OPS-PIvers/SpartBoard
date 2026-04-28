@@ -147,20 +147,45 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
-  const { isAdmin, profileLoaded, setupCompleted, roleId, signOut } = useAuth();
+  const {
+    isAdmin,
+    profileLoaded,
+    setupCompleted,
+    roleId,
+    isStudentRole,
+    signOut,
+  } = useAuth();
   const { loading: dashLoading, activeDashboard } = useDashboard();
 
-  // Bounce studentRole members out of the teacher app. The Firestore rule on
-  // /users/{uid}/dashboards is the actual security boundary; this just keeps
-  // a student who lands on the main URL from briefly seeing the empty
-  // teacher shell before the rule denies their writes.
+  // Two paths to "this is a student":
+  //   - `isStudentRole` — token carries `studentRole: true`. Real SSO students
+  //     minted by `studentLoginV1`. They have a valid student session, so we
+  //     just redirect to /my-assignments without signing out — StudentAuth
+  //     -Provider on that route accepts the same token.
+  //   - `roleId === 'student'` — legacy student who signed in via regular
+  //     Google Sign-In and was invited into the org with a student role.
+  //     Their token has no studentRole claim, so /my-assignments would
+  //     bounce them anyway; sign them out so the next sign-in goes through
+  //     the proper student flow.
+  // The Firestore rule on /users/{uid}/dashboards is the actual security
+  // boundary; this just keeps either kind of student from briefly seeing
+  // the empty teacher shell before the rule denies their writes.
+  const isStudent = isStudentRole || roleId === 'student';
   useEffect(() => {
-    if (!profileLoaded || roleId !== 'student') return;
-    void signOut();
+    if (!profileLoaded || !isStudent) return;
+    if (!isStudentRole) {
+      // Legacy student — invalidate their teacher session.
+      signOut().catch((err) => {
+        console.error(
+          '[AppContent] Failed to sign legacy student out before redirect:',
+          err
+        );
+      });
+    }
     window.location.replace('/my-assignments');
-  }, [profileLoaded, roleId, signOut]);
+  }, [profileLoaded, isStudent, isStudentRole, signOut]);
 
-  if (roleId === 'student') {
+  if (isStudent) {
     return <FullPageLoader />;
   }
 

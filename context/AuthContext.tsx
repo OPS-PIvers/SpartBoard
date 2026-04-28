@@ -241,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [roleId, setRoleId] = useState<string | null>(
     isAuthBypass ? 'super_admin' : null
   );
+  const [isStudentRole, setIsStudentRole] = useState<boolean>(false);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
@@ -561,6 +562,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     void checkAdminStatus();
+  }, [user]);
+
+  // Resolve the `studentRole` custom claim on the signed-in Firebase user.
+  // Real SSO students minted by `studentLoginV1` have `email: null`, so the
+  // org-members snapshot below never fires for them — meaning `roleId`
+  // stays null and a `roleId === 'student'` guard alone misses them.
+  // The claim is the only reliable client-side signal for an SSO student;
+  // App.tsx and DashboardContext.tsx both consume `isStudentRole` to keep
+  // them out of the teacher app.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user) {
+      setIsStudentRole(false);
+      return;
+    }
+    let cancelled = false;
+    user
+      .getIdTokenResult()
+      .then((result) => {
+        if (cancelled) return;
+        setIsStudentRole(result.claims.studentRole === true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[AuthContext] Failed to read studentRole claim:', err);
+        setIsStudentRole(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // Subscribe to organization membership. Phase 2 hard-codes the single seeded
@@ -1376,6 +1407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAccountPreferences,
         orgId,
         roleId,
+        isStudentRole,
         buildingIds,
         orgBuildings,
       }}
