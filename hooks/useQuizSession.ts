@@ -632,7 +632,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     if (!sessionIdState) return;
     return onSnapshot(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionIdState),
-      (snap) => setSession(snap.exists() ? (snap.data() as QuizSession) : null)
+      (snap) => {
+        setSession(snap.exists() ? (snap.data() as QuizSession) : null);
+        setError(null);
+      },
+      (err) => {
+        // Without an onError callback, a permission-denied or transport
+        // failure here causes the session listener to silently stop and
+        // the student stares at a frozen screen. Surface it so the join
+        // flow can show "Couldn't connect to the quiz" instead of
+        // hanging.
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionIdState}`;
+        console.error(
+          `[useQuizSessionStudent] session listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+        setError(
+          code === 'permission-denied'
+            ? "You don't have access to this quiz session."
+            : 'Lost connection to the quiz. Please refresh.'
+        );
+      }
     );
   }, [sessionIdState]);
 
@@ -655,7 +676,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           snap.exists()
             ? { ...(snap.data() as QuizResponse), _responseKey: snap.id }
             : null
-        )
+        ),
+      (err) => {
+        // Same rationale as the session listener above — without this
+        // callback a permission-denied silently freezes the student's
+        // submit-and-see-feedback loop.
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionIdState}/${RESPONSES_COLLECTION}/${responseKeyState}`;
+        console.error(
+          `[useQuizSessionStudent] response listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+        setError(
+          code === 'permission-denied'
+            ? 'Lost permission to read your answers. Ask your teacher.'
+            : 'Lost connection to the quiz. Please refresh.'
+        );
+      }
     );
   }, [sessionIdState, responseKeyState]);
 

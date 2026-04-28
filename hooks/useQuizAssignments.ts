@@ -554,8 +554,9 @@ export const useQuizAssignments = (
       };
 
       // Session doc carries the same targeting. classIds[0] is mirrored
-      // to classId for the legacy single-class gate (see createAssignment
-      // at line ~278 for the same dual-write rationale).
+      // to classId for the legacy single-class gate — same dual-write
+      // the "Phase 5A: multi-class ClassLink targeting" branch in
+      // createAssignment uses at create time.
       const sessionPatch: Record<string, unknown> = {
         rosterIds: cleanedRosterIds,
         classIds: cleanedClassIds,
@@ -657,22 +658,31 @@ export const useQuizAssignments = (
       // with their own targeting, identity, and PLC wiring:
       //   - teacherName / periodName / periodNames: originator's free text
       //     and class periods.
-      //   - plcSheetUrl: points at the ORIGINATOR's PLC Google Sheet. If
-      //     left in place, Widget.tsx's start-flow feeds it (along with
-      //     plcMemberEmails) into reconcilePlcSheetPermissions(), which
-      //     issues Drive calls against a sheet the importer doesn't own
-      //     and does Firestore reads on plcs/{originatorPlcId} where the
-      //     importer is not in memberUids — surfacing as silent
-      //     "Missing or insufficient permissions" console errors.
-      //   - plcMemberEmails: originator's PLC roster, irrelevant to the
-      //     importer's PLC (if any).
-      //   - plcMode: cleared so the importer explicitly opts in to PLC
-      //     mode for their own assignment via the settings modal — both
-      //     consistent with how their other settings behave and the only
-      //     way to guarantee plcMemberEmails / plcSheetUrl are repopulated
-      //     against the importer's own PLC instead of the originator's.
+      //   - className: originator's class label (e.g. "Mrs. Smith's
+      //     3rd Period"). Cosmetic-only but confusing UX if left in
+      //     place — Teacher B sees Teacher A's label as the subtitle
+      //     on her own assignment card.
+      //   - plcSheetUrl: points at the ORIGINATOR's PLC Google Sheet.
+      //     If left in place, the importer's first results export
+      //     takes this URL (see QuizResults.tsx → exportResultsToSheet)
+      //     and calls Drive against a sheet the importer isn't shared
+      //     on — a 403, which used to surface as a silent
+      //     "Missing or insufficient permissions" console error.
+      //     Clearing it lets the auto-create path on first PLC
+      //     assignment populate the importer's own sheet instead.
+      //   - plcMemberEmails: originator's PLC roster. Not consumed
+      //     by the importer's start-flow today (Widget.tsx derives
+      //     sharing from the live `plc` doc via getPlcTeammateEmails),
+      //     but cleared for hygiene — leaving someone else's email
+      //     roster on the doc is a future-foot-gun.
+      //   - plcMode: cleared so the importer explicitly opts in to
+      //     PLC mode for their own assignment via the settings modal,
+      //     keeping plcSheetUrl/plcMemberEmails repopulation tied to
+      //     the importer's own PLC selection rather than the
+      //     originator's.
       const importedSettings = {
         ...shared.assignmentSettings,
+        className: undefined,
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,

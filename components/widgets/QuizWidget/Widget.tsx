@@ -1369,6 +1369,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 err instanceof Error ? err.message : 'Failed to save settings',
                 'error'
               );
+              // Re-throw so the modal's handleAssign sees the failure and
+              // skips its onClose() — keeping the modal open with the
+              // user's edits intact so they can retry. Without this,
+              // toast appears, modal disappears, edits are lost.
+              throw err;
             }
           }}
         />
