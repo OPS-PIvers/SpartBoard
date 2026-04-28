@@ -204,17 +204,32 @@ async function findExistingResponseDoc(
   authUid: string,
   isAnonymous: boolean,
   deterministicKey: string
-): Promise<{ key: string; snap: DocumentSnapshot }> {
-  const deterministicSnap = await getDoc(
-    doc(
-      db,
-      QUIZ_SESSIONS_COLLECTION,
-      sessionId,
-      RESPONSES_COLLECTION,
-      deterministicKey
-    )
-  );
-  if (deterministicSnap.exists()) {
+): Promise<{ key: string; snap: DocumentSnapshot | null }> {
+  // Probe the deterministic key. If a doc exists at this key but was written
+  // by a different anon UID — either a real PIN collision (two students
+  // sharing pin+period) or the same student rejoining from a fresh browser
+  // session — the response read rule denies because
+  // `request.auth.uid != resource.data.studentUid`. Treat that as
+  // "doc inaccessible from here" so the caller can fall through to the
+  // legacy probe / setDoc path; if the underlying collision is real, the
+  // subsequent setDoc/updateDoc rule denial surfaces a coherent error
+  // through joinQuizSession's outer catch instead of an unhandled rejection.
+  let deterministicSnap: DocumentSnapshot | null = null;
+  try {
+    deterministicSnap = await getDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        deterministicKey
+      )
+    );
+  } catch (err) {
+    const code = (err as { code?: unknown }).code;
+    if (code !== 'permission-denied') throw err;
+  }
+  if (deterministicSnap?.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
   }
   if (isAnonymous && deterministicKey !== authUid) {
@@ -852,7 +867,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         //     preserving `completedAttempts` to enforce the cap on future
         //     submissions.
         const limit = sessionData.attemptLimit ?? null;
-        if (existingSnap.exists()) {
+        if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
           if (existing.status === 'completed') {
             const completed = existing.completedAttempts ?? 1;
@@ -880,7 +895,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setSessionIdState(sessionDoc.id);
         setResponseKeyState(responseKey);
 
-        if (!existingSnap.exists()) {
+        if (!existingSnap?.exists()) {
           // No PII stored. `studentUid` field carries the auth uid; the doc
           // key may differ (for PIN auth it's pin-based), so Firestore rules
           // enforce ownership against the field, not the key. The `pin`

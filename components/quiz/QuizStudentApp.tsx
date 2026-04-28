@@ -116,8 +116,9 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   const [pin, setPin] = useState('');
   const [joined, setJoined] = useState(false);
 
-  // Multi-period selection step: after entering code+PIN, if the session has
-  // multiple periodNames the student picks their class before joining.
+  // Period selection step: after entering code+PIN, anon students always pick
+  // their class period before joining (PIN+period is the disambiguator on the
+  // response doc key). SSO joiners skip this step entirely.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
@@ -146,16 +147,19 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
-      // Look up the session to check for multi-period selection
+      // Anon (PIN) joiners must always disambiguate by period — same PIN can
+      // recur across periods, and `pin-{period}-{pin}` is what keys the
+      // response doc. Show the picker whenever the assignment declares any
+      // periods, even when there is only one. (handleJoin is only reached on
+      // the anon path; the SSO auto-join effect short-circuits before render.)
       const sessionInfo = await lookupSession(joinCode);
-      if (sessionInfo && sessionInfo.periodNames.length > 1) {
-        // Show period selector step
-        setPeriodStep(sessionInfo.periodNames);
+      const periods = sessionInfo?.periodNames ?? [];
+      if (periods.length > 0) {
+        setPeriodStep(periods);
         return;
       }
-      // Single or no period — join directly (auto-select if exactly 1)
-      const autoClassPeriod = sessionInfo?.periodNames[0];
-      await joinQuizSession(joinCode, joinPin, autoClassPeriod);
+      // No periods configured — join with classPeriod undefined.
+      await joinQuizSession(joinCode, joinPin, undefined);
       setJoined(true);
     },
     [lookupSession, joinQuizSession]
@@ -170,32 +174,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     setJoined(true);
   }, [joinQuizSession, code, pin, selectedPeriod, isStudentRole]);
 
-  // SSO auto-join: bypass the PIN form entirely. lookupSession handles the
-  // multi-period branch (we still show the picker — periodNames are
-  // free-form labels and don't map 1:1 onto classIds, so we can't auto-pick).
+  // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
+  // students arrive with a stable identity (auth.uid via /student/login),
+  // already matched to their class via classId — so the response doc is
+  // keyed by auth.uid and classPeriod is irrelevant for join. The teacher
+  // monitor view can resolve a student's period from their classId via the
+  // roster if it needs to group by period.
   useEffect(() => {
     if (!isStudentRole) return;
     if (!urlCode) return;
-    if (joined || periodStep) return;
+    if (joined) return;
     if (ssoAutoJoinStartedRef.current) return;
     ssoAutoJoinStartedRef.current = true;
 
     const run = async () => {
       try {
-        const sessionInfo = await lookupSession(urlCode);
-        if (sessionInfo && sessionInfo.periodNames.length > 1) {
-          setPeriodStep(sessionInfo.periodNames);
-          return;
-        }
-        const autoClassPeriod = sessionInfo?.periodNames[0];
-        await joinQuizSession(urlCode, undefined, autoClassPeriod);
+        await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
         console.warn('[QuizStudentApp] SSO auto-join failed:', err);
-        // Surface the failure to the UI. Either step (lookupSession or
-        // joinQuizSession) can throw; if it was joinQuizSession the hook's
-        // own `error` state will also be populated, and the render branch
-        // below prefers that more detailed message when available.
+        // Surface the failure to the UI. The hook's own `error` state will
+        // also be populated, and the render branch below prefers that more
+        // detailed message when available.
         const message =
           err instanceof Error
             ? err.message
@@ -206,14 +206,7 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       }
     };
     void run();
-  }, [
-    isStudentRole,
-    urlCode,
-    joined,
-    periodStep,
-    lookupSession,
-    joinQuizSession,
-  ]);
+  }, [isStudentRole, urlCode, joined, joinQuizSession]);
 
   const handleAnswer = useCallback(
     async (questionId: string, answer: string, speedBonus?: number) => {
@@ -232,7 +225,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   // (If you want URL-based pin support: ?code=XXXXXX&pin=01 is an option for
   // future work, but not implemented here to avoid leaking PINs in URL logs.)
 
-  // Period selection step — shown when session has multiple class periods
+  // Period selection step — shown to anon joiners when the session declares
+  // any class periods. SSO joiners skip this and join via the auto-join effect.
   if (periodStep && !joined) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
@@ -275,7 +269,15 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
           </div>
 
           <button
-            onClick={() => void handlePeriodConfirm()}
+            onClick={() => {
+              // joinQuizSession re-throws after populating `error` state for
+              // the UI. Catch here so the rejection isn't an unhandled
+              // promise — `void` would only silence the linter, not handle
+              // the rejection.
+              handlePeriodConfirm().catch((err: unknown) => {
+                console.warn('[QuizStudentApp] Period confirm failed:', err);
+              });
+            }}
             disabled={loading || !selectedPeriod}
             className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
@@ -353,7 +355,13 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void handleJoin(code, pin);
+              // joinQuizSession re-throws after populating `error` state for
+              // the UI. Catch here so the rejection isn't an unhandled
+              // promise — `void` would only silence the linter, not handle
+              // the rejection.
+              handleJoin(code, pin).catch((err: unknown) => {
+                console.warn('[QuizStudentApp] Join failed:', err);
+              });
             }}
             className="space-y-4"
           >
