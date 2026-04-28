@@ -59,29 +59,40 @@ const EMPTY_MAPS: AssignmentPseudonymMaps = {
 let cacheOwnerUid: string | null = null;
 let cache: Map<string, Promise<AssignmentPseudonymMaps>> = new Map();
 
-function cacheKey(assignmentId: string, classId: string): string {
-  return `${assignmentId}::${classId}`;
+function cacheKey(
+  assignmentId: string,
+  classId: string,
+  orgId: string
+): string {
+  // orgId is part of the key so a teacher who belongs to multiple orgs
+  // doesn't get a cached test-class result from the wrong org. For ClassLink
+  // classes (no test-class doc under any org) the lookup result is identical
+  // regardless of orgId, so the duplicate cache cost is negligible.
+  return `${assignmentId}::${classId}::${orgId}`;
 }
 
 function fetchPseudonymMaps(
   assignmentId: string,
   classId: string,
+  orgId: string,
   teacherUid: string
 ): Promise<AssignmentPseudonymMaps> {
   if (cacheOwnerUid !== teacherUid) {
     cache = new Map();
     cacheOwnerUid = teacherUid;
   }
-  const key = cacheKey(assignmentId, classId);
+  const key = cacheKey(assignmentId, classId, orgId);
   const cached = cache.get(key);
   if (cached) return cached;
 
   const callable = httpsCallable<
-    { assignmentId: string; classId: string },
+    { assignmentId: string; classId: string; orgId?: string },
     CallableResponse
   >(functions, 'getPseudonymsForAssignmentV1');
 
-  const promise = callable({ assignmentId, classId }).then((res) => {
+  const promise = callable(
+    orgId ? { assignmentId, classId, orgId } : { assignmentId, classId }
+  ).then((res) => {
     const entries = res.data?.pseudonyms ?? {};
     const byStudentUid = new Map<string, StudentName>();
     const byAssignmentPseudonym = new Map<string, StudentName>();
@@ -112,14 +123,18 @@ interface ResolvedMaps {
 
 function pairKey(
   assignmentId: string | null | undefined,
-  classId: string | null | undefined
+  classId: string | null | undefined,
+  orgId: string | null | undefined
 ): string {
-  return assignmentId && classId ? `${assignmentId}::${classId}` : '';
+  return assignmentId && classId
+    ? `${assignmentId}::${classId}::${orgId ?? ''}`
+    : '';
 }
 
 export function useAssignmentPseudonyms(
   assignmentId: string | null | undefined,
-  classId: string | null | undefined
+  classId: string | null | undefined,
+  orgId: string | null | undefined
 ): AssignmentPseudonymMaps {
   const [resolved, setResolved] = useState<ResolvedMaps>({
     key: '',
@@ -127,12 +142,12 @@ export function useAssignmentPseudonyms(
   });
 
   useEffect(() => {
-    const key = pairKey(assignmentId, classId);
+    const key = pairKey(assignmentId, classId, orgId);
     if (!key || !assignmentId || !classId) return;
     const teacherUid = auth.currentUser?.uid ?? '';
     if (!teacherUid) return;
     let cancelled = false;
-    fetchPseudonymMaps(assignmentId, classId, teacherUid)
+    fetchPseudonymMaps(assignmentId, classId, orgId ?? '', teacherUid)
       .then((maps) => {
         if (!cancelled) setResolved({ key, maps });
       })
@@ -142,9 +157,9 @@ export function useAssignmentPseudonyms(
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, classId]);
+  }, [assignmentId, classId, orgId]);
 
-  const currentKey = pairKey(assignmentId, classId);
+  const currentKey = pairKey(assignmentId, classId, orgId);
   return resolved.key === currentKey && currentKey !== ''
     ? resolved.maps
     : EMPTY_MAPS;
@@ -165,7 +180,8 @@ export function formatStudentName(name: StudentName | undefined): string {
  */
 export function useAssignmentPseudonymsMulti(
   assignmentId: string | null | undefined,
-  classIds: readonly string[] | null | undefined
+  classIds: readonly string[] | null | undefined,
+  orgId: string | null | undefined
 ): AssignmentPseudonymMaps {
   // `classIdsKey` is the canonical, value-stable identity for the caller's
   // class list. Deriving it from the raw prop (instead of from a pre-filtered
@@ -177,6 +193,7 @@ export function useAssignmentPseudonymsMulti(
     .slice()
     .sort()
     .join('|');
+  const orgKey = orgId ?? '';
   const [resolved, setResolved] = useState<{
     key: string;
     maps: AssignmentPseudonymMaps;
@@ -188,10 +205,10 @@ export function useAssignmentPseudonymsMulti(
     if (!teacherUid) return;
     const cleanedInEffect = classIdsKey.split('|');
     let cancelled = false;
-    const key = `${assignmentId}::${classIdsKey}`;
+    const key = `${assignmentId}::${classIdsKey}::${orgKey}`;
     Promise.all(
       cleanedInEffect.map((cid) =>
-        fetchPseudonymMaps(assignmentId, cid, teacherUid)
+        fetchPseudonymMaps(assignmentId, cid, orgKey, teacherUid)
       )
     )
       .then((all) => {
@@ -214,11 +231,11 @@ export function useAssignmentPseudonymsMulti(
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, classIdsKey]);
+  }, [assignmentId, classIdsKey, orgKey]);
 
   const currentKey =
     assignmentId && classIdsKey.length > 0
-      ? `${assignmentId}::${classIdsKey}`
+      ? `${assignmentId}::${classIdsKey}::${orgKey}`
       : '';
   return resolved.key === currentKey && currentKey !== ''
     ? resolved.maps

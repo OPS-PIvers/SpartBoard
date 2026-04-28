@@ -2,12 +2,18 @@
  * QuizStudentApp — the student-facing quiz experience.
  * Accessible at /quiz?code=XXXXXX
  *
- * Flow:
- *  1. Student must sign in with Google (org email required)
- *  2. Student enters a quiz code (or picks it up from URL param)
- *  3. Student waits in lobby for teacher to start
- *  4. Questions are shown one by one as teacher advances
- *  5. Student submits answers; teacher sees results
+ * Flow (anonymous /join):
+ *  1. Student is signed in anonymously on mount (no UI).
+ *  2. Student enters quiz code + their roster PIN.
+ *  3. Student waits in lobby for teacher to start.
+ *  4. Questions are shown one by one as teacher advances.
+ *  5. Student submits answers; teacher sees results.
+ *
+ * Flow (SSO `studentRole` from /my-assignments):
+ *  1. Student is already signed in via custom token (claims.studentRole).
+ *  2. Code is in the URL; PIN is unnecessary — identity = `auth.uid`.
+ *  3. We auto-join on mount (still showing the period picker for
+ *     multi-period sessions) and proceed straight to the waiting room.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -47,21 +53,35 @@ import {
 export const QuizStudentApp: React.FC = () => {
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
+  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
+  // minted by `studentLoginV1`. Resolved at mount; used to drive the
+  // auto-join branch in `QuizJoinFlow`. Anonymous joiners stay `false`.
+  const [isStudentRole, setIsStudentRole] = useState(false);
 
-  // Sign in anonymously on mount — no user interaction required.
-  // This satisfies Firestore security rules (request.auth != null) without
-  // storing any student PII in Firebase Authentication.
+  // Sign in anonymously on mount only when nobody is signed in yet — SSO
+  // students arriving from `/my-assignments` already have a custom-token
+  // user we must keep. This satisfies Firestore security rules
+  // (`request.auth != null`) for direct `/quiz?code=…` visitors.
   useEffect(() => {
     const init = async () => {
-      if (!auth.currentUser) {
-        try {
+      try {
+        if (!auth.currentUser) {
           await signInAnonymously(auth);
-        } catch (err) {
-          console.warn('[QuizStudentApp] Anonymous auth failed:', err);
-          setAuthFailed(true);
         }
+        const user = auth.currentUser;
+        if (user && !user.isAnonymous) {
+          // Probe custom claims once. We don't refresh here — `studentLoginV1`
+          // is what minted these, and a stale token is fine for read-only
+          // identity. The Firestore rules re-validate on every write.
+          const tokenResult = await user.getIdTokenResult();
+          setIsStudentRole(tokenResult.claims?.studentRole === true);
+        }
+      } catch (err) {
+        console.warn('[QuizStudentApp] Auth init failed:', err);
+        setAuthFailed(true);
+      } finally {
+        setAuthReady(true);
       }
-      setAuthReady(true);
     };
     void init();
   }, []);
@@ -81,12 +101,14 @@ export const QuizStudentApp: React.FC = () => {
     );
   }
 
-  return <QuizJoinFlow />;
+  return <QuizJoinFlow isStudentRole={isStudentRole} />;
 };
 
 // ─── Join flow ────────────────────────────────────────────────────────────────
 
-const QuizJoinFlow: React.FC = () => {
+const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
+  isStudentRole,
+}) => {
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
 
@@ -98,6 +120,16 @@ const QuizJoinFlow: React.FC = () => {
   // multiple periodNames the student picks their class before joining.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+
+  // SSO joiners auto-join on mount (no PIN). This guard prevents the effect
+  // below from triggering twice in StrictMode and keeps the form invisible
+  // while the lookup+join is in flight.
+  const ssoAutoJoinStartedRef = useRef(false);
+  // Local error state for SSO auto-join. The hook's `error` state only fires
+  // from `joinQuizSession` itself; if `lookupSession` throws first (network
+  // failure, Firestore unavailable) the hook stays silent, so without this
+  // the student would sit on the "Joining quiz…" loader forever.
+  const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
 
   const {
     session,
@@ -131,9 +163,57 @@ const QuizJoinFlow: React.FC = () => {
 
   const handlePeriodConfirm = useCallback(async () => {
     if (!selectedPeriod) return;
-    await joinQuizSession(code, pin, selectedPeriod);
+    // SSO joiners pass `undefined` as the PIN — the hook keys the response
+    // doc by auth.uid in that case. Anonymous joiners send the form `pin`.
+    const joinPin = isStudentRole ? undefined : pin;
+    await joinQuizSession(code, joinPin, selectedPeriod);
     setJoined(true);
-  }, [joinQuizSession, code, pin, selectedPeriod]);
+  }, [joinQuizSession, code, pin, selectedPeriod, isStudentRole]);
+
+  // SSO auto-join: bypass the PIN form entirely. lookupSession handles the
+  // multi-period branch (we still show the picker — periodNames are
+  // free-form labels and don't map 1:1 onto classIds, so we can't auto-pick).
+  useEffect(() => {
+    if (!isStudentRole) return;
+    if (!urlCode) return;
+    if (joined || periodStep) return;
+    if (ssoAutoJoinStartedRef.current) return;
+    ssoAutoJoinStartedRef.current = true;
+
+    const run = async () => {
+      try {
+        const sessionInfo = await lookupSession(urlCode);
+        if (sessionInfo && sessionInfo.periodNames.length > 1) {
+          setPeriodStep(sessionInfo.periodNames);
+          return;
+        }
+        const autoClassPeriod = sessionInfo?.periodNames[0];
+        await joinQuizSession(urlCode, undefined, autoClassPeriod);
+        setJoined(true);
+      } catch (err) {
+        console.warn('[QuizStudentApp] SSO auto-join failed:', err);
+        // Surface the failure to the UI. Either step (lookupSession or
+        // joinQuizSession) can throw; if it was joinQuizSession the hook's
+        // own `error` state will also be populated, and the render branch
+        // below prefers that more detailed message when available.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your quiz. Please refresh and try again.";
+        setSsoAutoJoinError(message);
+        // Re-arm so a retry button (if added later) can re-trigger.
+        ssoAutoJoinStartedRef.current = false;
+      }
+    };
+    void run();
+  }, [
+    isStudentRole,
+    urlCode,
+    joined,
+    periodStep,
+    lookupSession,
+    joinQuizSession,
+  ]);
 
   const handleAnswer = useCallback(
     async (questionId: string, answer: string, speedBonus?: number) => {
@@ -224,6 +304,28 @@ const QuizJoinFlow: React.FC = () => {
 
   // Not yet joined
   if (!joined || !session) {
+    // SSO students never see the PIN form — the auto-join effect above
+    // handles them. Show a quiet loader (or the error if lookup/join
+    // failed) until `joined` flips. Periods picker is rendered earlier in
+    // the function and short-circuits before we reach this branch.
+    //
+    // Prefer the hook's `error` (more specific, e.g. attempt-limit reached)
+    // when available, falling back to `ssoAutoJoinError` which captures
+    // failures from `lookupSession` that never reach the hook.
+    if (isStudentRole) {
+      const ssoError = error ?? ssoAutoJoinError;
+      if (ssoError) {
+        return (
+          <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-6">
+            <AlertCircle className="w-10 h-10 text-red-400" />
+            <p className="text-slate-300 text-sm text-center max-w-sm">
+              {ssoError}
+            </p>
+          </div>
+        );
+      }
+      return <FullPageLoader message="Joining quiz…" />;
+    }
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
         <div className="w-full max-w-sm">
@@ -357,6 +459,7 @@ const QuizJoinFlow: React.FC = () => {
       answeredCount={(myResponse?.answers ?? []).length}
       totalQuestions={session.totalQuestions}
       pin={pin}
+      myStudentUid={myResponse?.studentUid}
     />
   );
 };
@@ -365,6 +468,7 @@ const QuizJoinFlow: React.FC = () => {
 
 const WaitingRoom: React.FC<{
   session: QuizSession;
+  /** Empty string for SSO `studentRole` joiners — PIN line is hidden. */
   pin: string;
 }> = ({ session, pin }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
@@ -378,12 +482,14 @@ const WaitingRoom: React.FC<{
     <p className="text-slate-500 text-xs mb-8">
       {session.totalQuestions} questions
     </p>
-    <div className="p-4 bg-slate-800 rounded-xl">
-      <p className="text-slate-300 text-sm">
-        Joined as PIN{' '}
-        <span className="font-semibold text-white font-mono">{pin}</span>
-      </p>
-    </div>
+    {pin && (
+      <div className="p-4 bg-slate-800 rounded-xl">
+        <p className="text-slate-300 text-sm">
+          Joined as PIN{' '}
+          <span className="font-semibold text-white font-mono">{pin}</span>
+        </p>
+      </div>
+    )}
   </div>
 );
 
@@ -1327,6 +1433,7 @@ const ReviewPhase: React.FC<{
           <StudentLeaderboard
             entries={session.liveLeaderboard}
             myPin={myResponse?.pin ?? ''}
+            myStudentUid={myResponse?.studentUid}
             scoreSuffix={getScoreSuffix(session)}
           />
           <div className="flex items-center gap-2 text-slate-500 text-sm">
@@ -1349,13 +1456,21 @@ const ResultsScreen: React.FC<{
   answeredCount: number;
   totalQuestions: number;
   pin: string;
-}> = ({ session, answeredCount, totalQuestions, pin }) => (
+  /** Auth uid — used by `StudentLeaderboard` to highlight the SSO student's row. */
+  myStudentUid?: string;
+}> = ({ session, answeredCount, totalQuestions, pin, myStudentUid }) => (
   <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
     <Trophy className="w-16 h-16 text-amber-400 mb-6" />
     <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
     <p className="text-slate-400 text-sm mb-8">
-      Great job, PIN{' '}
-      <span className="font-mono font-bold text-white">{pin}</span>!
+      {pin ? (
+        <>
+          Great job, PIN{' '}
+          <span className="font-mono font-bold text-white">{pin}</span>!
+        </>
+      ) : (
+        'Great job!'
+      )}
     </p>
 
     <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
@@ -1374,6 +1489,7 @@ const ResultsScreen: React.FC<{
         <StudentLeaderboard
           entries={session.liveLeaderboard}
           myPin={pin}
+          myStudentUid={myStudentUid}
           scoreSuffix={getScoreSuffix(session)}
         />
       </div>
@@ -1396,8 +1512,14 @@ const QuizSubmittedWaitScreen: React.FC<{
       <CheckCircle2 className="w-16 h-16 text-emerald-400 mb-6" />
       <h1 className="text-3xl font-black text-white mb-2">Quiz Submitted!</h1>
       <p className="text-slate-400 text-sm mb-6">
-        Great work, PIN{' '}
-        <span className="font-mono font-bold text-white">{pin}</span>.
+        {pin ? (
+          <>
+            Great work, PIN{' '}
+            <span className="font-mono font-bold text-white">{pin}</span>.
+          </>
+        ) : (
+          'Great work.'
+        )}
       </p>
 
       <div className="mb-6 p-5 bg-slate-800 rounded-2xl">
@@ -1420,6 +1542,7 @@ const QuizSubmittedWaitScreen: React.FC<{
           <StudentLeaderboard
             entries={session.liveLeaderboard}
             myPin={pin}
+            myStudentUid={myResponse.studentUid}
             scoreSuffix={scoreSuffix}
           />
         </div>

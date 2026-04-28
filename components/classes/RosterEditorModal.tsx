@@ -43,6 +43,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     handleToggleLastNames,
     showPins,
     setShowPins,
+    showEmails,
+    setShowEmails,
     showRestrictions,
     setShowRestrictions,
     toggleRestriction,
@@ -130,6 +132,22 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   })}
             </button>
             <button
+              onClick={() => setShowEmails((v) => !v)}
+              className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                showEmails
+                  ? 'text-slate-400 hover:text-red-500'
+                  : 'text-emerald-600 hover:text-emerald-700'
+              }`}
+            >
+              {showEmails
+                ? t('sidebar.classes.hideEmail', {
+                    defaultValue: '− Email',
+                  })
+                : t('sidebar.classes.addEmail', {
+                    defaultValue: '+ Email',
+                  })}
+            </button>
+            <button
               onClick={() => setShowRestrictions((v) => !v)}
               className={`text-xs font-black uppercase tracking-wider transition-colors ${
                 showRestrictions
@@ -183,6 +201,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               <RosterHeader
                 showLastNames={showLastNames}
                 showPins={showPins}
+                showEmails={showEmails}
                 showRestrictions={showRestrictions}
                 firstLabel={
                   showLastNames
@@ -199,6 +218,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 pinLabel={t('sidebar.classes.quizPin', {
                   defaultValue: 'Quiz PIN',
                 })}
+                emailLabel={t('sidebar.classes.email', {
+                  defaultValue: 'Email',
+                })}
                 restrictionsLabel={t('sidebar.classes.restrictionsHeader', {
                   defaultValue: 'Restricted from working with',
                 })}
@@ -211,6 +233,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     index={idx}
                     showLastNames={showLastNames}
                     showPins={showPins}
+                    showEmails={showEmails}
                     showRestrictions={showRestrictions}
                     allRows={rows}
                     isDuplicatePin={
@@ -231,6 +254,9 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                     )}
                     pinPlaceholder={t('sidebar.classes.pinPlaceholder', {
                       defaultValue: '01',
+                    })}
+                    emailPlaceholder={t('sidebar.classes.emailPlaceholder', {
+                      defaultValue: 'student@school.org',
                     })}
                     removeLabel={t('sidebar.classes.removeStudent', {
                       defaultValue: 'Remove student',
@@ -268,20 +294,24 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
 interface RosterHeaderProps {
   showLastNames: boolean;
   showPins: boolean;
+  showEmails: boolean;
   showRestrictions: boolean;
   firstLabel: string;
   lastLabel: string;
   pinLabel: string;
+  emailLabel: string;
   restrictionsLabel: string;
 }
 
 const RosterHeader: React.FC<RosterHeaderProps> = ({
   showLastNames,
   showPins,
+  showEmails,
   showRestrictions,
   firstLabel,
   lastLabel,
   pinLabel,
+  emailLabel,
   restrictionsLabel,
 }) => {
   return (
@@ -291,6 +321,7 @@ const RosterHeader: React.FC<RosterHeaderProps> = ({
         gridTemplateColumns: buildGridTemplate(
           showLastNames,
           showPins,
+          showEmails,
           showRestrictions
         ),
       }}
@@ -299,6 +330,7 @@ const RosterHeader: React.FC<RosterHeaderProps> = ({
       {showPins && <span>{pinLabel}</span>}
       <span>{firstLabel}</span>
       {showLastNames && <span>{lastLabel}</span>}
+      {showEmails && <span>{emailLabel}</span>}
       {showRestrictions && <span>{restrictionsLabel}</span>}
       <span />
     </div>
@@ -310,12 +342,14 @@ interface RosterRowProps {
   index: number;
   showLastNames: boolean;
   showPins: boolean;
+  showEmails: boolean;
   showRestrictions: boolean;
   allRows: DraftRow[];
   isDuplicatePin: boolean;
   firstNamePlaceholder: string;
   lastNamePlaceholder: string;
   pinPlaceholder: string;
+  emailPlaceholder: string;
   removeLabel: string;
   onChange: (patch: Partial<DraftRow>) => void;
   onDelete: () => void;
@@ -328,12 +362,14 @@ const RosterRow: React.FC<RosterRowProps> = ({
   index,
   showLastNames,
   showPins,
+  showEmails,
   showRestrictions,
   allRows,
   isDuplicatePin,
   firstNamePlaceholder,
   lastNamePlaceholder,
   pinPlaceholder,
+  emailPlaceholder,
   removeLabel,
   onChange,
   onDelete,
@@ -368,6 +404,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
         gridTemplateColumns: buildGridTemplate(
           showLastNames,
           showPins,
+          showEmails,
           showRestrictions
         ),
       }}
@@ -402,6 +439,17 @@ const RosterRow: React.FC<RosterRowProps> = ({
           value={row.lastName}
           onChange={(e) => onChange({ lastName: e.target.value })}
           placeholder={lastNamePlaceholder}
+        />
+      )}
+      {showEmails && (
+        <input
+          type="email"
+          className="px-3 py-1.5 text-sm rounded-md border border-slate-200 bg-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+          value={row.email ?? ''}
+          onChange={(e) => onChange({ email: e.target.value })}
+          placeholder={emailPlaceholder}
+          autoComplete="off"
+          spellCheck={false}
         />
       )}
       {showRestrictions && (
@@ -456,17 +504,19 @@ const RosterEmptyState: React.FC<RosterEmptyStateProps> = ({
 );
 
 /**
- * Grid columns: [#] [PIN?] [First] [Last?] [Restrictions?] [Delete]
+ * Grid columns: [#] [PIN?] [First] [Last?] [Email?] [Restrictions?] [Delete]
  */
 function buildGridTemplate(
   showLastNames: boolean,
   showPins: boolean,
+  showEmails: boolean,
   showRestrictions: boolean
 ): string {
   const parts = ['2rem'];
   if (showPins) parts.push('5rem');
   parts.push('minmax(0, 1fr)');
   if (showLastNames) parts.push('minmax(0, 1fr)');
+  if (showEmails) parts.push('minmax(0, 1.4fr)');
   if (showRestrictions) parts.push('minmax(9rem, 14rem)');
   parts.push('2rem');
   return parts.join(' ');

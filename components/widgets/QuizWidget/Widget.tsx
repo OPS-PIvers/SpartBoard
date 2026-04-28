@@ -30,6 +30,12 @@ import {
   getEarnedPoints,
   isGamificationActive,
 } from './utils/quizScoreboard';
+import {
+  resolveResponseDisplayName,
+  responseTeamId,
+  responseColorIndex,
+} from './utils/resolveDisplayName';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
@@ -41,7 +47,7 @@ import { getPlcTeammateEmails } from '@/utils/plc';
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
     useDashboard();
-  const { user, googleAccessToken } = useAuth();
+  const { user, googleAccessToken, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
 
@@ -199,6 +205,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const widgetsRef = useRef(activeDashboard?.widgets);
   widgetsRef.current = activeDashboard?.widgets;
 
+  // ClassLink name lookup for SSO `studentRole` joiners. The live scoreboard
+  // sync below runs inside a debounced callback that captures the latest
+  // map via `byStudentUidRef`, so name resolution stays current without
+  // having to make `byStudentUid` a sync trigger.
+  const liveClassIds =
+    liveSession?.classIds && liveSession.classIds.length > 0
+      ? liveSession.classIds
+      : liveSession?.classId
+        ? [liveSession.classId]
+        : [];
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
+    liveSession?.id ?? null,
+    liveClassIds,
+    orgId
+  );
+  const byStudentUidRef = useRef(byStudentUid);
+  byStudentUidRef.current = byStudentUid;
+
   // ─── Callback for child components to update quiz config ────────────────────
   const handleUpdateQuizConfig = useCallback(
     (updates: Partial<QuizConfig>) => {
@@ -217,11 +241,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
 
     // Compute a fingerprint including answer content to detect changes.
-    // First-run detection uses the empty-prev check below.
+    // First-run detection uses the empty-prev check below. Use studentUid
+    // as the row identity since SSO joiners have no `pin` — anonymous
+    // joiners' studentUid is their (stable) anon Firebase Auth uid.
     const fingerprint = responses
       .map(
         (r) =>
-          `${r.pin}:${r.status}:${r.answers.map((a) => `${a.questionId}=${a.answer}@${a.answeredAt ?? 0}+${a.speedBonus ?? 0}`).join(',')}`
+          `${r.studentUid}:${r.status}:${r.answers.map((a) => `${a.questionId}=${a.answer}@${a.answeredAt ?? 0}+${a.speedBonus ?? 0}`).join(',')}`
       )
       .sort()
       .join('|');
@@ -260,6 +286,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // by total points and would show low percentages for students mid-quiz.
           const questions = loadedQuizData.questions;
           const gamified = isGamificationActive(liveSession);
+          // SSO `studentRole` rows have no `pin` — fall back to studentUid
+          // for both the team id and the color hash, and pull names from
+          // the ClassLink lookup. `byStudentUidRef.current` is the latest
+          // map, captured here so we don't need to wire it as a debounce
+          // dependency.
+          const ssoNames = byStudentUidRef.current;
           newTeams = allResponses
             .map((r) => {
               let maxAnsweredPoints = 0;
@@ -277,18 +309,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               return { response: r, score };
             })
             .sort((a, b) => b.score - a.score)
-            .map(({ response, score }) => ({
-              id: `pin-${response.pin}`,
-              name:
-                displayMode === 'name'
-                  ? (pinToName[response.pin] ?? `PIN ${response.pin}`)
-                  : `PIN ${response.pin}`,
-              score,
-              color:
-                SCOREBOARD_COLORS[
-                  parseInt(response.pin, 10) % SCOREBOARD_COLORS.length
-                ],
-            }));
+            .map(({ response, score }) => {
+              const resolvedName = resolveResponseDisplayName(
+                response,
+                pinToName,
+                ssoNames
+              );
+              const pinModeName = response.pin
+                ? `PIN ${response.pin}`
+                : resolvedName;
+              return {
+                id: responseTeamId(response),
+                name: displayMode === 'name' ? resolvedName : pinModeName,
+                score,
+                color:
+                  SCOREBOARD_COLORS[
+                    responseColorIndex(response, SCOREBOARD_COLORS.length)
+                  ],
+              };
+            });
         } else {
           // Completion mode: uses total quiz points as denominator, so
           // in-progress students show partial scores proportional to
@@ -298,7 +337,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             loadedQuizData.questions,
             displayMode,
             pinToName,
-            liveSession
+            liveSession,
+            byStudentUidRef.current
           );
         }
 

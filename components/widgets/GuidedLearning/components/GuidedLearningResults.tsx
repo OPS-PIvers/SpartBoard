@@ -18,6 +18,7 @@ import {
   useAssignmentPseudonyms,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { useAuth } from '@/context/useAuth';
 
 interface Props {
   set: GuidedLearningSet;
@@ -64,7 +65,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
     };
   }, [sessionId]);
 
-  const { byStudentUid } = useAssignmentPseudonyms(sessionId, classId);
+  const { orgId } = useAuth();
+  const { byStudentUid } = useAssignmentPseudonyms(sessionId, classId, orgId);
 
   const {
     questionSteps,

@@ -3016,6 +3016,231 @@ export const getAssignmentPseudonymV1 = onCall(
 );
 
 /**
+ * getStudentClassDirectoryV1
+ *
+ * Returns class metadata (name, teacher display name, subject, code) for the
+ * authenticated student's claim-bound `classIds`. Powers the sidebar on
+ * `/my-assignments` so a student sees "English 9 / Ms. Halverson" instead of
+ * an opaque sourcedId.
+ *
+ * Lookup order per classId:
+ *   1. `collectionGroup('rosters').where('classlinkClassId', '==', classId)` —
+ *      real ClassLink imports. Parent path gives teacher uid. Safe across
+ *      orgs because ClassLink-issued sourcedIds are not admin-controlled.
+ *   2. `organizations/{orgId}/testClasses/{classId}` — admin-managed test
+ *      classes. Always read via the org-scoped doc path (never via a
+ *      collectionGroup lookup on `testClassId`) because test class IDs are
+ *      admin-chosen slugs that can collide across orgs; a collectionGroup
+ *      query would risk returning another org's roster.
+ *
+ * PII: this function never returns student names, emails, or any field from
+ * the per-roster Drive file. Only Firestore-side roster meta (which is
+ * itself PII-free) plus the teacher's own `displayName` from Firebase Auth.
+ * Teacher names are organizational data, not student PII.
+ *
+ * Failure: classIds that match nothing are silently dropped from the
+ * response so the sidebar simply omits them. The page renders a fallback
+ * label client-side rather than treating a missing entry as an error.
+ */
+export const getStudentClassDirectoryV1 = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (request.auth.token.studentRole !== true) {
+      throw new HttpsError('permission-denied', 'Student role required.');
+    }
+
+    const rawClassIds: unknown = request.auth.token.classIds;
+    if (!Array.isArray(rawClassIds)) {
+      throw new HttpsError('failed-precondition', 'No classes on token.');
+    }
+    const classIds = rawClassIds
+      .filter((c): c is string => typeof c === 'string' && c.length > 0)
+      .slice(0, STUDENT_LOGIN_CLASS_IDS_MAX);
+    if (classIds.length === 0) {
+      return { classes: [] };
+    }
+
+    const orgId =
+      typeof request.auth.token.orgId === 'string'
+        ? request.auth.token.orgId
+        : '';
+
+    const db = admin.firestore();
+
+    // Per-call cache: many classes may share a teacher; one Auth lookup
+    // suffices.
+    const teacherNameCache = new Map<string, string>();
+    const resolveTeacherName = async (teacherUid: string): Promise<string> => {
+      const cached = teacherNameCache.get(teacherUid);
+      if (cached !== undefined) return cached;
+      try {
+        const user = await admin.auth().getUser(teacherUid);
+        const displayName =
+          (typeof user.displayName === 'string' && user.displayName) ||
+          (typeof user.email === 'string' ? user.email.split('@')[0] : '') ||
+          '';
+        teacherNameCache.set(teacherUid, displayName);
+        return displayName;
+      } catch {
+        // Auth lookup can fail for legacy / deleted teacher accounts. Caller
+        // falls back to an empty teacher name; the row still renders.
+        teacherNameCache.set(teacherUid, '');
+        return '';
+      }
+    };
+
+    interface DirectoryEntry {
+      classId: string;
+      name: string;
+      teacherDisplayName: string;
+      subject?: string;
+      code?: string;
+    }
+
+    // Batch the per-classId collectionGroup queries instead of fanning out
+    // a separate equality query per id. Firestore caps `in`-array size at
+    // 30; we chunk at 10 to stay safely under the limit and to fit the
+    // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
+    const FIRESTORE_IN_CHUNK_SIZE = 10;
+    const chunk = <T>(arr: readonly T[], size: number): T[][] => {
+      const chunks: T[][] = [];
+      for (let i = 0; i < arr.length; i += size) {
+        chunks.push(arr.slice(i, i + size));
+      }
+      return chunks;
+    };
+
+    /**
+     * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
+     * chunk of `ids`, then index the matching roster docs by their
+     * `field`-value. First match wins on duplicates so the teacher whose
+     * roster Firestore returns first deterministically owns the directory
+     * entry for that class.
+     */
+    const batchLookupByField = async (
+      field: 'classlinkClassId',
+      ids: readonly string[]
+    ): Promise<Map<string, FirebaseFirestore.QueryDocumentSnapshot>> => {
+      const out = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+      if (ids.length === 0) return out;
+      const snapshots = await Promise.all(
+        chunk(ids, FIRESTORE_IN_CHUNK_SIZE).map((idChunk) =>
+          db.collectionGroup('rosters').where(field, 'in', idChunk).get()
+        )
+      );
+      for (const snap of snapshots) {
+        for (const doc of snap.docs) {
+          const value: unknown = doc.get(field);
+          if (typeof value === 'string' && !out.has(value)) {
+            out.set(value, doc);
+          }
+        }
+      }
+      return out;
+    };
+
+    const buildEntryFromRoster = async (
+      classId: string,
+      rosterDoc: FirebaseFirestore.QueryDocumentSnapshot,
+      includeCode: boolean
+    ): Promise<DirectoryEntry> => {
+      const data = rosterDoc.data();
+      const teacherUid = rosterDoc.ref.parent.parent?.id ?? '';
+      const teacherDisplayName = teacherUid
+        ? await resolveTeacherName(teacherUid)
+        : '';
+      return {
+        classId,
+        name: typeof data.name === 'string' ? data.name : classId,
+        teacherDisplayName,
+        subject:
+          typeof data.classlinkSubject === 'string'
+            ? data.classlinkSubject
+            : undefined,
+        code:
+          includeCode && typeof data.classlinkClassCode === 'string'
+            ? data.classlinkClassCode
+            : undefined,
+      };
+    };
+
+    // 1. Batched collectionGroup lookup for ClassLink classes. Two `in`
+    // queries per field chunk replace what was up to 20 separate equality
+    // queries. Real ClassLink sourcedIds are issued globally by ClassLink
+    // and are not admin-controlled, so collisions across orgs are not a
+    // realistic risk on this branch.
+    const classlinkMatches = await batchLookupByField(
+      'classlinkClassId',
+      classIds
+    );
+    const unresolvedAfterClasslink = classIds.filter(
+      (id) => !classlinkMatches.has(id)
+    );
+
+    // 2. Direct testClasses doc reads — for every classId not resolved as
+    // ClassLink. We deliberately do NOT use a `collectionGroup('rosters')
+    // .where('testClassId', 'in', …)` lookup here: testClassIds are
+    // admin-chosen slugs (default `testclass`, or a slugified title) and
+    // can collide across orgs, so a collectionGroup query would risk
+    // returning another org's roster doc and leaking that teacher's name
+    // and class metadata to the student. The org-scoped document path is
+    // gated by the student's verified `orgId` claim, so it cannot cross
+    // org boundaries. The trade-off is that we no longer surface the
+    // importing teacher's display name on test-class directory entries —
+    // these are admin-managed mocks where teacher attribution is
+    // cosmetic.
+    const testClassDocs = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+    if (orgId && unresolvedAfterClasslink.length > 0) {
+      const docs = await Promise.all(
+        unresolvedAfterClasslink.map((id) =>
+          db
+            .doc(`organizations/${orgId}/testClasses/${id}`)
+            .get()
+            .catch(() => null)
+        )
+      );
+      for (let i = 0; i < unresolvedAfterClasslink.length; i++) {
+        const d = docs[i];
+        if (d && d.exists) testClassDocs.set(unresolvedAfterClasslink[i], d);
+      }
+    }
+
+    const entries = await Promise.all(
+      classIds.map(async (classId): Promise<DirectoryEntry | null> => {
+        const fromClasslink = classlinkMatches.get(classId);
+        if (fromClasslink) {
+          return buildEntryFromRoster(classId, fromClasslink, true);
+        }
+        const fromTestClassDoc = testClassDocs.get(classId);
+        if (fromTestClassDoc) {
+          const data = fromTestClassDoc.data() ?? {};
+          return {
+            classId,
+            name:
+              typeof data.title === 'string' && data.title.length > 0
+                ? data.title
+                : classId,
+            teacherDisplayName: '',
+            subject:
+              typeof data.subject === 'string' ? data.subject : undefined,
+          };
+        }
+        return null;
+      })
+    );
+
+    const classes = entries.filter((e): e is DirectoryEntry => e !== null);
+    return { classes };
+  }
+);
+
+/**
  * getPseudonymsForAssignmentV1
  *
  * Called by a teacher's client when rendering the grading view for an
@@ -3059,10 +3284,15 @@ export const getPseudonymsForAssignmentV1 = onCall(
     const data = request.data as {
       assignmentId?: unknown;
       classId?: unknown;
+      orgId?: unknown;
     };
     const assignmentId =
       typeof data?.assignmentId === 'string' ? data.assignmentId : '';
     const classId = typeof data?.classId === 'string' ? data.classId : '';
+    // orgId is optional for backwards compatibility (older clients). The
+    // test-class branch only activates when it's provided AND the requested
+    // classId resolves to a `testClasses` doc under that org.
+    const orgId = typeof data?.orgId === 'string' ? data.orgId : '';
     if (!assignmentId || !classId) {
       throw new HttpsError(
         'invalid-argument',
@@ -3081,6 +3311,99 @@ export const getPseudonymsForAssignmentV1 = onCall(
       !tenantUrl
     ) {
       throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    // ── Test-class branch ────────────────────────────────────────────────
+    // Test classes (admin-managed mocks under `organizations/{orgId}/testClasses`)
+    // bypass ClassLink entirely. Their students log in via the `studentLoginV1`
+    // test bypass, which mints UIDs as `HMAC("sid:test:{emailLower}", secret)`.
+    // ClassLink OneRoster has no record of them, so the standard branch returns
+    // an empty pseudonym map and the teacher monitor falls back to "Student".
+    // This branch resolves names from the `memberEmails` array on the test-class
+    // doc, using the email local-part as the display name (matching what
+    // `materializeTestClassStudents` shows in the import dialog).
+    if (orgId) {
+      const db = admin.firestore();
+      const teacherEmailLower = teacherEmail.toLowerCase();
+      const memberRef = db.doc(
+        `organizations/${orgId}/members/${teacherEmailLower}`
+      );
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        throw new HttpsError(
+          'permission-denied',
+          'Not a member of this organization.'
+        );
+      }
+
+      const testClassRef = db.doc(
+        `organizations/${orgId}/testClasses/${classId}`
+      );
+      const testClassSnap = await testClassRef.get();
+      if (testClassSnap.exists) {
+        // Authorize: teacher must own a roster whose `testClassId` matches.
+        // Roster metadata lives in Firestore (no Drive read needed for this
+        // gate). Same trust model as the ClassLink branch's "teaches this
+        // class" check, but anchored to the teacher's own roster ownership.
+        const ownedRosters = await db
+          .collection(`users/${request.auth.uid}/rosters`)
+          .where('testClassId', '==', classId)
+          .limit(1)
+          .get();
+        if (ownedRosters.empty) {
+          throw new HttpsError(
+            'permission-denied',
+            'Not a teacher of this test class.'
+          );
+        }
+
+        const testClassData = (testClassSnap.data() ?? {}) as {
+          memberEmails?: unknown;
+        };
+        const memberEmails = Array.isArray(testClassData.memberEmails)
+          ? testClassData.memberEmails.filter(
+              (e): e is string => typeof e === 'string' && e.length > 0
+            )
+          : [];
+
+        const pseudonyms: Record<
+          string,
+          {
+            studentUid: string;
+            assignmentPseudonym: string;
+            givenName: string;
+            familyName: string;
+          }
+        > = {};
+        for (const rawEmail of memberEmails) {
+          const emailLower = rawEmail.toLowerCase();
+          // Mirrors `studentLoginV1` test-bypass UID minting at
+          // functions/src/index.ts ~2868: HMAC over "sid:test:{emailLower}".
+          const studentUid = computeStudentUid(
+            `test:${emailLower}`,
+            hmacSecret
+          );
+          // Display name = email local-part. This matches what the import
+          // dialog already shows (`materializeTestClassStudents` line 66:
+          // `firstName: email.split('@')[0]`), so the monitor view stays
+          // consistent with the roster.
+          const localPart = emailLower.split('@')[0] || emailLower;
+          // Key by the lowercased email (no `sourcedId` exists for test
+          // students). The client-side hook only iterates `Object.values`
+          // and re-keys by `studentUid`, so the key choice is internal.
+          pseudonyms[emailLower] = {
+            studentUid,
+            assignmentPseudonym: computeAssignmentPseudonym(
+              studentUid,
+              assignmentId,
+              hmacSecret
+            ),
+            givenName: localPart,
+            familyName: '',
+          };
+        }
+        return { pseudonyms };
+      }
     }
 
     const cleanTenantUrl = tenantUrl.replace(/\/$/, '');

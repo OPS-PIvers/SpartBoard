@@ -150,6 +150,89 @@ describe('mergeClassLinkStudents', () => {
     expect(result.students[0].pin).toBe('01');
   });
 
+  it('persists email on appended students and backfills it on matched ones', () => {
+    // Pre-existing students: one matched by sourcedId, one matched by name,
+    // one local-only. Each starts without an email; the merge should backfill
+    // emails from the ClassLink payload onto the two matched rows and stamp
+    // the email onto the newly appended row.
+    const existing = [
+      makeLocal({
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        pin: '01',
+        classLinkSourcedId: 'cl-ada',
+      }),
+      makeLocal({
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        pin: '02',
+      }),
+      makeLocal({
+        firstName: 'Local',
+        lastName: 'Aide',
+        pin: '99',
+      }),
+    ];
+    const cl = [
+      makeCL({
+        sourcedId: 'cl-ada',
+        givenName: 'Ada',
+        familyName: 'Lovelace',
+        email: 'ada@school.org',
+      }),
+      makeCL({
+        sourcedId: 'cl-grace',
+        givenName: 'Grace',
+        familyName: 'Hopper',
+        email: 'grace@school.org',
+      }),
+      makeCL({
+        sourcedId: 'cl-alan',
+        givenName: 'Alan',
+        familyName: 'Turing',
+        email: 'alan@school.org',
+      }),
+    ];
+    const result = mergeClassLinkStudents(existing, cl);
+
+    const ada = result.students.find((s) => s.firstName === 'Ada');
+    expect(ada?.email).toBe('ada@school.org');
+    expect(ada?.pin).toBe('01'); // unchanged
+
+    const grace = result.students.find((s) => s.firstName === 'Grace');
+    expect(grace?.email).toBe('grace@school.org');
+    expect(grace?.pin).toBe('02'); // unchanged
+
+    const alan = result.students.find((s) => s.firstName === 'Alan');
+    expect(alan?.email).toBe('alan@school.org');
+
+    // Local aide must NOT receive an email (no upstream match).
+    const aide = result.students.find((s) => s.lastName === 'Aide');
+    expect(aide?.email).toBeUndefined();
+  });
+
+  it('does not overwrite an existing email on re-sync', () => {
+    // If a teacher already edited a student's email locally, the merge
+    // should preserve it even when ClassLink reports a different value.
+    const existing = makeLocal({
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      pin: '01',
+      classLinkSourcedId: 'cl-ada',
+      email: 'manual@school.org',
+    });
+    const cl = [
+      makeCL({
+        sourcedId: 'cl-ada',
+        givenName: 'Ada',
+        familyName: 'Lovelace',
+        email: 'upstream@school.org',
+      }),
+    ];
+    const result = mergeClassLinkStudents([existing], cl);
+    expect(result.students[0].email).toBe('manual@school.org');
+  });
+
   it('sourcedId match wins even if a different local row has matching name', () => {
     const existing = [
       makeLocal({

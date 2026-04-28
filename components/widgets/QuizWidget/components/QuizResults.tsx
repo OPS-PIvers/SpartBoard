@@ -49,11 +49,9 @@ import {
   getEarnedPoints,
   isGamificationActive,
 } from '../utils/quizScoreboard';
+import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import {
-  useAssignmentPseudonyms,
-  formatStudentName,
-} from '@/hooks/useAssignmentPseudonyms';
+import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
 
 interface QuizResultsProps {
   quiz: QuizData;
@@ -104,7 +102,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
-  const { googleAccessToken, user } = useAuth();
+  const { googleAccessToken, user, orgId } = useAuth();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(
@@ -160,7 +158,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // maps are empty and pinToName handles display.
   const { byStudentUid } = useAssignmentPseudonyms(
     session?.id ?? null,
-    session?.classId ?? null
+    session?.classId ?? null,
+    orgId
   );
   const exportPinToName = useMemo(
     () => buildPinToExportNameMap(rosters, resolvedPeriods),
@@ -213,7 +212,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         quiz.questions,
         mode,
         pinToName,
-        session
+        session,
+        byStudentUid
       );
 
       const existingScoreboard = activeDashboard?.widgets.find(
@@ -247,6 +247,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       completed,
       quiz.questions,
       pinToName,
+      byStudentUid,
       session,
       activeDashboard?.widgets,
       updateWidget,
@@ -280,6 +281,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       const svc = new QuizDriveService(googleAccessToken);
       const exportOpts = {
         pinToName: exportPinToName,
+        byStudentUid,
         teacherName: config.teacherName,
         periodName: config.periodName,
         plcMode: config.plcMode,
@@ -1021,12 +1023,16 @@ const StudentsTab: React.FC<{
             const earned = getEarnedPoints(r, questions, session);
             const warnings = r.tabSwitchWarnings ?? 0;
 
-            const classLinkName = formatStudentName(
-              byStudentUid.get(r.studentUid)
+            const displayName = resolveResponseDisplayName(
+              r,
+              pinToName,
+              byStudentUid
             );
-            const rosterName = pinToName[r.pin];
-            const displayName = classLinkName || rosterName || `PIN ${r.pin}`;
-            const isResolved = Boolean(classLinkName || rosterName);
+            // Mono face is reserved for the literal `PIN <num>` fallback —
+            // anything else (real name, ClassLink name, or the "Student"
+            // SSO fallback) renders in the regular sans face. Mirrors the
+            // contract used by QuizLiveMonitor's StudentRow.
+            const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
             const rowKey = getResponseDocKey(r);
             const canDelete = Boolean(onDeleteResponse);
             const isConfirming = confirmDeleteKey === rowKey;

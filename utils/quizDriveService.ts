@@ -466,6 +466,12 @@ export class QuizDriveService {
     questions: QuizQuestion[],
     options?: {
       pinToName?: Record<string, string>;
+      /**
+       * ClassLink name lookup for SSO `studentRole` joiners (no PIN). Keyed
+       * by `response.studentUid`. Optional — when omitted (legacy code+PIN
+       * sessions), SSO rows fall back to the generic `Student` label.
+       */
+      byStudentUid?: Map<string, { givenName: string; familyName: string }>;
       teacherName?: string;
       periodName?: string;
       plcMode?: boolean;
@@ -473,6 +479,7 @@ export class QuizDriveService {
     }
   ): Promise<string> {
     const pinToName = options?.pinToName ?? {};
+    const byStudentUid = options?.byStudentUid;
     const teacherName =
       (options?.teacherName?.trim() ? options.teacherName.trim() : null) ??
       'Unknown Teacher';
@@ -481,8 +488,19 @@ export class QuizDriveService {
       'Unknown Period';
     const timestamp = new Date().toISOString();
 
-    const resolveStudent = (pin: string): string =>
-      pinToName[pin] ?? `Student (PIN: ${pin})`;
+    const resolveStudent = (r: QuizResponse): string => {
+      // ClassLink name (SSO) wins; then roster PIN match; then literal PIN;
+      // then generic "Student" fallback for SSO rows that didn't resolve.
+      const sso = byStudentUid?.get(r.studentUid);
+      if (sso) {
+        const full = `${sso.givenName ?? ''} ${sso.familyName ?? ''}`.trim();
+        if (full) return full;
+      }
+      if (r.pin) {
+        return pinToName[r.pin] ?? `Student (PIN: ${r.pin})`;
+      }
+      return 'Student';
+    };
 
     const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
 
@@ -532,8 +550,10 @@ export class QuizDriveService {
         teacherName,
         periodName,
         r.classPeriod ?? '',
-        resolveStudent(r.pin),
-        r.pin,
+        resolveStudent(r),
+        // PIN column is left blank for SSO students (no roster PIN); their
+        // identity is captured in the Student column instead.
+        r.pin ?? '',
         r.status,
         scoreDisplay,
         String(earnedPoints),

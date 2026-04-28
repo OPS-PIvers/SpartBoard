@@ -1515,5 +1515,236 @@ describe('getPseudonymsForAssignmentV1', () => {
     ).rejects.toThrow('Teacher account required.');
   });
 
-  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
+  // ── Test-class branch ─────────────────────────────────────────────────
+  // These tests cover the branch added to resolve names for SSO students
+  // who logged in via the `studentLoginV1` test bypass (test classes are
+  // admin-managed mocks under `organizations/{orgId}/testClasses` that
+  // bypass ClassLink/OneRoster entirely).
+
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+
+  /**
+   * Wires up the mockFirestore primitives for the test-class branch:
+   *   db.doc('organizations/{org}/members/{email}')   — membership gate
+   *   db.doc('organizations/{org}/testClasses/{cid}') — test-class doc
+   *   db.collection('users/{uid}/rosters').where('testClassId','==',cid)
+   *                                                   — ownership gate
+   *
+   * Pass `null` for `testClass` to simulate a non-existent test-class doc
+   * (so the function falls through to the ClassLink branch).
+   */
+  const installTestClassMocks = (opts: {
+    orgId: string;
+    teacherEmailLower: string;
+    teacherUid: string;
+    isMember: boolean;
+    testClassPath: string;
+    testClass: { memberEmails?: string[] } | null;
+    ownsRoster: boolean;
+  }) => {
+    const memberPath = `organizations/${opts.orgId}/members/${opts.teacherEmailLower}`;
+    mockFirestore.doc.mockImplementation((path: string) => {
+      if (path === memberPath) {
+        return {
+          path,
+          get: vi.fn(() =>
+            Promise.resolve({ exists: opts.isMember, data: () => ({}) })
+          ),
+        } as any;
+      }
+      if (path === opts.testClassPath) {
+        return {
+          path,
+          get: vi.fn(() =>
+            Promise.resolve(
+              opts.testClass
+                ? { exists: true, data: () => opts.testClass }
+                : { exists: false, data: () => ({}) }
+            )
+          ),
+        } as any;
+      }
+      return { path, get: vi.fn(() => Promise.resolve({ exists: false })) };
+    });
+
+    const rostersPath = `users/${opts.teacherUid}/rosters`;
+    const baseCollectionImpl = mockFirestore.collection.getMockImplementation();
+    mockFirestore.collection.mockImplementation((name: string) => {
+      if (name === rostersPath) {
+        return {
+          where: vi.fn(() => ({
+            limit: vi.fn(() => ({
+              get: vi.fn(() =>
+                Promise.resolve({ empty: !opts.ownsRoster, docs: [] })
+              ),
+            })),
+          })),
+        } as any;
+      }
+      // Fall back to the existing collection mock for unrelated collections.
+      return baseCollectionImpl ? baseCollectionImpl(name) : ({} as any);
+    });
+  };
+
+  it('returns pseudonyms keyed by HMAC("test:{email}") for a test-class assignment', async () => {
+    installTestClassMocks({
+      orgId: 'orono',
+      teacherEmailLower: 'teacher@district.org',
+      teacherUid: 'teacher-uid',
+      isMember: true,
+      testClassPath: 'organizations/orono/testClasses/mock-period-1',
+      testClass: {
+        memberEmails: [
+          'sstudent25@orono.k12.mn.us',
+          'OtherStudent@orono.k12.mn.us',
+        ],
+      },
+      ownsRoster: true,
+    });
+    // axios.get must NOT be called for the test-class branch — assert by
+    // not installing any URL-aware responses (default reject would surface
+    // an unexpected ClassLink call as a test failure).
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    const result = (await handler(
+      {
+        assignmentId: 'asn-1',
+        classId: 'mock-period-1',
+        orgId: 'orono',
+      },
+      { auth: TEACHER_AUTH }
+    )) as {
+      pseudonyms: Record<
+        string,
+        {
+          studentUid: string;
+          assignmentPseudonym: string;
+          givenName: string;
+          familyName: string;
+        }
+      >;
+    };
+
+    // Two members → two pseudonym entries, keyed by lowercased email.
+    expect(Object.keys(result.pseudonyms).sort()).toEqual([
+      'otherstudent@orono.k12.mn.us',
+      'sstudent25@orono.k12.mn.us',
+    ]);
+
+    // Display name is the email local-part (matches the import dialog).
+    expect(result.pseudonyms['sstudent25@orono.k12.mn.us'].givenName).toBe(
+      'sstudent25'
+    );
+    expect(result.pseudonyms['sstudent25@orono.k12.mn.us'].familyName).toBe('');
+    expect(result.pseudonyms['otherstudent@orono.k12.mn.us'].givenName).toBe(
+      'otherstudent'
+    );
+
+    // The studentUid is the same HMAC formula `studentLoginV1` uses for
+    // test-bypass tokens (`HMAC(secret, "sid:test:{emailLower}")`). If the
+    // formulas drift, name resolution silently breaks — pin them together.
+    const cryptoJs = await import('crypto-js');
+    const expectedSstudent25Uid = cryptoJs
+      .HmacSHA256('sid:test:sstudent25@orono.k12.mn.us', 'test-hmac-secret')
+      .toString(cryptoJs.enc.Hex);
+    expect(result.pseudonyms['sstudent25@orono.k12.mn.us'].studentUid).toBe(
+      expectedSstudent25Uid
+    );
+
+    // Axios was NOT called — confirms the test-class branch short-circuits
+    // before any ClassLink lookup.
+    expect(vi.mocked(axios.get)).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the teacher is not a member of the claimed orgId', async () => {
+    installTestClassMocks({
+      orgId: 'orono',
+      teacherEmailLower: 'teacher@district.org',
+      teacherUid: 'teacher-uid',
+      isMember: false, // ← not in the org members collection
+      testClassPath: 'organizations/orono/testClasses/mock-period-1',
+      testClass: { memberEmails: ['s1@orono.k12.mn.us'] },
+      ownsRoster: true,
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler(
+        {
+          assignmentId: 'asn-1',
+          classId: 'mock-period-1',
+          orgId: 'orono',
+        },
+        { auth: TEACHER_AUTH }
+      )
+    ).rejects.toThrow('Not a member of this organization.');
+  });
+
+  it("rejects when the teacher doesn't own a roster with matching testClassId", async () => {
+    installTestClassMocks({
+      orgId: 'orono',
+      teacherEmailLower: 'teacher@district.org',
+      teacherUid: 'teacher-uid',
+      isMember: true,
+      testClassPath: 'organizations/orono/testClasses/mock-period-1',
+      testClass: { memberEmails: ['s1@orono.k12.mn.us'] },
+      ownsRoster: false, // ← teacher hasn't imported this test class
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    await expect(
+      handler(
+        {
+          assignmentId: 'asn-1',
+          classId: 'mock-period-1',
+          orgId: 'orono',
+        },
+        { auth: TEACHER_AUTH }
+      )
+    ).rejects.toThrow('Not a teacher of this test class.');
+  });
+
+  it('falls through to the ClassLink branch when the testClasses doc does not exist', async () => {
+    installTestClassMocks({
+      orgId: 'orono',
+      teacherEmailLower: 'teacher@district.org',
+      teacherUid: 'teacher-uid',
+      isMember: true,
+      testClassPath: 'organizations/orono/testClasses/c-1',
+      testClass: null, // ← real ClassLink class, not a test class
+      ownsRoster: false, // ← irrelevant; ownership gate is only for test classes
+    });
+    // Configure the standard ClassLink mocks so the fall-through path
+    // can complete and we can assert the existing branch behavior.
+    installAxiosMock({
+      teacher: {
+        users: [{ sourcedId: 'teacher-sid', email: 'teacher@district.org' }],
+      },
+      classes: { classes: [{ sourcedId: 'c-1', title: 'Period 1' }] },
+      students: {
+        users: [
+          {
+            sourcedId: 'student-1-sid',
+            givenName: 'Alex',
+            familyName: 'Stone',
+            email: 's1@district.org',
+          },
+        ],
+      },
+    });
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    const result = (await handler(
+      { assignmentId: 'asn-1', classId: 'c-1', orgId: 'orono' },
+      { auth: TEACHER_AUTH }
+    )) as { pseudonyms: Record<string, unknown> };
+
+    // The ClassLink branch keys by sourcedId, NOT by email. If this assertion
+    // ever fails, double-check that the test-class branch isn't accidentally
+    // catching real ClassLink classes.
+    expect(result.pseudonyms['student-1-sid']).toBeDefined();
+    expect(vi.mocked(axios.get)).toHaveBeenCalled();
+  });
+
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
 });

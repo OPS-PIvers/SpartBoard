@@ -225,13 +225,18 @@ const validateRosterMeta = (
   if (typeof d.classlinkSyncedAt === 'number') {
     meta.classlinkSyncedAt = d.classlinkSyncedAt;
   }
+  if (typeof d.testClassId === 'string') {
+    meta.testClassId = d.testClassId;
+  }
   return meta;
 };
 
 /**
- * Optional ClassLink metadata accepted by `addRoster`. Passed through to the
- * Firestore doc so assignment pickers can treat a ClassLink-imported roster as
- * the single source of truth (no more "is it ClassLink or local?" branching).
+ * Optional provenance metadata accepted by `addRoster`. Passed through to the
+ * Firestore doc so assignment pickers can treat an imported roster as the
+ * single source of truth. Carries the ClassLink fields for real ClassLink
+ * imports and `testClassId` for admin test-class imports — both feed
+ * `deriveTargetsFromRosterList` to populate session `classIds[]`.
  */
 export type RosterCreateMeta = Pick<
   ClassRosterMeta,
@@ -241,6 +246,7 @@ export type RosterCreateMeta = Pick<
   | 'classlinkSubject'
   | 'classlinkOrgId'
   | 'classlinkSyncedAt'
+  | 'testClassId'
 >;
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────

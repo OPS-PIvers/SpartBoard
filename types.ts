@@ -95,6 +95,14 @@ export interface Student {
    */
   classLinkSourcedId?: string;
   /**
+   * Student email. Captured from ClassLink imports and from test-class member
+   * lists. Lives only in the Drive student-list JSON alongside name/PIN — per
+   * the existing PII architecture (see `useRosters.ts` PII migration), this
+   * field is NOT written to any Firestore document. Surfaced as an optional
+   * column in `RosterEditorModal` so teachers can verify imports.
+   */
+  email?: string;
+  /**
    * Stable IDs of classmates this student must never be grouped with in the
    * Randomizer's group-maker mode. Maintained bidirectionally: if B is in A's
    * list, A is in B's list.
@@ -130,6 +138,16 @@ export interface ClassRosterMeta {
    * resolves without the assignment layer having to know about ClassLink.
    */
   classlinkClassId?: string;
+  /**
+   * Test-class slug (the `testClasses/{id}` doc id, without the `test:` prefix).
+   * Present iff the roster was imported from an admin-managed test class. Drives
+   * session `classIds[]` derivation so the test-bypass SSO student's custom-token
+   * claim (`classIds: [<slug>]`, minted by `studentLoginV1`) matches the
+   * assignment session — without claiming `origin: 'classlink'`, which would
+   * falsely tag this as a real ClassLink roster in the picker badge and merge
+   * logic.
+   */
+  testClassId?: string;
   /** ClassLink class code (e.g. "MATH-7-P3"); rendered in the picker badge tooltip. */
   classlinkClassCode?: string;
   /** ClassLink subject label; used for reconciliation and teacher-visible filters. */
@@ -1750,7 +1768,14 @@ export interface QuizPublicQuestion {
 }
 
 export interface QuizLeaderboardEntry {
-  pin: string;
+  /** Optional — SSO `studentRole` joiners have no PIN; identity is `name`. */
+  pin?: string;
+  /**
+   * Auth uid of the student who owns this row. Lets the student-side
+   * leaderboard highlight "my row" for SSO joiners (whose `pin` is missing)
+   * by matching `auth.currentUser.uid` instead of a roster PIN.
+   */
+  studentUid?: string;
   name?: string;
   score: number;
   rank: number;
@@ -1897,8 +1922,13 @@ export interface QuizResponse {
   /**
    * Student's roster PIN. Teacher cross-references this with the Drive roster
    * to identify the student. No name or email is stored in Firestore.
+   *
+   * Optional because SSO `studentRole` joiners (launched from /my-assignments)
+   * have no PIN — their identity is `studentUid`, resolved to a name via
+   * `getPseudonymsForAssignmentV1` on the teacher side. Anonymous PIN joiners
+   * always set this field.
    */
-  pin: string;
+  pin?: string;
   joinedAt: number;
   status: QuizResponseStatus;
   answers: QuizResponseAnswer[];

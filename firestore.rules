@@ -910,8 +910,14 @@ service cloud.firestore {
           (request.auth.uid == resource.data.studentUid &&
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            request.resource.data.studentUid == resource.data.studentUid &&
-           request.resource.data.pin == resource.data.pin &&
-           request.resource.data.joinedAt == resource.data.joinedAt &&
+           // SSO studentRole responses omit `pin` entirely (no PIN was used
+           // to join), so direct dot-access on `resource.data.pin` would
+           // throw a Null-value error and deny the write. Use `.get(_, null)`
+           // so the immutability check tolerates the field being absent on
+           // both sides — the `hasOnly([...])` clause below still prevents
+           // a student from adding/changing `pin` or `joinedAt`.
+           request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
+           request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
            request.resource.data.score == null &&
            request.resource.data.diff(resource.data)
              .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score']) &&
@@ -1061,9 +1067,14 @@ service cloud.firestore {
           studentUid == request.auth.uid &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           request.resource.data.studentUid == resource.data.studentUid &&
-          request.resource.data.pin == resource.data.pin &&
-          request.resource.data.name == resource.data.name &&
-          request.resource.data.joinedAt == resource.data.joinedAt &&
+          // Same fragility class as the quiz_sessions/responses rule: SSO
+          // studentRole responses may omit `pin` and `name` entirely, so
+          // direct dot-access would throw and deny the write. The
+          // `affectedKeys().hasOnly(['answers', 'completedAt'])` clause
+          // below still prevents a student from adding/changing them.
+          request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
+          request.resource.data.get('name', null) == resource.data.get('name', null) &&
+          request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
           request.resource.data.score == resource.data.score &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt']) &&
           request.resource.data.answers.size() >= resource.data.answers.size() &&

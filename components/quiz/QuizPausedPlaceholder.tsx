@@ -10,6 +10,7 @@ import { QuizSession } from '@/types';
 
 interface QuizPausedPlaceholderProps {
   session: QuizSession;
+  /** Roster PIN for anonymous joiners. Empty for SSO `studentRole` joiners. */
   pin: string;
 }
 
@@ -29,11 +30,13 @@ export const QuizPausedPlaceholder: React.FC<QuizPausedPlaceholderProps> = ({
       Your teacher will resume the session shortly. Keep this tab open — your
       place is saved.
     </p>
-    <div className="p-4 bg-slate-800 rounded-xl">
-      <p className="text-slate-300 text-sm">
-        Joined as PIN{' '}
-        <span className="font-semibold text-white font-mono">{pin}</span>
-      </p>
-    </div>
+    {pin && (
+      <div className="p-4 bg-slate-800 rounded-xl">
+        <p className="text-slate-300 text-sm">
+          Joined as PIN{' '}
+          <span className="font-semibold text-white font-mono">{pin}</span>
+        </p>
+      </div>
+    )}
   </div>
 );

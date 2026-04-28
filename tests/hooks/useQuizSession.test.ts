@@ -268,6 +268,12 @@ describe('useQuizSessionStudent — lookupSession', () => {
 describe('useQuizSessionStudent — joinQuizSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default current user has no `isAnonymous` flag (falsy), matching the
+    // pre-SSO test expectations: response doc is keyed by `auth.uid` and the
+    // legacy-key probe is skipped. Tests that need the anonymous PIN-join
+    // semantics (PIN-required guard, legacy-key probe path) override
+    // `isAnonymous: true` locally; SSO branch tests assert against
+    // `isAnonymous: false` explicitly.
     (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
       uid: 'student-uid-1',
     };
@@ -293,7 +299,14 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     ).rejects.toThrow('Invalid code');
   });
 
-  it('throws "PIN is required" when the PIN is only whitespace', async () => {
+  it('throws "PIN is required" when the PIN is only whitespace (anonymous joiner)', async () => {
+    // Anonymous PIN joiners must always supply a PIN — that's their identity.
+    // Non-anonymous (SSO) users skip this guard; covered separately below.
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'anon-uid', isAnonymous: true };
     const { result } = renderHook(() => useQuizSessionStudent());
     await expect(
       result.current.joinQuizSession('ABC123', '   ')
@@ -526,6 +539,104 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
         result.current.joinQuizSession('ABC123', '1234')
       ).rejects.toThrow('Backend unavailable.');
     });
+  });
+
+  // ─── SSO `studentRole` branch ───────────────────────────────────────────────
+  // Students arriving from /my-assignments are signed in via custom token
+  // (non-anonymous Firebase user with `claims.studentRole === true`). The
+  // hook keys the response doc by `auth.uid` and omits the `pin` field — the
+  // teacher's grading view resolves their name via getPseudonymsForAssignmentV1.
+
+  it('does not require a PIN for non-anonymous (studentRole) joiners', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'sso-uid-1', isAnonymous: false };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'waiting' })],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => false });
+    const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    setDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    let sessionId = '';
+    await act(async () => {
+      // Note: no PIN argument.
+      sessionId = await result.current.joinQuizSession('ABC123');
+    });
+
+    expect(sessionId).toBe('s1');
+    expect(setDocMock).toHaveBeenCalledTimes(1);
+    const writtenResponse = setDocMock.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    // studentUid is the SSO auth uid, and `pin` is omitted entirely so the
+    // teacher's name-resolution path falls through to byStudentUid.
+    expect(writtenResponse.studentUid).toBe('sso-uid-1');
+    expect(writtenResponse).not.toHaveProperty('pin');
+    expect(writtenResponse.status).toBe('joined');
+  });
+
+  it('keys the studentRole response doc by auth.uid (not by pin-{period}-{pin})', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'sso-uid-2', isAnonymous: false };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'waiting' })],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => false });
+    (
+      firestore.setDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(undefined);
+
+    const docMock = firestore.doc as unknown as ReturnType<typeof vi.fn>;
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', undefined, 'Period 1');
+    });
+
+    // The hook calls `doc(db, QUIZ_SESSIONS_COLLECTION, sessionId,
+    // RESPONSES_COLLECTION, responseKey)` once for the existence probe
+    // (handled by getDoc) and once for the eventual write. Find a call
+    // whose final segment is the response-doc key.
+    const responseKeys: string[] = (docMock.mock.calls as unknown[][])
+      .map((args) => args[args.length - 1])
+      .filter((v): v is string => typeof v === 'string');
+    expect(responseKeys).toContain('sso-uid-2');
+    // No pin-derived key should ever be requested for an SSO joiner.
+    expect(
+      responseKeys.some((k) => typeof k === 'string' && k.startsWith('pin-'))
+    ).toBe(false);
+  });
+
+  it('still rejects anonymous joiners with no PIN', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'anon-uid', isAnonymous: true };
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await expect(result.current.joinQuizSession('ABC123')).rejects.toThrow(
+      'PIN is required'
+    );
   });
 });
 

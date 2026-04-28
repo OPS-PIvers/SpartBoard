@@ -18,9 +18,27 @@ import {
 } from '@/hooks/useStudentIdleTimeout';
 import {
   StudentAuthContext,
+  STUDENT_FIRST_NAME_KEY,
+  clearStudentFirstName,
   type StudentAuthStatus,
   type StudentAuthValue,
 } from './StudentAuthContextValue';
+
+/**
+ * Read the student's first name from tab-scoped `sessionStorage`. Stored at
+ * sign-in by `StudentLoginPage`. The name lives only in this tab, never in
+ * Firestore. `null` when not available (storage disabled, never written, or
+ * cleared by signOut).
+ */
+const readFirstName = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(STUDENT_FIRST_NAME_KEY);
+    return raw && raw.length > 0 ? raw : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * StudentAuthContext — Phase 2B of the ClassLink-via-Google auth flow.
@@ -123,6 +141,7 @@ const MOCK_STUDENT: Omit<StudentAuthValue, 'signOut'> & {
   pseudonymUid: 'mock-student',
   orgId: 'mock-org',
   classIds: ['mock-class-1'],
+  firstName: 'Demo',
 };
 
 // ---------------------------------------------------------------------------
@@ -134,6 +153,7 @@ interface ProviderState {
   pseudonymUid: string | null;
   orgId: string | null;
   classIds: string[];
+  firstName: string | null;
 }
 
 const INITIAL_STATE: ProviderState = {
@@ -141,6 +161,7 @@ const INITIAL_STATE: ProviderState = {
   pseudonymUid: null,
   orgId: null,
   classIds: [],
+  firstName: null,
 };
 
 const UNAUTH_STATE: ProviderState = {
@@ -148,6 +169,7 @@ const UNAUTH_STATE: ProviderState = {
   pseudonymUid: null,
   orgId: null,
   classIds: [],
+  firstName: null,
 };
 
 /**
@@ -178,6 +200,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
           pseudonymUid: MOCK_STUDENT.pseudonymUid,
           orgId: MOCK_STUDENT.orgId,
           classIds: MOCK_STUDENT.classIds,
+          firstName: MOCK_STUDENT.firstName,
         }
       : INITIAL_STATE
   );
@@ -220,7 +243,10 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // are malformed, OR the student is valid but isn't on any
             // roster yet. Force a sign-out so the stale session can't
             // linger on a shared device, then redirect with a reason so
-            // the login screen can explain the bounce.
+            // the login screen can explain the bounce. Clear the cached
+            // first name so a non-student bounce doesn't leave the
+            // previous session's greeting parked in sessionStorage.
+            clearStudentFirstName();
             void firebaseSignOut(auth).catch(() => {
               // Swallow — the redirect below is the actual remediation.
             });
@@ -234,10 +260,14 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
             pseudonymUid: user.uid,
             orgId: outcome.value.orgId,
             classIds: outcome.value.classIds,
+            firstName: readFirstName(),
           });
         },
         () => {
           if (!mountedRef.current) return;
+          // Claim resolution threw — no firstName remains valid for this
+          // session. Clear before bouncing back to login.
+          clearStudentFirstName();
           setState(UNAUTH_STATE);
           redirectToLoginIfProtected('invalid-claims');
         }
@@ -254,6 +284,10 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- Imperative sign-out (exposed on context) -----------------------------
   const signOut = useCallback(async () => {
+    // Always clear the first-name cache before tearing down the session so
+    // the next student on a shared device doesn't inherit the previous
+    // student's greeting.
+    clearStudentFirstName();
     if (isAuthBypass) {
       // Bypass mode: simulate a sign-out by flipping to unauthenticated and
       // redirecting. Real Firebase Auth isn't involved.
@@ -280,9 +314,17 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       pseudonymUid: state.pseudonymUid,
       orgId: state.orgId,
       classIds: state.classIds,
+      firstName: state.firstName,
       signOut,
     }),
-    [state.status, state.pseudonymUid, state.orgId, state.classIds, signOut]
+    [
+      state.status,
+      state.pseudonymUid,
+      state.orgId,
+      state.classIds,
+      state.firstName,
+      signOut,
+    ]
   );
 
   return (

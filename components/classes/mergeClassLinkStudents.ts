@@ -65,6 +65,11 @@ export function mergeClassLinkStudents(
       consumed.add(sourcedIndex);
       matchedCount += 1;
       alreadySourcedCount += 1;
+      // Backfill email on re-sync: rosters imported before email was
+      // captured won't have it, so stamp the upstream value when present.
+      if (cls.email && !result[sourcedIndex].email) {
+        result[sourcedIndex] = { ...result[sourcedIndex], email: cls.email };
+      }
       continue;
     }
 
@@ -84,10 +89,14 @@ export function mergeClassLinkStudents(
     if (nameMatchIndex !== undefined) {
       consumed.add(nameMatchIndex);
       matchedCount += 1;
-      // Stamp the sourcedId onto the existing row (preserve id + pin)
+      // Stamp the sourcedId onto the existing row (preserve id + pin).
+      // Also backfill email if this is the first time we've seen it.
       result[nameMatchIndex] = {
         ...result[nameMatchIndex],
         classLinkSourcedId: cls.sourcedId,
+        ...(cls.email && !result[nameMatchIndex].email
+          ? { email: cls.email }
+          : {}),
       };
       continue;
     }
@@ -99,6 +108,7 @@ export function mergeClassLinkStudents(
       lastName: cls.familyName,
       pin: '',
       classLinkSourcedId: cls.sourcedId,
+      ...(cls.email ? { email: cls.email } : {}),
     });
     addedCount += 1;
   }
