@@ -193,13 +193,6 @@ export function getResponseDocKey(response: QuizResponse): string {
 }
 
 /**
- * Look up the student's response doc for a session, trying the deterministic
- * key first and falling back to the legacy auth-uid key for anonymous PIN
- * joiners whose in-progress doc was written under the old keying scheme.
- * Returns the resolved key and the snapshot (existent or not) so the caller
- * can branch on `snap.exists()` without re-fetching.
- */
-/**
  * Thrown when an anonymous student's deterministic response key collides
  * with an existing doc owned by a different anon UID — i.e. another student
  * (or this same student from a different device whose anon UID has rotated)
@@ -217,6 +210,13 @@ export class PinAlreadyInUseError extends Error {
   }
 }
 
+/**
+ * Look up the student's response doc for a session, trying the deterministic
+ * key first and falling back to the legacy auth-uid key for anonymous PIN
+ * joiners whose in-progress doc was written under the old keying scheme.
+ * Returns the resolved key and the snapshot (existent or not) so the caller
+ * can branch on `snap.exists()` without re-fetching.
+ */
 async function findExistingResponseDoc(
   sessionId: string,
   authUid: string,
@@ -744,12 +744,27 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         .replace(/[^a-zA-Z0-9]/g, '')
         .toUpperCase();
       if (!normCode) return null;
-      const snap = await getDocs(
-        query(
-          collection(db, QUIZ_SESSIONS_COLLECTION),
-          where('code', '==', normCode)
-        )
-      );
+      // Mirror joinQuizSession's error-state contract: surface Firestore
+      // failures via `setError` before re-throwing so the form can render
+      // the friendly banner. Without this the form's catch only console.warns
+      // a lookupSession failure (it has no local error state) and the
+      // student stares at an unchanged form with no feedback.
+      let snap;
+      try {
+        snap = await getDocs(
+          query(
+            collection(db, QUIZ_SESSIONS_COLLECTION),
+            where('code', '==', normCode)
+          )
+        );
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Could not look up the quiz. Please try again.';
+        setError(msg);
+        throw err;
+      }
       if (snap.empty) return null;
       const joinable = snap.docs.filter((d) => {
         const s = (d.data() as QuizSession).status;
