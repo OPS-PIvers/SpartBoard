@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-04-21_
-_Last action: 2026-04-21_
+_Last audited: 2026-04-28_
+_Last action: 2026-04-28_
 
 ---
 
@@ -16,18 +16,6 @@ _Nothing currently in progress._
 
 ## Open
 
-### HIGH `hono` has authorization bypass, arbitrary file access, and HTML injection vulnerabilities
-
-- **Detected:** 2026-04-14
-- **Updated:** 2026-04-21
-- **File:** package.json (`"hono": "^4.11.4"`), locked at 4.11.x
-- **Detail:** Three CVEs — two HIGH, one MODERATE:
-  - `@hono/node-server` has authorization bypass for certain request patterns.
-  - Hono vulnerable to arbitrary file access via path traversal in static file serving.
-  - GHSA-458j-xx4x-4375 (moderate): Hono improperly handles JSX attribute names, allowing HTML injection in `hono/jsx` SSR — patched in >=4.12.14.
-    Current locked version 4.11.x is affected by all three; latest is 4.12.14 which patches all.
-- **Fix:** `pnpm up hono@^4.12.14` — semver-compatible within the ^4 range. Target 4.12.14 specifically (not just 4.12.12) to resolve the HTML injection moderate CVE as well. Review any static file serving configuration in hono routes after upgrade.
-
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
 - **Detected:** 2026-04-14
@@ -38,8 +26,8 @@ _Nothing currently in progress._
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.14.0 — updating may resolve several transitively.
-- **Fix:** `pnpm up firebase-tools@^15.14.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.15.0 — updating may resolve several transitively.
+- **Fix:** `pnpm up firebase-tools@^15.15.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -62,8 +50,8 @@ _Nothing currently in progress._
 
 - **Detected:** 2026-04-14
 - **File:** package.json (transitive via `@google/genai`)
-- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.0.
-- **Fix:** `pnpm up @google/genai@^1.50.0` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
+- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.1.
+- **Fix:** `pnpm up @google/genai@^1.50.1` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
 
 ### MEDIUM Functions: `lodash` code injection via `firebase-functions-test`
 
@@ -72,35 +60,59 @@ _Nothing currently in progress._
 - **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
 - **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
 
-### MEDIUM `dompurify` has ADD_TAGS bypass via short-circuit evaluation
+### HIGH `protobufjs <7.5.5` — CRITICAL arbitrary code execution via `@google/genai`
+
+- **Detected:** 2026-04-28
+- **File:** package.json (transitive via `@google/genai > protobufjs`), functions/package.json (same path)
+- **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affects both root (`@google/genai: 1.39.0`, a devDependency used for functions/Gemini calls) and functions/ (`@google/genai: 1.38.0`). The runtime code path remains vulnerable to crafted input until the transitive dependency is upgraded to a patched version.
+- **Fix:** Update `@google/genai` to >=1.50.1 in both root and functions/ (current: root 1.39.0, functions 1.38.0, latest 1.50.1). Newer versions should pin `protobufjs >= 7.5.5`. This fix is doubly important because it also resolves the previously documented `@modelcontextprotocol/sdk` cross-client data leak (MEDIUM). Verify with `pnpm why protobufjs` after upgrade. Command: `pnpm up "@google/genai@^1.50.1"` in root and `pnpm -C functions up "@google/genai@^1.50.1"`.
+
+### MEDIUM `dompurify` has multiple XSS/sanitization bypasses — three CVEs
 
 - **Detected:** 2026-04-21
+- **Updated:** 2026-04-28
 - **File:** package.json (transitive via `@monaco-editor/react > monaco-editor > dompurify`)
-- **Detail:** GHSA-39q2-94rc-95cp (moderate): DOMPurify's `ADD_TAGS` function bypasses `FORBID_TAGS` due to short-circuit evaluation in versions <=3.3.3. Patched in >=3.4.0. This affects the Monaco editor used in the widget builder. Not directly exploitable by end users unless they can craft input that passes through the Monaco editor's sanitization path, but it is a sanitization bypass.
-- **Fix:** This is a transitive dep two levels deep (`@monaco-editor/react > monaco-editor > dompurify`). Updating `@monaco-editor/react` to latest may pull in a fixed `monaco-editor` that pins `dompurify >= 3.4.0`. Check: `pnpm why dompurify` to trace the resolution and `pnpm up @monaco-editor/react@latest` if a patched version is available.
+- **Detail:** Three CVEs affect the dompurify version pinned by `monaco-editor`, all patched in >=3.4.0:
+  - GHSA-39q2-94rc-95cp (moderate): `ADD_TAGS` bypasses `FORBID_TAGS` via short-circuit evaluation in <=3.3.3.
+  - GHSA-crv5-9vww-q3g8 (moderate): `SAFE_FOR_TEMPLATES` bypass in `RETURN_DOM` mode in >=1.0.10 <3.4.0.
+  - GHSA-v9jr-rg53-9pgp (moderate): Prototype pollution XSS bypass via `CUSTOM_ELEMENT_HANDLING` fallback in >=3.0.1 <3.4.0.
+    All three affect the Monaco editor used in the widget builder. Not directly exploitable by end users unless they can craft input through the Monaco sanitization path.
+- **Fix:** Transitive dep three levels deep. Run `pnpm why dompurify` to trace the resolution; run `pnpm up @monaco-editor/react@latest` if a newer `monaco-editor` pins `dompurify >= 3.4.0`. If not resolved transitively, add a `pnpm.overrides` entry: `"dompurify": ">=3.4.0"`.
 
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-04-21
+- **Updated:** 2026-04-28
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.2.3** (major — config format changed completely)
-  - `vite`: 6.4.1 → **8.0.9** (2 majors ahead, but focus on patching within v6 first)
+  - `vite`: 6.4.2 → **8.x** (2 majors ahead, but focus on patching within v6 first)
   - `eslint`: 9.39.2 → **10.2.1** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
-  - `i18next`: 25.8.13 → **26.0.6** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.4** (paired with i18next)
+  - `i18next`: 25.8.13 → **26.0.8** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.x** (paired with i18next)
   - `lucide-react`: 0.563.0 → **1.8.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
-  - `jsdom` (test): 27.4.0 → **29.0.2** (2 majors)
+  - `@types/node`: 24.12.2 → **25.6.0** (major — verify Node 24 compat)
+    Also notable minor updates: `react`/`react-dom` 19.2.4 → 19.2.5, `firebase-tools` 15.8.0 → 15.15.0, `firebase` 12.8.0 → 12.12.1.
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix.
 
 ---
 
 ## Completed
+
+### HIGH `hono` has authorization bypass, arbitrary file access, and HTML injection vulnerabilities
+
+- **Detected:** 2026-04-14
+- **Completed:** 2026-04-28
+- **File:** package.json (`devDependencies.hono` and `pnpm.overrides.hono`)
+- **Detail:** Three CVEs affected hono <4.12.14:
+  - `@hono/node-server` authorization bypass for certain request patterns.
+  - Hono arbitrary file access via path traversal in static file serving.
+  - GHSA-458j-xx4x-4375 (moderate): Hono improperly handles JSX attribute names, allowing HTML injection in `hono/jsx` SSR — patched in >=4.12.14.
+- **Resolution:** Bumped both `devDependencies.hono` and the `pnpm.overrides.hono` entry from `^4.11.4` → `^4.12.14` and ran `pnpm install`. The override forces a single hono version across the dep graph; without bumping it the lockfile would have stayed pinned at 4.11.4. Hono now resolves to 4.12.15 (`pnpm why hono` shows a single version, transitively used by `@hono/node-server`, `@modelcontextprotocol/sdk`, `@google/genai`, and `firebase-tools`). No direct hono imports exist in the project source — `grep "from 'hono"` returned zero matches — so no static file serving routes needed review. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` (clean), `pnpm build` (16.7s, successful), `pnpm test` (1511 tests pass across 161 files).
 
 ### HIGH `vite` dev server has HIGH arbitrary file read vulnerability
 
