@@ -7,6 +7,7 @@ import {
   toPublicQuestion,
   useQuizSessionStudent,
   useQuizSessionTeacher,
+  PinAlreadyInUseError,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
 import type {
@@ -504,6 +505,49 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     };
     expect(writtenResponse.studentUid).toBe('new-anon-uid');
     expect(writtenResponse.status).toBe('joined');
+  });
+
+  // Regression: PIN collision between two anonymous students sharing the
+  // same PIN+period within a session. The first student claims the
+  // deterministic key `pin-{period}-{pin}`; the second student's
+  // joinQuizSession reads that same key, but Firestore rules reject the
+  // cross-uid read (the doc's studentUid is the first student's auth.uid)
+  // with permission-denied. The hook must surface a friendly
+  // PinAlreadyInUseError instead of letting the raw FirebaseError bubble
+  // up as a generic "Missing or insufficient permissions" toast.
+  it('surfaces PinAlreadyInUseError when the deterministic-key getDoc is permission-denied for an anon joiner', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = {
+      uid: 'second-anon-uid',
+      isAnonymous: true,
+    };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    // Deterministic key probe — the doc exists but it's owned by a
+    // different anon uid (first student with same PIN), so the read rule
+    // rejects the cross-uid read.
+    const permissionDenied = Object.assign(
+      new Error('Missing or insufficient permissions.'),
+      { code: 'permission-denied' }
+    );
+    getDocMock.mockRejectedValueOnce(permissionDenied);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(
+        result.current.joinQuizSession('ABC123', '1234')
+      ).rejects.toBeInstanceOf(PinAlreadyInUseError);
+    });
   });
 
   // Guard the blast radius of the above catch: only permission-denied is

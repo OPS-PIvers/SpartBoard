@@ -146,17 +146,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
-      // Look up the session to check for multi-period selection
-      const sessionInfo = await lookupSession(joinCode);
-      if (sessionInfo && sessionInfo.periodNames.length > 1) {
-        // Show period selector step
-        setPeriodStep(sessionInfo.periodNames);
-        return;
+      // Look up the session to check for multi-period selection. Failures
+      // here (network blip, transient permission-denied from a stale doc)
+      // are surfaced to the form via the hook's `error` state — we still
+      // need to swallow the rejection locally so the form's `void
+      // handleJoin(...)` doesn't escape into an unhandled promise.
+      try {
+        const sessionInfo = await lookupSession(joinCode);
+        if (sessionInfo && sessionInfo.periodNames.length > 1) {
+          setPeriodStep(sessionInfo.periodNames);
+          return;
+        }
+        const autoClassPeriod = sessionInfo?.periodNames[0];
+        await joinQuizSession(joinCode, joinPin, autoClassPeriod);
+        setJoined(true);
+      } catch (err) {
+        // joinQuizSession already calls setError before re-throwing, so the
+        // user sees the friendly message rendered above the form. This
+        // catch exists purely to keep the rejection from bubbling into the
+        // global unhandled-rejection handler (the form's onSubmit uses
+        // `void handleJoin(...)`).
+        console.warn('[QuizStudentApp] join failed:', err);
       }
-      // Single or no period — join directly (auto-select if exactly 1)
-      const autoClassPeriod = sessionInfo?.periodNames[0];
-      await joinQuizSession(joinCode, joinPin, autoClassPeriod);
-      setJoined(true);
     },
     [lookupSession, joinQuizSession]
   );
@@ -166,8 +177,15 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     // SSO joiners pass `undefined` as the PIN — the hook keys the response
     // doc by auth.uid in that case. Anonymous joiners send the form `pin`.
     const joinPin = isStudentRole ? undefined : pin;
-    await joinQuizSession(code, joinPin, selectedPeriod);
-    setJoined(true);
+    try {
+      await joinQuizSession(code, joinPin, selectedPeriod);
+      setJoined(true);
+    } catch (err) {
+      // Same rationale as handleJoin — keep `void handlePeriodConfirm()`
+      // from leaking an unhandled rejection. UI error state is already
+      // populated by the hook.
+      console.warn('[QuizStudentApp] period confirm failed:', err);
+    }
   }, [joinQuizSession, code, pin, selectedPeriod, isStudentRole]);
 
   // SSO auto-join: bypass the PIN form entirely. lookupSession handles the

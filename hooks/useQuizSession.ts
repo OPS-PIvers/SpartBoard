@@ -199,21 +199,56 @@ export function getResponseDocKey(response: QuizResponse): string {
  * Returns the resolved key and the snapshot (existent or not) so the caller
  * can branch on `snap.exists()` without re-fetching.
  */
+/**
+ * Thrown when an anonymous student's deterministic response key collides
+ * with an existing doc owned by a different anon UID — i.e. another student
+ * (or this same student from a different device whose anon UID has rotated)
+ * has already claimed this PIN+period slot. The Firestore read rule rejects
+ * the cross-uid read with `permission-denied`; we map that to a friendly
+ * "PIN already in use" message rather than letting the raw FirebaseError
+ * surface as a generic "Missing or insufficient permissions" toast.
+ */
+export class PinAlreadyInUseError extends Error {
+  constructor() {
+    super(
+      'That PIN is already in use on this quiz. Double-check your PIN with your teacher, or ask them to clear your previous attempt.'
+    );
+    this.name = 'PinAlreadyInUseError';
+  }
+}
+
 async function findExistingResponseDoc(
   sessionId: string,
   authUid: string,
   isAnonymous: boolean,
   deterministicKey: string
 ): Promise<{ key: string; snap: DocumentSnapshot }> {
-  const deterministicSnap = await getDoc(
-    doc(
-      db,
-      QUIZ_SESSIONS_COLLECTION,
-      sessionId,
-      RESPONSES_COLLECTION,
-      deterministicKey
-    )
-  );
+  let deterministicSnap: DocumentSnapshot;
+  try {
+    deterministicSnap = await getDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        deterministicKey
+      )
+    );
+  } catch (err) {
+    // The response read rule rejects cross-uid reads of an existing doc:
+    // it allows `resource == null` (doc absent) or
+    // `request.auth.uid == resource.data.studentUid` (it's ours), and
+    // denies anything else. So a permission-denied here means the slot
+    // exists but is owned by a different uid — typically a PIN collision
+    // between two anonymous students. Surface that as a friendly,
+    // recoverable error rather than the raw FirebaseError. Any other code
+    // (network failure, rules deployment mismatch) keeps bubbling.
+    const code = (err as { code?: unknown }).code;
+    if (isAnonymous && code === 'permission-denied') {
+      throw new PinAlreadyInUseError();
+    }
+    throw err;
+  }
   if (deterministicSnap.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
   }
