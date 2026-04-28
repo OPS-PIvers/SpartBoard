@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-27_
+_Last audited: 2026-04-28_
 _Last action: 2026-04-25_
 
 ---
@@ -21,6 +21,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW EmbedWidget zoom toolbar uses hardcoded Tailwind text and icon sizes
+
+- **Detected:** 2026-04-28
+- **File:** components/widgets/Embed/Widget.tsx:443 (zoom reset button), :436 (ZoomOut icon), :453 (ZoomIn icon), :427 (toolbar gap)
+- **Detail:** The hover-visible zoom toolbar inside EmbedWidget uses `text-xs font-mono` on the percentage reset button (line 443), `className="w-4 h-4"` on the ZoomOut and ZoomIn Lucide icons (lines ~436 and ~453), `p-2` on the zoom-out/zoom-in buttons, and `gap: 4` (hardcoded pixel, not cqmin) on the toolbar's parent flex container. Widget has `skipScaling: true`. The toolbar is not portaled — it renders inside the container query context. At small widget sizes the icons and button text won't scale.
+- **Fix:** Convert to inline `cqmin` styles: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}` on the zoom percentage button; `w-4 h-4` on icons → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`; `p-2` on buttons → `style={{ padding: 'min(8px, 2cqmin)' }}`; `gap: 4` (inline pixel) → `style={{ gap: 'min(4px, 1cqmin)' }}`.
 
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
