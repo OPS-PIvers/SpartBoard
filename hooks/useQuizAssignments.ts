@@ -35,6 +35,7 @@ import type {
   QuizSession,
   SharedQuizAssignment,
 } from '../types';
+import type { SessionTargets } from '../utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -114,7 +115,7 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentRosters: (
     assignmentId: string,
-    targets: { rosterIds: string[]; classIds: string[]; periodNames: string[] }
+    targets: SessionTargets
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -132,10 +133,19 @@ export interface UseQuizAssignmentsResult {
    * Import a shared assignment. Delegates quiz copy to the injected saveQuiz
    * (from useQuiz.ts) and creates a new paused assignment under the importer's
    * collection. Returns the new assignmentId.
+   *
+   * `rollbackQuiz` is optional but strongly recommended — it's invoked
+   * best-effort if assignment creation fails AFTER the quiz copy already
+   * succeeded, preventing an orphan quiz in the importer's library.
+   * Receives the just-saved quiz's `{id, driveFileId}` so the caller
+   * can dispatch to its own `deleteQuiz` (which needs both). A failed
+   * rollback is swallowed (logged only); the original error still
+   * propagates so the caller can surface a useful message.
    */
   importSharedAssignment: (
     shareId: string,
-    saveQuiz: (quiz: QuizData) => Promise<{ id: string; driveFileId: string }>
+    saveQuiz: (quiz: QuizData) => Promise<{ id: string; driveFileId: string }>,
+    rollbackQuiz?: (saved: { id: string; driveFileId: string }) => Promise<void>
   ) => Promise<string>;
 }
 
@@ -633,7 +643,7 @@ export const useQuizAssignments = (
   const importSharedAssignment = useCallback<
     UseQuizAssignmentsResult['importSharedAssignment']
   >(
-    async (shareId, saveQuiz) => {
+    async (shareId, saveQuiz, rollbackQuiz) => {
       if (!userId) throw new Error('Not authenticated');
 
       const snap = await getDoc(
@@ -695,16 +705,39 @@ export const useQuizAssignments = (
       // refs here. The importer retargets on first launch via AssignClassPicker,
       // which pre-seeds empty because lastRosterIdsByQuizId is only written at
       // assign-confirm time (QuizWidget/Widget.tsx) — never during import.
-      const created = await createAssignment(
-        {
-          id: savedMeta.id,
-          title: newQuiz.title,
-          driveFileId: savedMeta.driveFileId,
-          questions: newQuiz.questions,
-        },
-        importedSettings,
-        'paused'
-      );
+      // 3. Stand up the assignment + its session doc. If this fails
+      // AFTER the quiz copy already succeeded, the importer is left
+      // with an orphan quiz in their library and a generic "Failed to
+      // import" toast. Roll back best-effort, and re-throw with the
+      // orphaned quiz id surfaced so the caller can be specific.
+      let created: { id: string; code: string };
+      try {
+        created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: newQuiz.title,
+            driveFileId: savedMeta.driveFileId,
+            questions: newQuiz.questions,
+          },
+          importedSettings,
+          'paused'
+        );
+      } catch (err) {
+        if (rollbackQuiz) {
+          try {
+            await rollbackQuiz(savedMeta);
+          } catch (rollbackErr) {
+            // Don't mask the original error — orphan quiz is the
+            // lesser problem; the caller still needs to know what
+            // really failed.
+            console.error(
+              `[importSharedAssignment] Failed to roll back quiz ${savedMeta.id} after assignment-create error:`,
+              rollbackErr
+            );
+          }
+        }
+        throw err;
+      }
       return created.id;
     },
     [userId, createAssignment]

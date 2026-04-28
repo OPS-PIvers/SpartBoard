@@ -51,6 +51,19 @@ export interface ResolvedAssignmentTargets {
 }
 
 /**
+ * Triple of targeting fields that flow together onto an assignment +
+ * session doc. Always derived as a unit by `deriveSessionTargetsFromRosters`
+ * — the three arrays are not independent inputs even though they ride
+ * separate Firestore fields. Use this type wherever a function takes or
+ * produces these three fields together so callers can't accidentally pass
+ * a hand-rolled triple that violates the joint-derivation invariant.
+ */
+export type SessionTargets = Pick<
+  ResolvedAssignmentTargets,
+  'rosterIds' | 'classIds' | 'periodNames'
+>;
+
+/**
  * Core "rosters → session shape" derivation shared by
  * `resolveAssignmentTargets` (lookup-then-derive) and
  * `deriveSessionTargetsFromRosters` (already-resolved rosters). Centralizing

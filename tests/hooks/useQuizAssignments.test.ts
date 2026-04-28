@@ -319,6 +319,7 @@ describe('useQuizAssignments - importSharedAssignment', () => {
         plcSheetUrl:
           'https://docs.google.com/spreadsheets/d/originator-sheet-id',
         plcMemberEmails: ['origA@example.com', 'origB@example.com'],
+        className: "Mrs. Smith's 3rd Period",
         teacherName: 'Originator Teacher',
         periodNames: ['Period 1'],
       },
@@ -344,11 +345,136 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.plcMode).toBeUndefined();
     expect(assignment.plcSheetUrl).toBeUndefined();
     expect(assignment.plcMemberEmails).toBeUndefined();
-    // teacherName / periodNames are also originator-scoped and must clear:
+    // className / teacherName / periodNames are also originator-scoped:
+    expect(assignment.className).toBeUndefined();
     expect(assignment.teacherName).toBeUndefined();
     expect(assignment.periodNames).toBeUndefined();
     // The teacherUid on the assignment must be the importer, not the originator:
     expect(assignment.teacherUid).toBe(TEACHER_UID);
+  });
+
+  it('creates the imported assignment in paused state so students cannot join before the teacher targets it', async () => {
+    const sharedDoc: Partial<SharedQuizAssignment> = {
+      title: 'Quiz',
+      questions: [],
+      createdAt: 1,
+      updatedAt: 1,
+      assignmentSettings: { sessionMode: 'teacher', sessionOptions: {} },
+      originalAuthor: 'originator-uid',
+      sharedAt: 1,
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const saveQuiz = vi.fn().mockResolvedValue({
+      id: 'q',
+      driveFileId: 'd',
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.importSharedAssignment('share-id', saveQuiz);
+    });
+
+    const assignment = findAssignmentSet();
+    expect(assignment.status).toBe('paused');
+
+    // The session doc set in the same batch must also be non-active —
+    // for a teacher-paced session with initialStatus='paused', the
+    // session status maps to 'paused' (see createAssignment session
+    // status branch).
+    const sessionCall = batchSet.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.set on session doc');
+    expect(sessionCall[1]).toMatchObject({ status: 'paused' });
+  });
+
+  it('does not carry classIds/rosterIds onto the importer session even when the shared doc carries them', async () => {
+    // shareAssignment doesn't write these fields today, but a future
+    // bug or migration could. Defend at the import layer so a
+    // regression doesn't silently send the importer's students to the
+    // ORIGINATOR's ClassLink classes.
+    const sharedDoc: Record<string, unknown> = {
+      title: 'Quiz',
+      questions: [],
+      createdAt: 1,
+      updatedAt: 1,
+      assignmentSettings: {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        // simulate a defensively-tested polluted shared doc
+        classIds: ['originator-cl-class-A'],
+        rosterIds: ['originator-roster-1'],
+      },
+      originalAuthor: 'originator-uid',
+      sharedAt: 1,
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const saveQuiz = vi.fn().mockResolvedValue({ id: 'q', driveFileId: 'd' });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.importSharedAssignment('share-id', saveQuiz);
+    });
+
+    const sessionCall = batchSet.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.set on session doc');
+    const session = sessionCall[1] as Record<string, unknown>;
+    // createAssignment only writes classIds/classId when targetClassIds
+    // is non-empty. importSharedAssignment passes neither classIds nor
+    // rosterIds, so these fields must not appear on the session.
+    expect(session.classIds).toBeUndefined();
+    expect(session.classId).toBeUndefined();
+    expect(session.rosterIds).toBeUndefined();
+  });
+
+  it('rolls back the just-saved quiz when assignment creation fails', async () => {
+    const sharedDoc: Partial<SharedQuizAssignment> = {
+      title: 'Q',
+      questions: [],
+      createdAt: 1,
+      updatedAt: 1,
+      assignmentSettings: { sessionMode: 'teacher', sessionOptions: {} },
+      originalAuthor: 'orig',
+      sharedAt: 1,
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+    // Make the batch commit fail to simulate the assignment-create error.
+    batchCommit.mockReset().mockRejectedValueOnce(new Error('Firestore down'));
+
+    const saveQuiz = vi.fn().mockResolvedValue({
+      id: 'orphan-quiz',
+      driveFileId: 'orphan-drive',
+    });
+    const rollbackQuiz = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await expect(
+        result.current.importSharedAssignment(
+          'share-id',
+          saveQuiz,
+          rollbackQuiz
+        )
+      ).rejects.toThrow('Firestore down');
+    });
+
+    expect(rollbackQuiz).toHaveBeenCalledTimes(1);
+    expect(rollbackQuiz).toHaveBeenCalledWith({
+      id: 'orphan-quiz',
+      driveFileId: 'orphan-drive',
+    });
   });
 });
 
@@ -407,5 +533,60 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     });
 
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops empty-string entries from rosterIds/classIds/periodNames before writing', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['r1', '', 'r2'],
+        classIds: ['', 'cl-A'],
+        periodNames: ['', 'Period 2'],
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      rosterIds: ['r1', 'r2'],
+      classIds: ['cl-A'],
+      classId: 'cl-A',
+      periodNames: ['Period 2'],
+    });
+  });
+
+  it('writes empty arrays + empty classId/periodName when all inputs are empty (untargeted)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: [],
+        classIds: [],
+        periodNames: [],
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      classId: '',
+      rosterIds: [],
+      classIds: [],
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall)
+      throw new Error('expected batch.update on assignment doc');
+    expect(assignmentCall[1]).toMatchObject({
+      periodName: '',
+      rosterIds: [],
+    });
   });
 });

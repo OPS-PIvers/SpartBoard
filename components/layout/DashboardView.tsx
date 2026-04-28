@@ -158,7 +158,7 @@ export const DashboardView: React.FC = () => {
     annotationActive,
   } = useDashboard();
 
-  const { importSharedQuiz, saveQuiz } = useQuiz(user?.uid);
+  const { importSharedQuiz, saveQuiz, deleteQuiz } = useQuiz(user?.uid);
   const { importSharedAssignment } = useQuizAssignments(user?.uid);
 
   // Helper: open (or create) a Quiz widget and set its managerTab.
@@ -240,10 +240,19 @@ export const DashboardView: React.FC = () => {
     // for the triple-import race rationale.
     const shareId = pendingAssignmentShareId;
     clearPendingAssignmentShare();
-    void importSharedAssignment(shareId, async (quiz) => {
-      const meta = await saveQuiz(quiz);
-      return { id: meta.id, driveFileId: meta.driveFileId };
-    })
+    void importSharedAssignment(
+      shareId,
+      async (quiz) => {
+        const meta = await saveQuiz(quiz);
+        return { id: meta.id, driveFileId: meta.driveFileId };
+      },
+      // Roll back the just-copied quiz if assignment creation fails
+      // mid-flight — otherwise the importer is left with a phantom
+      // quiz in their library and a generic "import failed" toast.
+      async (saved) => {
+        await deleteQuiz(saved.id, saved.driveFileId);
+      }
+    )
       .then((newAssignmentId) => {
         addToast('Shared assignment imported!', 'success');
         openQuizWidgetToTab('active');
@@ -272,6 +281,7 @@ export const DashboardView: React.FC = () => {
     user,
     importSharedAssignment,
     saveQuiz,
+    deleteQuiz,
     addToast,
     clearPendingAssignmentShare,
     openQuizWidgetToTab,

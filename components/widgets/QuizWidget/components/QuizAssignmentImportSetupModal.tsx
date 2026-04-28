@@ -22,16 +22,15 @@ import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
-import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
+import {
+  deriveSessionTargetsFromRosters,
+  type SessionTargets,
+} from '@/utils/resolveAssignmentTargets';
 
 interface QuizAssignmentImportSetupModalProps {
   assignment: QuizAssignment;
   rosters: ClassRoster[];
-  onSave: (targets: {
-    rosterIds: string[];
-    classIds: string[];
-    periodNames: string[];
-  }) => Promise<void> | void;
+  onSave: (targets: SessionTargets) => Promise<void> | void;
   onEditAllSettings: () => void;
   onClose: () => void;
 }
@@ -60,17 +59,40 @@ export const QuizAssignmentImportSetupModal: React.FC<
         periodNames: derived.periodNames,
       });
       onClose();
+    } catch {
+      // The parent's onSave wrapper already surfaces the failure via
+      // toast; we deliberately swallow here so the modal stays open
+      // (saving=false, edits intact) for the user to retry. Without
+      // the catch the rejection escapes into an unhandled promise
+      // since the click handler uses `void handleSave()`.
     } finally {
       setSaving(false);
     }
   };
 
+  // While Save is in flight we lock the dismissal controls (X /
+  // backdrop / Skip / Edit-all). Without this guard, clicking any of
+  // them mid-save would unmount the modal while `setAssignmentRosters`
+  // is still pending — React then warns about state updates on an
+  // unmounted component, and "Edit all settings…" would open the full
+  // settings modal against pre-update assignment data.
+  const handleBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (saving) return;
+    if (e.target === e.currentTarget) onClose();
+  };
+  const handleClose = () => {
+    if (saving) return;
+    onClose();
+  };
+  const handleEditAllSettings = () => {
+    if (saving) return;
+    onEditAllSettings();
+  };
+
   return (
     <div
       className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onMouseDown={handleBackdropMouseDown}
     >
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100">
@@ -89,8 +111,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 -m-1"
+            onClick={handleClose}
+            disabled={saving}
+            className="text-slate-400 hover:text-slate-600 p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -114,6 +137,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
                 rosters={rosters}
                 value={pickerValue}
                 onChange={setPickerValue}
+                disabled={saving}
               />
             </>
           )}
@@ -122,16 +146,18 @@ export const QuizAssignmentImportSetupModal: React.FC<
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={onEditAllSettings}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            onClick={handleEditAllSettings}
+            disabled={saving}
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Edit all settings…
           </button>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800"
+              onClick={handleClose}
+              disabled={saving}
+              className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Skip for now
             </button>
