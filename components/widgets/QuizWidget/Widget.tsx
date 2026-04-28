@@ -23,6 +23,7 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { QuizAssignmentImportSetupModal } from './components/QuizAssignmentImportSetupModal';
 import type { QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
@@ -45,8 +46,15 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
-    useDashboard();
+  const {
+    updateWidget,
+    addWidget,
+    addToast,
+    rosters,
+    activeDashboard,
+    pendingAssignmentSetupId,
+    clearPendingAssignmentSetup,
+  } = useDashboard();
   const { user, googleAccessToken, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
@@ -87,6 +95,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentRosters,
     setAssignmentExportUrl,
     shareAssignment,
   } = useQuizAssignments(user?.uid);
@@ -156,6 +165,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     },
     [loadQuizData, addToast]
   );
+
+  // Drop any pending import-setup prompt when the QuizWidget unmounts.
+  // Without this, removing the widget while the modal is open (or before
+  // the user clicks Save/Skip/Edit) leaves `pendingAssignmentSetupId`
+  // set on DashboardContext indefinitely — the prompt would re-surface
+  // the next time any QuizWidget mounts on any board, against an
+  // assignment the user already walked away from. Closing the widget is
+  // an implicit dismiss.
+  React.useEffect(() => {
+    return () => {
+      clearPendingAssignmentSetup();
+    };
+  }, [clearPendingAssignmentSetup]);
 
   // Auto-load quiz data if we are in monitor view or have an active session, but data is missing
   // This allows for seamless resumption after page reload.
@@ -825,9 +847,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       ),
                     })
                     .catch((err: unknown) => {
+                      // The reconcile helper already swallows the
+                      // expected non-owner case (403 listing perms)
+                      // and the missing-sheet case (404), returning
+                      // `{ skipped: true }`. Anything that bubbles
+                      // here is a real failure — log AND toast so
+                      // the teacher knows the sheet's sharing state
+                      // may be stale rather than silently failing.
                       console.error(
                         '[QuizWidget] PLC sheet permission reconcile failed:',
                         err
+                      );
+                      addToast(
+                        "Couldn't update PLC sheet sharing — your teammate may need to re-share the sheet.",
+                        'error'
                       );
                     });
                 }
@@ -1360,10 +1393,59 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 err instanceof Error ? err.message : 'Failed to save settings',
                 'error'
               );
+              // Re-throw so the modal's handleAssign sees the failure and
+              // skips its onClose() — keeping the modal open with the
+              // user's edits intact so they can retry. Without this,
+              // toast appears, modal disappears, edits are lost.
+              throw err;
             }
           }}
         />
       )}
+      {pendingAssignmentSetupId &&
+        (() => {
+          // Resolve the freshly-imported assignment from the live list.
+          // If the listener hasn't surfaced it yet (one snapshot tick of
+          // delay between createAssignment's batch.commit and the
+          // assignments onSnapshot callback), render nothing this pass —
+          // the next render will pick it up.
+          const target = assignments.find(
+            (a) => a.id === pendingAssignmentSetupId
+          );
+          if (!target) return null;
+          // Don't double-render the prompt over the full settings modal.
+          if (editingAssignment?.id === target.id) return null;
+          return (
+            <QuizAssignmentImportSetupModal
+              assignment={target}
+              rosters={rosters}
+              onSave={async (targets) => {
+                try {
+                  await setAssignmentRosters(target.id, targets);
+                  addToast(
+                    `Assigned to ${targets.rosterIds.length} ${
+                      targets.rosterIds.length === 1 ? 'class' : 'classes'
+                    }.`,
+                    'success'
+                  );
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to save class selection.',
+                    'error'
+                  );
+                  throw err;
+                }
+              }}
+              onEditAllSettings={() => {
+                clearPendingAssignmentSetup();
+                setEditingAssignment(target);
+              }}
+              onClose={clearPendingAssignmentSetup}
+            />
+          );
+        })()}
     </>
   );
 };

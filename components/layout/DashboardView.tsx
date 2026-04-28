@@ -147,6 +147,7 @@ export const DashboardView: React.FC = () => {
     clearPendingQuizShare,
     pendingAssignmentShareId,
     clearPendingAssignmentShare,
+    setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
     groupBuildMode,
@@ -157,7 +158,7 @@ export const DashboardView: React.FC = () => {
     annotationActive,
   } = useDashboard();
 
-  const { importSharedQuiz, saveQuiz } = useQuiz(user?.uid);
+  const { importSharedQuiz, saveQuiz, deleteQuiz } = useQuiz(user?.uid);
   const { importSharedAssignment } = useQuizAssignments(user?.uid);
 
   // Helper: open (or create) a Quiz widget and set its managerTab.
@@ -239,16 +240,27 @@ export const DashboardView: React.FC = () => {
     // for the triple-import race rationale.
     const shareId = pendingAssignmentShareId;
     clearPendingAssignmentShare();
-    void importSharedAssignment(shareId, async (quiz) => {
-      const meta = await saveQuiz(quiz);
-      return { id: meta.id, driveFileId: meta.driveFileId };
-    })
-      .then(() => {
-        addToast(
-          'Shared assignment imported! Click Start to begin.',
-          'success'
-        );
+    void importSharedAssignment(
+      shareId,
+      async (quiz) => {
+        const meta = await saveQuiz(quiz);
+        return { id: meta.id, driveFileId: meta.driveFileId };
+      },
+      // Roll back the just-copied quiz if assignment creation fails
+      // mid-flight — otherwise the importer is left with a phantom
+      // quiz in their library and a generic "import failed" toast.
+      async (saved) => {
+        await deleteQuiz(saved.id, saved.driveFileId);
+      }
+    )
+      .then((newAssignmentId) => {
+        addToast('Shared assignment imported!', 'success');
         openQuizWidgetToTab('active');
+        // Prompt the importer to pick rosters/periods for the new
+        // assignment instead of leaving it paused with no targeting.
+        // The QuizWidget reads this and opens
+        // QuizAssignmentImportSetupModal.
+        setPendingAssignmentSetup(newAssignmentId);
       })
       .catch((err: unknown) => {
         const msg =
@@ -269,9 +281,11 @@ export const DashboardView: React.FC = () => {
     user,
     importSharedAssignment,
     saveQuiz,
+    deleteQuiz,
     addToast,
     clearPendingAssignmentShare,
     openQuizWidgetToTab,
+    setPendingAssignmentSetup,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });

@@ -43,6 +43,8 @@ import {
   Loader2,
   AlertCircle,
   CheckSquare,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   QuizMetadata,
@@ -1496,6 +1498,15 @@ const AssignPlcSlot: React.FC<{
   const hasCachedSheet = Boolean(selectedPlc?.sharedSheetUrl);
   const hasPlcs = plcs.length > 0;
 
+  // The manual-URL field stays hidden behind a "Manually attach a sheet
+  // URL" disclosure so teachers don't think a paste is required — auto-
+  // create handles it for PLC members. Pre-expanded only for legacy
+  // assignments that already have a URL set, so the existing value isn't
+  // hidden behind a click.
+  const [showSheetUrl, setShowSheetUrl] = useState(
+    Boolean(options.plcSheetUrl)
+  );
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -1583,23 +1594,47 @@ const AssignPlcSlot: React.FC<{
           </div>
 
           {/*
-           * Manual URL fallback: surfaced only when the teacher has NO
-           * PLCs (so they can still paste a URL shared out-of-band) or
-           * they've pasted one already (editing a legacy assignment
-           * created pre-auto-create). Hidden in the normal auto-create
-           * path so PLC members aren't asked to paste what we'll create
-           * for them.
+           * Manual URL field — hidden behind a disclosure button so
+           * teachers don't think a paste is required. Auto-create
+           * handles it for PLC members; non-PLC users can still expand
+           * the disclosure to paste a URL their PLC lead shared with
+           * them out-of-band. Pre-expanded only when a URL is already
+           * stored (legacy assignments created pre-auto-create).
            */}
-          {(!hasPlcs || options.plcSheetUrl) && (
+          {!showSheetUrl ? (
             <div>
-              <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                Shared Google Sheet URL{' '}
-                {hasPlcs && (
-                  <span className="font-normal normal-case tracking-normal text-slate-400">
-                    (optional fallback)
-                  </span>
-                )}
-              </label>
+              <button
+                type="button"
+                onClick={() => setShowSheetUrl(true)}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+              >
+                <ChevronRight className="w-3 h-3" />
+                Manually attach a sheet URL
+              </button>
+              <p className="text-xxs text-slate-400 mt-1">
+                {hasPlcs
+                  ? 'SpartBoard auto-creates and shares a results sheet for your PLC.'
+                  : 'Only needed if your PLC lead has shared a sheet with you out-of-band.'}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  Shared Google Sheet URL
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSheetUrl(false);
+                    update('plcSheetUrl', '');
+                  }}
+                  className="text-xxs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                  Hide
+                </button>
+              </div>
               <input
                 type="text"
                 value={options.plcSheetUrl}

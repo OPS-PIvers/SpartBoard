@@ -35,6 +35,7 @@ import type {
   QuizSession,
   SharedQuizAssignment,
 } from '../types';
+import type { SessionTargets } from '../utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -99,6 +100,24 @@ export interface UseQuizAssignmentsResult {
     patch: Partial<QuizAssignmentSettings>
   ) => Promise<void>;
   /**
+   * Retarget an existing assignment at a new set of rosters. Mirrors
+   * `rosterIds`/`periodNames` to the assignment doc and `classIds`/
+   * `classId`/`rosterIds`/`periodNames` to the session doc so the
+   * student SSO gate, the legacy single-class fallback, and the post-PIN
+   * period picker all stay in sync. Used by the post-import "pick
+   * classes" prompt — `updateAssignmentSettings` doesn't touch
+   * `rosterIds`/`classIds`, so it can't fully retarget on its own.
+   *
+   * Callers derive `classIds`, `rosterIds`, and `periodNames` via
+   * `deriveSessionTargetsFromRosters` (same helper used at create-time)
+   * so the de-duplication rules stay identical between create and
+   * retarget paths.
+   */
+  setAssignmentRosters: (
+    assignmentId: string,
+    targets: SessionTargets
+  ) => Promise<void>;
+  /**
    * Persist the Drive export URL onto the assignment doc so re-entering
    * Results after navigating away (which remounts QuizResults and wipes its
    * local state) shows the "Open Sheet" shortcut instead of reverting to
@@ -114,10 +133,19 @@ export interface UseQuizAssignmentsResult {
    * Import a shared assignment. Delegates quiz copy to the injected saveQuiz
    * (from useQuiz.ts) and creates a new paused assignment under the importer's
    * collection. Returns the new assignmentId.
+   *
+   * `rollbackQuiz` is optional but strongly recommended — it's invoked
+   * best-effort if assignment creation fails AFTER the quiz copy already
+   * succeeded, preventing an orphan quiz in the importer's library.
+   * Receives the just-saved quiz's `{id, driveFileId}` so the caller
+   * can dispatch to its own `deleteQuiz` (which needs both). A failed
+   * rollback is swallowed (logged only); the original error still
+   * propagates so the caller can surface a useful message.
    */
   importSharedAssignment: (
     shareId: string,
-    saveQuiz: (quiz: QuizData) => Promise<{ id: string; driveFileId: string }>
+    saveQuiz: (quiz: QuizData) => Promise<{ id: string; driveFileId: string }>,
+    rollbackQuiz?: (saved: { id: string; driveFileId: string }) => Promise<void>
   ) => Promise<string>;
 }
 
@@ -507,6 +535,59 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const setAssignmentRosters = useCallback<
+    UseQuizAssignmentsResult['setAssignmentRosters']
+  >(
+    async (assignmentId, targets) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const cleanedRosterIds = targets.rosterIds.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
+      const cleanedClassIds = targets.classIds.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
+      const cleanedPeriodNames = targets.periodNames.filter(
+        (n): n is string => typeof n === 'string' && n.length > 0
+      );
+
+      const assignmentPatch: Record<string, unknown> = {
+        updatedAt: now,
+        // Always overwrite — deleteField semantics aren't needed here
+        // because empty arrays are equivalent to "no targeting" for the
+        // resolver in resolveAssignmentTargets.
+        rosterIds: cleanedRosterIds,
+        periodNames: cleanedPeriodNames,
+        // Mirror periodName legacy field to the first selected period so
+        // pre-Phase-5A consumers (if any remain) still see a value.
+        periodName: cleanedPeriodNames[0] ?? '',
+      };
+
+      // Session doc carries the same targeting. classIds[0] is mirrored
+      // to classId for the legacy single-class gate — same dual-write
+      // the "Phase 5A: multi-class ClassLink targeting" branch in
+      // createAssignment uses at create time.
+      const sessionPatch: Record<string, unknown> = {
+        rosterIds: cleanedRosterIds,
+        classIds: cleanedClassIds,
+        classId: cleanedClassIds[0] ?? '',
+        periodNames: cleanedPeriodNames,
+      };
+
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        assignmentPatch
+      );
+      batch.update(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
+        sessionPatch
+      );
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const setAssignmentExportUrl = useCallback<
     UseQuizAssignmentsResult['setAssignmentExportUrl']
   >(
@@ -562,7 +643,7 @@ export const useQuizAssignments = (
   const importSharedAssignment = useCallback<
     UseQuizAssignmentsResult['importSharedAssignment']
   >(
-    async (shareId, saveQuiz) => {
+    async (shareId, saveQuiz, rollbackQuiz) => {
       if (!userId) throw new Error('Not authenticated');
 
       const snap = await getDoc(
@@ -583,29 +664,80 @@ export const useQuizAssignments = (
       const savedMeta = await saveQuiz(newQuiz);
 
       // 2. Create a Paused assignment with the shared settings.
-      // Clear teacher-specific fields so the importer starts fresh with
-      // their own periods and name.
+      // Clear all originator-scoped fields so the importer starts fresh
+      // with their own targeting, identity, and PLC wiring:
+      //   - teacherName / periodName / periodNames: originator's free text
+      //     and class periods.
+      //   - className: originator's class label (e.g. "Mrs. Smith's
+      //     3rd Period"). Cosmetic-only but confusing UX if left in
+      //     place — Teacher B sees Teacher A's label as the subtitle
+      //     on her own assignment card.
+      //   - plcSheetUrl: points at the ORIGINATOR's PLC Google Sheet.
+      //     If left in place, the importer's first results export
+      //     takes this URL (see QuizResults.tsx → exportResultsToSheet)
+      //     and calls Drive against a sheet the importer isn't shared
+      //     on — a 403, which used to surface as a silent
+      //     "Missing or insufficient permissions" console error.
+      //     Clearing it lets the auto-create path on first PLC
+      //     assignment populate the importer's own sheet instead.
+      //   - plcMemberEmails: originator's PLC roster. Not consumed
+      //     by the importer's start-flow today (Widget.tsx derives
+      //     sharing from the live `plc` doc via getPlcTeammateEmails),
+      //     but cleared for hygiene — leaving someone else's email
+      //     roster on the doc is a future-foot-gun.
+      //   - plcMode: cleared so the importer explicitly opts in to
+      //     PLC mode for their own assignment via the settings modal,
+      //     keeping plcSheetUrl/plcMemberEmails repopulation tied to
+      //     the importer's own PLC selection rather than the
+      //     originator's.
       const importedSettings = {
         ...shared.assignmentSettings,
+        className: undefined,
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
+        plcMode: undefined,
+        plcSheetUrl: undefined,
+        plcMemberEmails: undefined,
       };
       // Intentionally omit classIds/rosterIds: the shared doc's targeting
       // refers to rosters in the ORIGINATOR's account and would be dangling
       // refs here. The importer retargets on first launch via AssignClassPicker,
       // which pre-seeds empty because lastRosterIdsByQuizId is only written at
       // assign-confirm time (QuizWidget/Widget.tsx) — never during import.
-      const created = await createAssignment(
-        {
-          id: savedMeta.id,
-          title: newQuiz.title,
-          driveFileId: savedMeta.driveFileId,
-          questions: newQuiz.questions,
-        },
-        importedSettings,
-        'paused'
-      );
+      // 3. Stand up the assignment + its session doc. If this fails
+      // AFTER the quiz copy already succeeded, the importer is left
+      // with an orphan quiz in their library and a generic "Failed to
+      // import" toast. Roll back best-effort, and re-throw with the
+      // orphaned quiz id surfaced so the caller can be specific.
+      let created: { id: string; code: string };
+      try {
+        created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: newQuiz.title,
+            driveFileId: savedMeta.driveFileId,
+            questions: newQuiz.questions,
+          },
+          importedSettings,
+          'paused'
+        );
+      } catch (err) {
+        if (rollbackQuiz) {
+          try {
+            await rollbackQuiz(savedMeta);
+          } catch (rollbackErr) {
+            // Don't mask the original error — orphan quiz is the
+            // lesser problem; the caller still needs to know what
+            // really failed.
+            console.error(
+              `[importSharedAssignment] Failed to roll back quiz ${savedMeta.id} after assignment-create error:`,
+              rollbackErr
+            );
+          }
+        }
+        throw err;
+      }
       return created.id;
     },
     [userId, createAssignment]
@@ -622,6 +754,7 @@ export const useQuizAssignments = (
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentRosters,
     setAssignmentExportUrl,
     shareAssignment,
     importSharedAssignment,

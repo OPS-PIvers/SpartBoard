@@ -158,6 +158,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     window.history.replaceState(null, '', '/');
   }, []);
 
+  // Tracks an imported assignment that hasn't been targeted at any rosters
+  // yet, so the QuizWidget can prompt the teacher to pick classes
+  // immediately after import. Not derived from URL state — purely a
+  // post-import signal between DashboardView and the QuizWidget.
+  const [pendingAssignmentSetupId, setPendingAssignmentSetup] = useState<
+    string | null
+  >(null);
+
+  const clearPendingAssignmentSetup = useCallback(() => {
+    setPendingAssignmentSetup(null);
+  }, []);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
   // Keep a ref to account-level remote control so the Firestore snapshot
@@ -3304,6 +3316,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingAssignmentSetupId,
+      setPendingAssignmentSetup,
+      clearPendingAssignmentSetup,
       zoom,
       setZoom,
       annotationActive,
@@ -3394,6 +3409,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingAssignmentSetupId,
+      setPendingAssignmentSetup,
+      clearPendingAssignmentSetup,
       zoom,
       setZoom,
       annotationActive,

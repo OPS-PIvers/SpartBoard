@@ -264,6 +264,13 @@ const mockDashboard: DashboardContextValue = {
   clearPendingAssignmentShare: () => {
     // No-op
   },
+  pendingAssignmentSetupId: null,
+  setPendingAssignmentSetup: () => {
+    // No-op — student view never imports assignments.
+  },
+  clearPendingAssignmentSetup: () => {
+    // No-op
+  },
   // Roster mocks
   rosters: [],
   activeRosterId: null,
