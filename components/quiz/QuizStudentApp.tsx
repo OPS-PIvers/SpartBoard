@@ -651,6 +651,9 @@ const ActiveQuiz: React.FC<{
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null);
   const [speedBonusEarned, setSpeedBonusEarned] = useState<number | null>(null);
   const [streakCount, setStreakCount] = useState(0);
+  // Surfaced when onAnswer or onComplete rejects (offline, perm denied, etc.)
+  // so the student doesn't think their tap silently committed.
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Derived state: reset local UI state on new question or when global alreadyAnswered state arrives
   if (
@@ -667,6 +670,7 @@ const ActiveQuiz: React.FC<{
     setAnswerFeedback(null);
     setRevealedAnswer(null);
     setSpeedBonusEarned(null);
+    setSubmitError(null);
     const tl = currentQuestion?.timeLimit ?? 0;
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   }
@@ -691,6 +695,11 @@ const ActiveQuiz: React.FC<{
   const fibAnswerRef = useRef(fibAnswer);
   const draftMcAnswerRef = useRef(draftMcAnswer);
   const onAnswerRef = useRef(onAnswer);
+  // Synchronous re-entry guard for handleSubmitAndAdvance. The setSubmitting
+  // state setter doesn't apply until the next render, so two near-simultaneous
+  // taps (or React 19 transition reordering) could both pass the gate before
+  // the state flips. The ref blocks the second call immediately.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
@@ -888,8 +897,10 @@ const ActiveQuiz: React.FC<{
   // who want feedback should run the quiz in teacher-paced mode and reveal
   // answers manually.
   const handleSubmitAndAdvance = async (answer: string) => {
-    if (submitting || submitted) return;
+    if (submittingRef.current || submitted) return;
+    submittingRef.current = true;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       let computedSpeedBonus: number | undefined;
       if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
@@ -899,19 +910,44 @@ const ActiveQuiz: React.FC<{
         );
         if (bonusPct > 0) computedSpeedBonus = bonusPct;
       }
-      await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+
+      try {
+        await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+      } catch (err) {
+        // Answer write rejected (offline, perm denied, etc.). Without this
+        // catch the rejection vanishes into a void-promise console error and
+        // the student silently keeps their selection.
+        console.error('[QuizStudentApp] onAnswer failed:', err);
+        setSubmitError(
+          "Couldn't save your answer. Check your connection and try again."
+        );
+        return;
+      }
 
       const isLast = currentIndex >= session.totalQuestions - 1;
       if (isLast) {
         setSelectedAnswer(answer);
         setSubmitted(true);
         if (myResponse?.status !== 'completed') {
-          await onComplete();
+          try {
+            await onComplete();
+          } catch (err) {
+            // Answer is saved but the completion flip failed. Roll the UI
+            // back so the SUBMIT button reappears for the student to retry,
+            // otherwise they'd see "Quiz complete!" while their doc stays
+            // in_progress on the teacher's monitor.
+            console.error('[QuizStudentApp] onComplete failed:', err);
+            setSubmitted(false);
+            setSubmitError(
+              "Couldn't finish submitting. Check your connection and tap SUBMIT again."
+            );
+          }
         }
       } else {
         setLocalIndex(localIndex + 1);
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -997,6 +1033,16 @@ const ActiveQuiz: React.FC<{
         <h2 className="text-xl font-bold text-white mb-8 leading-snug">
           {currentQuestion.text}
         </h2>
+
+        {submitError && (
+          <div
+            role="alert"
+            className="mb-6 p-4 bg-red-500/15 border border-red-500/40 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
+          >
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-200 text-sm font-medium">{submitError}</p>
+          </div>
+        )}
 
         {/* Answer area */}
         {currentQuestion.type === 'MC' && (

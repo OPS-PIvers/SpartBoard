@@ -161,7 +161,7 @@ export const DashboardView: React.FC = () => {
 
   const { importSharedQuiz, saveQuiz, deleteQuiz } = useQuiz(user?.uid);
   const { importSharedAssignment } = useQuizAssignments(user?.uid);
-  const { plcs } = usePlcs();
+  const { plcs, loading: plcsLoading } = usePlcs();
 
   // Helper: open (or create) a Quiz widget and set its managerTab.
   // Used by pending-share effects to surface the imported content to the user.
@@ -238,6 +238,12 @@ export const DashboardView: React.FC = () => {
   // shows live and paused assignments (Archive only shows inactive ones).
   useEffect(() => {
     if (!pendingAssignmentShareId || !user) return;
+    // Wait for the /plcs listener to hydrate before deciding membership.
+    // Otherwise a deep-link import that fires before the snapshot arrives
+    // sees an empty plcs array, the predicate returns false, and a
+    // legitimate PLC member gets demoted to non-member with the "you're
+    // not a member" toast — even though they are.
+    if (plcsLoading) return;
     // Clear synchronously BEFORE awaiting — see the quiz-share effect above
     // for the triple-import race rationale.
     const shareId = pendingAssignmentShareId;
@@ -314,6 +320,7 @@ export const DashboardView: React.FC = () => {
     openQuizWidgetToTab,
     setPendingAssignmentSetup,
     plcs,
+    plcsLoading,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
