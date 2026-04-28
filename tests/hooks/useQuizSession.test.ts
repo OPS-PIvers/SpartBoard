@@ -449,6 +449,126 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(updateDocMock.mock.calls[0][1]).toEqual({ classPeriod: 'Period 2' });
   });
 
+  // Regression: PR #1441. Same shape as the legacy-key permission-denied
+  // case below, but for the FIRST getDoc — the deterministic pin-based
+  // probe. A doc may already exist at `pin-{period}-{pin}` written by a
+  // different anon UID (real PIN+period collision across two students,
+  // OR same student rejoining from a fresh browser session under a rotated
+  // anon UID). The response read rule denies because
+  // `request.auth.uid != resource.data.studentUid`; the fix swallows the
+  // denial so the join falls through to the legacy probe / setDoc path.
+  // Without this, the rejection propagated as an "Uncaught (in promise)
+  // FirebaseError: Missing or insufficient permissions." in the browser.
+  it('treats permission-denied on the deterministic-key getDoc as "no doc" for anon joiners', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'fresh-anon-uid', isAnonymous: true };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    // 1st call: deterministic pin-based key — colliding doc owned by a
+    // different (older) anon UID, so the rule rejects the read.
+    const permissionDenied = Object.assign(
+      new Error('Missing or insufficient permissions.'),
+      { code: 'permission-denied' }
+    );
+    getDocMock.mockRejectedValueOnce(permissionDenied);
+    // 2nd call: legacy authUid-keyed slot — no doc.
+    getDocMock.mockResolvedValueOnce({ exists: () => false });
+
+    const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
+    setDocMock.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    let sessionId = '';
+    await act(async () => {
+      sessionId = await result.current.joinQuizSession('ABC123', '1234');
+    });
+
+    expect(sessionId).toBe('s1');
+    // Join proceeded to write a new response doc at the deterministic key;
+    // the permission-denied did NOT propagate.
+    expect(setDocMock).toHaveBeenCalledTimes(1);
+    const writtenResponse = setDocMock.mock.calls[0][1] as {
+      studentUid: string;
+      status: string;
+    };
+    expect(writtenResponse.studentUid).toBe('fresh-anon-uid');
+    expect(writtenResponse.status).toBe('joined');
+  });
+
+  // Symmetric blast-radius guard for the deterministic probe: only
+  // permission-denied is swallowed. Any other Firestore failure must still
+  // propagate so it isn't silently treated as "no doc, write a new one".
+  it('still propagates non-permission-denied errors from the deterministic-key getDoc', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'fresh-anon-uid', isAnonymous: true };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    const unavailable = Object.assign(new Error('Backend unavailable.'), {
+      code: 'unavailable',
+    });
+    getDocMock.mockRejectedValueOnce(unavailable);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(
+        result.current.joinQuizSession('ABC123', '1234')
+      ).rejects.toThrow('Backend unavailable.');
+    });
+  });
+
+  // Companion guard: for SSO/studentRole users (non-anonymous), a
+  // permission-denied on the deterministic probe means a legitimate
+  // class-gate denial — it must propagate (fail fast) instead of being
+  // swallowed and falling through to a doomed setDoc.
+  it('propagates permission-denied on the deterministic-key getDoc for non-anonymous (studentRole) joiners', async () => {
+    (
+      auth as unknown as {
+        currentUser: { uid: string; isAnonymous: boolean } | null;
+      }
+    ).currentUser = { uid: 'sso-uid-1', isAnonymous: false };
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    const permissionDenied = Object.assign(
+      new Error('Missing or insufficient permissions.'),
+      { code: 'permission-denied' }
+    );
+    getDocMock.mockRejectedValueOnce(permissionDenied);
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(result.current.joinQuizSession('ABC123')).rejects.toThrow(
+        'Missing or insufficient permissions.'
+      );
+    });
+  });
+
   // Regression: PR #1409 review. An anonymous student whose device has a
   // stale in-flight response doc keyed by a PRIOR anon uid will trigger a
   // legacy-key getDoc that Firestore rejects with permission-denied (the
