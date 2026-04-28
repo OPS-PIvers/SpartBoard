@@ -308,7 +308,12 @@ export const useQuizSessionTeacher = (
         setLoading(false);
       },
       (err) => {
-        console.error('[useQuizSessionTeacher]', err);
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionId}`;
+        console.error(
+          `[useQuizSessionTeacher] session listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
         setLoading(false);
       }
     );
@@ -340,7 +345,14 @@ export const useQuizSessionTeacher = (
         );
         setResponses(list);
       },
-      (err) => console.error('[useQuizSessionTeacher] responses:', err)
+      (err) => {
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionId}/${RESPONSES_COLLECTION}`;
+        console.error(
+          `[useQuizSessionTeacher] responses listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+      }
     );
   }, [sessionId, hasSession]);
 

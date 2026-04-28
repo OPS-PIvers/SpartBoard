@@ -11,7 +11,16 @@
  */
 
 import React, { useState } from 'react';
-import { AlertTriangle, Lock, User, Zap, Clock, Share2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Lock,
+  User,
+  Zap,
+  Clock,
+  Share2,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
@@ -109,6 +118,13 @@ export const QuizAssignmentSettingsModal: React.FC<
   );
   const [sessionMode, setSessionMode] = useState<QuizSessionMode>(
     assignment.sessionMode
+  );
+
+  // The manual sheet-URL field stays hidden behind a disclosure unless a
+  // URL is already attached (legacy assignments / explicit overrides),
+  // because new PLC assignments auto-create and share a sheet.
+  const [showSheetUrl, setShowSheetUrl] = useState(
+    Boolean(assignment.plcSheetUrl)
   );
 
   const plcSheetUrlInvalid =
@@ -358,33 +374,64 @@ export const QuizAssignmentSettingsModal: React.FC<
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                  Shared Google Sheet URL
-                </label>
-                <input
-                  type="text"
-                  value={options.plcSheetUrl}
-                  onChange={(e) =>
-                    setOptions((p) => ({ ...p, plcSheetUrl: e.target.value }))
-                  }
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                {plcSheetUrlInvalid && (
-                  <div className="flex items-center gap-1 mt-1 text-amber-600">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span className="text-xxs">
-                      This doesn&apos;t look like a Google Sheets URL
-                    </span>
+              {!showSheetUrl ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSheetUrl(true)}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                    Manually attach a sheet URL
+                  </button>
+                  <p className="text-xxs text-slate-400 mt-1">
+                    SpartBoard auto-creates and shares a results sheet for your
+                    PLC. Use this only to point an older assignment at a
+                    different sheet.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                      Shared Google Sheet URL
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSheetUrl(false);
+                        setOptions((p) => ({ ...p, plcSheetUrl: '' }));
+                      }}
+                      className="text-xxs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                      Hide
+                    </button>
                   </div>
-                )}
-                <p className="text-xxs text-slate-400 mt-0.5">
-                  New PLC assignments now auto-create and share this sheet for
-                  you. You can still edit the URL here to point an older
-                  assignment at a different sheet.
-                </p>
-              </div>
+                  <input
+                    type="text"
+                    value={options.plcSheetUrl}
+                    onChange={(e) =>
+                      setOptions((p) => ({ ...p, plcSheetUrl: e.target.value }))
+                    }
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {plcSheetUrlInvalid && (
+                    <div className="flex items-center gap-1 mt-1 text-amber-600">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span className="text-xxs">
+                        This doesn&apos;t look like a Google Sheets URL
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-xxs text-slate-400 mt-0.5">
+                    New PLC assignments now auto-create and share this sheet for
+                    you. Use this to point an older assignment at a different
+                    sheet.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>

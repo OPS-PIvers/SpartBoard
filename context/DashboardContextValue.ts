@@ -121,6 +121,14 @@ export interface DashboardContextValue {
   setPendingAssignmentShareId: (shareId: string | null) => void;
   clearPendingAssignmentShare: () => void;
   setPendingQuizShareId: (shareId: string | null) => void;
+  /**
+   * Set after a successful `importSharedAssignment` to signal the QuizWidget
+   * to open a "pick classes" prompt for the freshly-imported assignment.
+   * Cleared by the modal once the user saves, opens full settings, or skips.
+   */
+  pendingAssignmentSetupId: string | null;
+  setPendingAssignmentSetup: (assignmentId: string | null) => void;
+  clearPendingAssignmentSetup: () => void;
 
   // Roster system
   rosters: ClassRoster[];

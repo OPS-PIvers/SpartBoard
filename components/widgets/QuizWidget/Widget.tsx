@@ -23,6 +23,7 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
+import { QuizAssignmentImportSetupModal } from './components/QuizAssignmentImportSetupModal';
 import type { QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
@@ -45,8 +46,15 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { updateWidget, addWidget, addToast, rosters, activeDashboard } =
-    useDashboard();
+  const {
+    updateWidget,
+    addWidget,
+    addToast,
+    rosters,
+    activeDashboard,
+    pendingAssignmentSetupId,
+    clearPendingAssignmentSetup,
+  } = useDashboard();
   const { user, googleAccessToken, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
@@ -87,6 +95,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentRosters,
     setAssignmentExportUrl,
     shareAssignment,
   } = useQuizAssignments(user?.uid);
@@ -1364,6 +1373,50 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }}
         />
       )}
+      {pendingAssignmentSetupId &&
+        (() => {
+          // Resolve the freshly-imported assignment from the live list.
+          // If the listener hasn't surfaced it yet (one snapshot tick of
+          // delay between createAssignment's batch.commit and the
+          // assignments onSnapshot callback), render nothing this pass —
+          // the next render will pick it up.
+          const target = assignments.find(
+            (a) => a.id === pendingAssignmentSetupId
+          );
+          if (!target) return null;
+          // Don't double-render the prompt over the full settings modal.
+          if (editingAssignment?.id === target.id) return null;
+          return (
+            <QuizAssignmentImportSetupModal
+              assignment={target}
+              rosters={rosters}
+              onSave={async (targets) => {
+                try {
+                  await setAssignmentRosters(target.id, targets);
+                  addToast(
+                    `Assigned to ${targets.rosterIds.length} ${
+                      targets.rosterIds.length === 1 ? 'class' : 'classes'
+                    }.`,
+                    'success'
+                  );
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : 'Failed to save class selection.',
+                    'error'
+                  );
+                  throw err;
+                }
+              }}
+              onEditAllSettings={() => {
+                clearPendingAssignmentSetup();
+                setEditingAssignment(target);
+              }}
+              onClose={clearPendingAssignmentSetup}
+            />
+          );
+        })()}
     </>
   );
 };

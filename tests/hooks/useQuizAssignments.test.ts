@@ -4,11 +4,16 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   writeBatch,
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
-import type { QuizPublicQuestion, QuizSession } from '@/types';
+import type {
+  QuizPublicQuestion,
+  QuizSession,
+  SharedQuizAssignment,
+} from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -262,5 +267,145 @@ describe('useQuizAssignments - reopenAssignment', () => {
     if (!resumeSessionCall)
       throw new Error('expected resume batch.update on quiz_sessions/*');
     expect(resumeSessionCall[1]).toMatchObject({ status: 'waiting' });
+  });
+});
+
+describe('useQuizAssignments - importSharedAssignment', () => {
+  const batchSet = vi.fn();
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockReturnValue('coll-ref');
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    // allocateJoinCode probes for code collisions; return empty so the
+    // first generated code wins.
+    mockGetDocs.mockResolvedValue({ docs: [], empty: true });
+    batchSet.mockReset();
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      set: batchSet,
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  function findAssignmentSet(): Record<string, unknown> {
+    const call = batchSet.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!call) throw new Error('expected batch.set on assignment doc');
+    return call[1] as Record<string, unknown>;
+  }
+
+  it('clears originator-scoped PLC fields (plcMode, plcSheetUrl, plcMemberEmails) so the importer is not bound to the originator’s PLC', async () => {
+    const sharedDoc: Partial<SharedQuizAssignment> = {
+      title: 'Quiz Title',
+      questions: [],
+      createdAt: 1000,
+      updatedAt: 1000,
+      assignmentSettings: {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        plcMode: true,
+        plcSheetUrl:
+          'https://docs.google.com/spreadsheets/d/originator-sheet-id',
+        plcMemberEmails: ['origA@example.com', 'origB@example.com'],
+        teacherName: 'Originator Teacher',
+        periodNames: ['Period 1'],
+      },
+      originalAuthor: 'originator-uid',
+      sharedAt: 1000,
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const saveQuiz = vi.fn().mockResolvedValue({
+      id: 'importer-quiz-id',
+      driveFileId: 'importer-drive-id',
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.importSharedAssignment('share-id', saveQuiz);
+    });
+
+    const assignment = findAssignmentSet();
+    expect(assignment.plcMode).toBeUndefined();
+    expect(assignment.plcSheetUrl).toBeUndefined();
+    expect(assignment.plcMemberEmails).toBeUndefined();
+    // teacherName / periodNames are also originator-scoped and must clear:
+    expect(assignment.teacherName).toBeUndefined();
+    expect(assignment.periodNames).toBeUndefined();
+    // The teacherUid on the assignment must be the importer, not the originator:
+    expect(assignment.teacherUid).toBe(TEACHER_UID);
+  });
+});
+
+describe('useQuizAssignments - setAssignmentRosters', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockReturnValue('coll-ref');
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('mirrors targets to BOTH the assignment doc and the session doc so the student class-gate stays in sync', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['roster-1', 'roster-2'],
+        classIds: ['cl-class-A'],
+        periodNames: ['Period 1', 'Period 2'],
+      });
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall)
+      throw new Error('expected batch.update on assignment doc');
+    expect(assignmentCall[1]).toMatchObject({
+      rosterIds: ['roster-1', 'roster-2'],
+      periodNames: ['Period 1', 'Period 2'],
+      periodName: 'Period 1',
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      rosterIds: ['roster-1', 'roster-2'],
+      classIds: ['cl-class-A'],
+      classId: 'cl-class-A',
+      periodNames: ['Period 1', 'Period 2'],
+    });
+
+    expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 });

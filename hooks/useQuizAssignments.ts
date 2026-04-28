@@ -99,6 +99,24 @@ export interface UseQuizAssignmentsResult {
     patch: Partial<QuizAssignmentSettings>
   ) => Promise<void>;
   /**
+   * Retarget an existing assignment at a new set of rosters. Mirrors
+   * `rosterIds`/`periodNames` to the assignment doc and `classIds`/
+   * `classId`/`rosterIds`/`periodNames` to the session doc so the
+   * student SSO gate, the legacy single-class fallback, and the post-PIN
+   * period picker all stay in sync. Used by the post-import "pick
+   * classes" prompt — `updateAssignmentSettings` doesn't touch
+   * `rosterIds`/`classIds`, so it can't fully retarget on its own.
+   *
+   * Callers derive `classIds`, `rosterIds`, and `periodNames` via
+   * `deriveSessionTargetsFromRosters` (same helper used at create-time)
+   * so the de-duplication rules stay identical between create and
+   * retarget paths.
+   */
+  setAssignmentRosters: (
+    assignmentId: string,
+    targets: { rosterIds: string[]; classIds: string[]; periodNames: string[] }
+  ) => Promise<void>;
+  /**
    * Persist the Drive export URL onto the assignment doc so re-entering
    * Results after navigating away (which remounts QuizResults and wipes its
    * local state) shows the "Open Sheet" shortcut instead of reverting to
@@ -507,6 +525,58 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const setAssignmentRosters = useCallback<
+    UseQuizAssignmentsResult['setAssignmentRosters']
+  >(
+    async (assignmentId, targets) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const cleanedRosterIds = targets.rosterIds.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
+      const cleanedClassIds = targets.classIds.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
+      const cleanedPeriodNames = targets.periodNames.filter(
+        (n): n is string => typeof n === 'string' && n.length > 0
+      );
+
+      const assignmentPatch: Record<string, unknown> = {
+        updatedAt: now,
+        // Always overwrite — deleteField semantics aren't needed here
+        // because empty arrays are equivalent to "no targeting" for the
+        // resolver in resolveAssignmentTargets.
+        rosterIds: cleanedRosterIds,
+        periodNames: cleanedPeriodNames,
+        // Mirror periodName legacy field to the first selected period so
+        // pre-Phase-5A consumers (if any remain) still see a value.
+        periodName: cleanedPeriodNames[0] ?? '',
+      };
+
+      // Session doc carries the same targeting. classIds[0] is mirrored
+      // to classId for the legacy single-class gate (see createAssignment
+      // at line ~278 for the same dual-write rationale).
+      const sessionPatch: Record<string, unknown> = {
+        rosterIds: cleanedRosterIds,
+        classIds: cleanedClassIds,
+        classId: cleanedClassIds[0] ?? '',
+        periodNames: cleanedPeriodNames,
+      };
+
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        assignmentPatch
+      );
+      batch.update(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
+        sessionPatch
+      );
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const setAssignmentExportUrl = useCallback<
     UseQuizAssignmentsResult['setAssignmentExportUrl']
   >(
@@ -583,13 +653,32 @@ export const useQuizAssignments = (
       const savedMeta = await saveQuiz(newQuiz);
 
       // 2. Create a Paused assignment with the shared settings.
-      // Clear teacher-specific fields so the importer starts fresh with
-      // their own periods and name.
+      // Clear all originator-scoped fields so the importer starts fresh
+      // with their own targeting, identity, and PLC wiring:
+      //   - teacherName / periodName / periodNames: originator's free text
+      //     and class periods.
+      //   - plcSheetUrl: points at the ORIGINATOR's PLC Google Sheet. If
+      //     left in place, Widget.tsx's start-flow feeds it (along with
+      //     plcMemberEmails) into reconcilePlcSheetPermissions(), which
+      //     issues Drive calls against a sheet the importer doesn't own
+      //     and does Firestore reads on plcs/{originatorPlcId} where the
+      //     importer is not in memberUids — surfacing as silent
+      //     "Missing or insufficient permissions" console errors.
+      //   - plcMemberEmails: originator's PLC roster, irrelevant to the
+      //     importer's PLC (if any).
+      //   - plcMode: cleared so the importer explicitly opts in to PLC
+      //     mode for their own assignment via the settings modal — both
+      //     consistent with how their other settings behave and the only
+      //     way to guarantee plcMemberEmails / plcSheetUrl are repopulated
+      //     against the importer's own PLC instead of the originator's.
       const importedSettings = {
         ...shared.assignmentSettings,
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
+        plcMode: undefined,
+        plcSheetUrl: undefined,
+        plcMemberEmails: undefined,
       };
       // Intentionally omit classIds/rosterIds: the shared doc's targeting
       // refers to rosters in the ORIGINATOR's account and would be dangling
@@ -622,6 +711,7 @@ export const useQuizAssignments = (
     reopenAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentRosters,
     setAssignmentExportUrl,
     shareAssignment,
     importSharedAssignment,

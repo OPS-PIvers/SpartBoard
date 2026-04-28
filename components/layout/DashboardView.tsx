@@ -147,6 +147,7 @@ export const DashboardView: React.FC = () => {
     clearPendingQuizShare,
     pendingAssignmentShareId,
     clearPendingAssignmentShare,
+    setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
     groupBuildMode,
@@ -243,12 +244,14 @@ export const DashboardView: React.FC = () => {
       const meta = await saveQuiz(quiz);
       return { id: meta.id, driveFileId: meta.driveFileId };
     })
-      .then(() => {
-        addToast(
-          'Shared assignment imported! Click Start to begin.',
-          'success'
-        );
+      .then((newAssignmentId) => {
+        addToast('Shared assignment imported!', 'success');
         openQuizWidgetToTab('active');
+        // Prompt the importer to pick rosters/periods for the new
+        // assignment instead of leaving it paused with no targeting.
+        // The QuizWidget reads this and opens
+        // QuizAssignmentImportSetupModal.
+        setPendingAssignmentSetup(newAssignmentId);
       })
       .catch((err: unknown) => {
         const msg =
@@ -272,6 +275,7 @@ export const DashboardView: React.FC = () => {
     addToast,
     clearPendingAssignmentShare,
     openQuizWidgetToTab,
+    setPendingAssignmentSetup,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
