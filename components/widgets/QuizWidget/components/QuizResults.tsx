@@ -57,6 +57,7 @@ import {
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
+import { PlcTab } from './PlcTab';
 
 interface QuizResultsProps {
   quiz: QuizData;
@@ -174,7 +175,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'questions' | 'students'
+    'overview' | 'questions' | 'students' | 'plc'
   >('overview');
   const [showScoreboardPrompt, setShowScoreboardPrompt] = useState(false);
   const scoreboardPromptRef = useRef<HTMLDivElement>(null);
@@ -546,7 +547,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const canShowUpdateSheet = !!config.plcMode && trackingInitialized;
 
   const handleUpdateSheet = async () => {
-    if (!exportUrl || newResponsesToAppend.length === 0) return;
+    if (!exportUrl) return;
     if (!googleAccessToken) {
       setExportError(
         'Google access token not available. Please sign in again.'
@@ -557,12 +558,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setExportError(null);
     try {
       const svc = new QuizDriveService(googleAccessToken);
-      // Reuse the PLC-mode append path for this PLC-only update flow: it
-      // rebuilds the same headers + rows shape as the original PLC export
-      // and uses appendToExistingSheet under the hood for the linked PLC
-      // sheet. UPDATE SHEET is gated on `config.plcMode` upstream
-      // (`canShowUpdateSheet`) — solo-mode sheets carry a trailing stats
-      // block that would be fragmented by an append.
+      // Smart re-export: when there's an append-delta, append. When there
+      // isn't, do a clear-and-rewrite ("regenerate") on the same sheet so
+      // the teacher has a way to force a clean rebuild without abandoning
+      // the canonical URL. This branches on newResponsesToAppend.length —
+      // empty delta = rebuild, non-empty delta = append. Re-export Sheet
+      // is gated on `config.plcMode` upstream (`canShowUpdateSheet`).
+      const isFullRebuild = newResponsesToAppend.length === 0;
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -572,12 +574,24 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       };
       let regeneratedSheet = false;
       try {
-        await svc.exportResultsToSheet(
-          quiz.title,
-          newResponsesToAppend,
-          quiz.questions,
-          exportOpts
-        );
+        if (isFullRebuild) {
+          // Rebuild from scratch: clear every row on the existing sheet
+          // and write headers + all responses. Preserves the URL so PLC
+          // peers keep their bookmarks.
+          await svc.regeneratePlcSheet(
+            exportUrl,
+            responses,
+            quiz.questions,
+            exportOpts
+          );
+        } else {
+          await svc.exportResultsToSheet(
+            quiz.title,
+            newResponsesToAppend,
+            quiz.questions,
+            exportOpts
+          );
+        }
       } catch (updateErr) {
         // Only attempt PLC recovery for PLC-linked sheets; a solo sheet
         // 404/403 has no plcs/{id} to update and we should surface as-is.
@@ -649,9 +663,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           ? `The previous PLC sheet was missing — created a fresh one and exported all ${responses.length} response${
               responses.length === 1 ? '' : 's'
             }.`
-          : `Added ${newResponsesToAppend.length} new response${
-              newResponsesToAppend.length === 1 ? '' : 's'
-            } to the sheet.`,
+          : isFullRebuild
+            ? `Sheet rebuilt from scratch — wrote ${responses.length} response${
+                responses.length === 1 ? '' : 's'
+              }.`
+            : `Added ${newResponsesToAppend.length} new response${
+                newResponsesToAppend.length === 1 ? '' : 's'
+              } to the sheet.`,
         'success'
       );
     } catch (err) {
@@ -801,14 +819,15 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               OPEN SHEET
             </a>
             {canShowUpdateSheet && (
-              // Wrapping span owns the title attribute so the "Sheet is up
-              // to date" hover hint still renders when the button itself
-              // is disabled — most browsers swallow `title` on disabled
-              // <button> elements (Copilot review on PR #1442).
+              // Smart re-export: appends new responses when the sheet is
+              // behind, otherwise clears and rewrites the same sheet from
+              // scratch. The button is always enabled in PLC mode so the
+              // teacher always has a path to refresh — the title hint
+              // tells them which mode the next click will run in.
               <span
                 title={
                   newResponsesToAppend.length === 0
-                    ? 'Sheet is up to date'
+                    ? 'Re-export — rebuild this sheet from scratch'
                     : `Add ${newResponsesToAppend.length} new response${
                         newResponsesToAppend.length === 1 ? '' : 's'
                       } to the sheet`
@@ -817,11 +836,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               >
                 <button
                   onClick={() => void handleUpdateSheet()}
-                  disabled={updatingSheet || newResponsesToAppend.length === 0}
+                  disabled={updatingSheet}
                   aria-label={
                     newResponsesToAppend.length === 0
-                      ? 'Update sheet (already up to date)'
-                      : `Update sheet (${newResponsesToAppend.length} pending)`
+                      ? 'Re-export sheet (rebuild from scratch)'
+                      : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`
                   }
                   className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
                   style={{
@@ -846,7 +865,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                       }}
                     />
                   )}
-                  UPDATE SHEET
+                  RE-EXPORT SHEET
                   {newResponsesToAppend.length > 0 && (
                     <span
                       className="ml-1 inline-flex items-center justify-center bg-white/25 rounded-full font-black"
@@ -956,7 +975,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
             </div>
           )}
 
-          {/* Tabs Navigation */}
+          {/* Tabs Navigation. The PLC tab only appears when this assignment
+              is in PLC mode — that's the only context where a cross-teacher
+              aggregate makes sense. The shared sheet URL we render against
+              is the per-assignment plc.sheetUrl, fallback to widget config
+              for legacy assignments (same precedence as the export path). */}
           <div
             className="flex border-b border-brand-blue-primary/10"
             style={{
@@ -964,7 +987,14 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               gap: 'min(4px, 1cqmin)',
             }}
           >
-            {(['overview', 'questions', 'students'] as const).map((tab) => (
+            {(
+              [
+                'overview',
+                'questions',
+                'students',
+                ...(config.plcMode ? (['plc'] as const) : []),
+              ] as const
+            ).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -1014,6 +1044,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 addToast={addToast}
               />
             )}
+            {activeTab === 'plc' &&
+              config.plcMode &&
+              (assignmentPlcSheetUrl ?? config.plcSheetUrl) && (
+                <PlcTab
+                  plcSheetUrl={
+                    (assignmentPlcSheetUrl ?? config.plcSheetUrl) as string
+                  }
+                  googleAccessToken={googleAccessToken}
+                  questions={quiz.questions}
+                />
+              )}
           </div>
         </>
       )}

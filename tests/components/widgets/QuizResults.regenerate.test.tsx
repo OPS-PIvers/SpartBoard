@@ -127,12 +127,12 @@ function makePlcConfig(): QuizConfig {
   } as unknown as QuizConfig;
 }
 
-describe('QuizResults — UPDATE SHEET 404 regenerate-sheet recovery', () => {
+describe('QuizResults — Re-export Sheet 404 regenerate-sheet recovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setPlcSharedSheetUrl.mockResolvedValue(REGEN_SHEET_URL);
     clearPlcSharedSheetUrl.mockResolvedValue(undefined);
-    // First call (initial UPDATE SHEET append) throws 404 — sheet gone in
+    // First call (initial Re-export Sheet append) throws 404 — sheet gone in
     // Drive. The catch path regenerates a fresh sheet and retries the
     // export against the new URL, which succeeds.
     mockExportResultsToSheet
@@ -164,7 +164,7 @@ describe('QuizResults — UPDATE SHEET 404 regenerate-sheet recovery', () => {
         // exportUrl set + plcMode true + tracking initialized as empty
         // means trackingInitialized=true (initialExportedResponseIds is
         // an array, not null) AND there are 2 new responses to append,
-        // so UPDATE SHEET button is enabled.
+        // so Re-export Sheet button is enabled.
         initialExportUrl={STALE_SHEET_URL}
         initialExportedResponseIds={[]}
         onExportUrlSaved={onExportUrlSaved}
@@ -173,7 +173,7 @@ describe('QuizResults — UPDATE SHEET 404 regenerate-sheet recovery', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /update sheet/i }));
+    fireEvent.click(screen.getByRole('button', { name: /re-export sheet/i }));
 
     await waitFor(() => {
       expect(mockExportResultsToSheet).toHaveBeenCalledTimes(2);
