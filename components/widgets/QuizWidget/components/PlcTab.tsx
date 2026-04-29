@@ -372,7 +372,10 @@ export const PlcTab: React.FC<PlcTabProps> = ({
       {/* Distribution Chart — same buckets/colors as OverviewTab for visual continuity */}
       <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          <Target className="w-4 h-4 text-brand-blue-primary" />
+          <Target
+            className="text-brand-blue-primary"
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
           <span
             className="font-black text-brand-blue-dark uppercase tracking-widest"
             style={{ fontSize: 'min(10px, 3.5cqmin)' }}
@@ -412,7 +415,10 @@ export const PlcTab: React.FC<PlcTabProps> = ({
       {/* Per-question breakdown — same card visual as QuestionsTab */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
-          <Target className="w-4 h-4 text-brand-blue-primary" />
+          <Target
+            className="text-brand-blue-primary"
+            style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
+          />
           <span
             className="font-black text-brand-blue-dark uppercase tracking-widest"
             style={{ fontSize: 'min(10px, 3.5cqmin)' }}

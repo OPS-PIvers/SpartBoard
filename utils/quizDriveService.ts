@@ -62,10 +62,11 @@ interface SheetsValueRange {
 
 /**
  * One parsed row out of a shared PLC results sheet, returned by
- * `readPlcSheet`. Mirrors the column layout written by `buildResultsSheet`'s
- * PLC branch: identity columns first, then per-question correctness as
- * `questionAnswers[i]`. Each question cell is either '' (unanswered),
- * '0' (incorrect), or a positive number string (correct).
+ * `readPlcSheet`. Mirrors the column layout written by
+ * `buildResultsSheetData`'s PLC branch: identity columns first, then
+ * per-question correctness as `questionAnswers[i]`. Each question cell
+ * is either '' (unanswered), '0' (incorrect), or a positive number
+ * string (correct).
  */
 export interface PlcSheetRow {
   timestamp: string;
@@ -760,14 +761,14 @@ export class QuizDriveService {
   /**
    * Read every data row out of an existing PLC results sheet for the
    * cross-teacher aggregation tab. Pulls the FIRST tab's full range and
-   * parses rows into a typed shape that mirrors `buildResultsSheet`'s
+   * parses rows into a typed shape that mirrors `buildResultsSheetData`'s
    * column layout. Question columns are exposed as a parallel string
    * array keyed by `questionAnswers[i]` — the consumer maps positionally
    * against `quiz.questions` (the columns are written in question order
    * by the export path; new questions added after the sheet was created
    * appear as missing trailing cells, which is fine).
    *
-   * Cell semantics for question columns (matching buildResultsSheet):
+   * Cell semantics for question columns (matching buildResultsSheetData):
    *   - empty string → unanswered
    *   - '0' → answered, incorrect
    *   - any positive number string → answered, correct (value = points
