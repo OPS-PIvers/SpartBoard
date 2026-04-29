@@ -37,12 +37,14 @@ export const StationCard: React.FC<StationCardProps> = ({
 }) => {
   const accent = station.color?.trim() ? station.color : '#10b981';
   const accentTextColor = getAccessibleAccentText(accent);
-  // The card surface blends the configurable card color with the station accent
-  // so the cardOpacity slider drives readability while preserving color coding.
-  // At cardOpacity=0 the card is fully transparent; at 1.0 it reaches a
-  // moderately-tinted surface that's still readable for chips.
-  const surface = hexToRgba(accent, Math.max(0, cardOpacity) * 0.4);
-  const tintHover = hexToRgba(accent, Math.max(0.08, cardOpacity * 0.5));
+  // The card surface uses the station accent (preserving per-station color
+  // coding) and applies `cardOpacity` directly — the same direct mapping the
+  // widget header and unassigned bucket use against `cardColor`. Keeping the
+  // alpha mapping uniform across surfaces means the "Card surface" slider
+  // behaves the same everywhere in the widget.
+  const clampedOpacity = Math.max(0, Math.min(1, cardOpacity));
+  const surface = hexToRgba(accent, clampedOpacity);
+  const tintHover = hexToRgba(accent, Math.min(1, clampedOpacity + 0.15));
   const capLabel =
     station.maxStudents != null
       ? `${members.length} / ${station.maxStudents}`
@@ -52,9 +54,11 @@ export const StationCard: React.FC<StationCardProps> = ({
     : station.iconName?.trim()
       ? station.iconName
       : 'LayoutGrid';
-  // Chip surface: a translucent neutral that contrasts the accent tint behind
-  // it, so chip text stays readable regardless of station accent.
-  const chipSurface = hexToRgba(cardColor, Math.min(1, cardOpacity + 0.25));
+  // Chip column overlay — an internal readability layer (not a user-visible
+  // "card surface"). It uses `cardColor` and is deliberately bumped above
+  // `cardOpacity` so chip text stays legible even when the accent tint behind
+  // it is heavy.
+  const chipSurface = hexToRgba(cardColor, Math.min(1, clampedOpacity + 0.25));
 
   return (
     <DroppableZone
@@ -167,8 +171,9 @@ export const StationCard: React.FC<StationCardProps> = ({
         </div>
       </div>
 
-      {/* RIGHT COLUMN — student chips, stacked top-to-bottom and wrapping
-          into 1–3 columns as the card grows wider. */}
+      {/* RIGHT COLUMN — student chips, stacked top-to-bottom in a grid that
+          auto-fills more columns as the card grows wider (single column on
+          narrow cards). */}
       <div
         className="relative z-10 flex flex-col rounded-xl overflow-hidden"
         style={{
@@ -202,7 +207,10 @@ export const StationCard: React.FC<StationCardProps> = ({
               className="grid w-full content-start"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
-                // auto-fill into 1–3 columns based on available width.
+                // Auto-fill as many columns as the chip column width allows.
+                // The per-chip min-width keeps each chip wide enough to read
+                // a student name; on narrow cards this naturally collapses
+                // to a single column.
                 gridTemplateColumns:
                   'repeat(auto-fill, minmax(min(80px, 30cqmin), 1fr))',
               }}
