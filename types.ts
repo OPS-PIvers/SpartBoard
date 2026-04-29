@@ -1950,6 +1950,17 @@ export interface QuizResponse {
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
   /**
+   * Class id (`classlinkClassId` or `testClassId`) the SSO student belongs to.
+   * Written at SSO join time as the intersection of the student's `classIds`
+   * custom-token claim with the session's targeted `classIds`. Only populated
+   * for non-anonymous (SSO) joiners — anonymous PIN joiners pick a period
+   * directly and write `classPeriod` instead. The teacher-side results view
+   * resolves this id to a roster name when `classPeriod` is missing, which
+   * keeps the period filter and shared-sheet "Class Period" column populated
+   * for SSO students who never went through the period picker.
+   */
+  classId?: string;
+  /**
    * Number of times this student has completed the quiz under this response
    * doc. Incremented on the transition `in-progress -> completed` via
    * `completeQuiz`. Used together with `QuizSession.attemptLimit` to enforce

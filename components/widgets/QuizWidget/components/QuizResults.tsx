@@ -119,7 +119,7 @@ interface QuizResultsProps {
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
   quiz,
-  responses,
+  responses: rawResponses,
   config,
   onBack,
   tabWarningsEnabled,
@@ -192,6 +192,42 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [showScoreboardPrompt]);
+
+  // Map classlinkClassId / testClassId → roster name (= period name) so we
+  // can resolve a class period for SSO students who joined via a custom-token
+  // claim and never went through the period picker. The student-side
+  // `joinQuizSession` writes their `classId` claim onto the response doc;
+  // this is the teacher-side reverse map. Anonymous PIN joiners write
+  // `classPeriod` directly and bypass this entirely.
+  const classIdToPeriodName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const roster of rosters) {
+      if (roster.classlinkClassId) {
+        map.set(roster.classlinkClassId, roster.name);
+      }
+      if (roster.testClassId) {
+        map.set(roster.testClassId, roster.name);
+      }
+    }
+    return map;
+  }, [rosters]);
+
+  // Enriched view of responses: every row has `classPeriod` populated when
+  // either (a) the student picked one at join time, or (b) we can resolve
+  // their `classId` claim back to a roster name on the teacher side. Used
+  // for the period filter, the export, and every downstream tab — keeping
+  // SSO students visible in the period dropdown and in the "Class Period"
+  // column of the shared sheet.
+  const responses = useMemo(() => {
+    return rawResponses.map((r) => {
+      if (r.classPeriod) return r;
+      if (r.classId) {
+        const resolved = classIdToPeriodName.get(r.classId);
+        if (resolved) return { ...r, classPeriod: resolved };
+      }
+      return r;
+    });
+  }, [rawResponses, classIdToPeriodName]);
 
   const completed = responses.filter((r) => r.status === 'completed');
 
