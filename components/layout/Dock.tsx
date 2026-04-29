@@ -37,6 +37,8 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
+import { useSavedWidgets } from '@/context/useSavedWidgets';
+import { useDialog } from '@/context/useDialog';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
@@ -78,6 +80,7 @@ import { DockLabel } from './dock/DockLabel';
 import { ToolDockItem } from './dock/ToolDockItem';
 import { FolderItem } from './dock/FolderItem';
 import { QuickAccessButton } from './dock/QuickAccessButton';
+import { SavedWidgetDockItem } from './dock/SavedWidgetDockItem';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
@@ -123,10 +126,26 @@ export const Dock: React.FC = () => {
   const { driveService } = useGoogleDrive();
   const { sets: catalystSets, executeRoutine } = useCatalystSets();
   const { customWidgets } = useCustomWidgets();
+  const { savedWidgets, setPinnedToDock, deleteSavedWidget } =
+    useSavedWidgets();
+  const { showConfirm } = useDialog();
 
   const publishedCustomWidgets = useMemo(
     () => customWidgets.filter((w) => w.published && w.enabled),
     [customWidgets]
+  );
+
+  // Saved widgets must clear the same permission gate as the underlying
+  // widget type — otherwise a teacher whose access to a widget gets revoked
+  // after saving still sees their old shortcut and can re-instantiate.
+  const accessibleSavedWidgets = useMemo(
+    () => savedWidgets.filter((w) => canAccessWidget(w.widgetType)),
+    [savedWidgets, canAccessWidget]
+  );
+
+  const pinnedSavedWidgets = useMemo(
+    () => accessibleSavedWidgets.filter((w) => w.pinnedToDock),
+    [accessibleSavedWidgets]
   );
 
   const handleAddCustomWidget = useCallback(
@@ -142,6 +161,58 @@ export const Dock: React.FC = () => {
       });
     },
     [customWidgets, addWidget]
+  );
+
+  const handleAddSavedWidget = useCallback(
+    (savedWidgetId: string) => {
+      const sw = savedWidgets.find((w) => w.id === savedWidgetId);
+      if (!sw) return;
+      if (!canAccessWidget(sw.widgetType)) {
+        addToast(
+          `"${sw.title}" is unavailable — you no longer have access to this widget.`,
+          'error'
+        );
+        return;
+      }
+      addWidget(sw.widgetType, { config: sw.config });
+    },
+    [savedWidgets, addWidget, canAccessWidget, addToast]
+  );
+
+  const handleDeleteSavedWidget = useCallback(
+    async (savedWidgetId: string) => {
+      const sw = savedWidgets.find((w) => w.id === savedWidgetId);
+      if (!sw) return;
+      const confirmed = await showConfirm(
+        `Delete "${sw.title}" from your saved widgets? This can't be undone.`,
+        {
+          title: 'Delete Saved Widget',
+          variant: 'danger',
+          confirmLabel: 'Delete',
+        }
+      );
+      if (!confirmed) return;
+      try {
+        await deleteSavedWidget(savedWidgetId);
+        addToast(`"${sw.title}" deleted`, 'info');
+      } catch (err) {
+        console.error('[Dock] Failed to delete saved widget', err);
+        addToast('Failed to delete saved widget', 'error');
+      }
+    },
+    [savedWidgets, deleteSavedWidget, showConfirm, addToast]
+  );
+
+  const handleUnpinSavedWidget = useCallback(
+    async (savedWidgetId: string) => {
+      try {
+        await setPinnedToDock(savedWidgetId, false);
+      } catch (err) {
+        console.error('[Dock] Failed to unpin saved widget', err);
+        addToast('Failed to remove from dock', 'error');
+      }
+    },
+    [setPinnedToDock, addToast]
   );
 
   const getToolLabel = useCallback(
@@ -988,6 +1059,18 @@ export const Dock: React.FC = () => {
               getToolLabel={getToolLabel}
               customWidgets={publishedCustomWidgets}
               onAddCustomWidget={handleAddCustomWidget}
+              savedWidgets={accessibleSavedWidgets}
+              onAddSavedWidget={handleAddSavedWidget}
+              onToggleSavedWidgetPin={(id, pinned) =>
+                void setPinnedToDock(id, pinned).catch((err) => {
+                  console.error(
+                    '[Dock] Failed to toggle saved widget pin',
+                    err
+                  );
+                  addToast('Failed to update pin', 'error');
+                })
+              }
+              onDeleteSavedWidget={(id) => void handleDeleteSavedWidget(id)}
             />
           )}
 
@@ -1417,6 +1500,33 @@ export const Dock: React.FC = () => {
                     </GlassCard>,
                     document.body
                   )}
+
+                {/* Pinned saved widgets — per-user shortcuts (e.g. saved
+                    Mini Apps). Sit alongside the standard tools but live
+                    outside the visibleTools/dockItems machinery so they
+                    don't clash with the WidgetType-keyed reorder/folder
+                    logic. */}
+                {pinnedSavedWidgets.length > 0 && (
+                  <>
+                    <div
+                      className={`bg-slate-200 flex-shrink-0 ${
+                        isVerticalDock ? 'h-px w-8 my-1' : 'w-px h-8 mx-1'
+                      }`}
+                    />
+                    {pinnedSavedWidgets.map((sw) => (
+                      <SavedWidgetDockItem
+                        key={sw.id}
+                        widget={sw}
+                        isEditMode={isEditMode}
+                        onAdd={() => handleAddSavedWidget(sw.id)}
+                        onUnpin={() => void handleUnpinSavedWidget(sw.id)}
+                        onDelete={() => void handleDeleteSavedWidget(sw.id)}
+                        onLongPress={handleLongPress}
+                        dockPosition={dockPosition}
+                      />
+                    ))}
+                  </>
+                )}
 
                 {/* Minimized custom widgets — not in static TOOLS list so
                     surfaced here so they can always be restored */}

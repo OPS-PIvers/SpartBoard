@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
+import { SavedWidgetsProvider } from './context/SavedWidgetsContext';
 import { DashboardProvider } from './context/DashboardContext';
 import { useDashboard } from './context/useDashboard';
 import { DialogProvider } from './context/DialogContext';
@@ -127,20 +128,24 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
   if (isRemote) {
     return (
       <CustomWidgetsProvider>
-        <DashboardProvider>
-          <Suspense fallback={<FullPageLoader />}>
-            <MobileRemoteApp />
-          </Suspense>
-        </DashboardProvider>
+        <SavedWidgetsProvider>
+          <DashboardProvider>
+            <Suspense fallback={<FullPageLoader />}>
+              <MobileRemoteApp />
+            </Suspense>
+          </DashboardProvider>
+        </SavedWidgetsProvider>
       </CustomWidgetsProvider>
     );
   }
 
   return (
     <CustomWidgetsProvider>
-      <DashboardProvider>
-        <AppContent />
-      </DashboardProvider>
+      <SavedWidgetsProvider>
+        <DashboardProvider>
+          <AppContent />
+        </DashboardProvider>
+      </SavedWidgetsProvider>
     </CustomWidgetsProvider>
   );
 };

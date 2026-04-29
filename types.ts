@@ -3995,6 +3995,37 @@ export interface CustomWidgetConfig {
   adminSettings?: Record<string, string | number | boolean>;
 }
 
+/**
+ * A user-saved widget shortcut. Created when a user taps "Save as widget" on
+ * a configurable widget (currently Mini Apps) — the widget's config is frozen
+ * into `config` and surfaced as a one-tap entry in the user's dock and
+ * Widget Library. Per-user; lives at /users/{uid}/saved_widgets/{id}.
+ */
+/**
+ * Narrow union of widget types eligible to be saved as user shortcuts.
+ * Only `miniApp` produces saved widgets today; widening this requires
+ * deciding what `config` shape each new type freezes (see SavedWidget.config).
+ */
+export type SavedWidgetType = 'miniApp';
+
+export interface SavedWidget {
+  id: string;
+  /** The underlying widget type to instantiate */
+  widgetType: SavedWidgetType;
+  /** Display name shown in the dock and library */
+  title: string;
+  /** Icon key from CUSTOM_WIDGET_ICON_OPTIONS */
+  icon: string;
+  /** Tailwind bg-* class (e.g. 'bg-purple-500') */
+  color: string;
+  /** Frozen config snapshot used to instantiate the widget */
+  config: Partial<MiniAppConfig>;
+  /** Whether this saved widget is pinned to the dock toolbar */
+  pinnedToDock: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface RemoteGlobalConfig {
   dockDefaults?: Record<string, boolean>;
 }
