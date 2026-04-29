@@ -943,6 +943,55 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setSessionIdState(sessionDoc.id);
         setResponseKeyState(responseKey);
 
+        // SSO class-id resolution. Anonymous PIN joiners arrive with a
+        // `classPeriod` argument from the period picker — that path stays
+        // unchanged. SSO joiners (custom-token `studentRole` users from
+        // /my-assignments) skip the period picker, so we resolve their class
+        // id by intersecting their `classIds` token claim with the session's
+        // targeted `classIds`. The teacher-side results view turns that id
+        // back into a period name via the roster, so the period filter and
+        // shared-sheet "Class Period" column stay populated for SSO rows.
+        // Falls back to undefined when:
+        //   - the student is anonymous (no claim), or
+        //   - claims.classIds is missing, malformed, or has no overlap with
+        //     the session, or
+        //   - the intersection has multiple matches (ambiguous — leave
+        //     unset so the teacher can identify and fix the targeting).
+        let resolvedClassId: string | undefined;
+        if (!currentUser.isAnonymous && !classPeriod) {
+          try {
+            const tokenResult = await currentUser.getIdTokenResult();
+            const claimClassIds = tokenResult.claims?.classIds;
+            if (Array.isArray(claimClassIds)) {
+              const studentClaimSet = new Set(
+                claimClassIds.filter(
+                  (c): c is string => typeof c === 'string' && c.length > 0
+                )
+              );
+              const sessionClassIds = Array.isArray(sessionData.classIds)
+                ? sessionData.classIds.filter(
+                    (c): c is string => typeof c === 'string' && c.length > 0
+                  )
+                : [];
+              const matches = sessionClassIds.filter((c) =>
+                studentClaimSet.has(c)
+              );
+              if (matches.length === 1) {
+                resolvedClassId = matches[0];
+              }
+            }
+          } catch (claimErr) {
+            // Token-claim lookup is best-effort. A failure here just means
+            // the SSO student's row will lack a class period in the sheet
+            // — the same as today's behavior — so we swallow rather than
+            // block the join.
+            console.warn(
+              '[useQuizSession] Failed to read SSO classIds claim:',
+              claimErr
+            );
+          }
+        }
+
         if (!existingSnap?.exists()) {
           // No PII stored. `studentUid` field carries the auth uid; the doc
           // key may differ (for PIN auth it's pin-based), so Firestore rules
@@ -960,8 +1009,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             completedAttempts: 0,
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
             ...(classPeriod ? { classPeriod } : {}),
+            ...(resolvedClassId ? { classId: resolvedClassId } : {}),
           };
           await setDoc(responseRef, newResponse);
+        } else if (resolvedClassId) {
+          // Backfill classId on an existing SSO response that joined before
+          // this code shipped, so the period filter and sheet column are
+          // self-healing on rejoin without a separate migration.
+          const existing = existingSnap.data() as QuizResponse;
+          if (existing.classId !== resolvedClassId) {
+            await updateDoc(responseRef, { classId: resolvedClassId });
+          }
         }
 
         setSession(sessionData);

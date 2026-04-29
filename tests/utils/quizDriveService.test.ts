@@ -597,3 +597,286 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
     expect(calls.length).toBe(3);
   });
 });
+
+// Headers row produced by buildResultsSheetData — used to seed the
+// readPlcSheet response in regeneratePlcSheet tests so the parsed shape
+// is correct.
+const PLC_SHEET_HEADERS = [
+  'Timestamp',
+  'Teacher',
+  'Class Period',
+  'Student',
+  'PIN',
+  'Status',
+  'Score (%)',
+  'Points Earned',
+  'Max Points',
+  'Warnings',
+  'Submitted At',
+  'Q1 (1pt): Question q1',
+];
+
+describe('QuizDriveService.regeneratePlcSheet — peer-row preservation', () => {
+  let service: QuizDriveService;
+  beforeEach(() => {
+    service = new QuizDriveService('test-token');
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('preserves rows from peer teachers and replaces only the owner teacher rows', async () => {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/plc-sheet-1/edit';
+
+    // Existing sheet has 3 rows: 1 owned by Teacher A (caller) and 2
+    // owned by peer teachers. The naïve rebuild would delete all 3 and
+    // write only the owner's local responses, destroying peers' data.
+    const existingValues = [
+      PLC_SHEET_HEADERS,
+      [
+        '2026-04-29T10:00:00Z',
+        'Teacher A',
+        'Period 1',
+        'Alice',
+        '01',
+        'completed',
+        '50%',
+        '0',
+        '1',
+        '0',
+        '2026-04-29T09:55',
+        '0',
+      ],
+      [
+        '2026-04-29T11:00:00Z',
+        'Teacher B',
+        'Period 3',
+        'Bob',
+        '01',
+        'completed',
+        '100%',
+        '1',
+        '1',
+        '0',
+        '2026-04-29T10:55',
+        '1',
+      ],
+      [
+        '2026-04-29T12:00:00Z',
+        'Teacher C',
+        'Period 2',
+        'Carol',
+        '02',
+        'completed',
+        '0%',
+        '0',
+        '1',
+        '1',
+        '2026-04-29T11:55',
+        '0',
+      ],
+    ];
+
+    const fetchSpy = queueFetchResponses([
+      // 1. metadata read for first-tab title (in readPlcSheet)
+      {
+        json: () =>
+          Promise.resolve({
+            sheets: [{ properties: { title: 'Sheet1' } }],
+          }),
+      },
+      // 2. readPlcSheet values fetch
+      { json: () => Promise.resolve({ values: existingValues }) },
+      // 3. metadata read for first-tab title (in clearAndRewritePlcSheet)
+      {
+        json: () =>
+          Promise.resolve({
+            sheets: [{ properties: { title: 'Sheet1' } }],
+          }),
+      },
+      // 4. clear request
+      { json: () => Promise.resolve({}) },
+      // 5. write request
+      { json: () => Promise.resolve({}) },
+    ]);
+
+    await service.regeneratePlcSheet(
+      sheetUrl,
+      // Owner submits ONE updated response; Alice's prior 50% becomes 100%.
+      [
+        makeResponse({
+          pin: '01',
+          classPeriod: 'Period 1',
+          submittedAt: 1735000000000,
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1')],
+      { teacherName: 'Teacher A' }
+    );
+
+    // Inspect the write call (call index 4) to confirm:
+    //   - Teacher B's row preserved verbatim (Bob, Period 3, 100%)
+    //   - Teacher C's row preserved verbatim (Carol, Period 2, 0%)
+    //   - Owner's old row (Alice, 50%) replaced by the rebuilt one (100%)
+    const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls as Array<[string, RequestInit]>;
+    const writeBody = parseBody(calls[4][1]);
+    const writtenRows = writeBody.values as string[][];
+
+    // Header + 3 rows (owner's 1 rebuilt row + 2 preserved peers).
+    // Identify rows by teacher rather than by sorted index — sort order
+    // depends on how `resolveStudent` renders the owner's anonymous PIN
+    // response, which isn't the contract we're testing here.
+    expect(writtenRows).toHaveLength(4);
+    expect(writtenRows[0]).toEqual(PLC_SHEET_HEADERS);
+
+    const ownerRows = writtenRows.slice(1).filter((r) => r[1] === 'Teacher A');
+    const teacherBRows = writtenRows
+      .slice(1)
+      .filter((r) => r[1] === 'Teacher B');
+    const teacherCRows = writtenRows
+      .slice(1)
+      .filter((r) => r[1] === 'Teacher C');
+
+    // Owner's old Alice/50% row is gone; the rebuilt row scores 100%
+    // because the local response answer 'A' matches the correct answer
+    // in makeQuestion. This proves the rebuild reflects current local
+    // truth (not the stale sheet snapshot).
+    expect(ownerRows).toHaveLength(1);
+    expect(ownerRows[0][6]).toBe('100%');
+
+    // Teacher B's row preserved verbatim — including class period and
+    // score that the owner has no client-side visibility into.
+    expect(teacherBRows).toHaveLength(1);
+    expect(teacherBRows[0][3]).toBe('Bob');
+    expect(teacherBRows[0][2]).toBe('Period 3');
+    expect(teacherBRows[0][6]).toBe('100%');
+
+    // Teacher C's row preserved verbatim.
+    expect(teacherCRows).toHaveLength(1);
+    expect(teacherCRows[0][3]).toBe('Carol');
+    expect(teacherCRows[0][6]).toBe('0%');
+  });
+
+  it('falls back to "Unknown Teacher" matching when no teacherName is provided', async () => {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/plc-sheet-2/edit';
+
+    const existingValues = [
+      PLC_SHEET_HEADERS,
+      // An anonymous row written by an earlier export that had no teacherName.
+      [
+        '2026-04-29T10:00:00Z',
+        'Unknown Teacher',
+        'Period 1',
+        'Alice',
+        '01',
+        'completed',
+        '50%',
+        '0',
+        '1',
+        '0',
+        '2026-04-29T09:55',
+        '0',
+      ],
+      // A peer row from a teacher who DID set their name.
+      [
+        '2026-04-29T11:00:00Z',
+        'Teacher B',
+        'Period 3',
+        'Bob',
+        '01',
+        'completed',
+        '100%',
+        '1',
+        '1',
+        '0',
+        '2026-04-29T10:55',
+        '1',
+      ],
+    ];
+
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            sheets: [{ properties: { title: 'Sheet1' } }],
+          }),
+      },
+      { json: () => Promise.resolve({ values: existingValues }) },
+      {
+        json: () =>
+          Promise.resolve({
+            sheets: [{ properties: { title: 'Sheet1' } }],
+          }),
+      },
+      { json: () => Promise.resolve({}) },
+      { json: () => Promise.resolve({}) },
+    ]);
+
+    await service.regeneratePlcSheet(
+      sheetUrl,
+      [
+        makeResponse({
+          pin: '01',
+          classPeriod: 'Period 1',
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1')]
+      // No `teacherName` option — same fallback as buildResultsSheetData.
+    );
+
+    const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls as Array<[string, RequestInit]>;
+    const writtenRows = parseBody(calls[4][1]).values as string[][];
+
+    // Header + 1 owner row (rebuilt) + 1 preserved peer row.
+    expect(writtenRows).toHaveLength(3);
+    // Owner's old "Unknown Teacher" row was replaced (now 100%, since the
+    // local response answer matches the correct answer in makeQuestion).
+    const ownerRows = writtenRows.filter((r) => r[1] === 'Unknown Teacher');
+    expect(ownerRows).toHaveLength(1);
+    expect(ownerRows[0][6]).toBe('100%');
+    // Peer row preserved verbatim.
+    const peerRows = writtenRows.filter((r) => r[1] === 'Teacher B');
+    expect(peerRows).toHaveLength(1);
+    expect(peerRows[0][3]).toBe('Bob');
+  });
+
+  it('propagates PlcSheetMissingError from the read step so callers fall through to recovery', async () => {
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/missing/edit';
+
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* suppress */
+    });
+
+    queueFetchResponses([
+      // First fetch is the metadata read inside readPlcSheet; let it
+      // succeed so the values fetch is the one that 404s.
+      {
+        json: () =>
+          Promise.resolve({
+            sheets: [{ properties: { title: 'Sheet1' } }],
+          }),
+      },
+      {
+        ok: false,
+        status: 404,
+        text: () => Promise.resolve('Not Found'),
+      },
+    ]);
+
+    await expect(
+      service.regeneratePlcSheet(
+        sheetUrl,
+        [makeResponse({ pin: '01', classPeriod: 'P1' })],
+        [makeQuestion('q1')],
+        { teacherName: 'Teacher A' }
+      )
+    ).rejects.toBeInstanceOf(PlcSheetMissingError);
+
+    errSpy.mockRestore();
+  });
+});

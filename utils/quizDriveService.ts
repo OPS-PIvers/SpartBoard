@@ -60,6 +60,29 @@ interface SheetsValueRange {
   values?: string[][];
 }
 
+/**
+ * One parsed row out of a shared PLC results sheet, returned by
+ * `readPlcSheet`. Mirrors the column layout written by
+ * `buildResultsSheetData`'s PLC branch: identity columns first, then
+ * per-question correctness as `questionAnswers[i]`. Each question cell
+ * is either '' (unanswered), '0' (incorrect), or a positive number
+ * string (correct).
+ */
+export interface PlcSheetRow {
+  timestamp: string;
+  teacher: string;
+  classPeriod: string;
+  student: string;
+  pin: string;
+  status: string;
+  scorePercent: string;
+  pointsEarned: string;
+  maxPoints: string;
+  warnings: string;
+  submittedAt: string;
+  questionAnswers: string[];
+}
+
 interface DrivePermission {
   id: string;
   type?: string;
@@ -477,28 +500,20 @@ export class QuizDriveService {
   // ─── Results export ─────────────────────────────────────────────────────────
 
   /**
-   * Export quiz results to a Google Sheet.
-   * In solo mode (default), creates a new spreadsheet.
-   * In PLC mode, appends rows to the shared sheet at plcSheetUrl.
-   * Returns the URL of the spreadsheet.
+   * Build the headers + data rows for the results sheet WITHOUT touching
+   * the network. Shared between `exportResultsToSheet` (initial export +
+   * append) and `regeneratePlcSheet` (clear-then-rewrite) so the column
+   * shape stays in lock-step across all three flows. Side-effect-free.
    */
-  async exportResultsToSheet(
-    quizTitle: string,
+  private buildResultsSheetData(
     responses: QuizResponse[],
     questions: QuizQuestion[],
     options?: {
       pinToName?: Record<string, string>;
-      /**
-       * ClassLink name lookup for SSO `studentRole` joiners (no PIN). Keyed
-       * by `response.studentUid`. Optional — when omitted (legacy code+PIN
-       * sessions), SSO rows fall back to the generic `Student` label.
-       */
       byStudentUid?: Map<string, { givenName: string; familyName: string }>;
       teacherName?: string;
-      plcMode?: boolean;
-      plcSheetUrl?: string;
     }
-  ): Promise<string> {
+  ): { headers: string[]; dataRows: string[][] } {
     const pinToName = options?.pinToName ?? {};
     const byStudentUid = options?.byStudentUid;
     const teacherName =
@@ -507,16 +522,12 @@ export class QuizDriveService {
     const timestamp = new Date().toISOString();
 
     const resolveStudent = (r: QuizResponse): string => {
-      // ClassLink name (SSO) wins; then roster PIN match; then literal PIN;
-      // then generic "Student" fallback for SSO rows that didn't resolve.
       const sso = byStudentUid?.get(r.studentUid);
       if (sso) {
         const full = `${sso.givenName ?? ''} ${sso.familyName ?? ''}`.trim();
         if (full) return full;
       }
       if (r.pin) {
-        // Disambiguate by classPeriod: the same PIN in two rosters belongs
-        // to two different students, so we must scope the lookup.
         const name = resolvePinName(pinToName, r.classPeriod, r.pin);
         return name ?? `Student (PIN: ${r.pin})`;
       }
@@ -524,13 +535,6 @@ export class QuizDriveService {
     };
 
     const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
-
-    // Build header row — question columns show point value.
-    // "Class Period" is the period the student selected at join time
-    // (`response.classPeriod`); the older static "Period" column was
-    // dropped in 2026-04-29 because it was just the assignment's primary
-    // period repeated on every row, which is misleading for anonymous
-    // joiners spanning multiple sections.
     const headers = [
       'Timestamp',
       'Teacher',
@@ -548,7 +552,6 @@ export class QuizDriveService {
       ),
     ];
 
-    // Build data rows — answer columns are numeric point values (0 or points)
     const dataRows = responses.map((r) => {
       const submitted = r.submittedAt
         ? new Date(r.submittedAt).toLocaleString()
@@ -575,8 +578,6 @@ export class QuizDriveService {
         teacherName,
         r.classPeriod ?? '',
         resolveStudent(r),
-        // PIN column is left blank for SSO students (no roster PIN); their
-        // identity is captured in the Student column instead.
         r.pin ?? '',
         r.status,
         scoreDisplay,
@@ -588,8 +589,115 @@ export class QuizDriveService {
       ];
     });
 
-    // Sort rows by student name (column index 3) for consistent export order
     dataRows.sort((a, b) => a[3].localeCompare(b[3]));
+    return { headers, dataRows };
+  }
+
+  /**
+   * Clear-and-rewrite a PLC sheet with the owner teacher's responses,
+   * preserving every peer teacher's rows in their original cell format.
+   * Used by the Re-export Sheet button when there's no append-delta —
+   * lets the owner force a clean rebuild of THEIR contribution to the
+   * sheet without destroying peers' data.
+   *
+   * The owner reconciliation: rows whose Teacher column matches the
+   * `teacherName` option (after the same trim/fallback rules as
+   * `buildResultsSheetData`) are dropped from the sheet and re-emitted
+   * from `responses`. All other rows are preserved verbatim.
+   *
+   * Why this matters: client-side `responses` is the current teacher's
+   * Firestore session only — PLC peers' responses live in their own
+   * `quiz_sessions/{sessionId}` documents and are not visible here. A
+   * naïve rebuild that wrote only the local responses would silently
+   * destroy every peer's data.
+   */
+  async regeneratePlcSheet(
+    sheetUrl: string,
+    responses: QuizResponse[],
+    questions: QuizQuestion[],
+    options?: {
+      pinToName?: Record<string, string>;
+      byStudentUid?: Map<string, { givenName: string; familyName: string }>;
+      teacherName?: string;
+    }
+  ): Promise<string> {
+    const ownerName =
+      (options?.teacherName?.trim() ? options.teacherName.trim() : null) ??
+      'Unknown Teacher';
+
+    // Read the existing sheet so peer rows can be preserved. If the
+    // read fails (404/403), `readPlcSheet` throws PlcSheetMissingError
+    // and the caller falls through to the create-fresh-sheet recovery.
+    const { rows: existingRows } = await this.readPlcSheet(sheetUrl);
+
+    // Convert peer PlcSheetRows back to the same string[] cell shape
+    // that `buildResultsSheetData` produces. Identity columns first, then
+    // the per-question correctness cells (preserved verbatim — number of
+    // question columns may differ from the current quiz definition if a
+    // teacher has since edited the quiz; we preserve the historical
+    // shape rather than reshape it). Owner rows (Teacher matches
+    // `ownerName`) are dropped here and re-emitted below from local
+    // responses.
+    const preservedPeerRows: string[][] = existingRows
+      .filter((r) => r.teacher !== ownerName)
+      .map((r) => [
+        r.timestamp,
+        r.teacher,
+        r.classPeriod,
+        r.student,
+        r.pin,
+        r.status,
+        r.scorePercent,
+        r.pointsEarned,
+        r.maxPoints,
+        r.warnings,
+        r.submittedAt,
+        ...r.questionAnswers,
+      ]);
+
+    const { headers, dataRows } = this.buildResultsSheetData(
+      responses,
+      questions,
+      options
+    );
+
+    // Combine and re-sort by Student column (index 3) so the union has
+    // the same ordering invariant as a fresh export.
+    const allRows = [...preservedPeerRows, ...dataRows].sort((a, b) =>
+      (a[3] ?? '').localeCompare(b[3] ?? '')
+    );
+
+    return this.clearAndRewritePlcSheet(sheetUrl, headers, allRows);
+  }
+
+  /**
+   * Export quiz results to a Google Sheet.
+   * In solo mode (default), creates a new spreadsheet.
+   * In PLC mode, appends rows to the shared sheet at plcSheetUrl.
+   * Returns the URL of the spreadsheet.
+   */
+  async exportResultsToSheet(
+    quizTitle: string,
+    responses: QuizResponse[],
+    questions: QuizQuestion[],
+    options?: {
+      pinToName?: Record<string, string>;
+      /**
+       * ClassLink name lookup for SSO `studentRole` joiners (no PIN). Keyed
+       * by `response.studentUid`. Optional — when omitted (legacy code+PIN
+       * sessions), SSO rows fall back to the generic `Student` label.
+       */
+      byStudentUid?: Map<string, { givenName: string; familyName: string }>;
+      teacherName?: string;
+      plcMode?: boolean;
+      plcSheetUrl?: string;
+    }
+  ): Promise<string> {
+    const { headers, dataRows } = this.buildResultsSheetData(
+      responses,
+      questions,
+      options
+    );
 
     // PLC mode: append to existing shared sheet
     if (options?.plcMode) {
@@ -701,6 +809,193 @@ export class QuizDriveService {
 
     const sheet = (await createRes.json()) as { spreadsheetUrl: string };
     return sheet.spreadsheetUrl;
+  }
+
+  /**
+   * Read every data row out of an existing PLC results sheet for the
+   * cross-teacher aggregation tab. Pulls the FIRST tab's full range and
+   * parses rows into a typed shape that mirrors `buildResultsSheetData`'s
+   * column layout. Question columns are exposed as a parallel string
+   * array keyed by `questionAnswers[i]` — the consumer maps positionally
+   * against `quiz.questions` (the columns are written in question order
+   * by the export path; new questions added after the sheet was created
+   * appear as missing trailing cells, which is fine).
+   *
+   * Cell semantics for question columns (matching buildResultsSheetData):
+   *   - empty string → unanswered
+   *   - '0' → answered, incorrect
+   *   - any positive number string → answered, correct (value = points
+   *     awarded; consumer treats anything non-empty and non-'0' as correct)
+   *
+   * Throws `PlcSheetMissingError` for 404/403 so callers can clear the
+   * cached URL and regenerate, mirroring `appendToExistingSheet`'s
+   * recovery contract.
+   */
+  async readPlcSheet(sheetUrl: string): Promise<{
+    headers: string[];
+    rows: PlcSheetRow[];
+  }> {
+    const spreadsheetId = QuizDriveService.extractSheetId(sheetUrl);
+    if (!spreadsheetId) throw new Error('Invalid Google Sheets URL');
+
+    let sheetTitle = 'Sheet1';
+    try {
+      const metaRes = await fetch(
+        `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
+        { headers: this.authHeaders }
+      );
+      if (metaRes.ok) {
+        const meta = (await metaRes.json()) as {
+          sheets?: { properties?: { title?: string } }[];
+        };
+        const firstTitle = meta.sheets?.[0]?.properties?.title;
+        if (firstTitle) sheetTitle = firstTitle;
+      }
+    } catch {
+      // Fall back to 'Sheet1' if metadata lookup fails — the read below
+      // will surface a clearer error if even that range is unreachable.
+    }
+
+    const encodedTitle = encodeURIComponent(sheetTitle);
+    const res = await fetch(
+      `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}`,
+      { headers: this.authHeaders }
+    );
+
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 403) {
+        throw new PlcSheetMissingError(
+          'Shared PLC sheet is missing or inaccessible.',
+          res.status
+        );
+      }
+      const err = await res.text();
+      console.error('PLC sheet read error:', err);
+      throw new Error(
+        'Failed to read the shared PLC sheet. Check that the URL is correct and the sheet is shared with you.'
+      );
+    }
+
+    const data = (await res.json()) as SheetsValueRange;
+    const rows = data.values ?? [];
+    if (rows.length === 0) return { headers: [], rows: [] };
+
+    const headers = rows[0] ?? [];
+    const dataRows: PlcSheetRow[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      // Defensive padding — Sheets API trims trailing empty cells.
+      dataRows.push({
+        timestamp: r[0] ?? '',
+        teacher: r[1] ?? '',
+        classPeriod: r[2] ?? '',
+        student: r[3] ?? '',
+        pin: r[4] ?? '',
+        status: r[5] ?? '',
+        scorePercent: r[6] ?? '',
+        pointsEarned: r[7] ?? '',
+        maxPoints: r[8] ?? '',
+        warnings: r[9] ?? '',
+        submittedAt: r[10] ?? '',
+        questionAnswers: r.slice(11).map((c) => c ?? ''),
+      });
+    }
+
+    return { headers, rows: dataRows };
+  }
+
+  /**
+   * Clear every data row on an existing PLC sheet and write a fresh set
+   * from scratch. Preserves the sheet URL (so PLC peers keep their
+   * bookmarks) but replaces all content. Used by the "Re-export Sheet"
+   * button on the Results page when the teacher wants to regenerate the
+   * sheet without going through the create-new-sheet recovery path.
+   *
+   * Throws `PlcSheetMissingError` for 404/403 — same recovery contract as
+   * `appendToExistingSheet` so the caller can fall through to creating
+   * a fresh sheet if the original is gone entirely.
+   */
+  async clearAndRewritePlcSheet(
+    sheetUrl: string,
+    headers: string[],
+    dataRows: string[][]
+  ): Promise<string> {
+    const spreadsheetId = QuizDriveService.extractSheetId(sheetUrl);
+    if (!spreadsheetId) throw new Error('Invalid Google Sheets URL');
+
+    let sheetTitle = 'Sheet1';
+    try {
+      const metaRes = await fetch(
+        `${SHEETS_API_URL}/${spreadsheetId}?fields=sheets.properties.title`,
+        { headers: this.authHeaders }
+      );
+      if (metaRes.ok) {
+        const meta = (await metaRes.json()) as {
+          sheets?: { properties?: { title?: string } }[];
+        };
+        const firstTitle = meta.sheets?.[0]?.properties?.title;
+        if (firstTitle) sheetTitle = firstTitle;
+      }
+    } catch {
+      // Fall back to 'Sheet1' if metadata lookup fails.
+    }
+
+    const encodedTitle = encodeURIComponent(sheetTitle);
+
+    // Step 1: clear the entire range. `values:clear` is range-scoped, so
+    // we use the bare tab name to wipe every row including headers — we
+    // re-write them in step 2. Body-less POST: use `authHeaders` (no
+    // Content-Type) rather than `jsonHeaders`, because some proxies and
+    // strict API implementations reject a Content-Type: application/json
+    // declaration on a request with no body.
+    const clearRes = await fetch(
+      `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}:clear`,
+      { method: 'POST', headers: this.authHeaders }
+    );
+    if (!clearRes.ok) {
+      if (clearRes.status === 404 || clearRes.status === 403) {
+        throw new PlcSheetMissingError(
+          'Shared PLC sheet is missing or inaccessible.',
+          clearRes.status
+        );
+      }
+      const err = await clearRes.text();
+      console.error('PLC sheet clear error:', err);
+      throw new Error(
+        'Failed to clear the shared PLC sheet for re-export. The sheet may be locked or you may not have edit access.'
+      );
+    }
+
+    // Step 2: write headers + data in one update call. Using
+    // `values:update` with `valueInputOption=RAW` so cells render exactly
+    // what we send (matching the original export path's escaping rules).
+    const allRows = [headers, ...dataRows];
+    const writeRes = await fetch(
+      `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}!A1?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: this.jsonHeaders,
+        body: JSON.stringify({ values: allRows }),
+      }
+    );
+    if (!writeRes.ok) {
+      // Mirror the clear-step's 404/403 handling: if the sheet was
+      // deleted or access revoked between clear and write, the caller
+      // needs `PlcSheetMissingError` to fall through to the
+      // create-fresh-sheet recovery path. Bubbling a generic Error here
+      // would strand the teacher with an unrecoverable state.
+      if (writeRes.status === 404 || writeRes.status === 403) {
+        throw new PlcSheetMissingError(
+          'Shared PLC sheet is missing or inaccessible.',
+          writeRes.status
+        );
+      }
+      const err = await writeRes.text();
+      console.error('PLC sheet rewrite error:', err);
+      throw new Error('Failed to rewrite the shared PLC sheet.');
+    }
+
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
   }
 
   /**
