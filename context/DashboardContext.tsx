@@ -93,6 +93,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin,
     roleId,
     isStudentRole,
+    roleResolved,
     refreshGoogleToken,
     featurePermissions,
     selectedBuildings,
@@ -1082,9 +1083,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Firestore rule will reject the write anyway. AppContent
         // redirects them to /my-assignments; this just avoids a noisy
         // permission-denied error in the gap before that fires.
+        //
+        // We also wait for `roleResolved` so a legacy student isn't briefly
+        // seen as `roleId === null` (the "non-member" state) and accidentally
+        // gets a default board created before the org-members snapshot
+        // arrives. Non-member teachers without a member doc resolve cleanly
+        // to `roleId === null` AND `roleResolved === true`, so they still
+        // get their default board.
         if (
           updatedDashboards.length === 0 &&
           !migrated &&
+          roleResolved &&
           !isStudentRole &&
           roleId !== 'student'
         ) {
@@ -1154,6 +1163,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     updateActiveId,
     roleId,
     isStudentRole,
+    roleResolved,
   ]);
 
   // Auto-save to Firestore with debouncing
