@@ -270,6 +270,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [migrated, setMigrated] = useState(false);
+  // Guards against re-kicking off the localStorage→Firestore migration when
+  // this effect re-runs before `migrated` flips true (the role-flag deps
+  // below cause re-runs as `roleResolved`/`roleId`/`isStudentRole` resolve).
+  // Scoped per-uid so a sign-out → sign-in as a different user re-arms it.
+  const migrationStartedForUidRef = useRef<string | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -1122,9 +1127,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     );
 
-    // Migrate localStorage data on first sign-in
+    // Migrate localStorage data on first sign-in. Per-uid ref guards
+    // against double-kickoff: the role-flag deps in this effect's array
+    // can cause re-runs while migration is still in flight, and without
+    // the ref we'd start a second migration that races with the first.
     const localData = localStorage.getItem('classroom_dashboards');
-    if (localData && !migrated) {
+    if (
+      localData &&
+      !migrated &&
+      migrationStartedForUidRef.current !== user.uid
+    ) {
+      migrationStartedForUidRef.current = user.uid;
       migrateLocalStorageToFirestore(user.uid, saveDashboard)
         .then((count) => {
           if (count > 0) {
@@ -1149,6 +1162,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               type: 'error' as const,
             },
           ]);
+          // Reset the kickoff guard so a future effect re-run can retry.
+          // Without this, a transient migration failure would permanently
+          // block retry until the user signs out and back in.
+          migrationStartedForUidRef.current = null;
         });
     }
 

@@ -162,7 +162,8 @@ const AppContent: React.FC = () => {
   //   - `isStudentRole` — token carries `studentRole: true`. Real SSO
   //     students minted by `studentLoginV1`. They have a valid student
   //     session, so we just redirect to /my-assignments without signing
-  //     out — `StudentAuthProvider` on that route accepts the same token.
+  //     out — `RequireStudentAuth` on that route validates the same
+  //     `studentRole` claim and lets them through.
   //   - `roleId === 'student'` — legacy student who signed in via regular
   //     Google Sign-In and was invited into the org with a student role.
   //     Their token has no studentRole claim, so /my-assignments would
@@ -180,24 +181,20 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!profileLoaded || !roleResolved || !isStudent) return;
 
-    let cancelled = false;
-    const redirect = () => {
-      if (!cancelled) window.location.replace('/my-assignments');
-    };
-
     if (isStudentRole) {
       // Real SSO session — token is already valid for /my-assignments.
       // Don't sign out; just navigate.
-      redirect();
-      return () => {
-        cancelled = true;
-      };
+      window.location.replace('/my-assignments');
+      return;
     }
 
     // Legacy student — invalidate their teacher session before redirect so
     // the next sign-in goes through the proper student flow. Race signOut
-    // against a 2-second cap so a hung sign-out doesn't strand them on the
-    // loader; the navigation tears the SPA down either way.
+    // against an arbitrary 2-second upper bound so a hung sign-out doesn't
+    // strand them on the loader; the navigation tears the SPA down either
+    // way, and `window.location.replace` is idempotent so we don't gate the
+    // call on an effect-cleanup flag (a sign-out-induced effect re-run
+    // could otherwise cancel a redirect we still want to fire).
     void Promise.race([
       signOut().catch((err) => {
         console.error(
@@ -206,11 +203,9 @@ const AppContent: React.FC = () => {
         );
       }),
       new Promise<void>((resolve) => window.setTimeout(resolve, 2000)),
-    ]).then(redirect);
-
-    return () => {
-      cancelled = true;
-    };
+    ]).then(() => {
+      window.location.replace('/my-assignments');
+    });
   }, [profileLoaded, roleResolved, isStudent, isStudentRole, signOut]);
 
   // Hold on the loader while role resolution is in flight so a legacy
