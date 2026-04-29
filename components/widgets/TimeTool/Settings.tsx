@@ -28,6 +28,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
     timerEndTrafficColor,
     timerEndTriggerRandom,
     timerEndTriggerNextUp,
+    timerEndTriggerStationsRotate,
   } = config;
 
   const hasExpectations = activeDashboard?.widgets.some(
@@ -43,6 +44,10 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
   );
 
   const hasNextUp = activeDashboard?.widgets.some((w) => w.type === 'nextUp');
+
+  const hasStations = activeDashboard?.widgets.some(
+    (w) => w.type === 'stations'
+  );
 
   return (
     <div className="space-y-6 p-1">
@@ -308,6 +313,45 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
                 onChange={(checked) =>
                   updateWidget(widget.id, {
                     config: { ...config, timerEndTriggerRandom: checked },
+                  })
+                }
+                size="md"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Nexus Connection: Stations Auto-Rotate */}
+        <div className="pt-2 border-t border-slate-100 mt-4">
+          <p className="text-xxs font-bold text-slate-500 uppercase tracking-tight mb-2">
+            Auto-rotate stations:
+          </p>
+          {!hasStations ? (
+            <div className="text-xs text-brand-blue-primary bg-brand-blue-lighter/20 p-3 rounded-xl border border-brand-blue-lighter/30 flex items-start gap-2">
+              <span className="text-lg mt-px">&#128161;</span>
+              <p className="font-medium leading-snug">
+                Add a Stations widget to rotate students automatically when this
+                timer ends.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-emerald-900">
+                  Rotate stations clockwise
+                </p>
+                <p className="text-xxxs text-emerald-600 uppercase">
+                  Move every student one station when timer ends
+                </p>
+              </div>
+              <Toggle
+                checked={!!timerEndTriggerStationsRotate}
+                onChange={(checked) =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      timerEndTriggerStationsRotate: checked,
+                    },
                   })
                 }
                 size="md"

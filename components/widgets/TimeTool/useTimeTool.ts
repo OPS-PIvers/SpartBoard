@@ -5,6 +5,7 @@ import {
   ExpectationsConfig,
   WidgetConfig,
   TrafficConfig,
+  StationsConfig,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
@@ -184,6 +185,25 @@ export const useTimeTool = (widget: WidgetData) => {
             }
           }
 
+          // Auto-rotate the first Stations widget
+          if (
+            config.timerEndTriggerStationsRotate &&
+            activeDashboard &&
+            config.duration > 0
+          ) {
+            const stationsWidget = activeDashboard.widgets.find(
+              (w) => w.type === 'stations'
+            );
+            if (stationsWidget) {
+              updateWidget(stationsWidget.id, {
+                config: {
+                  ...(stationsWidget.config as StationsConfig),
+                  rotationTrigger: Date.now(),
+                } as WidgetConfig,
+              });
+            }
+          }
+
           return;
         }
       } else {
@@ -206,6 +226,7 @@ export const useTimeTool = (widget: WidgetData) => {
     config.timerEndTrafficColor,
     config.timerEndTriggerRandom,
     config.timerEndTriggerNextUp,
+    config.timerEndTriggerStationsRotate,
     config.duration,
     activeDashboard,
     updateWidget,
