@@ -269,3 +269,28 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1414 head SHA `693ebf39` — unchanged from 2026-04-27 entry; 10/10 CI green
   - PR #1366 head SHA `af5c404a` (was `7ffde284` before this run) — added one commit in this run; CI re-running at time of review; doc grew by exactly one bulleted sentence under Step 5
   - Branch-safety: no head branches match `main` or `dev-*`; all 3 PRs eligible for pushes; only PR #1366 received a push this run
+
+## 2026-04-29
+
+- PRs reviewed:
+  - #1445 — Enhance SSO student experience with quiz auto-join and dashboard updates (head `dev-paul`, base `main`) — READ-ONLY (dev-\* branch, no pushes per branch-safety policy)
+  - #1437 — test(utils): add coverage for backgrounds.ts and slug.ts — Wed 2026-04-29 (head `scheduled-tasks`, base `dev-paul`)
+  - #1414 — chore(plcs): retire VITE_ENABLE_PLCS dev feature flag (head `claude/adoring-ramanujan-cr4CY`, base `main`, DRAFT)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 13 inline review threads — 0 fixed, 2 explained, 11 already-resolved-and-noted
+  - PR #1445: 2 unresolved inline threads — copilot on `QuizAssignmentSettingsModal.tsx:178` (PLC toggle silent state) and gemini on `QuizStudentApp.tsx:935` (setSubmitted-before-await UX); both reply-explained — neither qualifies for an automated fix (product/UX decisions requiring human judgment), and the `dev-paul` head branch is read-only for the auto-fix workflow regardless
+  - PR #1437: 4 threads — 1 `is_resolved: true`, 3 `is_outdated: true` with prior OPS-PIvers addressing replies; no action needed
+  - PR #1414: 3 threads — 1 `is_resolved: true`, 2 `is_outdated: true` with prior OPS-PIvers addressing replies; no action needed
+  - PR #1366: 6 threads — all `is_outdated: true` with prior OPS-PIvers addressing replies from 2026-04-21 / 2026-04-22 rounds; no action needed
+- Fixes pushed: 0
+- Reviews posted: 4
+  - PR #1445: Ready with minor notes — large multi-surface bundle (66 files, +5.6k/-1.5k) covering SSO routing, student dashboard redesign, PLC sheet UX, ClassLink real/test class metadata, quiz scoreboard SSO support; comprehensive test additions (rules, hook, util, component); 11/11 CI green; flagged: deployment-coordination needed for `firestore.indexes.json` (+123 lines of new composite indexes) before code paths run, possibly-unrelated `docs/classroom-addon-integration-plan.md` (+1000 lines) bundled in, scope is wide enough that splitting future passes would help review/rollback
+  - PR #1437: Ready — routine scheduled-tasks PR, additive test coverage only (`utils/backgrounds.test.ts` 21 tests + `utils/slug.test.ts` 20 tests), `hono` override bumped 4.11.4 → 4.12.14, 10 audit journals updated; 7/7 CI green
+  - PR #1414: Ready — same assessment as 2026-04-28 since head sha `693ebf39` unchanged; flag-retirement + listener-consolidation; 10/10 CI green; minor gap noted (no explicit unit test for `enabled: false` branch)
+  - PR #1366: Ready — doc-only, all earlier reviewer feedback already folded in; 10/10 CI green; execution still gated on "no open PRs" precondition (3 other open PRs today)
+- Notes:
+  - PR #1445 head SHA `98cc1fea` — 66 files; new Cloud Function `getStudentClassDirectoryV1` + extended `getPseudonymsForAssignmentV1` need a functions deploy; new `studentRole` deny rule on dashboards subcollections + tolerated missing pin/name for SSO responses; `App.tsx` routing guard relies on the new `roleResolved` signal from `AuthContext`
+  - PR #1437 head SHA `e0b75a3e` — 14 files (10 docs + 2 new test files + package.json + pnpm-lock.yaml)
+  - PR #1414 head SHA `693ebf39` — unchanged since 2026-04-25; 4 files
+  - PR #1366 head SHA `af5c4043` — unchanged since 2026-04-28; 1 file (doc-only)
+  - Branch-safety: PR #1445 head `dev-paul` matches `dev-*` pattern → no pushes attempted; reply-only on its 2 unresolved comments. The other 3 PRs were eligible for pushes but none required code fixes this run.
