@@ -605,16 +605,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setStudentRoleResolved(true);
       return;
     }
+    // Capture the uid this effect run is resolving for, so a fast
+    // sign-out/in transition can't let the previous user's claim
+    // promise overwrite the new user's state. The effect-cleanup
+    // `cancelled` flag covers the common case via React's lifecycle,
+    // but a uid check is a cheap belt-and-suspenders against any
+    // microtask-ordering edge case.
+    const startUid = user.uid;
     let cancelled = false;
     user
       .getIdTokenResult()
       .then((result) => {
-        if (cancelled) return;
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
         setIsStudentRole(result.claims.studentRole === true);
         setStudentRoleResolved(true);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
         console.error('[AuthContext] Failed to read studentRole claim:', err);
         setIsStudentRole(false);
         setStudentRoleResolved(true);
@@ -643,10 +650,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    // Capture the uid + email at subscription time so a late onSnapshot
+    // delivery (after `user` has changed but before unsubscribe is wired
+    // up) cannot overwrite the new user's state. React's effect cleanup
+    // covers the typical case, but defending in depth against snapshot
+    // -callback ordering is cheap and explicit.
+    const startUid = user.uid;
     const emailLower = user.email.toLowerCase();
     const unsub = onSnapshot(
       doc(db, 'organizations', DEFAULT_ORG_ID, 'members', emailLower),
       (snap) => {
+        if (auth.currentUser?.uid !== startUid) return;
         if (snap.exists()) {
           const member = snap.data() as MemberRecord;
           setOrgId(member.orgId ?? DEFAULT_ORG_ID);
@@ -660,6 +674,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setMembershipResolved(true);
       },
       (error) => {
+        if (auth.currentUser?.uid !== startUid) return;
         console.error('[AuthContext] Error loading org membership:', error);
         setOrgId(null);
         setRoleId(null);
