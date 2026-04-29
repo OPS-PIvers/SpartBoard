@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
-import { CustomWidgetDoc } from '@/types';
+import { CustomWidgetDoc, SavedWidget } from '@/types';
+import { Bookmark, Pin, PinOff, Trash2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -59,6 +60,14 @@ interface WidgetLibraryProps {
   customWidgets?: CustomWidgetDoc[];
   /** Called when a custom widget card is clicked */
   onAddCustomWidget?: (customWidgetId: string) => void;
+  /** User's saved-widget shortcuts (e.g. saved Mini Apps) */
+  savedWidgets?: SavedWidget[];
+  /** Called when a saved widget card is clicked — adds an instance to the board */
+  onAddSavedWidget?: (savedWidgetId: string) => void;
+  /** Called to toggle whether a saved widget is pinned to the dock */
+  onToggleSavedWidgetPin?: (savedWidgetId: string, pinned: boolean) => void;
+  /** Called when the trash icon is clicked on a saved widget card */
+  onDeleteSavedWidget?: (savedWidgetId: string) => void;
 }
 
 const SortableLibraryTool = React.memo(
@@ -150,6 +159,10 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       getToolLabel,
       customWidgets = [],
       onAddCustomWidget,
+      savedWidgets = [],
+      onAddSavedWidget,
+      onToggleSavedWidgetPin,
+      onDeleteSavedWidget,
     },
     ref
   ) => {
@@ -288,6 +301,88 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
             />
           </div>
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
+            {savedWidgets.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Bookmark className="w-3.5 h-3.5 text-slate-400" />
+                  <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                    My Saved Widgets
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {savedWidgets.map((sw) => {
+                    const Icon = getCustomWidgetIcon(sw.icon) ?? Puzzle;
+                    return (
+                      <div
+                        key={sw.id}
+                        className="relative group flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center"
+                      >
+                        {/* Top-left: delete (with confirm) */}
+                        {onDeleteSavedWidget && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSavedWidget(sw.id);
+                            }}
+                            className="absolute top-1 left-1 p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                            aria-label="Delete saved widget"
+                            title="Delete saved widget"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {/* Top-right: pin toggle */}
+                        {onToggleSavedWidgetPin && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleSavedWidgetPin(sw.id, !sw.pinnedToDock);
+                            }}
+                            className={`absolute top-1 right-1 p-1 rounded-md transition-all ${
+                              sw.pinnedToDock
+                                ? 'text-brand-blue-primary opacity-100'
+                                : 'text-slate-400 hover:text-brand-blue-primary opacity-0 group-hover:opacity-100'
+                            }`}
+                            aria-label={
+                              sw.pinnedToDock
+                                ? 'Unpin from dock'
+                                : 'Pin to dock'
+                            }
+                            title={
+                              sw.pinnedToDock
+                                ? 'Unpin from dock'
+                                : 'Pin to dock'
+                            }
+                          >
+                            {sw.pinnedToDock ? (
+                              <Pin className="w-3.5 h-3.5" />
+                            ) : (
+                              <PinOff className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            onAddSavedWidget?.(sw.id);
+                            onClose();
+                          }}
+                          className="flex flex-col items-center gap-2 w-full focus:outline-none"
+                        >
+                          <div
+                            className={`w-10 h-10 rounded-xl ${sw.color} flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}
+                          >
+                            <Icon size={20} />
+                          </div>
+                          <span className="text-xs font-semibold text-slate-700 leading-tight line-clamp-2">
+                            {sw.title}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {customWidgets.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
