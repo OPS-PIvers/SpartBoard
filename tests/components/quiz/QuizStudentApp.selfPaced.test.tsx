@@ -407,4 +407,162 @@ describe('QuizStudentApp — self-paced flow', () => {
       vi.useRealTimers();
     }
   });
+
+  it('renders MC choices in a per-student order so neighbours diverge', async () => {
+    // Use 6 choices so the chance of two random orders matching by accident
+    // is small enough that this test won't flake (1/6! ≈ 0.14%).
+    const six = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'];
+    const sixChoiceQ: QuizPublicQuestion = {
+      id: 'q1',
+      type: 'MC',
+      text: 'What is 2 + 2?',
+      timeLimit: 0,
+      choices: six,
+    };
+    hookState.session = buildSession({ publicQuestions: [sixChoiceQ] });
+
+    // Student A.
+    hookState.myResponse = buildResponse({ studentUid: 'student-aaa' });
+    const { unmount } = render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    const orderA = six.map((label) =>
+      screen.getAllByRole('button').findIndex((b) => b.textContent === label)
+    );
+    unmount();
+
+    // Student B — same session, different uid.
+    hookState.myResponse = buildResponse({ studentUid: 'student-bbb' });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    const orderB = six.map((label) =>
+      screen.getAllByRole('button').findIndex((b) => b.textContent === label)
+    );
+
+    expect(orderA).not.toEqual(orderB);
+    // And the choice set is identical — we shuffled, not dropped.
+    expect(orderA.slice().sort()).toEqual(orderB.slice().sort());
+  });
+
+  it('keeps a single student on the same MC order across back-navigation', async () => {
+    const user = userEvent.setup();
+    const six: QuizPublicQuestion[] = [
+      {
+        id: 'q1',
+        type: 'MC',
+        text: 'What is 2 + 2?',
+        timeLimit: 0,
+        choices: ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'],
+      },
+      QUESTIONS[1],
+    ];
+    hookState.session = buildSession({
+      publicQuestions: six,
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    const beforeOrder = screen
+      .getAllByRole('button')
+      .filter((b) =>
+        ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'].includes(
+          b.textContent ?? ''
+        )
+      )
+      .map((b) => b.textContent);
+
+    await user.click(screen.getByRole('button', { name: 'alpha' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: /Previous question/i })
+    );
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    const afterOrder = screen
+      .getAllByRole('button')
+      .filter((b) =>
+        ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot'].includes(
+          b.textContent ?? ''
+        )
+      )
+      .map((b) => b.textContent);
+
+    expect(afterOrder).toEqual(beforeOrder);
+  });
+
+  it('hydrates Matching dropdowns from a saved answer on revisit', async () => {
+    const user = userEvent.setup();
+    const matching: QuizPublicQuestion = {
+      id: 'qm',
+      type: 'Matching',
+      text: 'Match the capitals',
+      timeLimit: 0,
+      matchingLeft: ['France', 'Germany', 'Spain'],
+      matchingRight: ['Paris', 'Berlin', 'Madrid'],
+    };
+    hookState.session = buildSession({
+      publicQuestions: [matching, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Match the capitals/i)).toBeInTheDocument();
+
+    // Pick correct pairings.
+    const selects = screen.getAllByRole('combobox');
+    await user.selectOptions(selects[0], 'Paris');
+    await user.selectOptions(selects[1], 'Berlin');
+    await user.selectOptions(selects[2], 'Madrid');
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+
+    // Back-nav: each <select> should re-show its prior value.
+    await user.click(
+      screen.getByRole('button', { name: /Previous question/i })
+    );
+    expect(await screen.findByText(/Match the capitals/i)).toBeInTheDocument();
+    const revisitSelects = screen.getAllByRole<HTMLSelectElement>('combobox');
+    expect(revisitSelects[0].value).toBe('Paris');
+    expect(revisitSelects[1].value).toBe('Berlin');
+    expect(revisitSelects[2].value).toBe('Madrid');
+  });
+
+  it('hydrates Ordering arrangement from a saved answer on revisit', async () => {
+    const user = userEvent.setup();
+    const ordering: QuizPublicQuestion = {
+      id: 'qo',
+      type: 'Ordering',
+      text: 'Put these in order',
+      timeLimit: 0,
+      orderingItems: ['First', 'Second', 'Third', 'Fourth'],
+    };
+    hookState.session = buildSession({
+      publicQuestions: [ordering, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    // Seed a saved answer with a non-default order so the test can detect
+    // hydration vs. fall-through to the per-student shuffle.
+    appendAnswer('qo', 'Fourth|Third|Second|First');
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
+
+    // The list items should appear in the saved order, not the default
+    // `[...orderingItems]` order.
+    const listed = screen
+      .getAllByText(/^(First|Second|Third|Fourth)$/, { selector: 'span' })
+      .map((s) => s.textContent);
+    expect(listed).toEqual(['Fourth', 'Third', 'Second', 'First']);
+
+    // And NEXT submits the existing arrangement on a single tap.
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qo',
+      'Fourth|Third|Second|First',
+      undefined
+    );
+  });
 });

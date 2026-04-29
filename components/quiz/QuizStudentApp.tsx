@@ -743,8 +743,15 @@ const ActiveQuiz: React.FC<{
     const tl = currentQuestion?.timeLimit ?? 0;
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   } else if (alreadyAnswered !== prevAlreadyAnswered) {
-    setPrevAlreadyAnswered(alreadyAnswered);
+    // Gate the sentinel update with the same in-flight check as the visible
+    // state. If we updated `prevAlreadyAnswered` here unconditionally, a flip
+    // observed mid-flight (e.g., a submit-and-advance that ultimately fails
+    // and never advances `localIndex`) would leave `submitted` stuck at the
+    // pre-flip value with no way to reconcile on the next non-flight render —
+    // because `prevAlreadyAnswered` would already match. Keeping them in
+    // lockstep means the next non-flight render still has a chance to sync.
     if (!submitting && !advancingRef.current) {
+      setPrevAlreadyAnswered(alreadyAnswered);
       setSubmitted(alreadyAnswered);
       hydrateAnswerControls();
     }
