@@ -399,6 +399,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     isFull={isFull}
                     fontClassName={fontClassName}
                     bodyTextColor={fontColor}
+                    cardColor={cardColor}
+                    cardOpacity={cardOpacity}
                   />
                 );
               })}
