@@ -1,15 +1,5 @@
 name: Deploy Dev Branches to Firebase Preview
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DEV-ONLY FEATURE FLAGS — REMOVE EACH BEFORE THE FEATURE GOES TO PRODUCTION.
-# Search this file for `DEV-FLAG` to find every occurrence that needs deleting
-# when retiring a flag. Production deploys (firebase-deploy.yml) do not set
-# any of these, so the features stay dark in prod until each flag is retired.
-#
-#   - VITE_ENABLE_PLCS — Professional Learning Communities (PR1 Step 1+).
-#     Retire when the PLC rollout is complete.
-# ─────────────────────────────────────────────────────────────────────────────
-
 on:
   push:
     branches:
@@ -48,8 +38,6 @@ jobs:
           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
-          # DEV-FLAG: see header comment. Remove when PLCs ship to prod.
-          VITE_ENABLE_PLCS: 'true'
 
   deploy:
     needs: [lint, type-check, test]
@@ -70,8 +58,6 @@ jobs:
           echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
           echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
           echo "VITE_PEXELS_API_KEY=${{ secrets.VITE_PEXELS_API_KEY }}" >> .env
-          # DEV-FLAG: see header comment. Remove when PLCs ship to prod.
-          echo "VITE_ENABLE_PLCS=true" >> .env
 
       - name: Build project
         run: pnpm run build:all

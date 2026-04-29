@@ -4,14 +4,20 @@ import { Users2, Plus, Pencil, LogOut, Trash2, Mail } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { usePlcs } from '@/hooks/usePlcs';
-import { usePlcInvitations } from '@/hooks/usePlcInvitations';
-import { Plc } from '@/types';
+import { Plc, PlcInvitation } from '@/types';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
 
 interface SidebarPlcsProps {
   isVisible: boolean;
+  /** PLC list + actions, lifted to `Sidebar` so the listener only mounts once. */
+  plcs: Plc[];
+  plcsLoading: boolean;
+  createPlc: (name: string) => Promise<string>;
+  leavePlc: (plcId: string) => Promise<void>;
+  deletePlc: (plcId: string) => Promise<void>;
+  /** Pending invites, lifted alongside `plcs` for the same reason. */
+  pendingInvites: PlcInvitation[];
 }
 
 /**
@@ -20,12 +26,19 @@ interface SidebarPlcsProps {
  * Mirrors `SidebarClasses` — flat list of the user's PLCs with inline edit /
  * leave / delete actions and modals for create+edit + pending invites.
  */
-export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({ isVisible }) => {
+export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
+  isVisible,
+  plcs,
+  plcsLoading,
+  createPlc,
+  leavePlc,
+  deletePlc,
+  pendingInvites,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
-  const { plcs, loading, createPlc, leavePlc, deletePlc } = usePlcs();
-  const { pendingInvites } = usePlcInvitations();
+  const loading = plcsLoading;
 
   // `editingPlcId === null` while no modal is open. The modal is open whenever
   // either `editingPlcId` is a plc id OR `isCreating` is true. Two pieces of
