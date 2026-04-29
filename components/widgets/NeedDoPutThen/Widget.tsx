@@ -546,8 +546,6 @@ const Drawer: React.FC<DrawerProps> = ({
       </div>
       <div className="flex-1 min-h-0">{children}</div>
       <div
-        role="separator"
-        aria-orientation={isHorizontal ? 'vertical' : 'horizontal'}
         aria-label={`Resize ${titleEmphasis} panel`}
         style={handleStyle}
         onPointerDown={handlePointerDown}
