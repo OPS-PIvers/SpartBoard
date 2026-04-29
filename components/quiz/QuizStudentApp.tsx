@@ -209,6 +209,40 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     void run();
   }, [isStudentRole, urlCode, joined, joinQuizSession]);
 
+  // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
+  // students arrive with a stable identity (auth.uid via /student/login),
+  // already matched to their class via classId — so the response doc is
+  // keyed by auth.uid and classPeriod is irrelevant for join. The teacher
+  // monitor view can resolve a student's period from their classId via the
+  // roster if it needs to group by period.
+  useEffect(() => {
+    if (!isStudentRole) return;
+    if (!urlCode) return;
+    if (joined) return;
+    if (ssoAutoJoinStartedRef.current) return;
+    ssoAutoJoinStartedRef.current = true;
+
+    const run = async () => {
+      try {
+        await joinQuizSession(urlCode, undefined, undefined);
+        setJoined(true);
+      } catch (err) {
+        console.warn('[QuizStudentApp] SSO auto-join failed:', err);
+        // Surface the failure to the UI. The hook's own `error` state will
+        // also be populated, and the render branch below prefers that more
+        // detailed message when available.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your quiz. Please refresh and try again.";
+        setSsoAutoJoinError(message);
+        // Re-arm so a retry button (if added later) can re-trigger.
+        ssoAutoJoinStartedRef.current = false;
+      }
+    };
+    void run();
+  }, [isStudentRole, urlCode, joined, joinQuizSession]);
+
   const handleAnswer = useCallback(
     async (questionId: string, answer: string, speedBonus?: number) => {
       await submitAnswer(questionId, answer, speedBonus);
