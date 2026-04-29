@@ -2999,6 +2999,11 @@ export interface NeedDoPutThenConfig {
   textSizePreset?: TextSizePreset;
   cardColor?: string;
   cardOpacity?: number;
+  drawerSize?: {
+    need?: number;
+    then?: number;
+    put?: number;
+  };
 }
 
 // Union of all widget configs

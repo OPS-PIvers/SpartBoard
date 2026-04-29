@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as LucideIcons from 'lucide-react';
 import {
@@ -42,6 +42,8 @@ const DRAWER_SIDE_SIZE = 'min(240px, 60%)';
 const DRAWER_BOTTOM_SIZE = 'min(240px, 65%)';
 const DRAWER_OVERLAP = 'min(28px, 7%)';
 const CORNER_SAFE = 'min(24px, 5.5%)';
+const MIN_DRAWER_SIZE_PX = 120;
+const MAX_DRAWER_SIZE_PX = 600;
 
 type TileOrientation = 'portrait' | 'landscape' | 'auto';
 
@@ -313,14 +315,14 @@ const IconList: React.FC<IconListProps> = ({
             style={{
               flex: 1,
               containerType: 'size',
-              gap: 'min(14px, 7cqmin)',
+              gap: 'min(10px, 4cqmin)',
             }}
           >
             <span
               className="rounded-full flex items-center justify-center shrink-0"
               style={{
-                width: `min(${64 * sizeMultiplier}px, ${55 * sizeMultiplier}cqmin)`,
-                height: `min(${64 * sizeMultiplier}px, ${55 * sizeMultiplier}cqmin)`,
+                width: `min(${56 * sizeMultiplier}px, ${30 * sizeMultiplier}cqmin)`,
+                height: `min(${56 * sizeMultiplier}px, ${30 * sizeMultiplier}cqmin)`,
                 background: item.color,
                 color: iconTextColor,
               }}
@@ -328,15 +330,15 @@ const IconList: React.FC<IconListProps> = ({
               <Icon
                 strokeWidth={2.5}
                 style={{
-                  width: `min(${36 * sizeMultiplier}px, ${32 * sizeMultiplier}cqmin)`,
-                  height: `min(${36 * sizeMultiplier}px, ${32 * sizeMultiplier}cqmin)`,
+                  width: `min(${30 * sizeMultiplier}px, ${18 * sizeMultiplier}cqmin)`,
+                  height: `min(${30 * sizeMultiplier}px, ${18 * sizeMultiplier}cqmin)`,
                 }}
               />
             </span>
             <span
               className="border-b border-slate-300 flex-1 break-words whitespace-normal leading-snug"
               style={{
-                fontSize: `min(${26 * sizeMultiplier}px, ${28 * sizeMultiplier}cqmin)`,
+                fontSize: `min(${20 * sizeMultiplier}px, ${14 * sizeMultiplier}cqmin)`,
                 paddingBottom: 'min(4px, 2cqmin)',
                 color: item.label ? fontColor : '#94a3b8',
                 fontStyle: item.label ? 'normal' : 'italic',
@@ -362,6 +364,8 @@ interface DrawerProps {
   titlePlain: string;
   titleEmphasis: string;
   accentColor: string;
+  sizeOverride?: number;
+  onSizeCommit: (sizePx: number) => void;
   children: React.ReactNode;
 }
 
@@ -374,8 +378,66 @@ const Drawer: React.FC<DrawerProps> = ({
   titlePlain,
   titleEmphasis,
   accentColor,
+  sizeOverride,
+  onSizeCommit,
   children,
 }) => {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startCoord: number; startSize: number } | null>(
+    null
+  );
+  const [livePx, setLivePx] = useState<number | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = drawerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = el.getBoundingClientRect();
+    const startSize = side === 'bottom' ? rect.height : rect.width;
+    const startCoord = side === 'bottom' ? e.clientY : e.clientX;
+    dragRef.current = { startCoord, startSize };
+    setLivePx(startSize);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    const { startCoord, startSize } = dragRef.current;
+    const delta =
+      side === 'left'
+        ? startCoord - e.clientX
+        : side === 'right'
+          ? e.clientX - startCoord
+          : e.clientY - startCoord;
+    const next = Math.max(
+      MIN_DRAWER_SIZE_PX,
+      Math.min(MAX_DRAWER_SIZE_PX, startSize + delta)
+    );
+    setLivePx(next);
+  };
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const finalPx = livePx;
+    dragRef.current = null;
+    setLivePx(null);
+    if (finalPx != null) {
+      onSizeCommit(Math.round(finalPx));
+    }
+  };
+
+  const defaultSize = side === 'bottom' ? DRAWER_BOTTOM_SIZE : DRAWER_SIDE_SIZE;
+  const resolvedSize =
+    livePx != null
+      ? `${livePx}px`
+      : sizeOverride != null
+        ? `${sizeOverride}px`
+        : defaultSize;
+
   const style: React.CSSProperties = {
     position: 'absolute',
     zIndex: -1,
@@ -389,37 +451,77 @@ const Drawer: React.FC<DrawerProps> = ({
   };
 
   const overlapPlusGap = `calc(${DRAWER_OVERLAP} + 6px)`;
-  const sideOffset = `calc(${DRAWER_OVERLAP} - ${DRAWER_SIDE_SIZE})`;
-  const bottomOffset = `calc(${DRAWER_OVERLAP} - ${DRAWER_BOTTOM_SIZE})`;
+  const offset = `calc(${DRAWER_OVERLAP} - ${resolvedSize})`;
 
   if (side === 'left') {
     style.top = -1;
     style.bottom = -1;
-    style.left = sideOffset;
-    style.width = DRAWER_SIDE_SIZE;
+    style.left = offset;
+    style.width = resolvedSize;
     basePad.paddingTop = CORNER_SAFE;
     basePad.paddingBottom = CORNER_SAFE;
     basePad.paddingRight = overlapPlusGap;
   } else if (side === 'right') {
     style.top = -1;
     style.bottom = -1;
-    style.right = sideOffset;
-    style.width = DRAWER_SIDE_SIZE;
+    style.right = offset;
+    style.width = resolvedSize;
     basePad.paddingTop = CORNER_SAFE;
     basePad.paddingBottom = CORNER_SAFE;
     basePad.paddingLeft = overlapPlusGap;
   } else {
     style.left = -1;
     style.right = -1;
-    style.bottom = bottomOffset;
-    style.height = DRAWER_BOTTOM_SIZE;
+    style.bottom = offset;
+    style.height = resolvedSize;
     basePad.paddingLeft = CORNER_SAFE;
     basePad.paddingRight = CORNER_SAFE;
     basePad.paddingTop = overlapPlusGap;
   }
 
+  const isHorizontal = side !== 'bottom';
+  const handleStyle: React.CSSProperties = {
+    position: 'absolute',
+    touchAction: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: isHorizontal ? 'ew-resize' : 'ns-resize',
+    ...(side === 'left' && {
+      top: '50%',
+      left: 0,
+      transform: 'translateY(-50%)',
+      width: '18px',
+      height: '60px',
+    }),
+    ...(side === 'right' && {
+      top: '50%',
+      right: 0,
+      transform: 'translateY(-50%)',
+      width: '18px',
+      height: '60px',
+    }),
+    ...(side === 'bottom' && {
+      left: '50%',
+      bottom: 0,
+      transform: 'translateX(-50%)',
+      width: '60px',
+      height: '18px',
+    }),
+  };
+  const pillStyle: React.CSSProperties = {
+    background:
+      livePx != null ? 'rgba(71,85,105,0.85)' : 'rgba(100,116,139,0.5)',
+    borderRadius: '9999px',
+    transition: 'background-color 120ms ease',
+    ...(isHorizontal
+      ? { width: '4px', height: '40px' }
+      : { width: '40px', height: '4px' }),
+  };
+
   return (
     <div
+      ref={drawerRef}
       className={`${fontClass}`}
       style={{
         ...style,
@@ -443,6 +545,18 @@ const Drawer: React.FC<DrawerProps> = ({
         <span className="font-black">{titleEmphasis}</span>
       </div>
       <div className="flex-1 min-h-0">{children}</div>
+      <div
+        role="separator"
+        aria-orientation={isHorizontal ? 'vertical' : 'horizontal'}
+        aria-label={`Resize ${titleEmphasis} panel`}
+        style={handleStyle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        <div style={pillStyle} />
+      </div>
     </div>
   );
 };
@@ -450,7 +564,7 @@ const Drawer: React.FC<DrawerProps> = ({
 export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { activeDashboard } = useDashboard();
+  const { activeDashboard, updateWidget } = useDashboard();
   const config = widget.config as NeedDoPutThenConfig;
 
   const {
@@ -461,7 +575,22 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
     cardColor = '#ffffff',
     cardOpacity = 1,
     fontColor = '#1e293b',
+    drawerSize,
   } = config;
+
+  const commitDrawerSize = useCallback(
+    (key: 'need' | 'then' | 'put', sizePx: number) => {
+      updateWidget(widget.id, {
+        config: {
+          drawerSize: {
+            ...(drawerSize ?? {}),
+            [key]: sizePx,
+          },
+        },
+      });
+    },
+    [updateWidget, widget.id, drawerSize]
+  );
 
   const visibleNeedItems = needItems.filter((t) => t.checked !== false);
   const visiblePutItems = putItems.filter((t) => t.checked !== false);
@@ -649,6 +778,8 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
                     titlePlain={SECTION_TITLES[0].plain}
                     titleEmphasis={SECTION_TITLES[0].emphasis}
                     accentColor={SECTION_COLORS.need}
+                    sizeOverride={drawerSize?.need}
+                    onSizeCommit={(px) => commitDrawerSize('need', px)}
                   >
                     <TileGrid
                       items={visibleNeedItems}
@@ -668,6 +799,8 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
                     titlePlain={SECTION_TITLES[3].plain}
                     titleEmphasis={SECTION_TITLES[3].emphasis}
                     accentColor={SECTION_COLORS.then}
+                    sizeOverride={drawerSize?.then}
+                    onSizeCommit={(px) => commitDrawerSize('then', px)}
                   >
                     <IconList
                       items={thenItems}
@@ -687,6 +820,8 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
                     titlePlain={SECTION_TITLES[2].plain}
                     titleEmphasis={SECTION_TITLES[2].emphasis}
                     accentColor={SECTION_COLORS.put}
+                    sizeOverride={drawerSize?.put}
+                    onSizeCommit={(px) => commitDrawerSize('put', px)}
                   >
                     <TileGrid
                       items={visiblePutItems}
