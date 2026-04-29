@@ -244,10 +244,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   );
   const fontColor = config.fontColor;
 
-  // Adapt grid columns to station count — keeps cards roomy when there are few
-  // stations and stays tidy when there are many.
+  // Adapt grid columns to station count. Capped at 3 so each card stays
+  // wide enough for the horizontal icon/title + chip-column split inside
+  // StationCard — beyond 9 stations we add rows rather than narrow columns.
   const cols = Math.min(
-    4,
+    3,
     Math.max(1, Math.ceil(Math.sqrt(orderedStations.length)))
   );
 

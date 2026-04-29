@@ -36,15 +36,28 @@ export const StationCard: React.FC<StationCardProps> = ({
   cardOpacity = 0.4,
 }) => {
   const accent = station.color?.trim() ? station.color : '#10b981';
-  const accentTextColor = getAccessibleAccentText(accent);
   // The card surface uses the station accent (preserving per-station color
   // coding) and applies `cardOpacity` directly — the same direct mapping the
   // widget header and unassigned bucket use against `cardColor`. Keeping the
   // alpha mapping uniform across surfaces means the "Card surface" slider
   // behaves the same everywhere in the widget.
   const clampedOpacity = Math.max(0, Math.min(1, cardOpacity));
-  const surface = hexToRgba(accent, clampedOpacity);
-  const tintHover = hexToRgba(accent, Math.min(1, clampedOpacity + 0.15));
+  // Hard cap the visible surface alpha so the dashed accent border and the
+  // solid-accent count badge never fully merge into the background at the top
+  // of the slider's range.
+  const SURFACE_ALPHA_CAP = 0.85;
+  const surfaceAlpha = Math.min(SURFACE_ALPHA_CAP, clampedOpacity);
+  const surface = hexToRgba(accent, surfaceAlpha);
+  const tintHover = hexToRgba(
+    accent,
+    Math.min(SURFACE_ALPHA_CAP, surfaceAlpha + 0.15)
+  );
+  // `getAccessibleAccentText` darkens the accent until it contrasts with white
+  // — accurate while the card is mostly transparent (low opacity → near-white
+  // surface). Once the surface gets dark/saturated the darkened accent text
+  // collides with its own background, so flip to white above ~50% opacity.
+  const titleColor =
+    surfaceAlpha > 0.5 ? '#ffffff' : getAccessibleAccentText(accent);
   const capLabel =
     station.maxStudents != null
       ? `${members.length} / ${station.maxStudents}`
@@ -129,16 +142,10 @@ export const StationCard: React.FC<StationCardProps> = ({
           {renderCatalystIcon(iconSource, 'min(64px, 20cqmin)', '')}
         </div>
         <div
-          className="font-black leading-tight w-full"
+          className="font-black leading-tight w-full line-clamp-2"
           style={{
             fontSize: 'min(28px, 11cqmin)',
-            color: accentTextColor,
-            // Allow a 2-line title; clamp so very long names don't blow out
-            // the layout.
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
+            color: titleColor,
           }}
           title={station.title}
         >
@@ -146,14 +153,10 @@ export const StationCard: React.FC<StationCardProps> = ({
         </div>
         {station.description && (
           <div
-            className="leading-tight w-full"
+            className="leading-tight w-full line-clamp-2"
             style={{
               fontSize: 'min(13px, 5cqmin)',
               color: bodyTextColor ?? '#64748b',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
             }}
           >
             {station.description}
@@ -181,7 +184,10 @@ export const StationCard: React.FC<StationCardProps> = ({
           flexGrow: 1,
           flexShrink: 1,
           backgroundColor: chipSurface,
-          padding: 'min(8px, 2cqmin)',
+          // Top padding reserves room for the absolute reset button (which
+          // sits over this column's top-right corner) so the first chip row
+          // never renders underneath it.
+          padding: 'min(20px, 5cqmin) min(8px, 2cqmin) min(8px, 2cqmin)',
         }}
       >
         <div
