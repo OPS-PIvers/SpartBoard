@@ -23,6 +23,7 @@ export default mergeConfig(
         'tests/rules/**',
         'functions/**',
         '.claude/worktrees/**',
+        '.pnpm-store/**',
       ],
       coverage: { exclude: ['locales/**'] },
     },
