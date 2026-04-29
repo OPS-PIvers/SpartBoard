@@ -34,7 +34,7 @@
   },
   "pnpm": {
     "overrides": {
-      "hono": "^4.11.4",
+      "hono": "^4.12.14",
       "diff": "^8.0.3",
       "tar": "^7.5.4",
       "lodash": "^4.17.23",
@@ -101,7 +101,7 @@
     "firebase-functions-test": "^3.4.1",
     "firebase-tools": "^15.8.0",
     "globals": "^17.2.0",
-    "hono": "^4.11.4",
+    "hono": "^4.12.14",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.2.7",

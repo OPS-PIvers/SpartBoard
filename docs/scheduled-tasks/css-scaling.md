@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-27_
+_Last audited: 2026-04-29_
 _Last action: 2026-04-25_
 
 ---
@@ -21,6 +21,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-04-28
+- **File:** components/widgets/Embed/Widget.tsx:443 (zoom reset button), :437 (ZoomOut icon), :457 (ZoomIn icon), :426 (toolbar gap)
+- **Detail:** The hover-visible zoom toolbar uses `text-xs font-mono` on the percentage reset button (line 443), `className="w-4 h-4"` on ZoomOut/ZoomIn icons (lines 437, 457), `p-2` on the zoom buttons, and `gap: 4` (hardcoded pixels) on the toolbar flex container (line 426). Widget has `skipScaling: true`. Critically, the entire toolbar is rendered via `createPortal` to `document.body` (line 393) with `position: fixed` — it lives **outside** the widget's container query context, so `cqmin` units will not resolve against the widget size. The hardcoded sizes will not scale with the widget, but cqmin is not a straightforward fix either.
+- **Fix:** Two options: (a) Remove the portal if the toolbar doesn't need to escape the iframe stacking context — then convert to `cqmin` as normal: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`, icons `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`, `gap: 4` → `style={{ gap: 'min(4px, 1cqmin)' }}`; (b) Keep the portal and pass the widget's computed `cqmin`-equivalent pixel size down as a prop derived from the widget's `rect` dimensions, then use those pixel values directly in the portaled toolbar's styles.
 
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
