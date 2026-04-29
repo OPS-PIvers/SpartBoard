@@ -1,5 +1,6 @@
 import {
   SoundboardConfig,
+  StationsConfig,
   WidgetData,
   WidgetType,
   SpecialistScheduleConfig,
@@ -511,5 +512,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       putItems: DEFAULT_PUT_ITEMS,
       thenItems: DEFAULT_THEN_ITEMS,
     } satisfies NeedDoPutThenConfig,
+  },
+  stations: {
+    w: 600,
+    h: 420,
+    config: {
+      stations: [],
+      assignments: {},
+      rosterMode: 'class',
+    } satisfies StationsConfig,
   },
 };

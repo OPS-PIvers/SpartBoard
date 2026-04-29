@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { WidgetData, RandomConfig } from '@/types';
+import { WidgetData, RandomConfig, RandomGroup, StationsConfig } from '@/types';
+import { buildStationsFromRandomGroups } from '@/components/widgets/Stations/nexus';
 import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
@@ -18,6 +19,7 @@ import {
   VolumeX,
   Clock,
   RefreshCw,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -25,9 +27,81 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, activeDashboard, rosters, activeRosterId } =
+  const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
+
+  const stationsWidget = activeDashboard?.widgets.find(
+    (w) => w.type === 'stations'
+  );
+
+  const handleSendGroupsToStations = async () => {
+    if (!stationsWidget) {
+      addToast('Add a Stations widget to the board first.', 'info');
+      return;
+    }
+    const result = (widget.config as RandomConfig).lastResult;
+    let groups: RandomGroup[] = [];
+    let isStaleSinglePick = false;
+    if (Array.isArray(result) && result.length > 0) {
+      const first = result[0];
+      if (
+        typeof first === 'object' &&
+        first !== null &&
+        'names' in (first as object)
+      ) {
+        // Group-mode result: RandomGroup[]
+        groups = result as RandomGroup[];
+      } else if (Array.isArray(first)) {
+        // Legacy group-mode result: string[][]
+        groups = (result as unknown as string[][]).map((names, i) => ({
+          id: `Group ${i + 1}`,
+          names: names ?? [],
+        }));
+      } else if (typeof first === 'string') {
+        // Single-pick result that survived a mode switch — flat string list
+        // is meaningless as "groups". Surface a clearer message rather than
+        // the generic "generate groups first" hint.
+        isStaleSinglePick = true;
+      }
+    }
+    if (isStaleSinglePick) {
+      addToast(
+        'Switch to Groups mode and click Pick before sending — the last result was a single-name pick.',
+        'info'
+      );
+      return;
+    }
+    if (groups.length === 0) {
+      addToast(
+        'Generate groups first (set mode to Groups, then Pick) and try again.',
+        'info'
+      );
+      return;
+    }
+    const existingStations =
+      (stationsWidget.config as StationsConfig).stations ?? [];
+    if (existingStations.length > 0) {
+      const ok = await showConfirm(
+        `The Stations widget already has ${existingStations.length} station${existingStations.length === 1 ? '' : 's'}. Sending will replace them.`,
+        {
+          title: 'Replace existing stations?',
+          confirmLabel: 'Replace',
+          variant: 'danger',
+        }
+      );
+      if (!ok) return;
+    }
+    const { stations, assignments } = buildStationsFromRandomGroups(groups);
+    updateWidget(stationsWidget.id, {
+      config: {
+        ...(stationsWidget.config as StationsConfig),
+        stations,
+        assignments,
+      },
+    });
+    addToast(`Sent ${groups.length} groups to Stations.`, 'success');
+  };
 
   const config = widget.config as RandomConfig;
 
@@ -220,6 +294,27 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             ⚠️ Timer widget required for automation.
           </div>
         )}
+
+      {/* Nexus Connection: Send Groups → Stations */}
+      {mode === 'group' && (
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => void handleSendGroupsToStations()}
+            disabled={!stationsWidget}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 font-black uppercase tracking-widest text-xxs hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send size={13} />
+            Send Groups to Stations
+          </button>
+          {!stationsWidget && (
+            <div className="text-xxxs text-slate-500 leading-snug">
+              Add a Stations widget to send your generated groups there as
+              station assignments.
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">

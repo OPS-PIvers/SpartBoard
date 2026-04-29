@@ -211,6 +211,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./NeedDoPutThen/Widget'),
     'NeedDoPutThenWidget'
   ),
+  stations: lazyNamed(() => import('./Stations/Widget'), 'StationsWidget'),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -361,6 +362,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./NeedDoPutThen/Settings'),
     'NeedDoPutThenSettings'
   ),
+  stations: lazyNamed(() => import('./Stations/Settings'), 'StationsSettings'),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -464,6 +466,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'need-do-put-then': lazyNamed(
     () => import('./NeedDoPutThen/Settings'),
     'NeedDoPutThenAppearanceSettings'
+  ),
+  stations: lazyNamed(
+    () => import('./Stations/Settings'),
+    'StationsAppearanceSettings'
   ),
 };
 
@@ -903,6 +909,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'need-do-put-then': {
     baseWidth: 340,
     baseHeight: 320,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  stations: {
+    baseWidth: 600,
+    baseHeight: 420,
     canSpread: true,
     skipScaling: true,
     padding: 0,

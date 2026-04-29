@@ -59,7 +59,8 @@ export type WidgetType =
   | 'work-symbols'
   | 'blooms-taxonomy'
   | 'blooms-detail'
-  | 'need-do-put-then';
+  | 'need-do-put-then'
+  | 'stations';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1288,6 +1289,7 @@ export interface TimeToolConfig {
   timerEndTrafficColor?: 'red' | 'yellow' | 'green' | null;
   timerEndTriggerRandom?: boolean; // Whether to trigger random picker when timer ends
   timerEndTriggerNextUp?: boolean; // Whether to advance NextUp queue when timer ends
+  timerEndTriggerStationsRotate?: boolean; // Whether to rotate the first Stations widget when timer ends
   themeColor?: string;
   glow?: boolean;
   fontFamily?: string;
@@ -3001,6 +3003,68 @@ export interface NeedDoPutThenConfig {
   cardOpacity?: number;
 }
 
+/**
+ * One station in the Stations widget. Stations are defined by the teacher in the
+ * settings panel; students drag their name chips into the corresponding StationCard
+ * on the front face. `iconName` and `imageUrl` are mutually exclusive — `imageUrl`
+ * wins when both are present so the renderer can show either via
+ * `renderCatalystIcon`.
+ */
+export interface Station {
+  id: string;
+  title: string;
+  description?: string;
+  /** Maximum students permitted in this station; undefined = unlimited. */
+  maxStudents?: number;
+  /** Lucide icon name (e.g. 'BookOpen'). */
+  iconName?: string;
+  /** Drive/Storage URL for an uploaded or pasted image. Takes precedence over iconName. */
+  imageUrl?: string;
+  /** Hex string for the card accent color (e.g. '#10b981'). */
+  color: string;
+  /** Stable order index used by Rotate. Lowest first. */
+  order: number;
+}
+
+/** A saved Stations preset (just the station definitions, never assignments). */
+export interface SavedStationsPreset {
+  id: string;
+  name: string;
+  stations: Station[];
+  createdAt: number;
+}
+
+export interface StationsConfig {
+  /** Teacher-defined stations. Sorted by `order` for rotation/display. */
+  stations: Station[];
+  /** Map: studentName -> stationId, or null/missing for unassigned. */
+  assignments: Record<string, string | null>;
+  rosterMode?: 'class' | 'custom';
+  customRoster?: string[];
+  /**
+   * Bumped (e.g. to Date.now()) by a linked Timer when its countdown hits zero.
+   * The widget watches this with a useRef and fires the rotate action when the
+   * value increases. Mirrors the `externalTrigger` pattern used by Random/NextUp.
+   */
+  rotationTrigger?: number;
+  /**
+   * Saved-library snapshot — populated only when this config object is stored
+   * in `savedWidgetConfigs.stations`, never on a live widget instance.
+   */
+  savedLibrary?: SavedStationsPreset[];
+  /**
+   * Appearance — consumed by both the front-face card grid and the unassigned
+   * bucket. `fontFamily` matches the value space written by the shared
+   * `TypographySettings` primitive: `'global'` (inherit from dashboard) or one
+   * of the prefixed font keys (`'font-sans'`, `'font-mono'`, etc.). Decoded
+   * via `getFontClass()` from `utils/styles.ts`.
+   */
+  fontFamily?: string;
+  fontColor?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -3062,7 +3126,8 @@ export type WidgetConfig =
   | WorkSymbolsConfig
   | BloomsTaxonomyConfig
   | BloomsDetailConfig
-  | NeedDoPutThenConfig;
+  | NeedDoPutThenConfig
+  | StationsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -3185,7 +3250,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                       ? BloomsDetailConfig
                                                                                                                       : T extends 'need-do-put-then'
                                                                                                                         ? NeedDoPutThenConfig
-                                                                                                                        : never;
+                                                                                                                        : T extends 'stations'
+                                                                                                                          ? StationsConfig
+                                                                                                                          : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
