@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
@@ -147,8 +147,73 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
-  const { isAdmin, profileLoaded, setupCompleted } = useAuth();
+  const {
+    isAdmin,
+    profileLoaded,
+    setupCompleted,
+    roleId,
+    isStudentRole,
+    roleResolved,
+    signOut,
+  } = useAuth();
   const { loading: dashLoading, activeDashboard } = useDashboard();
+
+  // Two paths to "this is a student":
+  //   - `isStudentRole` — token carries `studentRole: true`. Real SSO
+  //     students minted by `studentLoginV1`. They have a valid student
+  //     session, so we just redirect to /my-assignments without signing
+  //     out — `RequireStudentAuth` on that route validates the same
+  //     `studentRole` claim and lets them through.
+  //   - `roleId === 'student'` — legacy student who signed in via regular
+  //     Google Sign-In and was invited into the org with a student role.
+  //     Their token has no studentRole claim, so /my-assignments would
+  //     bounce them anyway; sign them out so the next sign-in goes through
+  //     the proper student flow.
+  // The Firestore rule on /users/{uid}/dashboards is the actual security
+  // boundary; this just keeps either kind of student from briefly seeing
+  // the empty teacher shell before the rule denies their writes.
+  //
+  // We gate on `roleResolved` so the decision waits for both the
+  // `studentRole` claim AND the org-members snapshot to settle. Without
+  // that, a legacy student would slip past during the ~hundreds-of-ms
+  // window where `roleId` is still null.
+  const isStudent = isStudentRole || roleId === 'student';
+  useEffect(() => {
+    if (!profileLoaded || !roleResolved || !isStudent) return;
+
+    if (isStudentRole) {
+      // Real SSO session — token is already valid for /my-assignments.
+      // Don't sign out; just navigate.
+      window.location.replace('/my-assignments');
+      return;
+    }
+
+    // Legacy student — invalidate their teacher session before redirect so
+    // the next sign-in goes through the proper student flow. Race signOut
+    // against an arbitrary 2-second upper bound so a hung sign-out doesn't
+    // strand them on the loader; the navigation tears the SPA down either
+    // way, and `window.location.replace` is idempotent so we don't gate the
+    // call on an effect-cleanup flag (a sign-out-induced effect re-run
+    // could otherwise cancel a redirect we still want to fire).
+    void Promise.race([
+      signOut().catch((err) => {
+        console.error(
+          '[AppContent] Failed to sign legacy student out before redirect:',
+          err
+        );
+      }),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 2000)),
+    ]).then(() => {
+      window.location.replace('/my-assignments');
+    });
+  }, [profileLoaded, roleResolved, isStudent, isStudentRole, signOut]);
+
+  // Hold on the loader while role resolution is in flight so a legacy
+  // student doesn't briefly see the dashboard shell before the redirect
+  // fires, and once we know they're a student until the redirect lands.
+  if (!roleResolved || isStudent) {
+    return <FullPageLoader />;
+  }
 
   // Wait for the user's profile and first dashboard load before deciding what to show.
   // Also wait for an active dashboard: DashboardContext can emit loading=false before

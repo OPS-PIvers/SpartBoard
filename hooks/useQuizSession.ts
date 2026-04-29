@@ -183,13 +183,34 @@ export function computeResponseKey(
 }
 
 /**
+ * Branded type for the deterministic response-doc key (computed by
+ * `computeResponseKey` / read off `_responseKey`). Pure type-level brand —
+ * no wire-format change. Lets call sites (delete-confirm state, exported-id
+ * sets) enforce that they never accidentally store a raw `string` where a
+ * keyed-by-response-doc value is expected.
+ *
+ * The Firestore wire format stays `string[]` for backwards compatibility;
+ * cast at the boundary (read from / write to assignment doc).
+ */
+export type ResponseDocKey = string & { readonly __brand: 'ResponseDocKey' };
+
+/**
  * Resolve the Firestore doc id for a given response. The snapshot listeners
  * attach `_responseKey` to every row so teacher-side UI can target the
  * underlying doc without knowing the keying scheme; legacy rows predating
  * that field still equate the key with `studentUid`, hence the fallback.
  */
-export function getResponseDocKey(response: QuizResponse): string {
-  return response._responseKey ?? response.studentUid;
+export function getResponseDocKey(response: QuizResponse): ResponseDocKey {
+  return (response._responseKey ?? response.studentUid) as ResponseDocKey;
+}
+
+// Safe extraction of FirestoreError.code (or any error-like object's `code`
+// field). Returns undefined when err isn't an object or has no string `code`,
+// so callers don't blow up on non-Error throws or stringly-typed values.
+function getErrorCode(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  const code = (err as { code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
 }
 
 /**
@@ -204,17 +225,42 @@ async function findExistingResponseDoc(
   authUid: string,
   isAnonymous: boolean,
   deterministicKey: string
-): Promise<{ key: string; snap: DocumentSnapshot }> {
-  const deterministicSnap = await getDoc(
-    doc(
-      db,
-      QUIZ_SESSIONS_COLLECTION,
-      sessionId,
-      RESPONSES_COLLECTION,
-      deterministicKey
-    )
-  );
-  if (deterministicSnap.exists()) {
+): Promise<{ key: string; snap: DocumentSnapshot | null }> {
+  // Probe the deterministic key. For anonymous joiners, `permission-denied`
+  // here means a doc exists at this key but was written by a different anon
+  // UID — either a real PIN collision (two students sharing pin+period) or
+  // the same student rejoining from a fresh browser session. The response
+  // read rule denies because `request.auth.uid != resource.data.studentUid`.
+  // Treat that as "doc inaccessible from here" so the caller falls through
+  // to the legacy probe / setDoc path; the rule denial on the subsequent
+  // setDoc/updateDoc surfaces a coherent UI error via joinQuizSession's
+  // outer catch instead of an unhandled rejection.
+  //
+  // For SSO/studentRole users, `permission-denied` is a legitimate
+  // class-gate denial (and `deterministicKey === authUid`, so the legacy
+  // probe wouldn't run anyway) — let it propagate so the join fails fast
+  // instead of attempting a doomed write. The breadcrumb log catches
+  // anything else permission-denied could mask (App Check misconfig,
+  // emulator vs prod rules drift) on the anon path.
+  let deterministicSnap: DocumentSnapshot | null = null;
+  try {
+    deterministicSnap = await getDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        deterministicKey
+      )
+    );
+  } catch (err) {
+    if (!isAnonymous || getErrorCode(err) !== 'permission-denied') throw err;
+    console.warn(
+      '[useQuizSession] permission-denied on deterministic response probe; falling through to legacy/create path.',
+      { sessionId, deterministicKey, err }
+    );
+  }
+  if (deterministicSnap?.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
   }
   if (isAnonymous && deterministicKey !== authUid) {
@@ -238,8 +284,11 @@ async function findExistingResponseDoc(
         return { key: authUid, snap: legacySnap };
       }
     } catch (err) {
-      const code = (err as { code?: unknown }).code;
-      if (code !== 'permission-denied') throw err;
+      if (getErrorCode(err) !== 'permission-denied') throw err;
+      console.warn(
+        '[useQuizSession] permission-denied on legacy response probe; treating as no doc.',
+        { sessionId, authUid, err }
+      );
     }
   }
   return { key: deterministicKey, snap: deterministicSnap };
@@ -308,7 +357,12 @@ export const useQuizSessionTeacher = (
         setLoading(false);
       },
       (err) => {
-        console.error('[useQuizSessionTeacher]', err);
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionId}`;
+        console.error(
+          `[useQuizSessionTeacher] session listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
         setLoading(false);
       }
     );
@@ -340,7 +394,14 @@ export const useQuizSessionTeacher = (
         );
         setResponses(list);
       },
-      (err) => console.error('[useQuizSessionTeacher] responses:', err)
+      (err) => {
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionId}/${RESPONSES_COLLECTION}`;
+        console.error(
+          `[useQuizSessionTeacher] responses listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+      }
     );
   }, [sessionId, hasSession]);
 
@@ -620,7 +681,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     if (!sessionIdState) return;
     return onSnapshot(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionIdState),
-      (snap) => setSession(snap.exists() ? (snap.data() as QuizSession) : null)
+      (snap) => {
+        setSession(snap.exists() ? (snap.data() as QuizSession) : null);
+        setError(null);
+      },
+      (err) => {
+        // Without an onError callback, a permission-denied or transport
+        // failure here causes the session listener to silently stop and
+        // the student stares at a frozen screen. Surface it so the join
+        // flow can show "Couldn't connect to the quiz" instead of
+        // hanging.
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionIdState}`;
+        console.error(
+          `[useQuizSessionStudent] session listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+        setError(
+          code === 'permission-denied'
+            ? "You don't have access to this quiz session."
+            : 'Lost connection to the quiz. Please refresh.'
+        );
+      }
     );
   }, [sessionIdState]);
 
@@ -638,45 +720,81 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKeyState
       ),
-      (snap) =>
+      (snap) => {
         setMyResponse(
           snap.exists()
             ? { ...(snap.data() as QuizResponse), _responseKey: snap.id }
             : null
-        )
+        );
+        // Mirror the session-listener pattern at L630 — clear any
+        // stale error from a transient transport blip so the UI
+        // doesn't stay stuck on "Lost connection" once the snapshot
+        // recovers.
+        setError(null);
+      },
+      (err) => {
+        // Same rationale as the session listener above — without this
+        // callback a permission-denied silently freezes the student's
+        // submit-and-see-feedback loop.
+        const code = (err as { code?: string }).code;
+        const path = `${QUIZ_SESSIONS_COLLECTION}/${sessionIdState}/${RESPONSES_COLLECTION}/${responseKeyState}`;
+        console.error(
+          `[useQuizSessionStudent] response listener error at ${path} (code=${code ?? 'unknown'}):`,
+          err
+        );
+        setError(
+          code === 'permission-denied'
+            ? 'Lost permission to read your answers. Ask your teacher.'
+            : 'Lost connection to the quiz. Please refresh.'
+        );
+      }
     );
   }, [sessionIdState, responseKeyState]);
 
   const lookupSession = useCallback(
     async (code: string): Promise<{ periodNames: string[] } | null> => {
-      const normCode = code
-        .trim()
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .toUpperCase();
-      if (!normCode) return null;
-      const snap = await getDocs(
-        query(
-          collection(db, QUIZ_SESSIONS_COLLECTION),
-          where('code', '==', normCode)
-        )
-      );
-      if (snap.empty) return null;
-      const joinable = snap.docs.filter((d) => {
-        const s = (d.data() as QuizSession).status;
-        return s === 'waiting' || s === 'active' || s === 'paused';
-      });
-      if (joinable.length === 0) return null;
-      // Match joinQuizSession's selection: prefer the most recently created.
-      joinable.sort((a, b) => {
-        const at = (a.data() as QuizSession).startedAt ?? 0;
-        const bt = (b.data() as QuizSession).startedAt ?? 0;
-        return bt - at;
-      });
-      const sessionData = joinable[0].data() as QuizSession;
-      // resolvePeriodNames normalises legacy periodName + new periodNames
-      // into a typed string[], avoiding the `any[]` from Firestore's
-      // DocumentData bleed-through.
-      return { periodNames: resolvePeriodNames(sessionData) };
+      // Populate the hook's `error` state on failure so callers' .catch
+      // handlers (which only console.warn) still produce visible UI feedback.
+      // Without this a network/Firestore failure during code lookup silently
+      // strands the student on the join form with no spinner and no error.
+      try {
+        const normCode = code
+          .trim()
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase();
+        if (!normCode) return null;
+        setError(null);
+        const snap = await getDocs(
+          query(
+            collection(db, QUIZ_SESSIONS_COLLECTION),
+            where('code', '==', normCode)
+          )
+        );
+        if (snap.empty) return null;
+        const joinable = snap.docs.filter((d) => {
+          const s = (d.data() as QuizSession).status;
+          return s === 'waiting' || s === 'active' || s === 'paused';
+        });
+        if (joinable.length === 0) return null;
+        // Match joinQuizSession's selection: prefer the most recently created.
+        joinable.sort((a, b) => {
+          const at = (a.data() as QuizSession).startedAt ?? 0;
+          const bt = (b.data() as QuizSession).startedAt ?? 0;
+          return bt - at;
+        });
+        const sessionData = joinable[0].data() as QuizSession;
+        // resolvePeriodNames normalises legacy periodName + new periodNames
+        // into a typed string[], avoiding the `any[]` from Firestore's
+        // DocumentData bleed-through.
+        return { periodNames: resolvePeriodNames(sessionData) };
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Could not look up quiz. Please check the code and try again.';
+        setError(msg);
+        throw err;
+      }
     },
     []
   );
@@ -797,7 +915,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         //     preserving `completedAttempts` to enforce the cap on future
         //     submissions.
         const limit = sessionData.attemptLimit ?? null;
-        if (existingSnap.exists()) {
+        if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
           if (existing.status === 'completed') {
             const completed = existing.completedAttempts ?? 1;
@@ -825,7 +943,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setSessionIdState(sessionDoc.id);
         setResponseKeyState(responseKey);
 
-        if (!existingSnap.exists()) {
+        if (!existingSnap?.exists()) {
           // No PII stored. `studentUid` field carries the auth uid; the doc
           // key may differ (for PIN auth it's pin-based), so Firestore rules
           // enforce ownership against the field, not the key. The `pin`

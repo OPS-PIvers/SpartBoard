@@ -13,6 +13,7 @@ import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
@@ -147,6 +148,7 @@ export const DashboardView: React.FC = () => {
     clearPendingQuizShare,
     pendingAssignmentShareId,
     clearPendingAssignmentShare,
+    setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
     groupBuildMode,
@@ -157,8 +159,9 @@ export const DashboardView: React.FC = () => {
     annotationActive,
   } = useDashboard();
 
-  const { importSharedQuiz, saveQuiz } = useQuiz(user?.uid);
+  const { importSharedQuiz, saveQuiz, deleteQuiz } = useQuiz(user?.uid);
   const { importSharedAssignment } = useQuizAssignments(user?.uid);
+  const { plcs, loading: plcsLoading } = usePlcs();
 
   // Helper: open (or create) a Quiz widget and set its managerTab.
   // Used by pending-share effects to surface the imported content to the user.
@@ -235,20 +238,66 @@ export const DashboardView: React.FC = () => {
   // shows live and paused assignments (Archive only shows inactive ones).
   useEffect(() => {
     if (!pendingAssignmentShareId || !user) return;
+    // Wait for /plcs to hydrate before evaluating membership. Without this
+    // gate, a deep-link import that fires before the listener populates
+    // `plcs` sees `[]`, the `isPlcMember` predicate returns false, and a
+    // legitimate member is silently demoted to non-member. Once
+    // plcsLoading flips to false the effect re-runs with the real list.
+    if (plcsLoading) return;
     // Clear synchronously BEFORE awaiting — see the quiz-share effect above
     // for the triple-import race rationale.
     const shareId = pendingAssignmentShareId;
     clearPendingAssignmentShare();
-    void importSharedAssignment(shareId, async (quiz) => {
-      const meta = await saveQuiz(quiz);
-      return { id: meta.id, driveFileId: meta.driveFileId };
-    })
-      .then(() => {
-        addToast(
-          'Shared assignment imported! Click Start to begin.',
-          'success'
-        );
+    void importSharedAssignment(
+      shareId,
+      async (quiz) => {
+        const meta = await saveQuiz(quiz);
+        return { id: meta.id, driveFileId: meta.driveFileId };
+      },
+      // Roll back the just-copied quiz if assignment creation fails
+      // mid-flight — otherwise the importer is left with a phantom
+      // quiz in their library and a generic "import failed" toast.
+      async (saved) => {
+        await deleteQuiz(saved.id, saved.driveFileId);
+      },
+      // PLC handling: bundled isMember + onNonMember so the contract
+      // "PLC handling is opt-in as a unit" is visible at the call site.
+      {
+        // Membership predicate: when the share carries plc.id, preserve
+        // PLC linkage iff the importer is a current member of that PLC.
+        isMember: (plcId) =>
+          !!user &&
+          plcs.some((p) => p.id === plcId && p.memberUids.includes(user.uid)),
+        // Non-member nudge: import still succeeds (the quiz is usable),
+        // but PLC sheet wiring is stripped — surface a CTA toast that
+        // opens the Sidebar's PLCs panel so the teacher can join the PLC
+        // or set up their own.
+        onNonMember: ({ plcName }) => {
+          addToast(
+            `This is a PLC quiz assignment for "${plcName}". You're not a member, so your results will export to your own sheet.`,
+            'info',
+            {
+              label: 'PLC Settings',
+              onClick: () => {
+                window.dispatchEvent(
+                  new CustomEvent('open-sidebar', {
+                    detail: { section: 'plcs' },
+                  })
+                );
+              },
+            }
+          );
+        },
+      }
+    )
+      .then((newAssignmentId) => {
+        addToast('Shared assignment imported!', 'success');
         openQuizWidgetToTab('active');
+        // Prompt the importer to pick rosters/periods for the new
+        // assignment instead of leaving it paused with no targeting.
+        // The QuizWidget reads this and opens
+        // QuizAssignmentImportSetupModal.
+        setPendingAssignmentSetup(newAssignmentId);
       })
       .catch((err: unknown) => {
         const msg =
@@ -269,9 +318,13 @@ export const DashboardView: React.FC = () => {
     user,
     importSharedAssignment,
     saveQuiz,
+    deleteQuiz,
     addToast,
     clearPendingAssignmentShare,
     openQuizWidgetToTab,
+    setPendingAssignmentSetup,
+    plcs,
+    plcsLoading,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });

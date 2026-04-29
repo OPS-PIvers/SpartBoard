@@ -91,6 +91,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const {
     user,
     isAdmin,
+    roleId,
+    isStudentRole,
+    roleResolved,
     refreshGoogleToken,
     featurePermissions,
     selectedBuildings,
@@ -156,6 +159,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearPendingAssignmentShare = useCallback(() => {
     setPendingAssignmentShareId(null);
     window.history.replaceState(null, '', '/');
+  }, []);
+
+  // Tracks an imported assignment that hasn't been targeted at any rosters
+  // yet, so the QuizWidget can prompt the teacher to pick classes
+  // immediately after import. Not derived from URL state — purely a
+  // post-import signal between DashboardView and the QuizWidget.
+  const [pendingAssignmentSetupId, setPendingAssignmentSetup] = useState<
+    string | null
+  >(null);
+
+  const clearPendingAssignmentSetup = useCallback(() => {
+    setPendingAssignmentSetup(null);
   }, []);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -255,6 +270,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [migrated, setMigrated] = useState(false);
+  // Guards against re-kicking off the localStorage→Firestore migration when
+  // this effect re-runs before `migrated` flips true (the role-flag deps
+  // below cause re-runs as `roleResolved`/`roleId`/`isStudentRole` resolve).
+  // Scoped per-uid so a sign-out → sign-in as a different user re-arms it.
+  const migrationStartedForUidRef = useRef<string | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -1061,8 +1081,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           updateActiveId(defaultDb ? defaultDb.id : migratedDashboards[0].id);
         }
 
-        // Create default dashboard if none exist
-        if (updatedDashboards.length === 0 && !migrated) {
+        // Create default dashboard if none exist. Skip for student users —
+        // both real SSO students (`isStudentRole` from the token claim) and
+        // legacy students (`roleId === 'student'` from the org member doc).
+        // Students should never own a teacher-style board, and the
+        // Firestore rule will reject the write anyway. AppContent
+        // redirects them to /my-assignments; this just avoids a noisy
+        // permission-denied error in the gap before that fires.
+        //
+        // We also wait for `roleResolved` so a legacy student isn't briefly
+        // seen as `roleId === null` (the "non-member" state) and accidentally
+        // gets a default board created before the org-members snapshot
+        // arrives. Non-member teachers without a member doc resolve cleanly
+        // to `roleId === null` AND `roleResolved === true`, so they still
+        // get their default board.
+        if (
+          updatedDashboards.length === 0 &&
+          !migrated &&
+          roleResolved &&
+          !isStudentRole &&
+          roleId !== 'student'
+        ) {
           const defaultDb: Dashboard = {
             id: crypto.randomUUID(),
             name: 'My First Board',
@@ -1088,9 +1127,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     );
 
-    // Migrate localStorage data on first sign-in
+    // Migrate localStorage data on first sign-in. Per-uid ref guards
+    // against double-kickoff: the role-flag deps in this effect's array
+    // can cause re-runs while migration is still in flight, and without
+    // the ref we'd start a second migration that races with the first.
     const localData = localStorage.getItem('classroom_dashboards');
-    if (localData && !migrated) {
+    if (
+      localData &&
+      !migrated &&
+      migrationStartedForUidRef.current !== user.uid
+    ) {
+      migrationStartedForUidRef.current = user.uid;
       migrateLocalStorageToFirestore(user.uid, saveDashboard)
         .then((count) => {
           if (count > 0) {
@@ -1115,13 +1162,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               type: 'error' as const,
             },
           ]);
+          // Reset the kickoff guard so a future effect re-run can retry.
+          // Without this, a transient migration failure would permanently
+          // block retry until the user signs out and back in.
+          migrationStartedForUidRef.current = null;
         });
     }
 
     return () => {
       unsubscribe();
     };
-  }, [user, subscribeToDashboards, migrated, saveDashboard, updateActiveId]);
+  }, [
+    user,
+    subscribeToDashboards,
+    migrated,
+    saveDashboard,
+    updateActiveId,
+    roleId,
+    isStudentRole,
+    roleResolved,
+  ]);
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3304,6 +3364,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingAssignmentSetupId,
+      setPendingAssignmentSetup,
+      clearPendingAssignmentSetup,
       zoom,
       setZoom,
       annotationActive,
@@ -3394,6 +3457,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingAssignmentSetupId,
+      setPendingAssignmentSetup,
+      clearPendingAssignmentSetup,
       zoom,
       setZoom,
       annotationActive,

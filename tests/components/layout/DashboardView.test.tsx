@@ -56,6 +56,21 @@ vi.mock('@/hooks/useQuizAssignments', () => ({
   }),
 }));
 
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: vi.fn().mockReturnValue({
+    plcs: [],
+    loading: false,
+    createPlc: vi.fn(),
+    renamePlc: vi.fn(),
+    removeMember: vi.fn(),
+    leavePlc: vi.fn(),
+    deletePlc: vi.fn(),
+    setPlcSharedSheetUrl: vi.fn(),
+    clearPlcSharedSheetUrl: vi.fn(),
+    getPlcSharedSheetUrl: vi.fn(),
+  }),
+}));
+
 vi.mock('@use-gesture/react', () => ({
   useGesture: mockUseGesture,
 }));

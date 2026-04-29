@@ -46,7 +46,11 @@ import {
   QuizConfig,
   ClassRoster,
 } from '@/types';
-import { gradeAnswer, getResponseDocKey } from '@/hooks/useQuizSession';
+import {
+  gradeAnswer,
+  getResponseDocKey,
+  type ResponseDocKey,
+} from '@/hooks/useQuizSession';
 import {
   buildLiveLeaderboard,
   buildPinToNameMap,
@@ -329,7 +333,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // New state for Phase 1 & 2 features
   const [showAnswerColors, setShowAnswerColors] = useState(false);
   const [showTabWarnings, setShowTabWarnings] = useState(true);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<ResponseDocKey | null>(
+    null
+  );
   const [soundMuted, setSoundMuted] = useState(false);
   const [expandedStat, setExpandedStat] = useState<
     'joined' | 'active' | 'finished' | null
@@ -1325,41 +1331,42 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         .sort((a, b) =>
                           (a.pin ?? '').localeCompare(b.pin ?? '')
                         )
-                        .map((r) => (
-                          <StudentRow
-                            key={r.studentUid}
-                            response={r}
-                            totalQuestions={session.totalQuestions}
-                            questions={quizData.questions}
-                            currentQuestion={currentQ}
-                            showAnswerColors={showAnswerColors}
-                            showTabWarnings={
-                              showTabWarnings &&
-                              session.tabWarningsEnabled !== false
-                            }
-                            confirmRemove={confirmRemove === r.studentUid}
-                            onConfirmRemoveToggle={() =>
-                              setConfirmRemove(
-                                confirmRemove === r.studentUid
-                                  ? null
-                                  : r.studentUid
-                              )
-                            }
-                            onRemove={
-                              onRemoveStudent
-                                ? () => {
-                                    void Promise.resolve(
-                                      onRemoveStudent(getResponseDocKey(r))
-                                    )
-                                      .then(() => setConfirmRemove(null))
-                                      .catch(() => undefined);
-                                  }
-                                : undefined
-                            }
-                            pinToName={pinToName}
-                            byStudentUid={byStudentUid}
-                          />
-                        ))}
+                        .map((r) => {
+                          const rowKey = getResponseDocKey(r);
+                          return (
+                            <StudentRow
+                              key={rowKey}
+                              response={r}
+                              totalQuestions={session.totalQuestions}
+                              questions={quizData.questions}
+                              currentQuestion={currentQ}
+                              showAnswerColors={showAnswerColors}
+                              showTabWarnings={
+                                showTabWarnings &&
+                                session.tabWarningsEnabled !== false
+                              }
+                              confirmRemove={confirmRemove === rowKey}
+                              onConfirmRemoveToggle={() =>
+                                setConfirmRemove(
+                                  confirmRemove === rowKey ? null : rowKey
+                                )
+                              }
+                              onRemove={
+                                onRemoveStudent
+                                  ? () => {
+                                      void Promise.resolve(
+                                        onRemoveStudent(rowKey)
+                                      )
+                                        .then(() => setConfirmRemove(null))
+                                        .catch(() => undefined);
+                                    }
+                                  : undefined
+                              }
+                              pinToName={pinToName}
+                              byStudentUid={byStudentUid}
+                            />
+                          );
+                        })}
                     </div>
                   )}
                 </div>
@@ -1706,41 +1713,42 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         .sort((a, b) =>
                           (a.pin ?? '').localeCompare(b.pin ?? '')
                         )
-                        .map((r) => (
-                          <StudentRow
-                            key={r.studentUid}
-                            response={r}
-                            totalQuestions={session.totalQuestions}
-                            questions={quizData.questions}
-                            currentQuestion={currentQ}
-                            showAnswerColors={showAnswerColors}
-                            showTabWarnings={
-                              showTabWarnings &&
-                              session.tabWarningsEnabled !== false
-                            }
-                            confirmRemove={confirmRemove === r.studentUid}
-                            onConfirmRemoveToggle={() =>
-                              setConfirmRemove(
-                                confirmRemove === r.studentUid
-                                  ? null
-                                  : r.studentUid
-                              )
-                            }
-                            onRemove={
-                              onRemoveStudent
-                                ? () => {
-                                    void Promise.resolve(
-                                      onRemoveStudent(getResponseDocKey(r))
-                                    )
-                                      .then(() => setConfirmRemove(null))
-                                      .catch(() => undefined);
-                                  }
-                                : undefined
-                            }
-                            pinToName={pinToName}
-                            byStudentUid={byStudentUid}
-                          />
-                        ))}
+                        .map((r) => {
+                          const rowKey = getResponseDocKey(r);
+                          return (
+                            <StudentRow
+                              key={rowKey}
+                              response={r}
+                              totalQuestions={session.totalQuestions}
+                              questions={quizData.questions}
+                              currentQuestion={currentQ}
+                              showAnswerColors={showAnswerColors}
+                              showTabWarnings={
+                                showTabWarnings &&
+                                session.tabWarningsEnabled !== false
+                              }
+                              confirmRemove={confirmRemove === rowKey}
+                              onConfirmRemoveToggle={() =>
+                                setConfirmRemove(
+                                  confirmRemove === rowKey ? null : rowKey
+                                )
+                              }
+                              onRemove={
+                                onRemoveStudent
+                                  ? () => {
+                                      void Promise.resolve(
+                                        onRemoveStudent(rowKey)
+                                      )
+                                        .then(() => setConfirmRemove(null))
+                                        .catch(() => undefined);
+                                    }
+                                  : undefined
+                              }
+                              pinToName={pinToName}
+                              byStudentUid={byStudentUid}
+                            />
+                          );
+                        })}
                     </div>
                   )}
                 </div>

@@ -63,6 +63,8 @@ const mockAuth: AuthContextType = {
   },
   orgId: null,
   roleId: null,
+  isStudentRole: false,
+  roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
 };
@@ -262,6 +264,13 @@ const mockDashboard: DashboardContextValue = {
     // No-op
   },
   clearPendingAssignmentShare: () => {
+    // No-op
+  },
+  pendingAssignmentSetupId: null,
+  setPendingAssignmentSetup: () => {
+    // No-op — student view never imports assignments.
+  },
+  clearPendingAssignmentSetup: () => {
     // No-op
   },
   // Roster mocks

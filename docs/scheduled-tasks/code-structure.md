@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-04-22_
+_Last audited: 2026-04-29_
 _Last action: never_
 
 ---
@@ -16,21 +16,21 @@ _Nothing currently in progress._
 
 ## Open
 
-### MEDIUM `DashboardContext.tsx` is 3394 lines and growing — at least three extractable responsibilities
+### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
 - **Detected:** 2026-04-15
-- **Updated:** 2026-04-22 — file grew from 3165 to 3394 lines (+229) in 7 days. Issue is actively worsening.
+- **Updated:** 2026-04-29 — file grew from 3394 to 3481 lines (+87) since 2026-04-22 audit. Growth rate has slowed but file is still increasing.
 - **File:** context/DashboardContext.tsx
-- **Detail:** The context file is the largest non-test source file at 3394 lines (was 3165 on 2026-04-15). It owns: (1) Firestore CRUD + real-time sync, (2) Google Drive backup/restore orchestration, (3) widget CRUD actions (add/update/delete/reorder), (4) `getAdminBuildingConfig` — a 400-line switch covering 30+ widget types that maps per-building admin overrides onto widget defaults, (5) `applyDashboardTemplate` and `loadStarterPack`, (6) migration and legacy handling. The `getAdminBuildingConfig` switch spans lines 2053–2450 (~397 lines) and is long enough to be its own module. At the current growth rate (+229 lines/week), the file will exceed 4500 lines within 5 weeks.
+- **Detail:** The context file is the largest non-test source file at 3481 lines (was 3165 on 2026-04-15). It owns: (1) Firestore CRUD + real-time sync, (2) Google Drive backup/restore orchestration, (3) widget CRUD actions (add/update/delete/reorder), (4) `getAdminBuildingConfig` — a 400-line switch at lines 2127–2540 covering 30+ widget types that maps per-building admin overrides onto widget defaults, (5) `applyDashboardTemplate` and `loadStarterPack`, (6) migration and legacy handling.
 - **Fix:** Extract `getAdminBuildingConfig` into `utils/adminBuildingConfig.ts` (pure function: `(type, featurePermissions, selectedBuildings) => Record<string, unknown>`). This removes ~400 lines from the context without touching its public API and makes the validation logic independently testable. Also consider extracting migration logic to `utils/dashboardMigration.ts` (~150 lines).
 
-### MEDIUM `functions/src/index.ts` is 2488 lines — single file for all Cloud Functions
+### MEDIUM `functions/src/index.ts` is 3524 lines — single file for all Cloud Functions (rapidly growing)
 
 - **Detected:** 2026-04-15
-- **Updated:** 2026-04-22 — file grew from 2445 to 2488 lines (+43).
+- **Updated:** 2026-04-29 — file grew from 2488 to 3524 lines (+1036) since 2026-04-22 audit. Four new Cloud Functions were added: `studentLoginV1` (256MiB, public invoker, handles Google + ClassLink SSO for students), `getAssignmentPseudonymV1` (128MiB, student-role only), `getStudentClassDirectoryV1` (256MiB, public invoker), and `getPseudonymsForAssignmentV1` (256MiB, minInstances:1, public invoker). These are all student SSO / pseudonym functions.
 - **File:** functions/src/index.ts
-- **Detail:** All 9 Cloud Functions live in one file. Logical groupings exist: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics). The file is difficult to navigate and review as a unit.
-- **Fix:** Split into domain files: `functions/src/classlink.ts`, `functions/src/ai.ts`, `functions/src/utils.ts`, `functions/src/admin.ts`. Re-export all functions from `functions/src/index.ts` to preserve deployed names. This is a refactor with no behavior change but significantly improves reviewability.
+- **Detail:** 13 Cloud Functions now live in one file. Logical groupings: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics), student SSO/pseudonym (studentLoginV1, getAssignmentPseudonymV1, getStudentClassDirectoryV1, getPseudonymsForAssignmentV1). The file is increasingly difficult to navigate. The `getPseudonymsForAssignmentV1` has `minInstances: 1` — verify this is intentional (cold start cost vs. latency tradeoff).
+- **Fix:** Split into domain files: `functions/src/classlink.ts`, `functions/src/ai.ts`, `functions/src/utils.ts`, `functions/src/admin.ts`, `functions/src/studentSso.ts`. Re-export all functions from `functions/src/index.ts` to preserve deployed names. This is a refactor with no behavior change but significantly improves reviewability. **Priority has increased** given the 42% growth in 7 days.
 
 ### LOW `getAdminBuildingConfig` has 10+ near-identical single-field switch cases
 

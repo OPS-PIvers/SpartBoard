@@ -12,8 +12,11 @@
  * Flow (SSO `studentRole` from /my-assignments):
  *  1. Student is already signed in via custom token (claims.studentRole).
  *  2. Code is in the URL; PIN is unnecessary — identity = `auth.uid`.
- *  3. We auto-join on mount (still showing the period picker for
- *     multi-period sessions) and proceed straight to the waiting room.
+ *  3. We auto-join on mount, bypassing both the PIN form and the period
+ *     picker. SSO students are already linked to a class period via their
+ *     classId, so classPeriod is irrelevant for the join — the response
+ *     doc is keyed by `auth.uid` and the teacher's monitor view resolves
+ *     the period from the classId via the roster.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -116,8 +119,9 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   const [pin, setPin] = useState('');
   const [joined, setJoined] = useState(false);
 
-  // Multi-period selection step: after entering code+PIN, if the session has
-  // multiple periodNames the student picks their class before joining.
+  // Period selection step: after entering code+PIN, anon students always pick
+  // their class period before joining (PIN+period is the disambiguator on the
+  // response doc key). SSO joiners skip this step entirely.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
@@ -146,16 +150,19 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const handleJoin = useCallback(
     async (joinCode: string, joinPin: string) => {
-      // Look up the session to check for multi-period selection
+      // Anon (PIN) joiners must always disambiguate by period — same PIN can
+      // recur across periods, and `pin-{period}-{pin}` is what keys the
+      // response doc. Show the picker whenever the assignment declares any
+      // periods, even when there is only one. (handleJoin is only reached on
+      // the anon path; the SSO auto-join effect short-circuits before render.)
       const sessionInfo = await lookupSession(joinCode);
-      if (sessionInfo && sessionInfo.periodNames.length > 1) {
-        // Show period selector step
-        setPeriodStep(sessionInfo.periodNames);
+      const periods = sessionInfo?.periodNames ?? [];
+      if (periods.length > 0) {
+        setPeriodStep(periods);
         return;
       }
-      // Single or no period — join directly (auto-select if exactly 1)
-      const autoClassPeriod = sessionInfo?.periodNames[0];
-      await joinQuizSession(joinCode, joinPin, autoClassPeriod);
+      // No periods configured — join with classPeriod undefined.
+      await joinQuizSession(joinCode, joinPin, undefined);
       setJoined(true);
     },
     [lookupSession, joinQuizSession]
@@ -163,39 +170,36 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const handlePeriodConfirm = useCallback(async () => {
     if (!selectedPeriod) return;
-    // SSO joiners pass `undefined` as the PIN — the hook keys the response
-    // doc by auth.uid in that case. Anonymous joiners send the form `pin`.
-    const joinPin = isStudentRole ? undefined : pin;
-    await joinQuizSession(code, joinPin, selectedPeriod);
+    // Only anonymous joiners reach the period picker (SSO students auto-join
+    // via the effect below and skip period selection entirely), so PIN is
+    // always populated here. The hook keys their response doc by
+    // `pin-{period}-{pin}`.
+    await joinQuizSession(code, pin, selectedPeriod);
     setJoined(true);
-  }, [joinQuizSession, code, pin, selectedPeriod, isStudentRole]);
+  }, [joinQuizSession, code, pin, selectedPeriod]);
 
-  // SSO auto-join: bypass the PIN form entirely. lookupSession handles the
-  // multi-period branch (we still show the picker — periodNames are
-  // free-form labels and don't map 1:1 onto classIds, so we can't auto-pick).
+  // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
+  // students arrive with a stable identity (auth.uid via /student/login),
+  // already matched to their class via classId — so the response doc is
+  // keyed by auth.uid and classPeriod is irrelevant for join. The teacher
+  // monitor view can resolve a student's period from their classId via the
+  // roster if it needs to group by period.
   useEffect(() => {
     if (!isStudentRole) return;
     if (!urlCode) return;
-    if (joined || periodStep) return;
+    if (joined) return;
     if (ssoAutoJoinStartedRef.current) return;
     ssoAutoJoinStartedRef.current = true;
 
     const run = async () => {
       try {
-        const sessionInfo = await lookupSession(urlCode);
-        if (sessionInfo && sessionInfo.periodNames.length > 1) {
-          setPeriodStep(sessionInfo.periodNames);
-          return;
-        }
-        const autoClassPeriod = sessionInfo?.periodNames[0];
-        await joinQuizSession(urlCode, undefined, autoClassPeriod);
+        await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
         console.warn('[QuizStudentApp] SSO auto-join failed:', err);
-        // Surface the failure to the UI. Either step (lookupSession or
-        // joinQuizSession) can throw; if it was joinQuizSession the hook's
-        // own `error` state will also be populated, and the render branch
-        // below prefers that more detailed message when available.
+        // Surface the failure to the UI. The hook's own `error` state will
+        // also be populated, and the render branch below prefers that more
+        // detailed message when available.
         const message =
           err instanceof Error
             ? err.message
@@ -206,14 +210,41 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       }
     };
     void run();
-  }, [
-    isStudentRole,
-    urlCode,
-    joined,
-    periodStep,
-    lookupSession,
-    joinQuizSession,
-  ]);
+  }, [isStudentRole, urlCode, joined, joinQuizSession]);
+
+  // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
+  // students arrive with a stable identity (auth.uid via /student/login),
+  // already matched to their class via classId — so the response doc is
+  // keyed by auth.uid and classPeriod is irrelevant for join. The teacher
+  // monitor view can resolve a student's period from their classId via the
+  // roster if it needs to group by period.
+  useEffect(() => {
+    if (!isStudentRole) return;
+    if (!urlCode) return;
+    if (joined) return;
+    if (ssoAutoJoinStartedRef.current) return;
+    ssoAutoJoinStartedRef.current = true;
+
+    const run = async () => {
+      try {
+        await joinQuizSession(urlCode, undefined, undefined);
+        setJoined(true);
+      } catch (err) {
+        console.warn('[QuizStudentApp] SSO auto-join failed:', err);
+        // Surface the failure to the UI. The hook's own `error` state will
+        // also be populated, and the render branch below prefers that more
+        // detailed message when available.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your quiz. Please refresh and try again.";
+        setSsoAutoJoinError(message);
+        // Re-arm so a retry button (if added later) can re-trigger.
+        ssoAutoJoinStartedRef.current = false;
+      }
+    };
+    void run();
+  }, [isStudentRole, urlCode, joined, joinQuizSession]);
 
   const handleAnswer = useCallback(
     async (questionId: string, answer: string, speedBonus?: number) => {
@@ -232,7 +263,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   // (If you want URL-based pin support: ?code=XXXXXX&pin=01 is an option for
   // future work, but not implemented here to avoid leaking PINs in URL logs.)
 
-  // Period selection step — shown when session has multiple class periods
+  // Period selection step — shown to anon joiners when the session declares
+  // any class periods. SSO joiners skip this and join via the auto-join effect.
   if (periodStep && !joined) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
@@ -275,7 +307,15 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
           </div>
 
           <button
-            onClick={() => void handlePeriodConfirm()}
+            onClick={() => {
+              // joinQuizSession re-throws after populating `error` state for
+              // the UI. Catch here so the rejection isn't an unhandled
+              // promise — `void` would only silence the linter, not handle
+              // the rejection.
+              handlePeriodConfirm().catch((err: unknown) => {
+                console.warn('[QuizStudentApp] Period confirm failed:', err);
+              });
+            }}
             disabled={loading || !selectedPeriod}
             className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
@@ -353,7 +393,13 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void handleJoin(code, pin);
+              // joinQuizSession re-throws after populating `error` state for
+              // the UI. Catch here so the rejection isn't an unhandled
+              // promise — `void` would only silence the linter, not handle
+              // the rejection.
+              handleJoin(code, pin).catch((err: unknown) => {
+                console.warn('[QuizStudentApp] Join failed:', err);
+              });
             }}
             className="space-y-4"
           >
@@ -643,6 +689,14 @@ const ActiveQuiz: React.FC<{
   const [speedBonusEarned, setSpeedBonusEarned] = useState<number | null>(null);
   const [streakCount, setStreakCount] = useState(0);
 
+  // Self-paced save errors. `saveError` surfaces a retry banner above the
+  // NEXT/SUBMIT button when `onAnswer`/`onComplete` rejects (offline,
+  // permission-denied, etc.). `advancingRef` is a synchronous re-entry guard
+  // so a tap-storm can't double-fire `handleSubmitAndAdvance` in the window
+  // between calling `setSubmitting(true)` and React committing the render.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const advancingRef = useRef(false);
+
   // Derived state: reset local UI state on new question or when global alreadyAnswered state arrives
   if (
     currentQuestion?.id !== prevQuestionId ||
@@ -658,6 +712,7 @@ const ActiveQuiz: React.FC<{
     setAnswerFeedback(null);
     setRevealedAnswer(null);
     setSpeedBonusEarned(null);
+    setSaveError(null);
     const tl = currentQuestion?.timeLimit ?? 0;
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
   }
@@ -874,6 +929,65 @@ const ActiveQuiz: React.FC<{
     }
   };
 
+  // Self-paced unified action: persist the answer, then advance (or complete
+  // on the final question). Skips the per-question feedback banner — teachers
+  // who want feedback should run the quiz in teacher-paced mode and reveal
+  // answers manually.
+  //
+  // `advancingRef` is the synchronous re-entry guard (the `submitting` state
+  // alone has a window between setSubmitting(true) and React committing).
+  // On rejection we surface a retry banner via `saveError` instead of letting
+  // the failure vanish into the console; the student's selection is still
+  // intact (we never reset it on error) so the same tap retries.
+  const handleSubmitAndAdvance = async (answer: string) => {
+    if (advancingRef.current || submitting || submitted) return;
+    advancingRef.current = true;
+    setSubmitting(true);
+    setSaveError(null);
+    try {
+      let computedSpeedBonus: number | undefined;
+      if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+        const remaining = Math.max(0, timeLeft ?? 0);
+        const bonusPct = Math.round(
+          (remaining / currentQuestion.timeLimit) * 50
+        );
+        if (bonusPct > 0) computedSpeedBonus = bonusPct;
+      }
+
+      try {
+        await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+      } catch (err) {
+        console.error(
+          '[QuizStudentApp] onAnswer failed for question',
+          currentQuestion.id,
+          err
+        );
+        setSaveError("Couldn't save your answer. Tap to try again.");
+        return;
+      }
+
+      const isLast = currentIndex >= session.totalQuestions - 1;
+      if (isLast) {
+        setSelectedAnswer(answer);
+        setSubmitted(true);
+        if (myResponse?.status !== 'completed') {
+          try {
+            await onComplete();
+          } catch (err) {
+            console.error('[QuizStudentApp] onComplete failed:', err);
+            setSubmitted(false);
+            setSaveError("Couldn't submit your quiz. Tap to try again.");
+          }
+        }
+      } else {
+        setLocalIndex(localIndex + 1);
+      }
+    } finally {
+      setSubmitting(false);
+      advancingRef.current = false;
+    }
+  };
+
   const progress = ((currentIndex + 1) / session.totalQuestions) * 100;
 
   // Choices are pre-shuffled in publicQuestions by the teacher side
@@ -986,8 +1100,52 @@ const ActiveQuiz: React.FC<{
               );
             })}
 
-            <div className="animate-in fade-in slide-in-from-bottom-2">
-              {!submitted ? (
+            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+              {isStudentPaced ? (
+                !submitted ? (
+                  <>
+                    {saveError && <SaveErrorBanner message={saveError} />}
+                    <button
+                      onClick={() =>
+                        draftMcAnswer &&
+                        void handleSubmitAndAdvance(draftMcAnswer)
+                      }
+                      disabled={!draftMcAnswer || submitting}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : currentIndex >= session.totalQuestions - 1 ? (
+                        <>
+                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                          <CheckCircle2 className="w-5 h-5" />
+                        </>
+                      ) : (
+                        <>
+                          {saveError ? 'Retry' : 'NEXT'}{' '}
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : currentIndex < session.totalQuestions - 1 ? (
+                  // Timeout-auto-submit fallback: timer expired, give student
+                  // a way to advance.
+                  <button
+                    onClick={handleNext}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                  >
+                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      Quiz complete!
+                    </p>
+                  </div>
+                )
+              ) : !submitted ? (
                 <button
                   onClick={() =>
                     draftMcAnswer && void handleSubmit(draftMcAnswer)
@@ -1010,24 +1168,14 @@ const ActiveQuiz: React.FC<{
                     streakCount={streakCount}
                     streakEnabled={session.streakBonusEnabled}
                   />
-                  {isStudentPaced &&
-                  currentIndex < session.totalQuestions - 1 ? (
-                    <button
-                      onClick={handleNext}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                    >
-                      NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                    </button>
-                  ) : (
-                    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <p className="text-emerald-300 text-sm font-bold">
-                        {currentIndex < session.totalQuestions - 1
-                          ? 'Waiting for teacher…'
-                          : 'Quiz complete!'}
-                      </p>
-                    </div>
-                  )}
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      {currentIndex < session.totalQuestions - 1
+                        ? 'Waiting for teacher…'
+                        : 'Quiz complete!'}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1043,15 +1191,61 @@ const ActiveQuiz: React.FC<{
               disabled={submitted}
               placeholder="Type your answer…"
               className="w-full px-5 py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-0 focus:border-violet-500 disabled:opacity-50"
-              onKeyDown={(e) =>
-                e.key === 'Enter' &&
-                fibAnswer.trim() &&
-                !submitted &&
-                void handleSubmit(fibAnswer.trim())
-              }
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                const trimmed = fibAnswer.trim();
+                if (!trimmed || submitted) return;
+                if (isStudentPaced) {
+                  void handleSubmitAndAdvance(trimmed);
+                } else {
+                  void handleSubmit(trimmed);
+                }
+              }}
             />
-            <div className="animate-in fade-in slide-in-from-bottom-2">
-              {!submitted ? (
+            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+              {isStudentPaced ? (
+                !submitted ? (
+                  <>
+                    {saveError && <SaveErrorBanner message={saveError} />}
+                    <button
+                      onClick={() =>
+                        fibAnswer.trim() &&
+                        void handleSubmitAndAdvance(fibAnswer.trim())
+                      }
+                      disabled={!fibAnswer.trim() || submitting}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : currentIndex >= session.totalQuestions - 1 ? (
+                        <>
+                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                          <CheckCircle2 className="w-5 h-5" />
+                        </>
+                      ) : (
+                        <>
+                          {saveError ? 'Retry' : 'NEXT'}{' '}
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : currentIndex < session.totalQuestions - 1 ? (
+                  <button
+                    onClick={handleNext}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                  >
+                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      Quiz complete!
+                    </p>
+                  </div>
+                )
+              ) : !submitted ? (
                 <button
                   onClick={() =>
                     fibAnswer.trim() && void handleSubmit(fibAnswer.trim())
@@ -1074,24 +1268,14 @@ const ActiveQuiz: React.FC<{
                     streakCount={streakCount}
                     streakEnabled={session.streakBonusEnabled}
                   />
-                  {isStudentPaced &&
-                  currentIndex < session.totalQuestions - 1 ? (
-                    <button
-                      onClick={handleNext}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                    >
-                      NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                    </button>
-                  ) : (
-                    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <p className="text-emerald-300 text-sm font-bold">
-                        {currentIndex < session.totalQuestions - 1
-                          ? 'Waiting for teacher…'
-                          : 'Quiz complete!'}
-                      </p>
-                    </div>
-                  )}
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      {currentIndex < session.totalQuestions - 1
+                        ? 'Waiting for teacher…'
+                        : 'Quiz complete!'}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1105,10 +1289,12 @@ const ActiveQuiz: React.FC<{
             question={currentQuestion}
             submitted={submitted}
             onSubmit={(answer) => void handleSubmit(answer)}
+            onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
             submitting={submitting}
             isStudentPaced={isStudentPaced}
             isLastQuestion={currentIndex >= session.totalQuestions - 1}
             onNext={handleNext}
+            saveError={saveError}
           />
         )}
       </div>
@@ -1122,18 +1308,22 @@ const StructuredQuestionInput: React.FC<{
   question: QuizPublicQuestion;
   submitted: boolean;
   onSubmit: (answer: string) => void;
+  onSubmitAndAdvance: (answer: string) => void;
   submitting: boolean;
   isStudentPaced: boolean;
   isLastQuestion: boolean;
   onNext: () => void;
+  saveError?: string | null;
 }> = ({
   question,
   submitted,
   onSubmit,
+  onSubmitAndAdvance,
   submitting,
   isStudentPaced,
   isLastQuestion,
   onNext,
+  saveError,
 }) => {
   const isMatching = question.type === 'Matching';
 
@@ -1155,16 +1345,21 @@ const StructuredQuestionInput: React.FC<{
     ? Object.values(matchings).every((v: string) => !!v)
     : order.length > 0 && order.length === leftItems.length;
 
-  const handleSubmitStructured = () => {
-    let answer: string;
+  const buildAnswer = (): string => {
     if (isMatching) {
-      answer = leftItems
+      return leftItems
         .map((l: string) => `${l}:${matchings[l] || ''}`)
         .join('|');
-    } else {
-      answer = order.join('|');
     }
-    onSubmit(answer);
+    return order.join('|');
+  };
+
+  const handleSubmitStructured = () => {
+    if (isStudentPaced) {
+      onSubmitAndAdvance(buildAnswer());
+    } else {
+      onSubmit(buildAnswer());
+    }
   };
 
   // ─── Drag and Drop Handlers ────────────────────────────────────────────────
@@ -1270,13 +1465,32 @@ const StructuredQuestionInput: React.FC<{
             </div>
           )}
 
+          {isStudentPaced && saveError && (
+            <SaveErrorBanner message={saveError} />
+          )}
           <button
             onClick={handleSubmitStructured}
             disabled={!canSubmit || submitting}
-            className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+            className={`w-full py-4 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-all ${
+              isStudentPaced
+                ? 'bg-emerald-600 hover:bg-emerald-500 font-black shadow-lg active:scale-95'
+                : 'bg-violet-600 hover:bg-violet-500'
+            }`}
           >
             {submitting ? (
               <Loader2 className="w-5 h-5 animate-spin" />
+            ) : isStudentPaced ? (
+              isLastQuestion ? (
+                <>
+                  {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                  <CheckCircle2 className="w-5 h-5" />
+                </>
+              ) : (
+                <>
+                  {saveError ? 'Retry' : 'NEXT'}{' '}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )
             ) : (
               'Submit Answer'
             )}
@@ -1285,6 +1499,7 @@ const StructuredQuestionInput: React.FC<{
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2">
           {isStudentPaced && !isLastQuestion ? (
+            // Timeout-auto-submit fallback for self-paced.
             <button
               onClick={onNext}
               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
@@ -1304,6 +1519,18 @@ const StructuredQuestionInput: React.FC<{
     </div>
   );
 };
+
+// ─── Save-error banner (self-paced retry affordance) ────────────────────────
+
+const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
+  <div
+    role="alert"
+    className="p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2"
+  >
+    <AlertCircle className="w-4 h-4 shrink-0" />
+    <span>{message}</span>
+  </div>
+);
 
 // ─── Answer feedback banner ──────────────────────────────────────────────────
 

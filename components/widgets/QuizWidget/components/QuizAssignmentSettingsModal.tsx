@@ -11,7 +11,16 @@
  */
 
 import React, { useState } from 'react';
-import { AlertTriangle, Lock, User, Zap, Clock, Share2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Lock,
+  User,
+  Zap,
+  Clock,
+  Share2,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
@@ -67,10 +76,10 @@ function initialOptionsFor(a: QuizAssignment): SettingsOptions {
     // Legacy assignments have no attemptLimit — preserve "unlimited" for
     // those rather than retroactively capping ongoing sessions.
     attemptLimit: a.attemptLimit ?? null,
-    plcMode: a.plcMode ?? false,
+    plcMode: !!a.plc,
     teacherName: a.teacherName ?? '',
     selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
-    plcSheetUrl: a.plcSheetUrl ?? '',
+    plcSheetUrl: a.plc?.sheetUrl ?? '',
   };
 }
 
@@ -111,6 +120,13 @@ export const QuizAssignmentSettingsModal: React.FC<
     assignment.sessionMode
   );
 
+  // The manual sheet-URL field stays hidden behind a disclosure unless a
+  // URL is already attached (legacy assignments / explicit overrides),
+  // because new PLC assignments auto-create and share a sheet.
+  const [showSheetUrl, setShowSheetUrl] = useState(
+    Boolean(assignment.plc?.sheetUrl)
+  );
+
   const plcSheetUrlInvalid =
     !!options.plcSheetUrl &&
     !options.plcSheetUrl.startsWith('https://docs.google.com/spreadsheets/');
@@ -134,16 +150,41 @@ export const QuizAssignmentSettingsModal: React.FC<
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
     // updateDoc to skip the field and leave the previous value in place.
+    //
+    // PLC linkage rebuild rules: when the toggle is on, carry the current
+    // linkage's id/name/memberEmails through and overlay the (possibly
+    // edited) sheet URL. When off, write `undefined` to clear the linkage
+    // entirely. The current `assignment.plc` is the safe carrier — it was
+    // either set at create time (Widget.tsx → createAssignment) or by a
+    // prior save through this modal.
+    // Only patch `plc` when we have a real existing linkage to overlay onto.
+    // Toggling PLC mode on without an `assignment.plc` record would persist
+    // a placeholder with empty `id`/`name`, which downstream code treats as
+    // a valid PLC linkage — that breaks sharing/membership checks and sheet
+    // export. The teacher should re-run assignment-create to acquire a real
+    // linkage. (Copilot review on PR #1442.)
+    //
+    // Empty `trimmedSheetUrl` is a Hide / cancel: the user collapsed the
+    // manual-attach disclosure, which clears the form input. We keep the
+    // assignment's existing `plc` unchanged rather than overwriting
+    // `sheetUrl` with `''` — the empty value would be dropped by the
+    // read-side validator on next snapshot and silently lose PLC mode.
+    const trimmedSheetUrl = options.plcSheetUrl.trim();
+    const plcPatch: QuizAssignmentSettings['plc'] =
+      options.plcMode && assignment.plc
+        ? trimmedSheetUrl === ''
+          ? assignment.plc
+          : { ...assignment.plc, sheetUrl: trimmedSheetUrl }
+        : undefined;
     const patch: Partial<QuizAssignmentSettings> = {
       className: options.className.trim(),
       sessionMode: modeLocked ? assignment.sessionMode : sessionMode,
       sessionOptions,
       attemptLimit: options.attemptLimit,
-      plcMode: options.plcMode,
+      plc: plcPatch,
       teacherName: options.teacherName.trim(),
       periodName: options.selectedPeriodNames[0] ?? '',
       periodNames: options.selectedPeriodNames,
-      plcSheetUrl: options.plcSheetUrl.trim(),
     };
     try {
       await onSave(patch);
@@ -358,33 +399,64 @@ export const QuizAssignmentSettingsModal: React.FC<
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                  Shared Google Sheet URL
-                </label>
-                <input
-                  type="text"
-                  value={options.plcSheetUrl}
-                  onChange={(e) =>
-                    setOptions((p) => ({ ...p, plcSheetUrl: e.target.value }))
-                  }
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                {plcSheetUrlInvalid && (
-                  <div className="flex items-center gap-1 mt-1 text-amber-600">
-                    <AlertTriangle className="w-3 h-3" />
-                    <span className="text-xxs">
-                      This doesn&apos;t look like a Google Sheets URL
-                    </span>
+              {!showSheetUrl ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSheetUrl(true)}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                    Manually attach a sheet URL
+                  </button>
+                  <p className="text-xxs text-slate-400 mt-1">
+                    SpartBoard auto-creates and shares a results sheet for your
+                    PLC. Use this only to point an older assignment at a
+                    different sheet.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                      Shared Google Sheet URL
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSheetUrl(false);
+                        setOptions((p) => ({ ...p, plcSheetUrl: '' }));
+                      }}
+                      className="text-xxs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                      Hide
+                    </button>
                   </div>
-                )}
-                <p className="text-xxs text-slate-400 mt-0.5">
-                  New PLC assignments now auto-create and share this sheet for
-                  you. You can still edit the URL here to point an older
-                  assignment at a different sheet.
-                </p>
-              </div>
+                  <input
+                    type="text"
+                    value={options.plcSheetUrl}
+                    onChange={(e) =>
+                      setOptions((p) => ({ ...p, plcSheetUrl: e.target.value }))
+                    }
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {plcSheetUrlInvalid && (
+                    <div className="flex items-center gap-1 mt-1 text-amber-600">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span className="text-xxs">
+                        This doesn&apos;t look like a Google Sheets URL
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-xxs text-slate-400 mt-0.5">
+                    New PLC assignments now auto-create and share this sheet for
+                    you. Use this to point an older assignment at a different
+                    sheet.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </>

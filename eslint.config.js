@@ -23,6 +23,15 @@ export default tseslint.config(
       'coverage',
       '.agents',
       '.gemini',
+      // .claude is gitignored but ESLint scans the filesystem regardless;
+      // stale Claude Code worktrees inside .claude/worktrees/ trip the
+      // typescript-eslint parser ("file not found in any provided project")
+      // because their files aren't in tsconfig. Ignore the whole tree.
+      '.claude',
+      // pnpm's content-addressed store contains hardlinks to project files
+      // (e.g. .pnpm-store/v10/projects/<hash>/src/) which both ESLint and
+      // Vitest will otherwise discover and double-process.
+      '.pnpm-store',
     ],
   },
   js.configs.recommended,

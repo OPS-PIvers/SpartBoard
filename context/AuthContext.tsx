@@ -241,6 +241,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [roleId, setRoleId] = useState<string | null>(
     isAuthBypass ? 'super_admin' : null
   );
+  const [isStudentRole, setIsStudentRole] = useState<boolean>(false);
+  // Two-part "have we figured out who this user is" gate. Both flags must be
+  // true for `roleResolved` to flip true. They're reset synchronously when
+  // `user` changes (see the adjusting-state block below) so a transition
+  // between users doesn't briefly carry the previous user's resolved state.
+  const [studentRoleResolved, setStudentRoleResolved] =
+    useState<boolean>(isAuthBypass);
+  const [membershipResolved, setMembershipResolved] =
+    useState<boolean>(isAuthBypass);
+  const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
@@ -256,6 +266,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // re-arms the write. A plain boolean would latch the first target
   // forever within a session.
   const memberLastActiveSyncedKeyRef = useRef<string | null>(null);
+
+  // Reset role-resolution flags synchronously when `user` changes. Without
+  // this, a re-render between users would briefly carry the previous user's
+  // resolved=true state, causing AppContent's student guard or
+  // DashboardContext's auto-create gate to act on stale data. Setting state
+  // during render (a supported React pattern: react.dev/learn/you-might-not-
+  // need-an-effect#adjusting-some-state-when-a-prop-changes) avoids the
+  // extra render that an effect would introduce.
+  if (resolvedForUser !== user) {
+    setResolvedForUser(user);
+    setStudentRoleResolved(isAuthBypass);
+    setMembershipResolved(isAuthBypass);
+    setIsStudentRole(false);
+  }
+  const roleResolved = studentRoleResolved && membershipResolved;
 
   // Keep language state in sync with i18next, including the async startup
   // detection that may resolve after the first render.
@@ -563,6 +588,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     void checkAdminStatus();
   }, [user]);
 
+  // Resolve the `studentRole` custom claim on the signed-in Firebase user.
+  // Real SSO students minted by `studentLoginV1` have `email: null`, so the
+  // org-members snapshot below never fires for them — meaning `roleId`
+  // stays null and a `roleId === 'student'` guard alone misses them.
+  // The claim is the only reliable client-side signal for an SSO student;
+  // App.tsx and DashboardContext.tsx both consume `isStudentRole` to keep
+  // them out of the teacher app.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user) {
+      setIsStudentRole(false);
+      // No user means there's nothing to resolve — keep `roleResolved`
+      // accurate for the signed-out state so the LoginScreen/redirect
+      // pipeline can still depend on it without stalling.
+      setStudentRoleResolved(true);
+      return;
+    }
+    // Capture the uid this effect run is resolving for, so a fast
+    // sign-out/in transition can't let the previous user's claim
+    // promise overwrite the new user's state. The effect-cleanup
+    // `cancelled` flag covers the common case via React's lifecycle,
+    // but a uid check is a cheap belt-and-suspenders against any
+    // microtask-ordering edge case.
+    const startUid = user.uid;
+    let cancelled = false;
+    user
+      .getIdTokenResult()
+      .then((result) => {
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
+        setIsStudentRole(result.claims.studentRole === true);
+        setStudentRoleResolved(true);
+      })
+      .catch((err) => {
+        if (cancelled || auth.currentUser?.uid !== startUid) return;
+        console.error('[AuthContext] Failed to read studentRole claim:', err);
+        setIsStudentRole(false);
+        setStudentRoleResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   // Subscribe to organization membership. Phase 2 hard-codes the single seeded
   // `orono` org; Phase 3+ will resolve orgId dynamically from a user→org
   // index. Rules allow a signed-in user to read their own member doc
@@ -574,13 +642,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setOrgId(null);
       setRoleId(null);
       setBuildingIds([]);
+      // No email means there's no member doc to look up — including the
+      // signed-out state and real SSO students whose custom token carries
+      // no email claim. Mark membership resolved immediately so consumers
+      // don't stall waiting for a snapshot that will never fire.
+      setMembershipResolved(true);
       return;
     }
 
+    // Capture the uid + email at subscription time so a late onSnapshot
+    // delivery (after `user` has changed but before unsubscribe is wired
+    // up) cannot overwrite the new user's state. React's effect cleanup
+    // covers the typical case, but defending in depth against snapshot
+    // -callback ordering is cheap and explicit.
+    const startUid = user.uid;
     const emailLower = user.email.toLowerCase();
     const unsub = onSnapshot(
       doc(db, 'organizations', DEFAULT_ORG_ID, 'members', emailLower),
       (snap) => {
+        if (auth.currentUser?.uid !== startUid) return;
         if (snap.exists()) {
           const member = snap.data() as MemberRecord;
           setOrgId(member.orgId ?? DEFAULT_ORG_ID);
@@ -591,12 +671,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setRoleId(null);
           setBuildingIds([]);
         }
+        setMembershipResolved(true);
       },
       (error) => {
+        if (auth.currentUser?.uid !== startUid) return;
         console.error('[AuthContext] Error loading org membership:', error);
         setOrgId(null);
         setRoleId(null);
         setBuildingIds([]);
+        // Even an error counts as "resolved" — we know there's no usable
+        // member data, and consumers shouldn't stall indefinitely.
+        setMembershipResolved(true);
       }
     );
 
@@ -1376,6 +1461,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAccountPreferences,
         orgId,
         roleId,
+        isStudentRole,
+        roleResolved,
         buildingIds,
         orgBuildings,
       }}

@@ -87,6 +87,23 @@ export interface AuthContextType {
   /** The user's role id within `orgId` (from the members doc). Null until resolved. */
   roleId: string | null;
   /**
+   * True when the signed-in Firebase user holds a `studentRole: true` custom
+   * claim — i.e. the token was minted by `studentLoginV1`. Real SSO students
+   * have no email and therefore no member doc, so `roleId` stays null for
+   * them; this flag is the only reliable client-side signal that a student
+   * is at the controls. False for teachers, admins, and unauthenticated.
+   */
+  isStudentRole: boolean;
+  /**
+   * True once both `isStudentRole` (from the token claim) AND `roleId` (from
+   * the org-members snapshot, or short-circuited when the user has no email)
+   * have settled to their final values for the current user. Consumers that
+   * need to make a "student vs teacher" decision should gate on this to avoid
+   * acting on stale or partially-resolved state during the window between
+   * sign-in and the async claim/Firestore resolution.
+   */
+  roleResolved: boolean;
+  /**
    * Building ids the user has scoped admin access to (from the members doc).
    * Distinct from `selectedBuildings`, which is a UI filter the user picks
    * themselves. Empty array when the user is not a member or has org-wide scope.
