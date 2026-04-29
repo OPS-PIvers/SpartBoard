@@ -890,10 +890,13 @@ export class QuizDriveService {
 
     // Step 1: clear the entire range. `values:clear` is range-scoped, so
     // we use the bare tab name to wipe every row including headers — we
-    // re-write them in step 2.
+    // re-write them in step 2. Body-less POST: use `authHeaders` (no
+    // Content-Type) rather than `jsonHeaders`, because some proxies and
+    // strict API implementations reject a Content-Type: application/json
+    // declaration on a request with no body.
     const clearRes = await fetch(
       `${SHEETS_API_URL}/${spreadsheetId}/values/${encodedTitle}:clear`,
-      { method: 'POST', headers: this.jsonHeaders }
+      { method: 'POST', headers: this.authHeaders }
     );
     if (!clearRes.ok) {
       if (clearRes.status === 404 || clearRes.status === 403) {
