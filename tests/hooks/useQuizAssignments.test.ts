@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -15,8 +16,14 @@ import type {
   SharedQuizAssignment,
 } from '@/types';
 
+// `deleteField()` returns a Firestore sentinel; the production code stores
+// the sentinel in the patch object and Firestore SDK interprets it on the
+// wire. For tests we use a unique branded marker so assertions can verify
+// the sentinel landed in the right field without depending on the real SDK.
+const DELETE_FIELD_SENTINEL = Symbol('test:deleteField()');
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
+  deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -33,6 +40,7 @@ vi.mock('@/config/firebase', () => ({
 }));
 
 const mockCollection = collection as Mock;
+const mockDeleteField = deleteField as Mock;
 const mockDoc = doc as Mock;
 const mockGetDoc = getDoc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
@@ -306,8 +314,11 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     return call[1] as Record<string, unknown>;
   }
 
-  it('clears originator-scoped PLC fields (plcMode, plcSheetUrl, plcMemberEmails) so the importer is not bound to the originator’s PLC', async () => {
-    const sharedDoc: Partial<SharedQuizAssignment> = {
+  it('clears the originator-scoped PLC linkage (plc sub-object) so the importer is not bound to the originator’s PLC', async () => {
+    // Pre-PlcLinkage docs were flat; the migration mapper folds them into
+    // `plc` on read. Use the LEGACY shape here to exercise the mapper
+    // path inside importSharedAssignment.
+    const sharedDoc = {
       title: 'Quiz Title',
       questions: [],
       createdAt: 1000,
@@ -316,6 +327,8 @@ describe('useQuizAssignments - importSharedAssignment', () => {
         sessionMode: 'teacher',
         sessionOptions: {},
         plcMode: true,
+        plcId: 'originator-plc',
+        plcName: 'Originator PLC',
         plcSheetUrl:
           'https://docs.google.com/spreadsheets/d/originator-sheet-id',
         plcMemberEmails: ['origA@example.com', 'origB@example.com'],
@@ -325,7 +338,7 @@ describe('useQuizAssignments - importSharedAssignment', () => {
       },
       originalAuthor: 'originator-uid',
       sharedAt: 1000,
-    };
+    } as unknown as SharedQuizAssignment;
     mockGetDoc.mockResolvedValueOnce({
       exists: () => true,
       data: () => sharedDoc,
@@ -342,6 +355,10 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     });
 
     const assignment = findAssignmentSet();
+    // After refactor: a single `plc` sub-object replaces the flat fields.
+    // For a non-member importer the linkage is stripped entirely, AND
+    // the legacy fields must not leak through onto the imported doc.
+    expect(assignment.plc).toBeUndefined();
     expect(assignment.plcMode).toBeUndefined();
     expect(assignment.plcSheetUrl).toBeUndefined();
     expect(assignment.plcMemberEmails).toBeUndefined();
@@ -351,6 +368,57 @@ describe('useQuizAssignments - importSharedAssignment', () => {
     expect(assignment.periodNames).toBeUndefined();
     // The teacherUid on the assignment must be the importer, not the originator:
     expect(assignment.teacherUid).toBe(TEACHER_UID);
+  });
+
+  it('preserves the PLC linkage for an importer that is a current member of the share’s PLC', async () => {
+    const sharedDoc = {
+      title: 'Quiz Title',
+      questions: [],
+      createdAt: 1,
+      updatedAt: 1,
+      assignmentSettings: {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        plc: {
+          id: 'plc-shared',
+          name: 'Shared PLC',
+          sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
+          memberEmails: ['a@example.com', 'b@example.com'],
+        },
+      },
+      originalAuthor: 'originator-uid',
+      sharedAt: 1,
+    } as unknown as SharedQuizAssignment;
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const saveQuiz = vi.fn().mockResolvedValue({ id: 'q', driveFileId: 'd' });
+    const onNonMember = vi.fn();
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.importSharedAssignment(
+        'share-id',
+        saveQuiz,
+        undefined,
+        {
+          isMember: (id) => id === 'plc-shared',
+          onNonMember,
+        }
+      );
+    });
+
+    const assignment = findAssignmentSet();
+    expect(assignment.plc).toEqual({
+      id: 'plc-shared',
+      name: 'Shared PLC',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/shared-sheet',
+      memberEmails: ['a@example.com', 'b@example.com'],
+    });
+    // Member path: the non-member nudge must NOT fire.
+    expect(onNonMember).not.toHaveBeenCalled();
   });
 
   it('creates the imported assignment in paused state so students cannot join before the teacher targets it', async () => {
@@ -588,5 +656,88 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       periodName: '',
       rosterIds: [],
     });
+  });
+});
+
+describe('useQuizAssignments - updateAssignmentSettings', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockReturnValue('coll-ref');
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  function findAssignmentPatch(): Record<string, unknown> {
+    const call = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!call) throw new Error('expected batch.update on assignment doc');
+    return call[1] as Record<string, unknown>;
+  }
+
+  it('translates explicit-undefined plc into deleteField() so toggle-OFF actually clears the linkage', async () => {
+    // Firestore is initialized with `ignoreUndefinedProperties: true`, so a
+    // raw `{ plc: undefined }` patch would be silently dropped on the wire
+    // and the existing `plc` field would stay on the doc. The hook must
+    // translate explicit-undefined into the deleteField() sentinel.
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        plc: undefined,
+      });
+    });
+
+    const patch = findAssignmentPatch();
+    expect(patch.plc).toBe(DELETE_FIELD_SENTINEL);
+    expect(mockDeleteField).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a real plc patch through unchanged (no deleteField translation)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    const linkage = {
+      id: 'plc-1',
+      name: 'Test PLC',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-id',
+      memberEmails: ['a@example.com'],
+    };
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        plc: linkage,
+      });
+    });
+
+    const patch = findAssignmentPatch();
+    expect(patch.plc).toEqual(linkage);
+    // No clear-intent, so the deleteField sentinel was never minted.
+    expect(mockDeleteField).not.toHaveBeenCalled();
+  });
+
+  it('does not translate to deleteField() when the plc key is absent from the patch (only explicit-undefined triggers clear)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        className: 'Period 3',
+      });
+    });
+
+    const patch = findAssignmentPatch();
+    expect(patch).not.toHaveProperty('plc');
+    expect(mockDeleteField).not.toHaveBeenCalled();
   });
 });

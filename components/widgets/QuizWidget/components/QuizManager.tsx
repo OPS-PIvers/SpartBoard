@@ -684,12 +684,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       onClick: () => void (onArchiveReopen ?? noop)(a),
     });
     secondaries.push({
-      id: 'reopen',
-      label: 'Reopen',
-      icon: RefreshCw,
-      onClick: () => (onArchiveReopen ?? noop)(a),
-    });
-    secondaries.push({
       id: 'delete',
       label: 'Delete',
       icon: Trash2,

@@ -28,6 +28,7 @@ import {
   User,
   Hash,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -37,7 +38,11 @@ import {
   QuizDriveService,
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
-import { gradeAnswer, getResponseDocKey } from '@/hooks/useQuizSession';
+import {
+  gradeAnswer,
+  getResponseDocKey,
+  type ResponseDocKey,
+} from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import {
   buildPinToNameMap,
@@ -86,6 +91,20 @@ interface QuizResultsProps {
    * recompute aggregate stats) and full tab reloads.
    */
   onExportUrlSaved?: (url: string) => Promise<void> | void;
+  /**
+   * Response keys ALREADY exported to the linked sheet, read from the
+   * assignment doc. Used by the UPDATE SHEET button to determine which
+   * responses still need to be appended.
+   */
+  initialExportedResponseIds?: string[] | null;
+  /**
+   * Persist the latest set of exported response keys back to the assignment
+   * doc so re-entering Results doesn't re-export rows that were already
+   * appended. Accepts `ResponseDocKey[]` to enforce caller-side correctness
+   * — the implementation re-casts to `string[]` at the Firestore write
+   * boundary (the wire format hasn't changed).
+   */
+  onExportedResponseIdsSaved?: (ids: ResponseDocKey[]) => Promise<void> | void;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -99,6 +118,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onPlcSheetUrlReplaced,
   initialExportUrl,
   onExportUrlSaved,
+  initialExportedResponseIds,
+  onExportedResponseIdsSaved,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -121,6 +142,25 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setLastInitialExportUrl(initialExportUrl);
     setExportUrl(initialExportUrl ?? null);
   }
+  // Internally we use the ResponseDocKey brand to enforce that callers
+  // never confuse a raw `string` with a response-doc key. The wire format
+  // (initialExportedResponseIds prop / Firestore `exportedResponseIds`)
+  // stays `string[]` for backwards compatibility — the cast happens at the
+  // boundary on read; the persist callback (`onExportedResponseIdsSaved`)
+  // accepts `ResponseDocKey[]` so the implementation can re-cast for
+  // Firestore.
+  const [exportedResponseIds, setExportedResponseIds] = useState<
+    ResponseDocKey[]
+  >((initialExportedResponseIds ?? []) as ResponseDocKey[]);
+  const [lastInitialExportedResponseIds, setLastInitialExportedResponseIds] =
+    useState<string[] | null | undefined>(initialExportedResponseIds);
+  if (initialExportedResponseIds !== lastInitialExportedResponseIds) {
+    setLastInitialExportedResponseIds(initialExportedResponseIds);
+    setExportedResponseIds(
+      (initialExportedResponseIds ?? []) as ResponseDocKey[]
+    );
+  }
+  const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students'
@@ -268,6 +308,81 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
   }, [completed.length, hasNames, addToast, handleSendToScoreboard]);
 
+  // Recovery path shared by handleExport (initial export) and
+  // handleUpdateSheet (delta append). When the configured PLC sheet is
+  // gone (404) or this teacher lacks access (403):
+  //   - 404 with a uniquely-resolved owning PLC: clear the cached URL,
+  //     create a fresh sheet in this teacher's Drive, share with
+  //     teammates, persist the canonical URL, then re-run the caller's
+  //     export via `retryExport` with the new URL substituted in.
+  //   - 403 with a uniquely-resolved owning PLC: throw a clear
+  //     "ask the PLC lead for access to {plcName}" message — the sheet
+  //     exists, regenerating would orphan it for teammates.
+  //   - Ambiguous matches or no PLC match: re-throw the original error
+  //     so we don't touch the wrong plcs/{id}.
+  // Returns the new sheet URL on successful regenerate, so callers can
+  // sync local state (e.g. `exportUrl`) to the canonical URL.
+  const recoverFromPlcSheetError = async (
+    exportErr: unknown,
+    exportOpts: Parameters<QuizDriveService['exportResultsToSheet']>[3],
+    retryExport: (
+      newOpts: Parameters<QuizDriveService['exportResultsToSheet']>[3]
+    ) => Promise<string>
+  ): Promise<{ url: string; canonical: string }> => {
+    if (
+      !(exportErr instanceof PlcSheetMissingError) ||
+      !user ||
+      !googleAccessToken ||
+      !exportOpts?.plcSheetUrl
+    ) {
+      throw exportErr;
+    }
+    // Use filter + require exactly-one match. `find` would silently
+    // pick the first when two PLCs accidentally share the same URL
+    // (legacy manual-paste assignments); we'd rather surface the
+    // original error than touch the wrong plcs/{id}.
+    const matchingPlcs = plcs.filter(
+      (p) => p.sharedSheetUrl === exportOpts.plcSheetUrl
+    );
+    const owningPlc = matchingPlcs.length === 1 ? matchingPlcs[0] : null;
+    if (exportErr.status === 403) {
+      // Don't toast here — both `handleExport` and `handleUpdateSheet` catch
+      // and toast `err.message`, so toasting from inside the helper produced
+      // duplicate toasts (Copilot review on PR #1442). The thrown Error
+      // carries the actionable message so the call-site toast stays clear.
+      const accessDeniedMessage = owningPlc
+        ? `You don't have access to the ${owningPlc.name} PLC sheet yet — ask the PLC lead to grant you writer access.`
+        : "You don't have access to this PLC sheet — ask the PLC lead to grant you writer access.";
+      throw new Error(accessDeniedMessage);
+    }
+    if (!owningPlc) {
+      throw exportErr;
+    }
+    const svc = new QuizDriveService(googleAccessToken);
+    await clearPlcSharedSheetUrl(owningPlc.id);
+    const created = await svc.createPlcSheetAndShare({
+      plcName: owningPlc.name,
+      memberEmailsToShareWith: getPlcTeammateEmails(owningPlc, user.uid),
+    });
+    const canonical = await setPlcSharedSheetUrl(owningPlc.id, created.url);
+    if (onPlcSheetUrlReplaced) {
+      try {
+        await onPlcSheetUrlReplaced(canonical);
+      } catch (persistErr) {
+        console.error(
+          '[QuizResults] Failed to persist regenerated PLC URL:',
+          persistErr
+        );
+      }
+    }
+    const url = await retryExport({ ...exportOpts, plcSheetUrl: canonical });
+    addToast(
+      'The previous PLC sheet was missing — created a fresh one.',
+      'info'
+    );
+    return { url, canonical };
+  };
+
   const handleExport = async () => {
     if (!googleAccessToken) {
       setExportError(
@@ -296,103 +411,205 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           exportOpts
         );
       } catch (exportErr) {
-        // Stale PLC sheet recovery, narrow:
-        //   - 404 = the sheet is gone in Drive. Clear cached URL on the
-        //     owning PLC, create a fresh sheet in this teacher's Drive,
-        //     share with teammates, retry. Safe because no one else has
-        //     a working URL either.
-        //   - 403 = the sheet exists, but THIS teacher lacks access.
-        //     Almost always means they're a member who joined after the
-        //     sheet was created and reconciliation hasn't run / failed.
-        //     Do NOT regenerate — that would orphan the existing sheet
-        //     for every teammate who can still reach it. Instead surface
-        //     a clear "ask the PLC lead for access" toast.
-        if (
-          !(exportErr instanceof PlcSheetMissingError) ||
-          !config.plcMode ||
-          !config.plcSheetUrl ||
-          !user
-        ) {
+        if (!config.plcMode) {
           throw exportErr;
         }
-        // Use filter + require exactly-one match. `find` would silently
-        // pick the first when two PLCs accidentally share the same URL
-        // (legacy manual-paste assignments); we'd rather surface the
-        // original error than touch the wrong plcs/{id}.
-        const matchingPlcs = plcs.filter(
-          (p) => p.sharedSheetUrl === config.plcSheetUrl
+        const recovered = await recoverFromPlcSheetError(
+          exportErr,
+          exportOpts,
+          (newOpts) =>
+            svc.exportResultsToSheet(
+              quiz.title,
+              responses,
+              quiz.questions,
+              newOpts
+            )
         );
-        const owningPlc = matchingPlcs.length === 1 ? matchingPlcs[0] : null;
-        if (exportErr.status === 403) {
-          // Rethrow with the actionable message so the inline export
-          // banner matches the toast — the raw PlcSheetMissingError
-          // message ("Shared PLC sheet is missing or inaccessible.")
-          // would be confusing here since the sheet isn't actually
-          // missing, this user just lacks writer access.
-          const accessDeniedMessage = owningPlc
-            ? `You don't have access to the ${owningPlc.name} PLC sheet yet — ask the PLC lead to grant you writer access.`
-            : "You don't have access to this PLC sheet — ask the PLC lead to grant you writer access.";
-          addToast(accessDeniedMessage, 'error');
-          throw new Error(accessDeniedMessage);
-        }
-        // 404 → regenerate, but only when we can pin the URL to a single
-        // PLC. Multiple matches → ambiguous, single none → we don't know
-        // which plcs/{id} to update.
-        if (!owningPlc) {
-          throw exportErr;
-        }
-        await clearPlcSharedSheetUrl(owningPlc.id);
-        const created = await svc.createPlcSheetAndShare({
-          plcName: owningPlc.name,
-          memberEmailsToShareWith: getPlcTeammateEmails(owningPlc, user.uid),
-        });
-        const canonical = await setPlcSharedSheetUrl(owningPlc.id, created.url);
-        // Persist the new canonical URL onto the widget config + active
-        // assignment so the next export doesn't re-trigger the 404 path
-        // against the stale URL still cached on those docs.
-        if (onPlcSheetUrlReplaced) {
-          try {
-            await onPlcSheetUrlReplaced(canonical);
-          } catch (persistErr) {
-            console.error(
-              '[QuizResults] Failed to persist regenerated PLC URL:',
-              persistErr
-            );
-          }
-        }
-        url = await svc.exportResultsToSheet(
-          quiz.title,
-          responses,
-          quiz.questions,
-          { ...exportOpts, plcSheetUrl: canonical }
-        );
-        addToast(
-          'The previous PLC sheet was missing — created a fresh one.',
-          'info'
-        );
+        url = recovered.url;
       }
       setExportUrl(url);
+      // Snapshot every response key we just exported so the UPDATE SHEET
+      // button can later append only the rows that come in afterwards.
+      const exportedIds = responses.map((r) => getResponseDocKey(r));
+      setExportedResponseIds(exportedIds);
       if (onExportUrlSaved) {
-        // Fire-and-forget: the sheet already exists and the local button is
-        // wired up for this session, so we don't want to keep `exporting`
-        // true (and delay the success toast) waiting on a Firestore round
-        // trip. A failed persist just means the button reverts to EXPORT
-        // on the next remount; log so the teacher isn't surprised without
-        // any diagnostic trail.
+        // Fire-and-forget: lower-stakes than the exported-IDs persist
+        // below. Worst case the button reverts to EXPORT on next remount.
         void Promise.resolve(onExportUrlSaved(url)).catch((err: unknown) => {
-          console.warn(
+          console.error(
             '[QuizResults] failed to persist exportUrl to assignment doc',
             err
           );
         });
       }
+      if (onExportedResponseIdsSaved) {
+        // Await: a failed persist here means the assignment doc keeps
+        // stale exported IDs. Next session re-seeds from stale Firestore
+        // and UPDATE SHEET re-appends already-exported rows. Surface a
+        // warning toast and don't claim success.
+        try {
+          await onExportedResponseIdsSaved(exportedIds);
+        } catch (persistErr) {
+          console.error(
+            '[QuizResults] failed to persist exportedResponseIds to assignment doc',
+            persistErr
+          );
+          addToast(
+            'Export succeeded, but we could not record which rows were saved. Avoid using UPDATE SHEET in this session.',
+            'error'
+          );
+          return;
+        }
+      }
       if (config.plcMode) {
         addToast('Results exported to shared PLC sheet', 'success');
       }
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Export failed');
+      const msg = err instanceof Error ? err.message : 'Export failed';
+      setExportError(msg);
+      addToast(msg, 'error');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const newResponsesToAppend = useMemo(() => {
+    if (!exportUrl) return [];
+    const exportedSet = new Set(exportedResponseIds);
+    return responses.filter((r) => !exportedSet.has(getResponseDocKey(r)));
+  }, [exportUrl, exportedResponseIds, responses]);
+
+  // Tracking is "initialized" once a per-response export-id snapshot exists
+  // for this assignment. Two cases set it: (1) the prop hydrated with a
+  // non-null array from Firestore, (2) we just ran an in-session export which
+  // populated `exportedResponseIds` locally. Without tracking, an UPDATE
+  // SHEET click would treat the empty set as "everything is new" and
+  // duplicate-append every row to the sheet — see Copilot review on PR #1442.
+  const trackingInitialized =
+    exportedResponseIds.length > 0 || initialExportedResponseIds != null;
+  // Solo-mode export sheets carry a "Question Analysis" stats block at the
+  // bottom (see quizDriveService.exportResultsToSheet solo branch). Appending
+  // would land NEW response rows AFTER the stats, fragmenting the sheet.
+  // PLC-mode sheets are append-friendly by construction (Results tab is
+  // header + rows, no trailing blocks).
+  const canShowUpdateSheet = !!config.plcMode && trackingInitialized;
+
+  const handleUpdateSheet = async () => {
+    if (!exportUrl || newResponsesToAppend.length === 0) return;
+    if (!googleAccessToken) {
+      setExportError(
+        'Google access token not available. Please sign in again.'
+      );
+      return;
+    }
+    setUpdatingSheet(true);
+    setExportError(null);
+    try {
+      const svc = new QuizDriveService(googleAccessToken);
+      // Reuse the PLC-mode append path for this PLC-only update flow: it
+      // rebuilds the same headers + rows shape as the original PLC export
+      // and uses appendToExistingSheet under the hood for the linked PLC
+      // sheet. UPDATE SHEET is gated on `config.plcMode` upstream
+      // (`canShowUpdateSheet`) — solo-mode sheets carry a trailing stats
+      // block that would be fragmented by an append.
+      const exportOpts = {
+        pinToName: exportPinToName,
+        byStudentUid,
+        teacherName: config.teacherName,
+        periodName: config.periodName,
+        plcMode: true,
+        plcSheetUrl: exportUrl,
+      };
+      let regeneratedSheet = false;
+      try {
+        await svc.exportResultsToSheet(
+          quiz.title,
+          newResponsesToAppend,
+          quiz.questions,
+          exportOpts
+        );
+      } catch (updateErr) {
+        // Only attempt PLC recovery for PLC-linked sheets; a solo sheet
+        // 404/403 has no plcs/{id} to update and we should surface as-is.
+        if (!config.plcMode) {
+          throw updateErr;
+        }
+        const recovered = await recoverFromPlcSheetError(
+          updateErr,
+          exportOpts,
+          (newOpts) =>
+            // The regenerated sheet is empty, so we re-export ALL
+            // responses (not just the previously-pending delta). The
+            // exportedResponseIds reset below mirrors that.
+            svc.exportResultsToSheet(
+              quiz.title,
+              responses,
+              quiz.questions,
+              newOpts
+            )
+        );
+        regeneratedSheet = true;
+        // Sync local "OPEN SHEET" link to the new sheet so the teacher
+        // doesn't click through to the now-stale URL.
+        setExportUrl(recovered.canonical);
+        // Persist the regenerated URL onto the assignment doc too —
+        // without this, a reload rehydrates `initialExportUrl` from the
+        // stale dead URL, OPEN SHEET points at the wrong place, and the
+        // next UPDATE SHEET re-triggers the same 404 → regenerate cycle
+        // creating yet another orphan sheet. (Final-review finding on
+        // PR #1442.)
+        if (onExportUrlSaved) {
+          void Promise.resolve(onExportUrlSaved(recovered.canonical)).catch(
+            (persistErr: unknown) => {
+              console.error(
+                '[QuizResults] failed to persist regenerated exportUrl after update',
+                persistErr
+              );
+            }
+          );
+        }
+      }
+      // After a regenerated-sheet retry the sheet now contains every
+      // response (we passed `responses` to retry), so the exported set
+      // is the full list. The non-recovery path also lands here with
+      // the same all-IDs snapshot — newResponsesToAppend was the delta
+      // BEFORE the append, so post-append the union is every response.
+      const allIds = responses.map((r) => getResponseDocKey(r));
+      setExportedResponseIds(allIds);
+      if (onExportedResponseIdsSaved) {
+        // Await: same rationale as handleExport — fire-and-forget here
+        // would let UPDATE SHEET silently re-append duplicate rows on
+        // the next session if the persist fails.
+        try {
+          await onExportedResponseIdsSaved(allIds);
+        } catch (persistErr) {
+          console.error(
+            '[QuizResults] failed to persist exportedResponseIds after update',
+            persistErr
+          );
+          addToast(
+            'Update succeeded, but we could not record which rows were saved. Avoid using UPDATE SHEET again in this session.',
+            'error'
+          );
+          return;
+        }
+      }
+      addToast(
+        regeneratedSheet
+          ? `The previous PLC sheet was missing — created a fresh one and exported all ${responses.length} response${
+              responses.length === 1 ? '' : 's'
+            }.`
+          : `Added ${newResponsesToAppend.length} new response${
+              newResponsesToAppend.length === 1 ? '' : 's'
+            } to the sheet.`,
+        'success'
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Update failed';
+      setExportError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setUpdatingSheet(false);
     }
   };
 
@@ -513,25 +730,90 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           </div>
         )}
         {exportUrl ? (
-          <a
-            href={exportUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
-            }}
-          >
-            <ExternalLink
+          <>
+            <a
+              href={exportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
               style={{
-                width: 'min(14px, 4cqmin)',
-                height: 'min(14px, 4cqmin)',
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3.5cqmin)',
               }}
-            />
-            OPEN SHEET
-          </a>
+            >
+              <ExternalLink
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+              OPEN SHEET
+            </a>
+            {canShowUpdateSheet && (
+              // Wrapping span owns the title attribute so the "Sheet is up
+              // to date" hover hint still renders when the button itself
+              // is disabled — most browsers swallow `title` on disabled
+              // <button> elements (Copilot review on PR #1442).
+              <span
+                title={
+                  newResponsesToAppend.length === 0
+                    ? 'Sheet is up to date'
+                    : `Add ${newResponsesToAppend.length} new response${
+                        newResponsesToAppend.length === 1 ? '' : 's'
+                      } to the sheet`
+                }
+                className="shrink-0 inline-flex"
+              >
+                <button
+                  onClick={() => void handleUpdateSheet()}
+                  disabled={updatingSheet || newResponsesToAppend.length === 0}
+                  aria-label={
+                    newResponsesToAppend.length === 0
+                      ? 'Update sheet (already up to date)'
+                      : `Update sheet (${newResponsesToAppend.length} pending)`
+                  }
+                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    fontSize: 'min(11px, 3.5cqmin)',
+                  }}
+                >
+                  {updatingSheet ? (
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <RefreshCw
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  )}
+                  UPDATE SHEET
+                  {newResponsesToAppend.length > 0 && (
+                    <span
+                      className="ml-1 inline-flex items-center justify-center bg-white/25 rounded-full font-black"
+                      style={{
+                        minWidth: 'min(18px, 5cqmin)',
+                        height: 'min(18px, 5cqmin)',
+                        padding: '0 min(6px, 1.5cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                    >
+                      {newResponsesToAppend.length}
+                    </span>
+                  )}
+                </button>
+              </span>
+            )}
+          </>
         ) : (
           <button
             onClick={() => void handleExport()}
@@ -544,7 +826,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
             }}
           >
             {exporting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
             ) : (
               <Download
                 style={{
@@ -958,8 +1246,9 @@ const StudentsTab: React.FC<{
   addToast,
 }) => {
   const [showResults, setShowResults] = useState(false);
-  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] =
+    useState<ResponseDocKey | null>(null);
+  const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   const gamified = isGamificationActive(session);
   const suffix = getScoreSuffix(session);

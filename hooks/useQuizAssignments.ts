@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   getDoc,
@@ -27,6 +28,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
+  PlcLinkage,
   QuizAssignment,
   QuizAssignmentSettings,
   QuizAssignmentStatus,
@@ -40,6 +42,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
   toPublicQuestion,
+  type ResponseDocKey,
 } from './useQuizSession';
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -124,6 +127,21 @@ export interface UseQuizAssignmentsResult {
    * "Export".
    */
   setAssignmentExportUrl: (assignmentId: string, url: string) => Promise<void>;
+  /**
+   * Persist the set of response keys that have been written to the linked
+   * sheet. Powers the "Update Sheet" affordance in QuizResults — the next
+   * incremental append filters out responses already in this list so we
+   * don't duplicate already-exported rows.
+   *
+   * Accepts `ResponseDocKey[]` so the compiler enforces that callers pass
+   * the branded keys returned by `getResponseDocKey` (not arbitrary
+   * strings). The implementation casts to `string[]` at the Firestore
+   * write boundary — the wire format hasn't changed.
+   */
+  setAssignmentExportedResponseIds: (
+    assignmentId: string,
+    responseIds: ResponseDocKey[]
+  ) => Promise<void>;
   /** Publish this assignment as a shareable link. Returns the /share/assignment/{id} URL. */
   shareAssignment: (
     assignmentId: string,
@@ -145,8 +163,122 @@ export interface UseQuizAssignmentsResult {
   importSharedAssignment: (
     shareId: string,
     saveQuiz: (quiz: QuizData) => Promise<{ id: string; driveFileId: string }>,
-    rollbackQuiz?: (saved: { id: string; driveFileId: string }) => Promise<void>
+    rollbackQuiz?: (saved: {
+      id: string;
+      driveFileId: string;
+    }) => Promise<void>,
+    /**
+     * Optional PLC handling. Bundled into a single object so the contract
+     * "PLC handling is opt-in as a unit" is visible in the type — both
+     * `isMember` and `onNonMember` are required when the caller opts in.
+     *
+     * - `isMember(plcId)`: returns true iff the importer is a current member
+     *   of the share's originating PLC. When the share doc carries a
+     *   `plc.id` and this returns true, PLC linkage is preserved on the
+     *   imported doc so the importer's exports route to the same shared
+     *   sheet. Otherwise the linkage is stripped.
+     * - `onNonMember`: invoked when the share carries a PLC linkage but the
+     *   importer is not a member, so the caller can surface a "not in this
+     *   PLC" nudge toast.
+     */
+    plcHandling?: {
+      isMember: (plcId: string) => boolean;
+      onNonMember: (info: { plcId: string; plcName: string }) => void;
+    }
   ) => Promise<string>;
+}
+
+/**
+ * Read-side compatibility mapper for the pre-PlcLinkage flat shape. Existing
+ * Firestore docs were written with `plcMode`/`plcSheetUrl`/`plcId`/
+ * `plcName`/`plcMemberEmails` as flat fields on the assignment (or
+ * SharedQuizAssignment.assignmentSettings). The refactor consolidates those
+ * into a single `plc: PlcLinkage` sub-object.
+ *
+ * Behaviour:
+ * - If `plc` is already set, the doc is post-refactor — pass through.
+ * - If the legacy fields form a complete linkage (`plcMode === true` AND
+ *   `plcSheetUrl` AND `plcId` AND `plcName` are all populated), build a
+ *   `plc` sub-object and strip the legacy fields so downstream code only
+ *   sees one shape.
+ * - Partial-legacy docs (e.g. `plcMode: true` but missing one of `plcId`/
+ *   `plcName`/`plcSheetUrl`, possible for assignments created before
+ *   PR #1442 added `plcId`/`plcName`) pass through WITHOUT a `plc` field
+ *   and with the legacy fields stripped — degraded state, treated as
+ *   non-PLC mode rather than crashing. This matches the non-PLC path and
+ *   is safe.
+ *
+ * Generic over the doc shape so it can be applied to both QuizAssignment
+ * (returns `Omit<T, legacyKeys> & { plc?: PlcLinkage }`) and the inner
+ * `assignmentSettings` shape on SharedQuizAssignment.
+ */
+type LegacyPlcShape = {
+  plcMode?: boolean;
+  plcSheetUrl?: string;
+  plcId?: string;
+  plcName?: string;
+  plcMemberEmails?: string[];
+  plc?: PlcLinkage;
+};
+const LEGACY_PLC_KEYS = [
+  'plcMode',
+  'plcSheetUrl',
+  'plcId',
+  'plcName',
+  'plcMemberEmails',
+] as const;
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+// Validate an inbound `plc` sub-object before trusting it. A partial or
+// malformed shape would otherwise propagate downstream where consumers
+// assume "present-and-complete." Returns a fresh object (no aliasing) or
+// `undefined` to drop the linkage.
+function getValidPlcLinkage(
+  plc: PlcLinkage | undefined
+): PlcLinkage | undefined {
+  if (!plc) return undefined;
+  const { id, name, sheetUrl, memberEmails } = plc;
+  const ok =
+    isNonEmptyString(id) &&
+    isNonEmptyString(name) &&
+    isNonEmptyString(sheetUrl) &&
+    Array.isArray(memberEmails) &&
+    memberEmails.every((e) => isNonEmptyString(e));
+  if (!ok) return undefined;
+  return { id, name, sheetUrl, memberEmails: [...memberEmails] };
+}
+
+function migrateLegacyAssignmentShape<T extends LegacyPlcShape>(
+  data: T
+): Omit<T, (typeof LEGACY_PLC_KEYS)[number]> & { plc?: PlcLinkage } {
+  const cleaned = { ...data };
+  for (const key of LEGACY_PLC_KEYS) delete cleaned[key];
+
+  // Already migrated (or partially-bad nested shape): trust the nested
+  // object only if it passes structural validation; otherwise drop it
+  // (downgrades to non-PLC mode rather than silently propagating a
+  // broken state).
+  if (data.plc) {
+    const valid = getValidPlcLinkage(data.plc);
+    return valid ? { ...cleaned, plc: valid } : cleaned;
+  }
+
+  const { plcMode, plcSheetUrl, plcId, plcName, plcMemberEmails } = data;
+  if (plcMode === true && !!plcSheetUrl && !!plcId && !!plcName) {
+    return {
+      ...cleaned,
+      plc: {
+        id: plcId,
+        name: plcName,
+        sheetUrl: plcSheetUrl,
+        memberEmails: plcMemberEmails ?? [],
+      },
+    };
+  }
+  // Degraded-state or non-PLC doc: pass through without `plc`.
+  return cleaned;
 }
 
 /** Unique 6-char join code generator with collision check against live sessions. */
@@ -211,7 +343,11 @@ export const useQuizAssignments = (
       q,
       (snap) => {
         setAssignments(
-          snap.docs.map((d) => ({ ...d.data(), id: d.id }) as QuizAssignment)
+          snap.docs.map((d) => {
+            const raw = { ...d.data(), id: d.id } as QuizAssignment &
+              LegacyPlcShape;
+            return migrateLegacyAssignmentShape(raw) as QuizAssignment;
+          })
         );
         setLoading(false);
       },
@@ -251,12 +387,12 @@ export const useQuizAssignments = (
         className: settings.className,
         sessionMode: settings.sessionMode,
         sessionOptions: settings.sessionOptions,
-        plcMode: settings.plcMode,
-        plcSheetUrl: settings.plcSheetUrl,
+        // PLC linkage: present iff the caller opted into PLC mode at create
+        // time. Stored as the new sub-object shape (PR #1442 follow-up).
+        ...(settings.plc ? { plc: settings.plc } : {}),
         teacherName: settings.teacherName,
         periodName: settings.periodName,
         periodNames: settings.periodNames,
-        plcMemberEmails: settings.plcMemberEmails,
         attemptLimit: settings.attemptLimit ?? null,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
       };
@@ -491,10 +627,27 @@ export const useQuizAssignments = (
     async (assignmentId, patch) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      // Firestore is initialized with `ignoreUndefinedProperties: true`
+      // (config/firebase.ts), which silently drops keys whose value is
+      // `undefined`. That breaks the toggle-OFF use case for `plc` —
+      // the modal sends `{ plc: undefined }` to mean "clear it" but the
+      // existing field stays on the doc. Translate explicit-undefined on
+      // the `plc` key to `deleteField()` so the doc actually loses PLC
+      // mode. (Final-review finding on PR #1442.)
+      const assignmentPatch: Record<string, unknown> = {
+        ...patch,
+        updatedAt: now,
+      };
+      if (
+        Object.prototype.hasOwnProperty.call(patch, 'plc') &&
+        patch.plc === undefined
+      ) {
+        assignmentPatch.plc = deleteField();
+      }
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        { ...patch, updatedAt: now } as Record<string, unknown>
+        assignmentPatch
       );
       // Mirror period and session-option changes to the session doc so
       // students can read available periods and updated toggles.
@@ -601,6 +754,24 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const setAssignmentExportedResponseIds = useCallback<
+    UseQuizAssignmentsResult['setAssignmentExportedResponseIds']
+  >(
+    async (assignmentId, responseIds) => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+        {
+          // Cast to plain string[] at the Firestore boundary — the brand
+          // is application-level only, the wire format is `string[]`.
+          exportedResponseIds: responseIds as string[],
+          updatedAt: Date.now(),
+        }
+      );
+    },
+    [userId]
+  );
+
   const shareAssignment = useCallback<
     UseQuizAssignmentsResult['shareAssignment']
   >(
@@ -610,7 +781,9 @@ export const useQuizAssignments = (
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
       if (!snap.exists()) throw new Error('Assignment not found');
-      const assignment = snap.data() as QuizAssignment;
+      const assignment = migrateLegacyAssignmentShape(
+        snap.data() as QuizAssignment & LegacyPlcShape
+      ) as QuizAssignment;
 
       const payload: Omit<SharedQuizAssignment, 'id'> = {
         title: quizData.title,
@@ -621,12 +794,10 @@ export const useQuizAssignments = (
           className: assignment.className,
           sessionMode: assignment.sessionMode,
           sessionOptions: assignment.sessionOptions,
-          plcMode: assignment.plcMode,
-          plcSheetUrl: assignment.plcSheetUrl,
+          ...(assignment.plc ? { plc: assignment.plc } : {}),
           teacherName: assignment.teacherName,
           periodName: assignment.periodName,
           periodNames: assignment.periodNames,
-          plcMemberEmails: assignment.plcMemberEmails,
         },
         originalAuthor: userId,
         sharedAt: Date.now(),
@@ -643,14 +814,25 @@ export const useQuizAssignments = (
   const importSharedAssignment = useCallback<
     UseQuizAssignmentsResult['importSharedAssignment']
   >(
-    async (shareId, saveQuiz, rollbackQuiz) => {
+    async (shareId, saveQuiz, rollbackQuiz, plcHandling) => {
       if (!userId) throw new Error('Not authenticated');
 
       const snap = await getDoc(
         doc(db, SHARED_ASSIGNMENTS_COLLECTION, shareId)
       );
       if (!snap.exists()) throw new Error('Shared assignment not found');
-      const shared = snap.data() as SharedQuizAssignment;
+      // Apply legacy-shape migration so older share docs (written before
+      // the PlcLinkage refactor with flat `plcMode`/`plcSheetUrl`/etc.
+      // fields on `assignmentSettings`) read as the canonical `plc`
+      // sub-object shape — every downstream branch below sees one shape.
+      const sharedRaw = snap.data() as SharedQuizAssignment;
+      const shared: SharedQuizAssignment = {
+        ...sharedRaw,
+        assignmentSettings: migrateLegacyAssignmentShape(
+          sharedRaw.assignmentSettings as QuizAssignmentSettings &
+            LegacyPlcShape
+        ) as QuizAssignmentSettings,
+      };
 
       // 1. Copy the quiz into the importer's library.
       const now = Date.now();
@@ -672,34 +854,53 @@ export const useQuizAssignments = (
       //     3rd Period"). Cosmetic-only but confusing UX if left in
       //     place — Teacher B sees Teacher A's label as the subtitle
       //     on her own assignment card.
-      //   - plcSheetUrl: points at the ORIGINATOR's PLC Google Sheet.
-      //     If left in place, the importer's first results export
-      //     takes this URL (see QuizResults.tsx → exportResultsToSheet)
-      //     and calls Drive against a sheet the importer isn't shared
-      //     on — a 403, which used to surface as a silent
-      //     "Missing or insufficient permissions" console error.
-      //     Clearing it lets the auto-create path on first PLC
-      //     assignment populate the importer's own sheet instead.
-      //   - plcMemberEmails: originator's PLC roster. Not consumed
-      //     by the importer's start-flow today (Widget.tsx derives
-      //     sharing from the live `plc` doc via getPlcTeammateEmails),
-      //     but cleared for hygiene — leaving someone else's email
-      //     roster on the doc is a future-foot-gun.
-      //   - plcMode: cleared so the importer explicitly opts in to
-      //     PLC mode for their own assignment via the settings modal,
-      //     keeping plcSheetUrl/plcMemberEmails repopulation tied to
-      //     the importer's own PLC selection rather than the
-      //     originator's.
-      const importedSettings = {
+      //   - plc.sheetUrl: points at the ORIGINATOR's PLC Google Sheet.
+      //     If left in place, the importer's first results export takes
+      //     this URL (see QuizResults.tsx → exportResultsToSheet) and
+      //     calls Drive against a sheet the importer isn't shared on —
+      //     a 403. Clearing the whole `plc` linkage lets the auto-create
+      //     path on first PLC assignment populate the importer's own
+      //     sheet instead.
+      //   - plc.memberEmails: originator's PLC roster. Not consumed by
+      //     the importer's start-flow today (Widget.tsx derives sharing
+      //     from the live `plc` doc via getPlcTeammateEmails), but
+      //     cleared for hygiene — leaving someone else's email roster
+      //     on the doc is a future-foot-gun.
+      //   - plc itself: cleared so the importer explicitly opts back in
+      //     to PLC mode for their own assignment via the settings modal,
+      //     keeping repopulation tied to the importer's own PLC selection
+      //     rather than the originator's.
+      //
+      // EXCEPTION: members of the share's PLC keep `plc` wiring so their
+      // exports route to the same shared sheet that the originator and
+      // every other peer use (already shared with all members at sheet
+      // creation time in Widget.tsx → createPlcSheetAndShare).
+      const sharedPlc = shared.assignmentSettings.plc;
+      const importerIsPlcMember =
+        !!sharedPlc && !!plcHandling && plcHandling.isMember(sharedPlc.id);
+
+      const importedSettings: QuizAssignmentSettings = {
         ...shared.assignmentSettings,
         className: undefined,
         teacherName: undefined,
         periodName: undefined,
         periodNames: undefined,
-        plcMode: undefined,
-        plcSheetUrl: undefined,
-        plcMemberEmails: undefined,
+        plc: importerIsPlcMember ? shared.assignmentSettings.plc : undefined,
       };
+
+      if (sharedPlc && !importerIsPlcMember && plcHandling) {
+        try {
+          plcHandling.onNonMember({
+            plcId: sharedPlc.id,
+            plcName: sharedPlc.name,
+          });
+        } catch (cbErr) {
+          console.error(
+            '[importSharedAssignment] plcHandling.onNonMember threw:',
+            cbErr
+          );
+        }
+      }
       // Intentionally omit classIds/rosterIds: the shared doc's targeting
       // refers to rosters in the ORIGINATOR's account and would be dangling
       // refs here. The importer retargets on first launch via AssignClassPicker,
@@ -756,6 +957,7 @@ export const useQuizAssignments = (
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentExportedResponseIds,
     shareAssignment,
     importSharedAssignment,
   };

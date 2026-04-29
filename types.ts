@@ -2027,6 +2027,40 @@ export interface QuizConfig {
 export type QuizAssignmentStatus = 'active' | 'paused' | 'inactive';
 
 /**
+ * PLC linkage for a quiz assignment. Present iff the assignment is in PLC
+ * mode (the originator opted into "Share with PLC" at create time, or the
+ * importer is a member of the originator's PLC). The presence of this
+ * sub-object is the canonical predicate — `plcMode` was a separate boolean
+ * pre-refactor and is now derived as `!!settings.plc`.
+ *
+ * All four fields are required-when-present so the type makes the implicit
+ * invariant explicit: a PLC-mode assignment always has an id, a name, a
+ * sheet URL, and a member-email roster snapshot. Pre-refactor docs that
+ * had `plcMode === true` but were missing one of `plcId`/`plcName`/
+ * `plcSheetUrl` are degraded-state — the read mapper passes them through
+ * WITHOUT a `plc` field, matching the non-PLC code path so downstream
+ * consumers don't see partial-PLC objects.
+ */
+export interface PlcLinkage {
+  /**
+   * Id of the PLC this assignment is shared with. Used by the importer to
+   * decide whether to preserve PLC linkage (member) or strip it and surface
+   * a "you're not in this PLC" prompt (non-member).
+   */
+  id: string;
+  /**
+   * Display name of the PLC at the time of assignment creation. Snapshotted
+   * onto the share doc so the non-member toast can name the PLC even though
+   * the importer can't read the live `/plcs/{plcId}` doc (rules block it).
+   */
+  name: string;
+  /** URL of the shared Google Sheet that PLC results export to. */
+  sheetUrl: string;
+  /** Snapshot of the PLC member emails at create time. */
+  memberEmails: string[];
+}
+
+/**
  * Settings that can be carried between assignments and are shareable in PLCs.
  * These do NOT include the quiz content itself — content is always sourced from the library.
  */
@@ -2035,15 +2069,19 @@ export interface QuizAssignmentSettings {
   className?: string;
   sessionMode: QuizSessionMode;
   sessionOptions: QuizSessionOptions;
-  /** PLC mode: export results to a shared Google Sheet */
-  plcMode?: boolean;
-  plcSheetUrl?: string;
+  /**
+   * PLC linkage. Present iff the assignment is "PLC mode" — exporting to
+   * a shared Google Sheet for the PLC team. Use `!!settings.plc` as the
+   * canonical predicate; pre-refactor flat fields (`plcMode`, `plcSheetUrl`,
+   * `plcId`, `plcName`, `plcMemberEmails`) are mapped into this sub-object
+   * by `migrateLegacyAssignmentShape` on read.
+   */
+  plc?: PlcLinkage;
   teacherName?: string;
   /** @deprecated Use periodNames instead. Kept for backwards compat. */
   periodName?: string;
   /** Selected class period roster names. Replaces singular periodName. */
   periodNames?: string[];
-  plcMemberEmails?: string[];
   /**
    * Max completed submissions allowed per student. `null`/`undefined` means
    * unlimited (legacy). `1` (default for new assignments) means one-and-done.
@@ -2083,6 +2121,25 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * the same sheet if re-exported.
    */
   exportUrl?: string;
+  /**
+   * Response keys (`getResponseDocKey`) that have already been written to
+   * the linked sheet. Powers the "Update Sheet" affordance: the next update
+   * appends only the responses NOT in this set, so re-exporting after more
+   * students finish doesn't duplicate already-exported rows.
+   *
+   * Set chosen over a (createdAt, key) cursor because the set is correct
+   * even when responses arrive out-of-order (network hiccups, retroactive
+   * writes from anonymous students reconnecting), whereas a cursor would
+   * silently miss any response with `createdAt < cursor`. The unbounded-
+   * growth concern is real but distant: each key is ~15-20 bytes, and the
+   * realistic ceiling for a single PLC assignment shared across a team is
+   * a few hundred to low thousands of rows — orders of magnitude under
+   * Firestore's 1MiB doc limit. If a PLC ever sustains tens of thousands
+   * of rows on one assignment, switch this to a separate subcollection or
+   * a (createdAt, key) cursor with a deterministic sort order at append
+   * time.
+   */
+  exportedResponseIds?: string[];
 }
 
 /**

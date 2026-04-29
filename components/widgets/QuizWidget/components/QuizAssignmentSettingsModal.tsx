@@ -76,10 +76,10 @@ function initialOptionsFor(a: QuizAssignment): SettingsOptions {
     // Legacy assignments have no attemptLimit — preserve "unlimited" for
     // those rather than retroactively capping ongoing sessions.
     attemptLimit: a.attemptLimit ?? null,
-    plcMode: a.plcMode ?? false,
+    plcMode: !!a.plc,
     teacherName: a.teacherName ?? '',
     selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
-    plcSheetUrl: a.plcSheetUrl ?? '',
+    plcSheetUrl: a.plc?.sheetUrl ?? '',
   };
 }
 
@@ -124,7 +124,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   // URL is already attached (legacy assignments / explicit overrides),
   // because new PLC assignments auto-create and share a sheet.
   const [showSheetUrl, setShowSheetUrl] = useState(
-    Boolean(assignment.plcSheetUrl)
+    Boolean(assignment.plc?.sheetUrl)
   );
 
   const plcSheetUrlInvalid =
@@ -150,16 +150,41 @@ export const QuizAssignmentSettingsModal: React.FC<
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
     // updateDoc to skip the field and leave the previous value in place.
+    //
+    // PLC linkage rebuild rules: when the toggle is on, carry the current
+    // linkage's id/name/memberEmails through and overlay the (possibly
+    // edited) sheet URL. When off, write `undefined` to clear the linkage
+    // entirely. The current `assignment.plc` is the safe carrier — it was
+    // either set at create time (Widget.tsx → createAssignment) or by a
+    // prior save through this modal.
+    // Only patch `plc` when we have a real existing linkage to overlay onto.
+    // Toggling PLC mode on without an `assignment.plc` record would persist
+    // a placeholder with empty `id`/`name`, which downstream code treats as
+    // a valid PLC linkage — that breaks sharing/membership checks and sheet
+    // export. The teacher should re-run assignment-create to acquire a real
+    // linkage. (Copilot review on PR #1442.)
+    //
+    // Empty `trimmedSheetUrl` is a Hide / cancel: the user collapsed the
+    // manual-attach disclosure, which clears the form input. We keep the
+    // assignment's existing `plc` unchanged rather than overwriting
+    // `sheetUrl` with `''` — the empty value would be dropped by the
+    // read-side validator on next snapshot and silently lose PLC mode.
+    const trimmedSheetUrl = options.plcSheetUrl.trim();
+    const plcPatch: QuizAssignmentSettings['plc'] =
+      options.plcMode && assignment.plc
+        ? trimmedSheetUrl === ''
+          ? assignment.plc
+          : { ...assignment.plc, sheetUrl: trimmedSheetUrl }
+        : undefined;
     const patch: Partial<QuizAssignmentSettings> = {
       className: options.className.trim(),
       sessionMode: modeLocked ? assignment.sessionMode : sessionMode,
       sessionOptions,
       attemptLimit: options.attemptLimit,
-      plcMode: options.plcMode,
+      plc: plcPatch,
       teacherName: options.teacherName.trim(),
       periodName: options.selectedPeriodNames[0] ?? '',
       periodNames: options.selectedPeriodNames,
-      plcSheetUrl: options.plcSheetUrl.trim(),
     };
     try {
       await onSave(patch);

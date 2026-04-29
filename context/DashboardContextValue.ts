@@ -34,7 +34,11 @@ export interface DashboardContextValue {
   isSaving: boolean;
   gradeFilter: GradeFilter;
   setGradeFilter: (filter: GradeFilter) => void;
-  addToast: (message: string, type?: Toast['type']) => void;
+  addToast: (
+    message: string,
+    type?: Toast['type'],
+    action?: Toast['action']
+  ) => void;
   removeToast: (id: string) => void;
   createNewDashboard: (name: string, data?: Dashboard) => Promise<void>;
   saveCurrentDashboard: () => Promise<void>;

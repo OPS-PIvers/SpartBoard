@@ -183,13 +183,25 @@ export function computeResponseKey(
 }
 
 /**
+ * Branded type for the deterministic response-doc key (computed by
+ * `computeResponseKey` / read off `_responseKey`). Pure type-level brand —
+ * no wire-format change. Lets call sites (delete-confirm state, exported-id
+ * sets) enforce that they never accidentally store a raw `string` where a
+ * keyed-by-response-doc value is expected.
+ *
+ * The Firestore wire format stays `string[]` for backwards compatibility;
+ * cast at the boundary (read from / write to assignment doc).
+ */
+export type ResponseDocKey = string & { readonly __brand: 'ResponseDocKey' };
+
+/**
  * Resolve the Firestore doc id for a given response. The snapshot listeners
  * attach `_responseKey` to every row so teacher-side UI can target the
  * underlying doc without knowing the keying scheme; legacy rows predating
  * that field still equate the key with `studentUid`, hence the fallback.
  */
-export function getResponseDocKey(response: QuizResponse): string {
-  return response._responseKey ?? response.studentUid;
+export function getResponseDocKey(response: QuizResponse): ResponseDocKey {
+  return (response._responseKey ?? response.studentUid) as ResponseDocKey;
 }
 
 // Safe extraction of FirestoreError.code (or any error-like object's `code`

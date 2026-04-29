@@ -43,7 +43,7 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizDriveService } from '@/utils/quizDriveService';
-import { getPlcTeammateEmails } from '@/utils/plc';
+import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
@@ -97,6 +97,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateAssignmentSettings,
     setAssignmentRosters,
     setAssignmentExportUrl,
+    setAssignmentExportedResponseIds,
     shareAssignment,
   } = useQuizAssignments(user?.uid);
 
@@ -645,10 +646,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           updateWidget(widget.id, {
             config: { ...config, plcSheetUrl: newUrl } as QuizConfig,
           });
-          if (config.activeAssignmentId) {
+          if (config.activeAssignmentId && activeAssignment?.plc) {
             try {
+              // Persist the full PlcLinkage with the new sheetUrl —
+              // Firestore replaces the entire `plc` field on update, so
+              // we have to carry every other field through to avoid
+              // wiping the linkage.
               await updateAssignmentSettings(config.activeAssignmentId, {
-                plcSheetUrl: newUrl,
+                plc: { ...activeAssignment.plc, sheetUrl: newUrl },
               });
             } catch (err) {
               console.error(
@@ -662,6 +667,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onExportUrlSaved={
           activeAssignmentId
             ? (url) => setAssignmentExportUrl(activeAssignmentId, url)
+            : undefined
+        }
+        initialExportedResponseIds={
+          activeAssignment?.exportedResponseIds ?? null
+        }
+        onExportedResponseIdsSaved={
+          activeAssignmentId
+            ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
             : undefined
         }
       />
@@ -890,6 +903,56 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }
           }
 
+          // Snapshot the PLC name onto the assignment doc so a downstream
+          // share carries it through to the importer — the importer can't
+          // read /plcs/{plcId} directly (rules block non-members) so the
+          // name has to ride on the share doc itself for the non-member
+          // toast to be informative.
+          const resolvedPlcName = plcOptions.plcMode
+            ? plcs.find((p) => p.id === plcOptions.plcId)?.name
+            : undefined;
+          if (plcOptions.plcMode && plcOptions.plcId && !resolvedPlcName) {
+            // Cold-load race: `plcs` snapshot hasn't hydrated yet, so the
+            // PLC name won't be persisted onto the assignment doc. The
+            // downstream non-member toast guard requires both plcId AND
+            // plcName, so a missing snapshot silently disables the toast
+            // for downstream non-member importers. Surface a toast so the
+            // teacher knows their PLC selection didn't take and can retry.
+            console.warn(
+              '[QuizWidget] PLC name unresolved at assignment-create time — downstream non-member toast will be skipped',
+              { plcId: plcOptions.plcId }
+            );
+            addToast(
+              "PLC info wasn't ready yet — the assignment was created without PLC sharing. Try again in a moment.",
+              'warning'
+            );
+          }
+
+          // Build the PlcLinkage sub-object iff the teacher opted into PLC
+          // mode AND we successfully resolved every required field. Partial
+          // resolution (e.g. cold-load race losing the PLC name) falls
+          // back to non-PLC linkage rather than persisting a degraded
+          // shape — the read mapper would strip it on next load anyway.
+          const selectedPlc = plcOptions.plcMode
+            ? plcs.find((p) => p.id === plcOptions.plcId)
+            : undefined;
+          const plcLinkage =
+            plcOptions.plcMode &&
+            plcOptions.plcId &&
+            resolvedPlcName &&
+            resolvedPlcSheetUrl
+              ? {
+                  id: plcOptions.plcId,
+                  name: resolvedPlcName,
+                  sheetUrl: resolvedPlcSheetUrl,
+                  // Snapshot the full PLC roster (including self) so the
+                  // share doc carries enough info for downstream importers
+                  // to render the membership list without a separate read.
+                  memberEmails: selectedPlc
+                    ? getPlcMemberEmails(selectedPlc)
+                    : [],
+                }
+              : undefined;
           try {
             const { id: assignmentId, code } = await createAssignment(
               {
@@ -902,12 +965,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 sessionMode: mode,
                 sessionOptions,
                 attemptLimit,
-                plcMode: plcOptions.plcMode,
                 teacherName: plcOptions.teacherName,
                 periodName:
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName,
                 periodNames: plcOptions.periodNames,
-                plcSheetUrl: resolvedPlcSheetUrl,
+                plc: plcLinkage,
               },
               'paused',
               derived.classIds,
@@ -1178,8 +1240,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               periodName: a.periodName ?? '',
               periodNames: a.periodNames ?? [],
               teacherName: a.teacherName ?? '',
-              plcMode: a.plcMode,
-              plcSheetUrl: a.plcSheetUrl ?? '',
+              plcMode: !!a.plc,
+              plcSheetUrl: a.plc?.sheetUrl ?? '',
             } as QuizConfig,
           });
         }}
@@ -1225,8 +1287,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               periodName: a.periodName ?? '',
               periodNames: a.periodNames ?? [],
               teacherName: a.teacherName ?? '',
-              plcMode: a.plcMode,
-              plcSheetUrl: a.plcSheetUrl ?? '',
+              plcMode: !!a.plc,
+              plcSheetUrl: a.plc?.sheetUrl ?? '',
             } as QuizConfig,
           });
         }}

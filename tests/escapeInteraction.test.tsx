@@ -85,6 +85,20 @@ vi.mock('../hooks/useQuizAssignments', () => ({
     importSharedAssignment: vi.fn().mockResolvedValue('a1'),
   }),
 }));
+vi.mock('../hooks/usePlcs', () => ({
+  usePlcs: () => ({
+    plcs: [],
+    loading: false,
+    createPlc: vi.fn(),
+    renamePlc: vi.fn(),
+    removeMember: vi.fn(),
+    leavePlc: vi.fn(),
+    deletePlc: vi.fn(),
+    setPlcSharedSheetUrl: vi.fn(),
+    clearPlcSharedSheetUrl: vi.fn(),
+    getPlcSharedSheetUrl: vi.fn(),
+  }),
+}));
 
 const mockGlobalStyle: GlobalStyle = {
   fontFamily: 'sans',
