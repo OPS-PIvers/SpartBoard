@@ -10,16 +10,21 @@ import { WIDGET_PALETTE } from '@/config/colors';
 export const buildStationsFromRandomGroups = (
   groups: RandomGroup[]
 ): { stations: Station[]; assignments: Record<string, string | null> } => {
-  const stations: Station[] = groups.map((group, i) => ({
-    id: crypto.randomUUID(),
-    title: group.id?.trim() ? group.id : `Group ${i + 1}`,
-    color: WIDGET_PALETTE[i % WIDGET_PALETTE.length],
-    order: i,
-  }));
+  const stations: Station[] = groups.map((group, i) => {
+    const trimmed = group.id?.trim();
+    return {
+      id: crypto.randomUUID(),
+      title: trimmed && trimmed.length > 0 ? trimmed : `Group ${i + 1}`,
+      color: WIDGET_PALETTE[i % WIDGET_PALETTE.length],
+      order: i,
+    };
+  });
   const assignments: Record<string, string | null> = {};
   groups.forEach((group, i) => {
     const station = stations[i];
     for (const name of group.names) {
+      // Last write wins for duplicate names across groups — that's the only
+      // sane choice given assignments are keyed by display name.
       assignments[name] = station.id;
     }
   });

@@ -3052,8 +3052,14 @@ export interface StationsConfig {
    * in `savedWidgetConfigs.stations`, never on a live widget instance.
    */
   savedLibrary?: SavedStationsPreset[];
-  /** Appearance — consumed by both the front-face card grid and the unassigned bucket. */
-  fontFamily?: GlobalFontFamily;
+  /**
+   * Appearance — consumed by both the front-face card grid and the unassigned
+   * bucket. `fontFamily` matches the value space written by the shared
+   * `TypographySettings` primitive: `'global'` (inherit from dashboard) or one
+   * of the prefixed font keys (`'font-sans'`, `'font-mono'`, etc.). Decoded
+   * via `getFontClass()` from `utils/styles.ts`.
+   */
+  fontFamily?: string;
   fontColor?: string;
   cardColor?: string;
   cardOpacity?: number;

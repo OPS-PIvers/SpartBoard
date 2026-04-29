@@ -3,6 +3,7 @@ import { Save, Download, Trash2 } from 'lucide-react';
 import { Station, SavedStationsPreset, StationsConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
 
 interface SavedPresetsPanelProps {
@@ -16,22 +17,27 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
 }) => {
   const { savedWidgetConfigs, saveWidgetConfig } = useAuth();
   const { addToast } = useDashboard();
+  const { showConfirm, showPrompt } = useDialog();
   const { deleteFile } = useStorage();
 
   const savedLibrary: SavedStationsPreset[] =
     (savedWidgetConfigs.stations as Partial<StationsConfig> | undefined)
       ?.savedLibrary ?? [];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (stations.length === 0) {
       addToast('Add at least one station before saving.', 'info');
       return;
     }
-    const name = window.prompt('Name this station set:');
-    if (!name) return;
+    const name = await showPrompt('What should we call this station set?', {
+      title: 'Save station set',
+      placeholder: 'e.g. Wednesday lab rotation',
+      confirmLabel: 'Save',
+    });
+    if (!name?.trim()) return;
     const preset: SavedStationsPreset = {
       id: crypto.randomUUID(),
-      name,
+      name: name.trim(),
       // Snapshot stations only — assignments belong to the live widget instance.
       stations: stations.map((s) => ({ ...s })),
       createdAt: Date.now(),
@@ -39,17 +45,20 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
     saveWidgetConfig('stations', {
       savedLibrary: [...savedLibrary, preset],
     });
-    addToast(`Saved "${name}" to your station library.`, 'success');
+    addToast(`Saved "${preset.name}" to your station library.`, 'success');
   };
 
-  const handleLoad = (preset: SavedStationsPreset) => {
-    if (
-      stations.length > 0 &&
-      !window.confirm(
-        'Load this preset? The stations currently on this widget will be replaced. Student assignments will be cleared.'
-      )
-    ) {
-      return;
+  const handleLoad = async (preset: SavedStationsPreset) => {
+    if (stations.length > 0) {
+      const ok = await showConfirm(
+        'The stations currently on this widget will be replaced. Student assignments will be cleared.',
+        {
+          title: `Load "${preset.name}"?`,
+          confirmLabel: 'Load',
+          variant: 'danger',
+        }
+      );
+      if (!ok) return;
     }
     // Re-stamp ids so loading the same preset twice doesn't collide with
     // assignment keys from the previous instance.
@@ -62,30 +71,49 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
   };
 
   const handleDelete = async (preset: SavedStationsPreset) => {
-    if (
-      !window.confirm(
-        `Delete "${preset.name}"? Any uploaded images for this preset will be removed from your Drive.`
-      )
-    ) {
-      return;
+    const ok = await showConfirm(
+      'Any uploaded images for this preset will be removed from your Drive.',
+      {
+        title: `Delete "${preset.name}"?`,
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      }
+    );
+    if (!ok) return;
+    // Determine which images on this preset are also referenced elsewhere
+    // (other presets) and skip deleting those — only delete URLs uniquely
+    // owned by this preset, so we don't break a sibling preset by mistake.
+    const otherPresetUrls = new Set<string>();
+    for (const p of savedLibrary) {
+      if (p.id === preset.id) continue;
+      for (const s of p.stations) {
+        if (s.imageUrl) otherPresetUrls.add(s.imageUrl);
+      }
     }
     saveWidgetConfig('stations', {
       savedLibrary: savedLibrary.filter((p) => p.id !== preset.id),
     });
-    // Destructive cleanup — best-effort. Failures are logged, not surfaced.
+    // Destructive cleanup — best-effort. Aggregate failures so the teacher
+    // sees a single toast rather than silent dev-only console warnings.
+    let failedCount = 0;
     for (const station of preset.stations) {
-      if (station.imageUrl) {
-        try {
-          await deleteFile(station.imageUrl);
-        } catch (err) {
-          console.warn(
-            '[SavedPresetsPanel] Failed to delete preset image',
-            err
-          );
-        }
+      if (!station.imageUrl) continue;
+      if (otherPresetUrls.has(station.imageUrl)) continue;
+      try {
+        await deleteFile(station.imageUrl);
+      } catch (err) {
+        failedCount++;
+        console.warn('[SavedPresetsPanel] Failed to delete preset image', err);
       }
     }
-    addToast(`Deleted "${preset.name}".`, 'info');
+    if (failedCount > 0) {
+      addToast(
+        `Deleted "${preset.name}", but ${failedCount} image${failedCount === 1 ? '' : 's'} couldn't be removed from Drive — you may want to clean up manually.`,
+        'info'
+      );
+    } else {
+      addToast(`Deleted "${preset.name}".`, 'info');
+    }
   };
 
   return (

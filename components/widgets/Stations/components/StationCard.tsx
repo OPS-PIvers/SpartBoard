@@ -5,6 +5,8 @@ import { DraggableStudent } from '@/components/widgets/LunchCount/components/Dra
 import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
 import { LayoutGrid, RotateCcw } from 'lucide-react';
 import { hexToRgba } from '@/utils/styles';
+import { studentChipClass, studentChipStyle } from './studentChip';
+import { getAccessibleAccentText } from './accentText';
 
 interface StationCardProps {
   station: Station;
@@ -12,15 +14,11 @@ interface StationCardProps {
   onUnassign: (student: string) => void;
   onResetStation: () => void;
   isFull: boolean;
+  /** Active typography class (from `getFontClass`) inherited from widget config. */
+  fontClassName?: string;
+  /** Accessible accent override is computed locally; this is text color for body copy (description). */
+  bodyTextColor?: string;
 }
-
-const studentChipClass =
-  'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-sm hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
-
-const studentChipStyle: React.CSSProperties = {
-  fontSize: 'min(14px, 5cqmin)',
-  padding: 'min(6px, 1.6cqmin) min(12px, 3cqmin)',
-};
 
 export const StationCard: React.FC<StationCardProps> = ({
   station,
@@ -28,8 +26,11 @@ export const StationCard: React.FC<StationCardProps> = ({
   onUnassign,
   onResetStation,
   isFull,
+  fontClassName = '',
+  bodyTextColor,
 }) => {
   const accent = station.color?.trim() ? station.color : '#10b981';
+  const accentTextColor = getAccessibleAccentText(accent);
   const tint = hexToRgba(accent, 0.08);
   const tintHover = hexToRgba(accent, 0.16);
   const capLabel =
@@ -45,7 +46,7 @@ export const StationCard: React.FC<StationCardProps> = ({
   return (
     <DroppableZone
       id={`station:${station.id}`}
-      className="relative rounded-2xl border-2 border-dashed flex flex-col transition-all group h-full overflow-hidden"
+      className={`relative rounded-2xl border-2 border-dashed flex flex-col transition-all group h-full overflow-hidden ${fontClassName}`}
       style={{
         borderColor: accent,
         backgroundColor: tint,
@@ -60,23 +61,29 @@ export const StationCard: React.FC<StationCardProps> = ({
         style={{ backgroundColor: tintHover }}
       />
 
-      {/* Per-station reset button — small but reachable */}
+      {/*
+        Per-station reset button — visible at reduced opacity at rest so
+        teachers can see it on a projected/touch display, fully opaque on
+        hover/focus for desktop polish. Larger touch target than the original
+        4cqmin variant.
+      */}
       <button
         type="button"
         onClick={onResetStation}
-        className="absolute top-1 right-1 rounded-full bg-white/80 hover:bg-white border border-slate-200 text-slate-400 hover:text-brand-red-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="absolute top-1 right-1 rounded-full bg-white/90 hover:bg-white border border-slate-200 text-slate-500 hover:text-brand-red-primary opacity-70 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary transition-all"
         style={{
-          padding: 'min(4px, 1cqmin)',
-          width: 'min(24px, 6cqmin)',
-          height: 'min(24px, 6cqmin)',
+          padding: 'min(5px, 1.2cqmin)',
+          width: 'min(28px, 7cqmin)',
+          height: 'min(28px, 7cqmin)',
         }}
-        aria-label={`Reset ${station.title}`}
-        title={`Reset ${station.title}`}
+        aria-label={`Reset students in ${station.title || 'this station'}`}
+        title={`Reset students in ${station.title || 'this station'}`}
       >
         <RotateCcw
+          aria-hidden
           style={{
-            width: 'min(12px, 3.5cqmin)',
-            height: 'min(12px, 3.5cqmin)',
+            width: 'min(14px, 3.8cqmin)',
+            height: 'min(14px, 3.8cqmin)',
           }}
         />
       </button>
@@ -96,10 +103,13 @@ export const StationCard: React.FC<StationCardProps> = ({
         </div>
         <div className="flex flex-col min-w-0 flex-1">
           <div
-            className="font-black text-slate-900 leading-tight truncate"
+            className="font-black leading-tight truncate"
             style={{
               fontSize: 'min(16px, 6cqmin)',
-              color: accent,
+              color: accentTextColor,
+              // Reserve the right-side area occupied by the absolute reset
+              // button so long titles don't render under it.
+              paddingRight: 'min(32px, 8cqmin)',
             }}
             title={station.title}
           >
@@ -107,8 +117,11 @@ export const StationCard: React.FC<StationCardProps> = ({
           </div>
           {station.description && (
             <div
-              className="text-slate-500 leading-tight line-clamp-2"
-              style={{ fontSize: 'min(11px, 4cqmin)' }}
+              className="leading-tight line-clamp-2"
+              style={{
+                fontSize: 'min(11px, 4cqmin)',
+                color: bodyTextColor ?? '#64748b',
+              }}
             >
               {station.description}
             </div>
@@ -156,7 +169,10 @@ export const StationCard: React.FC<StationCardProps> = ({
             name={student}
             onClick={() => onUnassign(student)}
             className={studentChipClass}
-            style={studentChipStyle}
+            style={{
+              ...studentChipStyle,
+              ...(bodyTextColor ? { color: bodyTextColor } : {}),
+            }}
           />
         ))}
       </div>

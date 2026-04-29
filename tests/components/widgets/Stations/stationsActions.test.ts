@@ -143,6 +143,73 @@ describe('shuffleStudentsIntoStations', () => {
     expect(assignments).toEqual({ s1: null, s2: null });
     expect(overflowStudents).toEqual(['s1', 's2']);
   });
+
+  it('returns empty result for empty stations and empty roster', () => {
+    const result = shuffleStudentsIntoStations([], []);
+    expect(result.assignments).toEqual({});
+    expect(result.overflowStudents).toEqual([]);
+  });
+
+  it('skips a station with maxStudents = 0 instead of looping forever', () => {
+    // Stale data path: a station the teacher set to 0 capacity. The
+    // round-robin must not infinite-loop trying to place students there.
+    const stations = [
+      makeStation('a', 0, 0),
+      makeStation('b', 1),
+      makeStation('c', 2),
+    ];
+    const roster = ['s1', 's2', 's3', 's4'];
+    const { assignments, overflowStudents } = shuffleStudentsIntoStations(
+      stations,
+      roster
+    );
+    // No one lands in 'a'.
+    const aCount = Object.values(assignments).filter((v) => v === 'a').length;
+    expect(aCount).toBe(0);
+    // Everyone is placed in b or c (4 people across 2 unbounded stations).
+    expect(overflowStudents).toEqual([]);
+    expect(Object.keys(assignments).sort()).toEqual(roster);
+  });
+});
+
+describe('rotateAssignments — extra cases', () => {
+  it('drops students assigned to a no-longer-present station back to unassigned', () => {
+    // Station 'b' was deleted between assignment and rotate. Carol's stale
+    // assignment must not pin her to a phantom station, and she must not be
+    // silently lost — the algorithm carries her over as unassigned (null).
+    const stations = [makeStation('a', 0), makeStation('c', 1)];
+    const before: Record<string, string | null> = {
+      Alice: 'a',
+      Bob: 'c',
+      Carol: 'b', // station 'b' is no longer in the stations array
+    };
+    const { assignments } = rotateAssignments(stations, before);
+    // Alice and Bob rotate normally.
+    expect(assignments.Alice).toBe('c');
+    expect(assignments.Bob).toBe('a');
+    // Carol survives the rotate but is now unassigned.
+    expect('Carol' in assignments).toBe(true);
+    expect(assignments.Carol).toBeNull();
+  });
+
+  it('handles a station whose existing members exceed maxStudents (cap was lowered)', () => {
+    const stations = [
+      makeStation('a', 0, 1),
+      makeStation('b', 1, 1),
+      makeStation('c', 2, 1),
+    ];
+    // 'a' currently has 2 students even though cap is 1 — happens when the
+    // teacher lowers maxStudents after assignment.
+    const before: Record<string, string | null> = {
+      Alice: 'a',
+      Bob: 'a',
+    };
+    const { assignments, stuckStudents } = rotateAssignments(stations, before);
+    // Both rotate forward and find slots in b/c.
+    expect(stuckStudents).toEqual([]);
+    const placed = Object.values(assignments).filter((v) => v != null);
+    expect(placed).toHaveLength(2);
+  });
 });
 
 describe('resetAllAssignments', () => {

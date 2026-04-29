@@ -57,9 +57,17 @@ export function rotateAssignments(
 
   const indexById = new Map(ordered.map((s, i) => [s.id, i]));
   const next: Assignments = {};
-  // Carry over any unassigned students unchanged.
+  // Carry over unassigned students unchanged. Students whose previous station
+  // no longer exists (cap removed, station deleted between save & rotate)
+  // also need to be carried — silently dropping them would lose roster
+  // membership. Treat those as unassigned, matching the front-face semantic
+  // where unknown station ids fall through to the unassigned bucket.
   for (const [name, value] of Object.entries(assignments)) {
-    if (value == null) next[name] = value;
+    if (value == null) {
+      next[name] = null;
+    } else if (!indexById.has(value)) {
+      next[name] = null;
+    }
   }
 
   // Bucket students by their CURRENT station, preserve order they had so the

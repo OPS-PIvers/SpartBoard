@@ -42,6 +42,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     }
     const result = (widget.config as RandomConfig).lastResult;
     let groups: RandomGroup[] = [];
+    let isStaleSinglePick = false;
     if (Array.isArray(result) && result.length > 0) {
       const first = result[0];
       if (
@@ -49,13 +50,27 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         first !== null &&
         'names' in (first as object)
       ) {
+        // Group-mode result: RandomGroup[]
         groups = result as RandomGroup[];
       } else if (Array.isArray(first)) {
+        // Legacy group-mode result: string[][]
         groups = (result as unknown as string[][]).map((names, i) => ({
           id: `Group ${i + 1}`,
           names: names ?? [],
         }));
+      } else if (typeof first === 'string') {
+        // Single-pick result that survived a mode switch — flat string list
+        // is meaningless as "groups". Surface a clearer message rather than
+        // the generic "generate groups first" hint.
+        isStaleSinglePick = true;
       }
+    }
+    if (isStaleSinglePick) {
+      addToast(
+        'Switch to Groups mode and click Pick before sending — the last result was a single-name pick.',
+        'info'
+      );
+      return;
     }
     if (groups.length === 0) {
       addToast(

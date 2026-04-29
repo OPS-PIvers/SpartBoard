@@ -30,6 +30,11 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
   const [tab, setTab] = useState<'icon' | 'image'>(imageUrl ? 'image' : 'icon');
   const [iconSearch, setIconSearch] = useState('');
   const [uploading, setUploading] = useState(false);
+  // Synchronous in-flight guard. `setUploading(true)` won't reflect in
+  // closures captured before the next render, so a button click that fires
+  // before React re-renders (or a paste event that bypasses `disabled`) can
+  // start a second upload and orphan the first. This ref short-circuits that.
+  const inFlightRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -43,6 +48,10 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
     : ICON_LIST;
 
   const handleUpload = async (file: File) => {
+    if (inFlightRef.current) {
+      addToast('An upload is already in progress.', 'info');
+      return;
+    }
     if (!user) {
       addToast('Sign in to upload images.', 'error');
       return;
@@ -56,6 +65,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
       return;
     }
     const previousUrl = imageUrl;
+    inFlightRef.current = true;
     setUploading(true);
     try {
       const url = await uploadSticker(user.uid, file);
@@ -78,6 +88,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
       console.error('[StationsIconOrImageInput] Upload failed', err);
       addToast('Failed to upload image.', 'error');
     } finally {
+      inFlightRef.current = false;
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }

@@ -27,9 +27,10 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { DraggableStudent } from '@/components/widgets/LunchCount/components/DraggableStudent';
 import { DroppableZone } from '@/components/widgets/LunchCount/components/DroppableZone';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
-import { hexToRgba } from '@/utils/styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { StationCard } from './components/StationCard';
+import { studentChipClass, studentChipStyle } from './components/studentChip';
 import {
   rotateAssignments,
   shuffleStudentsIntoStations,
@@ -41,18 +42,11 @@ import {
 const UNASSIGNED_DROP_ID = 'stations:unassigned';
 const STATION_DROP_PREFIX = 'station:';
 
-const studentChipClass =
-  'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-sm hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
-
-const studentChipStyle: React.CSSProperties = {
-  fontSize: 'min(14px, 5cqmin)',
-  padding: 'min(6px, 1.6cqmin) min(12px, 3cqmin)',
-};
-
 export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
+  const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
+    useDashboard();
   const config = widget.config as StationsConfig;
   const stations = useMemo(() => config.stations ?? [], [config.stations]);
   const assignments = useMemo(
@@ -204,11 +198,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   }, [orderedStations, activeRoster, persistAssignments, addToast]);
 
   // Watch rotationTrigger from a linked Timer — bumps to Date.now() invoke rotate.
+  // Mirrors `externalTrigger` in RandomWidget.tsx: assign the latest callback
+  // to a ref during render so the effect's body always sees the freshest
+  // closure without listing the callback as a dep (which would re-run the
+  // effect every render and risk firing the rotation more than once for the
+  // same trigger value).
   const lastTriggerRef = useRef(config.rotationTrigger ?? 0);
   const handleRotateRef = useRef(handleRotate);
-  useEffect(() => {
-    handleRotateRef.current = handleRotate;
-  }, [handleRotate]);
+  // eslint-disable-next-line react-hooks/refs
+  handleRotateRef.current = handleRotate;
   useEffect(() => {
     const trigger = config.rotationTrigger ?? 0;
     if (trigger > lastTriggerRef.current) {
@@ -237,6 +235,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
   const cardColor = config.cardColor ?? '#f8fafc';
   const cardOpacity = config.cardOpacity ?? 0.4;
 
+  // Resolve typography from widget config + active dashboard global style. The
+  // shared TypographySettings primitive writes values like 'global', 'font-sans',
+  // etc.; getFontClass() returns a Tailwind class string ready to apply.
+  const fontClassName = getFontClass(
+    config.fontFamily ?? 'global',
+    activeDashboard?.globalStyle?.fontFamily ?? 'sans'
+  );
+  const fontColor = config.fontColor;
+
   // Adapt grid columns to station count — keeps cards roomy when there are few
   // stations and stays tidy when there are many.
   const cols = Math.min(
@@ -256,7 +263,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         header={
           <div
-            className="flex justify-between items-center border-b border-slate-100"
+            className={`flex justify-between items-center border-b border-slate-100 ${fontClassName}`}
             style={{
               backgroundColor: hexToRgba(cardColor, cardOpacity),
               padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
@@ -268,8 +275,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               <h3
-                className="font-black text-slate-700 uppercase tracking-widest truncate"
-                style={{ fontSize: 'min(13px, 4.2cqmin)' }}
+                className="font-black uppercase tracking-widest truncate"
+                style={{
+                  fontSize: 'min(13px, 4.2cqmin)',
+                  color: fontColor ?? '#334155',
+                }}
               >
                 Stations
               </h3>
@@ -357,7 +367,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         }
         content={
           <div
-            className="flex flex-col h-full w-full overflow-hidden"
+            className={`flex flex-col h-full w-full overflow-hidden ${fontClassName}`}
             style={{
               padding: 'min(10px, 2cqmin)',
               gap: 'min(10px, 2cqmin)',
@@ -387,6 +397,8 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     }}
                     onResetStation={() => handleResetStation(station.id)}
                     isFull={isFull}
+                    fontClassName={fontClassName}
+                    bodyTextColor={fontColor}
                   />
                 );
               })}
@@ -441,7 +453,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                         id={student}
                         name={student}
                         className={studentChipClass}
-                        style={studentChipStyle}
+                        style={{
+                          ...studentChipStyle,
+                          ...(fontColor ? { color: fontColor } : {}),
+                        }}
                       />
                     ))}
                   </div>
