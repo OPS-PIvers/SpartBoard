@@ -916,10 +916,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // PLC name won't be persisted onto the assignment doc. The
             // downstream non-member toast guard requires both plcId AND
             // plcName, so a missing snapshot silently disables the toast
-            // for downstream non-member importers.
+            // for downstream non-member importers. Surface a toast so the
+            // teacher knows their PLC selection didn't take and can retry.
             console.warn(
               '[QuizWidget] PLC name unresolved at assignment-create time — downstream non-member toast will be skipped',
               { plcId: plcOptions.plcId }
+            );
+            addToast(
+              "PLC info wasn't ready yet — the assignment was created without PLC sharing. Try again in a moment.",
+              'warning'
             );
           }
 

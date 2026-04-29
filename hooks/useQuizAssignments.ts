@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   getDoc,
@@ -626,10 +627,27 @@ export const useQuizAssignments = (
     async (assignmentId, patch) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      // Firestore is initialized with `ignoreUndefinedProperties: true`
+      // (config/firebase.ts), which silently drops keys whose value is
+      // `undefined`. That breaks the toggle-OFF use case for `plc` —
+      // the modal sends `{ plc: undefined }` to mean "clear it" but the
+      // existing field stays on the doc. Translate explicit-undefined on
+      // the `plc` key to `deleteField()` so the doc actually loses PLC
+      // mode. (Final-review finding on PR #1442.)
+      const assignmentPatch: Record<string, unknown> = {
+        ...patch,
+        updatedAt: now,
+      };
+      if (
+        Object.prototype.hasOwnProperty.call(patch, 'plc') &&
+        patch.plc === undefined
+      ) {
+        assignmentPatch.plc = deleteField();
+      }
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        { ...patch, updatedAt: now } as Record<string, unknown>
+        assignmentPatch
       );
       // Mirror period and session-option changes to the session doc so
       // students can read available periods and updated toggles.

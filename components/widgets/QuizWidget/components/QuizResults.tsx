@@ -552,6 +552,22 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         // Sync local "OPEN SHEET" link to the new sheet so the teacher
         // doesn't click through to the now-stale URL.
         setExportUrl(recovered.canonical);
+        // Persist the regenerated URL onto the assignment doc too —
+        // without this, a reload rehydrates `initialExportUrl` from the
+        // stale dead URL, OPEN SHEET points at the wrong place, and the
+        // next UPDATE SHEET re-triggers the same 404 → regenerate cycle
+        // creating yet another orphan sheet. (Final-review finding on
+        // PR #1442.)
+        if (onExportUrlSaved) {
+          void Promise.resolve(onExportUrlSaved(recovered.canonical)).catch(
+            (persistErr: unknown) => {
+              console.error(
+                '[QuizResults] failed to persist regenerated exportUrl after update',
+                persistErr
+              );
+            }
+          );
+        }
       }
       // After a regenerated-sheet retry the sheet now contains every
       // response (we passed `responses` to retry), so the exported set
