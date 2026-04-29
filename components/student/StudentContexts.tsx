@@ -63,6 +63,8 @@ const mockAuth: AuthContextType = {
   },
   orgId: null,
   roleId: null,
+  isStudentRole: false,
+  roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
 };
