@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, X, Puzzle } from 'lucide-react';
 import { SavedWidget, DockPosition } from '@/types';
 import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
+import { useLongPress } from '@/hooks/useLongPress';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
 
@@ -29,35 +30,14 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
   onLongPress,
   dockPosition = 'bottom',
 }) => {
-  // Long-press to enter edit mode, mirroring ToolDockItem's behavior so
-  // saved widgets feel consistent with the rest of the dock.
-  const longPressTimer = React.useRef<number | null>(null);
-  const longPressFired = React.useRef(false);
-
-  const startLongPress = () => {
-    if (isEditMode) return;
-    longPressFired.current = false;
-    longPressTimer.current = window.setTimeout(() => {
-      longPressFired.current = true;
-      onLongPress();
-    }, 500);
-  };
-
-  const cancelLongPress = () => {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
+  // Reuse the shared long-press hook so the saved-widget icon matches the
+  // cancel-on-drag / hold-delay behavior of every other dock icon.
+  const longPress = useLongPress(onLongPress, { disabled: isEditMode });
 
   const handleClick = (e: React.MouseEvent) => {
     if (isEditMode) {
       e.preventDefault();
       e.stopPropagation();
-      return;
-    }
-    if (longPressFired.current) {
-      e.preventDefault();
       return;
     }
     onAdd();
@@ -101,10 +81,11 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
         )}
 
         <button
-          onPointerDown={startLongPress}
-          onPointerUp={cancelLongPress}
-          onPointerLeave={cancelLongPress}
-          onPointerCancel={cancelLongPress}
+          onPointerDown={longPress.onPointerDown}
+          onPointerUp={longPress.onPointerUp}
+          onPointerLeave={longPress.onPointerUp}
+          onPointerMove={longPress.onPointerMove}
+          onPointerCancel={longPress.onPointerCancel}
           onClick={handleClick}
           className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
             isEditMode

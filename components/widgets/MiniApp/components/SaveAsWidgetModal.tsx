@@ -23,9 +23,6 @@ const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
 interface SaveAsWidgetModalProps {
   isOpen: boolean;
   defaultTitle: string;
-  /** Pre-filled when re-saving an existing entry */
-  initialIcon?: string;
-  initialColor?: string;
   isSaving?: boolean;
   onSave: (values: { title: string; icon: string; color: string }) => void;
   onClose: () => void;
@@ -34,17 +31,13 @@ interface SaveAsWidgetModalProps {
 export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
   isOpen,
   defaultTitle,
-  initialIcon,
-  initialColor,
   isSaving = false,
   onSave,
   onClose,
 }) => {
   const [title, setTitle] = useState(defaultTitle);
-  const [icon, setIcon] = useState(
-    initialIcon ?? CUSTOM_WIDGET_ICON_OPTIONS[0].key
-  );
-  const [color, setColor] = useState(initialColor ?? COLOR_PRESETS[0].value);
+  const [icon, setIcon] = useState(CUSTOM_WIDGET_ICON_OPTIONS[0].key);
+  const [color, setColor] = useState(COLOR_PRESETS[0].value);
 
   // Reset form fields when the modal transitions from closed → open. Tracking
   // the previous `isOpen` in state and adjusting during render avoids the
@@ -54,8 +47,8 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
     setWasOpen(isOpen);
     if (isOpen) {
       setTitle(defaultTitle);
-      setIcon(initialIcon ?? CUSTOM_WIDGET_ICON_OPTIONS[0].key);
-      setColor(initialColor ?? COLOR_PRESETS[0].value);
+      setIcon(CUSTOM_WIDGET_ICON_OPTIONS[0].key);
+      setColor(COLOR_PRESETS[0].value);
     }
   }
 

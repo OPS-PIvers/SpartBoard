@@ -1,17 +1,20 @@
 import React, { forwardRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  LayoutGrid,
-  Plus,
-  X,
+  Bookmark,
   FolderPlus,
-  RotateCcw,
+  LayoutGrid,
+  Pin,
+  PinOff,
+  Plus,
   Puzzle,
+  RotateCcw,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
 import { CustomWidgetDoc, SavedWidget } from '@/types';
-import { Bookmark, Pin, PinOff, Trash2 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,

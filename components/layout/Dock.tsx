@@ -135,9 +135,17 @@ export const Dock: React.FC = () => {
     [customWidgets]
   );
 
+  // Saved widgets must clear the same permission gate as the underlying
+  // widget type — otherwise a teacher whose access to a widget gets revoked
+  // after saving still sees their old shortcut and can re-instantiate.
+  const accessibleSavedWidgets = useMemo(
+    () => savedWidgets.filter((w) => canAccessWidget(w.widgetType)),
+    [savedWidgets, canAccessWidget]
+  );
+
   const pinnedSavedWidgets = useMemo(
-    () => savedWidgets.filter((w) => w.pinnedToDock),
-    [savedWidgets]
+    () => accessibleSavedWidgets.filter((w) => w.pinnedToDock),
+    [accessibleSavedWidgets]
   );
 
   const handleAddCustomWidget = useCallback(
@@ -159,9 +167,16 @@ export const Dock: React.FC = () => {
     (savedWidgetId: string) => {
       const sw = savedWidgets.find((w) => w.id === savedWidgetId);
       if (!sw) return;
+      if (!canAccessWidget(sw.widgetType)) {
+        addToast(
+          `"${sw.title}" is unavailable — you no longer have access to this widget.`,
+          'error'
+        );
+        return;
+      }
       addWidget(sw.widgetType, { config: sw.config });
     },
-    [savedWidgets, addWidget]
+    [savedWidgets, addWidget, canAccessWidget, addToast]
   );
 
   const handleDeleteSavedWidget = useCallback(
@@ -1044,7 +1059,7 @@ export const Dock: React.FC = () => {
               getToolLabel={getToolLabel}
               customWidgets={publishedCustomWidgets}
               onAddCustomWidget={handleAddCustomWidget}
-              savedWidgets={savedWidgets}
+              savedWidgets={accessibleSavedWidgets}
               onAddSavedWidget={handleAddSavedWidget}
               onToggleSavedWidgetPin={(id, pinned) =>
                 void setPinnedToDock(id, pinned).catch((err) => {

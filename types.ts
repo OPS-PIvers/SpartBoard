@@ -3989,10 +3989,17 @@ export interface CustomWidgetConfig {
  * into `config` and surfaced as a one-tap entry in the user's dock and
  * Widget Library. Per-user; lives at /users/{uid}/saved_widgets/{id}.
  */
+/**
+ * Narrow union of widget types eligible to be saved as user shortcuts.
+ * Only `miniApp` produces saved widgets today; widening this requires
+ * deciding what `config` shape each new type freezes (see SavedWidget.config).
+ */
+export type SavedWidgetType = 'miniApp';
+
 export interface SavedWidget {
   id: string;
   /** The underlying widget type to instantiate */
-  widgetType: WidgetType;
+  widgetType: SavedWidgetType;
   /** Display name shown in the dock and library */
   title: string;
   /** Icon key from CUSTOM_WIDGET_ICON_OPTIONS */
@@ -4000,7 +4007,7 @@ export interface SavedWidget {
   /** Tailwind bg-* class (e.g. 'bg-purple-500') */
   color: string;
   /** Frozen config snapshot used to instantiate the widget */
-  config: DistributedPartial<WidgetConfig>;
+  config: Partial<MiniAppConfig>;
   /** Whether this saved widget is pinned to the dock toolbar */
   pinnedToDock: boolean;
   createdAt: number;

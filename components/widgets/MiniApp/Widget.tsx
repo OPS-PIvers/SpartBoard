@@ -517,11 +517,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           color: values.color,
           pinnedToDock: true,
           // Snapshot the mini app so the saved widget keeps working even if
-          // the original library entry is renamed or deleted.
+          // the original library entry is renamed or deleted. Keep the
+          // original `title` on the MiniAppItem so the assignment flow,
+          // session names, and the in-widget chrome still show the app's
+          // real name — `values.title` is the *widget shortcut* label, not
+          // the mini app's name.
           config: {
             activeApp: {
               id: activeApp.id,
-              title: values.title,
+              title: activeApp.title,
               html: activeApp.html,
               createdAt: activeApp.createdAt,
             },
