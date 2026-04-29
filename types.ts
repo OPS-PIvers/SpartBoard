@@ -2126,6 +2126,18 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * the linked sheet. Powers the "Update Sheet" affordance: the next update
    * appends only the responses NOT in this set, so re-exporting after more
    * students finish doesn't duplicate already-exported rows.
+   *
+   * Set chosen over a (createdAt, key) cursor because the set is correct
+   * even when responses arrive out-of-order (network hiccups, retroactive
+   * writes from anonymous students reconnecting), whereas a cursor would
+   * silently miss any response with `createdAt < cursor`. The unbounded-
+   * growth concern is real but distant: each key is ~15-20 bytes, and the
+   * realistic ceiling for a single PLC assignment shared across a team is
+   * a few hundred to low thousands of rows — orders of magnitude under
+   * Firestore's 1MiB doc limit. If a PLC ever sustains tens of thousands
+   * of rows on one assignment, switch this to a separate subcollection or
+   * a (createdAt, key) cursor with a deterministic sort order at append
+   * time.
    */
   exportedResponseIds?: string[];
 }

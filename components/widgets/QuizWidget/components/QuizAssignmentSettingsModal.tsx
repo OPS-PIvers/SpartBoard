@@ -163,10 +163,18 @@ export const QuizAssignmentSettingsModal: React.FC<
     // a valid PLC linkage — that breaks sharing/membership checks and sheet
     // export. The teacher should re-run assignment-create to acquire a real
     // linkage. (Copilot review on PR #1442.)
+    //
+    // Empty `trimmedSheetUrl` is a Hide / cancel: the user collapsed the
+    // manual-attach disclosure, which clears the form input. We keep the
+    // assignment's existing `plc` unchanged rather than overwriting
+    // `sheetUrl` with `''` — the empty value would be dropped by the
+    // read-side validator on next snapshot and silently lose PLC mode.
     const trimmedSheetUrl = options.plcSheetUrl.trim();
     const plcPatch: QuizAssignmentSettings['plc'] =
       options.plcMode && assignment.plc
-        ? { ...assignment.plc, sheetUrl: trimmedSheetUrl }
+        ? trimmedSheetUrl === ''
+          ? assignment.plc
+          : { ...assignment.plc, sheetUrl: trimmedSheetUrl }
         : undefined;
     const patch: Partial<QuizAssignmentSettings> = {
       className: options.className.trim(),

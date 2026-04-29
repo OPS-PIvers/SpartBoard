@@ -79,7 +79,7 @@ describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('clicking "Hide" clears plc.sheetUrl in the saved patch (destructive disclosure)', async () => {
+  it('clicking "Hide" preserves the existing plc.sheetUrl (cancel, not clear)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
@@ -104,13 +104,14 @@ describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
     // Save (the modal's confirm button label is just "Save").
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    // PLC mode stays on; the linkage is preserved with sheetUrl cleared
-    // (membership/id/name still come from the original linkage).
+    // Hide is a cancel: the form input was cleared, but the saved plc keeps
+    // the existing sheetUrl. Saving an empty sheetUrl would be dropped by
+    // the read-side validator on next snapshot, silently losing PLC mode.
     expect(onSave.mock.calls[0][0]).toMatchObject({
       plc: {
         id: 'plc-1',
         name: 'Test PLC',
-        sheetUrl: '',
+        sheetUrl: 'https://docs.google.com/spreadsheets/d/legacy-sheet-id',
         memberEmails: ['a@example.com'],
       },
     });

@@ -506,10 +506,12 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     setExportError(null);
     try {
       const svc = new QuizDriveService(googleAccessToken);
-      // Reuse the PLC-mode append path: it builds the same headers + rows
-      // as the original export and uses appendToExistingSheet under the
-      // hood. Works whether the original export was solo or PLC — both
-      // produce a sheet whose first tab accepts row appends.
+      // Reuse the PLC-mode append path for this PLC-only update flow: it
+      // rebuilds the same headers + rows shape as the original PLC export
+      // and uses appendToExistingSheet under the hood for the linked PLC
+      // sheet. UPDATE SHEET is gated on `config.plcMode` upstream
+      // (`canShowUpdateSheet`) — solo-mode sheets carry a trailing stats
+      // block that would be fragmented by an append.
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,

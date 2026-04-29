@@ -41,6 +41,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
   toPublicQuestion,
+  type ResponseDocKey,
 } from './useQuizSession';
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -130,10 +131,15 @@ export interface UseQuizAssignmentsResult {
    * sheet. Powers the "Update Sheet" affordance in QuizResults — the next
    * incremental append filters out responses already in this list so we
    * don't duplicate already-exported rows.
+   *
+   * Accepts `ResponseDocKey[]` so the compiler enforces that callers pass
+   * the branded keys returned by `getResponseDocKey` (not arbitrary
+   * strings). The implementation casts to `string[]` at the Firestore
+   * write boundary — the wire format hasn't changed.
    */
   setAssignmentExportedResponseIds: (
     assignmentId: string,
-    responseIds: string[]
+    responseIds: ResponseDocKey[]
   ) => Promise<void>;
   /** Publish this assignment as a shareable link. Returns the /share/assignment/{id} URL. */
   shareAssignment: (
@@ -737,7 +743,12 @@ export const useQuizAssignments = (
       if (!userId) throw new Error('Not authenticated');
       await updateDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        { exportedResponseIds: responseIds, updatedAt: Date.now() }
+        {
+          // Cast to plain string[] at the Firestore boundary — the brand
+          // is application-level only, the wire format is `string[]`.
+          exportedResponseIds: responseIds as string[],
+          updatedAt: Date.now(),
+        }
       );
     },
     [userId]
