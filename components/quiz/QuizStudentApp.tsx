@@ -19,13 +19,20 @@
  *     the period from the classId via the roster.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   ClipboardList,
   Loader2,
   CheckCircle2,
   Timer,
   ArrowRight,
+  ChevronLeft,
   Trophy,
   AlertCircle,
   Flame,
@@ -36,6 +43,7 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
+import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
@@ -177,40 +185,6 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     await joinQuizSession(code, pin, selectedPeriod);
     setJoined(true);
   }, [joinQuizSession, code, pin, selectedPeriod]);
-
-  // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
-  // students arrive with a stable identity (auth.uid via /student/login),
-  // already matched to their class via classId — so the response doc is
-  // keyed by auth.uid and classPeriod is irrelevant for join. The teacher
-  // monitor view can resolve a student's period from their classId via the
-  // roster if it needs to group by period.
-  useEffect(() => {
-    if (!isStudentRole) return;
-    if (!urlCode) return;
-    if (joined) return;
-    if (ssoAutoJoinStartedRef.current) return;
-    ssoAutoJoinStartedRef.current = true;
-
-    const run = async () => {
-      try {
-        await joinQuizSession(urlCode, undefined, undefined);
-        setJoined(true);
-      } catch (err) {
-        console.warn('[QuizStudentApp] SSO auto-join failed:', err);
-        // Surface the failure to the UI. The hook's own `error` state will
-        // also be populated, and the render branch below prefers that more
-        // detailed message when available.
-        const message =
-          err instanceof Error
-            ? err.message
-            : "We couldn't load your quiz. Please refresh and try again.";
-        setSsoAutoJoinError(message);
-        // Re-arm so a retry button (if added later) can re-trigger.
-        ssoAutoJoinStartedRef.current = false;
-      }
-    };
-    void run();
-  }, [isStudentRole, urlCode, joined, joinQuizSession]);
 
   // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
   // students arrive with a stable identity (auth.uid via /student/login),
@@ -650,9 +624,24 @@ const ActiveQuiz: React.FC<{
     ? localIndex
     : session.currentQuestionIndex;
 
-  const currentQuestion = isStudentPaced
+  const baseQuestion = isStudentPaced
     ? session.publicQuestions[localIndex]
     : sessionQuestion;
+
+  // Per-student answer shuffle. The session-level `publicQuestions` was
+  // shuffled once teacher-side; we re-shuffle on the client deterministically
+  // by student id so neighbours see different orders but a single student's
+  // order stays stable across reload/back-nav. Falls back to the auth uid
+  // when the response doc hasn't loaded yet (first paint of the very first
+  // question), and to a constant when neither is available — that constant
+  // matches the fallback in `seededShuffle`'s caller, so test runs without a
+  // signed-in user are deterministic too.
+  const studentShuffleSeed =
+    myResponse?.studentUid ?? auth.currentUser?.uid ?? 'anonymous-student';
+  const currentQuestion = useMemo(() => {
+    if (!baseQuestion) return baseQuestion;
+    return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
+  }, [baseQuestion, studentShuffleSeed]);
 
   const alreadyAnswered = isStudentPaced
     ? (myResponse?.answers ?? []).some(
@@ -697,24 +686,59 @@ const ActiveQuiz: React.FC<{
   const [saveError, setSaveError] = useState<string | null>(null);
   const advancingRef = useRef(false);
 
-  // Derived state: reset local UI state on new question or when global alreadyAnswered state arrives
-  if (
-    currentQuestion?.id !== prevQuestionId ||
-    alreadyAnswered !== prevAlreadyAnswered
-  ) {
+  // Look up any prior answer the student has already saved for the current
+  // question. Used both to hydrate UI state on back-navigation in self-paced
+  // mode and to seed `StructuredQuestionInput` for matching/ordering revisits.
+  const savedAnswerForCurrent = currentQuestion
+    ? ((myResponse?.answers ?? []).find(
+        (a) => a.questionId === currentQuestion.id
+      )?.answer ?? null)
+    : null;
+
+  // Derived state: full reset on question change, narrow update on alreadyAnswered flips.
+  //
+  // The two branches exist because their triggers race for SSO students:
+  // their response doc is keyed by `auth.uid`, so the `myResponse` listener
+  // fires from the local optimistic write before `setLocalIndex` advances.
+  // If we naively re-ran the full reset on every `alreadyAnswered` flip, the
+  // active submit-and-advance flow would briefly land in `submitted=true` on
+  // the still-current question, swapping the button to the auto-submit
+  // "NEXT QUESTION" fallback and forcing a second click. The narrow branch
+  // skips the `submitted` update while a submit is in flight; legacy hydration
+  // (page reload mid-quiz) still works because that path is never mid-flight.
+  if (currentQuestion?.id !== prevQuestionId) {
     setPrevQuestionId(currentQuestion?.id);
     setPrevAlreadyAnswered(alreadyAnswered);
-    setSelectedAnswer(null);
     setSubmitted(alreadyAnswered);
-    setFibAnswer('');
-    setDraftMcAnswer(null);
     setAutoSubmitTriggeredFor(null);
     setAnswerFeedback(null);
     setRevealedAnswer(null);
     setSpeedBonusEarned(null);
     setSaveError(null);
+    // Hydrate the answer controls from any saved answer so a back-navigated
+    // question (self-paced) shows the student's prior choice. For MC we set
+    // `draftMcAnswer` (not `selectedAnswer`) so the existing draft styling
+    // highlights it and the NEXT button is enabled immediately.
+    if (alreadyAnswered && savedAnswerForCurrent !== null) {
+      setSelectedAnswer(savedAnswerForCurrent);
+      setDraftMcAnswer(
+        currentQuestion?.type === 'MC' ? savedAnswerForCurrent : null
+      );
+      setFibAnswer(
+        currentQuestion?.type === 'FIB' ? savedAnswerForCurrent : ''
+      );
+    } else {
+      setSelectedAnswer(null);
+      setDraftMcAnswer(null);
+      setFibAnswer('');
+    }
     const tl = currentQuestion?.timeLimit ?? 0;
     setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
+  } else if (alreadyAnswered !== prevAlreadyAnswered) {
+    setPrevAlreadyAnswered(alreadyAnswered);
+    if (!submitting && !advancingRef.current) {
+      setSubmitted(alreadyAnswered);
+    }
   }
 
   // Auto-submit detection: when the timer hits zero, mark as submitted during render.
@@ -929,6 +953,12 @@ const ActiveQuiz: React.FC<{
     }
   };
 
+  const handleBack = () => {
+    if (isStudentPaced && localIndex > 0) {
+      setLocalIndex(localIndex - 1);
+    }
+  };
+
   // Self-paced unified action: persist the answer, then advance (or complete
   // on the final question). Skips the per-question feedback banner — teachers
   // who want feedback should run the quiz in teacher-paced mode and reveal
@@ -940,7 +970,10 @@ const ActiveQuiz: React.FC<{
   // the failure vanish into the console; the student's selection is still
   // intact (we never reset it on error) so the same tap retries.
   const handleSubmitAndAdvance = async (answer: string) => {
-    if (advancingRef.current || submitting || submitted) return;
+    if (advancingRef.current || submitting) return;
+    // Self-paced revisits are intentional re-submissions — let them through
+    // even when `submitted=true`. Teacher-paced still locks after first submit.
+    if (submitted && !isStudentPaced) return;
     advancingRef.current = true;
     setSubmitting(true);
     setSaveError(null);
@@ -1033,9 +1066,23 @@ const ActiveQuiz: React.FC<{
       <div className="flex-1 flex flex-col p-6 max-w-lg mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <span className="text-xs text-slate-500">
-            {currentIndex + 1} / {session.totalQuestions}
-          </span>
+          <div className="flex items-center gap-2">
+            {isStudentPaced &&
+              localIndex > 0 &&
+              myResponse?.status !== 'completed' && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  aria-label="Previous question"
+                  className="p-1 -ml-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+            <span className="text-xs text-slate-500">
+              {currentIndex + 1} / {session.totalQuestions}
+            </span>
+          </div>
           {timeLeft !== null && !submitted && (
             <div
               className={`flex items-center gap-1.5 text-sm font-bold ${timeLeft <= 5 ? 'text-red-400' : 'text-amber-400'}`}
@@ -1074,12 +1121,15 @@ const ActiveQuiz: React.FC<{
         {currentQuestion.type === 'MC' && (
           <div className="space-y-3 flex-1">
             {options.map((opt) => {
-              const isSelected = submitted
+              // Self-paced revisits stay editable, so we use the draft styling
+              // (and `draftMcAnswer` highlight) even when `submitted=true`.
+              const isLocked = submitted && !isStudentPaced;
+              const isSelected = isLocked
                 ? selectedAnswer === opt
                 : draftMcAnswer === opt;
               let cls =
                 'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
-              if (!submitted) {
+              if (!isLocked) {
                 cls += isSelected
                   ? 'border-violet-500 bg-violet-500/20 text-white'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
@@ -1091,8 +1141,8 @@ const ActiveQuiz: React.FC<{
               return (
                 <button
                   key={opt}
-                  onClick={() => !submitted && setDraftMcAnswer(opt)}
-                  disabled={submitted || submitting}
+                  onClick={() => !isLocked && setDraftMcAnswer(opt)}
+                  disabled={isLocked || submitting}
                   className={cls}
                 >
                   {opt}
@@ -1102,7 +1152,26 @@ const ActiveQuiz: React.FC<{
 
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
               {isStudentPaced ? (
-                !submitted ? (
+                submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      Quiz complete!
+                    </p>
+                  </div>
+                ) : submitted &&
+                  autoSubmitTriggeredFor === currentQuestion.id ? (
+                  // Timeout-auto-submit fallback: timer expired without an
+                  // answer; give the student a way to advance. Only fires for
+                  // questions the timer actually ran out on, not back-nav
+                  // revisits (which keep the editable NEXT button below).
+                  <button
+                    onClick={handleNext}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                  >
+                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                  </button>
+                ) : (
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
@@ -1128,22 +1197,6 @@ const ActiveQuiz: React.FC<{
                       )}
                     </button>
                   </>
-                ) : currentIndex < session.totalQuestions - 1 ? (
-                  // Timeout-auto-submit fallback: timer expired, give student
-                  // a way to advance.
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      Quiz complete!
-                    </p>
-                  </div>
                 )
               ) : !submitted ? (
                 <button
@@ -1188,23 +1241,38 @@ const ActiveQuiz: React.FC<{
               type="text"
               value={fibAnswer}
               onChange={(e) => setFibAnswer(e.target.value)}
-              disabled={submitted}
+              disabled={submitted && !isStudentPaced}
               placeholder="Type your answer…"
               className="w-full px-5 py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-0 focus:border-violet-500 disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
                 const trimmed = fibAnswer.trim();
-                if (!trimmed || submitted) return;
+                if (!trimmed) return;
                 if (isStudentPaced) {
                   void handleSubmitAndAdvance(trimmed);
-                } else {
+                } else if (!submitted) {
                   void handleSubmit(trimmed);
                 }
               }}
             />
             <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
               {isStudentPaced ? (
-                !submitted ? (
+                submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      Quiz complete!
+                    </p>
+                  </div>
+                ) : submitted &&
+                  autoSubmitTriggeredFor === currentQuestion.id ? (
+                  <button
+                    onClick={handleNext}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                  >
+                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
+                  </button>
+                ) : (
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
@@ -1230,20 +1298,6 @@ const ActiveQuiz: React.FC<{
                       )}
                     </button>
                   </>
-                ) : currentIndex < session.totalQuestions - 1 ? (
-                  <button
-                    onClick={handleNext}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                  >
-                    NEXT QUESTION <ArrowRight className="w-5 h-5" />
-                  </button>
-                ) : (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      Quiz complete!
-                    </p>
-                  </div>
                 )
               ) : !submitted ? (
                 <button
@@ -1288,6 +1342,8 @@ const ActiveQuiz: React.FC<{
             key={currentQuestion.id}
             question={currentQuestion}
             submitted={submitted}
+            isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
+            savedAnswer={savedAnswerForCurrent}
             onSubmit={(answer) => void handleSubmit(answer)}
             onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
             submitting={submitting}
@@ -1307,6 +1363,8 @@ const ActiveQuiz: React.FC<{
 const StructuredQuestionInput: React.FC<{
   question: QuizPublicQuestion;
   submitted: boolean;
+  isAutoSubmitted: boolean;
+  savedAnswer: string | null;
   onSubmit: (answer: string) => void;
   onSubmitAndAdvance: (answer: string) => void;
   submitting: boolean;
@@ -1317,6 +1375,8 @@ const StructuredQuestionInput: React.FC<{
 }> = ({
   question,
   submitted,
+  isAutoSubmitted,
+  savedAnswer,
   onSubmit,
   onSubmitAndAdvance,
   submitting,
@@ -1336,10 +1396,38 @@ const StructuredQuestionInput: React.FC<{
     ? (question.matchingRight ?? [])
     : [];
 
-  const [matchings, setMatchings] = useState<Record<string, string>>(() =>
-    Object.fromEntries(leftItems.map((l: string) => [l, '']))
-  );
-  const [order, setOrder] = useState<string[]>(() => [...leftItems]);
+  // Hydrate from a saved answer on mount (back-navigation in self-paced
+  // mode). The component remounts per question via `key={question.id}` so
+  // initial state is recomputed each visit.
+  const [matchings, setMatchings] = useState<Record<string, string>>(() => {
+    const base: Record<string, string> = Object.fromEntries(
+      leftItems.map((l: string) => [l, ''])
+    );
+    if (isMatching && savedAnswer) {
+      for (const pair of savedAnswer.split('|')) {
+        const sep = pair.indexOf(':');
+        if (sep < 0) continue;
+        const l = pair.slice(0, sep);
+        const r = pair.slice(sep + 1);
+        if (l in base) base[l] = r;
+      }
+    }
+    return base;
+  });
+  const [order, setOrder] = useState<string[]>(() => {
+    if (!isMatching && savedAnswer) {
+      const parsed = savedAnswer.split('|');
+      // Only adopt the saved order if it matches the current item set,
+      // otherwise fall back to the question's default ordering.
+      if (
+        parsed.length === leftItems.length &&
+        parsed.every((p) => leftItems.includes(p))
+      ) {
+        return parsed;
+      }
+    }
+    return [...leftItems];
+  });
 
   const canSubmit = isMatching
     ? Object.values(matchings).every((v: string) => !!v)
@@ -1380,9 +1468,17 @@ const StructuredQuestionInput: React.FC<{
     setDraggedIndex(index);
   };
 
+  // Self-paced revisits stay editable. We only switch out of the form for
+  // (a) the post-completion "Quiz complete!" placeholder on the last
+  // question, or (b) the timeout fallback when the timer auto-submitted
+  // without an answer.
+  const showEditableForm = isStudentPaced
+    ? !(submitted && isLastQuestion) && !(submitted && isAutoSubmitted)
+    : !submitted;
+
   return (
     <div className="space-y-4 flex-1">
-      {!submitted ? (
+      {showEditableForm ? (
         <>
           {isMatching ? (
             <div className="space-y-3">
@@ -1498,8 +1594,9 @@ const StructuredQuestionInput: React.FC<{
         </>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2">
-          {isStudentPaced && !isLastQuestion ? (
-            // Timeout-auto-submit fallback for self-paced.
+          {isStudentPaced && isAutoSubmitted && !isLastQuestion ? (
+            // Timeout-auto-submit fallback for self-paced: timer expired
+            // without an answer; give the student a way to advance.
             <button
               onClick={onNext}
               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
