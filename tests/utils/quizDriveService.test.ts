@@ -70,6 +70,7 @@ describe('QuizDriveService.createPlcSheetAndShare', () => {
 
     const result = await service.createPlcSheetAndShare({
       plcName: '6th Grade Math',
+      quizTitle: 'Unit 3 Check',
       memberEmailsToShareWith: [
         'teacher.b@example.org',
         'TEACHER.C@example.org',
@@ -90,7 +91,7 @@ describe('QuizDriveService.createPlcSheetAndShare', () => {
     expect(createUrl).toBe('https://sheets.googleapis.com/v4/spreadsheets');
     const createBody = parseBody(createInit);
     const properties = createBody.properties as { title?: unknown };
-    expect(properties.title).toBe('6th Grade Math – PLC Results');
+    expect(properties.title).toBe('6th Grade Math – Unit 3 Check – Results');
     const sheetsArr = createBody.sheets as Array<{
       properties?: { title?: unknown };
     }>;
@@ -137,6 +138,7 @@ describe('QuizDriveService.createPlcSheetAndShare', () => {
     });
     const result = await service.createPlcSheetAndShare({
       plcName: 'My PLC',
+      quizTitle: 'Quiz 1',
       memberEmailsToShareWith: ['bogus@nope', 'ok@example.org'],
     });
     errSpy.mockRestore();
@@ -158,6 +160,7 @@ describe('QuizDriveService.createPlcSheetAndShare', () => {
     await expect(
       service.createPlcSheetAndShare({
         plcName: 'X',
+        quizTitle: 'Y',
         memberEmailsToShareWith: [],
       })
     ).rejects.toThrow(/Google Sheets access is not granted/);
@@ -179,6 +182,7 @@ describe('QuizDriveService.createPlcSheetAndShare', () => {
 
     await service.createPlcSheetAndShare({
       plcName: 'D',
+      quizTitle: 'Q',
       memberEmailsToShareWith: [
         'dupe@example.org',
         'DUPE@example.org',

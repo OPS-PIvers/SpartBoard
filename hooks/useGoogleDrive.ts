@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/useAuth';
 import { GoogleDriveService } from '../utils/googleDriveService';
+import { onDriveTokenChange } from '../utils/driveAuthErrors';
 import { APP_NAME } from '../config/constants';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
@@ -8,6 +9,15 @@ const DRAWINGS_FOLDER = 'Drawings';
 const LEGACY_FOLDER_NAME = 'SPART Board';
 const MIGRATION_COMPLETED_FLAG = 'true';
 const migrationKey = (uid: string) => `spart_drive_folder_migrated_v2_${uid}`;
+
+// The Drive auth-error toast machinery (handler registration, latch, token
+// rotation) lives in `utils/driveAuthErrors`. Both Drive services call
+// `reportDriveAuthError` from their throw sites, so the toast surfaces
+// platform-wide without each useGoogleDrive consumer wiring it up.
+// `setDriveAuthErrorHandler` is consumed by DashboardContext from the
+// new module — re-export it here for backwards-compat with any callers
+// still pointing at this hook.
+export { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 
 export const useGoogleDrive = () => {
   const { googleAccessToken, refreshGoogleToken, user } = useAuth();
@@ -20,8 +30,19 @@ export const useGoogleDrive = () => {
   const userDomain = user?.email?.split('@')[1];
   const isConnected = !!googleAccessToken;
 
+  // Re-arm the toast latch when (and only when) a new token arrives. This
+  // is how Reconnect → refreshGoogleToken() → fresh token re-enables the
+  // toast for the next stale episode without spamming during the current
+  // one. The shared helper handles "same token, different consumer
+  // mounting" as a no-op.
+  useEffect(() => {
+    onDriveTokenChange(googleAccessToken);
+  }, [googleAccessToken]);
+
   // One-time migration: rename the legacy "SPART Board" Drive folder to the
   // current APP_NAME ("SpartBoard") so existing users don't lose their data.
+  // The Drive service auto-reports auth errors via the shared toast surface,
+  // so this catch block just logs and lets retry-on-next-load handle it.
   useEffect(() => {
     if (!driveService || !user?.uid) return;
     const key = migrationKey(user.uid);
@@ -31,7 +52,6 @@ export const useGoogleDrive = () => {
       .migrateAppFolderName(LEGACY_FOLDER_NAME, APP_NAME)
       .then(() => localStorage.setItem(key, MIGRATION_COMPLETED_FLAG))
       .catch((error) => {
-        // Silent fail — will retry on next page load
         console.error('Failed to migrate Google Drive folder name:', error);
       });
   }, [driveService, user?.uid]);
@@ -149,6 +169,7 @@ export const useGoogleDrive = () => {
         );
         return text;
       } catch (error) {
+        // Drive service auto-reports auth errors to the shared toast surface.
         console.error('Failed to extract text from Drive file:', error);
         return null;
       }
@@ -169,6 +190,7 @@ export const useGoogleDrive = () => {
       try {
         return await driveService.downloadFileAsBlob(fileId);
       } catch (error) {
+        // Drive service auto-reports auth errors to the shared toast surface.
         console.error('Failed to download Drive file:', error);
         return null;
       }

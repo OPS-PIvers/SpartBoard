@@ -86,6 +86,16 @@ interface QuizResultsProps {
    */
   initialExportUrl?: string | null;
   /**
+   * The PLC-mode export destination for the *active* assignment, sourced
+   * from `assignment.plc.sheetUrl`. With per-assignment PLC sheets we can
+   * no longer rely on `config.plcSheetUrl` (which used to mirror the
+   * cached PLC-doc URL); each assignment has its own sheet and the
+   * authoritative copy lives on the assignment doc. Falls back to
+   * `config.plcSheetUrl` for legacy assignments saved before per-assignment
+   * sheets shipped.
+   */
+  plcSheetUrl?: string | null;
+  /**
    * Persist a fresh export URL back to the assignment doc so it survives
    * QuizResults remounts (the parent remounts it on Results re-entry to
    * recompute aggregate stats) and full tab reloads.
@@ -117,6 +127,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onDeleteResponse,
   onPlcSheetUrlReplaced,
   initialExportUrl,
+  plcSheetUrl: assignmentPlcSheetUrl,
   onExportUrlSaved,
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
@@ -362,6 +373,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     await clearPlcSharedSheetUrl(owningPlc.id);
     const created = await svc.createPlcSheetAndShare({
       plcName: owningPlc.name,
+      quizTitle: quiz.title,
       memberEmailsToShareWith: getPlcTeammateEmails(owningPlc, user.uid),
     });
     const canonical = await setPlcSharedSheetUrl(owningPlc.id, created.url);
@@ -400,7 +412,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         teacherName: config.teacherName,
         periodName: config.periodName,
         plcMode: config.plcMode,
-        plcSheetUrl: config.plcSheetUrl,
+        // Prefer the active assignment's `plc.sheetUrl` (per-assignment
+        // model). Fall back to `config.plcSheetUrl` for legacy assignments
+        // that pre-date per-assignment sheets and still mirror the URL on
+        // widget config.
+        plcSheetUrl: assignmentPlcSheetUrl ?? config.plcSheetUrl,
       };
       let url: string;
       try {

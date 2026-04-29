@@ -43,8 +43,6 @@ import {
   Loader2,
   AlertCircle,
   CheckSquare,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
 import {
   QuizMetadata,
@@ -72,6 +70,7 @@ import {
   LibraryGrid,
   LibraryItemCard,
   AssignModal,
+  CollapsibleSection,
   AssignmentArchiveCard,
   FolderSidebar,
   FolderPickerPopover,
@@ -178,14 +177,20 @@ function buildDefaultAssignOptions(
     showCorrectOnBoard: false,
     speedBonusEnabled: false,
     streakBonusEnabled: false,
-    showPodiumBetweenQuestions: true,
+    showPodiumBetweenQuestions: false,
     soundEffectsEnabled: false,
     // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
     // in the assign modal or later in the assignment settings.
     attemptLimit: 1,
     plcMode: config.plcMode ?? false,
     teacherName: config.teacherName ?? '',
-    plcSheetUrl: config.plcSheetUrl ?? '',
+    // Intentionally NOT seeded from `config.plcSheetUrl`. Per-assignment
+    // auto-create is the new default; pre-populating the field from a prior
+    // assignment's URL was the bug teachers reported (every new assignment
+    // appearing to be linked to the same sheet). Manual paste still works
+    // — the user opens the dialog, toggles "Auto-Generated PLC Sheet" off,
+    // and pastes a URL.
+    plcSheetUrl: '',
     plcId: '',
     picker:
       rememberedRosters.length > 0
@@ -1397,52 +1402,61 @@ const AssignExtraSlot: React.FC<{
         hint="Warn students who leave the quiz tab"
       />
 
-      <SectionHeader label="Answer Feedback" />
-      <ToggleRow
-        label="Show right/wrong to students"
-        checked={options.showResultToStudent}
-        onChange={(v) => update('showResultToStudent', v)}
-        hint="Students see ✓ or ✗ after submitting"
-      />
-      <ToggleRow
-        label="Reveal correct answer to students"
-        checked={options.showCorrectAnswerToStudent}
-        onChange={(v) => update('showCorrectAnswerToStudent', v)}
-        disabled={!options.showResultToStudent}
-        hint="Also show what the correct answer was"
-      />
-      <ToggleRow
-        label="Show correct answer on board"
-        checked={options.showCorrectOnBoard}
-        onChange={(v) => update('showCorrectOnBoard', v)}
-        hint="Display correct answer on the projected screen"
-      />
+      <CollapsibleSection label="Answer Feedback">
+        <ToggleRow
+          compact
+          label="Show right/wrong to students"
+          checked={options.showResultToStudent}
+          onChange={(v) => update('showResultToStudent', v)}
+          hint="Students see ✓ or ✗ after submitting"
+        />
+        <ToggleRow
+          compact
+          label="Reveal correct answer to students"
+          checked={options.showCorrectAnswerToStudent}
+          onChange={(v) => update('showCorrectAnswerToStudent', v)}
+          disabled={!options.showResultToStudent}
+          hint="Also show what the correct answer was"
+        />
+        <ToggleRow
+          compact
+          label="Show correct answer on board"
+          checked={options.showCorrectOnBoard}
+          onChange={(v) => update('showCorrectOnBoard', v)}
+          hint="Display correct answer on the projected screen"
+        />
+      </CollapsibleSection>
 
-      <SectionHeader label="Gamification" />
-      <ToggleRow
-        label="Speed Bonus Points"
-        checked={options.speedBonusEnabled}
-        onChange={(v) => update('speedBonusEnabled', v)}
-        hint="Up to 50% bonus for fast answers"
-      />
-      <ToggleRow
-        label="Streak Bonuses"
-        checked={options.streakBonusEnabled}
-        onChange={(v) => update('streakBonusEnabled', v)}
-        hint="Multiplier for consecutive correct answers"
-      />
-      <ToggleRow
-        label="Podium Between Questions"
-        checked={options.showPodiumBetweenQuestions}
-        onChange={(v) => update('showPodiumBetweenQuestions', v)}
-        hint="Show top 3 leaderboard after each question"
-      />
-      <ToggleRow
-        label="Sound Effects"
-        checked={options.soundEffectsEnabled}
-        onChange={(v) => update('soundEffectsEnabled', v)}
-        hint="Chimes, ticks, and fanfares during the quiz"
-      />
+      <CollapsibleSection label="Gamification">
+        <ToggleRow
+          compact
+          label="Speed Bonus Points"
+          checked={options.speedBonusEnabled}
+          onChange={(v) => update('speedBonusEnabled', v)}
+          hint="Up to 50% bonus for fast answers"
+        />
+        <ToggleRow
+          compact
+          label="Streak Bonuses"
+          checked={options.streakBonusEnabled}
+          onChange={(v) => update('streakBonusEnabled', v)}
+          hint="Multiplier for consecutive correct answers"
+        />
+        <ToggleRow
+          compact
+          label="Podium Between Questions"
+          checked={options.showPodiumBetweenQuestions}
+          onChange={(v) => update('showPodiumBetweenQuestions', v)}
+          hint="Show top 3 leaderboard after each question"
+        />
+        <ToggleRow
+          compact
+          label="Sound Effects"
+          checked={options.soundEffectsEnabled}
+          onChange={(v) => update('soundEffectsEnabled', v)}
+          hint="Chimes, ticks, and fanfares during the quiz"
+        />
+      </CollapsibleSection>
     </>
   );
 };
@@ -1492,18 +1506,18 @@ const AssignPlcSlot: React.FC<{
   const hasCachedSheet = Boolean(selectedPlc?.sharedSheetUrl);
   const hasPlcs = plcs.length > 0;
 
-  // The manual-URL field stays hidden behind a "Manually attach a sheet
-  // URL" disclosure so teachers don't think a paste is required — auto-
-  // create handles it for PLC members. Pre-expanded only for legacy
-  // assignments that already have a URL set, so the existing value isn't
-  // hidden behind a click.
-  const [showSheetUrl, setShowSheetUrl] = useState(
-    Boolean(options.plcSheetUrl)
+  // "Auto-Generated PLC Sheet" toggle — ON by default. When OFF, the
+  // teacher can paste a URL of an existing sheet to point this assignment
+  // at it instead of letting Widget.tsx auto-create one. Initial state
+  // tracks whether a URL is already attached (legacy / pre-populated),
+  // mirroring the previous disclosure semantics.
+  const [useAutoGenerated, setUseAutoGenerated] = useState(
+    !options.plcSheetUrl
   );
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Share2 className="w-4 h-4 text-brand-blue-primary" />
           <span className="text-sm font-bold text-brand-blue-dark">
@@ -1588,47 +1602,29 @@ const AssignPlcSlot: React.FC<{
           </div>
 
           {/*
-           * Manual URL field — hidden behind a disclosure button so
-           * teachers don't think a paste is required. Auto-create
-           * handles it for PLC members; non-PLC users can still expand
-           * the disclosure to paste a URL their PLC lead shared with
-           * them out-of-band. Pre-expanded only when a URL is already
-           * stored (legacy assignments created pre-auto-create).
+           * Auto-Generated PLC Sheet toggle. ON ⇒ Widget.tsx auto-creates a
+           * fresh sheet at assignment-create time and shares it with every
+           * PLC teammate. OFF ⇒ the teacher pastes a URL of an existing
+           * sheet and Widget.tsx skips auto-create (the manual URL wins).
            */}
-          {!showSheetUrl ? (
+          <ToggleRow
+            label="Auto-Generated PLC Sheet"
+            checked={useAutoGenerated}
+            onChange={(v) => {
+              setUseAutoGenerated(v);
+              if (v) update('plcSheetUrl', '');
+            }}
+            hint={
+              useAutoGenerated
+                ? 'SpartBoard creates a fresh Google Sheet for this assignment and shares it with your PLC.'
+                : 'Paste a Google Sheet URL — useful for pointing this assignment at a sheet you already have.'
+            }
+          />
+          {!useAutoGenerated && (
             <div>
-              <button
-                type="button"
-                onClick={() => setShowSheetUrl(true)}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
-              >
-                <ChevronRight className="w-3 h-3" />
-                Manually attach a sheet URL
-              </button>
-              <p className="text-xxs text-slate-400 mt-1">
-                {hasPlcs
-                  ? 'SpartBoard auto-creates and shares a results sheet for your PLC.'
-                  : 'Only needed if your PLC lead has shared a sheet with you out-of-band.'}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                  Shared Google Sheet URL
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSheetUrl(false);
-                    update('plcSheetUrl', '');
-                  }}
-                  className="text-xxs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
-                >
-                  <ChevronDown className="w-3 h-3" />
-                  Hide
-                </button>
-              </div>
+              <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Shared Google Sheet URL
+              </label>
               <input
                 type="text"
                 value={options.plcSheetUrl}
@@ -1644,11 +1640,6 @@ const AssignPlcSlot: React.FC<{
                   </span>
                 </div>
               )}
-              <p className="text-xxs text-slate-400 mt-0.5">
-                {hasPlcs
-                  ? 'Leave blank to let SpartBoard auto-create and share a sheet for your PLC.'
-                  : 'Paste the URL of the Google Sheet shared by your PLC lead.'}
-              </p>
             </div>
           )}
         </div>
@@ -1671,10 +1662,24 @@ const ToggleRow: React.FC<{
   onChange: (v: boolean) => void;
   hint?: string;
   disabled?: boolean;
-}> = ({ label, checked, onChange, hint, disabled }) => (
+  /**
+   * When true, the label renders in the small uppercase brand-blue style
+   * used inside `CollapsibleSection` bodies. Top-level rows (e.g. Tab
+   * Switch Detection) use the default bold-dark label.
+   */
+  compact?: boolean;
+}> = ({ label, checked, onChange, hint, disabled, compact = false }) => (
   <div className={disabled ? 'opacity-40 pointer-events-none' : ''}>
     <div className="flex items-center justify-between">
-      <span className="text-sm font-bold text-brand-blue-dark">{label}</span>
+      <span
+        className={
+          compact
+            ? 'text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest'
+            : 'text-sm font-bold text-brand-blue-dark'
+        }
+      >
+        {label}
+      </span>
       <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
     </div>
     {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}

@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { gradeAnswer } from '../hooks/useQuizSession';
 import { APP_NAME } from '../config/constants';
+import { authError } from './driveAuthErrors';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -777,22 +778,23 @@ export class QuizDriveService {
   // ─── PLC shared-sheet provisioning ─────────────────────────────────────────
 
   /**
-   * Create a new Google Sheet owned by the caller for use as a PLC's
-   * shared export destination, and grant `writer` permission to every
-   * email in `memberEmailsToShareWith`. The caller's own email must NOT
-   * appear in the list — they already own the sheet.
+   * Create a new Google Sheet owned by the caller as the per-assignment
+   * shared export destination for a PLC quiz, and grant `writer` permission
+   * to every email in `memberEmailsToShareWith`. The caller's own email
+   * must NOT appear in the list — they already own the sheet.
    *
-   * Returns the spreadsheet URL for persisting onto `plcs/{id}.sharedSheetUrl`
-   * and the assignment's `plcSheetUrl`. Permission-grant failures are
-   * logged and swallowed individually so that one teammate with an invalid
-   * email doesn't block the sheet from being created — reconciliation on
+   * Each PLC assignment gets its own fresh sheet — this is no longer
+   * cached on the PLC doc. Permission-grant failures are logged and
+   * swallowed individually so that one teammate with an invalid email
+   * doesn't block the sheet from being created — reconciliation on
    * invite-accept will retry missing grants.
    */
   async createPlcSheetAndShare(args: {
     plcName: string;
+    quizTitle: string;
     memberEmailsToShareWith: string[];
   }): Promise<{ url: string; spreadsheetId: string }> {
-    const title = `${args.plcName} – PLC Results`;
+    const title = `${args.plcName} – ${args.quizTitle} – Results`;
     const createRes = await fetch(SHEETS_API_URL, {
       method: 'POST',
       headers: this.jsonHeaders,
@@ -807,7 +809,7 @@ export class QuizDriveService {
       const err = await createRes.text();
       console.error('PLC sheet create error:', err);
       if (createRes.status === 401 || createRes.status === 403) {
-        throw new Error(
+        throw authError(
           'Google Sheets access is not granted. Sign in again to enable PLC sharing.'
         );
       }

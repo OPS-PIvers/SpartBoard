@@ -42,6 +42,7 @@ import {
 } from '../utils/dashboardPII';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import { DashboardContext } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
@@ -296,6 +297,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [removeToast]
   );
+
+  // Register a module-level handler so silent Drive auth failures inside
+  // `useGoogleDrive`'s catch blocks surface to the user. The hook can't call
+  // `useDashboard()` directly (it's consumed by this provider, so the context
+  // value isn't available yet at hook-call time), hence the singleton dispatch
+  // pattern. See `hooks/useGoogleDrive.ts` for details.
+  useEffect(() => {
+    setDriveAuthErrorHandler(() => {
+      addToast(
+        'Google Drive connection expired — reconnect to keep things in sync.',
+        'error',
+        {
+          label: 'Reconnect',
+          onClick: async () => {
+            const token = await refreshGoogleToken();
+            if (token) {
+              addToast('Google Drive session refreshed', 'success');
+            } else {
+              addToast('Failed to refresh Drive session', 'error');
+            }
+          },
+        }
+      );
+    });
+    return () => setDriveAuthErrorHandler(null);
+  }, [addToast, refreshGoogleToken]);
 
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>(() => {
     const saved = localStorage.getItem('spartboard_gradeFilter');

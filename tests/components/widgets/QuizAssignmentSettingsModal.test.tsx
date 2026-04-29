@@ -33,12 +33,12 @@ function makePlcAssignment(
   } as unknown as QuizAssignment;
 }
 
-describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
+describe('QuizAssignmentSettingsModal — Auto-Generated PLC Sheet toggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('starts collapsed when the assignment has no plc.sheetUrl', () => {
+  it('starts ON (URL input hidden) when the assignment has no plc.sheetUrl', () => {
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment()}
@@ -47,15 +47,14 @@ describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
         onClose={vi.fn()}
       />
     );
-    expect(
-      screen.getByRole('button', { name: /Manually attach a sheet URL/i })
-    ).toBeInTheDocument();
+    // The Auto-Generated row is visible; the URL input is not rendered.
+    expect(screen.getByText('Auto-Generated PLC Sheet')).toBeInTheDocument();
     expect(
       screen.queryByPlaceholderText(/docs\.google\.com\/spreadsheets/i)
     ).not.toBeInTheDocument();
   });
 
-  it('starts expanded when the assignment already has a plc.sheetUrl (legacy)', () => {
+  it('starts OFF (URL input pre-filled) when the assignment already has a plc.sheetUrl (legacy)', () => {
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment({
@@ -73,21 +72,13 @@ describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
     );
     // Field is rendered with the legacy URL pre-populated.
     expect(screen.getByDisplayValue(/legacy-sheet-id/)).toBeInTheDocument();
-    // No disclosure button when expanded.
-    expect(
-      screen.queryByRole('button', { name: /Manually attach a sheet URL/i })
-    ).not.toBeInTheDocument();
   });
 
-  it('clicking "Hide" preserves the existing plc.sheetUrl (cancel, not clear)', async () => {
+  it('toggling Auto-Generated back ON preserves the existing plc.sheetUrl (cancel, not clear)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment({
-          // status must be 'inactive' for Save to be enabled when
-          // the modeLocked path keeps everything else editable —
-          // 'paused' still allows save here since the modal's
-          // confirm gate is permissive.
           plc: {
             id: 'plc-1',
             name: 'Test PLC',
@@ -100,13 +91,24 @@ describe('QuizAssignmentSettingsModal — sheet URL disclosure', () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Hide/i }));
-    // Save (the modal's confirm button label is just "Save").
+    // Legacy assignment: toggle starts OFF, URL pre-filled. Click the
+    // toggle to turn Auto-Generated back ON — this clears the form input
+    // but should NOT clear the saved plc.sheetUrl (the no-op branch in
+    // handleAssign preserves the existing linkage when plcSheetUrl saves
+    // as ''). Without that branch, saving '' would be dropped by the
+    // read-side validator on next snapshot, silently losing PLC mode.
+    // Anchor on the label text and walk up to its sibling switch — the
+    // ToggleRow renders <span>{label}</span> + <Toggle/> as direct
+    // children of the same flex row, so finding the row from the label
+    // and querying for [role=switch] inside it gives us the right one
+    // even when other toggles (Share with PLC) live in nearby rows.
+    const labelEl = screen.getByText('Auto-Generated PLC Sheet');
+    const row = labelEl.parentElement; // the flex row
+    const autoGenSwitch = row?.querySelector('[role="switch"]');
+    expect(autoGenSwitch).not.toBeNull();
+    fireEvent.click(autoGenSwitch as HTMLElement);
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    // Hide is a cancel: the form input was cleared, but the saved plc keeps
-    // the existing sheetUrl. Saving an empty sheetUrl would be dropped by
-    // the read-side validator on next snapshot, silently losing PLC mode.
     expect(onSave.mock.calls[0][0]).toMatchObject({
       plc: {
         id: 'plc-1',
