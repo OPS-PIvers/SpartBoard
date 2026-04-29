@@ -154,7 +154,8 @@ function resolveEffectivePeriodNames(
 function buildDefaultAssignOptions(
   config: QuizConfig,
   quizId: string | undefined,
-  rosters: ClassRoster[]
+  rosters: ClassRoster[],
+  defaultTeacherName?: string
 ): QuizAssignOptions {
   // Prefer the unified `lastRosterIdsByQuizId` memory. Fall back to legacy
   // ClassLink-sourcedId maps (`lastClassIdsByQuizId` / `lastClassIdByQuizId`)
@@ -183,7 +184,10 @@ function buildDefaultAssignOptions(
     // in the assign modal or later in the assignment settings.
     attemptLimit: 1,
     plcMode: config.plcMode ?? false,
-    teacherName: config.teacherName ?? '',
+    // Auto-fill from the signed-in teacher's display name when neither the
+    // widget config nor a prior assignment carried a saved name. Falls back
+    // to '' so empty Google profiles still render the placeholder cleanly.
+    teacherName: config.teacherName ?? defaultTeacherName ?? '',
     // Intentionally NOT seeded from `config.plcSheetUrl`. Per-assignment
     // auto-create is the new default; pre-populating the field from a prior
     // assignment's URL was the bug teachers reported (every new assignment
@@ -276,6 +280,13 @@ interface QuizManagerProps {
   onArchiveDelete?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
+  /**
+   * Signed-in teacher's display name. Used as the auto-fill default for the
+   * "Your Name" / `teacherName` field in the assign modal when neither the
+   * widget config nor a prior assignment carried a saved name. Threaded
+   * through from Widget.tsx → useAuth().user.displayName.
+   */
+  defaultTeacherName?: string;
 }
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -374,6 +385,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveReopen,
   onArchiveDelete,
   onLibraryViewModeChange,
+  defaultTeacherName,
 }) => {
   const noop = () => {
     /* action not wired */
@@ -387,7 +399,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     null
   );
   const [assignOptions, setAssignOptions] = useState<QuizAssignOptions>(() =>
-    buildDefaultAssignOptions(config, undefined, rosters)
+    buildDefaultAssignOptions(config, undefined, rosters, defaultTeacherName)
   );
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
@@ -403,7 +415,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     if (assignTarget) {
       setSelectedMode(null);
       setAssignOptions(
-        buildDefaultAssignOptions(config, assignTarget.id, rosters)
+        buildDefaultAssignOptions(
+          config,
+          assignTarget.id,
+          rosters,
+          defaultTeacherName
+        )
       );
     }
   }
