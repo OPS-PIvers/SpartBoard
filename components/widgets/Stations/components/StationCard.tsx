@@ -2,7 +2,10 @@ import React from 'react';
 import { Station } from '@/types';
 import { DroppableZone } from '@/components/widgets/LunchCount/components/DroppableZone';
 import { DraggableStudent } from '@/components/widgets/LunchCount/components/DraggableStudent';
-import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
+import {
+  isSafeIconUrl,
+  renderCatalystIcon,
+} from '@/components/widgets/Catalyst/catalystHelpers';
 import { LayoutGrid, RotateCcw } from 'lucide-react';
 import { hexToRgba } from '@/utils/styles';
 import { studentChipClass, studentChipStyle } from './studentChip';
@@ -52,8 +55,13 @@ export const StationCard: React.FC<StationCardProps> = ({
       ? `${members.length} / ${station.maxStudents}`
       : `${members.length}`;
   const trimmedImageUrl = station.imageUrl?.trim();
-  const hasImage = Boolean(trimmedImageUrl);
-  const iconName = station.iconName?.trim() ? station.iconName : 'LayoutGrid';
+  // Validate the URL with the same safety check `renderCatalystIcon` uses for
+  // the icon-mode case so we don't silently load unsafe URLs (non-https, or
+  // oversized `data:` payloads). If the URL fails the check, fall back to
+  // icon mode so the card still renders cleanly.
+  const hasImage = Boolean(trimmedImageUrl) && isSafeIconUrl(trimmedImageUrl!);
+  const trimmedIconName = station.iconName?.trim();
+  const iconName = trimmedIconName || 'LayoutGrid';
   // Chip column overlay — an internal readability layer (not a user-visible
   // "card surface"). It uses `cardColor` and is deliberately bumped above
   // `cardOpacity` so chip text stays legible even when the accent tint behind
