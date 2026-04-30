@@ -59,9 +59,11 @@ export const StationCard: React.FC<StationCardProps> = ({
   // the icon-mode case so we don't silently load unsafe URLs (non-https, or
   // oversized `data:` payloads). If the URL fails the check, fall back to
   // icon mode so the card still renders cleanly.
-  const hasImage = Boolean(trimmedImageUrl) && isSafeIconUrl(trimmedImageUrl!);
-  const trimmedIconName = station.iconName?.trim();
-  const iconName = trimmedIconName || 'LayoutGrid';
+  const hasImage = trimmedImageUrl ? isSafeIconUrl(trimmedImageUrl) : false;
+  // Use `||` (not `??`) so an empty trimmed string also falls back to the
+  // default — `??` would keep `''` and break the lucide lookup.
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const iconName = station.iconName?.trim() || 'LayoutGrid';
   // Chip column overlay — an internal readability layer (not a user-visible
   // "card surface"). It uses `cardColor` and is deliberately bumped above
   // `cardOpacity` so chip text stays legible even when the accent tint behind
