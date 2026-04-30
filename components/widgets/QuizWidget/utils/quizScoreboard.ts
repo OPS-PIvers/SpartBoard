@@ -140,10 +140,123 @@ export function getScoreSuffix(session?: QuizScoringSession): string {
 }
 
 /**
- * Build a PIN → student full-name lookup from matching rosters.
- * Accepts an array of period names to support multi-class assignments.
- * Stores both canonical (zero-padded) and stripped PIN forms. First roster
- * wins for a given PIN when multiple rosters overlap.
+ * Composite-key separator used by `buildPinToNameMap` /
+ * `buildPinToExportNameMap`. Map keys are `${classPeriod}${PIN_KEY_SEP}${pin}`
+ * so that the same PIN in two different rosters resolves to two different
+ * students. U+0001 (Start of Heading) is highly unlikely to appear in a
+ * roster name or a PIN — PINs are zero-padded numerics, and roster name
+ * inputs in the SPART Board UIs don't surface control characters. Treat
+ * the separator as a soft guarantee, not a hard input invariant; if a
+ * pathological roster name ever embeds U+0001 the worst outcome is a
+ * lookup miss (resolved as `PIN <n>`), which is the visible-failure mode
+ * we already prefer.
+ */
+const PIN_KEY_SEP = '';
+
+function makePinKey(classPeriod: string, pin: string): string {
+  return `${classPeriod}${PIN_KEY_SEP}${pin}`;
+}
+
+/**
+ * Module-scoped dedupe for the legacy-fallback ambiguity warn in
+ * `resolvePinName`. Without this, a live monitor with many anonymous PIN
+ * joiners on a session that pre-dates per-period scoping would emit the
+ * warn on every render — hundreds per minute. Cleared between tests via
+ * the exported `__resetPinNameWarnDedupe`.
+ */
+const warnedAmbiguities = new Set<string>();
+
+/** Reset the ambiguity-warn dedupe state. Test-only. */
+export function __resetPinNameWarnDedupe(): void {
+  warnedAmbiguities.clear();
+}
+
+/**
+ * Look up the roster name for a `(classPeriod, pin)` pair.
+ *
+ * Resolution order:
+ *   1. Period-scoped composite key — the correct path. When `classPeriod`
+ *      is provided we ONLY trust this tier; a miss returns `undefined`
+ *      so the caller renders `PIN <n>` rather than risk a wrong-period
+ *      collision via suffix scan.
+ *   2. Composite-key suffix scan — only when `classPeriod` is missing
+ *      (legacy SSO and pre-period-scoping responses). When more than
+ *      one distinct candidate matches the same PIN the function still
+ *      returns the first hit (preserves pre-PR behavior) but emits a
+ *      `console.warn` so observability picks up the ambiguity.
+ *   3. Bare-PIN flat lookup — for older callers and tests that build
+ *      maps without composite keys. Also gated on missing `classPeriod`.
+ *
+ * Both zero-padded (`"01"`) and stripped (`"1"`) PIN forms are accepted.
+ */
+export function resolvePinName(
+  map: Record<string, string>,
+  classPeriod: string | null | undefined,
+  pin: string | null | undefined
+): string | undefined {
+  if (!pin) return undefined;
+  const stripped = pin.replace(/^0+/, '');
+  const variants = stripped && stripped !== pin ? [pin, stripped] : [pin];
+
+  if (classPeriod) {
+    for (const v of variants) {
+      const hit = map[makePinKey(classPeriod, v)];
+      if (hit) return hit;
+    }
+    // classPeriod was provided but nothing matched. Don't fall through to
+    // the legacy suffix scan: a wrong-period response (typo, deleted
+    // roster, drift between periodNames and rosters) would otherwise
+    // resolve to whichever student happens to share the PIN in any
+    // roster, attributing the wrong name confidently. Returning
+    // undefined surfaces the mismatch as `PIN <n>` in the UI.
+    return undefined;
+  }
+
+  // Tier 2 — legacy / SSO path with no classPeriod. Detect ambiguity so
+  // observability can flag PIN collisions across rosters.
+  const seen = new Set<string>();
+  let firstHit: string | undefined;
+  for (const v of variants) {
+    const suffix = `${PIN_KEY_SEP}${v}`;
+    for (const k in map) {
+      if (k.endsWith(suffix)) {
+        const name = map[k];
+        firstHit ??= name;
+        seen.add(name);
+      }
+    }
+  }
+  if (seen.size > 1) {
+    // Dedupe by `(pin, sorted-candidates)` so a live monitor with N legacy
+    // PIN-only joiners that all hit the same collision warns once, not
+    // once per render × per response. The set survives the JS context;
+    // tests that need fresh warns should call `__resetPinNameWarnDedupe`.
+    const dedupeKey = `${pin}:${Array.from(seen).sort().join('|')}`;
+    if (!warnedAmbiguities.has(dedupeKey)) {
+      warnedAmbiguities.add(dedupeKey);
+      console.warn(
+        `[resolvePinName] Ambiguous PIN ${pin} matched ${seen.size} rosters with no classPeriod; returning first match. Candidates: ${Array.from(
+          seen
+        ).join(', ')}`
+      );
+    }
+  }
+  if (firstHit) return firstHit;
+
+  // Tier 3 — bare-PIN map (hand-built, older callers, tests).
+  for (const v of variants) {
+    const hit = map[v];
+    if (hit) return hit;
+  }
+
+  return undefined;
+}
+
+/**
+ * Build a (classPeriod, PIN) → student full-name lookup from matching
+ * rosters. Accepts an array of period names to support multi-class
+ * assignments. Keys are composite (see `PIN_KEY_SEP`); always look up via
+ * `resolvePinName`, never index the map directly.
  */
 export function buildPinToNameMap(
   rosters: ClassRoster[],
@@ -157,10 +270,10 @@ export function buildPinToNameMap(
     for (const s of roster.students) {
       if (s.pin && (s.firstName || s.lastName)) {
         const name = [s.firstName, s.lastName].filter(Boolean).join(' ');
-        if (!(s.pin in map)) map[s.pin] = name;
+        map[makePinKey(pName, s.pin)] = name;
         const stripped = s.pin.replace(/^0+/, '');
-        if (stripped && stripped !== s.pin && !(stripped in map)) {
-          map[stripped] = name;
+        if (stripped && stripped !== s.pin) {
+          map[makePinKey(pName, stripped)] = name;
         }
       }
     }
@@ -169,9 +282,10 @@ export function buildPinToNameMap(
 }
 
 /**
- * Build a PIN → student name lookup formatted for spreadsheet export:
- * "Last, First" when both names exist, just first or last name alone otherwise.
- * Accepts an array of period names to support multi-class assignments.
+ * Build a (classPeriod, PIN) → student name lookup formatted for spreadsheet
+ * export: "Last, First" when both names exist, just first or last name alone
+ * otherwise. Keys are composite (see `PIN_KEY_SEP`); always look up via
+ * `resolvePinName`.
  */
 export function buildPinToExportNameMap(
   rosters: ClassRoster[],
@@ -188,10 +302,10 @@ export function buildPinToExportNameMap(
           s.lastName && s.firstName
             ? `${s.lastName}, ${s.firstName}`
             : s.lastName || s.firstName;
-        if (!(s.pin in map)) map[s.pin] = name;
+        map[makePinKey(pName, s.pin)] = name;
         const stripped = s.pin.replace(/^0+/, '');
-        if (stripped && stripped !== s.pin && !(stripped in map)) {
-          map[stripped] = name;
+        if (stripped && stripped !== s.pin) {
+          map[makePinKey(pName, stripped)] = name;
         }
       }
     }

@@ -287,4 +287,10 @@ export const TOOLS: ToolMetadata[] = [
     label: 'Need / Do / Put / Then',
     color: 'bg-cyan-600',
   },
+  {
+    type: 'stations',
+    icon: LayoutGrid,
+    label: 'Stations',
+    color: 'bg-emerald-500',
+  },
 ];

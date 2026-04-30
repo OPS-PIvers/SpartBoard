@@ -31,6 +31,8 @@ import {
   buildPinToExportNameMap,
   buildScoreboardTeams,
   buildLiveLeaderboard,
+  resolvePinName,
+  __resetPinNameWarnDedupe,
 } from './quizScoreboard';
 import type {
   QuizResponse,
@@ -406,7 +408,7 @@ describe('quizScoreboard', () => {
   });
 
   describe('buildPinToNameMap', () => {
-    it('returns a map from PIN to full name when roster matches', () => {
+    it('resolves a PIN to a full name when roster matches', () => {
       const rosters = [
         makeRoster('Period 1', [
           { firstName: 'Alice', lastName: 'Smith', pin: '01' },
@@ -414,13 +416,11 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, ['Period 1']);
-      // Includes both zero-padded and stripped forms for flexible matching
-      expect(map).toEqual({
-        '01': 'Alice Smith',
-        '1': 'Alice Smith',
-        '02': 'Bob Jones',
-        '2': 'Bob Jones',
-      });
+      // Both zero-padded and stripped forms work
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '02')).toBe('Bob Jones');
+      expect(resolvePinName(map, 'Period 1', '2')).toBe('Bob Jones');
     });
 
     it('returns empty map when no matching roster is found', () => {
@@ -451,10 +451,10 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, ['Period 1']);
-      expect(map).toEqual({
-        '02': 'Bob Jones',
-        '2': 'Bob Jones',
-      });
+      expect(resolvePinName(map, 'Period 1', '02')).toBe('Bob Jones');
+      // The empty-PIN student is not reachable from any path. Exhaustive
+      // assertion: Alice's name appears nowhere in the resulting map.
+      expect(Object.values(map)).toEqual(['Bob Jones', 'Bob Jones']);
     });
 
     it('handles students with only first name', () => {
@@ -464,10 +464,14 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, ['Period 1']);
-      expect(map).toEqual({ '01': 'Cher', '1': 'Cher' });
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Cher');
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Cher');
     });
 
-    it('merges students from multiple periods (first roster wins for PIN collision)', () => {
+    it('disambiguates same PIN across multiple periods', () => {
+      // The bug this fix addresses: each roster numbers its students 01, 02,
+      // 03... so PIN 01 exists in every section. The map must scope lookups
+      // by classPeriod or all PIN-1 students collapse onto roster #1's row.
       const rosters = [
         makeRoster('Period 1', [
           { firstName: 'Alice', lastName: 'Smith', pin: '01' },
@@ -478,12 +482,127 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToNameMap(rosters, ['Period 1', 'Period 2']);
-      // Period 1 wins for PIN '01'
-      expect(map['01']).toBe('Alice Smith');
-      expect(map['1']).toBe('Alice Smith');
-      // Period 2 adds PIN '03'
-      expect(map['03']).toBe('Charlie Brown');
-      expect(map['3']).toBe('Charlie Brown');
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 2', '01')).toBe('Alice2 Smith2');
+      expect(resolvePinName(map, 'Period 2', '03')).toBe('Charlie Brown');
+      // Stripped form works the same way
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 2', '1')).toBe('Alice2 Smith2');
+    });
+
+    it('period-scoped tier short-circuits before any fallback', () => {
+      // Defensive: if a future refactor reorders the fallback ladder so
+      // the suffix scan runs before the period-scoped lookup, this test
+      // would catch it. Period 1's Alice must win even though Period 2
+      // also has someone at PIN 01.
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+        makeRoster('Period 2', [
+          { firstName: 'Bob', lastName: 'Jones', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1', 'Period 2']);
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
+    });
+
+    it('returns undefined when classPeriod is provided but does not match any roster', () => {
+      // Wrong-period responses (typo, deleted roster, drift between
+      // periodNames and rosters) used to silently fall through to the
+      // legacy suffix scan and resolve to whichever student happens to
+      // share the PIN. The fix returns `undefined` so the UI renders
+      // `PIN <n>` and the mismatch is visible.
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+        makeRoster('Period 2', [
+          { firstName: 'Bob', lastName: 'Jones', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1', 'Period 2']);
+      expect(resolvePinName(map, 'Period 9', '01')).toBeUndefined();
+      expect(resolvePinName(map, 'Nonexistent', '1')).toBeUndefined();
+    });
+
+    it('falls back to suffix scan when classPeriod is missing (legacy path)', () => {
+      // SSO joiners and pre-period-scoping responses may have no
+      // `classPeriod`. Behave like the old "first match wins" lookup so
+      // those paths keep working.
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, undefined, '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, '', '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, null, '1')).toBe('Alice Smith');
+    });
+
+    it('warns when the legacy suffix scan finds multiple distinct candidates', () => {
+      __resetPinNameWarnDedupe();
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+        makeRoster('Period 2', [
+          { firstName: 'Bob', lastName: 'Jones', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1', 'Period 2']);
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        /* suppress expected warning */
+      });
+      try {
+        const result = resolvePinName(map, undefined, '01');
+        expect(['Alice Smith', 'Bob Jones']).toContain(result);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Ambiguous PIN 01')
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('dedupes the ambiguity warn so live-monitor renders do not flood', () => {
+      __resetPinNameWarnDedupe();
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+        makeRoster('Period 2', [
+          { firstName: 'Bob', lastName: 'Jones', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1', 'Period 2']);
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        /* suppress */
+      });
+      try {
+        // Five lookups for the same ambiguous (pin, candidates) pair —
+        // simulates one render pass over five anonymous PIN joiners.
+        for (let i = 0; i < 5; i++) {
+          resolvePinName(map, undefined, '01');
+        }
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('returns undefined for unknown PINs', () => {
+      const rosters = [
+        makeRoster('Period 1', [
+          { firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '99')).toBeUndefined();
+      expect(resolvePinName(map, 'Period 1', '')).toBeUndefined();
+      expect(resolvePinName(map, 'Period 1', undefined)).toBeUndefined();
     });
   });
 
@@ -496,8 +615,8 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToExportNameMap(rosters, ['Period 1']);
-      expect(map['01']).toBe('Smith, Alice');
-      expect(map['02']).toBe('Jones, Bob');
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Smith, Alice');
+      expect(resolvePinName(map, 'Period 1', '02')).toBe('Jones, Bob');
     });
 
     it('returns just first name when last name is empty', () => {
@@ -507,8 +626,8 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToExportNameMap(rosters, ['Period 1']);
-      expect(map['01']).toBe('Cher');
-      expect(map['1']).toBe('Cher');
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Cher');
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Cher');
     });
 
     it('returns just last name when first name is empty', () => {
@@ -518,19 +637,22 @@ describe('quizScoreboard', () => {
         ]),
       ];
       const map = buildPinToExportNameMap(rosters, ['Period 1']);
-      expect(map['03']).toBe('Madonna');
-      expect(map['3']).toBe('Madonna');
+      expect(resolvePinName(map, 'Period 1', '03')).toBe('Madonna');
+      expect(resolvePinName(map, 'Period 1', '3')).toBe('Madonna');
     });
 
-    it('stores both zero-padded and stripped PIN forms', () => {
+    it('disambiguates same PIN across multiple periods (export naming)', () => {
       const rosters = [
         makeRoster('Period 1', [
           { firstName: 'Alice', lastName: 'Smith', pin: '01' },
         ]),
+        makeRoster('Period 2', [
+          { firstName: 'Bob', lastName: 'Jones', pin: '01' },
+        ]),
       ];
-      const map = buildPinToExportNameMap(rosters, ['Period 1']);
-      expect(map['01']).toBe('Smith, Alice');
-      expect(map['1']).toBe('Smith, Alice');
+      const map = buildPinToExportNameMap(rosters, ['Period 1', 'Period 2']);
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Smith, Alice');
+      expect(resolvePinName(map, 'Period 2', '01')).toBe('Jones, Bob');
     });
 
     it('returns empty map when no matching roster is found', () => {

@@ -235,6 +235,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     useState(false);
   const [remoteControlEnabled, setRemoteControlEnabledState] = useState(true);
   const [dockPosition, setDockPositionState] = useState<DockPosition>('bottom');
+  // Default colors-on so existing teachers see the same tinted rows they're
+  // used to. When the field is absent from a profile doc (older accounts)
+  // we still treat them as opted-in.
+  const [quizMonitorColorsEnabled, setQuizMonitorColorsEnabledState] =
+    useState(true);
+  const [quizMonitorScoreDisplay, setQuizMonitorScoreDisplayState] = useState<
+    'percent' | 'count' | 'hidden'
+  >('percent');
   const [orgId, setOrgId] = useState<string | null>(
     isAuthBypass ? DEFAULT_ORG_ID : null
   );
@@ -888,6 +896,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             setDockPositionState('bottom');
           }
+          if (
+            'quizMonitorColorsEnabled' in data &&
+            typeof data.quizMonitorColorsEnabled === 'boolean'
+          ) {
+            setQuizMonitorColorsEnabledState(data.quizMonitorColorsEnabled);
+          } else {
+            setQuizMonitorColorsEnabledState(true);
+          }
+          if (
+            'quizMonitorScoreDisplay' in data &&
+            (data.quizMonitorScoreDisplay === 'percent' ||
+              data.quizMonitorScoreDisplay === 'count' ||
+              data.quizMonitorScoreDisplay === 'hidden')
+          ) {
+            setQuizMonitorScoreDisplayState(data.quizMonitorScoreDisplay);
+          } else {
+            setQuizMonitorScoreDisplayState('percent');
+          }
 
           setProfileLoaded(true);
           return;
@@ -1054,6 +1080,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       disableCloseConfirmation?: boolean;
       remoteControlEnabled?: boolean;
       dockPosition?: DockPosition;
+      quizMonitorColorsEnabled?: boolean;
+      quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -1064,12 +1092,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.dockPosition !== undefined) {
         setDockPositionState(updates.dockPosition);
       }
+      if (updates.quizMonitorColorsEnabled !== undefined) {
+        setQuizMonitorColorsEnabledState(updates.quizMonitorColorsEnabled);
+      }
+      if (updates.quizMonitorScoreDisplay !== undefined) {
+        setQuizMonitorScoreDisplayState(updates.quizMonitorScoreDisplay);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
         disableCloseConfirmation?: boolean;
         remoteControlEnabled?: boolean;
         dockPosition?: DockPosition;
+        quizMonitorColorsEnabled?: boolean;
+        quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -1084,6 +1120,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updates.dockPosition === 'right'
       ) {
         sanitizedUpdates.dockPosition = updates.dockPosition;
+      }
+      if (typeof updates.quizMonitorColorsEnabled === 'boolean') {
+        sanitizedUpdates.quizMonitorColorsEnabled =
+          updates.quizMonitorColorsEnabled;
+      }
+      if (
+        updates.quizMonitorScoreDisplay === 'percent' ||
+        updates.quizMonitorScoreDisplay === 'count' ||
+        updates.quizMonitorScoreDisplay === 'hidden'
+      ) {
+        sanitizedUpdates.quizMonitorScoreDisplay =
+          updates.quizMonitorScoreDisplay;
       }
 
       if (!user || isAuthBypass || Object.keys(sanitizedUpdates).length === 0) {
@@ -1100,6 +1148,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (myToken === writeTokenRef.current) {
           console.error('Error saving account preferences:', error);
         }
+        // Rethrow so callers that DO care about the failure (e.g. the
+        // QuizLiveMonitor toggles, which catch this and toast) can react.
+        // Pre-existing fire-and-forget callers are unaffected — an unhandled
+        // rejection on those is fine because the inner console.error has
+        // already logged the failure.
+        throw error;
       }
     },
     [user]
@@ -1458,6 +1512,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         disableCloseConfirmation,
         remoteControlEnabled,
         dockPosition,
+        quizMonitorColorsEnabled,
+        quizMonitorScoreDisplay,
         updateAccountPreferences,
         orgId,
         roleId,

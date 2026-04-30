@@ -41,6 +41,15 @@ export interface ResolvedAssignmentTargets {
   classIds: string[];
   /** Period names (local roster names) for PIN-flow routing. */
   periodNames: string[];
+  /**
+   * Map from each targeted classId (`classlinkClassId` or `testClassId`) to
+   * its corresponding roster name (= period name). SSO students read this
+   * off the session doc at join time to write `classPeriod` directly onto
+   * their response, eliminating the teacher-side roster-lookup fallback for
+   * new responses. Empty when no selected roster carries a classId.
+   * First-wins on duplicate classIds (matches the dedup in `classIds[]`).
+   */
+  classPeriodByClassId: Record<string, string>;
   /** Union of students across all targeted rosters (new path only). */
   students: Student[];
   /**
@@ -51,16 +60,18 @@ export interface ResolvedAssignmentTargets {
 }
 
 /**
- * Triple of targeting fields that flow together onto an assignment +
+ * Bundle of targeting fields that flow together onto an assignment +
  * session doc. Always derived as a unit by `deriveSessionTargetsFromRosters`
- * — the three arrays are not independent inputs even though they ride
- * separate Firestore fields. Use this type wherever a function takes or
- * produces these three fields together so callers can't accidentally pass
- * a hand-rolled triple that violates the joint-derivation invariant.
+ * — the four fields (`rosterIds`, `classIds`, `periodNames`, and the
+ * `classPeriodByClassId` map) are not independent inputs even though
+ * they ride separate Firestore fields. Use this type wherever a function
+ * takes or produces them together so callers can't accidentally pass a
+ * hand-rolled bundle that violates the joint-derivation invariant
+ * (e.g., a `classPeriodByClassId` whose keys don't appear in `classIds`).
  */
 export type SessionTargets = Pick<
   ResolvedAssignmentTargets,
-  'rosterIds' | 'classIds' | 'periodNames'
+  'rosterIds' | 'classIds' | 'periodNames' | 'classPeriodByClassId'
 >;
 
 /**
@@ -91,6 +102,7 @@ function deriveTargetsFromRosterList(rosters: ClassRoster[]): {
   rosterIds: string[];
   classIds: string[];
   periodNames: string[];
+  classPeriodByClassId: Record<string, string>;
   students: Student[];
 } {
   const classIds = Array.from(
@@ -100,6 +112,21 @@ function deriveTargetsFromRosterList(rosters: ClassRoster[]): {
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     )
   );
+
+  // First-wins on duplicate classIds — same dedup semantics as `classIds[]`
+  // above. Two rosters can share a `classlinkClassId` (teacher imported the
+  // same ClassLink class twice under different local names); the first
+  // roster's name wins. Stable per Firestore's default name-ordered roster
+  // stream.
+  const classPeriodByClassId: Record<string, string> = {};
+  for (const r of rosters) {
+    if (r.classlinkClassId && !(r.classlinkClassId in classPeriodByClassId)) {
+      classPeriodByClassId[r.classlinkClassId] = r.name;
+    }
+    if (r.testClassId && !(r.testClassId in classPeriodByClassId)) {
+      classPeriodByClassId[r.testClassId] = r.name;
+    }
+  }
 
   const studentsById = new Map<string, Student>();
   for (const r of rosters) {
@@ -112,6 +139,7 @@ function deriveTargetsFromRosterList(rosters: ClassRoster[]): {
     rosterIds: rosters.map((r) => r.id),
     classIds,
     periodNames: Array.from(new Set(rosters.map((r) => r.name))),
+    classPeriodByClassId,
     students: Array.from(studentsById.values()),
   };
 }
@@ -141,6 +169,7 @@ export function resolveAssignmentTargets(
       rosterIds: [],
       classIds: [...assignment.classIds],
       periodNames: [],
+      classPeriodByClassId: {},
       students: [],
       source: 'classIds',
     };
@@ -152,6 +181,7 @@ export function resolveAssignmentTargets(
       rosterIds: [],
       classIds: [],
       periodNames: [...assignment.periodNames],
+      classPeriodByClassId: {},
       students: [],
       source: 'periodNames',
     };
@@ -162,6 +192,7 @@ export function resolveAssignmentTargets(
     rosterIds: [],
     classIds: [],
     periodNames: [],
+    classPeriodByClassId: {},
     students: [],
     source: 'none',
   };
@@ -219,7 +250,7 @@ export function deriveSessionTargetsFromRosters(
   rosters: ClassRoster[]
 ): Pick<
   ResolvedAssignmentTargets,
-  'rosterIds' | 'classIds' | 'periodNames' | 'students'
+  'rosterIds' | 'classIds' | 'periodNames' | 'classPeriodByClassId' | 'students'
 > {
   return deriveTargetsFromRosterList(rosters);
 }

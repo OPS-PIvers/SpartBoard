@@ -27,6 +27,7 @@ import {
   formatStudentName,
   type StudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { resolvePinName } from './quizScoreboard';
 
 /** Fallback rendered when no name source resolves. */
 export const UNKNOWN_STUDENT_LABEL = 'Student';
@@ -46,7 +47,14 @@ export function resolveResponseDisplayName(
   if (ssoName) return ssoName;
 
   if (response.pin) {
-    const rosterName = pinToName[response.pin];
+    // Disambiguate by classPeriod so the same PIN in two rosters resolves
+    // to two different students. `resolvePinName` falls back to a global
+    // suffix scan when classPeriod is missing (legacy responses).
+    const rosterName = resolvePinName(
+      pinToName,
+      response.classPeriod,
+      response.pin
+    );
     if (rosterName) return rosterName;
     return `PIN ${response.pin}`;
   }

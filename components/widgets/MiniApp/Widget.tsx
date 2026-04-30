@@ -18,6 +18,7 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
+  Bookmark,
 } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
@@ -49,8 +50,10 @@ import {
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
+import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
+import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { ImportWizard } from '@/components/common/library/importer';
 import {
   createMiniAppImportAdapter,
@@ -286,6 +289,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
+  const { saveSavedWidget } = useSavedWidgets();
   const config = (widget.config ?? {}) as MiniAppConfig;
   const activeApp = config.activeApp ?? null;
 
@@ -494,6 +498,50 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // Unsaved paste state: shown as an overlay when activeAppUnsaved is true
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [pendingSaveTitle, setPendingSaveTitle] = useState('');
+
+  // "Save as Widget" — surface the active mini app as a one-tap shortcut in
+  // the user's dock + Widget Library. Distinct from `showSaveForm` (which
+  // saves an unsaved-paste app to the user's Mini App library).
+  const [showSaveAsWidget, setShowSaveAsWidget] = useState(false);
+  const [isSavingAsWidget, setIsSavingAsWidget] = useState(false);
+
+  const handleSaveAsWidget = useCallback(
+    async (values: { title: string; icon: string; color: string }) => {
+      if (!activeApp) return;
+      setIsSavingAsWidget(true);
+      try {
+        await saveSavedWidget({
+          widgetType: 'miniApp',
+          title: values.title,
+          icon: values.icon,
+          color: values.color,
+          pinnedToDock: true,
+          // Snapshot the mini app so the saved widget keeps working even if
+          // the original library entry is renamed or deleted. Keep the
+          // original `title` on the MiniAppItem so the assignment flow,
+          // session names, and the in-widget chrome still show the app's
+          // real name — `values.title` is the *widget shortcut* label, not
+          // the mini app's name.
+          config: {
+            activeApp: {
+              id: activeApp.id,
+              title: activeApp.title,
+              html: activeApp.html,
+              createdAt: activeApp.createdAt,
+            },
+          },
+        });
+        addToast(`"${values.title}" added to your dock!`, 'success');
+        setShowSaveAsWidget(false);
+      } catch (err) {
+        console.error('[MiniAppWidget] Failed to save as widget', err);
+        addToast('Failed to save widget', 'error');
+      } finally {
+        setIsSavingAsWidget(false);
+      }
+    },
+    [activeApp, saveSavedWidget, addToast]
+  );
 
   // --- HANDLERS ---
 
@@ -868,6 +916,26 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       </button>
                     </>
                   )}
+                  {!config.activeAppUnsaved && user && (
+                    <button
+                      onClick={() => setShowSaveAsWidget(true)}
+                      className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
+                      style={{
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(10px, 2.5cqmin)',
+                        gap: 'min(6px, 1.5cqmin)',
+                      }}
+                      title="Save as widget — pin this mini app to your dock"
+                    >
+                      <Bookmark
+                        style={{
+                          width: 'min(10px, 2.5cqmin)',
+                          height: 'min(10px, 2.5cqmin)',
+                        }}
+                      />
+                      <span className="hidden sm:inline">Save as Widget</span>
+                    </button>
+                  )}
                   <button
                     onClick={handleCloseActive}
                     className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
@@ -966,6 +1034,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 onClose={handleCloseAssignments}
                 onRenameSession={renameSession}
                 onEndSession={handleEndSessionFromModal}
+              />
+            )}
+            {/* Save-as-Widget modal — conditional render so each open is a
+                fresh mount with state derived from `activeApp.title`. */}
+            {!isStudentView && activeApp && showSaveAsWidget && (
+              <SaveAsWidgetModal
+                defaultTitle={activeApp.title}
+                isSaving={isSavingAsWidget}
+                onSave={(values) => void handleSaveAsWidget(values)}
+                onClose={() => setShowSaveAsWidget(false)}
               />
             )}
           </div>

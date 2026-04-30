@@ -62,6 +62,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
         rosterIds: derived.rosterIds,
         classIds: derived.classIds,
         periodNames: derived.periodNames,
+        classPeriodByClassId: derived.classPeriodByClassId,
       });
       onClose();
     } catch {

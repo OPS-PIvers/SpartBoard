@@ -10,7 +10,7 @@
  * ports over unchanged.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { PeriodSelectorProps } from './types';
@@ -24,7 +24,17 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
 }) => {
   const [selected, setSelected] = useState<string[]>(selectedPeriodNames);
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useClickOutside(ref, onClose);
+
+  // Dismiss on Escape so the popover behaves like a real dialog.
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   const lockedSet = new Set(lockedPeriodNames);
 
@@ -34,14 +44,22 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
     );
   };
 
+  // Save is disabled when nothing is selected: a zero-period selection
+  // would silently filter the consuming view to empty without giving the
+  // user any signal as to why.
+  const canSave = selected.length > 0;
   const handleSave = useCallback(() => {
+    if (!canSave) return;
     onSave(selected);
     onClose();
-  }, [selected, onSave, onClose]);
+  }, [canSave, selected, onSave, onClose]);
 
   return (
     <div
       ref={ref}
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={titleId}
       className="absolute z-50 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150"
       style={{
         width: 'min(240px, 60cqmin)',
@@ -51,7 +69,10 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
       }}
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+        <span
+          id={titleId}
+          className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+        >
           Class Periods
         </span>
         <button
@@ -102,20 +123,30 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
           </p>
         )}
       </div>
-      <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-3 py-2">
-        <button
-          onClick={onClose}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex items-center gap-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          <Check className="w-3 h-3" />
-          Save
-        </button>
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2">
+        {!canSave ? (
+          <span className="text-xxs text-rose-500 font-medium">
+            Select at least one period
+          </span>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onClose}
+            className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            className="flex items-center gap-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Check className="w-3 h-3" />
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );

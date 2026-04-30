@@ -6,10 +6,19 @@ import { Z_INDEX } from '@/config/zIndex';
 
 interface ActiveClassChipProps {
   className?: string;
+  /**
+   * When true, render the trigger as a compact button matching the
+   * Shuffle/Rotate-style header buttons used in the Stations widget
+   * (white shell, slate border, brand-blue icon/label, smaller height).
+   * Default keeps the original pill visual used by Random / SeatingChart /
+   * LunchCount.
+   */
+  compact?: boolean;
 }
 
 export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
   className,
+  compact = false,
 }) => {
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
@@ -123,18 +132,33 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
 
   if (!activeRoster) return null;
 
+  const iconSizeStyle = compact
+    ? { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' }
+    : {
+        width: 'clamp(14px, 3.6cqmin, 28px)',
+        height: 'clamp(14px, 3.6cqmin, 28px)',
+      };
+  const labelFontStyle = compact
+    ? { fontSize: 'min(11px, 3.5cqmin)' }
+    : { fontSize: 'clamp(12px, 3cqmin, 20px)' };
+  const chevronSizeStyle = compact
+    ? { width: 'min(12px, 3.5cqmin)', height: 'min(12px, 3.5cqmin)' }
+    : {
+        width: 'clamp(12px, 3cqmin, 22px)',
+        height: 'clamp(12px, 3cqmin, 22px)',
+      };
+
   const chipContent = (
     <>
       <Target
         className="text-brand-blue-primary shrink-0"
-        style={{
-          width: 'clamp(14px, 3.6cqmin, 28px)',
-          height: 'clamp(14px, 3.6cqmin, 28px)',
-        }}
+        style={iconSizeStyle}
       />
       <span
-        className="font-black uppercase text-brand-blue-primary tracking-wider truncate min-w-0"
-        style={{ fontSize: 'clamp(12px, 3cqmin, 20px)' }}
+        className={`font-black uppercase text-brand-blue-primary truncate min-w-0 ${
+          compact ? 'tracking-widest' : 'tracking-wider'
+        }`}
+        style={labelFontStyle}
       >
         {activeRoster.name}
       </span>
@@ -142,8 +166,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
         <ChevronDown
           className="text-brand-blue-primary shrink-0 opacity-70"
           style={{
-            width: 'clamp(12px, 3cqmin, 22px)',
-            height: 'clamp(12px, 3cqmin, 22px)',
+            ...chevronSizeStyle,
             transition: 'transform 150ms ease',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
@@ -152,13 +175,24 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
     </>
   );
 
-  const chipClass =
-    'flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light';
-  const chipStyle: React.CSSProperties = {
-    gap: 'clamp(6px, 2cqmin, 14px)',
-    padding: 'clamp(6px, 1.6cqmin, 12px) clamp(12px, 3cqmin, 22px)',
-    minHeight: 'clamp(32px, 8cqmin, 48px)',
-  };
+  const chipClass = compact
+    ? 'flex items-center rounded-xl bg-white border border-slate-200'
+    : 'flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light';
+  const chipStyle: React.CSSProperties = compact
+    ? {
+        gap: 'min(6px, 1.5cqmin)',
+        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+        height: 'min(32px, 8cqmin)',
+      }
+    : {
+        gap: 'clamp(6px, 2cqmin, 14px)',
+        padding: 'clamp(6px, 1.6cqmin, 12px) clamp(12px, 3cqmin, 22px)',
+        minHeight: 'clamp(32px, 8cqmin, 48px)',
+      };
+
+  const interactiveHoverClass = compact
+    ? 'hover:bg-slate-50 transition-colors cursor-pointer'
+    : 'hover:bg-brand-blue-light/40 transition-colors cursor-pointer';
 
   if (!interactive) {
     return (
@@ -195,7 +229,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
         ref={anchorRef}
         type="button"
         onClick={() => (open ? closeMenu() : openMenu())}
-        className={`${chipClass} hover:bg-brand-blue-light/40 transition-colors cursor-pointer ${className ?? ''}`.trim()}
+        className={`${chipClass} ${interactiveHoverClass} ${className ?? ''}`.trim()}
         style={chipStyle}
         aria-haspopup="menu"
         aria-expanded={open}

@@ -1,5 +1,10 @@
 import { APP_NAME } from '../config/constants';
 import { Dashboard } from '../types';
+import { authError } from './driveAuthErrors';
+
+// Re-export so existing imports of `isDriveAuthError` from this module keep
+// working — the canonical home is now `./driveAuthErrors`.
+export { isDriveAuthError } from './driveAuthErrors';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -131,8 +136,10 @@ export class GoogleDriveService {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Google Drive access expired. Please sign in again.');
+      if (response.status === 401 || response.status === 403) {
+        // 403 with no Drive scope == revoked token / scope-downgrade,
+        // which is functionally an auth failure from the teacher's POV.
+        throw authError('Google Drive access expired. Please sign in again.');
       }
       throw new Error(
         `Failed to list Drive files: ${response.statusText} (${response.status})`

@@ -70,11 +70,21 @@ export interface AuthContextType {
   remoteControlEnabled: boolean;
   /** Where the dock is anchored on screen (account-level preference) */
   dockPosition: DockPosition;
+  /**
+   * Whether the quiz live-monitor tints completed-student rows by score
+   * band (≥80% green, 60-79% amber, <60% rose). When false the roster
+   * renders monochrome white.
+   */
+  quizMonitorColorsEnabled: boolean;
+  /** What the quiz live-monitor shows in the right-side score pill. */
+  quizMonitorScoreDisplay: 'percent' | 'count' | 'hidden';
   /** Update account-level preferences */
   updateAccountPreferences: (updates: {
     disableCloseConfirmation?: boolean;
     remoteControlEnabled?: boolean;
     dockPosition?: DockPosition;
+    quizMonitorColorsEnabled?: boolean;
+    quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
   }) => Promise<void>;
   /**
    * The organization this user belongs to, derived from their membership doc.

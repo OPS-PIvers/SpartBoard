@@ -213,6 +213,33 @@ function getErrorCode(err: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
+// Phase-A diagnostic helper: when a Firestore op inside joinQuizSession
+// rejects, emit a structured breadcrumb naming the op + the join's auth/PIN
+// state, then re-throw. The outer catch in joinQuizSession only sees
+// `err.message`, which is "Missing or insufficient permissions" verbatim —
+// the breadcrumb is the only place we can correlate the denial back to which
+// of the (lookup / read-existing / create / update-reset / update-period /
+// update-classid) operations actually tripped, and what the request shape
+// looked like at that moment.
+//
+// Always re-throws so callers' control flow is unchanged. Type is `never`
+// so TS narrows correctly when used in `catch` blocks that don't want a
+// dangling promise return path.
+function logQuizJoinFirestoreError(
+  op: string,
+  err: unknown,
+  ctx: Record<string, unknown>
+): never {
+  const code = getErrorCode(err);
+  if (code === 'permission-denied') {
+    console.warn(
+      `[useQuizSession] permission-denied during joinQuizSession op=${op}:`,
+      { op, code, ...ctx, err }
+    );
+  }
+  throw err;
+}
+
 /**
  * Look up the student's response doc for a session, trying the deterministic
  * key first and falling back to the legacy auth-uid key for anonymous PIN
@@ -844,6 +871,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             collection(db, QUIZ_SESSIONS_COLLECTION),
             where('code', '==', normCode)
           )
+        ).catch((err: unknown) =>
+          logQuizJoinFirestoreError('lookup-sessions', err, {
+            codeNorm: normCode,
+            studentUid,
+            isAnonymous: currentUser.isAnonymous,
+          })
         );
         if (snap.empty) throw new Error('No active quiz found with that code.');
 
@@ -931,17 +964,102 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
-            });
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-reset-completed', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous: currentUser.isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!classPeriod,
+              })
+            );
           } else if (classPeriod && existing.classPeriod !== classPeriod) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
             // change).
-            await updateDoc(responseRef, { classPeriod });
+            await updateDoc(responseRef, { classPeriod }).catch(
+              (err: unknown) =>
+                logQuizJoinFirestoreError('update-backfill-period', err, {
+                  sessionId: sessionDoc.id,
+                  responseKey,
+                  studentUid,
+                  existingStudentUid: existing.studentUid,
+                  isAnonymous: currentUser.isAnonymous,
+                })
+            );
           }
         }
 
         setSessionIdState(sessionDoc.id);
         setResponseKeyState(responseKey);
+
+        // SSO class-id resolution. Anonymous PIN joiners arrive with a
+        // `classPeriod` argument from the period picker — that path stays
+        // unchanged. SSO joiners (custom-token `studentRole` users from
+        // /my-assignments) skip the period picker, so we resolve their class
+        // id by intersecting their `classIds` token claim with the session's
+        // targeted `classIds`. The teacher-side results view turns that id
+        // back into a period name via the roster, so the period filter and
+        // shared-sheet "Class Period" column stay populated for SSO rows.
+        // Falls back to undefined when:
+        //   - the student is anonymous (no claim), or
+        //   - claims.classIds is missing, malformed, or has no overlap with
+        //     the session, or
+        //   - the intersection has multiple matches (ambiguous — leave
+        //     unset so the teacher can identify and fix the targeting).
+        let resolvedClassId: string | undefined;
+        // Period name resolved from `sessionData.classPeriodByClassId`. Lets
+        // SSO students write `classPeriod` directly onto their response —
+        // matching the snapshot-at-write-time semantics anonymous PIN
+        // joiners already have, and removing the dependency on the
+        // teacher-side roster lookup at results-render time. Stays
+        // undefined for legacy sessions (map missing) and for malformed
+        // map shapes (Firestore type drift); the teacher-side enrichment
+        // in QuizResults remains as the legacy fallback.
+        let resolvedPeriodName: string | undefined;
+        if (!currentUser.isAnonymous && !classPeriod) {
+          try {
+            const tokenResult = await currentUser.getIdTokenResult();
+            const claimClassIds = tokenResult.claims?.classIds;
+            if (Array.isArray(claimClassIds)) {
+              const studentClaimSet = new Set(
+                claimClassIds.filter(
+                  (c): c is string => typeof c === 'string' && c.length > 0
+                )
+              );
+              const sessionClassIds = Array.isArray(sessionData.classIds)
+                ? sessionData.classIds.filter(
+                    (c): c is string => typeof c === 'string' && c.length > 0
+                  )
+                : [];
+              const matches = sessionClassIds.filter((c) =>
+                studentClaimSet.has(c)
+              );
+              if (matches.length === 1) {
+                resolvedClassId = matches[0];
+                const periodFromSession =
+                  sessionData.classPeriodByClassId?.[resolvedClassId];
+                if (
+                  typeof periodFromSession === 'string' &&
+                  periodFromSession.length > 0
+                ) {
+                  resolvedPeriodName = periodFromSession;
+                }
+              }
+            }
+          } catch (claimErr) {
+            // Token-claim lookup is best-effort. A failure here just means
+            // the SSO student's row will lack a class period in the sheet
+            // — the same as today's behavior — so we swallow rather than
+            // block the join.
+            console.warn(
+              '[useQuizSession] Failed to read SSO classIds claim:',
+              claimErr
+            );
+          }
+        }
 
         if (!existingSnap?.exists()) {
           // No PII stored. `studentUid` field carries the auth uid; the doc
@@ -950,6 +1068,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           // field is omitted entirely for SSO `studentRole` joiners — the
           // teacher's grading view resolves their name from `studentUid`
           // via `getPseudonymsForAssignmentV1`.
+          // Anonymous picker arg wins over SSO snapshot when both exist
+          // (defensive — the SSO branch above gates on `!classPeriod`, so
+          // they shouldn't both be set in practice). Both paths land on
+          // the same `classPeriod` field so all downstream surfaces (period
+          // dropdown, export sheet) read uniformly.
+          const finalClassPeriod = classPeriod ?? resolvedPeriodName;
           const newResponse: QuizResponse = {
             studentUid,
             joinedAt: Date.now(),
@@ -959,15 +1083,102 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             submittedAt: null,
             completedAttempts: 0,
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
-            ...(classPeriod ? { classPeriod } : {}),
+            ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
+            ...(resolvedClassId ? { classId: resolvedClassId } : {}),
           };
-          await setDoc(responseRef, newResponse);
+          await setDoc(responseRef, newResponse).catch((err: unknown) =>
+            logQuizJoinFirestoreError('create-response', err, {
+              sessionId: sessionDoc.id,
+              responseKey,
+              studentUid,
+              isAnonymous: currentUser.isAnonymous,
+              hasPin: !!sanitizedPin,
+              hasClassPeriod: !!finalClassPeriod,
+              hasResolvedClassId: !!resolvedClassId,
+              sessionClassIds: Array.isArray(sessionData.classIds)
+                ? sessionData.classIds
+                : undefined,
+              sessionClassId: sessionData.classId,
+              sessionTeacherUid: sessionData.teacherUid,
+              sessionStatus: sessionData.status,
+            })
+          );
+        } else if (resolvedPeriodName) {
+          // Backfill classPeriod on an existing SSO response that joined
+          // before this code shipped (or before the teacher retargeted),
+          // so the period filter and sheet column self-heal on rejoin
+          // without a separate migration.
+          //
+          // classId is intentionally NOT backfilled here: firestore.rules
+          // restricts student `update` `changedKeys()` to an allowlist
+          // (`answers, status, submittedAt, tabSwitchWarnings,
+          // completedAttempts, classPeriod, score`) — see
+          // `firestore.rules` quiz response rule. Including classId in
+          // the patch would be denied wholesale and would also block the
+          // classPeriod backfill. classId stays create-only; if the
+          // legacy response is missing it, the teacher-side enrichment
+          // in QuizResults can no longer use it as a fallback, but
+          // classPeriod (now written here) supersedes that fallback for
+          // every downstream surface.
+          const existing = existingSnap.data() as QuizResponse;
+          if (existing.classPeriod !== resolvedPeriodName) {
+            await updateDoc(responseRef, {
+              classPeriod: resolvedPeriodName,
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-backfill-class-period', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingClassId: existing.classId,
+                existingClassPeriod: existing.classPeriod,
+                resolvedClassId,
+                resolvedPeriodName,
+                isAnonymous: currentUser.isAnonymous,
+              })
+            );
+          }
         }
 
         setSession(sessionData);
         return sessionDoc.id;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to join quiz';
+        // Translate Firestore `permission-denied` into a student-friendly
+        // message. The raw FirebaseError says "Missing or insufficient
+        // permissions" which reads to a student like the page is broken
+        // rather than "you can't do this" — so the click feels silent.
+        //
+        // Anonymous joiners hit permission-denied in one realistic shape:
+        // the deterministic-key collision path where another anon UID
+        // already wrote a response at the same `pin-{period}-{pin}` key.
+        // The class gate doesn't apply to anon (anon tokens lack the
+        // studentRole claim, so passesStudentClassGate short-circuits to
+        // true), so this is the only common cause.
+        //
+        // Non-anonymous joiners (custom-token studentRole users from
+        // /my-assignments) hit permission-denied when the session targets
+        // a class their `classIds` claim doesn't include — the response
+        // create rule's class gate denies. Surface that as an enrollment
+        // hint so the student knows to ping the teacher rather than think
+        // the link is broken.
+        //
+        // Other failures (network, code-not-found, attempt-limit) keep
+        // their existing messages — `AttemptLimitReachedError` already
+        // ships a friendly "ask your teacher" message of its own.
+        let msg: string;
+        if (
+          getErrorCode(err) === 'permission-denied' &&
+          auth.currentUser?.isAnonymous
+        ) {
+          msg =
+            "Looks like that PIN has already joined this quiz. Ask your teacher to clear it for you, or double-check that you've selected the right class period.";
+        } else if (getErrorCode(err) === 'permission-denied') {
+          msg =
+            "You can't join this quiz. Ask your teacher to make sure you're enrolled in the right class.";
+        } else if (err instanceof Error) {
+          msg = err.message;
+        } else {
+          msg = 'Failed to join quiz';
+        }
         setError(msg);
         throw err;
       } finally {

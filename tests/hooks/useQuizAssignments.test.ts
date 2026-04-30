@@ -573,6 +573,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
         rosterIds: ['roster-1', 'roster-2'],
         classIds: ['cl-class-A'],
         periodNames: ['Period 1', 'Period 2'],
+        classPeriodByClassId: { 'cl-class-A': 'Period 1' },
       });
     });
 
@@ -598,6 +599,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       classIds: ['cl-class-A'],
       classId: 'cl-class-A',
       periodNames: ['Period 1', 'Period 2'],
+      classPeriodByClassId: { 'cl-class-A': 'Period 1' },
     });
 
     expect(batchCommit).toHaveBeenCalledTimes(1);
@@ -610,6 +612,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
         rosterIds: ['r1', '', 'r2'],
         classIds: ['', 'cl-A'],
         periodNames: ['', 'Period 2'],
+        classPeriodByClassId: { 'cl-A': 'Period 2' },
       });
     });
 
@@ -632,6 +635,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
         rosterIds: [],
         classIds: [],
         periodNames: [],
+        classPeriodByClassId: {},
       });
     });
 
@@ -643,6 +647,7 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       classId: '',
       rosterIds: [],
       classIds: [],
+      classPeriodByClassId: {},
     });
 
     const assignmentCall = batchUpdate.mock.calls.find(

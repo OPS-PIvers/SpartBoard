@@ -83,7 +83,7 @@ describe('QuizAssignmentImportSetupModal', () => {
     expect(save).not.toBeDisabled();
   });
 
-  it('passes derived targets (rosterIds, classIds, periodNames) to onSave then closes', async () => {
+  it('passes derived targets (rosterIds, classIds, periodNames, classPeriodByClassId) to onSave then closes', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
     render(
@@ -102,6 +102,7 @@ describe('QuizAssignmentImportSetupModal', () => {
       rosterIds: expect.arrayContaining(['r1']),
       classIds: expect.arrayContaining(['cl-A']),
       periodNames: expect.arrayContaining(['Math 1']),
+      classPeriodByClassId: { 'cl-A': 'Math 1' },
     });
     // Modal closes only after the save promise resolves — guards
     // against the lost-error pattern where onClose runs before we

@@ -32,6 +32,8 @@ import {
   Volume2,
   VolumeX,
   Palette,
+  Percent,
+  Filter,
   Medal,
   Pause,
   Play,
@@ -55,6 +57,7 @@ import {
   buildLiveLeaderboard,
   buildPinToNameMap,
   getDisplayScore,
+  getResponseScore,
   getScoreSuffix,
   isGamificationActive,
 } from '../utils/quizScoreboard';
@@ -63,11 +66,13 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import {
   playPodiumFanfare,
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
+import { PeriodSelector } from '@/components/common/library/PeriodSelector';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -271,7 +276,12 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onBack,
 }) => {
   const { showConfirm } = useDialog();
-  const { orgId } = useAuth();
+  const {
+    orgId,
+    quizMonitorColorsEnabled,
+    quizMonitorScoreDisplay,
+    updateAccountPreferences,
+  } = useAuth();
   const pinToName = useMemo(
     () =>
       buildPinToNameMap(
@@ -331,8 +341,99 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const showScoreboardControl = isGamifiedSession || isLiveScoreboardActive;
 
   // New state for Phase 1 & 2 features
-  const [showAnswerColors, setShowAnswerColors] = useState(false);
   const [showTabWarnings, setShowTabWarnings] = useState(true);
+  const [showPeriodFilter, setShowPeriodFilter] = useState(false);
+
+  // Periods this assignment was launched against, deduped while preserving
+  // order. Drives the class-period filter UI: hidden when there's only a
+  // single targeted period (no filtering value), shown otherwise.
+  const sessionPeriodNames = useMemo(() => {
+    const list = session.periodNames ?? [];
+    return Array.from(new Set(list.filter((p) => typeof p === 'string' && p)));
+  }, [session.periodNames]);
+
+  // Selected periods for the live monitor view. Default = all targeted periods
+  // so a fresh open shows the same data the teacher is used to. Local state —
+  // resets between sessions, which is the right default for a transient
+  // monitor filter (teachers usually want to start with everyone visible).
+  const [selectedPeriodNames, setSelectedPeriodNames] = useState<string[]>(
+    () => sessionPeriodNames
+  );
+  // If the assignment's targeted periods change (e.g. teacher edits the
+  // assignment in another tab), reset the selection rather than letting it go
+  // stale and silently filter to nothing. Two hardening details:
+  //   - skip when the new list is empty: a transient `onSnapshot` mid-write
+  //     can briefly observe `periodNames: []` and would otherwise wipe the
+  //     teacher's manual narrowing; wait for a real list to arrive.
+  //   - skip when the previous list was already non-empty AND the new
+  //     content is identical (same `Set`); the ref guard above already
+  //     handles length changes, but order-only changes shouldn't reset.
+  const lastSessionPeriodsRef = useRef<string[]>(sessionPeriodNames);
+  const prevPeriods = lastSessionPeriodsRef.current;
+  const periodsChanged =
+    prevPeriods.length !== sessionPeriodNames.length ||
+    prevPeriods.some((p, i) => p !== sessionPeriodNames[i]);
+  if (periodsChanged && sessionPeriodNames.length > 0) {
+    lastSessionPeriodsRef.current = sessionPeriodNames;
+    setSelectedPeriodNames(sessionPeriodNames);
+  }
+
+  // True when the user has narrowed the session's targeted periods. Used
+  // both as the filter switch below and to keep the toolbar visible when
+  // the narrowed view is empty (so the teacher can recover).
+  const filterActive =
+    sessionPeriodNames.length > 1 &&
+    selectedPeriodNames.length < sessionPeriodNames.length;
+
+  // Apply the class-period filter to the response stream that drives the
+  // monitor's KPIs and roster. Leaderboard broadcasts intentionally use the
+  // unfiltered `responses` so the student-facing leaderboard stays global.
+  const filteredResponses = useMemo(() => {
+    if (!filterActive) return responses;
+    const allow = new Set(selectedPeriodNames);
+    // Drop SSO/legacy rows that have no `classPeriod`: when the teacher
+    // narrows to a specific period they expect a clean view, and a row
+    // with no period claim should not silently leak through.
+    return responses.filter((r) =>
+      r.classPeriod ? allow.has(r.classPeriod) : false
+    );
+  }, [responses, selectedPeriodNames, filterActive]);
+
+  const { addToast } = useDashboard();
+
+  const handleToggleColors = useCallback(() => {
+    const next = !quizMonitorColorsEnabled;
+    updateAccountPreferences({ quizMonitorColorsEnabled: next }).catch(
+      (err: unknown) => {
+        console.error('[QuizLiveMonitor] persist colors toggle failed:', err);
+        addToast(
+          'Could not save the Colors preference — try again or check your connection.',
+          'error'
+        );
+      }
+    );
+  }, [quizMonitorColorsEnabled, updateAccountPreferences, addToast]);
+
+  const handleCycleScoreDisplay = useCallback(() => {
+    const next: 'percent' | 'count' | 'hidden' =
+      quizMonitorScoreDisplay === 'percent'
+        ? 'count'
+        : quizMonitorScoreDisplay === 'count'
+          ? 'hidden'
+          : 'percent';
+    updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
+      (err: unknown) => {
+        console.error(
+          '[QuizLiveMonitor] persist score-display cycle failed:',
+          err
+        );
+        addToast(
+          'Could not save the score display preference — try again or check your connection.',
+          'error'
+        );
+      }
+    );
+  }, [quizMonitorScoreDisplay, updateAccountPreferences, addToast]);
   const [confirmRemove, setConfirmRemove] = useState<ResponseDocKey | null>(
     null
   );
@@ -542,7 +643,10 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       : undefined;
 
   // ⚡ Bolt: Optimize multiple array iterations inside the render loop
-  // Instead of 4 separate .filter() passes, calculate all stats in one O(N) loop
+  // Instead of 4 separate .filter() passes, calculate all stats in one O(N) loop.
+  // Iterates `filteredResponses` so the KPI counts and roster lists honor the
+  // active class-period filter; the live leaderboard broadcast above stays on
+  // the unfiltered `responses` so students see the full session leaderboard.
   const { answered, completed, inProgress, joined, studentsByStatus } =
     React.useMemo(() => {
       let _answered = 0;
@@ -555,7 +659,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         finished: StatBoxStudent[];
       } = { joined: [], active: [], finished: [] };
 
-      for (const r of responses) {
+      for (const r of filteredResponses) {
         if (currentQ && r.answers.some((a) => a.questionId === currentQ.id)) {
           _answered++;
         }
@@ -586,7 +690,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         joined: _joined,
         studentsByStatus: byStatus,
       };
-    }, [responses, currentQ, pinToName, byStudentUid]);
+    }, [filteredResponses, currentQ, pinToName, byStudentUid]);
 
   const modeIcon =
     session.sessionMode === 'auto' ? (
@@ -791,9 +895,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       marginTop: 'min(4px, 1cqmin)',
                     }}
                   >
-                    {completed} of {responses.length} finished
-                    {responses.length > 0 &&
-                      ` (${Math.round((completed / responses.length) * 100)}%)`}
+                    {completed} of {filteredResponses.length} finished
+                    {filteredResponses.length > 0 &&
+                      ` (${Math.round((completed / filteredResponses.length) * 100)}%)`}
                   </p>
                 </div>
               ) : (
@@ -979,7 +1083,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     >
                       <span>Answered</span>
                       <span>
-                        {answered} / {responses.length}
+                        {answered} / {filteredResponses.length}
                       </span>
                     </div>
                     <div
@@ -989,7 +1093,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       <div
                         className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
                         style={{
-                          width: `${responses.length > 0 ? (answered / responses.length) * 100 : 0}%`,
+                          width: `${filteredResponses.length > 0 ? (answered / filteredResponses.length) * 100 : 0}%`,
                         }}
                       />
                     </div>
@@ -1237,8 +1341,12 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 </div>
               )}
 
-              {/* 5. ROSTER show/hide + student list */}
-              {responses.length > 0 && (
+              {/* 5. ROSTER show/hide + student list. The gate also stays
+                   open when a class-period filter is active even if the
+                   filter currently produces zero rows — otherwise the
+                   filter button itself would disappear and there'd be
+                   no way for the teacher to widen the selection again. */}
+              {(responses.length > 0 || filterActive) && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
                     <button
@@ -1249,7 +1357,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                       >
-                        Roster · {responses.length}
+                        Roster · {filteredResponses.length}
                       </span>
                       {showRoster ? (
                         <EyeOff
@@ -1270,54 +1378,52 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       )}
                     </button>
                     {showRoster && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setShowAnswerColors(!showAnswerColors)}
-                          className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                            showAnswerColors
-                              ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
-                              : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                          }`}
-                          style={{
-                            fontSize: 'min(9px, 2.5cqmin)',
-                            padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-                          }}
-                          title="Color-code answers for current question"
-                        >
-                          <Palette
-                            style={{
-                              width: 'min(12px, 3cqmin)',
-                              height: 'min(12px, 3cqmin)',
-                            }}
-                          />
-                          Colors
-                        </button>
-                        {session.tabWarningsEnabled !== false && (
-                          <button
-                            onClick={() => setShowTabWarnings(!showTabWarnings)}
-                            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                              showTabWarnings
-                                ? 'text-red-500 bg-red-50'
-                                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                            }`}
-                            style={{
-                              fontSize: 'min(9px, 2.5cqmin)',
-                              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-                            }}
-                            title="Show/hide tab switch warnings in roster"
-                          >
-                            <AlertTriangle
-                              style={{
-                                width: 'min(12px, 3cqmin)',
-                                height: 'min(12px, 3cqmin)',
-                              }}
-                            />
-                          </button>
-                        )}
-                      </div>
+                      <RosterToolbar
+                        rosters={rosters}
+                        sessionPeriodNames={sessionPeriodNames}
+                        selectedPeriodNames={selectedPeriodNames}
+                        onChangeSelectedPeriods={setSelectedPeriodNames}
+                        showPeriodFilter={showPeriodFilter}
+                        onTogglePeriodFilter={() =>
+                          setShowPeriodFilter(!showPeriodFilter)
+                        }
+                        onClosePeriodFilter={() => setShowPeriodFilter(false)}
+                        colorsEnabled={quizMonitorColorsEnabled}
+                        onToggleColors={handleToggleColors}
+                        scoreDisplay={quizMonitorScoreDisplay}
+                        onCycleScoreDisplay={handleCycleScoreDisplay}
+                        tabWarningsAllowed={
+                          session.tabWarningsEnabled !== false
+                        }
+                        showTabWarnings={showTabWarnings}
+                        onToggleTabWarnings={() =>
+                          setShowTabWarnings(!showTabWarnings)
+                        }
+                      />
                     )}
                   </div>
-                  {showRoster && (
+                  {showRoster && filteredResponses.length === 0 && (
+                    <div
+                      className="flex items-center justify-between rounded-xl border border-dashed border-brand-blue-primary/20 bg-white/60"
+                      style={{
+                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                        fontSize: 'min(11px, 3cqmin)',
+                      }}
+                    >
+                      <span className="text-brand-blue-primary/70 font-medium">
+                        No students match the active class-period filter.
+                      </span>
+                      <button
+                        onClick={() =>
+                          setSelectedPeriodNames(sessionPeriodNames)
+                        }
+                        className="text-brand-blue-primary font-bold hover:underline"
+                      >
+                        Clear filter
+                      </button>
+                    </div>
+                  )}
+                  {showRoster && filteredResponses.length > 0 && (
                     <div
                       className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
                       style={{
@@ -1326,7 +1432,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         flexDirection: 'column',
                       }}
                     >
-                      {responses
+                      {filteredResponses
                         .slice()
                         .sort((a, b) =>
                           (a.pin ?? '').localeCompare(b.pin ?? '')
@@ -1339,8 +1445,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               response={r}
                               totalQuestions={session.totalQuestions}
                               questions={quizData.questions}
-                              currentQuestion={currentQ}
-                              showAnswerColors={showAnswerColors}
+                              scoringConfig={scoringConfig}
+                              colorsEnabled={quizMonitorColorsEnabled}
+                              scoreDisplay={quizMonitorScoreDisplay}
                               showTabWarnings={
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
@@ -1619,8 +1726,11 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 </div>
               )}
 
-              {/* Student roster for waiting/ended */}
-              {responses.length > 0 && (
+              {/* Student roster for waiting/ended. Same gate semantics as
+                   the active-session roster above: keep the toolbar
+                   reachable when an active filter narrows the view to
+                   zero rows. */}
+              {(responses.length > 0 || filterActive) && (
                 <div className="space-y-2 mt-2">
                   <div className="flex items-center justify-between border-b border-brand-blue-primary/10 pb-1">
                     <button
@@ -1631,7 +1741,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         className="text-brand-blue-primary/60 font-black uppercase tracking-widest"
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                       >
-                        Roster · {responses.length}
+                        Roster · {filteredResponses.length}
                       </span>
                       {showRoster ? (
                         <EyeOff
@@ -1652,54 +1762,52 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                       )}
                     </button>
                     {showRoster && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setShowAnswerColors(!showAnswerColors)}
-                          className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                            showAnswerColors
-                              ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
-                              : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                          }`}
-                          style={{
-                            fontSize: 'min(9px, 2.5cqmin)',
-                            padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-                          }}
-                          title="Color-code answers for current question"
-                        >
-                          <Palette
-                            style={{
-                              width: 'min(12px, 3cqmin)',
-                              height: 'min(12px, 3cqmin)',
-                            }}
-                          />
-                          Colors
-                        </button>
-                        {session.tabWarningsEnabled !== false && (
-                          <button
-                            onClick={() => setShowTabWarnings(!showTabWarnings)}
-                            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-                              showTabWarnings
-                                ? 'text-red-500 bg-red-50'
-                                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-                            }`}
-                            style={{
-                              fontSize: 'min(9px, 2.5cqmin)',
-                              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-                            }}
-                            title="Show/hide tab switch warnings in roster"
-                          >
-                            <AlertTriangle
-                              style={{
-                                width: 'min(12px, 3cqmin)',
-                                height: 'min(12px, 3cqmin)',
-                              }}
-                            />
-                          </button>
-                        )}
-                      </div>
+                      <RosterToolbar
+                        rosters={rosters}
+                        sessionPeriodNames={sessionPeriodNames}
+                        selectedPeriodNames={selectedPeriodNames}
+                        onChangeSelectedPeriods={setSelectedPeriodNames}
+                        showPeriodFilter={showPeriodFilter}
+                        onTogglePeriodFilter={() =>
+                          setShowPeriodFilter(!showPeriodFilter)
+                        }
+                        onClosePeriodFilter={() => setShowPeriodFilter(false)}
+                        colorsEnabled={quizMonitorColorsEnabled}
+                        onToggleColors={handleToggleColors}
+                        scoreDisplay={quizMonitorScoreDisplay}
+                        onCycleScoreDisplay={handleCycleScoreDisplay}
+                        tabWarningsAllowed={
+                          session.tabWarningsEnabled !== false
+                        }
+                        showTabWarnings={showTabWarnings}
+                        onToggleTabWarnings={() =>
+                          setShowTabWarnings(!showTabWarnings)
+                        }
+                      />
                     )}
                   </div>
-                  {showRoster && (
+                  {showRoster && filteredResponses.length === 0 && (
+                    <div
+                      className="flex items-center justify-between rounded-xl border border-dashed border-brand-blue-primary/20 bg-white/60"
+                      style={{
+                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                        fontSize: 'min(11px, 3cqmin)',
+                      }}
+                    >
+                      <span className="text-brand-blue-primary/70 font-medium">
+                        No students match the active class-period filter.
+                      </span>
+                      <button
+                        onClick={() =>
+                          setSelectedPeriodNames(sessionPeriodNames)
+                        }
+                        className="text-brand-blue-primary font-bold hover:underline"
+                      >
+                        Clear filter
+                      </button>
+                    </div>
+                  )}
+                  {showRoster && filteredResponses.length > 0 && (
                     <div
                       className="max-h-60 overflow-y-auto pr-1 custom-scrollbar"
                       style={{
@@ -1708,7 +1816,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                         flexDirection: 'column',
                       }}
                     >
-                      {responses
+                      {filteredResponses
                         .slice()
                         .sort((a, b) =>
                           (a.pin ?? '').localeCompare(b.pin ?? '')
@@ -1721,8 +1829,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               response={r}
                               totalQuestions={session.totalQuestions}
                               questions={quizData.questions}
-                              currentQuestion={currentQ}
-                              showAnswerColors={showAnswerColors}
+                              scoringConfig={scoringConfig}
+                              colorsEnabled={quizMonitorColorsEnabled}
+                              scoreDisplay={quizMonitorScoreDisplay}
                               showTabWarnings={
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
@@ -1949,12 +2058,202 @@ const InteractiveStatBox: React.FC<{
   );
 };
 
+/**
+ * Right-side controls in the roster header: period filter, Colors toggle,
+ * score-display cycle, and tab-warnings toggle. Extracted because the same
+ * cluster is rendered in two layouts (active in-question view and
+ * waiting/ended view) and the previous inline duplication was already
+ * starting to drift across edits.
+ */
+const RosterToolbar: React.FC<{
+  rosters: ClassRoster[];
+  sessionPeriodNames: string[];
+  selectedPeriodNames: string[];
+  onChangeSelectedPeriods: (names: string[]) => void;
+  showPeriodFilter: boolean;
+  onTogglePeriodFilter: () => void;
+  onClosePeriodFilter: () => void;
+  colorsEnabled: boolean;
+  onToggleColors: () => void;
+  scoreDisplay: 'percent' | 'count' | 'hidden';
+  onCycleScoreDisplay: () => void;
+  tabWarningsAllowed: boolean;
+  showTabWarnings: boolean;
+  onToggleTabWarnings: () => void;
+}> = ({
+  rosters,
+  sessionPeriodNames,
+  selectedPeriodNames,
+  onChangeSelectedPeriods,
+  showPeriodFilter,
+  onTogglePeriodFilter,
+  onClosePeriodFilter,
+  colorsEnabled,
+  onToggleColors,
+  scoreDisplay,
+  onCycleScoreDisplay,
+  tabWarningsAllowed,
+  showTabWarnings,
+  onToggleTabWarnings,
+}) => {
+  const filterActive =
+    sessionPeriodNames.length > 1 &&
+    selectedPeriodNames.length < sessionPeriodNames.length;
+  const scoreDisplayLabels = {
+    percent: 'showing percent',
+    count: 'showing answered / total',
+    hidden: 'hidden',
+  } as const;
+  return (
+    <div className="flex items-center gap-2">
+      {sessionPeriodNames.length > 1 && (
+        <div className="relative">
+          <button
+            onClick={onTogglePeriodFilter}
+            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+              filterActive
+                ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
+                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+            }`}
+            style={{
+              fontSize: 'min(9px, 2.5cqmin)',
+              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+            }}
+            title="Filter monitor by class period"
+            aria-label="Filter by class period"
+            aria-haspopup="dialog"
+            aria-expanded={showPeriodFilter}
+          >
+            <Filter
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            {filterActive
+              ? `${selectedPeriodNames.length}/${sessionPeriodNames.length}`
+              : 'All Periods'}
+          </button>
+          {showPeriodFilter && (
+            <PeriodSelector
+              rosters={rosters.filter((r) =>
+                sessionPeriodNames.includes(r.name)
+              )}
+              selectedPeriodNames={selectedPeriodNames}
+              onSave={onChangeSelectedPeriods}
+              onClose={onClosePeriodFilter}
+            />
+          )}
+        </div>
+      )}
+      <button
+        onClick={onToggleColors}
+        className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+          colorsEnabled
+            ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
+            : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+        }`}
+        style={{
+          fontSize: 'min(9px, 2.5cqmin)',
+          padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+        }}
+        title="Tint completed rows by score band (≥80% green, 60-79% amber, <60% rose)"
+        aria-pressed={colorsEnabled}
+      >
+        <Palette
+          style={{
+            width: 'min(12px, 3cqmin)',
+            height: 'min(12px, 3cqmin)',
+          }}
+        />
+        Colors
+      </button>
+      <button
+        onClick={onCycleScoreDisplay}
+        className="flex items-center gap-1 font-bold rounded-md transition-all text-brand-blue-primary/70 hover:text-brand-blue-primary bg-brand-blue-lighter/30"
+        style={{
+          fontSize: 'min(9px, 2.5cqmin)',
+          padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+        }}
+        title={`Score display — ${scoreDisplayLabels[scoreDisplay]}. Click to cycle: percent → answered / total → hidden.`}
+        aria-label="Cycle score display"
+      >
+        {scoreDisplay === 'percent' && (
+          <>
+            <Percent
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            %
+          </>
+        )}
+        {scoreDisplay === 'count' && (
+          <>
+            <BarChart3
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            n/N
+          </>
+        )}
+        {scoreDisplay === 'hidden' && (
+          <EyeOff
+            style={{
+              width: 'min(12px, 3cqmin)',
+              height: 'min(12px, 3cqmin)',
+            }}
+          />
+        )}
+      </button>
+      {tabWarningsAllowed && (
+        <button
+          onClick={onToggleTabWarnings}
+          className={`flex items-center gap-1 font-bold rounded-md transition-all ${
+            showTabWarnings
+              ? 'text-red-500 bg-red-50'
+              : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
+          }`}
+          style={{
+            fontSize: 'min(9px, 2.5cqmin)',
+            padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
+          }}
+          title="Show/hide tab switch warnings in roster"
+        >
+          <AlertTriangle
+            style={{
+              width: 'min(12px, 3cqmin)',
+              height: 'min(12px, 3cqmin)',
+            }}
+          />
+        </button>
+      )}
+    </div>
+  );
+};
+
 const StudentRow: React.FC<{
   response: QuizResponse;
   totalQuestions: number;
   questions: QuizQuestion[];
-  currentQuestion?: QuizQuestion;
-  showAnswerColors: boolean;
+  /**
+   * Session scoring config (speed bonus, streak multiplier). When the
+   * session is gamified the percent-mode pill renders raw points (matching
+   * the gamified scoreboard) instead of a stale percentage. The score-band
+   * tinting still uses the un-bonused percentage so the proficiency tier
+   * doesn't get distorted by streak luck.
+   */
+  scoringConfig: {
+    speedBonusEnabled?: boolean;
+    streakBonusEnabled?: boolean;
+  };
+  /** When true, completed-row backgrounds tint by score band; otherwise white. */
+  colorsEnabled: boolean;
+  /** Right-column score pill content. */
+  scoreDisplay: 'percent' | 'count' | 'hidden';
   showTabWarnings: boolean;
   confirmRemove: boolean;
   onConfirmRemoveToggle: () => void;
@@ -1968,8 +2267,9 @@ const StudentRow: React.FC<{
   response,
   totalQuestions,
   questions,
-  currentQuestion,
-  showAnswerColors,
+  scoringConfig,
+  colorsEnabled,
+  scoreDisplay,
   showTabWarnings,
   confirmRemove,
   onConfirmRemoveToggle,
@@ -1979,44 +2279,48 @@ const StudentRow: React.FC<{
 }) => {
   const warnings = response.tabSwitchWarnings ?? 0;
 
-  const correctCount = response.answers.filter((a) => {
-    const q = questions.find((qn) => qn.id === a.questionId);
-    return q ? gradeAnswer(q, a.answer) : false;
-  }).length;
+  // Two scores: the unmodified percentage drives the tint band (so
+  // gamification bonuses don't distort the proficiency tier), and the
+  // gamification-aware display score drives the pill text (so it agrees
+  // with the live scoreboard).
+  const bandScore =
+    response.status === 'completed'
+      ? getResponseScore(response, questions)
+      : null;
+  const displayScore =
+    response.status === 'completed'
+      ? getDisplayScore(response, questions, scoringConfig)
+      : null;
+  const scoreSuffix = getScoreSuffix(scoringConfig);
 
-  // Answer color for current question
-  let answerColorDot = 'bg-brand-gray-light'; // not answered yet
-  if (showAnswerColors && currentQuestion) {
-    const ans = response.answers.find(
-      (a) => a.questionId === currentQuestion.id
-    );
-    if (ans) {
-      answerColorDot = gradeAnswer(currentQuestion, ans.answer)
-        ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]'
-        : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]';
-    } else {
-      answerColorDot = 'bg-amber-400';
+  // Row background. When colors are enabled AND the student has finished,
+  // tint by score band (≥80% green / 60-79% amber / <60% rose). Active and
+  // joined rows always render as a clean white surface — there's no score
+  // to encode yet. With colors off, every row is white.
+  const rowBg = (() => {
+    if (!colorsEnabled || bandScore == null) {
+      return 'bg-white border-slate-200';
     }
-  } else {
-    // Status-based coloring
-    const statusDots = {
-      completed: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]',
-      'in-progress': 'bg-amber-500',
-      joined: 'bg-brand-gray-light',
-    };
-    answerColorDot = statusDots[response.status];
-  }
+    if (bandScore >= 80) return 'bg-emerald-50 border-emerald-200';
+    if (bandScore >= 60) return 'bg-amber-50 border-amber-200';
+    return 'bg-rose-50 border-rose-200';
+  })();
 
-  const statusBg = {
-    completed: 'bg-emerald-50 border-emerald-100',
-    'in-progress': 'bg-amber-50/50 border-amber-100',
-    joined: 'bg-white border-brand-blue-primary/5',
-  };
-  const statusText = {
-    completed: 'text-emerald-700 font-black',
-    'in-progress': 'text-amber-700 font-bold',
-    joined: 'text-brand-gray-primary font-medium',
-  };
+  // Status icon mirrors the KPI cards above (Joined → Users, Active → Clock,
+  // Finished → CheckCircle2). Renders in a neutral slate so the row band
+  // carries the semantic color.
+  const StatusIcon =
+    response.status === 'completed'
+      ? CheckCircle2
+      : response.status === 'in-progress'
+        ? Clock
+        : Users;
+  const statusIconColor =
+    response.status === 'completed'
+      ? 'text-emerald-600'
+      : response.status === 'in-progress'
+        ? 'text-amber-600'
+        : 'text-slate-400';
 
   const displayName = resolveResponseDisplayName(
     response,
@@ -2063,17 +2367,51 @@ const StudentRow: React.FC<{
     );
   }
 
+  // Right-column pill content. `count` mode is intentionally
+  // "answered / total" (progress), not "correct / total" — teachers
+  // running self-paced sessions want to see where each student is in
+  // the quiz, which is why the toolbar button title spells out
+  // "Answered / Total" rather than the ambiguous "n/N".
+  let pillText: string | null;
+  if (scoreDisplay === 'hidden') {
+    pillText = null;
+  } else if (scoreDisplay === 'count') {
+    pillText = `${response.answers.length}/${totalQuestions}`;
+  } else if (response.status === 'completed' && displayScore != null) {
+    pillText = `${displayScore}${scoreSuffix}`;
+  } else {
+    // No completed score yet — fall back to progress so teachers always see
+    // *something* about in-progress students even when "percent" is selected.
+    pillText = `${response.answers.length}/${totalQuestions}`;
+  }
+  const pillTextClass =
+    response.status === 'completed'
+      ? 'text-emerald-700 font-black'
+      : response.status === 'in-progress'
+        ? 'text-amber-700 font-bold'
+        : 'text-brand-gray-primary font-medium';
+
   return (
     <div
-      className={`flex items-center rounded-xl border transition-all group/row ${statusBg[response.status]}`}
+      className={`flex items-center rounded-xl border transition-all group/row ${rowBg}`}
       style={{
         gap: 'min(8px, 2cqmin)',
         padding: 'min(8px, 2cqmin)',
       }}
     >
-      <div
-        className={`rounded-full shrink-0 ${answerColorDot}`}
-        style={{ width: 'min(8px, 2cqmin)', height: 'min(8px, 2cqmin)' }}
+      <StatusIcon
+        className={`shrink-0 ${statusIconColor}`}
+        style={{
+          width: 'min(14px, 3.5cqmin)',
+          height: 'min(14px, 3.5cqmin)',
+        }}
+        aria-label={
+          response.status === 'completed'
+            ? 'Finished'
+            : response.status === 'in-progress'
+              ? 'Active'
+              : 'Joined'
+        }
       />
       <span
         className="flex-1 flex items-center gap-1.5 text-brand-blue-dark font-bold truncate"
@@ -2108,14 +2446,14 @@ const StudentRow: React.FC<{
           </span>
         )}
       </span>
-      <span
-        className={`px-1.5 py-0.5 rounded-md bg-white/60 border border-white/80 ${statusText[response.status]}`}
-        style={{ fontSize: 'min(11px, 3cqmin)' }}
-      >
-        {response.status === 'completed'
-          ? `${Math.round((correctCount / Math.max(totalQuestions, 1)) * 100)}%`
-          : `${response.answers.length}/${totalQuestions}`}
-      </span>
+      {pillText !== null && (
+        <span
+          className={`px-1.5 py-0.5 rounded-md bg-white/60 border border-white/80 ${pillTextClass}`}
+          style={{ fontSize: 'min(11px, 3cqmin)' }}
+        >
+          {pillText}
+        </span>
+      )}
       {/* Remove button */}
       {onRemove && (
         <button

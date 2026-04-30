@@ -46,6 +46,10 @@ describe('resolveAssignmentTargets', () => {
     expect(out.rosterIds).toEqual(['r1', 'r2']);
     expect(out.classIds.sort()).toEqual(['cl-1', 'cl-2']);
     expect(out.periodNames.sort()).toEqual(['Period 1', 'Period 2']);
+    expect(out.classPeriodByClassId).toEqual({
+      'cl-1': 'Period 1',
+      'cl-2': 'Period 2',
+    });
     expect(out.students.map((s) => s.id).sort()).toEqual(['s1', 's2', 's3']);
   });
 
@@ -58,16 +62,20 @@ describe('resolveAssignmentTargets', () => {
     expect(out.classIds).toEqual(['cl-legacy-1', 'cl-legacy-2']);
     expect(out.rosterIds).toEqual([]);
     expect(out.periodNames).toEqual([]);
+    expect(out.classPeriodByClassId).toEqual({});
   });
 
   it('falls back to legacy periodNames when only it is present', () => {
     const out = resolveAssignmentTargets({ periodNames: ['Period 1'] }, []);
     expect(out.source).toBe('periodNames');
     expect(out.periodNames).toEqual(['Period 1']);
+    expect(out.classPeriodByClassId).toEqual({});
   });
 
   it('returns source="none" when nothing is targeted', () => {
-    expect(resolveAssignmentTargets({}, []).source).toBe('none');
+    const out = resolveAssignmentTargets({}, []);
+    expect(out.source).toBe('none');
+    expect(out.classPeriodByClassId).toEqual({});
   });
 
   it('silently drops rosterIds that no longer exist', () => {
@@ -101,6 +109,8 @@ describe('resolveAssignmentTargets', () => {
     });
     const out = resolveAssignmentTargets({ rosterIds: ['r1', 'r2'] }, [r1, r2]);
     expect(out.classIds).toEqual(['cl-dup']);
+    // First-wins on the period-name map matches the dedup of `classIds[]`.
+    expect(out.classPeriodByClassId).toEqual({ 'cl-dup': 'MATH-7 (copy A)' });
   });
 
   it('de-dupes periodNames when rosters share a name', () => {
@@ -116,6 +126,9 @@ describe('resolveAssignmentTargets', () => {
     const out = resolveAssignmentTargets({ rosterIds: ['r1', 'r2'] }, [r1, r2]);
     expect(out.classIds).toEqual(['cl-1']);
     expect(out.rosterIds).toEqual(['r1', 'r2']);
+    // Local-only rosters can't be SSO-routed to, so they don't get a
+    // classPeriod map entry. The PIN flow uses periodNames separately.
+    expect(out.classPeriodByClassId).toEqual({ 'cl-1': 'Period 1' });
   });
 
   it('includes testClassId in derived classIds for test-class rosters', () => {
@@ -136,6 +149,10 @@ describe('resolveAssignmentTargets', () => {
     });
     const out = resolveAssignmentTargets({ rosterIds: ['r1', 'r2'] }, [r1, r2]);
     expect(out.classIds.sort()).toEqual(['cl-1', 'mock-period-1']);
+    expect(out.classPeriodByClassId).toEqual({
+      'cl-1': 'Period 1',
+      'mock-period-1': 'Mock Period 1 (test)',
+    });
   });
 
   it('omits rosters with neither classlinkClassId nor testClassId', () => {
@@ -143,11 +160,12 @@ describe('resolveAssignmentTargets', () => {
     const out = resolveAssignmentTargets({ rosterIds: ['r1'] }, [r1]);
     expect(out.classIds).toEqual([]);
     expect(out.rosterIds).toEqual(['r1']);
+    expect(out.classPeriodByClassId).toEqual({});
   });
 });
 
 describe('deriveSessionTargetsFromRosters', () => {
-  it('derives classIds, periodNames, and de-duped students', () => {
+  it('derives classIds, periodNames, classPeriodByClassId, and de-duped students', () => {
     const r1 = roster('r1', 'Period 1', [s1, s2], {
       classlinkClassId: 'cl-1',
     });
@@ -156,15 +174,32 @@ describe('deriveSessionTargetsFromRosters', () => {
     expect(out.rosterIds).toEqual(['r1', 'r2']);
     expect(out.classIds.sort()).toEqual(['cl-1', 'cl-2']);
     expect(out.periodNames.sort()).toEqual(['Period 1', 'Period 2']);
+    expect(out.classPeriodByClassId).toEqual({
+      'cl-1': 'Period 1',
+      'cl-2': 'Period 2',
+    });
     expect(out.students.map((s) => s.id).sort()).toEqual(['s1', 's2', 's3']);
   });
 
   it('de-dupes classIds (two rosters with same classlinkClassId)', () => {
     const r1 = roster('r1', 'A', [s1], { classlinkClassId: 'cl-dup' });
     const r2 = roster('r2', 'B', [s2], { classlinkClassId: 'cl-dup' });
-    expect(deriveSessionTargetsFromRosters([r1, r2]).classIds).toEqual([
-      'cl-dup',
-    ]);
+    const out = deriveSessionTargetsFromRosters([r1, r2]);
+    expect(out.classIds).toEqual(['cl-dup']);
+    // First-wins on the period name — same dedup semantics as classIds.
+    expect(out.classPeriodByClassId).toEqual({ 'cl-dup': 'A' });
+  });
+
+  it('builds a mixed map for ClassLink + test-class rosters', () => {
+    const r1 = roster('r1', 'Period 1', [s1], { classlinkClassId: 'cl-1' });
+    const r2 = roster('r2', 'Mock Period (test)', [s2], {
+      testClassId: 'mock-period-1',
+    });
+    const out = deriveSessionTargetsFromRosters([r1, r2]);
+    expect(out.classPeriodByClassId).toEqual({
+      'cl-1': 'Period 1',
+      'mock-period-1': 'Mock Period (test)',
+    });
   });
 
   it('returns empty arrays for empty input', () => {
@@ -172,6 +207,7 @@ describe('deriveSessionTargetsFromRosters', () => {
       rosterIds: [],
       classIds: [],
       periodNames: [],
+      classPeriodByClassId: {},
       students: [],
     });
   });

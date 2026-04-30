@@ -65,6 +65,8 @@ vi.mock('@/context/useAuth', () => ({
     disableCloseConfirmation: false,
     remoteControlEnabled: true,
     dockPosition: 'bottom',
+    quizMonitorColorsEnabled: true,
+    quizMonitorScoreDisplay: 'percent',
     updateAccountPreferences: vi.fn(),
   })),
 }));
@@ -412,6 +414,8 @@ describe('EmbedWidget', () => {
         disableCloseConfirmation: false,
         remoteControlEnabled: true,
         dockPosition: 'bottom',
+        quizMonitorColorsEnabled: true,
+        quizMonitorScoreDisplay: 'percent',
         updateAccountPreferences: vi.fn(),
         orgId: null,
         roleId: null,
