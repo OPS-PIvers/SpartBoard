@@ -20,20 +20,25 @@ export const SavedWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
+  // Whether a Firestore listener should be active for the current user.
+  // When false (signed out, Firebase not configured, or auth-bypass test
+  // mode), we don't subscribe and the state stays at its empty defaults.
+  const shouldSubscribe = Boolean(user) && isConfigured && !isAuthBypass;
   const [savedWidgets, setSavedWidgets] = useState<SavedWidget[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(shouldSubscribe);
+
+  // Reset state during render when the user changes (signs in/out). Adjusting
+  // state while rendering avoids the setState-in-effect cascade that the old
+  // setTimeout(..., 0) workaround was papering over.
+  const [prevUid, setPrevUid] = useState(user?.uid);
+  if (prevUid !== user?.uid) {
+    setPrevUid(user?.uid);
+    setSavedWidgets([]);
+    setLoading(shouldSubscribe);
+  }
 
   useEffect(() => {
-    if (!user || !isConfigured || isAuthBypass) {
-      // Defer to a microtask so the initial render commits before the state
-      // resets — calling setState synchronously inside an effect causes
-      // cascading renders flagged by react-hooks/set-state-in-effect.
-      const timer = setTimeout(() => {
-        setSavedWidgets([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    if (!shouldSubscribe || !user) return;
 
     const ref = collection(db, 'users', user.uid, 'saved_widgets');
     const q = query(ref, orderBy('createdAt', 'asc'));
@@ -54,7 +59,7 @@ export const SavedWidgetsProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     return unsub;
-  }, [user]);
+  }, [user, shouldSubscribe]);
 
   const saveSavedWidget = useCallback(
     async (

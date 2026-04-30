@@ -27,22 +27,45 @@
  */
 
 /**
+ * Marker subclass for errors the Drive/Sheets services throw to indicate
+ * an auth failure. Preferred over message-matching: any error built via
+ * `authError()` is an instance of this class, so `isDriveAuthError` can
+ * classify it without sniffing the message.
+ *
+ * Plain `Error` instances thrown from raw network responses (e.g. fetch
+ * failures that surface "401" / "403" in the message) still fall through
+ * to message-matching below.
+ */
+export class DriveAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DriveAuthError';
+    // Restore the prototype chain when targeting older transpile targets.
+    Object.setPrototypeOf(this, DriveAuthError.prototype);
+  }
+}
+
+/**
  * True for auth-related Drive failures — i.e. anything we'd surface to the
  * user as "your Drive session went stale, click Reconnect."
  *
- * The services throw plain `Error` instances (no custom subclass), so we
- * have to match on message content. Three signals:
- *  1. The explicit "Google Drive access expired" message thrown when a 401
- *     comes back AND `onTokenExpire` couldn't refresh the token.
- *  2. Any thrown message that embeds the literal HTTP status `401`.
- *  3. Any thrown message that embeds `403` (Drive returns 403 when the
- *     token has been revoked or its scopes were downgraded).
+ * Classification order:
+ *  1. `instanceof DriveAuthError` — set by `authError()` at every Drive /
+ *     Sheets throw site we control. Cheap and unambiguous.
+ *  2. Message-matching fallback for raw errors that bubble up without going
+ *     through `authError()` (e.g. third-party catch-and-rethrow, or older
+ *     code paths still using plain `Error`):
+ *     - The explicit "Google Drive access expired" / "Google Sheets access
+ *       is not granted" messages.
+ *     - HTTP `401` (token expired / unauthorized).
+ *     - HTTP `403` (token revoked / scopes downgraded).
  *
- * Message-matching is brittle, but the alternative is plumbing a custom
- * error class through every throw site and that's a much larger refactor
- * for a fix that's about user-visible surfacing, not error taxonomy.
+ * Message-matching is brittle, which is exactly why the `DriveAuthError`
+ * class exists — code under our control should throw via `authError()` so
+ * the `instanceof` branch handles classification.
  */
 export function isDriveAuthError(err: unknown): boolean {
+  if (err instanceof DriveAuthError) return true;
   if (!(err instanceof Error)) return false;
   const message = err.message;
   if (!message) return false;
@@ -89,15 +112,15 @@ export const reportDriveAuthError = (err: unknown): boolean => {
 };
 
 /**
- * Construct an `Error` and route it through `reportDriveAuthError` before
- * returning it for the caller to throw. Use at every Drive/Sheets throw
- * site that represents an auth failure so the toast surfaces even when
- * the upstream caller swallows or transforms the error.
+ * Construct a `DriveAuthError` and route it through `reportDriveAuthError`
+ * before returning it for the caller to throw. Use at every Drive/Sheets
+ * throw site that represents an auth failure so the toast surfaces even
+ * when the upstream caller swallows or transforms the error.
  *
  * Usage: `throw authError('Google Sheets access is not granted...')`.
  */
-export const authError = (message: string): Error => {
-  const err = new Error(message);
+export const authError = (message: string): DriveAuthError => {
+  const err = new DriveAuthError(message);
   reportDriveAuthError(err);
   return err;
 };

@@ -445,10 +445,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const lastLeaderboardFingerprintRef = useRef<string | null>(null);
   const hasClearedLeaderboardRef = useRef(false);
 
-  useEffect(() => {
+  // Reset leaderboard tracking refs when the session id changes. Done during
+  // render via the "adjusting state while rendering" pattern (see React docs)
+  // instead of an effect — useEffect is reserved for syncing with external
+  // systems, and ref assignment is purely local.
+  const [prevSessionId, setPrevSessionId] = useState(session.id);
+  if (prevSessionId !== session.id) {
+    setPrevSessionId(session.id);
     lastLeaderboardFingerprintRef.current = null;
     hasClearedLeaderboardRef.current = false;
-  }, [session.id]);
+  }
 
   // Broadcast student-safe live leaderboard snapshot for gamified sessions.
   useEffect(() => {

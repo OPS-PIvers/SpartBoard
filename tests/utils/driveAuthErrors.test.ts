@@ -5,6 +5,7 @@ import {
   setDriveAuthErrorHandler,
   onDriveTokenChange,
   authError,
+  DriveAuthError,
   __resetDriveAuthErrorsForTests,
 } from '@/utils/driveAuthErrors';
 
@@ -14,6 +15,15 @@ describe('driveAuthErrors', () => {
   });
 
   describe('isDriveAuthError', () => {
+    it('matches a DriveAuthError instance regardless of message content', () => {
+      // The `instanceof` branch is the preferred classification path —
+      // tests should pass even when the message contains nothing
+      // auth-related.
+      expect(isDriveAuthError(new DriveAuthError('anything at all'))).toBe(
+        true
+      );
+    });
+
     it('matches the explicit "Google Drive access expired" message', () => {
       expect(
         isDriveAuthError(
@@ -131,22 +141,23 @@ describe('driveAuthErrors', () => {
   });
 
   describe('authError', () => {
-    it('returns an Error and reports it through the auth surface', () => {
+    it('returns a DriveAuthError and reports it through the auth surface', () => {
       const handler = vi.fn();
       setDriveAuthErrorHandler(handler);
       const err = authError(
         'Google Drive access expired. Please sign in again.'
       );
+      expect(err).toBeInstanceOf(DriveAuthError);
       expect(err).toBeInstanceOf(Error);
       expect(err.message).toContain('access expired');
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    it('still constructs an Error when no handler is registered', () => {
+    it('still constructs a DriveAuthError when no handler is registered', () => {
       const err = authError(
         'Google Drive access expired. Please sign in again.'
       );
-      expect(err).toBeInstanceOf(Error);
+      expect(err).toBeInstanceOf(DriveAuthError);
     });
   });
 });
