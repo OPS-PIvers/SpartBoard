@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-04-28_
-_Last action: 2026-04-28_
+_Last action: 2026-04-30_
 
 ---
 
@@ -46,12 +46,13 @@ _Nothing currently in progress._
       Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.8.0.
 - **Fix:** Update `firebase` in root to latest (12.12.0) and `firebase-admin` in functions/ to 13.8.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
 
-### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak via `@google/genai`
+### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak (still resolves to 1.25.2 after `@google/genai` upgrade)
 
 - **Detected:** 2026-04-14
-- **File:** package.json (transitive via `@google/genai`)
-- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. This comes in as a transitive dependency of `@google/genai` (devDependency used for functions/Gemini calls). Current `@google/genai`: 1.39.0 (root dev), 1.38.0 (functions); latest: 1.50.1.
-- **Fix:** `pnpm up @google/genai@^1.50.1` in both root and functions/ — newer version should depend on a patched MCP SDK. Also update functions/ `@google/genai` from 1.38.0.
+- **Updated:** 2026-04-30
+- **File:** package.json (transitive via `@google/genai` and `firebase-tools`)
+- **Detail:** HIGH severity — `@modelcontextprotocol/sdk` >=1.10.0 <=1.25.3 has a cross-client data leak vulnerability. As of 2026-04-30, `@google/genai` was upgraded to 1.51.0 (root + functions) but `pnpm why @modelcontextprotocol/sdk` shows it still resolves to 1.25.2 — the new `@google/genai` does not yet pin a post-1.25.3 MCP SDK. Also pulled in by `firebase-tools@15.8.0`.
+- **Fix:** Watch upstream `@google/genai` releases for an MCP SDK >=1.25.4 bump, or apply a `pnpm.overrides` entry: `"@modelcontextprotocol/sdk": ">=1.25.4"`, after verifying neither consumer breaks. May also be resolved by the pending `firebase-tools` upgrade in the separate Open item below.
 
 ### MEDIUM Functions: `lodash` code injection via `firebase-functions-test`
 
@@ -59,13 +60,6 @@ _Nothing currently in progress._
 - **File:** functions/package.json (devDependency `firebase-functions-test`)
 - **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
 - **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
-
-### HIGH `protobufjs <7.5.5` — CRITICAL arbitrary code execution via `@google/genai`
-
-- **Detected:** 2026-04-28
-- **File:** package.json (transitive via `@google/genai > protobufjs`), functions/package.json (same path)
-- **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affects both root (`@google/genai: 1.39.0`, a devDependency used for functions/Gemini calls) and functions/ (`@google/genai: 1.38.0`). The runtime code path remains vulnerable to crafted input until the transitive dependency is upgraded to a patched version.
-- **Fix:** Update `@google/genai` to >=1.50.1 in both root and functions/ (current: root 1.39.0, functions 1.38.0, latest 1.50.1). Newer versions should pin `protobufjs >= 7.5.5`. This fix is doubly important because it also resolves the previously documented `@modelcontextprotocol/sdk` cross-client data leak (MEDIUM). Verify with `pnpm why protobufjs` after upgrade. Command: `pnpm up "@google/genai@^1.50.1"` in root and `pnpm -C functions up "@google/genai@^1.50.1"`.
 
 ### MEDIUM `dompurify` has multiple XSS/sanitization bypasses — three CVEs
 
@@ -102,6 +96,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `protobufjs <7.5.5` — CRITICAL arbitrary code execution via `@google/genai`
+
+- **Detected:** 2026-04-28
+- **Completed:** 2026-04-30
+- **File:** package.json (transitive via `@google/genai > protobufjs`), functions/package.json (same path)
+- **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affected both root (`@google/genai: 1.39.0`) and functions/ (`@google/genai: 1.38.0`).
+- **Resolution:** Ran `pnpm up "@google/genai@^1.50.1"` (root) and `pnpm -C functions up "@google/genai@^1.50.1"` (functions). Both bumped to `@google/genai@1.51.0`. `pnpm why protobufjs` confirms `@google/genai@1.51.0` now resolves to `protobufjs@7.5.6` (patched) on both sides — the vulnerable `protobufjs@7.5.4` no longer comes via `@google/genai`. A separate `protobufjs@7.5.4` resolution still exists via `firebase-functions@7.0.5 / @google-cloud/firestore` chains (untouched by this fix; not in the @google/genai path the journal targeted). The bundled `@modelcontextprotocol/sdk` did **not** advance past 1.25.2 with this upgrade — that MEDIUM entry has been updated and remains Open. Verified clean: `pnpm type-check` (root + functions) 0 errors; `pnpm lint --max-warnings 0` 0 errors/warnings; `pnpm format:check` clean; `pnpm test` 1672/1672 pass across 175 files; `pnpm build` (21.4s) and `pnpm -C functions build` both succeed.
 
 ### HIGH `hono` has authorization bypass, arbitrary file access, and HTML injection vulnerabilities
 
