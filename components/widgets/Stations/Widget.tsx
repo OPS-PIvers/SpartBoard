@@ -284,15 +284,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 Stations
               </h3>
-              {config.rosterMode !== 'custom' && rosters.length > 0 && (
-                <ActiveClassChip />
-              )}
             </div>
 
             <div
               className="flex items-center shrink-0"
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
+              {config.rosterMode !== 'custom' && rosters.length > 0 && (
+                <ActiveClassChip compact />
+              )}
               <Button
                 onClick={handleShuffle}
                 variant="ghost"
