@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
 import { Image as ImageIcon, Upload, Loader2, Trash2, X } from 'lucide-react';
 import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
@@ -47,52 +47,55 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
       )
     : ICON_LIST;
 
-  const handleUpload = async (file: File) => {
-    if (inFlightRef.current) {
-      addToast('An upload is already in progress.', 'info');
-      return;
-    }
-    if (!user) {
-      addToast('Sign in to upload images.', 'error');
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      addToast('Please choose an image file.', 'error');
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      addToast('Image too large. 5 MB maximum.', 'error');
-      return;
-    }
-    const previousUrl = imageUrl;
-    inFlightRef.current = true;
-    setUploading(true);
-    try {
-      const url = await uploadSticker(user.uid, file);
-      // Commit the new URL FIRST so a failed delete cannot orphan us with no image.
-      onChange({ iconName: undefined, imageUrl: url });
-      // Best-effort cleanup of the old image once the new one is in place.
-      if (previousUrl) {
-        try {
-          await deleteFile(previousUrl);
-        } catch (deleteErr) {
-          // Non-fatal — log and move on; teacher can clean up manually if needed.
-          console.warn(
-            '[StationsIconOrImageInput] Failed to delete previous image; the file may now be orphaned in Drive/Storage.',
-            deleteErr
-          );
-        }
+  const handleUpload = useCallback(
+    async (file: File) => {
+      if (inFlightRef.current) {
+        addToast('An upload is already in progress.', 'info');
+        return;
       }
-      addToast('Image uploaded.', 'success');
-    } catch (err) {
-      console.error('[StationsIconOrImageInput] Upload failed', err);
-      addToast('Failed to upload image.', 'error');
-    } finally {
-      inFlightRef.current = false;
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
+      if (!user) {
+        addToast('Sign in to upload images.', 'error');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        addToast('Please choose an image file.', 'error');
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        addToast('Image too large. 5 MB maximum.', 'error');
+        return;
+      }
+      const previousUrl = imageUrl;
+      inFlightRef.current = true;
+      setUploading(true);
+      try {
+        const url = await uploadSticker(user.uid, file);
+        // Commit the new URL FIRST so a failed delete cannot orphan us with no image.
+        onChange({ iconName: undefined, imageUrl: url });
+        // Best-effort cleanup of the old image once the new one is in place.
+        if (previousUrl) {
+          try {
+            await deleteFile(previousUrl);
+          } catch (deleteErr) {
+            // Non-fatal — log and move on; teacher can clean up manually if needed.
+            console.warn(
+              '[StationsIconOrImageInput] Failed to delete previous image; the file may now be orphaned in Drive/Storage.',
+              deleteErr
+            );
+          }
+        }
+        addToast('Image uploaded.', 'success');
+      } catch (err) {
+        console.error('[StationsIconOrImageInput] Upload failed', err);
+        addToast('Failed to upload image.', 'error');
+      } finally {
+        inFlightRef.current = false;
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    },
+    [user, addToast, uploadSticker, deleteFile, onChange, imageUrl]
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,9 +154,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-    // handleUpload is stable enough — dependency is intentionally minimal.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, imageUrl]);
+  }, [tab, handleUpload]);
 
   return (
     <div ref={containerRef} className="space-y-2">

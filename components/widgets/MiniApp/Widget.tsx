@@ -1036,10 +1036,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 onEndSession={handleEndSessionFromModal}
               />
             )}
-            {/* Save-as-Widget modal */}
-            {!isStudentView && activeApp && (
+            {/* Save-as-Widget modal — conditional render so each open is a
+                fresh mount with state derived from `activeApp.title`. */}
+            {!isStudentView && activeApp && showSaveAsWidget && (
               <SaveAsWidgetModal
-                isOpen={showSaveAsWidget}
                 defaultTitle={activeApp.title}
                 isSaving={isSavingAsWidget}
                 onSave={(values) => void handleSaveAsWidget(values)}

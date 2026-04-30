@@ -21,7 +21,6 @@ const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
 ];
 
 interface SaveAsWidgetModalProps {
-  isOpen: boolean;
   defaultTitle: string;
   isSaving?: boolean;
   onSave: (values: { title: string; icon: string; color: string }) => void;
@@ -29,30 +28,17 @@ interface SaveAsWidgetModalProps {
 }
 
 export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
-  isOpen,
   defaultTitle,
   isSaving = false,
   onSave,
   onClose,
 }) => {
+  // Parent renders this modal conditionally on `showSaveAsWidget`, so each
+  // open is a fresh mount and useState initializers naturally re-derive from
+  // the current `defaultTitle` without any reset effect or setState-in-render.
   const [title, setTitle] = useState(defaultTitle);
   const [icon, setIcon] = useState(CUSTOM_WIDGET_ICON_OPTIONS[0].key);
   const [color, setColor] = useState(COLOR_PRESETS[0].value);
-
-  // Reset form fields when the modal transitions from closed → open. Tracking
-  // the previous `isOpen` in state and adjusting during render avoids the
-  // cascading-render pitfall of doing this in a useEffect.
-  const [wasOpen, setWasOpen] = useState(isOpen);
-  if (isOpen !== wasOpen) {
-    setWasOpen(isOpen);
-    if (isOpen) {
-      setTitle(defaultTitle);
-      setIcon(CUSTOM_WIDGET_ICON_OPTIONS[0].key);
-      setColor(COLOR_PRESETS[0].value);
-    }
-  }
-
-  if (!isOpen) return null;
 
   const trimmed = title.trim();
   const canSave = trimmed.length > 0 && !isSaving;
