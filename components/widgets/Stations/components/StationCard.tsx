@@ -123,18 +123,25 @@ export const StationCard: React.FC<StationCardProps> = ({
             // and the top corners curve into the icon hero area above.
             margin: 0,
             padding: 'min(8px, 4cqmin) min(10px, 5cqmin)',
+            // Plate background and text colors are intentionally fixed (dark
+            // navy + white) rather than themed via cardColor / fontColor so
+            // the title and description remain legible no matter the station
+            // accent color or uploaded image behind them. cardColor still
+            // drives the chip-column surface; fontColor still drives chip text.
             backgroundColor: 'rgba(15, 23, 42, 0.42)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            borderRadius: '0.75rem',
+            backdropFilter: 'blur(min(4px, 2cqmin))',
+            WebkitBackdropFilter: 'blur(min(4px, 2cqmin))',
+            borderRadius: 'min(12px, 6cqmin)',
           }}
         >
           <div
             className="font-black leading-tight w-full line-clamp-2 break-words"
             style={{
-              // Title cap dropped from 28 → 22 so it doesn't dominate the
-              // card at typical widget sizes; the lower cqmin coefficient
-              // keeps the cap reachable on wider cards without ballooning.
+              // Cap dropped from 28 → 22 so the title doesn't dominate the
+              // card at typical widget sizes. The 14cqmin coefficient keeps
+              // the cap reachable on the smaller card-relative cqmin (the
+              // card is its own container query container, so cqmin here
+              // is much smaller than the widget-cqmin used pre-refactor).
               fontSize: 'min(22px, 14cqmin)',
               color: '#ffffff',
             }}
@@ -147,6 +154,8 @@ export const StationCard: React.FC<StationCardProps> = ({
               className="leading-tight w-full line-clamp-3 break-words"
               style={{
                 fontSize: 'min(11px, 5.5cqmin)',
+                // Hardcoded for the same readability reason as the title
+                // (see plate `backgroundColor` comment above).
                 color: 'rgba(255, 255, 255, 0.9)',
                 fontWeight: 600,
               }}
