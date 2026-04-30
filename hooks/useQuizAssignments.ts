@@ -386,7 +386,13 @@ export const useQuizAssignments = (
       classPeriodByClassId
     ) => {
       if (!userId) throw new Error('Not authenticated');
-      const targetClassIds = classIds ?? [];
+      // Defensive sanitization at the hook boundary: drop empty/non-string
+      // entries so this stays robust against future call sites that may
+      // not pre-sanitize via `deriveSessionTargetsFromRosters`. Mirrors
+      // the same filter already applied in `setAssignmentRosters`.
+      const targetClassIds = (classIds ?? []).filter(
+        (id): id is string => typeof id === 'string' && id.length > 0
+      );
       const targetRosterIds = (rosterIds ?? []).filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
