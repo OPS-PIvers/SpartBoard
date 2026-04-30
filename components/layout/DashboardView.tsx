@@ -1477,25 +1477,36 @@ export const DashboardView: React.FC = () => {
         </button>
       )}
 
-      {/* Cheat Sheet Help Button */}
-      <button
-        onClick={() => setIsCheatSheetOpen(true)}
-        title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
-        className={`fixed z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm ${
-          dockPosition === 'right'
-            ? `left-4 ${
-                dashboards.length > 1 && youTubeVideoId
-                  ? 'bottom-[6.5rem]'
-                  : dashboards.length > 1 || youTubeVideoId
-                    ? 'bottom-16'
-                    : 'bottom-6'
-              }`
-            : 'right-4 bottom-6'
-        }`}
-        aria-label={t('widgets.cheatSheet.title')}
-      >
-        <HelpCircle className="w-4 h-4" />
-      </button>
+      {/* Cheat Sheet Help Button.
+          Stacking on the left side (when the dock occupies the right edge):
+          each FAB slot is 32px tall + ~8px gap ≈ 2.5rem. Slot 0 = bottom-6,
+          slot 1 = bottom-16, slot 2 = bottom-[6.5rem]. */}
+      {(() => {
+        const boardNavVisible = dashboards.length > 1;
+        const musicVisible = !!youTubeVideoId;
+        const onLeftSide = dockPosition === 'right';
+        const leftStackSlot =
+          (boardNavVisible ? 1 : 0) + (musicVisible ? 1 : 0);
+        const leftSideBottom =
+          leftStackSlot >= 2
+            ? 'bottom-[6.5rem]'
+            : leftStackSlot === 1
+              ? 'bottom-16'
+              : 'bottom-6';
+        const positionClass = onLeftSide
+          ? `left-4 ${leftSideBottom}`
+          : 'right-4 bottom-6';
+        return (
+          <button
+            onClick={() => setIsCheatSheetOpen(true)}
+            title={`${t('widgets.cheatSheet.title')} (Ctrl+/)`}
+            className={`fixed z-dock w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm ${positionClass}`}
+            aria-label={t('widgets.cheatSheet.title')}
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        );
+      })()}
 
       <CheatSheetModal
         isOpen={isCheatSheetOpen}

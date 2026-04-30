@@ -1,4 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, MoreVertical, Star } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
@@ -12,22 +19,31 @@ export const BoardNavFab: React.FC = () => {
   const { dashboards, activeDashboard, loadDashboard } = useDashboard();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const headerId = useId();
 
   const currentIndex = useMemo(() => {
     if (!activeDashboard) return -1;
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
   }, [dashboards, activeDashboard]);
 
-  useClickOutside(containerRef, () => setIsPickerOpen(false));
+  const closePicker = useCallback(
+    (returnFocus = true) => {
+      setIsPickerOpen(false);
+      if (returnFocus) triggerRef.current?.focus();
+    },
+    [setIsPickerOpen]
+  );
 
+  useClickOutside(containerRef, () => closePicker(false));
+
+  // Move focus into the menu when it opens; default to the active board.
   useEffect(() => {
     if (!isPickerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsPickerOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isPickerOpen]);
+    const targetIdx = currentIndex >= 0 ? currentIndex : 0;
+    itemRefs.current[targetIdx]?.focus();
+  }, [isPickerOpen, currentIndex]);
 
   if (dashboards.length <= 1) return null;
 
@@ -43,7 +59,48 @@ export const BoardNavFab: React.FC = () => {
     loadDashboard(dashboards[next].id);
   };
 
+  const focusItem = (idx: number) => {
+    const len = dashboards.length;
+    const wrapped = ((idx % len) + len) % len;
+    itemRefs.current[wrapped]?.focus();
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const focusedIdx = itemRefs.current.findIndex(
+      (el) => el === document.activeElement
+    );
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        closePicker();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        focusItem(focusedIdx < 0 ? 0 : focusedIdx + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        focusItem(focusedIdx < 0 ? dashboards.length - 1 : focusedIdx - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        focusItem(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        focusItem(dashboards.length - 1);
+        break;
+      case 'Tab':
+        // Tab takes focus out of the menu — close to keep state consistent.
+        closePicker(false);
+        break;
+    }
+  };
+
   const activeName = activeDashboard?.name ?? '';
+  const boardListLabel = t('boardNav.boardList', {
+    defaultValue: 'All boards',
+  });
 
   return (
     <div
@@ -53,25 +110,31 @@ export const BoardNavFab: React.FC = () => {
     >
       {isPickerOpen && (
         <div
-          role="listbox"
-          aria-label={t('boardNav.boardList', { defaultValue: 'All boards' })}
+          role="menu"
+          aria-labelledby={headerId}
+          onKeyDown={handleMenuKeyDown}
           className="absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
         >
-          <div className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40">
-            {t('boardNav.boardList', { defaultValue: 'All boards' })}
+          <div
+            id={headerId}
+            className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40"
+          >
+            {boardListLabel}
           </div>
-          {dashboards.map((db) => {
+          {dashboards.map((db, idx) => {
             const isActive = activeDashboard?.id === db.id;
             return (
               <button
                 key={db.id}
-                role="option"
-                aria-selected={isActive}
+                ref={(el) => {
+                  itemRefs.current[idx] = el;
+                }}
+                role="menuitem"
                 onClick={() => {
                   loadDashboard(db.id);
-                  setIsPickerOpen(false);
+                  closePicker();
                 }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:bg-white/15 ${
                   isActive
                     ? 'bg-brand-blue-primary text-white'
                     : 'text-white/80 hover:bg-white/10'
@@ -106,12 +169,13 @@ export const BoardNavFab: React.FC = () => {
           <ChevronLeft className="w-4 h-4" />
         </button>
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsPickerOpen((v) => !v)}
           aria-label={t('boardNav.selectBoard', {
             defaultValue: 'Select board',
           })}
-          aria-haspopup="listbox"
+          aria-haspopup="menu"
           aria-expanded={isPickerOpen}
           title={activeName}
           className={FAB_BASE}
