@@ -1103,25 +1103,29 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               sessionStatus: sessionData.status,
             })
           );
-        } else if (resolvedClassId || resolvedPeriodName) {
-          // Backfill classId and/or classPeriod on an existing SSO response
-          // that joined before this code shipped (or before the teacher
-          // retargeted), so the period filter and sheet column are
-          // self-healing on rejoin without a separate migration.
+        } else if (resolvedPeriodName) {
+          // Backfill classPeriod on an existing SSO response that joined
+          // before this code shipped (or before the teacher retargeted),
+          // so the period filter and sheet column self-heal on rejoin
+          // without a separate migration.
+          //
+          // classId is intentionally NOT backfilled here: firestore.rules
+          // restricts student `update` `changedKeys()` to an allowlist
+          // (`answers, status, submittedAt, tabSwitchWarnings,
+          // completedAttempts, classPeriod, score`) — see
+          // `firestore.rules` quiz response rule. Including classId in
+          // the patch would be denied wholesale and would also block the
+          // classPeriod backfill. classId stays create-only; if the
+          // legacy response is missing it, the teacher-side enrichment
+          // in QuizResults can no longer use it as a fallback, but
+          // classPeriod (now written here) supersedes that fallback for
+          // every downstream surface.
           const existing = existingSnap.data() as QuizResponse;
-          const patch: Partial<QuizResponse> = {};
-          if (resolvedClassId && existing.classId !== resolvedClassId) {
-            patch.classId = resolvedClassId;
-          }
-          if (
-            resolvedPeriodName &&
-            existing.classPeriod !== resolvedPeriodName
-          ) {
-            patch.classPeriod = resolvedPeriodName;
-          }
-          if (Object.keys(patch).length > 0) {
-            await updateDoc(responseRef, patch).catch((err: unknown) =>
-              logQuizJoinFirestoreError('update-backfill-sso-targeting', err, {
+          if (existing.classPeriod !== resolvedPeriodName) {
+            await updateDoc(responseRef, {
+              classPeriod: resolvedPeriodName,
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-backfill-class-period', err, {
                 sessionId: sessionDoc.id,
                 responseKey,
                 studentUid,

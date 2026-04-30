@@ -1067,10 +1067,12 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
     expect(writtenResponse).not.toHaveProperty('classPeriod');
   });
 
-  it('backfills both classId and classPeriod in a single update on SSO rejoin', async () => {
-    // Existing in-flight response (joined before the fix) lacks both
-    // fields; on rejoin we write a single combined patch so the period
-    // dropdown and export self-heal without a separate migration.
+  it('backfills classPeriod (only) on SSO rejoin — classId is create-only per firestore.rules', async () => {
+    // Existing in-flight response (joined before the fix) lacks
+    // classPeriod; on rejoin we patch ONLY classPeriod. classId stays
+    // unchanged because the student-update rule's `changedKeys.hasOnly`
+    // allowlist (firestore.rules:936) does not include classId — a
+    // patch that touched classId would be denied wholesale.
     (
       auth as unknown as {
         currentUser: {
@@ -1128,15 +1130,16 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
 
     expect(updateDocMock).toHaveBeenCalledTimes(1);
     expect(updateDocMock.mock.calls[0][1]).toEqual({
-      classId: 'classlink-A',
       classPeriod: 'Period 3',
     });
   });
 
-  it('skips the backfill update when the existing SSO response already has both fields current', async () => {
-    // Idempotent rejoin: response already carries the resolved classId
-    // and matching classPeriod. Patch is empty, so updateDoc is not
-    // called — guards against an extra Firestore write per rejoin.
+  it('skips the backfill update when the existing SSO response already has classPeriod current', async () => {
+    // Idempotent rejoin: response already carries the resolved
+    // classPeriod. Patch is empty, so updateDoc is not called —
+    // guards against an extra Firestore write per rejoin. classId
+    // is irrelevant here (we never touch it on rejoin per the rules
+    // allowlist).
     (
       auth as unknown as {
         currentUser: {

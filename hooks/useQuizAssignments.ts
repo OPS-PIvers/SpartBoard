@@ -239,6 +239,30 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+/**
+ * Sanitize the `classPeriodByClassId` map at the hook boundary: drop
+ * empty/non-string keys or values, and (when an allowlist is provided)
+ * drop entries whose key isn't in the session's `classIds` so the
+ * session doc can't carry stale/mismatched targeting. Mirrors the
+ * defensive filtering already applied to `rosterIds` / `classIds` /
+ * `periodNames`.
+ */
+function sanitizeClassPeriodByClassId(
+  input: Record<string, string> | undefined,
+  allowedClassIds?: readonly string[]
+): Record<string, string> {
+  if (!input) return {};
+  const allow = allowedClassIds ? new Set(allowedClassIds) : null;
+  return Object.fromEntries(
+    Object.entries(input).filter(
+      ([classId, classPeriod]) =>
+        isNonEmptyString(classId) &&
+        isNonEmptyString(classPeriod) &&
+        (allow === null || allow.has(classId))
+    )
+  );
+}
+
 // Validate an inbound `plc` sub-object before trusting it. A partial or
 // malformed shape would otherwise propagate downstream where consumers
 // assume "present-and-complete." Returns a fresh object (no aliasing) or
@@ -396,7 +420,10 @@ export const useQuizAssignments = (
       const targetRosterIds = (rosterIds ?? []).filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const targetClassPeriodByClassId = classPeriodByClassId ?? {};
+      const targetClassPeriodByClassId = sanitizeClassPeriodByClassId(
+        classPeriodByClassId,
+        targetClassIds
+      );
 
       const assignmentId = crypto.randomUUID();
       const code = await allocateJoinCode();
@@ -756,13 +783,19 @@ export const useQuizAssignments = (
       // createAssignment uses at create time.
       // Always overwrite `classPeriodByClassId` (even with `{}`) so a
       // retarget that drops every SSO-eligible roster clears the stale
-      // prior map rather than leaving it lingering.
+      // prior map rather than leaving it lingering. Sanitization keeps
+      // the keyset in lock-step with `cleanedClassIds` even if the
+      // caller's map drifted.
+      const cleanedClassPeriodByClassId = sanitizeClassPeriodByClassId(
+        targets.classPeriodByClassId,
+        cleanedClassIds
+      );
       const sessionPatch: Record<string, unknown> = {
         rosterIds: cleanedRosterIds,
         classIds: cleanedClassIds,
         classId: cleanedClassIds[0] ?? '',
         periodNames: cleanedPeriodNames,
-        classPeriodByClassId: targets.classPeriodByClassId,
+        classPeriodByClassId: cleanedClassPeriodByClassId,
       };
 
       const batch = writeBatch(db);
