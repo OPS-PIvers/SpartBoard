@@ -80,13 +80,27 @@ export const QuizStudentApp: React.FC = () => {
           await signInAnonymously(auth);
         }
         const user = auth.currentUser;
+        let isStudentRoleClaim = false;
         if (user && !user.isAnonymous) {
           // Probe custom claims once. We don't refresh here — `studentLoginV1`
           // is what minted these, and a stale token is fine for read-only
           // identity. The Firestore rules re-validate on every write.
           const tokenResult = await user.getIdTokenResult();
-          setIsStudentRole(tokenResult.claims?.studentRole === true);
+          isStudentRoleClaim = tokenResult.claims?.studentRole === true;
+          setIsStudentRole(isStudentRoleClaim);
         }
+        // Phase-A diagnostic: log resolved auth state once at mount so we can
+        // tell from a console capture whether a "fresh incognito" join really
+        // landed on an anonymous Firebase user, or if a stale custom-token /
+        // teacher session bled across (which would explain a no-PIN response
+        // in the PLC-import bug). Uses warn (not info) because the project
+        // ESLint config restricts console to warn/error. Remove once the
+        // join bugs are root-caused.
+        console.warn('[QuizStudentApp] auth state', {
+          uid: user?.uid,
+          isAnonymous: user?.isAnonymous,
+          studentRole: isStudentRoleClaim,
+        });
       } catch (err) {
         console.warn('[QuizStudentApp] Auth init failed:', err);
         setAuthFailed(true);

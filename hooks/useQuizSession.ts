@@ -213,6 +213,33 @@ function getErrorCode(err: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
+// Phase-A diagnostic helper: when a Firestore op inside joinQuizSession
+// rejects, emit a structured breadcrumb naming the op + the join's auth/PIN
+// state, then re-throw. The outer catch in joinQuizSession only sees
+// `err.message`, which is "Missing or insufficient permissions" verbatim —
+// the breadcrumb is the only place we can correlate the denial back to which
+// of the (lookup / read-existing / create / update-reset / update-period /
+// update-classid) operations actually tripped, and what the request shape
+// looked like at that moment.
+//
+// Always re-throws so callers' control flow is unchanged. Type is `never`
+// so TS narrows correctly when used in `catch` blocks that don't want a
+// dangling promise return path.
+function logQuizJoinFirestoreError(
+  op: string,
+  err: unknown,
+  ctx: Record<string, unknown>
+): never {
+  const code = getErrorCode(err);
+  if (code === 'permission-denied') {
+    console.warn(
+      `[useQuizSession] permission-denied during joinQuizSession op=${op}:`,
+      { op, code, ...ctx, err }
+    );
+  }
+  throw err;
+}
+
 /**
  * Look up the student's response doc for a session, trying the deterministic
  * key first and falling back to the legacy auth-uid key for anonymous PIN
@@ -844,6 +871,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             collection(db, QUIZ_SESSIONS_COLLECTION),
             where('code', '==', normCode)
           )
+        ).catch((err: unknown) =>
+          logQuizJoinFirestoreError('lookup-sessions', err, {
+            codeNorm: normCode,
+            studentUid,
+            isAnonymous: currentUser.isAnonymous,
+          })
         );
         if (snap.empty) throw new Error('No active quiz found with that code.');
 
@@ -931,12 +964,31 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
-            });
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-reset-completed', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous: currentUser.isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!classPeriod,
+              })
+            );
           } else if (classPeriod && existing.classPeriod !== classPeriod) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
             // change).
-            await updateDoc(responseRef, { classPeriod });
+            await updateDoc(responseRef, { classPeriod }).catch(
+              (err: unknown) =>
+                logQuizJoinFirestoreError('update-backfill-period', err, {
+                  sessionId: sessionDoc.id,
+                  responseKey,
+                  studentUid,
+                  existingStudentUid: existing.studentUid,
+                  isAnonymous: currentUser.isAnonymous,
+                })
+            );
           }
         }
 
@@ -1011,14 +1063,40 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(classPeriod ? { classPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
           };
-          await setDoc(responseRef, newResponse);
+          await setDoc(responseRef, newResponse).catch((err: unknown) =>
+            logQuizJoinFirestoreError('create-response', err, {
+              sessionId: sessionDoc.id,
+              responseKey,
+              studentUid,
+              isAnonymous: currentUser.isAnonymous,
+              hasPin: !!sanitizedPin,
+              hasClassPeriod: !!classPeriod,
+              hasResolvedClassId: !!resolvedClassId,
+              sessionClassIds: Array.isArray(sessionData.classIds)
+                ? sessionData.classIds
+                : undefined,
+              sessionClassId: sessionData.classId,
+              sessionTeacherUid: sessionData.teacherUid,
+              sessionStatus: sessionData.status,
+            })
+          );
         } else if (resolvedClassId) {
           // Backfill classId on an existing SSO response that joined before
           // this code shipped, so the period filter and sheet column are
           // self-healing on rejoin without a separate migration.
           const existing = existingSnap.data() as QuizResponse;
           if (existing.classId !== resolvedClassId) {
-            await updateDoc(responseRef, { classId: resolvedClassId });
+            await updateDoc(responseRef, { classId: resolvedClassId }).catch(
+              (err: unknown) =>
+                logQuizJoinFirestoreError('update-backfill-classid', err, {
+                  sessionId: sessionDoc.id,
+                  responseKey,
+                  studentUid,
+                  existingClassId: existing.classId,
+                  resolvedClassId,
+                  isAnonymous: currentUser.isAnonymous,
+                })
+            );
           }
         }
 
