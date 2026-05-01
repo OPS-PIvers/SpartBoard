@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -254,23 +260,57 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
+  const peekTriggerRef = useRef<HTMLElement | null>(null);
+  const peekCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closePeek = useCallback(() => {
+    setPeekedItem(null);
+    // Restore focus to the element that opened the peek, on the next frame so
+    // the Modal has unmounted from the portal first.
+    const trigger = peekTriggerRef.current;
+    peekTriggerRef.current = null;
+    if (trigger) {
+      window.requestAnimationFrame(() => trigger.focus());
+    }
+  }, []);
 
   // Auto-dismiss the food-image peek after a short timeout. Outside-click and
   // Esc are handled by the underlying Modal. The peek is local state only —
   // never written to widget.config, so nothing persists in Firestore or Drive.
   useEffect(() => {
     if (!peekedItem) return undefined;
-    const timer = window.setTimeout(
-      () => setPeekedItem(null),
-      PEEK_AUTO_DISMISS_MS
-    );
+    const timer = window.setTimeout(closePeek, PEEK_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timer);
+  }, [peekedItem, closePeek]);
+
+  // When the peek opens, move focus to the close button so keyboard users
+  // land inside the dialog rather than on the (now-covered) trigger.
+  useEffect(() => {
+    if (!peekedItem) return;
+    const id = window.requestAnimationFrame(() => {
+      peekCloseButtonRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(id);
   }, [peekedItem]);
 
   const peekItem = useCallback((item: LunchMenuItem | undefined | null) => {
     if (!item?.imageUrl) return;
+    const active = document.activeElement;
+    peekTriggerRef.current = active instanceof HTMLElement ? active : null;
     setPeekedItem(item);
   }, []);
+
+  // Tab-key trap for the peek modal. The modal exposes a single focusable
+  // element (the close button); keep focus on it so Tab/Shift-Tab don't
+  // escape behind the dialog.
+  const handlePeekKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      peekCloseButtonRef.current?.focus();
+    },
+    []
+  );
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -994,7 +1034,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       />
       <Modal
         isOpen={!!peekedItem}
-        onClose={() => setPeekedItem(null)}
+        onClose={closePeek}
         variant="bare"
         maxWidth="max-w-[min(60vmin,560px)]"
         ariaLabel={peekedItem ? `Photo of ${peekedItem.name}` : undefined}
@@ -1006,10 +1046,12 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         <div
           className="relative bg-white shadow-2xl overflow-hidden border border-slate-200 motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:duration-200"
           style={{ borderRadius: 'min(28px, 3vmin)' }}
+          onKeyDown={handlePeekKeyDown}
         >
           <button
+            ref={peekCloseButtonRef}
             type="button"
-            onClick={() => setPeekedItem(null)}
+            onClick={closePeek}
             className="absolute z-10 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             style={{
               top: 'min(12px, 1.5vmin)',
@@ -1026,10 +1068,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             />
           </button>
           {peekedItem?.imageUrl ? (
+            // alt="" — the surrounding aria-label and visible <p> already
+            // announce the food name; double-announcing is noisy for screen
+            // readers.
             <img
               src={peekedItem.imageUrl}
-              alt={peekedItem.name}
-              className="w-full aspect-square object-cover"
+              alt=""
+              className="w-full bg-slate-100 object-contain"
+              style={{ maxHeight: '60vmin' }}
             />
           ) : null}
           <div className="bg-white" style={{ padding: 'min(20px, 2.5vmin)' }}>

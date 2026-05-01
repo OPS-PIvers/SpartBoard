@@ -53,7 +53,7 @@ const isAltMealSectionName = (name: string | undefined): boolean => {
 };
 
 const itemDisplayName = (item: NutrisliceMenuItem): string =>
-  item.food?.name ?? item.text ?? '';
+  (item.food?.name ?? item.text ?? '').trim();
 
 const toMenuItem = (
   item: NutrisliceMenuItem,
@@ -66,16 +66,32 @@ const toMenuItem = (
 /**
  * Returns true if a previously cached menu uses the legacy string shape
  * (pre-sides/images). Such configs need to be re-fetched once so the new
- * fields are populated.
+ * fields are populated. Checks both hotLunch and bentoBox so partially
+ * migrated records also get caught.
  */
 const isLegacyCachedMenu = (
   cachedMenu: LunchCountConfig['cachedMenu']
 ): boolean => {
   if (!cachedMenu) return false;
-  const legacyHotLunch = (cachedMenu as unknown as { hotLunch?: unknown })
-    .hotLunch;
-  return typeof legacyHotLunch === 'string';
+  const legacy = cachedMenu as unknown as {
+    hotLunch?: unknown;
+    bentoBox?: unknown;
+  };
+  return (
+    typeof legacy.hotLunch === 'string' || typeof legacy.bentoBox === 'string'
+  );
 };
+
+const buildEmptyMenu = (
+  noHotLunch: string,
+  noBentoBox: string,
+  isoDate: string
+): LunchMenuDay => ({
+  hotLunch: { name: noHotLunch },
+  hotLunchSides: [],
+  bentoBox: { name: noBentoBox },
+  date: isoDate,
+});
 
 export const useNutrislice = ({
   widgetId,
@@ -150,21 +166,23 @@ export const useNutrislice = ({
           // current section without trusting only its own section_name field.
           let currentSection: string | undefined;
           let entreeIndex = -1;
-          let bentoIndex = -1;
+          let bentoIndexBySection = -1;
+          let bentoIndexByName = -1;
+          let sawAltMealSection = false;
           const sectionForIndex: (string | undefined)[] = [];
 
           items.forEach((item, idx) => {
             if (item.is_section_title) {
               currentSection = item.section_name ?? item.text ?? currentSection;
               sectionForIndex[idx] = currentSection;
+              if (isAltMealSectionName(currentSection)) {
+                sawAltMealSection = true;
+              }
               return;
             }
             sectionForIndex[idx] = item.section_name ?? currentSection;
 
-            const sectionName =
-              item.section_name?.toLowerCase() ??
-              currentSection?.toLowerCase() ??
-              '';
+            const sectionName = sectionForIndex[idx]?.toLowerCase() ?? '';
             const itemName = itemDisplayName(item).toLowerCase();
 
             if (
@@ -174,13 +192,31 @@ export const useNutrislice = ({
               entreeIndex = idx;
             }
 
-            if (bentoIndex === -1 && itemName.includes('bento')) {
-              bentoIndex = idx;
+            if (
+              bentoIndexBySection === -1 &&
+              isAltMealSectionName(sectionForIndex[idx])
+            ) {
+              bentoIndexBySection = idx;
+            }
+
+            if (bentoIndexByName === -1 && itemName.includes('bento')) {
+              bentoIndexByName = idx;
             }
           });
 
+          // Prefer section-based bento detection. Only fall back to a name
+          // substring match when no alt-meal section was ever observed —
+          // otherwise a side like "Bento-style Sushi Cup" in a regular Sides
+          // section would be misclassified as the alt meal.
+          const bentoIndex =
+            bentoIndexBySection >= 0
+              ? bentoIndexBySection
+              : sawAltMealSection
+                ? -1
+                : bentoIndexByName;
+
           // Fallback: if no entree section matched, use the first non-title
-          // food item.
+          // food item that has a non-empty display name.
           if (entreeIndex === -1) {
             entreeIndex = items.findIndex(
               (i) => !i.is_section_title && itemDisplayName(i)
@@ -232,12 +268,29 @@ export const useNutrislice = ({
       addToast(t('widgets.lunchCount.syncSuccess'), 'success');
     } catch (err) {
       console.error('Nutrislice Sync Error:', err);
+
+      // If we were trying to migrate a legacy-shape cache and the fetch
+      // failed, install a non-legacy stub so the migration check flips to
+      // false. Otherwise hasLegacyShape stays true and the effect would
+      // re-fire fetchNutrislice on the next render — pegging the proxy
+      // until the network recovers.
+      const wasLegacy = isLegacyCachedMenu(configRef.current.cachedMenu);
+      const stamp = new Date().toISOString();
       updateWidget(widgetId, {
         config: {
           ...configRef.current,
+          ...(wasLegacy
+            ? {
+                cachedMenu: buildEmptyMenu(
+                  t('widgets.lunchCount.noHotLunch'),
+                  t('widgets.lunchCount.noBentoBox'),
+                  stamp
+                ),
+              }
+            : {}),
           syncError: 'E-SYNC-404',
-          // Mark this as a sync attempt so we don't loop endlessly
-          lastSyncDate: new Date().toISOString(),
+          // Mark this as a sync attempt so we don't loop endlessly.
+          lastSyncDate: stamp,
         },
       });
       addToast(t('widgets.lunchCount.syncError'), 'error');

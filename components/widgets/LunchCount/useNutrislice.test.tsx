@@ -251,6 +251,87 @@ describe('useNutrislice', () => {
     });
   });
 
+  it('does not loop when fetch fails on a legacy-shape config', async () => {
+    // P1 regression guard: a legacy cachedMenu plus a failing proxy used to
+    // pin hasLegacyShape=true forever, since the catch block didn't replace
+    // the menu. Each render would re-fire fetchNutrislice. Now the catch
+    // installs a non-legacy stub so the migration check flips to false after
+    // the first attempt.
+    const legacyConfig = {
+      ...mockConfig,
+      cachedMenu: {
+        hotLunch: 'Old Lunch',
+        bentoBox: 'Old Bento',
+        date: new Date().toISOString(),
+      } as unknown as LunchCountConfig['cachedMenu'],
+    };
+
+    const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+
+    render(<TestComponent initialConfig={legacyConfig} />);
+
+    await waitFor(() => {
+      expect(mockProxy).toHaveBeenCalledTimes(1);
+    });
+
+    // Give React several ticks to re-render and re-evaluate the migration
+    // effect. With the bug present, this would queue many more calls.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockProxy).toHaveBeenCalledTimes(1);
+
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('falls back to first food item when no Entrees/Main section exists', async () => {
+    const noEntreeData = {
+      days: [
+        {
+          date: '2023-10-27',
+          menu_items: [
+            { is_section_title: true, section_name: 'Specials' },
+            {
+              section_name: 'Specials',
+              food: { name: 'Mystery Meat', image_url: 'https://cdn/mm.jpg' },
+            },
+            { section_name: 'Specials', food: { name: 'Mystery Sauce' } },
+          ],
+        },
+      ],
+    };
+
+    const mockProxy = vi.fn().mockResolvedValue({ data: noEntreeData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: {
+                name: 'Mystery Meat',
+                imageUrl: 'https://cdn/mm.jpg',
+              },
+              hotLunchSides: [{ name: 'Mystery Sauce', imageUrl: undefined }],
+            }) as unknown,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
   it('parses bento via name match across any section', async () => {
     const bentoData = {
       days: [
