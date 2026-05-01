@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import {
   AssignmentMode,
@@ -20,7 +21,9 @@ import {
   CheckCircle2,
   ExternalLink,
   Bookmark,
+  QrCode,
 } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -278,7 +281,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
+  const { updateWidget, addToast, rosters, addWidget } = useDashboard();
   const { user, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
@@ -543,6 +546,98 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     },
     [activeApp, saveSavedWidget, addToast]
   );
+
+  // --- FLOATING TOOLBAR ANCHORING ---
+  // The running-mode action toolbar lives in a portal under <body> so it
+  // never overlaps the iframe content (the old hover-revealed buttons sat
+  // on top of the app). Pattern copied from EmbedWidget — same rect-tracking
+  // observers, but no hover gating: the toolbar is always visible while a
+  // mini app is running because hover doesn't reliably fire on touch.
+  const runningContentRef = useRef<HTMLDivElement | null>(null);
+  const [widgetEl, setWidgetEl] = useState<HTMLElement | null>(null);
+  const [widgetRect, setWidgetRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    const el =
+      runningContentRef.current?.closest<HTMLElement>(
+        `[data-widget-id="${widget.id}"]`
+      ) ?? null;
+    setWidgetEl(el);
+    if (el) setWidgetRect(el.getBoundingClientRect());
+  }, [widget.id, activeApp]);
+
+  const updateWidgetRect = useCallback(() => {
+    if (!widgetEl) return;
+    setWidgetRect(widgetEl.getBoundingClientRect());
+  }, [widgetEl]);
+
+  useEffect(() => {
+    if (!widgetEl) return;
+    updateWidgetRect();
+
+    // Coalesce all rect updates into one per animation frame. DraggableWindow
+    // updates inline `transform`/`left`/`top` on every pointermove during
+    // drag, which would otherwise trigger a synchronous getBoundingClientRect
+    // + setState + re-render at pointer rate.
+    let rafId: number | null = null;
+    const scheduleUpdate = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateWidgetRect();
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleUpdate);
+    resizeObserver.observe(widgetEl);
+
+    const mutationObserver = new MutationObserver(scheduleUpdate);
+    mutationObserver.observe(widgetEl, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+
+    window.addEventListener('scroll', scheduleUpdate, true);
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      window.removeEventListener('resize', scheduleUpdate);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+    };
+  }, [widgetEl, updateWidgetRect]);
+
+  // --- QR SHARE ---
+  // Tap the QR icon to one-shot create a view-only share session and spawn
+  // a QR-code widget pre-loaded with the student URL. Always view-only,
+  // regardless of the widget's admin-configured assignmentMode — the QR
+  // flow is inherently a "students view on iPads" use case.
+  const [isCreatingQrShare, setIsCreatingQrShare] = useState(false);
+
+  const handleCreateQrShare = useCallback(async () => {
+    if (!user) {
+      addToast('Sign in to create a share link', 'info');
+      return;
+    }
+    if (!activeApp) return;
+    if (isCreatingQrShare) return;
+    setIsCreatingQrShare(true);
+    try {
+      const sessionId = await createSession(activeApp, user.uid, '', {
+        mode: 'view-only',
+      });
+      const url = `${window.location.origin}/miniapp/${sessionId}`;
+      addWidget('qr', { config: { url, showUrl: true } });
+      addToast('Share link ready — students can scan the QR code', 'success');
+    } catch (err) {
+      console.error('[MiniAppWidget] Failed to create QR share', err);
+      addToast('Could not create share link', 'error');
+    } finally {
+      setIsCreatingQrShare(false);
+    }
+  }, [user, activeApp, isCreatingQrShare, createSession, addWidget, addToast]);
 
   // --- HANDLERS ---
 
@@ -867,133 +962,138 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full flex flex-col relative overflow-hidden group/miniapp">
-            {!isStudentView && (
-              <>
-                {/* Left Actions: Assign controls. Hidden in view-only mode —
-                    "Assign" and "Assignments" both refer to submission-tracking
-                    flows that don't apply when the widget is configured as
-                    view-only by the admin. Teachers create shares from the
-                    library card's Share button instead. */}
-                {assignmentMode !== 'view-only' && (
-                  <div className="absolute top-2 left-2 z-10 flex items-center gap-2 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
-                    <button
-                      onClick={() => handleOpenAssign(activeApp)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm"
+          <div
+            ref={runningContentRef}
+            className="w-full h-full flex flex-col relative overflow-hidden"
+          >
+            {!isStudentView &&
+              widgetRect &&
+              !widget.minimized &&
+              !widget.flipped &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                (() => {
+                  // Smart flip: render above the widget when there isn't room
+                  // below (within ~64px of viewport bottom — generous to cover
+                  // 1-2 row toolbar wrapping on narrow widgets).
+                  const TOOLBAR_GAP = 8;
+                  const ESTIMATED_TOOLBAR_HEIGHT = 48;
+                  const flipAbove =
+                    widgetRect.bottom + ESTIMATED_TOOLBAR_HEIGHT + TOOLBAR_GAP >
+                    window.innerHeight;
+                  return (
+                    <div
+                      data-settings-exclude
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                       style={{
-                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                        fontSize: 'min(10px, 2.5cqmin)',
+                        position: 'fixed',
+                        left: widgetRect.left,
+                        width: widgetRect.width,
+                        top: flipAbove
+                          ? widgetRect.top - TOOLBAR_GAP
+                          : widgetRect.bottom + TOOLBAR_GAP,
+                        transform: flipAbove ? 'translateY(-100%)' : undefined,
+                        zIndex: Z_INDEX.popover,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
                       }}
-                      title="Assign (copy student link)"
                     >
-                      <Link2
-                        style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
-                        }}
-                      />
-                      <span className="hidden sm:inline">Assign</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenAssignments(activeApp)}
-                      className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm border border-slate-200/50"
-                      style={{
-                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                        fontSize: 'min(10px, 2.5cqmin)',
-                      }}
-                      title="View assignments"
-                    >
-                      <BarChart3
-                        style={{
-                          width: 'min(12px, 3cqmin)',
-                          height: 'min(12px, 3cqmin)',
-                        }}
-                      />
-                      <span className="hidden sm:inline">Assignments</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Right Actions: App Controls */}
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
-                  {config.activeAppUnsaved && (
-                    <>
                       <div
-                        className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400"
-                        style={{
-                          padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                          fontSize: 'min(8px, 2cqmin)',
-                        }}
+                        className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg rounded-xl px-2 py-1.5 max-w-full"
+                        style={{ pointerEvents: 'auto' }}
                       >
-                        Unsaved
+                        {/* Left group: Assign / Assignments — hidden in
+                            view-only mode (these are submission-tracking
+                            flows that don't apply). */}
+                        {assignmentMode !== 'view-only' && (
+                          <>
+                            <button
+                              onClick={() => handleOpenAssign(activeApp)}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm h-8 px-3 text-xs"
+                              title="Assign (copy student link)"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Assign</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenAssignments(activeApp)}
+                              className="bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60 h-8 px-3 text-xs"
+                              title="View assignments"
+                            >
+                              <BarChart3 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">
+                                Assignments
+                              </span>
+                            </button>
+                            <div className="w-px h-5 bg-slate-200/80 mx-0.5" />
+                          </>
+                        )}
+
+                        {/* Right group: QR Share + Save-as-Widget + Library
+                            (or Unsaved + Save when activeAppUnsaved). */}
+                        {config.activeAppUnsaved && (
+                          <>
+                            <div className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400 h-8 px-2 text-[10px]">
+                              Unsaved
+                            </div>
+                            <button
+                              onClick={() => {
+                                setPendingSaveTitle(
+                                  activeApp.title !== 'Untitled App'
+                                    ? activeApp.title
+                                    : ''
+                                );
+                                setShowSaveForm(true);
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                              title="Save to library"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Save</span>
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => void handleCreateQrShare()}
+                          disabled={isCreatingQrShare || !user}
+                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="Share via QR — drops a QR-code widget that students can scan"
+                        >
+                          {isCreatingQrShare ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <QrCode className="w-3.5 h-3.5" />
+                          )}
+                          <span className="hidden sm:inline">QR Share</span>
+                        </button>
+                        {!config.activeAppUnsaved && user && (
+                          <button
+                            onClick={() => setShowSaveAsWidget(true)}
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                            title="Save as widget — pin this mini app to your dock"
+                          >
+                            <Bookmark className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">
+                              Save as Widget
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          onClick={handleCloseActive}
+                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                          title="Back to library"
+                        >
+                          <LayoutGrid className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Library</span>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          setPendingSaveTitle(
-                            activeApp.title !== 'Untitled App'
-                              ? activeApp.title
-                              : ''
-                          );
-                          setShowSaveForm(true);
-                        }}
-                        className="bg-indigo-600/90 backdrop-blur-sm hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-indigo-500 font-black transition-all"
-                        title="Save to library"
-                        style={{
-                          padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 2.5cqmin)',
-                          gap: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        <Save
-                          style={{
-                            width: 'min(10px, 2.5cqmin)',
-                            height: 'min(10px, 2.5cqmin)',
-                          }}
-                        />
-                        <span className="hidden sm:inline">Save</span>
-                      </button>
-                    </>
-                  )}
-                  {!config.activeAppUnsaved && user && (
-                    <button
-                      onClick={() => setShowSaveAsWidget(true)}
-                      className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
-                      style={{
-                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                        fontSize: 'min(10px, 2.5cqmin)',
-                        gap: 'min(6px, 1.5cqmin)',
-                      }}
-                      title="Save as widget — pin this mini app to your dock"
-                    >
-                      <Bookmark
-                        style={{
-                          width: 'min(10px, 2.5cqmin)',
-                          height: 'min(10px, 2.5cqmin)',
-                        }}
-                      />
-                      <span className="hidden sm:inline">Save as Widget</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={handleCloseActive}
-                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                      gap: 'min(6px, 1.5cqmin)',
-                    }}
-                  >
-                    <LayoutGrid
-                      style={{
-                        width: 'min(10px, 2.5cqmin)',
-                        height: 'min(10px, 2.5cqmin)',
-                      }}
-                    />{' '}
-                    <span className="hidden sm:inline">Library</span>
-                  </button>
-                </div>
-              </>
-            )}
+                    </div>
+                  );
+                })(),
+                document.body
+              )}
             <iframe
               ref={iframeRef}
               srcDoc={activeApp.html}
