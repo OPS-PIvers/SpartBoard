@@ -342,6 +342,11 @@ export const DashboardView: React.FC = () => {
   // deltas in a ref and flush once per rAF.
   const pendingPanRef = React.useRef({ dx: 0, dy: 0 });
   const panFrameRef = React.useRef<number | null>(null);
+  // Mirror zoom on a ref so the rAF flush below uses the *current* zoom when
+  // it fires — not whatever zoom was bound when the frame was scheduled.
+  // Without this, a wheel-zoom-out mid-drag could clamp against the previous
+  // (larger) bound for one frame before the render-body re-clamp catches it.
+  const zoomRef = React.useRef(0);
   React.useEffect(
     () => () => {
       if (panFrameRef.current !== null) {
@@ -666,8 +671,14 @@ export const DashboardView: React.FC = () => {
               const { dx: pdx, dy: pdy } = pendingPanRef.current;
               pendingPanRef.current = { dx: 0, dy: 0 };
               if (pdx === 0 && pdy === 0) return;
-              const maxX = ((zoom - 1) * window.innerWidth) / 2;
-              const maxY = ((zoom - 1) * window.innerHeight) / 2;
+              // Read zoom from the ref so the bound matches the *current*
+              // zoom, not whatever was captured when this frame scheduled.
+              // If zoom dropped to <= 1 mid-drag, skip — the render-body
+              // re-clamp will collapse pan to (0, 0) on the next render.
+              const z = zoomRef.current;
+              if (z <= 1) return;
+              const maxX = ((z - 1) * window.innerWidth) / 2;
+              const maxY = ((z - 1) * window.innerHeight) / 2;
               setPanOffset((prev) => ({
                 x: Math.min(maxX, Math.max(-maxX, prev.x + pdx)),
                 y: Math.min(maxY, Math.max(-maxY, prev.y + pdy)),
@@ -857,6 +868,11 @@ export const DashboardView: React.FC = () => {
       prevIndexRef.current = currentIndex;
     }
   }, [currentIndex]);
+
+  // Mirror the latest zoom on a ref so the rAF-deferred pan flush above
+  // sees the current value when it fires (not the value captured when the
+  // frame was scheduled).
+  zoomRef.current = zoom;
 
   // Re-clamp panOffset during render when zoom changes. At zoom <= 1 the
   // dashboard fits inside the viewport so the offset must collapse to (0, 0);
