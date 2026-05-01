@@ -22,10 +22,9 @@ describe('zoomMapping', () => {
       expect(sliderToZoom(100)).toBe(ZOOM_MAX);
     });
 
-    it('hits 200% one quarter of the way past midpoint', () => {
-      // (slider 75 → halfway through the upper half → zoom 1 + (4 * 0.5) = 3
-      // wait — that's 75% of 50 raw units past midpoint, so (75-50)/50 = 0.5,
-      // 1 + 0.5*4 = 3. Verify the mapping math directly:
+    it('maps slider value 75 to 3× (300%)', () => {
+      // Slider 75 sits halfway through the upper half: (75 - 50) / 50 = 0.5,
+      // and zoom = 1 + 0.5 * (5 - 1) = 3.
       expect(sliderToZoom(75)).toBe(3);
     });
 

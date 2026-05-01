@@ -134,9 +134,11 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
             value={zoomToSlider(zoom)}
             onChange={(e) => handleSliderChange(Number(e.target.value))}
             aria-label={t('boardZoom.slider', { defaultValue: 'Zoom level' })}
-            aria-valuemin={50}
-            aria-valuemax={500}
-            aria-valuenow={percentage}
+            // The native input drives valuemin/valuemax/valuenow from
+            // min/max/value automatically — the underlying range is 0–100
+            // (raw slider units), and aria-valuetext conveys the meaningful
+            // zoom percentage to assistive tech without conflicting with
+            // the implicit range.
             aria-valuetext={`${percentage}%`}
             className="w-full accent-brand-blue-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded"
           />
