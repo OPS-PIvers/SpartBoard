@@ -788,10 +788,11 @@ export const DashboardView: React.FC = () => {
           // Single touch (not a mouse drag): left-edge swipe → open sidebar.
           // Gated to peakFingers === 1 so a desktop mouse drag near the left
           // edge (peakFingers = 0) never accidentally opens the sidebar.
-          // Also disabled while zoomed to avoid conflict with 1-finger pan.
+          // Restricted to zoom === 1 so the sidebar swipe never collides
+          // with the 1-finger pan gesture (which is enabled at zoom !== 1).
           if (widgetEl) return;
           if (
-            zoom <= 1 &&
+            zoom === 1 &&
             swipeX > 0 &&
             dirX > 0 &&
             initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX
@@ -821,7 +822,7 @@ export const DashboardView: React.FC = () => {
           window.innerWidth,
           window.innerHeight
         );
-        // React 18 batches both setState calls inside this event handler, so
+        // React batches both setState calls inside this event handler, so
         // zoom + pan flush together — no intermediate frame with a mismatched
         // pair.
         setZoom(nextZoom);

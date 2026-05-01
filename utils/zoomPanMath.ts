@@ -9,9 +9,12 @@
 //   • World bounds — where widgets are allowed to live. Sized to be fully
 //     visible at ZOOM_MIN, so a widget placed anywhere inside survives the
 //     most zoomed-out view.
-//   • Pan range — how far the camera can scroll. Symmetric on |zoom − 1|, so
-//     pan collapses to zero at zoom = 1 (snap-to-center) and widens in either
-//     direction as zoom moves away from 1.
+//   • Pan range — how far the camera can scroll while keeping the visible
+//     viewport region inside the world rectangle. Half the slack between
+//     the world-as-rendered (vw × zoom / ZOOM_MIN) and the viewport.
+//     Collapses to zero at zoom = ZOOM_MIN (world fills the viewport) and
+//     grows monotonically with zoom. clampPan additionally snaps to (0, 0)
+//     at zoom = 1 to preserve the FAB-reset-to-center UX.
 
 import { ZOOM_MIN } from './zoomMapping';
 
@@ -34,8 +37,13 @@ export const getWorldBounds = (vw: number, vh: number): Bounds => {
 };
 
 export const getPanRange = (zoom: number, vw: number, vh: number): Bounds => {
-  const halfX = (Math.abs(zoom - 1) * vw) / 2;
-  const halfY = (Math.abs(zoom - 1) * vh) / 2;
+  // Half-slack between the world-as-rendered and the viewport, in viewport
+  // pixels. Derivation: at zoom z, the world's rendered width is
+  // vw × z / ZOOM_MIN; pan can shift the camera by (rendered − viewport) / 2
+  // in each direction before the visible region exits the world.
+  // Math.max(0, ...) is defensive — clampZoom prevents zoom < ZOOM_MIN.
+  const halfX = Math.max(0, (vw * (zoom / ZOOM_MIN - 1)) / 2);
+  const halfY = Math.max(0, (vh * (zoom / ZOOM_MIN - 1)) / 2);
   return { minX: -halfX, maxX: halfX, minY: -halfY, maxY: halfY };
 };
 
@@ -45,6 +53,10 @@ export const clampPan = (
   vw: number,
   vh: number
 ): Point => {
+  // Snap to center at zoom = 1 — the natural [0, vw] × [0, vh] content area
+  // fits the viewport exactly, and the FAB-reset UX expects pan = (0, 0)
+  // when the user returns to 100%.
+  if (zoom === 1) return { x: 0, y: 0 };
   const r = getPanRange(zoom, vw, vh);
   return {
     x: Math.min(r.maxX, Math.max(r.minX, pan.x)),

@@ -1093,17 +1093,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
 
         // Clamp the resize result inside world bounds: pin the top-left
-        // first, then clip the right/bottom edges if they would overshoot.
-        // The 150/100 size floors above still apply, so a forced clip never
-        // shrinks the widget below those minimums.
+        // first, then clip the right/bottom edges if they'd overshoot. The
+        // 150/100 size floors are themselves capped by the available world
+        // space — on a pathologically tiny viewport (or a widget pinned to
+        // the world edge) the floor would otherwise re-expand the widget
+        // back outside the world rectangle.
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const clamped = clampWidgetToWorld(newX, newY, newW, newH, vw, vh);
         newX = clamped.x;
         newY = clamped.y;
         const wb = getWorldBounds(vw, vh);
-        newW = Math.max(150, Math.min(newW, wb.maxX - newX));
-        newH = Math.max(100, Math.min(newH, wb.maxY - newY));
+        const availableW = Math.max(0, wb.maxX - newX);
+        const availableH = Math.max(0, wb.maxY - newY);
+        newW = Math.max(Math.min(150, availableW), Math.min(newW, availableW));
+        newH = Math.max(Math.min(100, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (

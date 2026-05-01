@@ -53,18 +53,20 @@ describe('zoomPanMath', () => {
   });
 
   describe('getPanRange', () => {
-    it('collapses to (0, 0) at zoom = 1', () => {
+    it('collapses to 0 at zoom = ZOOM_MIN (world fills viewport)', () => {
       // The lower-bound arm produces -0; check magnitude not sign.
-      const r = getPanRange(1, 1000, 600);
+      const r = getPanRange(0.5, 1000, 600);
       expect(r.minX).toBeCloseTo(0, 10);
       expect(r.maxX).toBeCloseTo(0, 10);
       expect(r.minY).toBeCloseTo(0, 10);
       expect(r.maxY).toBeCloseTo(0, 10);
     });
 
-    it('opens symmetrically as zoom moves above 1', () => {
-      // (z − 1) × vw / 2 with z=2, vw=1000 → ±500
-      expect(getPanRange(2, 1000, 600)).toEqual({
+    it('grows monotonically with zoom (no snap at z = 1)', () => {
+      // The formula is continuous — vw × (1/ZOOM_MIN − 1)/2 = vw/2 at z=1,
+      // not zero. clampPan (not getPanRange) imposes the snap-to-center UX
+      // at z=1; getPanRange itself is pure slack math.
+      expect(getPanRange(1, 1000, 600)).toEqual({
         minX: -500,
         maxX: 500,
         minY: -300,
@@ -72,9 +74,19 @@ describe('zoomPanMath', () => {
       });
     });
 
-    it('opens symmetrically as zoom moves below 1', () => {
-      // |0.5 − 1| × 1000 / 2 = 250
-      expect(getPanRange(0.5, 1000, 600)).toEqual({
+    it('opens to ±vw·(z/ZOOM_MIN − 1)/2 above 1', () => {
+      // z=2 vw=1000 → vw × (2/0.5 − 1)/2 = vw × 3/2 → ±1500
+      expect(getPanRange(2, 1000, 600)).toEqual({
+        minX: -1500,
+        maxX: 1500,
+        minY: -900,
+        maxY: 900,
+      });
+    });
+
+    it('opens to ±vw·(z/ZOOM_MIN − 1)/2 below 1', () => {
+      // z=0.75 vw=1000 → vw × (0.75/0.5 − 1)/2 = vw × 0.5/2 → ±250
+      expect(getPanRange(0.75, 1000, 600)).toEqual({
         minX: -250,
         maxX: 250,
         minY: -150,
@@ -92,10 +104,10 @@ describe('zoomPanMath', () => {
     });
 
     it('pins to the range boundary when outside', () => {
-      // pan range at z=2 vw=1000 vh=600 is ±500 / ±300
+      // pan range at z=2 vw=1000 vh=600 is ±1500 / ±900
       expect(clampPan({ x: 9999, y: -9999 }, 2, 1000, 600)).toEqual({
-        x: 500,
-        y: -300,
+        x: 1500,
+        y: -900,
       });
     });
 
@@ -202,15 +214,21 @@ describe('zoomPanMath', () => {
     });
 
     it('clamps the resulting pan to its range when the unclamped result would overshoot', () => {
-      // Tiny zoom change at the edge of the viewport can request pan far
-      // outside the allowed range. Verify the result sits at the boundary,
-      // not at the unclamped value.
-      const cursor = { x: 1000, y: 600 };
+      // Cursor at the corner with a small zoom-out would request pan well
+      // beyond the tight z<1 range. Verify the result lands at the range
+      // boundary, not at the unclamped value.
+      const cursor = { x: 0, y: 0 };
       const oldZoom = 1;
       const oldPan = { x: 0, y: 0 };
-      const newZoom = 1.05;
+      const newZoom = 0.55;
       const vw = 1000;
       const vh = 600;
+
+      // Sanity-check the premise: unclamped pan IS outside the range.
+      // Formula: panX = cx − vw/2 − newZoom × (cx − vw/2 − oldPan.x) / oldZoom
+      // = 0 − 500 − 0.55 × (-500) = -225.
+      const range = getPanRange(newZoom, vw, vh);
+      expect(-225).toBeLessThan(range.minX);
 
       const result = computeCursorAnchoredPan(
         cursor,
@@ -221,11 +239,8 @@ describe('zoomPanMath', () => {
         vh
       );
 
-      const range = getPanRange(newZoom, vw, vh);
-      expect(result.x).toBeGreaterThanOrEqual(range.minX);
-      expect(result.x).toBeLessThanOrEqual(range.maxX);
-      expect(result.y).toBeGreaterThanOrEqual(range.minY);
-      expect(result.y).toBeLessThanOrEqual(range.maxY);
+      expect(result.x).toBe(range.minX);
+      expect(result.y).toBe(range.minY);
     });
   });
 });
