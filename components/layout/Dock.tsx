@@ -933,15 +933,25 @@ export const Dock: React.FC = () => {
           url={urlPastePending}
           globalStyle={globalStyle}
           onClose={() => setUrlPastePending(null)}
-          onSelect={(type) => {
+          onSelect={(selection) => {
             const url = urlPastePending;
             setUrlPastePending(null);
-            if (type === 'qr') {
+            if (selection.type === 'qr') {
               addWidget('qr', { config: { url } });
               addToast('Added QR Code widget!', 'success');
             } else {
               addWidget('url', {
-                config: { urls: [{ id: crypto.randomUUID(), url }] },
+                config: {
+                  urls: [
+                    {
+                      id: crypto.randomUUID(),
+                      url,
+                      title: selection.title,
+                      icon: selection.icon,
+                      color: selection.color,
+                    },
+                  ],
+                },
               });
               addToast('Added Links widget!', 'success');
             }
