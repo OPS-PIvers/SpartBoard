@@ -20,6 +20,15 @@
     "selectBoard": "Tafel auswählen",
     "boardList": "Alle Tafeln"
   },
+  "boardZoom": {
+    "zoomLevel": "Zoom",
+    "slider": "Zoomstufe",
+    "reset": "Auf 100% zurücksetzen",
+    "preset50": "50%",
+    "preset100": "100%",
+    "preset200": "200%",
+    "preset500": "500%"
+  },
   "sidebar": {
     "header": {
       "classroomManager": "SpartBoard",

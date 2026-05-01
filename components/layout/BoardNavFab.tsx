@@ -12,9 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, MoreVertical, Star } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
-
-const FAB_BASE =
-  'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-40 disabled:cursor-not-allowed';
+import { FAB_BASE } from './fabClasses';
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();

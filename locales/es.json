@@ -20,6 +20,15 @@
     "selectBoard": "Seleccionar tablero",
     "boardList": "Todos los tableros"
   },
+  "boardZoom": {
+    "zoomLevel": "Zoom",
+    "slider": "Nivel de zoom",
+    "reset": "Restablecer al 100%",
+    "preset50": "50%",
+    "preset100": "100%",
+    "preset200": "200%",
+    "preset500": "500%"
+  },
   "sidebar": {
     "header": {
       "classroomManager": "SpartBoard",
