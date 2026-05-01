@@ -17,9 +17,15 @@
  * Mini App keeps its own custom modal (which doubles as the URL display);
  * this primitive serves the three widgets that route through the shared
  * AssignModal in submissions mode.
+ *
+ * Built on the shared `Modal` primitive — same dialog-role, focus-trap
+ * support (via portal to body), Escape-to-close, body scroll lock, and
+ * backdrop-click-to-close that AssignModal uses. Callers conditionally
+ * render this component (target → mount, no target → unmount); when
+ * mounted the modal is always open, so we pass `isOpen={true}`.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 import {
   Loader2,
   Link2,
@@ -27,8 +33,8 @@ import {
   Copy,
   Check,
   ExternalLink,
-  X,
 } from 'lucide-react';
+import { Modal } from '../Modal';
 
 export interface ViewOnlyShareModalProps {
   /** The thing being shared (quiz title, set title, activity title). */
@@ -54,6 +60,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+  const headerLabelId = useId();
 
   // Reset the "Copied!" affordance back to "Copy Link" 2s after a successful
   // copy. Owning the timer in an effect (rather than a bare setTimeout from
@@ -77,112 +84,146 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
     }
   }, [createdLink]);
 
-  return (
-    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div
-          className={`p-4 flex items-center justify-between ${createdLink ? 'bg-emerald-600' : 'bg-brand-blue-primary'}`}
+  // Custom coloured header (emerald post-creation, brand-blue pre-creation)
+  // — passed to Modal as `customHeader` so the body's rounded-2xl shell
+  // wraps it cleanly. Modal still owns the close affordance via Escape and
+  // backdrop click; the X button below mirrors the original visual.
+  const header = (
+    <div
+      className={`flex items-center justify-between p-4 rounded-t-2xl text-white ${
+        createdLink ? 'bg-emerald-600' : 'bg-brand-blue-primary'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {createdLink ? (
+          <CheckCircle2 aria-hidden="true" className="w-5 h-5" />
+        ) : (
+          <Link2 aria-hidden="true" className="w-5 h-5" />
+        )}
+        <h3
+          id={headerLabelId}
+          className="font-black uppercase tracking-tight text-base"
         >
-          <div className="flex items-center gap-2 text-white">
-            {createdLink ? (
-              <CheckCircle2 className="w-5 h-5" />
-            ) : (
-              <Link2 className="w-5 h-5" />
-            )}
-            <span className="font-black uppercase tracking-tight">
-              {createdLink ? 'Share Link Ready' : 'Share'}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white/60 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          {createdLink ? (
-            /* Post-creation: show link with Copy / Open. */
-            <>
-              <div className="text-center">
-                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
-                  {itemTitle}
-                </p>
-              </div>
-              <p className="text-slate-600 text-sm text-center">
-                Send this link to students. Anyone with the link can view — no
-                submissions are collected.
-              </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 break-all text-xs text-slate-700 font-mono">
-                {createdLink}
-              </div>
-              <div className="grid gap-2">
-                <button
-                  onClick={() => void handleCopy()}
-                  className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copy Link
-                    </>
-                  )}
-                </button>
-                <a
-                  href={createdLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors py-3 text-sm"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open in New Tab
-                </a>
-              </div>
-            </>
-          ) : (
-            /* Pre-creation: zero form fields, single confirm button. */
-            <>
-              <div className="text-center">
-                <p className="font-bold text-brand-blue-dark text-base truncate px-2">
-                  {itemTitle}
-                </p>
-                <p className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1 text-xs">
-                  Create Share Link
-                </p>
-              </div>
-              <p className="text-slate-600 text-sm text-center">
-                Anyone with the link can view this. No submissions are collected
-                — view counts appear in the Shared archive.
-              </p>
-              {error && (
-                <p className="text-sm text-brand-red-primary text-center font-medium">
-                  {error}
-                </p>
-              )}
-              <button
-                onClick={onConfirm}
-                disabled={isCreating}
-                className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
-              >
-                {isCreating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Link2 className="w-4 h-4" />
-                )}
-                {isCreating ? 'Creating…' : 'Create Share Link'}
-              </button>
-            </>
-          )}
-        </div>
+          {createdLink ? 'Share Link Ready' : 'Share'}
+        </h3>
       </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-white/60 hover:text-white transition-colors"
+        aria-label="Close"
+      >
+        {/* X glyph rendered as a small inline SVG so we don't widen the
+            lucide-react import for a single icon used only in the header. */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-5 h-5"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
+  );
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      maxWidth="max-w-sm"
+      customHeader={header}
+      ariaLabelledby={headerLabelId}
+      contentClassName="p-5 space-y-4"
+      // overflow-hidden so the coloured header's corners get clipped by the
+      // shell's rounded-2xl. Modal's default shell has bg-white + rounded
+      // but no overflow clip.
+      className="overflow-hidden"
+    >
+      {createdLink ? (
+        /* Post-creation: show link with Copy / Open. */
+        <>
+          <div className="text-center">
+            <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+              {itemTitle}
+            </p>
+          </div>
+          <p className="text-slate-600 text-sm text-center">
+            Send this link to students. Anyone with the link can view — no
+            submissions are collected.
+          </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 break-all text-xs text-slate-700 font-mono">
+            {createdLink}
+          </div>
+          <div className="grid gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCopy()}
+              className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
+            >
+              {copied ? (
+                <>
+                  <Check aria-hidden="true" className="w-4 h-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy aria-hidden="true" className="w-4 h-4" />
+                  Copy Link
+                </>
+              )}
+            </button>
+            <a
+              href={createdLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors py-3 text-sm"
+            >
+              <ExternalLink aria-hidden="true" className="w-4 h-4" />
+              Open in New Tab
+            </a>
+          </div>
+        </>
+      ) : (
+        /* Pre-creation: zero form fields, single confirm button. */
+        <>
+          <div className="text-center">
+            <p className="font-bold text-brand-blue-dark text-base truncate px-2">
+              {itemTitle}
+            </p>
+            <p className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1 text-xs">
+              Create Share Link
+            </p>
+          </div>
+          <p className="text-slate-600 text-sm text-center">
+            Anyone with the link can view this. No submissions are collected —
+            view counts appear in the Shared archive.
+          </p>
+          {error && (
+            <p className="text-sm text-brand-red-primary text-center font-medium">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isCreating}
+            className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
+          >
+            {isCreating ? (
+              <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin" />
+            ) : (
+              <Link2 aria-hidden="true" className="w-4 h-4" />
+            )}
+            {isCreating ? 'Creating…' : 'Create Share Link'}
+          </button>
+        </>
+      )}
+    </Modal>
   );
 };

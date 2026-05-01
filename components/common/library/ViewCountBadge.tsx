@@ -29,7 +29,7 @@ export const ViewCountBadge: React.FC<ViewCountBadgeProps> = ({ count }) => {
         className="inline-flex items-center gap-1 text-xs font-medium text-slate-300 select-none"
         style={{ visibility: 'hidden' }}
       >
-        <Eye className="w-3 h-3 shrink-0" />
+        <Eye aria-hidden="true" className="w-3 h-3 shrink-0" />
         <span>0 views</span>
       </span>
     );
