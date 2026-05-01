@@ -994,7 +994,11 @@ export const useQuizAssignments = (
         db,
         'users',
         userId,
-        'quizzes', // QUIZZES_COLLECTION in useQuiz.ts
+        // String literal duplicated rather than imported because
+        // useQuiz.ts keeps its `QUIZZES_COLLECTION` constant
+        // module-private. If you find yourself needing this in a third
+        // place, lift it into a shared constants module.
+        'quizzes',
         assignment.quizId
       );
       const quizMetaSnap = await getDoc(quizMetaRef);
@@ -1018,9 +1022,9 @@ export const useQuizAssignments = (
           uid: userId,
           title: quizData.title,
           questions: quizData.questions,
-          // Plumb the PLC id through so the Part 2 notification system can
-          // route stale-content alerts to the right inbox. Not consumed in
-          // Part 1A.
+          // Plumb the PLC id through so downstream notification routing
+          // can scope stale-content alerts to the right inbox. Not
+          // consumed today; the field is reserved for future use.
           ...(assignment.plc?.id ? { plcId: assignment.plc.id } : {}),
         });
         // Patch the local quiz metadata in place. We cannot use the
@@ -1384,16 +1388,21 @@ export const useQuizAssignments = (
       // safe: even if the second/third batch fails, the session is on
       // the new version and a subsequent call will pick up the rest of
       // the responses (the filter above skips already-tagged ones).
+      //
+      // We deliberately do NOT overwrite `quizTitle` on the assignment
+      // (or the session). The teacher-local quiz title is independent
+      // of the canonical synced title — an importer can rename their
+      // local copy, and rewriting that on every sync would be a
+      // surprise. Sync only touches the question content + version
+      // bookkeeping.
       const firstBatch = writeBatch(db);
       firstBatch.update(assignmentRef, {
         syncedVersion: canonical.version,
-        quizTitle: canonical.title,
         updatedAt: now,
       });
       firstBatch.update(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), {
         publicQuestions,
         totalQuestions: canonical.questions.length,
-        quizTitle: canonical.title,
       });
       // 2 writes already used (assignment + session); fill the rest.
       const firstChunkSize = Math.min(

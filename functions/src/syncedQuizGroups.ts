@@ -38,7 +38,6 @@ if (!admin.apps.length) {
 
 export interface SyncedParticipant {
   joinedAt: number;
-  lastEditedAt?: number;
 }
 
 export interface JoinSyncedQuizGroupRequest {

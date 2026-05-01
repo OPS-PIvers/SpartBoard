@@ -930,10 +930,10 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     if (!assignmentCall) {
       throw new Error('expected batch.update on assignment doc');
     }
-    expect(assignmentCall[1]).toMatchObject({
-      syncedVersion: 4,
-      quizTitle: 'Updated Title',
-    });
+    // Title is intentionally NOT overwritten — the teacher's local
+    // quiz title is independent of the canonical synced title.
+    expect(assignmentCall[1]).toMatchObject({ syncedVersion: 4 });
+    expect(assignmentCall[1]).not.toHaveProperty('quizTitle');
 
     const sessionCall = batchUpdate.mock.calls.find(
       ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
@@ -941,10 +941,8 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     if (!sessionCall) {
       throw new Error('expected batch.update on session doc');
     }
-    expect(sessionCall[1]).toMatchObject({
-      totalQuestions: 2,
-      quizTitle: 'Updated Title',
-    });
+    expect(sessionCall[1]).toMatchObject({ totalQuestions: 2 });
+    expect(sessionCall[1]).not.toHaveProperty('quizTitle');
     // publicQuestions is rebuilt — verify the count and the no-correctAnswer
     // shape (toPublicQuestion strips the answer key + shuffles MC choices).
     const publicQuestions = (sessionCall[1] as { publicQuestions: unknown[] })

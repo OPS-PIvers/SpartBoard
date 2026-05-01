@@ -93,9 +93,8 @@ export function useSyncedQuizGroupsByIds(
   // Stable identity for the id list so the effect only re-runs when the
   // SET of ids changes, not when the parent re-renders with the same
   // contents in a fresh array reference. Inside the effect we re-derive
-  // the id list from `idsKey` rather than closing over the prop, which
-  // avoids the ref-during-render anti-pattern flagged by the React
-  // hooks lint rule.
+  // the id list from `idsKey` rather than closing over the prop so the
+  // effect's dependency list reflects what it actually consumes.
   const idsKey = (syncGroupIds ?? []).slice().sort().join(',');
 
   // Adjust state during render when the id set changes — React's
@@ -136,7 +135,19 @@ export function useSyncedQuizGroupsByIds(
   useEffect(() => {
     if (idsKey === '') return;
     const ids = idsKey.split(',');
-    let pending = ids.length;
+    // Track which group ids have resolved at least one snapshot in a
+    // Set rather than a decrementing counter. Firestore can deliver a
+    // cached snapshot followed by a server snapshot for the same doc
+    // in quick succession; a counter would decrement twice and exit
+    // loading prematurely (or even underflow). The Set is naturally
+    // idempotent on a doubled callback.
+    const resolved = new Set<string>();
+    const total = ids.length;
+    const markResolved = (groupId: string) => {
+      if (resolved.has(groupId)) return;
+      resolved.add(groupId);
+      if (resolved.size === total) setLoading(false);
+    };
     const unsubs: Array<() => void> = ids.map((groupId) =>
       onSnapshot(
         doc(db, SYNCED_QUIZZES_COLLECTION, groupId),
@@ -153,20 +164,14 @@ export function useSyncedQuizGroupsByIds(
             }
             return next;
           });
-          if (pending > 0) {
-            pending -= 1;
-            if (pending === 0) setLoading(false);
-          }
+          markResolved(groupId);
         },
         (err) => {
           console.error(
             `[useSyncedQuizGroups] subscribe error for ${groupId}:`,
             err
           );
-          if (pending > 0) {
-            pending -= 1;
-            if (pending === 0) setLoading(false);
-          }
+          markResolved(groupId);
         }
       )
     );
@@ -236,7 +241,7 @@ export async function createSyncedQuizGroup(input: {
 /**
  * Transactionally publish a content edit to a synced group. Asserts the
  * caller's `expectedVersion` is still the canonical doc's `version`,
- * increments by 1, and stamps `updatedBy` + `participants[uid].lastEditedAt`.
+ * increments by 1, and stamps `updatedBy`.
  *
  * Throws `SyncedQuizVersionConflictError` if the caller's local replica
  * is behind a peer's published edit — the editor catches this and
@@ -276,8 +281,7 @@ export async function publishSyncedQuiz(
     // `request.resource.data.participants == resource.data.participants`
     // on update so the rule can keep the membership write-gate simple
     // (Cloud Functions are the only writer for `participants`). Any
-    // per-user attribution like `lastEditedAt` would need to land via a
-    // server function — kept out of Part 1A.
+    // per-user attribution would need to land via a server function.
     tx.update(ref, {
       version: nextVersion,
       title: input.title,

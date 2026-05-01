@@ -2276,19 +2276,12 @@ export interface SyncedQuizGroup {
    * Modified only by the Cloud Function paths so the rules-side write check
    * can be a simple `auth.uid in resource.data.participants` predicate.
    */
-  participants: Record<
-    string,
-    {
-      joinedAt: number;
-      /** Last time this participant published an edit. */
-      lastEditedAt?: number;
-    }
-  >;
+  participants: Record<string, { joinedAt: number }>;
   /**
    * Optional PLC linkage. Populated when the originating share was generated
-   * from a PLC-mode assignment. Used by the Part 2 notification system to
-   * route stale-content alerts to the right PLC inbox; no behavior in
-   * Part 1A.
+   * from a PLC-mode assignment. Reserved for downstream PLC notification
+   * routing (so stale-content alerts can be scoped to the right PLC inbox);
+   * no behavior consumes this field today.
    */
   plcId?: string;
   createdAt: number;
