@@ -5,6 +5,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type FC,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, MoreVertical, Star } from 'lucide-react';
@@ -14,7 +16,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 const FAB_BASE =
   'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/60 hover:text-white/90 flex items-center justify-center transition-colors backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:opacity-40 disabled:cursor-not-allowed';
 
-export const BoardNavFab: React.FC = () => {
+export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
   const { dashboards, activeDashboard, loadDashboard } = useDashboard();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -36,7 +38,11 @@ export const BoardNavFab: React.FC = () => {
     [setIsPickerOpen]
   );
 
-  useClickOutside(containerRef, () => closePicker(false));
+  const handleClickOutside = useCallback(() => {
+    closePicker(false);
+  }, [closePicker]);
+
+  useClickOutside(containerRef, handleClickOutside);
 
   // Move focus into the menu when it opens; default to the active board.
   useEffect(() => {
@@ -44,6 +50,12 @@ export const BoardNavFab: React.FC = () => {
     const targetIdx = currentIndex >= 0 ? currentIndex : 0;
     itemRefs.current[targetIdx]?.focus();
   }, [isPickerOpen, currentIndex]);
+
+  // Drop trailing ref slots when the dashboard list shrinks so we don't
+  // dispatch focus to detached buttons after a board is deleted.
+  useEffect(() => {
+    itemRefs.current.length = dashboards.length;
+  }, [dashboards.length]);
 
   if (dashboards.length <= 1) return null;
 
@@ -65,7 +77,7 @@ export const BoardNavFab: React.FC = () => {
     itemRefs.current[wrapped]?.focus();
   };
 
-  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const focusedIdx = itemRefs.current.findIndex(
       (el) => el === document.activeElement
     );
@@ -134,7 +146,7 @@ export const BoardNavFab: React.FC = () => {
                   loadDashboard(db.id);
                   closePicker();
                 }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:bg-white/15 ${
+                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
                   isActive
                     ? 'bg-brand-blue-primary text-white'
                     : 'text-white/80 hover:bg-white/10'
