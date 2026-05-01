@@ -960,7 +960,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('queries only responses with preSyncVersion < previousSyncedVersion (server-side skip of already-tagged rows)', async () => {
+  it('queries only responses with preSyncVersion == 0 (server-side skip of already-tagged rows)', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');
     (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
@@ -977,10 +977,10 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       }),
     });
     const refFresh = { id: 'fresh' };
-    // The server-side `where('preSyncVersion', '<', 4)` query returns
-    // only responses that haven't been tagged at v4 yet — already-
-    // tagged docs are filtered out at the Firestore boundary, so they
-    // never reach the client. We simulate that by only including the
+    // The server-side `where('preSyncVersion', '==', 0)` query returns
+    // only responses that have never been tagged — already-tagged
+    // docs are filtered out at the Firestore boundary, so they never
+    // reach the client. We simulate that by only including the
     // untagged fresh response in the mock result.
     mockGetDocs.mockResolvedValueOnce({
       docs: [{ ref: refFresh, data: () => ({ status: 'completed' }) }],
@@ -995,11 +995,11 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     });
 
     expect(outcome.taggedResponseCount).toBe(1);
-    // The query was called with the right where-clause: `<
-    // previousSyncedVersion` (4). Verifies the server-side filter
-    // shape, not just that the function returned the right count.
+    // The query was called with the right where-clause: `== 0`.
+    // Verifies the server-side filter shape, not just that the
+    // function returned the right count.
     const { where } = await import('firebase/firestore');
-    expect(where).toHaveBeenCalledWith('preSyncVersion', '<', 4);
+    expect(where).toHaveBeenCalledWith('preSyncVersion', '==', 0);
     // The fresh untagged doc gets tagged.
     const updatedRefs = batchUpdate.mock.calls.map(
       (call: unknown[]) => call[0]

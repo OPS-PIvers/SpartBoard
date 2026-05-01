@@ -1493,13 +1493,15 @@ export const useQuizAssignments = (
       // sync.
       //
       // Server-side filter: every response is initialized with
-      // `preSyncVersion: 0` at create time (see `useQuizSession.ts`),
-      // so a `<` query reliably returns the rows that still need
-      // tagging — including fresh responses that have never been
-      // tagged. Without that initialization, Firestore's `<` operator
-      // would silently skip docs missing the field. This avoids
-      // shipping every response over the wire on every sync; only the
-      // ones we'll actually update come back.
+      // `preSyncVersion: 0` at create time (see `useQuizSession.ts`)
+      // and the firestore rule pins creates to 0, so a `== 0` query
+      // returns exactly the rows that still need tagging. Equality
+      // (rather than `<`) ensures already-tagged responses keep the
+      // version at which they first fell behind — the chip on the
+      // results card needs that original snapshot, not the latest
+      // pre-sync version. It also avoids re-fetching/re-writing every
+      // previously-tagged response on every subsequent sync (write
+      // amplification).
       const responsesSnap = await getDocs(
         query(
           collection(
@@ -1508,7 +1510,7 @@ export const useQuizAssignments = (
             assignmentId,
             RESPONSES_COLLECTION
           ),
-          where('preSyncVersion', '<', previousSyncedVersion)
+          where('preSyncVersion', '==', 0)
         )
       );
       const now = Date.now();
