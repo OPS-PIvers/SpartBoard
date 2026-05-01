@@ -475,6 +475,7 @@ export interface UrlWidgetConfig {
     url: string;
     title?: string;
     color?: string;
+    icon?: string;
   }[];
 }
 
