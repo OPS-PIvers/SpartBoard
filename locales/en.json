@@ -44,6 +44,8 @@
       "adminSettings": "Admin Settings",
       "enterFullscreen": "Enter Fullscreen",
       "exitFullscreen": "Exit Fullscreen",
+      "annotateScreen": "Annotate Screen",
+      "stopAnnotating": "Stop Annotating",
       "clearAllWindows": "Clear All Windows",
       "switchBoards": "Switch Boards",
       "hideBoards": "Hide Boards",

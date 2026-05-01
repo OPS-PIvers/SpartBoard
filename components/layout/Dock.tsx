@@ -7,15 +7,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  LayoutGrid,
-  Puzzle,
-  Users,
-  Cast,
-  Square,
-  Pencil,
-  Maximize,
-} from 'lucide-react';
+import { LayoutGrid, Puzzle, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -107,9 +99,6 @@ export const Dock: React.FC = () => {
     moveItemOutOfFolder,
     reorderFolderItems,
     addToast,
-    annotationActive,
-    openAnnotation,
-    closeAnnotation,
     setPendingQuizShareId,
     setPendingAssignmentShareId,
   } = useDashboard();
@@ -485,12 +474,6 @@ export const Dock: React.FC = () => {
   const classesButtonRef = useRef<HTMLButtonElement>(null);
   const remoteButtonRef = useRef<HTMLButtonElement>(null);
   const catalystButtonRef = useRef<HTMLButtonElement>(null);
-  const drawingButtonRef = useRef<HTMLButtonElement>(null);
-  const drawingPopoverRef = useRef<HTMLDivElement>(null);
-  const [showDrawingMenu, setShowDrawingMenu] = useState(false);
-  const [drawingAnchorRect, setDrawingAnchorRect] = useState<DOMRect | null>(
-    null
-  );
   const [showCatalystPicker, setShowCatalystPicker] = useState(false);
   const [catalystAnchorRect, setCatalystAnchorRect] = useState<DOMRect | null>(
     null
@@ -558,30 +541,6 @@ export const Dock: React.FC = () => {
     }
     setShowCatalystPicker((prev) => !prev);
   }, [showCatalystPicker]);
-
-  /**
-   * Draw tool click:
-   *  - If an annotation is already active, clicking Draw is a shortcut to
-   *    close it (toggle-off) without showing the picker.
-   *  - Otherwise, show a small popover so the teacher can explicitly choose
-   *    between full-screen annotation and a windowed whiteboard widget.
-   */
-  const handleToggleDrawingMenu = useCallback(() => {
-    if (annotationActive) {
-      closeAnnotation();
-      setShowDrawingMenu(false);
-      return;
-    }
-    if (!showDrawingMenu && drawingButtonRef.current) {
-      setDrawingAnchorRect(drawingButtonRef.current.getBoundingClientRect());
-    }
-    setShowDrawingMenu((prev) => !prev);
-  }, [annotationActive, closeAnnotation, showDrawingMenu]);
-
-  // Close drawing popover when clicking outside
-  useClickOutside(drawingPopoverRef, () => {
-    if (showDrawingMenu) setShowDrawingMenu(false);
-  }, [drawingButtonRef]);
 
   const handleLongPress = useCallback(() => {
     setIsEditMode(true);
@@ -797,91 +756,6 @@ export const Dock: React.FC = () => {
           onClose={() => setShowCatalystPicker(false)}
         />
       )}
-
-      {showDrawingMenu &&
-        drawingAnchorRect &&
-        createPortal(
-          <GlassCard
-            globalStyle={globalStyle}
-            ref={drawingPopoverRef}
-            style={{
-              position: 'fixed',
-              zIndex: Z_INDEX.popover,
-              ...(dockPosition === 'left'
-                ? {
-                    left: drawingAnchorRect.right + 10,
-                    top: drawingAnchorRect.top + drawingAnchorRect.height / 2,
-                    transform: 'translateY(-50%)',
-                  }
-                : dockPosition === 'right'
-                  ? {
-                      right: window.innerWidth - drawingAnchorRect.left + 10,
-                      top: drawingAnchorRect.top + drawingAnchorRect.height / 2,
-                      transform: 'translateY(-50%)',
-                    }
-                  : {
-                      left:
-                        drawingAnchorRect.left + drawingAnchorRect.width / 2,
-                      bottom: window.innerHeight - drawingAnchorRect.top + 10,
-                      transform: 'translateX(-50%)',
-                    }),
-            }}
-            className={`w-64 overflow-hidden animate-in duration-200 ${
-              dockPosition === 'left'
-                ? 'slide-in-from-left-2'
-                : dockPosition === 'right'
-                  ? 'slide-in-from-right-2'
-                  : 'slide-in-from-bottom-2'
-            }`}
-          >
-            <div className="bg-white/50 px-3 py-2 border-b border-white/30">
-              <span className="text-xxs font-black uppercase text-slate-600 tracking-wider">
-                Draw mode
-              </span>
-            </div>
-            <div className="p-2 space-y-1">
-              <button
-                onClick={() => {
-                  setShowDrawingMenu(false);
-                  openAnnotation();
-                }}
-                className="w-full flex items-start gap-3 p-2.5 hover:bg-white/60 rounded-lg transition-colors text-left"
-              >
-                <div className="shrink-0 w-9 h-9 rounded-lg bg-brand-blue-primary/10 text-brand-blue-primary flex items-center justify-center">
-                  <Maximize className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-800">
-                    Annotate screen
-                  </div>
-                  <div className="text-xxs text-slate-500 leading-tight">
-                    Draw over everything. Ephemeral — closes cleanly.
-                  </div>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setShowDrawingMenu(false);
-                  addWidget('drawing');
-                }}
-                className="w-full flex items-start gap-3 p-2.5 hover:bg-white/60 rounded-lg transition-colors text-left"
-              >
-                <div className="shrink-0 w-9 h-9 rounded-lg bg-cyan-500/10 text-cyan-600 flex items-center justify-center">
-                  <Pencil className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-800">
-                    Open whiteboard
-                  </div>
-                  <div className="text-xxs text-slate-500 leading-tight">
-                    Add a windowed whiteboard widget to your board.
-                  </div>
-                </div>
-              </button>
-            </div>
-          </GlassCard>,
-          document.body
-        )}
 
       {imagePastePending !== null && (
         <ImagePastePickerModal
@@ -1258,42 +1132,6 @@ export const Dock: React.FC = () => {
                                   : undefined
                               }
                               buttonRef={catalystButtonRef}
-                              dockPosition={dockPosition}
-                            />
-                          );
-                        }
-
-                        // Handle "drawing" with a mode-picker popover
-                        // (Annotate screen vs Open whiteboard)
-                        if (item.toolType === 'drawing') {
-                          const minimizedDrawing =
-                            minimizedWidgetsByType['drawing'] ?? [];
-                          return (
-                            <ToolDockItem
-                              key={tool.type}
-                              tool={tool}
-                              minimizedWidgets={minimizedDrawing}
-                              onAdd={handleToggleDrawingMenu}
-                              onRestore={(id) =>
-                                updateWidget(id, { minimized: false })
-                              }
-                              onDelete={(id) => removeWidget(id)}
-                              onDeleteAll={() =>
-                                removeWidgets(minimizedDrawing.map((w) => w.id))
-                              }
-                              onRemoveFromDock={() =>
-                                toggleToolVisibility(tool.type)
-                              }
-                              isEditMode={isEditMode}
-                              onLongPress={handleLongPress}
-                              globalStyle={globalStyle}
-                              customLabel={getToolLabel(tool.type)}
-                              onClickOverride={
-                                minimizedDrawing.length === 0
-                                  ? handleToggleDrawingMenu
-                                  : undefined
-                              }
-                              buttonRef={drawingButtonRef}
                               dockPosition={dockPosition}
                             />
                           );

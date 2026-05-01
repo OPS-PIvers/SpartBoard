@@ -14,6 +14,7 @@ import {
   Minimize,
   ArrowLeft,
   Palette,
+  Pencil,
   Trash2,
   Cloud,
   CloudCheck,
@@ -108,6 +109,9 @@ export const Sidebar: React.FC = () => {
     setGlobalStyle,
     addToast,
     rosters,
+    annotationActive,
+    openAnnotation,
+    closeAnnotation,
   } = useDashboard();
 
   // Mount the PLC listeners once at the Sidebar level and drill the data into
@@ -217,6 +221,25 @@ export const Sidebar: React.FC = () => {
           }
           variant="brand-ghost"
           size="md"
+        />
+
+        <IconButton
+          onClick={() =>
+            annotationActive ? closeAnnotation() : openAnnotation()
+          }
+          icon={<Pencil className="w-5 h-5" />}
+          label={
+            annotationActive
+              ? t('sidebar.header.stopAnnotating')
+              : t('sidebar.header.annotateScreen')
+          }
+          variant="brand-ghost"
+          size="md"
+          className={
+            annotationActive
+              ? '!bg-brand-blue-lighter !text-brand-blue-primary'
+              : ''
+          }
         />
 
         <IconButton

@@ -41,6 +41,8 @@
       "adminSettings": "Admin-Einstellungen",
       "enterFullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
+      "annotateScreen": "Bildschirm annotieren",
+      "stopAnnotating": "Annotation beenden",
       "clearAllWindows": "Alle Fenster schließen",
       "switchBoards": "Tafeln wechseln",
       "hideBoards": "Tafeln ausblenden",
