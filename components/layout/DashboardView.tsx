@@ -360,6 +360,66 @@ export const DashboardView: React.FC = () => {
   // Imports copy the quiz into the user's library and create a paused
   // assignment, then surface the Quiz widget to the Active tab — which
   // shows live and paused assignments (Archive only shows inactive ones).
+  // Stable callback: peek the share doc and route to either the mode
+  // picker (synced share) or a direct copy import (legacy share).
+  // Extracted so the failure toast can offer Retry without re-running
+  // the whole effect — the effect synchronously clears
+  // pendingAssignmentShareId to prevent triple-import races, so a
+  // failed peek would otherwise leave the user with no recovery path
+  // short of pasting the URL again.
+  const peekAndDispatchImport = React.useCallback(
+    (shareId: string) => {
+      void peekSharedAssignment(shareId)
+        .then((preview) => {
+          // Sync mode is only offered when the share is sync-enabled AND
+          // (the share has no PLC OR the importer is a member of that
+          // PLC). A non-PLC-member of a PLC-shared synced assignment
+          // shouldn't be able to silently join a synchronized peer group
+          // they have no relationship to — so we transparently fall
+          // through to copy-mode (the existing non-member nudge toast
+          // still fires from runAssignmentImport's plcHandling path).
+          const previewPlcId = preview.plc?.id;
+          const importerIsPlcMember =
+            !!previewPlcId &&
+            !!user &&
+            plcs.some(
+              (p) => p.id === previewPlcId && p.memberUids.includes(user.uid)
+            );
+          const canOfferSync =
+            !!preview.syncGroupId && (!preview.plc || importerIsPlcMember);
+          if (canOfferSync) {
+            // Defer the import to the modal's onPick handler.
+            setImportModePrompt({
+              shareId,
+              title: preview.title,
+              originalAuthor: preview.originalAuthor,
+            });
+            return;
+          }
+          runAssignmentImport(shareId, 'copy');
+        })
+        .catch((err: unknown) => {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : '';
+          addToast(
+            msg
+              ? `Failed to import shared assignment: ${msg}`
+              : 'Failed to import shared assignment.',
+            'error',
+            {
+              label: 'Retry',
+              onClick: () => peekAndDispatchImport(shareId),
+            }
+          );
+        });
+    },
+    [peekSharedAssignment, runAssignmentImport, addToast, plcs, user]
+  );
+
   useEffect(() => {
     if (!pendingAssignmentShareId || !user) return;
     // Wait for /plcs to hydrate before evaluating membership. Without this
@@ -369,42 +429,16 @@ export const DashboardView: React.FC = () => {
     // plcsLoading flips to false the effect re-runs with the real list.
     if (plcsLoading) return;
     // Clear synchronously BEFORE awaiting — see the quiz-share effect above
-    // for the triple-import race rationale.
+    // for the triple-import race rationale. The Retry action in the
+    // failure toast (wired via peekAndDispatchImport) restores the
+    // recovery path without reintroducing the race.
     const shareId = pendingAssignmentShareId;
     clearPendingAssignmentShare();
-    void peekSharedAssignment(shareId)
-      .then((preview) => {
-        if (preview.syncGroupId) {
-          // Defer the import to the modal's onPick handler.
-          setImportModePrompt({
-            shareId,
-            title: preview.title,
-            originalAuthor: preview.originalAuthor,
-          });
-          return;
-        }
-        runAssignmentImport(shareId, 'copy');
-      })
-      .catch((err: unknown) => {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === 'string'
-              ? err
-              : '';
-        addToast(
-          msg
-            ? `Failed to import shared assignment: ${msg}`
-            : 'Failed to import shared assignment.',
-          'error'
-        );
-      });
+    peekAndDispatchImport(shareId);
   }, [
     pendingAssignmentShareId,
     user,
-    peekSharedAssignment,
-    runAssignmentImport,
-    addToast,
+    peekAndDispatchImport,
     clearPendingAssignmentShare,
     plcsLoading,
   ]);

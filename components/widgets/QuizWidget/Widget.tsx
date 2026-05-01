@@ -1599,18 +1599,33 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           } catch (err) {
             if (err instanceof SyncedQuizVersionConflictError) {
               // A peer published a newer version of this synced quiz
-              // between when the editor opened and Save was clicked.
-              // Surface a clear, actionable error and stop — keeping the
-              // editor open so the teacher's edits aren't lost. We let
-              // them dismiss and re-open against the freshly-pulled
-              // version (the library card listener will surface a
-              // "Sync available" pill that pulls and overwrites the
-              // local Drive copy).
+              // between when the editor opened and Save was clicked. The
+              // earlier behavior was to keep the editor open and tell the
+              // teacher to "pull and re-apply" — but the pull affordance
+              // (library-card pill) is unreachable while the modal is
+              // open, leaving the user stuck. Better UX: auto-pull the
+              // canonical content into the local Drive replica and close
+              // the editor with a clear, actionable toast. The teacher's
+              // unsaved edits ARE lost, but the system reaches a
+              // coherent state and they can re-open against the fresh
+              // canonical to re-apply.
+              if (editingMeta) {
+                try {
+                  await pullSyncedQuiz(editingMeta);
+                } catch (pullErr) {
+                  console.error(
+                    '[QuizWidget] auto-pull after sync-conflict failed:',
+                    pullErr
+                  );
+                }
+              }
+              setEditingQuiz(null);
+              setEditingMeta(null);
               addToast(
-                'Another teacher just published an update to this synced quiz. Pull the latest from the library card, then re-apply your edits.',
+                'Another teacher published an update to this quiz. We pulled their changes; your unsaved edits were not saved. Reopen the quiz to re-apply.',
                 'warning'
               );
-              throw err;
+              return;
             }
             throw err;
           }

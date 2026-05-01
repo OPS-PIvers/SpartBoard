@@ -887,8 +887,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Sync now',
             icon: Cloud,
             onClick: async () => {
+              // Confirmation copy avoids promising "answers stay" because
+              // students currently mid-attempt will see the new questions
+              // appear on their next interaction (the session's
+              // publicQuestions is replaced server-side). Their previously-
+              // typed answers persist on the response doc but the question
+              // each answer points at may have changed text — surfacing
+              // that explicitly is more honest than implying continuity.
+              const isLive = a.status === 'active';
+              const liveWarning = isLive
+                ? ' Students currently taking the quiz will see the new questions on their next interaction.'
+                : '';
               const ok = await showConfirm(
-                `Update this assignment to the latest version of "${a.quizTitle}"? Existing students' answers stay; rows answered before the update will be tagged in results.`,
+                `Update this assignment to the latest version of "${a.quizTitle}"?${liveWarning} Existing responses are kept and any answers submitted before this update will be tagged in results.`,
                 {
                   title: 'Sync Assignment',
                   variant: 'warning',

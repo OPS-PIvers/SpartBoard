@@ -321,19 +321,17 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       if (!quizMeta.syncGroupId) {
         return { ...quizMeta };
       }
-      // Remove the caller from the canonical doc's participant list.
-      // Errors here aren't fatal — leave the local detach idempotent so a
-      // teacher can always exit a synced group even if a transient
-      // network blip prevents the Cloud Function call. We still log so
-      // server-side hygiene tools can spot orphan participant entries.
-      try {
-        await callLeaveSyncedQuizGroup(quizMeta.syncGroupId);
-      } catch (err) {
-        console.warn(
-          `[useQuiz.detachSyncedQuiz] leaveSyncedQuizGroup failed for ${quizMeta.syncGroupId}; continuing with local detach.`,
-          err
-        );
-      }
+      // Remove the caller from the canonical doc's participant list
+      // BEFORE clearing the local linkage. Letting the Cloud Function
+      // failure short-circuit the whole detach is the right call here —
+      // the prior swallow-and-warn behavior could leave the user as a
+      // phantom server-side participant while the local UI claimed they
+      // had stopped syncing, and rejoining the same group later would
+      // silently re-link them to a slot they never knew they still
+      // occupied. Surfacing the failure lets the caller (Widget.tsx
+      // `onDetachSyncedQuiz`) toast a real error and lets the user
+      // retry.
+      await callLeaveSyncedQuizGroup(quizMeta.syncGroupId);
       const metadata: QuizMetadata = {
         id: quizMeta.id,
         title: quizMeta.title,

@@ -49,6 +49,7 @@ import {
 } from './useQuizSession';
 import {
   callJoinSyncedQuizGroup,
+  callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
   pullSyncedQuizContent,
 } from './useSyncedQuizGroups';
@@ -182,11 +183,19 @@ export interface UseQuizAssignmentsResult {
    * by the import flow to decide whether to surface the Sync/Copy mode
    * picker (when `syncGroupId` is present) or fall straight through to a
    * legacy copy import. Read-only — does not mutate any state.
+   *
+   * `plc` is the PLC linkage carried on the share's `assignmentSettings`,
+   * if any. The caller uses it to gate Sync mode behind PLC membership:
+   * a PLC-shared synced assignment should only offer the Sync option to
+   * members of the originating PLC; non-members get a copy import (with
+   * the existing non-member toast) so they don't silently join a
+   * synchronized group they have no relationship to.
    */
   peekSharedAssignment: (shareId: string) => Promise<{
     title: string;
     originalAuthor: string;
     syncGroupId?: string;
+    plc?: PlcLinkage;
   }>;
   /**
    * Import a shared assignment. Delegates quiz copy to the injected saveQuiz
@@ -943,10 +952,18 @@ export const useQuizAssignments = (
       throw new Error('Shared assignment not found.');
     }
     const data = snap.data() as SharedQuizAssignment;
+    // Run the legacy-PLC-shape mapper so callers see the canonical `plc`
+    // sub-object regardless of whether the share was written before or
+    // after the PLC refactor (see migrateLegacyAssignmentShape for the
+    // migration rules).
+    const settings = migrateLegacyAssignmentShape(
+      data.assignmentSettings as QuizAssignmentSettings & LegacyPlcShape
+    ) as QuizAssignmentSettings;
     return {
       title: data.title,
       originalAuthor: data.originalAuthor,
       ...(data.syncGroupId ? { syncGroupId: data.syncGroupId } : {}),
+      ...(settings.plc ? { plc: settings.plc } : {}),
     };
   }, []);
 
@@ -1086,20 +1103,19 @@ export const useQuizAssignments = (
       let initialTitle = shared.title;
       let canonicalVersion: number | undefined = undefined;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
-        try {
-          const canonical = await pullSyncedQuizContent(shared.syncGroupId);
-          initialTitle = canonical.title;
-          initialQuestions = canonical.questions;
-          canonicalVersion = canonical.version;
-        } catch (err) {
-          console.warn(
-            `[importSharedAssignment] Failed to read synced canonical for ${shared.syncGroupId}; falling back to inlined snapshot:`,
-            err
-          );
-          // Fall through to using shared.questions; we still try to join
-          // the group below so the importer doesn't lose sync semantics
-          // just because a single read flickered.
-        }
+        // Fail the sync import outright if the canonical doc is
+        // unreachable. Falling back to the inlined `shared.questions`
+        // would leave the importer with a sync-linked assignment whose
+        // local content was seeded from a (possibly stale) snapshot
+        // while `syncedVersion` claimed the canonical's current
+        // version — the assignment would render "Sync available"
+        // immediately after creation, confusing the importer. Better to
+        // surface the failure so they can retry or fall back to
+        // "Make a copy" in the picker.
+        const canonical = await pullSyncedQuizContent(shared.syncGroupId);
+        initialTitle = canonical.title;
+        initialQuestions = canonical.questions;
+        canonicalVersion = canonical.version;
       }
 
       const now = Date.now();
@@ -1115,14 +1131,20 @@ export const useQuizAssignments = (
       // 1a. If syncing, join the canonical group + patch local metadata
       // BEFORE creating the assignment so the assignment's `syncGroupId` /
       // `syncedVersion` fields land in their canonical first-write state.
-      // A failure here rolls back the quiz copy to avoid stranding the
-      // importer with an orphan synced-but-not-joined library entry.
+      //
+      // Rollback shape: we track whether the join actually completed so
+      // a failure in `attachSyncLinkage` (or any later step in this
+      // block) can undo it. Without the leave call the importer would
+      // be left as a phantom participant of the canonical group while
+      // their local quiz copy got rolled back — defeating the rollback.
       let assignmentSyncedFrom:
         | { syncGroupId: string; syncedVersion: number }
         | undefined = undefined;
+      let joinedGroupId: string | null = null;
       if (effectiveMode === 'sync' && shared.syncGroupId) {
         try {
           const joinResult = await callJoinSyncedQuizGroup(shareId);
+          joinedGroupId = joinResult.groupId;
           const liveVersion = canonicalVersion ?? joinResult.version;
           if (options?.attachSyncLinkage) {
             await options.attachSyncLinkage(savedMeta.id, {
@@ -1135,6 +1157,16 @@ export const useQuizAssignments = (
             syncedVersion: liveVersion,
           };
         } catch (err) {
+          if (joinedGroupId) {
+            try {
+              await callLeaveSyncedQuizGroup(joinedGroupId);
+            } catch (leaveErr) {
+              console.error(
+                `[importSharedAssignment] Failed to leave synced group ${joinedGroupId} during rollback after sync-join error:`,
+                leaveErr
+              );
+            }
+          }
           if (rollbackQuiz) {
             try {
               await rollbackQuiz(savedMeta);
@@ -1232,6 +1264,22 @@ export const useQuizAssignments = (
           assignmentSyncedFrom
         );
       } catch (err) {
+        // Same rollback shape as the sync-join catch above: if we
+        // joined a synced group earlier, leave it before tearing down
+        // the local quiz copy. Without the leave call, a failed
+        // assignment-create would strand the importer as a phantom
+        // participant — exactly what the rollback is supposed to
+        // prevent.
+        if (joinedGroupId) {
+          try {
+            await callLeaveSyncedQuizGroup(joinedGroupId);
+          } catch (leaveErr) {
+            console.error(
+              `[importSharedAssignment] Failed to leave synced group ${joinedGroupId} during rollback after assignment-create error:`,
+              leaveErr
+            );
+          }
+        }
         if (rollbackQuiz) {
           try {
             await rollbackQuiz(savedMeta);
