@@ -80,9 +80,11 @@ const INTERACTIVE_ELEMENTS_SELECTOR =
 // because many widgets style edge-to-edge tiles/cards with that class, which
 // previously made it nearly impossible to grab corner handles at min widget
 // size. Resize handles take priority over generic clickable surfaces; they
-// only defer to genuine form/role-bearing elements.
+// only defer to genuine form/role-bearing elements. (canvas/iframe/
+// contentEditable are handled separately above the matches() check so the
+// resize handle takes priority over them.)
 const RESIZE_PASSTHROUGH_SELECTOR =
-  'button, input, textarea, select, a, [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"]';
+  'button, input, textarea, select, a, label, summary, [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"]';
 
 const SCROLLABLE_ELEMENTS_SELECTOR =
   '.overflow-y-auto, .overflow-auto, .overflow-x-auto, [data-scrollable="true"], [style*="overflow:auto"], [style*="overflow: auto"], [style*="overflow-y:auto"], [style*="overflow-y: auto"], [style*="overflow-x:auto"], [style*="overflow-x: auto"]';
@@ -1986,8 +1988,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           Rendered as siblings of `drag-surface` so they aren't clipped by its
           `overflow: hidden`, allowing each handle to extend ~12px outside the
           widget bounds for a 36×36 effective hit zone (12 outside + 24 inside).
-          The visible SE corner icon stays anchored at the inner corner. */}
-      {!isLocked && !isPinned && (
+          The visible SE corner icon stays anchored at the inner corner.
+          Hidden when maximized or annotating to mirror the outer drag strips
+          and avoid intercepting annotation strokes near the corners. */}
+      {!isLocked && !isPinned && !isMaximized && !isAnnotating && (
         <>
           <div
             onPointerDown={(e) => handleResizeStart(e, 'nw')}
