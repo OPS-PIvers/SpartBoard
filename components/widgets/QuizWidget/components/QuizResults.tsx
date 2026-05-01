@@ -1518,7 +1518,7 @@ const StudentsTab: React.FC<{
                       </p>
                       {/* Fresh responses now carry preSyncVersion: 0
                        * so the server-side sync query
-                       * (`where('preSyncVersion', '<', N)`) can find
+                       * (`where('preSyncVersion', '==', 0)`) can find
                        * untagged rows. The chip should only render once
                        * a sync has actually tagged the response — i.e.
                        * when the value is greater than zero. */}

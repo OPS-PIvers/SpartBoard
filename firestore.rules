@@ -972,7 +972,7 @@ service cloud.firestore {
           // Students cannot forge a `preSyncVersion` other than 0 — the
           // field is initialized to 0 by the client at create time so
           // `syncAssignmentToLatest` can run a server-side
-          // `where('preSyncVersion', '<', N)` query that catches the
+          // `where('preSyncVersion', '==', 0)` query that catches the
           // row. A malicious student submitting `preSyncVersion: 999`
           // would silently dodge that query and never get tagged.
           // Tags are written by the teacher on sync, never by the
