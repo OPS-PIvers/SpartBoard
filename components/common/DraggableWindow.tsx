@@ -76,6 +76,14 @@ const POSITION_AWARE_WIDGETS: WidgetType[] = [
 const INTERACTIVE_ELEMENTS_SELECTOR =
   'button, input, textarea, select, canvas, iframe, label, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"], .cursor-pointer, [contenteditable="true"]';
 
+// Narrower selector for resize-handle pass-through. Excludes `.cursor-pointer`
+// because many widgets style edge-to-edge tiles/cards with that class, which
+// previously made it nearly impossible to grab corner handles at min widget
+// size. Resize handles take priority over generic clickable surfaces; they
+// only defer to genuine form/role-bearing elements.
+const RESIZE_PASSTHROUGH_SELECTOR =
+  'button, input, textarea, select, a, [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"]';
+
 const SCROLLABLE_ELEMENTS_SELECTOR =
   '.overflow-y-auto, .overflow-auto, .overflow-x-auto, [data-scrollable="true"], [style*="overflow:auto"], [style*="overflow: auto"], [style*="overflow-y:auto"], [style*="overflow-y: auto"], [style*="overflow-x:auto"], [style*="overflow-x: auto"]';
 
@@ -1007,8 +1015,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         continue;
       if (el instanceof HTMLElement && el.isContentEditable) continue;
       if (
-        el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
-        el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR)
+        el.matches?.(RESIZE_PASSTHROUGH_SELECTOR) ||
+        el.closest?.(RESIZE_PASSTHROUGH_SELECTOR)
       ) {
         // Temporarily remove pointer-events so the browser dispatches
         // the subsequent click to the interactive element beneath.
@@ -1972,34 +1980,80 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             </>
           )}
         </div>
+      </div>
 
-        {/* Resize Handles (Corners Only) */}
-        {!isLocked && !isPinned && (
-          <>
+      {/* Resize Handles (Corners Only)
+          Rendered as siblings of `drag-surface` so they aren't clipped by its
+          `overflow: hidden`, allowing each handle to extend ~12px outside the
+          widget bounds for a 36×36 effective hit zone (12 outside + 24 inside).
+          The visible SE corner icon stays anchored at the inner corner. */}
+      {!isLocked && !isPinned && (
+        <>
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'nw')}
+            className="resize-handle cursor-nw-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              top: -12,
+              left: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'ne')}
+            className="resize-handle cursor-ne-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              top: -12,
+              right: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'sw')}
+            className="resize-handle cursor-sw-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              bottom: -12,
+              left: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'se')}
+            className="resize-handle cursor-se-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              bottom: -12,
+              right: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          >
             <div
-              onPointerDown={(e) => handleResizeStart(e, 'nw')}
-              className="resize-handle absolute top-0 left-0 w-6 h-6 cursor-nw-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'ne')}
-              className="resize-handle absolute top-0 right-0 w-6 h-6 cursor-ne-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'sw')}
-              className="resize-handle absolute bottom-0 left-0 w-6 h-6 cursor-sw-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'se')}
-              className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-end justify-end p-1.5 z-widget-resize touch-none"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: 13.5,
+                right: 13.5,
+                pointerEvents: 'none',
+              }}
             >
               <ResizeHandleIcon
                 className="text-slate-400"
                 style={{ opacity: isSelected ? 1 : transparency }}
               />
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Invisible edge grab zones — extend INVISIBLE_EDGE_PAD px outside the widget's visual
           bounds so users can reliably grab and drag widgets whose content fills edge-to-edge.
