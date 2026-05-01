@@ -16,6 +16,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
+import { logError } from '@/utils/logError';
 import {
   useQuizSessionTeacher,
   type QuizSessionOptions,
@@ -155,10 +156,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const syncGroupIds = useMemo(() => {
     const ids = new Set<string>();
     for (const q of quizzes) {
-      if (q.syncGroupId) ids.add(q.syncGroupId);
+      if (q.sync) ids.add(q.sync.groupId);
     }
     for (const a of assignments) {
-      if (a.syncGroupId) ids.add(a.syncGroupId);
+      if (a.sync) ids.add(a.sync.groupId);
     }
     return Array.from(ids);
   }, [quizzes, assignments]);
@@ -1034,12 +1035,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 periodNames: plcOptions.periodNames,
                 plc: plcLinkage,
               },
-              'paused',
-              derived.classIds,
-              derived.rosterIds,
-              derived.classPeriodByClassId,
-              undefined,
-              quizAssignmentMode
+              {
+                initialStatus: 'paused',
+                classIds: derived.classIds,
+                rosterIds: derived.rosterIds,
+                classPeriodByClassId: derived.classPeriodByClassId,
+                mode: quizAssignmentMode,
+              }
             );
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
@@ -1138,12 +1140,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               sessionOptions: VIEW_ONLY_SESSION_OPTIONS,
               attemptLimit: null,
             },
-            'paused',
-            [],
-            [],
-            {},
-            undefined,
-            'view-only'
+            { initialStatus: 'paused', mode: 'view-only' }
           );
           return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
@@ -1523,6 +1520,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             await pullSyncedQuiz(quiz);
             addToast('Quiz updated to latest version.', 'success');
           } catch (err) {
+            logError('Widget.onPullSyncedQuiz', err, {
+              quizId: quiz.id,
+              syncGroupId: quiz.sync?.groupId ?? null,
+            });
             addToast(
               err instanceof Error
                 ? err.message
@@ -1536,6 +1537,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             await detachSyncedQuiz(quiz);
             addToast('Stopped syncing.', 'success');
           } catch (err) {
+            logError('Widget.onDetachSyncedQuiz', err, {
+              quizId: quiz.id,
+              syncGroupId: quiz.sync?.groupId ?? null,
+            });
             addToast(
               err instanceof Error ? err.message : 'Failed to stop syncing.',
               'error'
@@ -1555,6 +1560,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 : '';
             addToast(`Assignment synced.${tagSummary}`, 'success');
           } catch (err) {
+            logError('Widget.onSyncAssignment', err, {
+              assignmentId: a.id,
+              syncGroupId: a.sync?.groupId ?? null,
+            });
             addToast(
               err instanceof Error ? err.message : 'Failed to sync assignment.',
               'error'
@@ -1613,10 +1622,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 try {
                   await pullSyncedQuiz(editingMeta);
                 } catch (pullErr) {
-                  console.error(
-                    '[QuizWidget] auto-pull after sync-conflict failed:',
-                    pullErr
-                  );
+                  logError('Widget.onSave.autoPullAfterConflict', pullErr, {
+                    quizId: editingMeta.id,
+                    syncGroupId: editingMeta.sync?.groupId ?? null,
+                  });
                 }
               }
               setEditingQuiz(null);

@@ -625,7 +625,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
 
   // ─── Build per-quiz card actions ──────────────────────────────────────────
-  // Sync availability: a quiz is "stale" when its `lastSyncedVersion`
+  // Sync availability: a quiz is "stale" when its `sync.lastSyncedVersion`
   // trails the canonical `/synced_quizzes/{groupId}.version`. We surface
   // a "Sync available" action only when both sides are populated;
   // hydration races (group hasn't subscribed yet) collapse to "no
@@ -633,13 +633,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const buildQuizSecondaryActions = (
     quiz: QuizMetadata
   ): LibraryMenuAction[] => {
-    const group = quiz.syncGroupId
-      ? syncedGroups?.get(quiz.syncGroupId)
-      : undefined;
+    const group = quiz.sync ? syncedGroups?.get(quiz.sync.groupId) : undefined;
     const isStale =
-      !!group &&
-      typeof quiz.lastSyncedVersion === 'number' &&
-      group.version > quiz.lastSyncedVersion;
+      !!group && group.version > (quiz.sync?.lastSyncedVersion ?? 0);
     const actions: LibraryMenuAction[] = [
       {
         id: 'preview',
@@ -674,7 +670,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onClick: () => void onPullSyncedQuiz(quiz),
       });
     }
-    if (quiz.syncGroupId && onDetachSyncedQuiz) {
+    if (quiz.sync && onDetachSyncedQuiz) {
       actions.push({
         id: 'stop-syncing',
         label: 'Stop syncing',
@@ -725,13 +721,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
    * `version` exceeds local `lastSyncedVersion`.
    */
   const buildQuizBadges = (quiz: QuizMetadata) => {
-    if (!quiz.syncGroupId) return [];
-    const group = syncedGroups?.get(quiz.syncGroupId);
-    if (
-      group &&
-      typeof quiz.lastSyncedVersion === 'number' &&
-      group.version > quiz.lastSyncedVersion
-    ) {
+    if (!quiz.sync) return [];
+    const group = syncedGroups?.get(quiz.sync.groupId);
+    if (group && group.version > quiz.sync.lastSyncedVersion) {
       return [{ label: 'Sync available', tone: 'warn' as const, dot: true }];
     }
     return [{ label: 'Synced', tone: 'info' as const }];
@@ -878,10 +870,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       // AND the canonical doc has a newer version than the session
       // currently reflects. Includes a confirm because the rebuild
       // overwrites `session.publicQuestions` mid-stream.
-      if (a.syncGroupId && onSyncAssignment) {
-        const group = syncedGroups?.get(a.syncGroupId);
-        const assignmentStale =
-          !!group && group.version > (a.syncedVersion ?? 0);
+      if (a.sync && onSyncAssignment) {
+        const group = syncedGroups?.get(a.sync.groupId);
+        const assignmentStale = !!group && group.version > a.sync.syncedVersion;
         if (assignmentStale) {
           secondaries.push({
             id: 'sync-assignment',
@@ -1749,14 +1740,15 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
   // "Sync available" (warn) when canonical outpaces the assignment's
   // snapshotted version. Hidden on view-only shares — sync semantics
   // apply to submission-mode assignments only.
+  const assignmentSync = a.sync;
   const syncBadge: { label: string; tone: 'info' | 'warn' } | null =
-    !assignmentIsViewOnly && a.syncGroupId
+    !assignmentIsViewOnly && assignmentSync
       ? (() => {
-          const group = syncedGroups?.get(a.syncGroupId);
+          const group = syncedGroups?.get(assignmentSync.groupId);
           if (!group) {
             return { label: 'Synced', tone: 'info' };
           }
-          if (group.version > (a.syncedVersion ?? 0)) {
+          if (group.version > assignmentSync.syncedVersion) {
             return { label: 'Sync available', tone: 'warn' };
           }
           return { label: 'Synced', tone: 'info' };

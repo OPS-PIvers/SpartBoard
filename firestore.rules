@@ -969,6 +969,15 @@ service cloud.firestore {
           request.resource.data.score == null &&
           // Students cannot forge prior completions
           request.resource.data.get('completedAttempts', 0) == 0 &&
+          // Students cannot forge a `preSyncVersion` other than 0 — the
+          // field is initialized to 0 by the client at create time so
+          // `syncAssignmentToLatest` can run a server-side
+          // `where('preSyncVersion', '<', N)` query that catches the
+          // row. A malicious student submitting `preSyncVersion: 999`
+          // would silently dodge that query and never get tagged.
+          // Tags are written by the teacher on sync, never by the
+          // student.
+          request.resource.data.get('preSyncVersion', 0) == 0 &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)

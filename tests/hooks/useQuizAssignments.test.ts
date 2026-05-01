@@ -839,8 +839,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       data: () => ({
         id: ASSIGNMENT_ID,
         teacherUid: TEACHER_UID,
-        syncGroupId: 'group-1',
-        syncedVersion: 3,
+        sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
 
@@ -892,8 +891,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
         id: ASSIGNMENT_ID,
         teacherUid: TEACHER_UID,
         quizTitle: 'Old Title',
-        syncGroupId: 'group-1',
-        syncedVersion: 3,
+        sync: { groupId: 'group-1', syncedVersion: 3 },
       }),
     });
     // Two existing responses: one in-progress, one completed. Both should
@@ -932,7 +930,9 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     }
     // Title is intentionally NOT overwritten — the teacher's local
     // quiz title is independent of the canonical synced title.
-    expect(assignmentCall[1]).toMatchObject({ syncedVersion: 4 });
+    expect(assignmentCall[1]).toMatchObject({
+      sync: { groupId: 'group-1', syncedVersion: 4 },
+    });
     expect(assignmentCall[1]).not.toHaveProperty('quizTitle');
 
     const sessionCall = batchUpdate.mock.calls.find(
@@ -960,7 +960,7 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('skips re-tagging responses that already carry preSyncVersion >= the previous syncedVersion', async () => {
+  it('queries only responses with preSyncVersion < previousSyncedVersion (server-side skip of already-tagged rows)', async () => {
     const { pullSyncedQuizContent } =
       await import('@/hooks/useSyncedQuizGroups');
     (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
@@ -973,22 +973,17 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       data: () => ({
         id: ASSIGNMENT_ID,
         teacherUid: TEACHER_UID,
-        syncGroupId: 'group-1',
-        syncedVersion: 4,
+        sync: { groupId: 'group-1', syncedVersion: 4 },
       }),
     });
-    const refTagged = { id: 'tagged' };
     const refFresh = { id: 'fresh' };
+    // The server-side `where('preSyncVersion', '<', 4)` query returns
+    // only responses that haven't been tagged at v4 yet — already-
+    // tagged docs are filtered out at the Firestore boundary, so they
+    // never reach the client. We simulate that by only including the
+    // untagged fresh response in the mock result.
     mockGetDocs.mockResolvedValueOnce({
-      docs: [
-        // Already tagged at v4 — must NOT be re-tagged
-        {
-          ref: refTagged,
-          data: () => ({ status: 'completed', preSyncVersion: 4 }),
-        },
-        // Untagged — should be tagged with the OLD syncedVersion (4)
-        { ref: refFresh, data: () => ({ status: 'completed' }) },
-      ],
+      docs: [{ ref: refFresh, data: () => ({ status: 'completed' }) }],
     });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
@@ -1000,11 +995,15 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     });
 
     expect(outcome.taggedResponseCount).toBe(1);
-    // The stale-tagged doc must not appear in any batch.update call.
-    const taggedRefs = batchUpdate.mock.calls
-      .map((call: unknown[]) => call[0])
-      .filter((ref) => ref === refTagged || ref === refFresh);
-    expect(taggedRefs).toContain(refFresh);
-    expect(taggedRefs).not.toContain(refTagged);
+    // The query was called with the right where-clause: `<
+    // previousSyncedVersion` (4). Verifies the server-side filter
+    // shape, not just that the function returned the right count.
+    const { where } = await import('firebase/firestore');
+    expect(where).toHaveBeenCalledWith('preSyncVersion', '<', 4);
+    // The fresh untagged doc gets tagged.
+    const updatedRefs = batchUpdate.mock.calls.map(
+      (call: unknown[]) => call[0]
+    );
+    expect(updatedRefs).toContain(refFresh);
   });
 });

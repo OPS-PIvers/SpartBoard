@@ -1082,6 +1082,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             score: null,
             submittedAt: null,
             completedAttempts: 0,
+            // Initialize `preSyncVersion: 0` on every response so
+            // `syncAssignmentToLatest` can use a server-side
+            // `where('preSyncVersion', '<', previousSyncedVersion)`
+            // query to find responses that need tagging — Firestore's
+            // `<` operator skips docs missing the field, so without
+            // this initialization the optimization would silently drop
+            // the very rows that need pre-sync tags. Fresh responses
+            // stay at 0; the results UI renders the pre-sync chip
+            // only when the value is > 0.
+            preSyncVersion: 0,
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
             ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),

@@ -17,6 +17,7 @@ import {
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
+import { logError } from '@/utils/logError';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
@@ -320,6 +321,10 @@ export const DashboardView: React.FC = () => {
           setPendingAssignmentSetup(newAssignmentId);
         })
         .catch((err: unknown) => {
+          logError('DashboardView.runAssignmentImport', err, {
+            mode,
+            shareId,
+          });
           const msg =
             err instanceof Error
               ? err.message
@@ -399,6 +404,7 @@ export const DashboardView: React.FC = () => {
           runAssignmentImport(shareId, 'copy');
         })
         .catch((err: unknown) => {
+          logError('DashboardView.peekAndDispatchImport', err, { shareId });
           const msg =
             err instanceof Error
               ? err.message

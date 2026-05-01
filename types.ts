@@ -1738,6 +1738,29 @@ export interface QuizData {
   updatedAt: number;
 }
 
+/**
+ * Synchronized-quiz linkage on a library quiz. Present iff the quiz
+ * participates in a `/synced_quizzes/{groupId}` group shared with one
+ * or more PLC peers. Edits by any participant publish to the canonical
+ * doc and bump its `version`; library cards show a "Sync available"
+ * pill when `lastSyncedVersion < group.version`.
+ *
+ * Modeled as a single optional sub-object (rather than two parallel
+ * optional fields) so the type forbids partial states like "synced but
+ * no version" or "version but no group" — both fields are required or
+ * neither is present.
+ */
+export interface QuizMetadataSyncLinkage {
+  /** Doc id under `/synced_quizzes/{groupId}`. */
+  groupId: string;
+  /**
+   * The `version` of the canonical group doc this local Drive replica
+   * was last reconciled with. Used as a stale-detector against the
+   * canonical's live `version`.
+   */
+  lastSyncedVersion: number;
+}
+
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
 export interface QuizMetadata {
   id: string;
@@ -1751,20 +1774,8 @@ export interface QuizMetadata {
    * Refers to a folder id in `/users/{userId}/quiz_folders/{folderId}`.
    */
   folderId?: string | null;
-  /**
-   * If present, this quiz is part of a synchronized group at
-   * `/synced_quizzes/{syncGroupId}` shared with one or more PLC peers.
-   * Edits made by any participant publish to the canonical doc and bump its
-   * `version`. Library cards show a "Sync available" pill when
-   * `lastSyncedVersion < group.version`.
-   */
-  syncGroupId?: string;
-  /**
-   * The `version` of `/synced_quizzes/{syncGroupId}` that this local Drive
-   * file was last reconciled with. Used as a stale-detector against the
-   * canonical doc's live `version`. Always set together with `syncGroupId`.
-   */
-  lastSyncedVersion?: number;
+  /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
+  sync?: QuizMetadataSyncLinkage;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -2221,27 +2232,30 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    */
   exportedResponseIds?: string[];
   /**
-   * If present, this assignment was created from a synced library quiz at
-   * `/synced_quizzes/{syncGroupId}`. The session's `publicQuestions[]` was
-   * frozen at session-create time from the group's content at version
-   * `syncedVersion`. When the canonical group's `version > syncedVersion`,
-   * the assignment card surfaces a "Sync" button that rebuilds the session's
-   * questions from the latest canonical content.
+   * Synchronized-quiz linkage. Present iff the assignment was created
+   * from a synced library quiz; mirrored from the source quiz's
+   * linkage at assignment-create time rather than re-derived on read,
+   * so a later quiz detach can't silently strip the linkage from
+   * in-flight assignments.
    *
-   * Mirrored from the source quiz's `syncGroupId` at assignment-create time
-   * rather than re-derived on read so a later quiz un-sync (detach) can't
-   * silently strip the linkage from in-flight assignments.
+   * `groupId` points at `/synced_quizzes/{groupId}`. `syncedVersion` is
+   * the canonical version reflected in the assignment's session
+   * `publicQuestions[]`; `group.version > syncedVersion` flips the
+   * assignment card's "Sync" affordance.
+   *
+   * Modeled as a single optional sub-object so partial states ("group
+   * but no version", or vice versa) can't typecheck.
    */
-  syncGroupId?: string;
-  /**
-   * The synced-group `version` reflected in this assignment's session
-   * `publicQuestions[]`. Used to render the per-assignment sync badge:
-   * `group.version > syncedVersion` → stale.
-   */
-  syncedVersion?: number;
+  sync?: QuizAssignmentSyncLinkage;
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+}
+
+/** See `QuizAssignment.sync`. */
+export interface QuizAssignmentSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
 }
 
 /**

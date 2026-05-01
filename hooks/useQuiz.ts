@@ -20,7 +20,7 @@ import {
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from '../context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
-import { QuizData, QuizMetadata } from '../types';
+import { QuizData, QuizMetadata, type QuizMetadataSyncLinkage } from '../types';
 import { QuizDriveService } from '../utils/quizDriveService';
 import {
   MockQuizDriveService,
@@ -34,6 +34,60 @@ import {
 } from './useSyncedQuizGroups';
 
 const QUIZZES_COLLECTION = 'quizzes';
+
+/**
+ * Pre-sub-object shape that some Firestore docs may still carry.
+ * `migrateQuizMetadataShape` folds these flat fields into the canonical
+ * `sync` sub-object on read so consumers see one shape regardless of
+ * write date. Both fields are required-when-present in the legacy
+ * shape (we never wrote one without the other), so an only-one-set
+ * doc is treated as degraded and the linkage is dropped.
+ */
+type LegacyQuizMetadataShape = QuizMetadata & {
+  syncGroupId?: string;
+  lastSyncedVersion?: number;
+};
+
+/**
+ * Read-side mapper: Firestore docs written before the sync-linkage
+ * sub-object refactor stored two flat optional fields
+ * (`syncGroupId` + `lastSyncedVersion`) instead of the canonical
+ * `sync: { groupId, lastSyncedVersion }` object. Fold them here so the
+ * rest of the codebase only ever sees the new shape.
+ *
+ * Behavior:
+ * - If `sync` is already populated, pass through unchanged.
+ * - If both legacy fields are populated, build `sync` from them and
+ *   strip the legacy fields.
+ * - If only one legacy field is populated (or `sync` exists but is
+ *   malformed), treat as degraded and drop the linkage entirely —
+ *   matches the non-synced read path so consumers don't have to
+ *   reason about partial state.
+ */
+function migrateQuizMetadataShape(raw: LegacyQuizMetadataShape): QuizMetadata {
+  const { syncGroupId, lastSyncedVersion, ...rest } = raw;
+  if (rest.sync) {
+    if (
+      typeof rest.sync.groupId === 'string' &&
+      rest.sync.groupId.length > 0 &&
+      typeof rest.sync.lastSyncedVersion === 'number'
+    ) {
+      return rest;
+    }
+    // Malformed sub-object — drop and treat as unsynced.
+    const { sync: _sync, ...cleaned } = rest;
+    void _sync;
+    return cleaned;
+  }
+  if (
+    typeof syncGroupId === 'string' &&
+    syncGroupId.length > 0 &&
+    typeof lastSyncedVersion === 'number'
+  ) {
+    return { ...rest, sync: { groupId: syncGroupId, lastSyncedVersion } };
+  }
+  return rest;
+}
 
 export interface UseQuizResult {
   quizzes: QuizMetadata[];
@@ -75,18 +129,18 @@ export interface UseQuizResult {
    * Pull the latest canonical content for a synced quiz into the local
    * Drive file. Used by the "Sync available" pill on the library card.
    *
-   * Reads `/synced_quizzes/{quizMeta.syncGroupId}` for the latest
+   * Reads `/synced_quizzes/{quizMeta.sync.groupId}` for the latest
    * questions/title, overwrites the local Drive replica, and bumps
-   * `lastSyncedVersion` on the local metadata. No-ops on quizzes without a
-   * `syncGroupId` (returns the same metadata).
+   * `sync.lastSyncedVersion` on the local metadata. No-ops on quizzes
+   * without a `sync` linkage (returns the same metadata).
    */
   pullSyncedQuiz: (quizMeta: QuizMetadata) => Promise<QuizMetadata>;
   /**
    * Detach the local quiz from its synced group ("Stop syncing"). Calls
    * `leaveSyncedQuizGroup` so the user is removed from the canonical
-   * doc's participants list, then clears `syncGroupId` /
-   * `lastSyncedVersion` on the local metadata. The local Drive file
-   * stays — it becomes a standalone copy.
+   * doc's participants list, then clears the `sync` sub-object on the
+   * local metadata. The local Drive file stays — it becomes a
+   * standalone copy.
    *
    * Other peers in the group remain connected; an empty group is
    * intentionally left in place so future paste of the same share URL
@@ -101,7 +155,7 @@ export interface UseQuizResult {
    */
   attachSyncLinkage: (
     quizId: string,
-    linkage: { syncGroupId: string; lastSyncedVersion: number }
+    linkage: QuizMetadataSyncLinkage
   ) => Promise<void>;
   /** Is a Drive service available? */
   isDriveConnected: boolean;
@@ -132,8 +186,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list: QuizMetadata[] = snap.docs.map(
-          (d) => d.data() as QuizMetadata
+        // Pipe every doc through the legacy-shape mapper so consumers
+        // see the canonical `sync` sub-object regardless of when the
+        // doc was written.
+        const list: QuizMetadata[] = snap.docs.map((d) =>
+          migrateQuizMetadataShape(d.data() as LegacyQuizMetadataShape)
         );
         setQuizzes(list);
         setLoading(false);
@@ -179,10 +236,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quiz.id);
       const existingMetaSnap = await getDoc(metaRef);
       const existingMeta = existingMetaSnap.exists()
-        ? (existingMetaSnap.data() as QuizMetadata)
+        ? migrateQuizMetadataShape(
+            existingMetaSnap.data() as LegacyQuizMetadataShape
+          )
         : null;
-      const syncGroupId = existingMeta?.syncGroupId;
-      const expectedSyncVersion = existingMeta?.lastSyncedVersion;
+      const existingSync = existingMeta?.sync;
 
       // Order matters: publish to the canonical synced doc BEFORE writing
       // the Drive replica. If publish throws (peer beat us, network blip),
@@ -193,11 +251,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       // a successful publish leaves the canonical ahead of the local
       // replica, and the next "Sync available" pull reconciles it.
       let nextSyncedVersion: number | undefined = undefined;
-      if (syncGroupId && typeof expectedSyncVersion === 'number') {
-        const result = await publishSyncedQuiz(syncGroupId, {
+      if (existingSync) {
+        const result = await publishSyncedQuiz(existingSync.groupId, {
           title: updatedQuiz.title,
           questions: updatedQuiz.questions,
-          expectedVersion: expectedSyncVersion,
+          expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
         });
         nextSyncedVersion = result.version;
@@ -220,10 +278,13 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(existingMeta?.folderId !== undefined
           ? { folderId: existingMeta.folderId }
           : {}),
-        ...(syncGroupId
+        ...(existingSync
           ? {
-              syncGroupId,
-              lastSyncedVersion: nextSyncedVersion ?? expectedSyncVersion,
+              sync: {
+                groupId: existingSync.groupId,
+                lastSyncedVersion:
+                  nextSyncedVersion ?? existingSync.lastSyncedVersion,
+              },
             }
           : {}),
       };
@@ -238,12 +299,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   const pullSyncedQuiz = useCallback(
     async (quizMeta: QuizMetadata): Promise<QuizMetadata> => {
       if (!userId) throw new Error('Not authenticated');
-      if (!quizMeta.syncGroupId) {
+      if (!quizMeta.sync) {
         // No-op for unsynced quizzes.
         return { ...quizMeta };
       }
       const drive = getDriveService();
-      const canonical = await pullSyncedQuizContent(quizMeta.syncGroupId);
+      const canonical = await pullSyncedQuizContent(quizMeta.sync.groupId);
 
       // Overwrite the local Drive replica with the canonical content. We
       // keep the local quiz `id` + `createdAt` so the library entry's
@@ -269,8 +330,10 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(quizMeta.folderId !== undefined
           ? { folderId: quizMeta.folderId }
           : {}),
-        syncGroupId: quizMeta.syncGroupId,
-        lastSyncedVersion: canonical.version,
+        sync: {
+          groupId: quizMeta.sync.groupId,
+          lastSyncedVersion: canonical.version,
+        },
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
@@ -282,10 +345,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   );
 
   const attachSyncLinkage = useCallback(
-    async (
-      quizId: string,
-      linkage: { syncGroupId: string; lastSyncedVersion: number }
-    ): Promise<void> => {
+    async (quizId: string, linkage: QuizMetadataSyncLinkage): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quizId);
       const snap = await getDoc(metaRef);
@@ -294,10 +354,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           `Cannot attach sync linkage: quiz ${quizId} not in library.`
         );
       }
-      const existing = snap.data() as QuizMetadata;
+      const existing = migrateQuizMetadataShape(
+        snap.data() as LegacyQuizMetadataShape
+      );
       if (
-        existing.syncGroupId === linkage.syncGroupId &&
-        existing.lastSyncedVersion === linkage.lastSyncedVersion
+        existing.sync?.groupId === linkage.groupId &&
+        existing.sync?.lastSyncedVersion === linkage.lastSyncedVersion
       ) {
         return;
       }
@@ -305,8 +367,10 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         metaRef,
         {
           ...existing,
-          syncGroupId: linkage.syncGroupId,
-          lastSyncedVersion: linkage.lastSyncedVersion,
+          sync: {
+            groupId: linkage.groupId,
+            lastSyncedVersion: linkage.lastSyncedVersion,
+          },
         } satisfies QuizMetadata,
         { merge: false }
       );
@@ -317,7 +381,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   const detachSyncedQuiz = useCallback(
     async (quizMeta: QuizMetadata): Promise<QuizMetadata> => {
       if (!userId) throw new Error('Not authenticated');
-      if (!quizMeta.syncGroupId) {
+      if (!quizMeta.sync) {
         return { ...quizMeta };
       }
       // Remove the caller from the canonical doc's participant list
@@ -330,7 +394,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       // occupied. Surfacing the failure lets the caller (Widget.tsx
       // `onDetachSyncedQuiz`) toast a real error and lets the user
       // retry.
-      await callLeaveSyncedQuizGroup(quizMeta.syncGroupId);
+      await callLeaveSyncedQuizGroup(quizMeta.sync.groupId);
       const metadata: QuizMetadata = {
         id: quizMeta.id,
         title: quizMeta.title,
@@ -341,8 +405,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(quizMeta.folderId !== undefined
           ? { folderId: quizMeta.folderId }
           : {}),
-        // Intentionally omit syncGroupId / lastSyncedVersion so the
-        // metadata reverts to the unsynced shape.
+        // Intentionally omit `sync` so the metadata reverts to the
+        // unsynced shape.
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
