@@ -454,19 +454,17 @@ export function useStudentAssignments({
       // Field-naming asymmetry: Quiz / Video Activity / Mini App store the
       // mode under `mode`. Guided Learning uses `assignmentMode` because GL's
       // session already has a `mode` field for play-mode (structured / guided
-      // / explore). Both fields are checked so GL view-only sessions are
-      // also filtered.
+      // / explore). Filtering by `plan.kind` keeps each widget's check
+      // narrow — using a single check that ORs both fields would, in theory,
+      // drop a GL doc whose play-mode happened to spell 'view-only'.
+      const modeField =
+        plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
       buckets.set(
         key,
         snap.docs
           .filter((d) => {
-            const data = d.data() as {
-              mode?: unknown;
-              assignmentMode?: unknown;
-            };
-            return (
-              data.mode !== 'view-only' && data.assignmentMode !== 'view-only'
-            );
+            const data = d.data() as Record<string, unknown>;
+            return data[modeField] !== 'view-only';
           })
           .map((d) => docToSummary(plan.kind, plan.channel, config, d))
       );
