@@ -356,6 +356,37 @@ export const DashboardView: React.FC = () => {
     },
     []
   );
+
+  // Re-clamp panOffset when the viewport shrinks — without this, an offset
+  // that was inside the bound at the previous viewport size would leave the
+  // widget surface dragged off-center after a window resize. Render-only
+  // clamping doesn't catch this because no React state changes on resize.
+  // rAF-throttled to match the resize listener pattern at lines ~414-427.
+  React.useEffect(() => {
+    let rafId: number | null = null;
+    const onResize = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const z = zoomRef.current;
+        setPanOffset((prev) => {
+          if (z <= 1) {
+            return prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 };
+          }
+          const maxX = ((z - 1) * window.innerWidth) / 2;
+          const maxY = ((z - 1) * window.innerHeight) / 2;
+          const cx = Math.min(maxX, Math.max(-maxX, prev.x));
+          const cy = Math.min(maxY, Math.max(-maxY, prev.y));
+          return cx === prev.x && cy === prev.y ? prev : { x: cx, y: cy };
+        });
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
   const { uploadAndRegisterPdf } = useStorage();
 
   const [isCheatSheetOpen, setIsCheatSheetOpen] = React.useState(false);

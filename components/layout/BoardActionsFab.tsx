@@ -95,6 +95,13 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
     if (e.key === 'Escape') {
       e.preventDefault();
       closeSlider();
+      return;
+    }
+    if (e.key === 'Tab') {
+      // Tab takes focus out of the popup — close it so the open state stays
+      // consistent with where focus actually is (mirrors BoardNavFab's menu).
+      // Don't return focus to the trigger; let Tab proceed naturally.
+      closeSlider(false);
     }
   };
 

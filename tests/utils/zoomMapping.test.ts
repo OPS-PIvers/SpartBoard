@@ -71,5 +71,13 @@ describe('zoomMapping', () => {
     it('clamps values above the maximum', () => {
       expect(clampZoom(10)).toBe(ZOOM_MAX);
     });
+
+    it('rounds to two decimals so 0.1 wheel steps do not drift', () => {
+      // Float drift case: 0.1 + 0.1 + ... + 0.1 (ten times) === 0.9999999999999999
+      let zoom = 0;
+      for (let i = 0; i < 10; i++) zoom += 0.1;
+      expect(zoom).not.toBe(1);
+      expect(clampZoom(zoom)).toBe(1);
+    });
   });
 });

@@ -29,5 +29,11 @@ export const zoomToSlider = (zoom: number): number => {
         ((z - ZOOM_DEFAULT) / (ZOOM_MAX - ZOOM_DEFAULT)) * SLIDER_MID;
 };
 
-export const clampZoom = (zoom: number): number =>
-  Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+// Round to 2 decimals so wheel-zoom increments (0.1 step) don't accumulate
+// float drift like 0.9999999999999999 — that would make strict equality
+// against ZOOM_DEFAULT (`zoom !== 1`) misfire and leave the inline reset FAB
+// visible at what visually reads as "100%".
+export const clampZoom = (zoom: number): number => {
+  const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+  return Math.round(clamped * 100) / 100;
+};
