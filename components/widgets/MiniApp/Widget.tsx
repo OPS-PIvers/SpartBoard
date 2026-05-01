@@ -185,7 +185,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               </div>
             </>
           ) : (
-            /* Pre-creation: name input */
+            /* Pre-creation */
             <>
               <div className="text-center">
                 <p className="font-bold text-brand-blue-dark text-base truncate px-2">
@@ -198,39 +198,51 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   {isViewOnly ? 'Create Share Link' : 'Create Assignment Link'}
                 </p>
               </div>
-              <p className="text-slate-600 text-sm text-center">
-                {isViewOnly
-                  ? 'Name this share, then send the generated link to students. No submissions are collected — view counts appear in the Shared archive.'
-                  : 'Name this assignment, then share the generated link with students.'}
-              </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <label
-                  htmlFor="miniapp-assignment-name"
-                  className="block text-sm font-bold text-slate-700 mb-1.5"
-                >
-                  {isViewOnly ? 'Share Name' : 'Assignment Name'}
-                </label>
-                <input
-                  id="miniapp-assignment-name"
-                  type="text"
-                  value={assignmentName}
-                  onChange={(e) => onNameChange(e.target.value)}
-                  placeholder="1st period"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
-                />
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <AssignClassPicker
-                  rosters={rosters}
-                  value={pickerValue}
-                  onChange={onPickerChange}
-                />
-                <p className="text-[11px] text-slate-500 mt-2">
-                  {isViewOnly
-                    ? 'Targeting is optional for view-only shares — used only to organize the Shared archive.'
-                    : 'Enrolled students will see this in their assignments list. Leave unselected to share the link directly.'}
+              {isViewOnly ? (
+                /* View-only: zero form fields. Class targeting has no effect
+                   (rules don't gate views by class; sessions are filtered out
+                   of /my-assignments anyway). The auto-generated share name
+                   is used behind the scenes for the Shared archive — teachers
+                   can rename later from the archive's overflow menu. */
+                <p className="text-slate-600 text-sm text-center">
+                  Anyone with the link can view this app. No submissions are
+                  collected — view counts appear in the Shared archive.
                 </p>
-              </div>
+              ) : (
+                <>
+                  <p className="text-slate-600 text-sm text-center">
+                    Name this assignment, then share the generated link with
+                    students.
+                  </p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <label
+                      htmlFor="miniapp-assignment-name"
+                      className="block text-sm font-bold text-slate-700 mb-1.5"
+                    >
+                      Assignment Name
+                    </label>
+                    <input
+                      id="miniapp-assignment-name"
+                      type="text"
+                      value={assignmentName}
+                      onChange={(e) => onNameChange(e.target.value)}
+                      placeholder="1st period"
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                    />
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <AssignClassPicker
+                      rosters={rosters}
+                      value={pickerValue}
+                      onChange={onPickerChange}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Enrolled students will see this in their assignments list.
+                      Leave unselected to share the link directly.
+                    </p>
+                  </div>
+                </>
+              )}
               {error && (
                 <p className="text-sm text-brand-red-primary text-center font-medium">
                   {error}
@@ -238,7 +250,10 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               )}
               <button
                 onClick={onConfirm}
-                disabled={isCreating || assignmentName.trim().length === 0}
+                disabled={
+                  isCreating ||
+                  (!isViewOnly && assignmentName.trim().length === 0)
+                }
                 className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
               >
                 {isCreating ? (
@@ -825,43 +840,49 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           <div className="w-full h-full flex flex-col relative overflow-hidden group/miniapp">
             {!isStudentView && (
               <>
-                {/* Left Actions: Assign controls */}
-                <div className="absolute top-2 left-2 z-10 flex items-center gap-2 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
-                  <button
-                    onClick={() => handleOpenAssign(activeApp)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                    }}
-                    title="Assign (copy student link)"
-                  >
-                    <Link2
+                {/* Left Actions: Assign controls. Hidden in view-only mode —
+                    "Assign" and "Assignments" both refer to submission-tracking
+                    flows that don't apply when the widget is configured as
+                    view-only by the admin. Teachers create shares from the
+                    library card's Share button instead. */}
+                {assignmentMode !== 'view-only' && (
+                  <div className="absolute top-2 left-2 z-10 flex items-center gap-2 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
+                    <button
+                      onClick={() => handleOpenAssign(activeApp)}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm"
                       style={{
-                        width: 'min(12px, 3cqmin)',
-                        height: 'min(12px, 3cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(10px, 2.5cqmin)',
                       }}
-                    />
-                    <span className="hidden sm:inline">Assign</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenAssignments(activeApp)}
-                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm border border-slate-200/50"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                    }}
-                    title="View assignments"
-                  >
-                    <BarChart3
+                      title="Assign (copy student link)"
+                    >
+                      <Link2
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      <span className="hidden sm:inline">Assign</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenAssignments(activeApp)}
+                      className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm border border-slate-200/50"
                       style={{
-                        width: 'min(12px, 3cqmin)',
-                        height: 'min(12px, 3cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(10px, 2.5cqmin)',
                       }}
-                    />
-                    <span className="hidden sm:inline">Assignments</span>
-                  </button>
-                </div>
+                      title="View assignments"
+                    >
+                      <BarChart3
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      <span className="hidden sm:inline">Assignments</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Right Actions: App Controls */}
                 <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">

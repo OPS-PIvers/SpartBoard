@@ -15,6 +15,8 @@ export { LibraryGridLockContext } from './LibraryGridLockContext';
 export { useLibraryView } from './useLibraryView';
 export { useSortableReorder } from './useSortableReorder';
 export { AssignModal } from './AssignModal';
+export { ViewOnlyShareModal } from './ViewOnlyShareModal';
+export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { PeriodSelector } from './PeriodSelector';

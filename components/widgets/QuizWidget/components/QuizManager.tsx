@@ -71,6 +71,7 @@ import {
   LibraryGrid,
   LibraryItemCard,
   AssignModal,
+  ViewOnlyShareModal,
   CollapsibleSection,
   AssignmentArchiveCard,
   FolderSidebar,
@@ -247,6 +248,16 @@ interface QuizManagerProps {
     /** Max completed submissions per student; null = unlimited. */
     attemptLimit: number | null
   ) => void;
+  /**
+   * View-only Share callback — invoked when the org-wide assignment mode
+   * for Quiz is `'view-only'` and the teacher clicks the Share button.
+   * Bypasses the AssignModal entirely (no mode picker, no PLC, no
+   * settings, no class targeting — none of which apply to view-only
+   * shares). Should mint a session/assignment with view-only mode and
+   * return the student-facing URL for the modal to display. Required
+   * when `assignmentMode` is `'view-only'`; otherwise unused.
+   */
+  onCreateViewOnlyShare?: (quiz: QuizMetadata) => Promise<string>;
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
   /**
@@ -392,6 +403,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onLibraryViewModeChange,
   defaultTeacherName,
   assignmentMode = 'submissions',
+  onCreateViewOnlyShare,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -403,6 +415,54 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
   const [assignTarget, setAssignTarget] = useState<QuizMetadata | null>(null);
+
+  // ─── View-only Share modal state ──────────────────────────────────────────
+  // Bypasses the AssignModal entirely — class targeting, PLC, mode picker,
+  // and per-assignment settings are all meaningless for view-only shares.
+  const [viewOnlyShareTarget, setViewOnlyShareTarget] =
+    useState<QuizMetadata | null>(null);
+  const [viewOnlyShareLink, setViewOnlyShareLink] = useState<string | null>(
+    null
+  );
+  const [viewOnlyShareError, setViewOnlyShareError] = useState<string | null>(
+    null
+  );
+  const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
+
+  const openShareOrAssign = useCallback(
+    (quiz: QuizMetadata) => {
+      if (isViewOnly) {
+        setViewOnlyShareTarget(quiz);
+        setViewOnlyShareLink(null);
+        setViewOnlyShareError(null);
+      } else {
+        setAssignTarget(quiz);
+      }
+    },
+    [isViewOnly]
+  );
+
+  const handleConfirmViewOnlyShare = useCallback(async () => {
+    if (!viewOnlyShareTarget || !onCreateViewOnlyShare) return;
+    setIsCreatingViewOnlyShare(true);
+    setViewOnlyShareError(null);
+    try {
+      const url = await onCreateViewOnlyShare(viewOnlyShareTarget);
+      setViewOnlyShareLink(url);
+    } catch (err) {
+      setViewOnlyShareError(
+        err instanceof Error ? err.message : 'Failed to create share link.'
+      );
+    } finally {
+      setIsCreatingViewOnlyShare(false);
+    }
+  }, [viewOnlyShareTarget, onCreateViewOnlyShare]);
+
+  const closeViewOnlyShareModal = useCallback(() => {
+    setViewOnlyShareTarget(null);
+    setViewOnlyShareLink(null);
+    setViewOnlyShareError(null);
+  }, []);
   const [selectedMode, setSelectedMode] = useState<QuizSessionMode | null>(
     null
   );
@@ -1050,7 +1110,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         primaryAction={{
           label: primaryActionLabel,
           icon: Play,
-          onClick: () => setAssignTarget(quiz),
+          onClick: () => openShareOrAssign(quiz),
         }}
         secondaryActions={buildQuizSecondaryActions(quiz)}
         viewMode="list"
@@ -1082,7 +1142,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         <LibraryTabContent
           error={error}
           orderedItems={reorder.orderedItems}
-          onAssignClick={(q) => setAssignTarget(q)}
+          onAssignClick={(q) => openShareOrAssign(q)}
           buildSecondaryActions={buildQuizSecondaryActions}
           onEdit={onEdit}
           onImport={onImport}
@@ -1164,7 +1224,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {assignTarget && (
+      {assignTarget && !isViewOnly && (
         <AssignModal<QuizAssignOptions>
           isOpen={!!assignTarget}
           onClose={() => {
@@ -1200,6 +1260,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           confirmLabel="Assign"
           confirmDisabled={!selectedMode}
           confirmDisabledReason="Choose a session mode first."
+        />
+      )}
+
+      {viewOnlyShareTarget && (
+        <ViewOnlyShareModal
+          itemTitle={viewOnlyShareTarget.title}
+          isCreating={isCreatingViewOnlyShare}
+          createdLink={viewOnlyShareLink}
+          error={viewOnlyShareError}
+          onConfirm={() => void handleConfirmViewOnlyShare()}
+          onClose={closeViewOnlyShareModal}
         />
       )}
     </>

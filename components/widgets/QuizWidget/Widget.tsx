@@ -1067,6 +1067,44 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             addToast(`Share link: ${url}`, 'info');
           }
         }}
+        onCreateViewOnlyShare={async (meta) => {
+          // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
+          // entirely. Creates a minimal assignment with view-only mode so
+          // students can browse questions but can't submit; returns the
+          // student-facing URL for ViewOnlyShareModal to display.
+          const data = await loadQuiz(meta);
+          if (!data) {
+            throw new Error('Failed to load quiz data');
+          }
+          const { code } = await createAssignment(
+            {
+              id: meta.id,
+              title: meta.title,
+              driveFileId: meta.driveFileId,
+              questions: data.questions,
+            },
+            {
+              sessionMode: 'teacher',
+              sessionOptions: {
+                tabWarningsEnabled: false,
+                showResultToStudent: false,
+                showCorrectAnswerToStudent: false,
+                showCorrectOnBoard: false,
+                speedBonusEnabled: false,
+                streakBonusEnabled: false,
+                showPodiumBetweenQuestions: false,
+                soundEffectsEnabled: false,
+              },
+              attemptLimit: null,
+            },
+            'paused',
+            [],
+            [],
+            {},
+            'view-only'
+          );
+          return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
+        }}
         onDelete={async (meta) => {
           // Block deletion when active/paused assignments reference the quiz,
           // since the monitor + results views need the answer key from the

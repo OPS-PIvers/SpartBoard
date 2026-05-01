@@ -39,6 +39,7 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
+import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
@@ -268,9 +269,23 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const [tab, setTab] = useState<LibraryTab>('library');
 
-  // Assign modal state
+  // Assign modal state (submissions mode)
   const [assignTarget, setAssignTarget] =
     useState<VideoActivityMetadata | null>(null);
+
+  // View-only Share modal state — bypasses the AssignModal entirely
+  // because class targeting has no functional effect on view-only sessions
+  // (rules don't gate views by class; sessions are filtered out of
+  // /my-assignments anyway).
+  const [viewOnlyShareTarget, setViewOnlyShareTarget] =
+    useState<VideoActivityMetadata | null>(null);
+  const [viewOnlyShareLink, setViewOnlyShareLink] = useState<string | null>(
+    null
+  );
+  const [viewOnlyShareError, setViewOnlyShareError] = useState<string | null>(
+    null
+  );
+  const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
   const [assignOptions, setAssignOptions] =
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignmentName, setAssignmentName] = useState<string>('');
@@ -523,6 +538,41 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     }
   };
 
+  // View-only share confirm: mints the session via the same `onAssign`
+  // callback the parent already wires for submissions, with default settings
+  // and an auto-generated share name. The session/assignment docs carry
+  // the org-wide view-only mode (the parent reads `assignmentMode` via
+  // useAuth), so the rules block submissions and the URL serves as a
+  // read-only share link.
+  const handleConfirmViewOnlyShare = async (): Promise<void> => {
+    if (!viewOnlyShareTarget) return;
+    setIsCreatingViewOnlyShare(true);
+    setViewOnlyShareError(null);
+    try {
+      const sessionId = await onAssign(
+        viewOnlyShareTarget,
+        defaultSessionSettings,
+        buildDefaultAssignmentName(viewOnlyShareTarget.title),
+        []
+      );
+      setViewOnlyShareLink(
+        `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`
+      );
+    } catch (err) {
+      setViewOnlyShareError(
+        err instanceof Error ? err.message : 'Failed to create share link.'
+      );
+    } finally {
+      setIsCreatingViewOnlyShare(false);
+    }
+  };
+
+  const closeViewOnlyShareModal = () => {
+    setViewOnlyShareTarget(null);
+    setViewOnlyShareLink(null);
+    setViewOnlyShareError(null);
+  };
+
   /* ─── Loading state ───────────────────────────────────────────────────── */
 
   if (loading) {
@@ -652,7 +702,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               primaryAction={{
                 label: primaryActionLabel,
                 icon: Link2,
-                onClick: () => setAssignTarget(activity),
+                onClick: () => {
+                  if (isViewOnly) {
+                    // View-only: skip the AssignModal/picker flow entirely.
+                    setViewOnlyShareTarget(activity);
+                    setViewOnlyShareLink(null);
+                    setViewOnlyShareError(null);
+                  } else {
+                    setAssignTarget(activity);
+                  }
+                },
               }}
               secondaryActions={secondaryActions}
               onClick={() => onEdit(activity)}
@@ -1008,7 +1067,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         />
       )}
 
-      {assignTarget && (
+      {assignTarget && !isViewOnly && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
           onClose={() => setAssignTarget(null)}
@@ -1070,6 +1129,17 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               </div>
             </div>
           }
+        />
+      )}
+
+      {viewOnlyShareTarget && (
+        <ViewOnlyShareModal
+          itemTitle={viewOnlyShareTarget.title}
+          isCreating={isCreatingViewOnlyShare}
+          createdLink={viewOnlyShareLink}
+          error={viewOnlyShareError}
+          onConfirm={() => void handleConfirmViewOnlyShare()}
+          onClose={closeViewOnlyShareModal}
         />
       )}
     </>
