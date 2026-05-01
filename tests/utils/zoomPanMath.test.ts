@@ -111,10 +111,14 @@ describe('zoomPanMath', () => {
       });
     });
 
-    it('snaps to (0, 0) at zoom = 1 regardless of input', () => {
-      expect(clampPan({ x: 200, y: 200 }, 1, 1000, 600)).toEqual({
-        x: 0,
-        y: 0,
+    it('does NOT snap to center at zoom = 1 — preserves cursor anchor across the boundary', () => {
+      // The FAB-reset-to-center UX is handled at the explicit-reset call
+      // sites (BoardActionsFab dispatches a 'camera-reset' event). clampPan
+      // itself stays pure so a ctrl+wheel zoom landing exactly on z=1
+      // doesn't lose its cursor anchor.
+      expect(clampPan({ x: 200, y: 100 }, 1, 1000, 600)).toEqual({
+        x: 200,
+        y: 100,
       });
     });
   });

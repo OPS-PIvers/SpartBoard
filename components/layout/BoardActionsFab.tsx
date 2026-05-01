@@ -83,12 +83,23 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
     setZoom(sliderToZoom(rawValue));
   };
 
+  // Explicit "go back to canonical view" actions: also reset pan to center.
+  // Listened for in DashboardView, which owns panOffset state. Wheel-zoom
+  // landing on z=1 deliberately does NOT fire this event so the cursor
+  // anchor stays intact when the user zooms back through 100%.
+  const requestCameraReset = () => {
+    window.dispatchEvent(new CustomEvent('camera-reset'));
+  };
+
   const handleReset = () => {
     setZoom(ZOOM_DEFAULT);
+    requestCameraReset();
   };
 
   const handlePresetClick = (value: number) => {
-    setZoom(clampZoom(value));
+    const next = clampZoom(value);
+    setZoom(next);
+    if (next === ZOOM_DEFAULT) requestCameraReset();
   };
 
   const handlePopupKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
