@@ -1301,8 +1301,11 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classIds', []);
         }
         // Defense in depth — block response writes on view-only sessions.
+        // GuidedLearningSession.mode already names the play-mode
+        // (structured/guided/explore), so the assignment mode ships under
+        // `assignmentMode` here. The other three widgets store it as `mode`.
         function glSessionMode() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('mode', 'submissions');
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions');
         }
 
         // Teacher can read all responses; students can only read their own

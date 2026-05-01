@@ -18,7 +18,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   Loader2,
@@ -183,7 +191,24 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   // Tracks whether the student has submitted anything (via app or "I'm Done")
   // in this session. Prevents the Done button from reappearing after auto-clear.
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const submissionsEnabled = session.submissionsEnabled === true;
+  const isViewOnly = session.mode === 'view-only';
+  // View-only sessions never accept submissions, regardless of the
+  // submissionsEnabled flag stored on the session doc.
+  const submissionsEnabled = !isViewOnly && session.submissionsEnabled === true;
+
+  // View tracking — log each pageview of a view-only Share link as an
+  // immutable doc in the session's `views/` subcollection. The teacher's
+  // Shared archive aggregates the count via getCountFromServer(). Best-effort
+  // and fire-and-forget — failures are silent.
+  useEffect(() => {
+    if (!isViewOnly) return;
+    if (!auth.currentUser) return;
+    void addDoc(collection(db, SESSIONS_COLLECTION, session.id, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      console.warn('[MiniAppStudentApp] View log failed:', err);
+    });
+  }, [session.id, isViewOnly]);
 
   // On mount, check Firestore for an existing submission so `hasSubmitted`
   // survives page refreshes. If the doc already exists we hide the "I'm Done"
@@ -373,8 +398,9 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
       <SubmissionStatusOverlay status={status} onRetry={submit} />
       {/* "I'm Done" button — allows students to mark the assignment complete
           regardless of whether the mini-app itself has a submit button.
-          Hidden once the student has submitted (via app or this button). */}
-      {!hasSubmitted && (
+          Hidden for view-only shares (no submissions tracked) and once the
+          student has submitted (via app or this button). */}
+      {!isViewOnly && !hasSubmitted && (
         <button
           type="button"
           onClick={() => void markDone()}

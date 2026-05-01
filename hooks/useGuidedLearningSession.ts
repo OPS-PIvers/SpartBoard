@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import {
+  AssignmentMode,
   GuidedLearningSet,
   GuidedLearningSession,
   GuidedLearningResponse,
@@ -159,7 +160,10 @@ export interface UseGuidedLearningSessionTeacherResult {
     set: GuidedLearningSet,
     classIds?: string[],
     periodNames?: string[],
-    rosterIds?: string[]
+    rosterIds?: string[],
+    /** Org-wide assignment mode frozen onto the session. Defaults to
+     *  `'submissions'`. */
+    assignmentMode?: AssignmentMode
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -181,7 +185,8 @@ export const useGuidedLearningSessionTeacher = (
       set: GuidedLearningSet,
       classIds: string[] = [],
       periodNames: string[] = [],
-      rosterIds: string[] = []
+      rosterIds: string[] = [],
+      assignmentMode: AssignmentMode = 'submissions'
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
@@ -203,6 +208,9 @@ export const useGuidedLearningSessionTeacher = (
         ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
         ...(periodNames.length > 0 ? { periodNames } : {}),
         ...(rosterIds.length > 0 ? { rosterIds } : {}),
+        // Frozen at creation. Stored under `assignmentMode` (not `mode`) so
+        // it doesn't collide with the GL play-mode field above.
+        assignmentMode,
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

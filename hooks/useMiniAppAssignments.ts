@@ -27,7 +27,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { MiniAppAssignment, MiniAppItem } from '@/types';
+import type { AssignmentMode, MiniAppAssignment, MiniAppItem } from '@/types';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
@@ -44,6 +44,9 @@ export interface CreateMiniAppAssignmentInput {
   /** Whether submissions are enabled for this assignment. Mirrors
    *  MiniAppSession.submissionsEnabled. */
   submissionsEnabled?: boolean;
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Mirrors MiniAppSession.mode. */
+  mode?: AssignmentMode;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -141,6 +144,7 @@ export const useMiniAppAssignments = (
         updatedAt: now,
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         submissionsEnabled: input.submissionsEnabled === true,
+        mode: input.mode ?? 'submissions',
       };
 
       await setDoc(

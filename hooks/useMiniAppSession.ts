@@ -21,7 +21,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { MiniAppItem, MiniAppSession } from '@/types';
+import { AssignmentMode, MiniAppItem, MiniAppSession } from '@/types';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -60,6 +60,9 @@ const normalizeSession = (
     ...(classIds.length > 0 ? { classIds } : {}),
     ...(rosterIds.length > 0 ? { rosterIds } : {}),
     ...(data.submissionsEnabled === true ? { submissionsEnabled: true } : {}),
+    ...(data.mode === 'view-only' || data.mode === 'submissions'
+      ? { mode: data.mode }
+      : {}),
   };
 };
 
@@ -77,6 +80,8 @@ export interface CreateMiniAppSessionOptions {
   /** Whether the runner should reveal the Submit button and persist
    *  submissions. Defaults to `false` (view-only). */
   submissionsEnabled?: boolean;
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting. */
+  mode?: AssignmentMode;
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -121,6 +126,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         (r): r is string => typeof r === 'string' && r.length > 0
       );
       const submissionsEnabled = options?.submissionsEnabled === true;
+      const mode: AssignmentMode = options?.mode ?? 'submissions';
 
       const session: MiniAppSession = {
         id: sessionId,
@@ -137,6 +143,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(cleanedClassIds.length > 0 ? { classIds: cleanedClassIds } : {}),
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
         submissionsEnabled,
+        mode,
       };
 
       await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);

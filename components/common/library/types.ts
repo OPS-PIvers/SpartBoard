@@ -127,6 +127,12 @@ export interface LibraryShellProps {
   onTabChange: (tab: LibraryTab) => void;
   /** Numeric badges on tabs. `undefined` hides the badge for that tab. */
   counts?: LibraryShellTabCounts;
+  /**
+   * Optional per-tab label overrides. Useful for callers that need to relabel
+   * a tab in a context-specific way (e.g. "Shared" instead of "In Progress"
+   * for view-only assignment modes). Missing keys fall back to the default.
+   */
+  tabLabels?: Partial<Record<LibraryTab, string>>;
   /** Header right-side primary CTA, e.g. "+ New Quiz". */
   primaryAction?: LibraryPrimaryAction;
   /** Header right-side secondary buttons, e.g. Import, Export. */

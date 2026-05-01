@@ -1383,6 +1383,13 @@ export interface MiniAppSession {
    * for legacy sessions (treated as `false` — view-only — by the runner).
    */
   submissionsEnabled?: boolean;
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full assignment experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   */
+  mode?: AssignmentMode;
 }
 
 /**
@@ -2963,6 +2970,18 @@ export interface GuidedLearningSession {
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full assignment experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   *
+   * NOTE: The GL session's own `mode` field is already in use (play-mode
+   * — structured / guided / explore), so the assignment mode lives under
+   * `assignmentMode` here. The other three widgets (Quiz, Video Activity,
+   * Mini App) store it as `mode`.
+   */
+  assignmentMode?: AssignmentMode;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -4231,6 +4250,9 @@ export interface MiniAppAssignment {
   /** Mirrors `MiniAppSession.submissionsEnabled`. When true, the runner
    * reveals the Submit button and persists student submissions. */
   submissionsEnabled?: boolean;
+  /** Mirrors `MiniAppSession.mode`. Frozen at creation from the admin
+   *  `assignment-modes` setting. Absent on pre-feature assignments. */
+  mode?: AssignmentMode;
 }
 
 // === /MiniApp assignments ===
@@ -4266,6 +4288,10 @@ export interface GuidedLearningAssignment {
   source?: 'personal' | 'building';
   /** Unified roster targeting (new post-unification assignments). */
   rosterIds?: string[];
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
+   *  GL session's existing play-mode field. Absent on pre-feature assignments. */
+  assignmentMode?: AssignmentMode;
 }
 
 // === Library folders (Wave 3) ===

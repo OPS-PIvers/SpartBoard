@@ -45,6 +45,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import type {
+  AssignmentMode,
   MiniAppItem,
   GlobalMiniAppItem,
   MiniAppAssignment,
@@ -125,6 +126,10 @@ export interface MiniAppManagerProps {
   initialLibraryViewMode?: 'grid' | 'list';
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
+
+  /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
+   *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
+  assignmentMode?: AssignmentMode;
 }
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
@@ -234,7 +239,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveOpenApp,
   initialLibraryViewMode,
   onLibraryViewModeChange,
+  assignmentMode = 'submissions',
 }) => {
+  const isViewOnly = assignmentMode === 'view-only';
+  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   /* ── Assignment buckets ─────────────────────────────────────────────── */
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
@@ -535,7 +543,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => onAssign(app),
         }}
@@ -591,7 +599,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => onAssign(app),
         }}
@@ -646,10 +654,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const activeEmpty = (
     <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
       <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-        No active assignments
+        {isViewOnly ? 'No active shares' : 'No active assignments'}
       </p>
       <p className="text-xs font-medium text-slate-400">
-        Assign a mini-app to create a live link for students.
+        {isViewOnly
+          ? 'Share a mini-app to create a viewable link for students.'
+          : 'Assign a mini-app to create a live link for students.'}
       </p>
     </div>
   );
@@ -657,10 +667,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const archiveEmpty = (
     <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
       <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-        No archived assignments
+        {isViewOnly ? 'No archived shares' : 'No archived assignments'}
       </p>
       <p className="text-xs font-medium text-slate-400">
-        Ended assignments will appear here.
+        {isViewOnly
+          ? 'Ended share links will appear here.'
+          : 'Ended assignments will appear here.'}
       </p>
     </div>
   );
@@ -856,7 +868,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => undefined,
         }}
@@ -922,6 +934,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}
+      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       filterSidebarSlot={folderSidebarSlot}
