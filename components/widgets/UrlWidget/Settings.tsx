@@ -52,7 +52,6 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
     update({ urls: [...urls, newItem] });
     setNewUrl('');
     setNewTitle('');
-    // Optionally keep the color/icon or reset them
   };
 
   const removeUrl = (id: string) => {

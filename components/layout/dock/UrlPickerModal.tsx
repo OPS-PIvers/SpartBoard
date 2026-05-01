@@ -8,6 +8,7 @@ import {
   URL_COLORS,
   DEFAULT_URL_ICON_ID,
   DEFAULT_URL_COLOR,
+  getUrlIcon,
 } from '@/components/widgets/UrlWidget/icons';
 
 export type UrlPickerSelection =
@@ -148,9 +149,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                 style={{ backgroundColor: color }}
               >
                 {(() => {
-                  const Picked =
-                    URL_ICONS.find((i) => i.id === iconId)?.icon ??
-                    URL_ICONS[0].icon;
+                  const Picked = getUrlIcon(iconId);
                   return (
                     <Picked className="w-8 h-8 text-white drop-shadow-sm" />
                   );
