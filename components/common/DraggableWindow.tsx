@@ -39,6 +39,7 @@ import {
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
+import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
@@ -832,8 +833,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const deltaX = (moveEvent.clientX - initialMouseX) / zoom;
         const deltaY = (moveEvent.clientY - initialMouseY) / zoom;
 
-        const newX = widget.x + deltaX;
-        const newY = widget.y + deltaY;
+        // Clamp the leader to world bounds so widgets can't be dragged
+        // outside the area visible at ZOOM_MIN.
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const { x: newX, y: newY } = clampWidgetToWorld(
+          widget.x + deltaX,
+          widget.y + deltaY,
+          widget.w,
+          widget.h,
+          vw,
+          vh
+        );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (
@@ -853,12 +864,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           });
         }
 
-        // Move group siblings via direct DOM manipulation
+        // Move group siblings via direct DOM manipulation, each clamped to
+        // world bounds independently of the leader so a sibling near the edge
+        // doesn't drag the whole group off-camera.
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
           for (const sib of groupSiblingsRef.current) {
-            const sibX = sib.startX + deltaX;
-            const sibY = sib.startY + deltaY;
+            const { x: sibX, y: sibY } = clampWidgetToWorld(
+              sib.startX + deltaX,
+              sib.startY + deltaY,
+              sib.startW,
+              sib.startH,
+              vw,
+              vh
+            );
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
           }
@@ -913,17 +932,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
       }
 
-      // Commit group sibling positions via batch update
+      // Commit group sibling positions via batch update — clamp each sibling
+      // to world bounds independently so a sibling near the edge stays inside
+      // even if the leader's delta would have pushed it past.
       if (groupSiblingsRef.current.length > 0) {
         const { x: deltaX, y: deltaY } = groupDragDeltaRef.current;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
         updateWidgets(
-          groupSiblingsRef.current.map((sib) => ({
-            id: sib.id,
-            changes: {
-              x: sib.startX + deltaX,
-              y: sib.startY + deltaY,
-            },
-          }))
+          groupSiblingsRef.current.map((sib) => {
+            const c = clampWidgetToWorld(
+              sib.startX + deltaX,
+              sib.startY + deltaY,
+              sib.startW,
+              sib.startH,
+              vw,
+              vh
+            );
+            return { id: sib.id, changes: { x: c.x, y: c.y } };
+          })
         );
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
@@ -1064,6 +1091,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             newY = startPosY + dy;
           }
         }
+
+        // Clamp the resize result inside world bounds: pin the top-left
+        // first, then clip the right/bottom edges if they'd overshoot. The
+        // 150/100 size floors are themselves capped by the available world
+        // space — on a pathologically tiny viewport (or a widget pinned to
+        // the world edge) the floor would otherwise re-expand the widget
+        // back outside the world rectangle.
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const clamped = clampWidgetToWorld(newX, newY, newW, newH, vw, vh);
+        // West/north resize past a world boundary: clampWidgetToWorld pulls
+        // newX/newY back inside, but the unmodified width/height would then
+        // push the *opposite* edge outward (e.g. dragging the west handle
+        // west past minX would silently move the east edge east). Shrink
+        // the dimension by the same amount the top-left was pulled so the
+        // anchored edge stays put.
+        if (direction.includes('w')) newW -= clamped.x - newX;
+        if (direction.includes('n')) newH -= clamped.y - newY;
+        newX = clamped.x;
+        newY = clamped.y;
+        const wb = getWorldBounds(vw, vh);
+        const availableW = Math.max(0, wb.maxX - newX);
+        const availableH = Math.max(0, wb.maxY - newY);
+        newW = Math.max(Math.min(150, availableW), Math.min(newW, availableW));
+        newH = Math.max(Math.min(100, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (

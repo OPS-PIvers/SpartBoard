@@ -24,7 +24,12 @@ import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
 import { BoardActionsFab } from './BoardActionsFab';
-import { clampZoom } from '@/utils/zoomMapping';
+import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
+import {
+  clampPan,
+  clampWidgetToWorld,
+  computeCursorAnchoredPan,
+} from '@/utils/zoomPanMath';
 import {
   AlertCircle,
   CheckCircle2,
@@ -346,7 +351,7 @@ export const DashboardView: React.FC = () => {
   // it fires — not whatever zoom was bound when the frame was scheduled.
   // Without this, a wheel-zoom-out mid-drag could clamp against the previous
   // (larger) bound for one frame before the render-body re-clamp catches it.
-  const zoomRef = React.useRef(0);
+  const zoomRef = React.useRef(ZOOM_DEFAULT);
   React.useEffect(
     () => () => {
       if (panFrameRef.current !== null) {
@@ -368,16 +373,14 @@ export const DashboardView: React.FC = () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        const z = zoomRef.current;
         setPanOffset((prev) => {
-          if (z <= 1) {
-            return prev.x === 0 && prev.y === 0 ? prev : { x: 0, y: 0 };
-          }
-          const maxX = ((z - 1) * window.innerWidth) / 2;
-          const maxY = ((z - 1) * window.innerHeight) / 2;
-          const cx = Math.min(maxX, Math.max(-maxX, prev.x));
-          const cy = Math.min(maxY, Math.max(-maxY, prev.y));
-          return cx === prev.x && cy === prev.y ? prev : { x: cx, y: cy };
+          const next = clampPan(
+            prev,
+            zoomRef.current,
+            window.innerWidth,
+            window.innerHeight
+          );
+          return next.x === prev.x && next.y === prev.y ? prev : next;
         });
       });
     };
@@ -434,26 +437,19 @@ export const DashboardView: React.FC = () => {
   updateWidgetRef.current = updateWidget;
 
   // Stable callback — reads fresh values via refs, never recreated.
+  // Pulls every widget into the world rectangle (the area visible at
+  // ZOOM_MIN). Maximized widgets render at viewport size on the fly and
+  // shouldn't be repositioned, so they're skipped.
   const rescueWidgets = React.useCallback(() => {
     const widgets = rescueWidgetsRef.current;
     if (!widgets) return;
-    const MIN_VISIBLE = 80;
-    const TITLE_BAR = 40;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    widgets.forEach(({ id, x, y, w }) => {
-      // Small widgets (w <= MIN_VISIBLE) must be fully on-screen; the general
-      // formula would produce a positive lower-bound that incorrectly shifts them.
-      let newX: number;
-      if (w <= MIN_VISIBLE) {
-        const maxX = Math.max(0, vw - w);
-        newX = Math.max(0, Math.min(x, maxX));
-      } else {
-        newX = Math.max(-(w - MIN_VISIBLE), Math.min(x, vw - MIN_VISIBLE));
-      }
-      const newY = Math.max(0, Math.min(y, vh - TITLE_BAR));
-      if (newX !== x || newY !== y) {
-        updateWidgetRef.current(id, { x: newX, y: newY });
+    widgets.forEach(({ id, x, y, w, h, maximized }) => {
+      if (maximized) return;
+      const c = clampWidgetToWorld(x, y, w, h, vw, vh);
+      if (c.x !== x || c.y !== y) {
+        updateWidgetRef.current(id, { x: c.x, y: c.y });
       }
     });
   }, []); // stable: reads refs, never needs to re-register
@@ -691,7 +687,7 @@ export const DashboardView: React.FC = () => {
           // 1-finger drag on empty background while zoomed → pan.
           // Disabled when the gesture starts on a widget to avoid interfering
           // with widget interactions.
-          if (gestureFingerCount.current === 1 && zoom > 1 && !widgetEl) {
+          if (gestureFingerCount.current === 1 && zoom !== 1 && !widgetEl) {
             // Accumulate the delta and schedule a single flush per animation
             // frame. Window dimensions match the dashboard root (h-screen
             // w-screen) without forcing a synchronous layout read.
@@ -704,16 +700,16 @@ export const DashboardView: React.FC = () => {
               if (pdx === 0 && pdy === 0) return;
               // Read zoom from the ref so the bound matches the *current*
               // zoom, not whatever was captured when this frame scheduled.
-              // If zoom dropped to <= 1 mid-drag, skip — the render-body
-              // re-clamp will collapse pan to (0, 0) on the next render.
-              const z = zoomRef.current;
-              if (z <= 1) return;
-              const maxX = ((z - 1) * window.innerWidth) / 2;
-              const maxY = ((z - 1) * window.innerHeight) / 2;
-              setPanOffset((prev) => ({
-                x: Math.min(maxX, Math.max(-maxX, prev.x + pdx)),
-                y: Math.min(maxY, Math.max(-maxY, prev.y + pdy)),
-              }));
+              // clampPan returns range [0, 0] at zoom = 1 (collapsing pan to
+              // center) and widens symmetrically as zoom moves either way.
+              setPanOffset((prev) =>
+                clampPan(
+                  { x: prev.x + pdx, y: prev.y + pdy },
+                  zoomRef.current,
+                  window.innerWidth,
+                  window.innerHeight
+                )
+              );
             });
           }
           return;
@@ -792,10 +788,11 @@ export const DashboardView: React.FC = () => {
           // Single touch (not a mouse drag): left-edge swipe → open sidebar.
           // Gated to peakFingers === 1 so a desktop mouse drag near the left
           // edge (peakFingers = 0) never accidentally opens the sidebar.
-          // Also disabled while zoomed to avoid conflict with 1-finger pan.
+          // Restricted to zoom === 1 so the sidebar swipe never collides
+          // with the 1-finger pan gesture (which is enabled at zoom !== 1).
           if (widgetEl) return;
           if (
-            zoom <= 1 &&
+            zoom === 1 &&
             swipeX > 0 &&
             dirX > 0 &&
             initialX < SIDEBAR_EDGE_SWIPE_WIDTH_PX
@@ -812,7 +809,24 @@ export const DashboardView: React.FC = () => {
         const WHEEL_ZOOM_STEP = 0.1;
         const next =
           event.deltaY < 0 ? zoom + WHEEL_ZOOM_STEP : zoom - WHEEL_ZOOM_STEP;
-        setZoom(clampZoom(next));
+        const nextZoom = clampZoom(next);
+        // Bail when the zoom hits its cap — no jitter, no spurious pan delta.
+        if (nextZoom === zoom) return;
+        // Anchor the wrapper-coordinate under the cursor so a corner widget
+        // grows under the cursor instead of sliding toward viewport center.
+        const nextPan = computeCursorAnchoredPan(
+          { x: event.clientX, y: event.clientY },
+          zoom,
+          panOffset,
+          nextZoom,
+          window.innerWidth,
+          window.innerHeight
+        );
+        // React batches both setState calls inside this event handler, so
+        // zoom + pan flush together — no intermediate frame with a mismatched
+        // pair.
+        setZoom(nextZoom);
+        setPanOffset(nextPan);
       },
     },
     {
@@ -905,26 +919,21 @@ export const DashboardView: React.FC = () => {
   // frame was scheduled).
   zoomRef.current = zoom;
 
-  // Re-clamp panOffset during render when zoom changes. At zoom <= 1 the
-  // dashboard fits inside the viewport so the offset must collapse to (0, 0);
-  // at zoom > 1 we re-clamp to the new (smaller) max if the user just zoomed
-  // out — otherwise the previous offset could leave the widget surface
-  // dragged off-center. Use window.innerWidth/innerHeight rather than the
-  // dashboard ref's getBoundingClientRect() — the root is h-screen w-screen
-  // so the values match exactly, and avoiding a layout read in the render
-  // body prevents synchronous reflow on every render.
-  if (zoom <= 1) {
-    if (panOffset.x !== 0 || panOffset.y !== 0) {
-      setPanOffset({ x: 0, y: 0 });
-    }
-  } else {
-    const maxX = ((zoom - 1) * window.innerWidth) / 2;
-    const maxY = ((zoom - 1) * window.innerHeight) / 2;
-    const clampedX = Math.min(maxX, Math.max(-maxX, panOffset.x));
-    const clampedY = Math.min(maxY, Math.max(-maxY, panOffset.y));
-    if (clampedX !== panOffset.x || clampedY !== panOffset.y) {
-      setPanOffset({ x: clampedX, y: clampedY });
-    }
+  // Re-clamp panOffset during render when zoom changes. clampPan returns
+  // range [0, 0] at zoom = 1 (snap-to-center), and the symmetric range
+  // around |zoom − 1| means a zoom-in or zoom-out can shrink the allowed
+  // offset and require pulling pan back inside. Use window.innerWidth/
+  // innerHeight rather than the dashboard ref's getBoundingClientRect() —
+  // the root is h-screen w-screen so the values match, and avoiding a
+  // layout read in the render body prevents synchronous reflow.
+  const clampedPan = clampPan(
+    panOffset,
+    zoom,
+    window.innerWidth,
+    window.innerHeight
+  );
+  if (clampedPan.x !== panOffset.x || clampedPan.y !== panOffset.y) {
+    setPanOffset(clampedPan);
   }
 
   // Keyboard Navigation
