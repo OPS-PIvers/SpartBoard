@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { stripTransientKeys } from '@/utils/widgetConfigPersistence';
+import {
+  mergeWidgetConfig,
+  stripTransientKeys,
+} from '@/utils/widgetConfigPersistence';
 import type { WidgetConfig } from '@/types';
 
 describe('stripTransientKeys', () => {
@@ -126,5 +129,58 @@ describe('stripTransientKeys', () => {
     expect(result).not.toHaveProperty('roster');
     expect(result).not.toHaveProperty('completedNames');
     expect(result).not.toHaveProperty('remainingStudents');
+  });
+});
+
+describe('mergeWidgetConfig', () => {
+  it('layers defaults < admin < saved < overrides (later wins)', () => {
+    const defaults = {
+      fontFamily: 'sans',
+      fontColor: '#000',
+      cardOpacity: 0.5,
+    } as Partial<WidgetConfig>;
+    const adminConfig = { fontColor: '#111', cardColor: '#fff' } as Record<
+      string,
+      unknown
+    >;
+    const saved = { cardOpacity: 0.8 } as Partial<WidgetConfig>;
+    const overrides = { fontColor: '#222' } as Partial<WidgetConfig>;
+
+    const result = mergeWidgetConfig(defaults, adminConfig, saved, overrides);
+
+    expect(result).toEqual({
+      fontFamily: 'sans',
+      fontColor: '#222',
+      cardColor: '#fff',
+      cardOpacity: 0.8,
+    });
+  });
+
+  it('strips transient keys from the saved layer only', () => {
+    const defaults = { isRunning: true } as Partial<WidgetConfig>;
+    const saved = {
+      isRunning: false,
+      content: 'leftover',
+      fontFamily: 'mono',
+    } as Partial<WidgetConfig>;
+    const overrides = { content: 'fresh' } as Partial<WidgetConfig>;
+
+    const result = mergeWidgetConfig(defaults, undefined, saved, overrides);
+
+    expect(result).toEqual({
+      isRunning: true,
+      fontFamily: 'mono',
+      content: 'fresh',
+    });
+  });
+
+  it('treats undefined layers as empty', () => {
+    const result = mergeWidgetConfig(
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    );
+    expect(result).toEqual({});
   });
 });
