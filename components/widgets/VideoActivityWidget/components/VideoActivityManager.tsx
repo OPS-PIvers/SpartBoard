@@ -138,7 +138,9 @@ export interface VideoActivityManagerProps {
    * Open the live teacher monitor for an active assignment. Surfaced as the
    * In Progress tab's primary CTA when wired; mirrors the Quiz manager.
    */
-  onArchiveMonitor?: (assignment: VideoActivityAssignment) => void;
+  onArchiveMonitor?: (
+    assignment: VideoActivityAssignment
+  ) => void | Promise<void>;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -727,7 +729,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 onClick: () => {
                   if (mode === 'active') {
                     if (isLiveActive && onArchiveMonitor) {
-                      onArchiveMonitor(assignment);
+                      void onArchiveMonitor(assignment);
                     } else if (onArchiveCopyUrl) {
                       onArchiveCopyUrl(assignment);
                     }

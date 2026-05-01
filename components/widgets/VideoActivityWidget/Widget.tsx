@@ -550,24 +550,23 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
         }}
         onArchiveMonitor={async (assignment) => {
-          // Same hydrate-then-subscribe pattern as the Results CTA: get the
-          // full session doc up-front so the monitor has the question set
-          // to grade against, and start the live listeners before flipping
-          // the view so we don't render empty between mount and snapshot.
-          subscribeToSession(assignment.id);
+          // Fetch the session doc up-front so we can confirm it exists
+          // before arming the live listeners. Subscribing first would leak
+          // an open Firestore listener on every error / missing-session
+          // path here.
+          let sessionDoc: VideoActivitySession;
           try {
             const snap = await getDoc(
               doc(db, 'video_activity_sessions', assignment.id)
             );
-            if (snap.exists()) {
-              setSelectedSession(snap.data() as VideoActivitySession);
-            } else {
+            if (!snap.exists()) {
               addToast(
                 'Session data no longer available — cannot open monitor.',
                 'error'
               );
               return;
             }
+            sessionDoc = snap.data() as VideoActivitySession;
           } catch (err) {
             addToast(
               err instanceof Error
@@ -577,6 +576,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             );
             return;
           }
+          setSelectedSession(sessionDoc);
+          subscribeToSession(assignment.id);
           updateWidget(widget.id, {
             config: {
               ...config,

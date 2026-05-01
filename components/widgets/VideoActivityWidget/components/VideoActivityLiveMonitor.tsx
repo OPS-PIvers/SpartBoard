@@ -28,6 +28,7 @@ import {
   VideoActivityQuestion,
 } from '@/types';
 import { useDialog } from '@/context/useDialog';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -556,30 +557,11 @@ export const VideoActivityLiveMonitor: React.FC<
             </div>
 
             {responses.length === 0 ? (
-              <div
-                className="flex flex-col items-center justify-center text-slate-400 text-center"
-                style={{
-                  gap: 'min(8px, 2cqmin)',
-                  padding: 'min(32px, 8cqmin) min(16px, 4cqmin)',
-                }}
-              >
-                <Users
-                  className="opacity-40"
-                  style={{
-                    width: 'min(28px, 7cqmin)',
-                    height: 'min(28px, 7cqmin)',
-                  }}
-                />
-                <p
-                  className="font-medium text-slate-500"
-                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                >
-                  Waiting for students to join…
-                </p>
-                <p style={{ fontSize: 'min(10px, 3cqmin)' }}>
-                  Share the assignment link from the In Progress tab.
-                </p>
-              </div>
+              <ScaledEmptyState
+                icon={Users}
+                title="Waiting for students"
+                subtitle="Share the assignment link from the In Progress tab."
+              />
             ) : (
               <div
                 className="flex flex-col"
