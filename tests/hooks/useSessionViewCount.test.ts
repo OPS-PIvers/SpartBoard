@@ -7,12 +7,14 @@
  *   - Concurrent mounts of the same sessionId coalesce onto a single query.
  *   - Subsequent mounts of the same sessionId reuse the cached count.
  *   - `invalidateSessionViewCount` busts the cache and forces a refetch.
+ *   - Visibility-driven refresh flushes the cache and re-queries mounted
+ *     hooks; the throttle prevents rapid-fire refreshes.
  *   - Changing sessionId mid-lifecycle issues a fresh query for the new key.
  *   - Flipping `enabled` false → true mid-lifecycle issues a query.
  *   - Failed queries soft-fail to `count: 0` rather than rejecting.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 const getCountFromServerMock = vi.fn();
 
@@ -30,6 +32,7 @@ vi.mock('@/config/firebase', () => ({
 }));
 
 import {
+  _testVisibilityRefresh,
   invalidateSessionViewCount,
   useSessionViewCount,
 } from '../../hooks/useSessionViewCount';
@@ -128,6 +131,62 @@ describe('useSessionViewCount', () => {
     await waitFor(() => expect(second.result.current.loading).toBe(false));
     expect(second.result.current.count).toBe(5);
     expect(getCountFromServerMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('refetches mounted hooks on a visibility refresh and reflects the new count', async () => {
+    getCountFromServerMock
+      .mockResolvedValueOnce({ data: () => ({ count: 1 }) })
+      .mockResolvedValueOnce({ data: () => ({ count: 4 }) });
+    const sessionId = 'session-visibility';
+    const { result } = renderHook(() =>
+      useSessionViewCount('quiz_sessions', sessionId, true)
+    );
+    await waitFor(() => expect(result.current.count).toBe(1));
+
+    // Simulate "teacher returns to the SpartBoard tab" — fire a visibility
+    // refresh well past the throttle window. The mounted hook should
+    // observe the new count without remount. `act` wraps the synchronous
+    // setRevision bumps the refresh triggers across subscribed hooks.
+    let fired = false;
+    act(() => {
+      fired = _testVisibilityRefresh(Date.now() + 10_000);
+    });
+    expect(fired).toBe(true);
+
+    await waitFor(() => expect(result.current.count).toBe(4));
+    expect(getCountFromServerMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throttles back-to-back visibility refreshes', async () => {
+    // The first fired refresh clears the cache and forces a refetch — so
+    // we mock two responses (initial mount + first refresh's refetch).
+    // The second refresh's no-op behaviour is what we're asserting.
+    getCountFromServerMock
+      .mockResolvedValueOnce({ data: () => ({ count: 9 }) })
+      .mockResolvedValueOnce({ data: () => ({ count: 9 }) });
+    const sessionId = 'session-throttle';
+    const { result } = renderHook(() =>
+      useSessionViewCount('quiz_sessions', sessionId, true)
+    );
+    await waitFor(() => expect(result.current.count).toBe(9));
+
+    // Two rapid refreshes inside the 5s throttle window: first wins,
+    // second is a no-op.
+    const t0 = Date.now() + 20_000;
+    let firstFired = false;
+    let secondFired = false;
+    act(() => {
+      firstFired = _testVisibilityRefresh(t0);
+      secondFired = _testVisibilityRefresh(t0 + 100);
+    });
+
+    expect(firstFired).toBe(true);
+    expect(secondFired).toBe(false);
+    // Total Firestore reads: initial mount + the first (un-throttled)
+    // visibility refresh. The throttled second refresh adds nothing.
+    await waitFor(() =>
+      expect(getCountFromServerMock).toHaveBeenCalledTimes(2)
+    );
   });
 
   it('issues a fresh query when sessionId changes mid-lifecycle', async () => {

@@ -12,13 +12,21 @@
  * Cost shape: one Firestore aggregation query (`getCountFromServer`) per
  * `(collection, sessionId)` pair, gated behind a module-level cache.
  * Subsequent mounts of the same session — including remount-after-unmount —
- * reuse the cached count. Teachers can force a refetch by calling
- * `invalidateSessionViewCount` (wired into the reactivate / reopen
- * callbacks so the count refreshes after a Closed share is brought back).
+ * reuse the cached count. Three things bust the cache:
  *
- * The hook is intentionally read-once: the user's stated need is "see how
- * many times the URL was opened" — a snapshot suffices and a live listener
- * would be a real-time write multiplier across the teacher's archive.
+ *   1. Explicit `invalidateSessionViewCount(collection, sessionId)` calls
+ *      (wired into reactivate / reopen / unarchive callbacks so the count
+ *      refreshes after a Closed share is brought back).
+ *   2. Tab-visibility transitions back to `'visible'` (teacher comes back
+ *      to the SpartBoard tab after sending the link out) — throttled to
+ *      one refresh per `VISIBILITY_REFRESH_MIN_MS` so rapid alt-tab
+ *      thrashing doesn't fan out N reads.
+ *   3. Full page reload (cache is module-scoped, dies with the module).
+ *
+ * The hook is intentionally read-once-per-cache-bust: the user's stated
+ * need is "see how many times the URL was opened" — a snapshot per
+ * focus-cycle suffices, and a live `onSnapshot` listener would be a real-
+ * time write multiplier across the teacher's archive.
  */
 
 import { useEffect, useState } from 'react';
@@ -38,7 +46,6 @@ interface CacheEntry {
 
 // Module-level cache so the same sessionId rendered from multiple cards
 // (or after a list re-render) doesn't fanout to repeat aggregation queries.
-// Cleared on full page reload — sufficient lifetime for a teacher session.
 const cache = new Map<string, CacheEntry>();
 
 function cacheKey(collectionName: ViewTrackingCollection, sessionId: string) {
@@ -58,6 +65,46 @@ export function invalidateSessionViewCount(
 ): void {
   cache.delete(cacheKey(collectionName, sessionId));
 }
+
+/* ─── Visibility-driven cross-hook refresh ────────────────────────────────── */
+
+/** Minimum gap between visibility-driven cache flushes. Prevents rapid
+ *  alt-tab cycling from thrashing Firestore reads — each return to the
+ *  SpartBoard tab inside this window is a no-op. Tuned for "teacher came
+ *  back to check the dashboard": longer is fine, shorter is wasteful. */
+const VISIBILITY_REFRESH_MIN_MS = 5000;
+
+const subscribers = new Set<() => void>();
+let lastVisibilityRefreshAt = 0;
+
+/**
+ * Internal: invoked by the visibility listener (and by tests) to clear the
+ * cache and notify every mounted hook to re-run its fetch effect. Throttled
+ * via `lastVisibilityRefreshAt` so rapid focus changes don't multiply reads.
+ *
+ * Exported only for tests — production code should never call this
+ * directly; the `'visibilitychange'` listener registered at module load is
+ * the sole production trigger.
+ */
+export function _testVisibilityRefresh(now: number = Date.now()): boolean {
+  if (now - lastVisibilityRefreshAt < VISIBILITY_REFRESH_MIN_MS) return false;
+  lastVisibilityRefreshAt = now;
+  cache.clear();
+  subscribers.forEach((cb) => cb());
+  return true;
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    // Only act on hidden → visible transitions. The reverse triggers no
+    // user-facing work (the dashboard is hidden) and would just shorten
+    // the throttle window for the next legitimate refresh.
+    if (document.visibilityState !== 'visible') return;
+    _testVisibilityRefresh();
+  });
+}
+
+/* ─── Hook ────────────────────────────────────────────────────────────────── */
 
 export interface UseSessionViewCountResult {
   count: number | null;
@@ -80,12 +127,24 @@ export function useSessionViewCount(
   const key = enabled && sessionId ? cacheKey(collectionName, sessionId) : null;
 
   // The hook reads `count` and `loading` from `cache[key]` during render and
-  // re-renders the consumer when the async fetch resolves via `bumpRevision`.
-  // No synchronous setState lives in the effect body — the disable / key-
-  // change paths just produce a different derived render output, while the
-  // network resolution path bumps the revision counter from inside the
-  // promise's `.then` callback (async, allowed).
-  const [, setRevision] = useState(0);
+  // re-renders the consumer when the async fetch resolves (via the promise
+  // `.then` bumping `revision`) or when a global cache flush fires (via the
+  // visibility-subscriber callback bumping `revision`). No synchronous
+  // setState lives in the effect body — the disable / key-change paths just
+  // produce a different derived render output.
+  const [revision, setRevision] = useState(0);
+
+  // Subscribe to global cache flushes (currently driven only by the tab
+  // visibility listener at module scope). Bumping `revision` re-runs the
+  // fetch effect; with the cache now cleared, that effect issues a fresh
+  // aggregation query.
+  useEffect(() => {
+    const cb = () => setRevision((r) => r + 1);
+    subscribers.add(cb);
+    return () => {
+      subscribers.delete(cb);
+    };
+  }, []);
 
   useEffect(() => {
     if (!key) return;
@@ -134,7 +193,9 @@ export function useSessionViewCount(
     return () => {
       cancelled = true;
     };
-  }, [collectionName, sessionId, enabled, key]);
+    // `revision` participates so a global cache flush (visibility refresh,
+    // or any future trigger) re-runs this effect against the empty cache.
+  }, [collectionName, sessionId, enabled, key, revision]);
 
   if (!key) return { count: null, loading: false };
   const cached = cache.get(key);
