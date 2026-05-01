@@ -63,7 +63,7 @@ This PR adds config only. No file rewrites yet.
 *.zip       binary
 ```
 
-**Create `/.git-blame-ignore-revs`** (empty for now; step 3 adds the commit hash):
+**Create `/.git-blame-ignore-revs`** (empty for now; step 4 adds the commit hash):
 
 ```
 # Commits listed here are skipped by `git blame` (and GitHub's blame view).
@@ -108,7 +108,16 @@ git commit -m "chore: normalize line endings to LF per .gitattributes"
 
 **Do not add the commit hash to `.git-blame-ignore-revs` in this PR.** This repo uses "Squash and merge" (see [PR #1365](https://github.com/OPS-PIvers/SpartBoard/pull/1365)), so the hash on your PR branch will **not** be the hash that lands on `main` — the squash produces a new commit. Pre-capturing a hash here records a ref that never exists on `main`, silently breaking blame-ignore.
 
-### Step 3 — PR 3: register the squash hash in blame-ignore (trivial follow-up)
+### Step 3 — verify before merging PR 2
+
+Run these checks on the PR 2 branch before clicking "Squash and merge":
+
+- `git diff main...HEAD -- . ':!*.png' ':!*.jpg' ':!*.pdf' | head -50` — spot-check diff shows only line-ending changes (no content drift).
+- `git diff main...HEAD --ignore-cr-at-eol` should be **empty** (or only touch `.gitattributes` / `.git-blame-ignore-revs`). This is the single most important check. **Do not** add `--ignore-all-space` here — it would also mask trailing-space, indentation, and template-literal whitespace changes, hiding real content drift in the renormalize commit.
+- `pnpm run validate` passes cleanly on Windows (no more `Delete ␍` errors).
+- CI passes (same checks as any other PR).
+
+### Step 4 — PR 3: register the squash hash in blame-ignore (trivial follow-up)
 
 After PR 2 is merged:
 
@@ -121,7 +130,18 @@ git pull
 # other PR merged between PR 2 landing and this step running — the wrong
 # hash would silently get recorded (blame-ignore ignores unknown hashes, so
 # the renormalize commit would never actually be skipped).
-SQUASH_HASH=$(git log --format="%H %s" | grep "normalize line endings" | head -1 | awk '{print $1}')
+#
+# `grep -i` defends against title-case drift (GitHub or a reviewer may edit
+# the squash title to "Chore: Normalize line endings…").
+SQUASH_HASH=$(git log --format="%H %s" | grep -i "normalize line endings" | head -1 | awk '{print $1}')
+
+# Hard-fail if the lookup found nothing. Without this guard, `git log -1`
+# below silently falls back to HEAD, the wrong hash gets appended, and
+# blame-ignore silently ignores an unrelated commit.
+if [ -z "$SQUASH_HASH" ]; then
+  echo "ERROR: could not find squash commit by subject — check the merged commit message and retry."
+  exit 1
+fi
 
 # Verify before writing — confirm the commit subject, author, and date look
 # right. If this prints nothing or the wrong commit, stop and investigate.
@@ -136,13 +156,6 @@ gh pr create --base main --title "chore: register line-ending renormalize in bla
 ```
 
 Keep PR 3 separate and small so the hash is the real post-squash hash from `main`.
-
-### Step 4 — verify before merging PR 2
-
-- `git diff main...HEAD -- . ':!*.png' ':!*.jpg' ':!*.pdf' | head -50` — spot-check diff shows only line-ending changes (no content drift).
-- `git diff main...HEAD --ignore-all-space --ignore-cr-at-eol` should be **empty** (or only touch `.gitattributes` / `.git-blame-ignore-revs`). This is the single most important check.
-- `pnpm run validate` passes cleanly on Windows (no more `Delete ␍` errors).
-- CI passes (same checks as any other PR).
 
 ### Step 5 — post-merge cleanup
 
@@ -159,8 +172,22 @@ Immediately after PR 2 merges:
 
   `git add --renormalize .` alone only fixes the index, not the files on disk — `git rm --cached -r .` followed by `git reset --hard` is what actually rewrites the working-tree files to LF. Only run this in a worktree with no uncommitted changes.
 
-- Any branch with in-progress work: `git rebase main` — conflicts should be line-ending-only. Resolve each conflicted file with `git checkout --theirs -- <file>` and then follow with the same `git rm --cached -r . && git reset --hard` once the rebase completes.
+- Any branch with in-progress work: `git rebase main` — conflicts should be line-ending-only. Resolve each conflicted file, then continue:
+
+  ```bash
+  # For each conflicted file in the current commit:
+  git checkout --theirs -- <file>
+  git add <file>
+
+  # Once every conflict in the current commit is resolved:
+  git rebase --continue
+  ```
+
+  Repeat the inner loop for each replayed commit that hits conflicts (a long-lived branch with multiple commits will pause at each one). After `git rebase --continue` reports the rebase is complete, run `git rm --cached -r . && git reset --hard` to refresh the working tree to LF.
+
+  `git checkout --theirs -- <file>` overwrites the conflicted file but does **not** stage it — without `git add` the rebase will not recognize the conflict as resolved, and without `git rebase --continue` it will sit paused indefinitely.
   - **Note on `--theirs` semantics:** during `git rebase`, `--ours`/`--theirs` are **reversed** relative to `git merge`. In a rebase, `--ours` refers to the base you're rebasing **onto** (`main`, already LF), and `--theirs` refers to the commit being **replayed** (your branch, possibly CRLF). `--theirs` is correct here because the subsequent `git rm --cached -r . && git reset --hard` re-normalizes everything to LF; do not swap to `--ours`, which would silently discard any actual content changes in your branch commit if a "conflict" turns out to be more than line endings.
+
 - Inform teammates (or your other machines) to run the same refresh or re-clone.
 - Optionally in each clone: `git config --local core.autocrlf input` so future checkouts don't reintroduce CRLF if `.gitattributes` ever loses a rule.
 
