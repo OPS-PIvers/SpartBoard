@@ -74,9 +74,9 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
 
       <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
         <p className="text-xxs text-indigo-600 leading-relaxed">
-          <b>Tip:</b> To annotate over your whole dashboard, click the Draw icon
-          in the Dock and choose <b>Annotate screen</b>. The whiteboard widget
-          here is best for persistent sketches and notes.
+          <b>Tip:</b> To annotate over your whole dashboard, click the{' '}
+          <b>pencil</b> in the floating toolbar at the top-left of your board.
+          The whiteboard widget here is best for persistent sketches and notes.
         </p>
       </div>
     </div>
