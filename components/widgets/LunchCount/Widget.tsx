@@ -754,7 +754,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   onPeekItem={peekItem}
                   nameTextClass="text-brand-red-dark"
                   sidesTextClass="text-brand-red-dark"
-                  fallback="Loading menu..."
+                  fallback={t('common.loading')}
                 />
                 <div
                   className="flex-1 flex flex-wrap content-start overflow-y-auto custom-scrollbar"
@@ -817,7 +817,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   onPeekItem={peekItem}
                   nameTextClass="text-emerald-800"
                   sidesTextClass="text-emerald-800"
-                  fallback="Loading menu..."
+                  fallback={t('common.loading')}
                 />
                 <div
                   className="flex-1 flex flex-wrap content-start overflow-y-auto custom-scrollbar"
