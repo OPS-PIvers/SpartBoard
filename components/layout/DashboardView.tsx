@@ -341,6 +341,16 @@ export const DashboardView: React.FC = () => {
     window.dispatchEvent(new CustomEvent('board-pan'));
   }, [panOffset]);
 
+  // Explicit "reset to canonical view" actions (FAB reset button, 100% preset)
+  // dispatch this event so we snap pan to center alongside their setZoom(1).
+  // Wheel zoom that incidentally crosses through z=1 does NOT fire this — the
+  // cursor anchor must be preserved across the zoom = 1 boundary.
+  React.useEffect(() => {
+    const onCameraReset = () => setPanOffset({ x: 0, y: 0 });
+    window.addEventListener('camera-reset', onCameraReset);
+    return () => window.removeEventListener('camera-reset', onCameraReset);
+  }, []);
+
   // Coalesce pan deltas into one update per animation frame: pointer events
   // can fire faster than the display refresh rate, and applying every delta
   // synchronously triggers React reconciliation per event. We accumulate the

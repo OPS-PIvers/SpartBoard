@@ -13,8 +13,9 @@
 //     viewport region inside the world rectangle. Half the slack between
 //     the world-as-rendered (vw × zoom / ZOOM_MIN) and the viewport.
 //     Collapses to zero at zoom = ZOOM_MIN (world fills the viewport) and
-//     grows monotonically with zoom. clampPan additionally snaps to (0, 0)
-//     at zoom = 1 to preserve the FAB-reset-to-center UX.
+//     grows monotonically with zoom. The FAB-reset-to-center UX is handled
+//     at the explicit-reset call sites (not here) so that ctrl+wheel zoom
+//     crossing through zoom = 1 keeps the cursor anchor intact.
 
 import { ZOOM_MIN } from './zoomMapping';
 
@@ -53,10 +54,6 @@ export const clampPan = (
   vw: number,
   vh: number
 ): Point => {
-  // Snap to center at zoom = 1 — the natural [0, vw] × [0, vh] content area
-  // fits the viewport exactly, and the FAB-reset UX expects pan = (0, 0)
-  // when the user returns to 100%.
-  if (zoom === 1) return { x: 0, y: 0 };
   const r = getPanRange(zoom, vw, vh);
   return {
     x: Math.min(r.maxX, Math.max(r.minX, pan.x)),
