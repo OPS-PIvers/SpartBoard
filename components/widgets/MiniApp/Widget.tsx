@@ -628,6 +628,23 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       const sessionId = await createSession(activeApp, user.uid, '', {
         mode: 'view-only',
       });
+      // Mirror into the per-teacher archive so this share appears in the
+      // Shared tab and can be renamed / ended / reactivated later from the
+      // library UI. Matches the handleConfirmAssign flow above. Failures
+      // here are non-fatal — the session itself still exists.
+      try {
+        await createAssignment({
+          sessionId,
+          app: { id: activeApp.id, title: activeApp.title },
+          assignmentName: '',
+          mode: 'view-only',
+        });
+      } catch (archiveErr) {
+        console.warn(
+          '[MiniAppWidget] Failed to archive QR share assignment',
+          archiveErr
+        );
+      }
       const url = `${window.location.origin}/miniapp/${sessionId}`;
       addWidget('qr', { config: { url, showUrl: true } });
       addToast('Share link ready — students can scan the QR code', 'success');
@@ -637,7 +654,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     } finally {
       setIsCreatingQrShare(false);
     }
-  }, [user, activeApp, isCreatingQrShare, createSession, addWidget, addToast]);
+  }, [
+    user,
+    activeApp,
+    isCreatingQrShare,
+    createSession,
+    createAssignment,
+    addWidget,
+    addToast,
+  ]);
 
   // --- HANDLERS ---
 
@@ -970,6 +995,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               widgetRect &&
               !widget.minimized &&
               !widget.flipped &&
+              // The toolbar lives at Z_INDEX.popover (11000), which is above
+              // the running-mode modals (z-overlay = 9910). Hide it whenever
+              // one of those modals is open so it doesn't float on top of the
+              // dialog the teacher is interacting with.
+              !assigningApp &&
+              !assignmentsForApp &&
+              !showSaveAsWidget &&
+              !showSaveForm &&
               typeof document !== 'undefined' &&
               createPortal(
                 (() => {
