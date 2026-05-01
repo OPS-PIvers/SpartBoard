@@ -33,6 +33,7 @@ import { useAuth } from '@/context/useAuth';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
+import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
 import { SidebarBoards } from './SidebarBoards';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
@@ -178,10 +179,16 @@ export const Sidebar: React.FC = () => {
       <GlassCard
         globalStyle={activeDashboard?.globalStyle}
         data-screenshot="exclude"
-        className="fixed z-dock flex items-center gap-2 p-2 rounded-full"
+        className="fixed flex items-center gap-2 p-2 rounded-full"
         style={{
           top: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
           left: 'calc(1.5rem + env(safe-area-inset-left, 0px))',
+          // While annotation is active, the AnnotationOverlay's full-viewport
+          // canvas sits at Z_INDEX.overlay with pointer-events-auto, which
+          // would otherwise swallow clicks on this toolbar (specifically the
+          // pencil toggle that's supposed to close annotation). Lift the
+          // toolbar above the overlay so the toggle remains reachable.
+          zIndex: annotationActive ? Z_INDEX.confirmOverlay : Z_INDEX.dock,
         }}
       >
         <IconButton
