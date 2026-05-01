@@ -370,7 +370,7 @@
         "clearAll": "Clear all (everyone present)",
         "emptyRoster": "This class has no students yet.",
         "unnamedStudent": "Unnamed student",
-        "footer": "Absent marks apply to every Randomizer using this class. Resets automatically tomorrow."
+        "footer": "Absent marks apply to every widget using this class. Resets automatically tomorrow."
       },
       "everyoneAbsentTitle": "Everyone is marked absent",
       "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",

@@ -13,6 +13,8 @@ import {
 } from '@/types';
 import { Button } from '@/components/common/Button';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import { AbsentButton } from '@/components/common/AbsentButton';
+import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
 import {
   Users,
   RefreshCw,
@@ -24,7 +26,6 @@ import {
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { makeNameGroups, makeRestrictedGroups } from './groupMaker';
-import { AbsentStudentsModal } from './AbsentStudentsModal';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
@@ -691,46 +692,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {activeRoster && rosterMode === 'class' && (
               <div
                 className="flex items-center"
-                style={{ gap: 'clamp(4px, 1.5cqmin, 12px)' }}
+                style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
-                <button
+                <AbsentButton
+                  roster={activeRoster}
                   onClick={() => setAbsentModalOpen(true)}
-                  title={t('widgets.random.absent.buttonLabel', {
-                    defaultValue: 'Mark absent students',
-                  })}
-                  aria-label={t('widgets.random.absent.ariaLabel', {
-                    defaultValue:
-                      'Open attendance — {{count}} marked absent today',
-                    count: absentCount,
-                  })}
-                  className="relative flex items-center bg-white hover:bg-slate-50 rounded-full border border-slate-200 text-slate-500 hover:text-brand-blue-primary transition-colors"
-                  style={{
-                    gap: 'clamp(6px, 1.5cqmin, 12px)',
-                    padding:
-                      'clamp(8px, 2cqmin, 14px) clamp(12px, 3cqmin, 22px)',
-                    minHeight: 'clamp(32px, 8cqmin, 48px)',
-                  }}
-                >
-                  <UserX
-                    style={{
-                      width: 'clamp(16px, 4cqmin, 32px)',
-                      height: 'clamp(16px, 4cqmin, 32px)',
-                    }}
-                  />
-                  {absentCount > 0 && (
-                    <span
-                      className="font-black bg-red-500 text-white rounded-full leading-none tabular-nums"
-                      style={{
-                        fontSize: 'clamp(12px, 3cqmin, 20px)',
-                        padding:
-                          'clamp(3px, 0.9cqmin, 7px) clamp(7px, 2cqmin, 14px)',
-                      }}
-                    >
-                      {absentCount}
-                    </span>
-                  )}
-                </button>
-                <ActiveClassChip />
+                />
+                <ActiveClassChip compact />
               </div>
             )}
           </div>

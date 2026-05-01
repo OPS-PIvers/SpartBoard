@@ -22,7 +22,9 @@ import { LayoutGrid, RefreshCw, RotateCcw, Shuffle, Users } from 'lucide-react';
 import { StationsConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import { AbsentButton } from '@/components/common/AbsentButton';
 import { Button } from '@/components/common/Button';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { DraggableStudent } from '@/components/widgets/LunchCount/components/DraggableStudent';
 import { DroppableZone } from '@/components/widgets/LunchCount/components/DroppableZone';
@@ -68,16 +70,36 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     [stations]
   );
 
+  // The selected class roster object (or null in custom-list mode). Exposed
+  // alongside `activeRoster` so the AbsentButton can read/write its absence
+  // list — the same Firestore field the Randomizer uses, so marks here flow
+  // there and vice-versa.
+  const currentRoster = useMemo(
+    () =>
+      config.rosterMode === 'custom'
+        ? null
+        : (rosters.find((r) => r.id === activeRosterId) ?? rosters[0] ?? null),
+    [config.rosterMode, rosters, activeRosterId]
+  );
+
   const activeRoster = useMemo((): string[] => {
     if (config.rosterMode === 'custom') return config.customRoster ?? [];
-    const currentRoster =
-      rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
-    return (
-      currentRoster?.students.map((s) =>
-        `${s.firstName} ${s.lastName}`.trim()
-      ) ?? []
-    );
-  }, [config.rosterMode, config.customRoster, rosters, activeRosterId]);
+    if (!currentRoster) return [];
+
+    const today = getLocalIsoDate();
+    const absentIds =
+      currentRoster.absent?.date === today
+        ? new Set(currentRoster.absent.studentIds)
+        : new Set<string>();
+
+    // Absent students drop out of the source list entirely — they don't appear
+    // in any station card or the unassigned bucket. Their stored assignment in
+    // `config.assignments` is preserved (keyed by display name), so they snap
+    // back to the same station automatically once un-marked.
+    return currentRoster.students
+      .filter((s) => !absentIds.has(s.id))
+      .map((s) => `${s.firstName} ${s.lastName}`.trim());
+  }, [config.rosterMode, config.customRoster, currentRoster]);
 
   // Group students by station id (for chip lists) plus an unassigned bucket.
   // Stale assignments (students no longer in roster) survive silently — we
@@ -291,7 +313,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               {config.rosterMode !== 'custom' && rosters.length > 0 && (
-                <ActiveClassChip compact />
+                <>
+                  <AbsentButton roster={currentRoster} />
+                  <ActiveClassChip compact />
+                </>
               )}
               <Button
                 onClick={handleShuffle}

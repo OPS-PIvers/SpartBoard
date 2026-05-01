@@ -490,7 +490,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   })}
                 </p>
               </div>
-              {rosterMode === 'class' && <ActiveClassChip />}
+              {rosterMode === 'class' && <ActiveClassChip compact />}
             </div>
 
             <Button

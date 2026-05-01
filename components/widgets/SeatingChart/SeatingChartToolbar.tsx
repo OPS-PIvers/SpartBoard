@@ -56,7 +56,7 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
       </div>
 
       <div className="ml-auto flex items-center gap-2 min-w-0">
-        {rosterMode === 'class' && <ActiveClassChip />}
+        {rosterMode === 'class' && <ActiveClassChip compact />}
 
         {mode === 'interact' && (
           <Button
