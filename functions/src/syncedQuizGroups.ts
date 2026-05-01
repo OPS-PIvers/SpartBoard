@@ -24,9 +24,8 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 
-// Guard against double-initialization in tooling/test contexts. The main
-// index.ts module calls initializeApp() at load time; if that module is
-// loaded first (production), admin.apps.length is 1 and we leave it alone.
+// Guard so this module can be loaded standalone in tests/tooling without
+// double-initializing when index.ts already ran initializeApp().
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -93,10 +92,9 @@ export async function handleJoinSyncedQuizGroup(
 
   const groupRef = db.collection('synced_quizzes').doc(groupId);
 
-  // Read-modify-write inside a transaction so concurrent joiners can't race
-  // each other into a corrupt `participants` map. The version field is NOT
-  // bumped for membership-only changes — content listeners shouldn't
-  // re-render every time a colleague joins.
+  // Transactional read-modify-write so concurrent joiners can't corrupt
+  // `participants`. Membership writes intentionally don't bump `version`
+  // — that field belongs to content listeners.
   return db.runTransaction(async (tx) => {
     const groupSnap = await tx.get(groupRef);
     if (!groupSnap.exists) {

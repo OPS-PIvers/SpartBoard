@@ -239,8 +239,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     async (quizMeta: QuizMetadata): Promise<QuizMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       if (!quizMeta.syncGroupId) {
-        // No-op for unsynced quizzes — return a fresh copy so callers can
-        // treat the result as "the latest local state" unconditionally.
+        // No-op for unsynced quizzes.
         return { ...quizMeta };
       }
       const drive = getDriveService();

@@ -123,8 +123,6 @@ export function useSyncedQuizGroupsByIds(
             mutated = true;
           }
         }
-        // No-op when nothing was removed AND nothing was added — return
-        // the previous map by reference so consumers don't re-render.
         if (!mutated && next.size === prev.size) return prev;
         return next;
       });

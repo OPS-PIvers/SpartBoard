@@ -626,20 +626,36 @@ service cloud.firestore {
       // `get` is sufficient.
       allow list: if false;
 
+      // Allowed top-level fields on a synced-quiz doc. Pin via
+      // `keys().hasOnly(...)` so a malicious client can't smuggle
+      // arbitrary extra fields onto the doc that downstream
+      // consumers might trust.
       allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
         && request.resource.data.version == 1
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.participants.keys().hasOnly([request.auth.uid])
-        && request.resource.data.participants[request.auth.uid].joinedAt is int;
+        && request.resource.data.participants[request.auth.uid].joinedAt is int
+        && request.resource.data.participants[request.auth.uid].joinedAt >= 0;
 
       // Content updates: caller must be a participant; participants map and
       // doc id are immutable from the client; version must strictly
       // increase by 1 (loser of a concurrent transaction retries with the
-      // newer base version).
+      // newer base version). The hasOnly clause locks the field surface
+      // so an update can't introduce new top-level fields either.
       allow update: if request.auth != null
         && request.auth.uid in resource.data.participants
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.version == resource.data.version + 1
