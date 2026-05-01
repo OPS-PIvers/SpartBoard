@@ -10,6 +10,7 @@ import {
 } from '@/types';
 import { db } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
@@ -54,6 +55,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters } = useDashboard();
+  const { showConfirm } = useDialog();
   const { user, isAdmin, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
@@ -484,11 +486,34 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleAssignmentArchive = async (
     assignment: GuidedLearningAssignment
   ) => {
+    // Branch the toast on the assignment's frozen mode — view-only shares
+    // aren't "archived" in the assignment-with-results sense; ending the
+    // share is the user-facing action.
+    const isViewOnlyAssignment = assignment.assignmentMode === 'view-only';
+    const ok = await showConfirm(
+      isViewOnlyAssignment
+        ? `End "${assignment.setTitle}"? The link will stop working.`
+        : `Archive "${assignment.setTitle}"? Students will no longer be able to submit.`,
+      {
+        title: isViewOnlyAssignment ? 'End share' : 'Archive Assignment',
+        variant: 'danger',
+        confirmLabel: isViewOnlyAssignment ? 'End' : 'Archive',
+      }
+    );
+    if (!ok) return;
     try {
       await archiveAssignment(assignment.id);
-      addToast('Assignment archived.', 'success');
+      addToast(
+        isViewOnlyAssignment ? 'Share ended.' : 'Assignment archived.',
+        'success'
+      );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to archive';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isViewOnlyAssignment
+            ? 'Failed to end share'
+            : 'Failed to archive';
       addToast(msg, 'error');
     }
   };
@@ -496,11 +521,22 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleAssignmentUnarchive = async (
     assignment: GuidedLearningAssignment
   ) => {
+    const isViewOnlyAssignment = assignment.assignmentMode === 'view-only';
     try {
       await unarchiveAssignment(assignment.id);
-      addToast('Moved back to In Progress.', 'success');
+      addToast(
+        isViewOnlyAssignment
+          ? 'Share reactivated.'
+          : 'Moved back to In Progress.',
+        'success'
+      );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to move';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isViewOnlyAssignment
+            ? 'Failed to reactivate share'
+            : 'Failed to move';
       addToast(msg, 'error');
     }
   };

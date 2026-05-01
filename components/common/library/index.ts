@@ -19,6 +19,7 @@ export { ViewOnlyShareModal } from './ViewOnlyShareModal';
 export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
+export { ViewCountBadge } from './ViewCountBadge';
 export { PeriodSelector } from './PeriodSelector';
 export { LibraryDndContext } from './LibraryDndContext';
 export {
@@ -64,6 +65,7 @@ export type {
   AssignmentStatus,
   LibraryMenuAction,
   LibraryPrimaryAction,
+  LibraryIconAction,
   LibraryBadge,
   LibrarySortOption,
   LibraryFilter,

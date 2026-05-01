@@ -101,6 +101,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reactivateAssignment,
     deleteAssignment,
   } = useVideoActivityAssignments(user?.uid);
 
@@ -529,12 +530,34 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           }
         }}
         onArchiveDeactivate={async (assignment) => {
+          // Branch the success toast on the assignment's frozen mode — for
+          // view-only shares "Assignment" is the wrong noun and "submit" is
+          // the wrong verb (no submissions exist).
+          const isViewOnlyAssignment = assignment.mode === 'view-only';
           try {
             await deactivateAssignment(assignment.id);
-            addToast('Assignment ended.', 'success');
+            addToast(
+              isViewOnlyAssignment ? 'Share ended.' : 'Assignment ended.',
+              'success'
+            );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to end assignment',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to end share'
+                  : 'Failed to end assignment',
+              'error'
+            );
+          }
+        }}
+        onArchiveReactivate={async (assignment) => {
+          try {
+            await reactivateAssignment(assignment.id);
+            addToast('Share reactivated.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to reactivate share',
               'error'
             );
           }

@@ -46,6 +46,8 @@ import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
+import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
+import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -270,6 +272,23 @@ const formatDate = (ms: number): string =>
     day: 'numeric',
     year: 'numeric',
   });
+
+/* ─── ViewCountSubtitle ──────────────────────────────────────────────────── */
+
+/**
+ * Per-row hook host so `useSessionViewCount` can run as a top-level hook
+ * (calling it inside the `.map` body of `renderAssignmentTab` would violate
+ * the rules of hooks). Renders the count chip inline as part of the
+ * subtitle line for view-only Shared / Closed cards.
+ */
+const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
+  const { count } = useSessionViewCount(
+    'guided_learning_sessions',
+    sessionId,
+    true
+  );
+  return <ViewCountBadge count={count} />;
+};
 
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
@@ -724,7 +743,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           ]
         : [
             {
-              label: isViewOnly ? 'Ended share' : 'Archived',
+              // Single-word "Closed" reads cleaner and matches the other
+              // assignment widgets' archive labels for view-only shares
+              // (cf. MiniAppManager.statusBadge / QuizManager.resolveStatus).
+              label: isViewOnly ? 'Closed' : 'Archived',
               tone: 'neutral',
             },
           ];
@@ -734,40 +756,51 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
 
     const subtitle = (
-      <span>
-        {mode === 'active' ? 'Assigned ' : 'Archived '}
-        {formatDate(
-          mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
-        )}
+      <span className="inline-flex items-center gap-2">
+        <span>
+          {mode === 'active' ? 'Assigned ' : 'Archived '}
+          {formatDate(
+            mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
+          )}
+        </span>
+        {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
       </span>
     );
 
-    const secondary: LibraryMenuAction[] = [
-      {
+    // For view-only shares the card already exposes Copy link as a primary
+    // action (Shared tab) or surfaces no primary at all (archive tab) — the
+    // duplicate "Copy student link" kebab item is just visual noise. The
+    // "Open student link" affordance stays useful as a quick preview path.
+    const secondary: LibraryMenuAction[] = [];
+    if (!isViewOnly) {
+      secondary.push({
         id: 'copy',
         label: 'Copy student link',
         icon: Copy,
         onClick: () => onAssignmentCopyLink(a),
-      },
-      {
-        id: 'open',
-        label: 'Open student link',
-        icon: ExternalLink,
-        onClick: () => window.open(studentLink, '_blank', 'noopener'),
-      },
-    ];
+      });
+    }
+    secondary.push({
+      id: 'open',
+      label: 'Open student link',
+      icon: ExternalLink,
+      onClick: () => window.open(studentLink, '_blank', 'noopener'),
+    });
 
     if (mode === 'active') {
       secondary.push({
         id: 'archive',
-        label: 'Archive',
+        label: isViewOnly ? 'End share' : 'Archive',
         icon: ArchiveIcon,
         onClick: () => onAssignmentArchive(a),
       });
     } else {
       secondary.push({
         id: 'unarchive',
-        label: 'Move to In Progress',
+        // For view-only shares "Move to In Progress" is the wrong frame —
+        // there's no progress to track; surface as "Reactivate" matching
+        // the other widgets' archive-tab affordance.
+        label: isViewOnly ? 'Reactivate' : 'Move to In Progress',
         icon: RotateCcw,
         onClick: () => onAssignmentUnarchive(a),
       });
@@ -781,10 +814,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       onClick: () => onAssignmentDelete(a),
     });
 
-    // Per-assignment mode is frozen at creation. View-only shares have no
-    // results to surface — swap the primary action accordingly. The status
-    // badge above already encodes the mode (Shared / Ended share).
+    // Primary action policy:
+    //   - View-only + active: Copy link (Shared tab — link is the entire UX).
+    //   - View-only + archive: omit (link is dead; Reactivate lives in kebab).
+    //   - Submissions (active or archive): View Results.
     const assignmentIsViewOnly = isViewOnly;
+    const primaryAction = assignmentIsViewOnly
+      ? mode === 'active'
+        ? {
+            label: 'Copy link',
+            icon: Copy,
+            onClick: () => onAssignmentCopyLink(a),
+          }
+        : undefined
+      : {
+          label: 'View Results',
+          icon: BarChart2,
+          onClick: () => onAssignmentOpenResults(a),
+        };
 
     return (
       <LibraryItemCard<GuidedLearningAssignment>
@@ -793,19 +840,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         title={a.setTitle}
         subtitle={subtitle}
         badges={badges}
-        primaryAction={
-          assignmentIsViewOnly
-            ? {
-                label: 'Copy link',
-                icon: Copy,
-                onClick: () => onAssignmentCopyLink(a),
-              }
-            : {
-                label: 'View Results',
-                icon: BarChart2,
-                onClick: () => onAssignmentOpenResults(a),
-              }
-        }
+        primaryAction={primaryAction}
         secondaryActions={secondary}
         sortable={false}
         viewMode="list"

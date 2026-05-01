@@ -1415,26 +1415,46 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }}
         onArchiveDeactivate={async (a) => {
+          // Branch the success / failure copy on the assignment's frozen
+          // mode — view-only shares haven't collected anything to "preserve"
+          // and "Assignment" is the wrong noun for a tracked link.
+          const isViewOnlyAssignment = a.mode === 'view-only';
           try {
             await deactivateAssignment(a.id);
-            addToast('Assignment deactivated. Responses preserved.', 'success');
+            addToast(
+              isViewOnlyAssignment
+                ? 'Share ended.'
+                : 'Assignment deactivated. Responses preserved.',
+              'success'
+            );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to deactivate',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to end share'
+                  : 'Failed to deactivate',
               'error'
             );
           }
         }}
         onArchiveReopen={async (a) => {
+          const isViewOnlyAssignment = a.mode === 'view-only';
           try {
             await reopenAssignment(a.id);
             addToast(
-              'Reopened — click Resume to accept submissions.',
+              isViewOnlyAssignment
+                ? 'Share reactivated.'
+                : 'Reopened — click Resume to accept submissions.',
               'success'
             );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to reopen',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to reactivate share'
+                  : 'Failed to reopen',
               'error'
             );
           }

@@ -81,6 +81,30 @@ export interface LibraryPrimaryAction {
   disabledReason?: string;
 }
 
+/**
+ * Compact icon-only action rendered alongside (before) the primary action on
+ * library cards. Used when a card has multiple equal-weight quick actions —
+ * e.g. Mini App's view-only mode where Run and Share both deserve top-level
+ * surface. The `label` doubles as the accessible name and tooltip.
+ */
+export interface LibraryIconAction {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{
+    size?: number;
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
+  onClick: () => void;
+  /**
+   * Visual weight. `'primary'` matches the brand-blue filled primary button;
+   * `'secondary'` is a subtler outline/ghost style. Defaults to `'secondary'`.
+   */
+  tone?: 'primary' | 'secondary';
+  disabled?: boolean;
+  disabledReason?: string;
+}
+
 /** A badge chip shown on library cards. */
 export interface LibraryBadge {
   label: string;
@@ -186,8 +210,18 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   /** Visual preview, usually an <img> or icon. */
   thumbnail?: React.ReactNode;
   badges?: LibraryBadge[];
-  /** e.g. "Assign" — the headline action. Clicked card body defaults to edit. */
-  primaryAction: LibraryPrimaryAction;
+  /**
+   * Headline labelled action (e.g. "Assign"). Optional: cards can rely solely
+   * on `iconActions` when no single label dominates (e.g. view-only Mini App
+   * where Run + Share share equal weight).
+   */
+  primaryAction?: LibraryPrimaryAction;
+  /**
+   * Compact icon-only buttons rendered before `primaryAction`. Used for
+   * equal-weight quick actions where the label would consume too much row
+   * width. Tooltip is each action's `label`.
+   */
+  iconActions?: LibraryIconAction[];
   /** Overflow-menu actions (Edit, Duplicate, Share, Delete...). */
   secondaryActions?: LibraryMenuAction[];
   /** Default click handler for the card body. Typically opens the editor. */
@@ -329,7 +363,12 @@ export interface AssignmentArchiveCardProps<TAssignment> {
   /** Controls styling + available actions. */
   mode: 'active' | 'archive';
   status: AssignmentStatusBadge;
-  primaryAction: LibraryPrimaryAction;
+  /**
+   * Optional headline action (e.g. "Copy link"). Omit on archived view-only
+   * cards where the link is dead and a Copy button would be misleading; the
+   * overflow menu still surfaces remaining actions (Reactivate, Delete).
+   */
+  primaryAction?: LibraryPrimaryAction;
   secondaryActions?: LibraryMenuAction[];
   /** Optional metadata line(s) — e.g. due date, student count, response count. */
   meta?: React.ReactNode;

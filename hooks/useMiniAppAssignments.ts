@@ -57,6 +57,13 @@ export interface UseMiniAppAssignmentsResult {
   renameAssignment: (assignmentId: string, name: string) => Promise<void>;
   /** Mark the assignment inactive and end the underlying session. */
   endAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Re-open a previously ended share. Symmetric to `endAssignment`: flips the
+   * assignment doc's `status` back to `'active'` and the session doc's
+   * `status` back to `'active'` (clearing `endedAt`). The session URL works
+   * again. Used by the view-only Shared archive's "Reactivate" action.
+   */
+  reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently remove the archive row (the session doc is left as-is). */
   deleteAssignment: (assignmentId: string) => Promise<void>;
 }
@@ -219,6 +226,39 @@ export const useMiniAppAssignments = (
     [userId, assignments]
   );
 
+  const reactivateAssignment = useCallback<
+    UseMiniAppAssignmentsResult['reactivateAssignment']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignment = assignments.find((a) => a.id === assignmentId);
+
+      await updateDoc(
+        doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
+        { status: 'active', updatedAt: now }
+      );
+
+      // Mirror onto the session doc — its `status` is what the student app
+      // checks before rendering. The historical `endedAt` is intentionally
+      // left in place; the student gate keys off `status`, not `endedAt`,
+      // and preserving the timestamp is useful audit history.
+      if (assignment?.sessionId) {
+        try {
+          await updateDoc(doc(db, SESSIONS_COLLECTION, assignment.sessionId), {
+            status: 'active',
+          });
+        } catch (err) {
+          console.warn(
+            '[useMiniAppAssignments] session reactivate mirror failed',
+            err
+          );
+        }
+      }
+    },
+    [userId, assignments]
+  );
+
   const deleteAssignment = useCallback<
     UseMiniAppAssignmentsResult['deleteAssignment']
   >(
@@ -238,6 +278,7 @@ export const useMiniAppAssignments = (
     createAssignment,
     renameAssignment,
     endAssignment,
+    reactivateAssignment,
     deleteAssignment,
   };
 };

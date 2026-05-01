@@ -312,6 +312,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     loading: assignmentsLoading,
     createAssignment,
     endAssignment,
+    reactivateAssignment,
     deleteAssignment,
   } = useMiniAppAssignments(user?.uid);
 
@@ -783,20 +784,51 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleArchiveEnd = useCallback(
     async (assignment: MiniAppAssignment) => {
+      // Branch all of the user-visible copy on the assignment's frozen mode.
+      // For view-only shares "submit" is the wrong verb (no submissions are
+      // collected) and "Assignment" is the wrong noun (it's a tracked link).
+      const isViewOnlyAssignment = assignment.mode === 'view-only';
       const confirmed = await showConfirm(
-        `End "${assignment.assignmentName}"? Students will no longer be able to submit.`,
-        { title: 'End Assignment', variant: 'danger', confirmLabel: 'End' }
+        isViewOnlyAssignment
+          ? `End "${assignment.assignmentName}"? The link will stop working.`
+          : `End "${assignment.assignmentName}"? Students will no longer be able to submit.`,
+        {
+          title: isViewOnlyAssignment ? 'End share' : 'End Assignment',
+          variant: 'danger',
+          confirmLabel: 'End',
+        }
       );
       if (!confirmed) return;
       try {
         await endAssignment(assignment.id);
-        addToast('Assignment ended', 'info');
+        addToast(
+          isViewOnlyAssignment ? 'Share ended' : 'Assignment ended',
+          'info'
+        );
       } catch (err) {
         console.error(err);
-        addToast('Failed to end assignment', 'error');
+        addToast(
+          isViewOnlyAssignment
+            ? 'Failed to end share'
+            : 'Failed to end assignment',
+          'error'
+        );
       }
     },
     [endAssignment, showConfirm, addToast]
+  );
+
+  const handleArchiveReactivate = useCallback(
+    async (assignment: MiniAppAssignment) => {
+      try {
+        await reactivateAssignment(assignment.id);
+        addToast('Share reactivated', 'success');
+      } catch (err) {
+        console.error(err);
+        addToast('Failed to reactivate share', 'error');
+      }
+    },
+    [reactivateAssignment, addToast]
   );
 
   const handleArchiveDelete = useCallback(
@@ -1120,6 +1152,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onExport={handleExport}
               onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
+              onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
               initialLibraryViewMode={config.libraryViewMode}
               onLibraryViewModeChange={(mode) =>

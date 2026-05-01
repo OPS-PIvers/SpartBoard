@@ -81,6 +81,13 @@ export interface UseVideoActivityAssignmentsResult {
   resumeAssignment: (assignmentId: string) => Promise<void>;
   /** Kills the student URL; preserves responses. assignment='inactive', session='ended'. */
   deactivateAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Re-open a previously deactivated share (view-only mode only). Symmetric
+   * to `deactivateAssignment`: flips assignment → 'active' and session →
+   * 'active' so the URL works again. Submissions assignments don't expose
+   * this affordance; reopening a stale roster is a different UX call.
+   */
+  reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
   /** Update editable settings (className, session toggles). */
@@ -287,6 +294,15 @@ export const useVideoActivityAssignments = (
     [setStatus]
   );
 
+  const reactivateAssignment = useCallback<
+    UseVideoActivityAssignmentsResult['reactivateAssignment']
+  >(
+    async (assignmentId) => {
+      await setStatus(assignmentId, 'active', 'active');
+    },
+    [setStatus]
+  );
+
   const deleteAssignment = useCallback<
     UseVideoActivityAssignmentsResult['deleteAssignment']
   >(
@@ -366,6 +382,7 @@ export const useVideoActivityAssignments = (
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reactivateAssignment,
     deleteAssignment,
     updateAssignmentSettings,
   };
