@@ -1016,8 +1016,18 @@ service cloud.firestore {
            request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
            request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
            request.resource.data.score == null &&
+           // Students may only ever write `0` to `preSyncVersion`. The
+           // rejoin path resets it to 0 so a previously-tagged response
+           // re-enters the "untagged" pool that
+           // `syncAssignmentToLatest` queries with
+           // `where('preSyncVersion', '==', 0)`. Allowing arbitrary
+           // values here would let a malicious student forge a tag
+           // (e.g. `preSyncVersion: 999`) to dodge future sync
+           // tagging, mirroring the create-time constraint above.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
+            request.resource.data.preSyncVersion == 0) &&
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score']) &&
+             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion']) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||

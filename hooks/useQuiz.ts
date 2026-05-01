@@ -32,62 +32,9 @@ import {
   callLeaveSyncedQuizGroup,
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
+import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
 
 const QUIZZES_COLLECTION = 'quizzes';
-
-/**
- * Pre-sub-object shape that some Firestore docs may still carry.
- * `migrateQuizMetadataShape` folds these flat fields into the canonical
- * `sync` sub-object on read so consumers see one shape regardless of
- * write date. Both fields are required-when-present in the legacy
- * shape (we never wrote one without the other), so an only-one-set
- * doc is treated as degraded and the linkage is dropped.
- */
-type LegacyQuizMetadataShape = QuizMetadata & {
-  syncGroupId?: string;
-  lastSyncedVersion?: number;
-};
-
-/**
- * Read-side mapper: Firestore docs written before the sync-linkage
- * sub-object refactor stored two flat optional fields
- * (`syncGroupId` + `lastSyncedVersion`) instead of the canonical
- * `sync: { groupId, lastSyncedVersion }` object. Fold them here so the
- * rest of the codebase only ever sees the new shape.
- *
- * Behavior:
- * - If `sync` is already populated, pass through unchanged.
- * - If both legacy fields are populated, build `sync` from them and
- *   strip the legacy fields.
- * - If only one legacy field is populated (or `sync` exists but is
- *   malformed), treat as degraded and drop the linkage entirely —
- *   matches the non-synced read path so consumers don't have to
- *   reason about partial state.
- */
-function migrateQuizMetadataShape(raw: LegacyQuizMetadataShape): QuizMetadata {
-  const { syncGroupId, lastSyncedVersion, ...rest } = raw;
-  if (rest.sync) {
-    if (
-      typeof rest.sync.groupId === 'string' &&
-      rest.sync.groupId.length > 0 &&
-      typeof rest.sync.lastSyncedVersion === 'number'
-    ) {
-      return rest;
-    }
-    // Malformed sub-object — drop and treat as unsynced.
-    const { sync: _sync, ...cleaned } = rest;
-    void _sync;
-    return cleaned;
-  }
-  if (
-    typeof syncGroupId === 'string' &&
-    syncGroupId.length > 0 &&
-    typeof lastSyncedVersion === 'number'
-  ) {
-    return { ...rest, sync: { groupId: syncGroupId, lastSyncedVersion } };
-  }
-  return rest;
-}
 
 export interface UseQuizResult {
   quizzes: QuizMetadata[];
@@ -190,7 +137,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         // see the canonical `sync` sub-object regardless of when the
         // doc was written.
         const list: QuizMetadata[] = snap.docs.map((d) =>
-          migrateQuizMetadataShape(d.data() as LegacyQuizMetadataShape)
+          migrateQuizMetadataShape(d.data())
         );
         setQuizzes(list);
         setLoading(false);
@@ -236,9 +183,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       const metaRef = doc(db, 'users', userId, QUIZZES_COLLECTION, quiz.id);
       const existingMetaSnap = await getDoc(metaRef);
       const existingMeta = existingMetaSnap.exists()
-        ? migrateQuizMetadataShape(
-            existingMetaSnap.data() as LegacyQuizMetadataShape
-          )
+        ? migrateQuizMetadataShape(existingMetaSnap.data())
         : null;
       const existingSync = existingMeta?.sync;
 
@@ -354,9 +299,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           `Cannot attach sync linkage: quiz ${quizId} not in library.`
         );
       }
-      const existing = migrateQuizMetadataShape(
-        snap.data() as LegacyQuizMetadataShape
-      );
+      const existing = migrateQuizMetadataShape(snap.data());
       if (
         existing.sync?.groupId === linkage.groupId &&
         existing.sync?.lastSyncedVersion === linkage.lastSyncedVersion

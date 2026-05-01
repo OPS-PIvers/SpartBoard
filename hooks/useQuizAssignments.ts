@@ -36,7 +36,6 @@ import type {
   QuizAssignmentStatus,
   QuizAssignmentSyncLinkage,
   QuizData,
-  QuizMetadata,
   QuizMetadataSyncLinkage,
   QuizQuestion,
   QuizSession,
@@ -56,6 +55,7 @@ import {
   pullSyncedQuizContent,
 } from './useSyncedQuizGroups';
 import { logError } from '../utils/logError';
+import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -360,35 +360,6 @@ type LegacySyncLinkageShape = {
   sync?: QuizAssignmentSyncLinkage;
 };
 const LEGACY_SYNC_KEYS = ['syncGroupId', 'syncedVersion'] as const;
-
-/**
- * Read-side mapper for `QuizMetadata.sync` shaped like the assignment
- * mapper below. We can't share with `useQuiz.migrateQuizMetadataShape`
- * because that const is module-private to `useQuiz.ts` and exporting
- * it would couple the two hooks more tightly than warranted; the rules
- * are simple enough to repeat in 8 lines.
- */
-function migrateQuizMetadataShapeFromUnknown(raw: unknown): QuizMetadata {
-  const data = (raw ?? {}) as QuizMetadata & {
-    syncGroupId?: string;
-    lastSyncedVersion?: number;
-  };
-  const { syncGroupId, lastSyncedVersion, ...rest } = data;
-  if (rest.sync?.groupId && typeof rest.sync.lastSyncedVersion === 'number') {
-    return rest;
-  }
-  if (
-    typeof syncGroupId === 'string' &&
-    syncGroupId.length > 0 &&
-    typeof lastSyncedVersion === 'number'
-  ) {
-    return { ...rest, sync: { groupId: syncGroupId, lastSyncedVersion } };
-  }
-  // No linkage or malformed sub-object — strip and return.
-  const { sync: _drop, ...withoutSync } = rest;
-  void _drop;
-  return withoutSync;
-}
 
 /**
  * Read-side mapper for `QuizAssignment.sync`. Mirrors
@@ -1084,8 +1055,17 @@ export const useQuizAssignments = (
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
       if (!snap.exists()) throw new Error('Assignment not found');
-      const assignment = migrateLegacyAssignmentShape(
-        snap.data() as QuizAssignment & LegacyPlcShape
+      // Pipe through BOTH migrators to match every other assignment-read
+      // site in this file. shareAssignment doesn't currently read the
+      // `sync` sub-object, but consistency keeps the invariant
+      // ("every read goes through both migrators") intact so a future
+      // change can rely on it.
+      const assignment = migrateSyncLinkageShape(
+        migrateLegacyAssignmentShape(
+          snap.data() as QuizAssignment &
+            LegacyPlcShape &
+            LegacySyncLinkageShape
+        )
       ) as QuizAssignment;
 
       // Sync-mode plumbing: every share now carries a `syncGroupId` so the
@@ -1124,9 +1104,7 @@ export const useQuizAssignments = (
       // Read the metadata through the legacy mapper so we see the
       // canonical `sync` sub-object regardless of when the doc was
       // written.
-      const existingQuizMeta = migrateQuizMetadataShapeFromUnknown(
-        quizMetaSnap.data()
-      );
+      const existingQuizMeta = migrateQuizMetadataShape(quizMetaSnap.data());
       let syncGroupId = existingQuizMeta.sync?.groupId;
       if (!syncGroupId) {
         syncGroupId = crypto.randomUUID();
@@ -1472,6 +1450,15 @@ export const useQuizAssignments = (
           taggedResponseCount: 0,
         };
       }
+      // Floor the tag value at 1 so a response is never tagged with `0`.
+      // Canonical versions start at 1, so a synced assignment should
+      // always carry `syncedVersion >= 1` — but a future canonical-init
+      // change or a corrupt doc that lands with `syncedVersion: 0` would
+      // otherwise tag responses with `0`, the same value
+      // `where('preSyncVersion', '==', 0)` queries for. That would loop:
+      // every subsequent sync would re-fetch and re-tag the same rows
+      // forever. The floor turns a hypothetical bug into a no-op tag.
+      const tagValue = Math.max(previousSyncedVersion, 1);
 
       // Build the student-safe publicQuestions array from the canonical
       // content. This MUST match the shuffle/strip logic used at session
@@ -1552,7 +1539,7 @@ export const useQuizAssignments = (
       );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(responsesToTag[i].ref, {
-          preSyncVersion: previousSyncedVersion,
+          preSyncVersion: tagValue,
         });
       }
       await firstBatch.commit();
@@ -1567,7 +1554,7 @@ export const useQuizAssignments = (
         const chunkBatch = writeBatch(db);
         for (const d of chunk) {
           chunkBatch.update(d.ref, {
-            preSyncVersion: previousSyncedVersion,
+            preSyncVersion: tagValue,
           });
         }
         await chunkBatch.commit();

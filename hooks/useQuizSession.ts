@@ -956,11 +956,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               throw new AttemptLimitReachedError();
             }
             // Under the cap (or unlimited): reset for a new attempt.
+            // `preSyncVersion: 0` resets the "pre-sync" stamp so the new
+            // attempt is treated as fresh — without this, a response
+            // tagged on the prior attempt (e.g. `preSyncVersion: 4`)
+            // would carry that chip onto a fresh attempt taken against
+            // post-sync content, AND the response would be invisible
+            // to future `where('preSyncVersion', '==', 0)` queries.
+            // The matching firestore rule below allows students to
+            // write only `0` to this field; `syncAssignmentToLatest`
+            // tags it later if/when another sync runs.
             await updateDoc(responseRef, {
               status: 'joined',
               answers: [],
               score: null,
               submittedAt: null,
+              preSyncVersion: 0,
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
