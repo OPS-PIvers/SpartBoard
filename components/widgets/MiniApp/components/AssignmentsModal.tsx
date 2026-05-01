@@ -235,14 +235,24 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                         <Link2 className="w-3 h-3" />
                         Open
                       </a>
-                      <button
-                        onClick={() => setViewingSubmissionsFor(session)}
-                        className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 inline-flex items-center gap-1"
-                        title="View student submissions"
-                      >
-                        <Inbox className="w-3 h-3" />
-                        Submissions
-                      </button>
+                      {session.mode === 'view-only' ? (
+                        <span
+                          className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 border border-blue-200 inline-flex items-center gap-1"
+                          title="This is a view-only share — no submissions are collected"
+                        >
+                          <Inbox className="w-3 h-3" />
+                          View only
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setViewingSubmissionsFor(session)}
+                          className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 inline-flex items-center gap-1"
+                          title="View student submissions"
+                        >
+                          <Inbox className="w-3 h-3" />
+                          Submissions
+                        </button>
+                      )}
                       {session.status === 'active' ? (
                         confirmEndId === session.id ? (
                           <>

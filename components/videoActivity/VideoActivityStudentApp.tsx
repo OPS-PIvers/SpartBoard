@@ -9,7 +9,7 @@
  *  4. Completion / score screen when all questions answered and video ends
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
   PlayCircle,
@@ -90,9 +90,8 @@ const JoinAndPlay: React.FC = () => {
 
   const isViewOnly = session?.mode === 'view-only';
 
-  // Reactive auth uid — see QuizStudentApp for the rationale. Tracks the
-  // current Firebase Auth uid so the view-log effect re-runs once anon
-  // sign-in resolves rather than reading a stale `auth.currentUser` ref.
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
   const [authedUid, setAuthedUid] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
@@ -102,14 +101,24 @@ const JoinAndPlay: React.FC = () => {
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
-  // fire-and-forget.
+  // fire-and-forget. `wroteViewRef` dedupes within a single mount (StrictMode
+  // double-invoke, session-doc re-emits) — refresh-inflation across mounts
+  // is accepted per the "URL opens" framing.
+  const wroteViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !session?.id || !authedUid) return;
-    void addDoc(
-      collection(db, 'video_activity_sessions', session.id, 'views'),
-      { viewedAt: serverTimestamp() }
-    ).catch((err) => {
-      console.warn('[VideoActivityStudentApp] View log failed:', err);
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, 'video_activity_sessions', sessionId, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      // console.error so sustained failures (rule changes, schema drift)
+      // surface in error-level log filters rather than warn noise.
+      console.error(
+        `[VideoActivityStudentApp] View log failed (sessionId=${sessionId})`,
+        err
+      );
     });
   }, [isViewOnly, session?.id, authedUid]);
 

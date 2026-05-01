@@ -1342,8 +1342,11 @@ export interface MiniAppConfig {
    */
   lastRosterIdsByAppId?: Record<string, string[]>;
   /**
-   * Remembers the last submissions-enabled choice the teacher made per app,
-   * keyed by appId. Used to pre-populate the toggle on subsequent assigns.
+   * @deprecated The per-assignment Submissions toggle was removed when
+   * `assignment-modes` shipped — Mini App's submission behavior is now
+   * driven by the org-wide admin setting (see `getAssignmentMode`). New
+   * code never writes this field; preserved on the type only for legacy
+   * configs that may still carry it. Will be removed in a future major.
    */
   lastSubmissionsEnabledByAppId?: Record<string, boolean>;
 }

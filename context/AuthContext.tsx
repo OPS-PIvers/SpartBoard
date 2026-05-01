@@ -38,7 +38,6 @@ import {
   AppSettings,
   DockPosition,
   AssignmentMode,
-  AssignmentModesConfig,
   AssignmentWidgetKey,
 } from '../types';
 import type { MemberRecord, BuildingRecord } from '../types/organization';
@@ -50,6 +49,7 @@ import {
 } from '../config/buildings';
 import i18n from '../i18n';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
+import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
   canWriteLastActive,
   stampLastActive,
@@ -1415,9 +1415,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const permission = globalPermissions.find(
         (p) => p.featureId === 'assignment-modes'
       );
-      const config = permission?.config as AssignmentModesConfig | undefined;
-      const mode = config?.[widget];
-      return mode === 'view-only' ? 'view-only' : 'submissions';
+      // parseAssignmentModesConfig is the trust boundary: it drops unknown
+      // widget keys and warns + drops unrecognized mode values, returning a
+      // clean AssignmentModesConfig. The cast is gone; defaulting to
+      // 'submissions' here keeps the legacy-fallthrough behavior.
+      const config = parseAssignmentModesConfig(permission?.config);
+      return config[widget] ?? 'submissions';
     },
     [globalPermissions]
   );

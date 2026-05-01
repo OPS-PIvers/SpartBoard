@@ -196,9 +196,8 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   // submissionsEnabled flag stored on the session doc.
   const submissionsEnabled = !isViewOnly && session.submissionsEnabled === true;
 
-  // Reactive auth uid — see QuizStudentApp for the rationale. Tracks the
-  // current Firebase Auth uid so the view-log effect re-runs once anon
-  // sign-in resolves rather than reading a stale `auth.currentUser` ref.
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
   const [authedUid, setAuthedUid] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
@@ -209,13 +208,23 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. The teacher's
   // Shared archive aggregates the count via getCountFromServer(). Best-effort
-  // and fire-and-forget — failures are silent.
+  // and fire-and-forget. `wroteViewRef` dedupes within a single mount
+  // (StrictMode double-invoke, session-doc re-emits) — refresh-inflation
+  // across mounts is accepted per the "URL opens" framing.
+  const wroteViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !authedUid) return;
-    void addDoc(collection(db, SESSIONS_COLLECTION, session.id, 'views'), {
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, SESSIONS_COLLECTION, sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      console.warn('[MiniAppStudentApp] View log failed:', err);
+      // console.error so sustained failures surface in error-level filters.
+      console.error(
+        `[MiniAppStudentApp] View log failed (sessionId=${sessionId})`,
+        err
+      );
     });
   }, [session.id, isViewOnly, authedUid]);
 

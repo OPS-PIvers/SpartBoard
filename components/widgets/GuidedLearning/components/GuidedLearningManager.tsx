@@ -709,10 +709,25 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
     const studentLink = `${window.location.origin}/guided-learning/${a.sessionId}`;
 
+    // Per-assignment mode is frozen at creation. View-only entries get
+    // share-flavored labels so teachers can distinguish them at a glance,
+    // matching the badge shape Quiz / VA / Mini App use.
+    const isViewOnly = a.assignmentMode === 'view-only';
     const badges: LibraryBadge[] =
       mode === 'active'
-        ? [{ label: 'Live', tone: 'success', dot: true }]
-        : [{ label: 'Archived', tone: 'neutral' }];
+        ? [
+            {
+              label: isViewOnly ? 'Shared' : 'Live',
+              tone: 'success',
+              dot: true,
+            },
+          ]
+        : [
+            {
+              label: isViewOnly ? 'Ended share' : 'Archived',
+              tone: 'neutral',
+            },
+          ];
 
     if (a.source === 'building') {
       badges.push({ label: 'Building', tone: 'warn' });
@@ -767,11 +782,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     });
 
     // Per-assignment mode is frozen at creation. View-only shares have no
-    // results to surface — swap the primary action accordingly.
-    const assignmentIsViewOnly = a.assignmentMode === 'view-only';
-    if (assignmentIsViewOnly) {
-      badges.push({ label: 'View only', tone: 'info' });
-    }
+    // results to surface — swap the primary action accordingly. The status
+    // badge above already encodes the mode (Shared / Ended share).
+    const assignmentIsViewOnly = isViewOnly;
 
     return (
       <LibraryItemCard<GuidedLearningAssignment>

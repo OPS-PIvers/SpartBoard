@@ -392,11 +392,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // (quiz, video activity, guided learning), empty classIds block SSO
       // students entirely; PIN-joining students still pass.
       // Mode is locked org-wide by the admin and frozen onto the session at
-      // creation; submissionsEnabled is derived from it for the iframe runner
-      // (which still reads that field to decide whether to show its Submit
-      // button). View-only sessions never accept submissions.
-      const submissionsEnabled = assignmentMode === 'submissions';
-
+      // creation. The session/assignment hooks derive `submissionsEnabled`
+      // from `mode` so the two fields can never diverge.
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -404,7 +401,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         {
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
-          submissionsEnabled,
           mode: assignmentMode,
         }
       );
@@ -419,7 +415,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
           rosterIds: derived.rosterIds,
-          submissionsEnabled,
           mode: assignmentMode,
         });
       } catch (archiveErr) {
@@ -469,9 +464,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         addToast(fallbackCopy, 'info');
       }
     } catch (err) {
-      setAssignError(
-        err instanceof Error ? err.message : 'Failed to create assignment.'
-      );
+      const message =
+        err instanceof Error ? err.message : 'Failed to create assignment.';
+      setAssignError(message);
+      // Also surface as a toast so the user sees the failure even if they
+      // dismissed the modal mid-error. Matches the Quiz / GL widgets'
+      // outer-error UX.
+      addToast(message, 'error');
     } finally {
       setIsCreatingSession(false);
     }

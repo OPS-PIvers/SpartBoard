@@ -223,11 +223,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
 
   const isViewOnly = session?.mode === 'view-only';
 
-  // Reactive auth uid — `auth.currentUser` is a non-reactive ref, so without
-  // this subscription the view-log effect below wouldn't re-run if anonymous
-  // sign-in resolves after the session loads. The parent component gates
-  // rendering on `authReady`, so in practice this is a defensive belt — but
-  // the effect's dep array now correctly reflects what it depends on.
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
   const [authedUid, setAuthedUid] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
@@ -238,12 +235,26 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
   // fire-and-forget; the Firestore rule accepts a single `viewedAt` field.
+  // The `wroteViewRef` guard prevents duplicate writes from React StrictMode
+  // double-invokes in dev and from unrelated session-doc field changes that
+  // re-run the effect (e.g. teacher status flips). The contract is "URL
+  // opens, refresh-inflation accepted" — but a single mount = one write.
+  const wroteViewRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isViewOnly || !session?.id || !authedUid) return;
-    void addDoc(collection(db, 'quiz_sessions', session.id, 'views'), {
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, 'quiz_sessions', sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      console.warn('[QuizStudentApp] View log failed:', err);
+      // console.error (not warn) so a sustained 100% failure rate — e.g.
+      // schema drift breaking the rule's keys().hasOnly check — surfaces in
+      // any error-level log filter rather than getting lost in warn noise.
+      console.error(
+        `[QuizStudentApp] View log failed (sessionId=${sessionId})`,
+        err
+      );
     });
   }, [isViewOnly, session?.id, authedUid]);
 
