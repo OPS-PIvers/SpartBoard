@@ -11,11 +11,11 @@ import { db } from '@/config/firebase';
 import {
   AccessLevel,
   AssignmentMode,
-  AssignmentModesConfig,
   AssignmentWidgetKey,
   GlobalFeature,
   GlobalFeaturePermission,
 } from '@/types';
+import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
   Shield,
   Users,
@@ -786,9 +786,11 @@ export const GlobalPermissionsManager: React.FC = () => {
       {/* Assignment Modes */}
       {(() => {
         const assignmentPermission = getPermission('assignment-modes');
-        const config =
-          (assignmentPermission.config as AssignmentModesConfig | undefined) ??
-          {};
+        // `permission.config` is an admin-writable Firestore blob and could
+        // be any shape (a stale string, an array, etc.). Run it through the
+        // trust-boundary parser so the toggle UI never spreads a non-object
+        // into the saved config.
+        const config = parseAssignmentModesConfig(assignmentPermission.config);
         const isSavingAssignment = saving.has('assignment-modes');
         const hasUnsaved = unsavedChanges.has('assignment-modes');
 

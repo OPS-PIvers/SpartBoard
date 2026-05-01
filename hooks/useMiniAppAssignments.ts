@@ -61,8 +61,10 @@ export interface UseMiniAppAssignmentsResult {
   /**
    * Re-open a previously ended share. Symmetric to `endAssignment`: flips the
    * assignment doc's `status` back to `'active'` and the session doc's
-   * `status` back to `'active'` (clearing `endedAt`). The session URL works
-   * again. Used by the view-only Shared archive's "Reactivate" action.
+   * `status` back to `'active'`. The historical `endedAt` is intentionally
+   * left in place — the student gate keys off `status`, not `endedAt`, and
+   * preserving the timestamp keeps useful audit history. The session URL
+   * works again. Used by the view-only Shared archive's "Reactivate" action.
    */
   reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently remove the archive row (the session doc is left as-is). */

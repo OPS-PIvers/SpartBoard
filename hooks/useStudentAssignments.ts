@@ -354,9 +354,9 @@ export function useStudentAssignments({
       kind: SessionKind,
       channel: AssignmentChannel,
       config: KindConfig,
-      d: QuerySnapshot<DocumentData>['docs'][number]
+      d: QuerySnapshot<DocumentData>['docs'][number],
+      data: DocumentData
     ): AssignmentSummary => {
-      const data = d.data();
       const createdAtRaw: unknown = (data as Record<string, unknown>).createdAt;
       const endedAtRaw: unknown = (data as Record<string, unknown>).endedAt;
 
@@ -459,14 +459,18 @@ export function useStudentAssignments({
       // drop a GL doc whose play-mode happened to spell 'view-only'.
       const modeField =
         plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
+      // Read each doc's `data()` exactly once — Firestore lazily decodes the
+      // payload on each call, so the filter+map version below would parse
+      // every doc twice for large assignment lists.
       buckets.set(
         key,
-        snap.docs
-          .filter((d) => {
-            const data = d.data() as Record<string, unknown>;
-            return data[modeField] !== 'view-only';
-          })
-          .map((d) => docToSummary(plan.kind, plan.channel, config, d))
+        snap.docs.flatMap((d) => {
+          const data = d.data();
+          if ((data as Record<string, unknown>)[modeField] === 'view-only') {
+            return [];
+          }
+          return [docToSummary(plan.kind, plan.channel, config, d, data)];
+        })
       );
       emit(plan.kind, plan.channel);
       setErroredBuckets((prev) => {
