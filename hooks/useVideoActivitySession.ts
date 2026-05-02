@@ -25,6 +25,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import {
   AssignmentMode,
   VideoActivitySession,
@@ -316,10 +317,9 @@ export const useVideoActivitySessionTeacher =
           }
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionTeacher] Session doc listener error:',
-            err
-          );
+          logError('useVideoActivitySessionTeacher.sessionDocListener', err, {
+            sessionId,
+          });
         }
       );
     }, []);
