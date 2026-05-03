@@ -37,6 +37,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { MiniAppSession, MiniAppSubmission } from '@/types';
 
 type SubmissionStatus =
@@ -220,11 +221,8 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
     void addDoc(collection(db, SESSIONS_COLLECTION, sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      // console.error so sustained failures surface in error-level filters.
-      console.error(
-        `[MiniAppStudentApp] View log failed (sessionId=${sessionId})`,
-        err
-      );
+      // logError so sustained failures surface in error-level filters.
+      logError('MiniAppStudentApp.viewLog', err, { sessionId });
     });
   }, [session.id, isViewOnly, authedUid]);
 
