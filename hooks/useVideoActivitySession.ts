@@ -292,10 +292,9 @@ export const useVideoActivitySessionTeacher =
           setLoading(false);
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionTeacher] Firestore error:',
-            err
-          );
+          logError('useVideoActivitySessionTeacher.responsesListener', err, {
+            sessionId,
+          });
           setLoading(false);
         }
       );

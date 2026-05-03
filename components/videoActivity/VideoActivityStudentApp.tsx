@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { VideoActivityQuestion } from '@/types';
 import { VideoPlayer } from './VideoPlayer';
@@ -113,12 +114,9 @@ const JoinAndPlay: React.FC = () => {
     void addDoc(collection(db, 'video_activity_sessions', sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      // console.error so sustained failures (rule changes, schema drift)
+      // logError so sustained failures (rule changes, schema drift)
       // surface in error-level log filters rather than warn noise.
-      console.error(
-        `[VideoActivityStudentApp] View log failed (sessionId=${sessionId})`,
-        err
-      );
+      logError('VideoActivityStudentApp.viewLog', err, { sessionId });
     });
   }, [isViewOnly, session?.id, authedUid]);
 

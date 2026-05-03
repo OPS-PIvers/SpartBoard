@@ -43,6 +43,7 @@ import {
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
 import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
@@ -248,13 +249,10 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     void addDoc(collection(db, 'quiz_sessions', sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      // console.error (not warn) so a sustained 100% failure rate — e.g.
+      // logError (not warn) so a sustained 100% failure rate — e.g.
       // schema drift breaking the rule's keys().hasOnly check — surfaces in
       // any error-level log filter rather than getting lost in warn noise.
-      console.error(
-        `[QuizStudentApp] View log failed (sessionId=${sessionId})`,
-        err
-      );
+      logError('QuizStudentApp.viewLog', err, { sessionId });
     });
   }, [isViewOnly, session?.id, authedUid]);
 

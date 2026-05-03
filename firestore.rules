@@ -642,7 +642,10 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.participants.keys().hasOnly([request.auth.uid])
         && request.resource.data.participants[request.auth.uid].joinedAt is int
-        && request.resource.data.participants[request.auth.uid].joinedAt >= 0;
+        && request.resource.data.participants[request.auth.uid].joinedAt >= 0
+        // Validate plcId type when present so a malformed link/cast can't write
+        // a non-string value that downstream PLC reads would mishandle.
+        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string);
 
       // Content updates: caller must be a participant; participants map and
       // doc id are immutable from the client; version must strictly
@@ -659,7 +662,10 @@ service cloud.firestore {
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.version == resource.data.version + 1
-        && request.resource.data.updatedBy == request.auth.uid;
+        && request.resource.data.updatedBy == request.auth.uid
+        // plcId is the link to the owning PLC and must stay immutable post-create
+        // — handle the case where either side is missing the field with a default.
+        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
 
       // No client-side delete. If a group becomes orphaned (empty
       // participants), it stays — pasting an old share URL should still

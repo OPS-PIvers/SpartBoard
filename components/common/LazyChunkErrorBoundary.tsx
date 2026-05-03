@@ -89,7 +89,7 @@ export class LazyChunkErrorBoundary extends React.Component<
       <ScaledEmptyState
         icon={AlertTriangle}
         title="Widget failed to load"
-        subtitle="Refresh the page to try again."
+        subtitle="Tap Retry to reload this widget."
         iconClassName="text-amber-400"
         action={
           <button

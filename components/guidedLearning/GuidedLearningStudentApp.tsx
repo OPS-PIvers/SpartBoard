@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
@@ -107,11 +108,8 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     void addDoc(collection(db, GL_SESSIONS_COLLECTION, sessionId, 'views'), {
       viewedAt: serverTimestamp(),
     }).catch((err) => {
-      // console.error so sustained failures surface in error-level filters.
-      console.error(
-        `[GuidedLearningStudentApp] View log failed (sessionId=${sessionId})`,
-        err
-      );
+      // logError so sustained failures surface in error-level filters.
+      logError('GuidedLearningStudentApp.viewLog', err, { sessionId });
     });
   }, [isViewOnly, sessionId, anonymousUid]);
 
