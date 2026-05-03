@@ -3,10 +3,9 @@ import { useEffect, useLayoutEffect, useRef, RefObject } from 'react';
 type Handler = (event: MouseEvent | TouchEvent) => void;
 
 // Module-level constant so callers that omit `ignoreRefs` get the SAME
-// empty-array reference every render. A `[]` literal default would create
-// a fresh array each call, which — combined with `ignoreRefs` being in the
-// effect dep list — tears down and re-adds the document listeners on every
-// render of the consuming component.
+// empty-array reference every render — kept as a defensive default even
+// though the listener now reads `ignoreRefs` via a ref rather than from
+// the effect deps.
 const EMPTY_REFS: ReadonlyArray<RefObject<HTMLElement | null>> = [];
 
 export const useClickOutside = <T extends HTMLElement = HTMLElement>(
