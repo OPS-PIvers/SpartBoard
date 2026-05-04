@@ -16,7 +16,7 @@
  * only, not functionality.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   FileUp,
@@ -409,6 +409,19 @@ const SORT_COMPARATORS: Record<
   },
 };
 
+/**
+ * RefreshCw with `animate-spin` baked in. Used as the badge icon while a
+ * synced-quiz pull is in flight so the user gets immediate visual feedback
+ * even before the Firestore listener delivers the bumped version.
+ */
+const SpinningRefreshIcon: React.ComponentType<{
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ className, ...rest }) => (
+  <RefreshCw {...rest} className={`${className ?? ''} animate-spin`.trim()} />
+);
+
 /* ─── Main component ──────────────────────────────────────────────────────── */
 
 export const QuizManager: React.FC<QuizManagerProps> = ({
@@ -473,6 +486,33 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     null
   );
   const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
+
+  // ─── Synced-quiz pull in-flight tracking ──────────────────────────────────
+  // The "Sync available" pill flips to a "Syncing…" pill the instant a pull
+  // starts so the user gets immediate feedback before the Firestore listener
+  // delivers the bumped version (which can lag a beat on slow connections,
+  // making the click feel like nothing happened). The ref is the source of
+  // truth for read-back in the handler; the state copy drives re-renders.
+  const inFlightSyncRef = useRef<Set<string>>(new Set());
+  const [syncingQuizIds, setSyncingQuizIds] = useState<ReadonlySet<string>>(
+    new Set()
+  );
+
+  const handlePullSync = useCallback(
+    async (quiz: QuizMetadata) => {
+      if (!onPullSyncedQuiz) return;
+      if (inFlightSyncRef.current.has(quiz.id)) return;
+      inFlightSyncRef.current.add(quiz.id);
+      setSyncingQuizIds(new Set(inFlightSyncRef.current));
+      try {
+        await onPullSyncedQuiz(quiz);
+      } finally {
+        inFlightSyncRef.current.delete(quiz.id);
+        setSyncingQuizIds(new Set(inFlightSyncRef.current));
+      }
+    },
+    [onPullSyncedQuiz]
+  );
 
   const openShareOrAssign = useCallback(
     (quiz: QuizMetadata) => {
@@ -663,11 +703,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       },
     ];
     if (isStale && onPullSyncedQuiz) {
+      const isSyncing = syncingQuizIds.has(quiz.id);
       actions.push({
         id: 'sync-now',
-        label: 'Sync available',
-        icon: RefreshCw,
-        onClick: () => void onPullSyncedQuiz(quiz),
+        label: isSyncing ? 'Syncing…' : 'Sync available',
+        icon: isSyncing ? SpinningRefreshIcon : RefreshCw,
+        disabled: isSyncing,
+        onClick: () => void handlePullSync(quiz),
       });
     }
     if (quiz.sync && onDetachSyncedQuiz) {
@@ -722,6 +764,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
    */
   const buildQuizBadges = (quiz: QuizMetadata) => {
     if (!quiz.sync) return [];
+
+    // While a pull is in flight, show a disabled "Syncing…" pill with a
+    // spinning icon. `disabled: true` makes BadgeChip render as a
+    // <button disabled> — the browser swallows user clicks so the event
+    // doesn't bubble to the card body and accidentally open the editor
+    // (which a plain <span> would let happen).
+    if (syncingQuizIds.has(quiz.id)) {
+      return [
+        {
+          label: 'Syncing…',
+          tone: 'info' as const,
+          icon: SpinningRefreshIcon,
+          disabled: true,
+        },
+      ];
+    }
+
     const group = syncedGroups?.get(quiz.sync.groupId);
     if (group && group.version > quiz.sync.lastSyncedVersion) {
       // Actionable badge: click pulls the canonical content into the local
@@ -735,7 +794,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           icon: RefreshCw,
           actionLabel: 'Sync now',
           ...(onPullSyncedQuiz
-            ? { onClick: () => void onPullSyncedQuiz(quiz) }
+            ? { onClick: () => void handlePullSync(quiz) }
             : {}),
         },
       ];

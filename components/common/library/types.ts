@@ -130,6 +130,15 @@ export interface LibraryBadge {
     className?: string;
     style?: React.CSSProperties;
   }>;
+  /**
+   * When true, renders as a disabled <button> (no hover state, no cursor
+   * change, browser-suppresses user clicks). Useful for transient
+   * non-actionable states (e.g., "Syncing…") that displace an actionable
+   * badge — a plain <span> would bubble up to the card body's onClick
+   * (which only short-circuits on button/a/[role=menu]) and open the
+   * editor.
+   */
+  disabled?: boolean;
 }
 
 /** A sort option surfaced in the toolbar sort dropdown. */
