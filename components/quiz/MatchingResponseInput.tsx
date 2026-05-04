@@ -209,7 +209,10 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
       if (!placedIndices.has(i)) remaining.push(i);
     }
     return [initialPlacements, shuffle(remaining)];
-  }, [terms, allOptions, savedAnswer]);
+    // question.id forces a fresh shuffle when navigating to a new question
+    // even if matchingLeft/matchingRight are referentially identical.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id, terms, allOptions, savedAnswer]);
 
   const [zonePlacements, setZonePlacements] = React.useState(placements);
   const [bankItems, setBankItems] = React.useState<number[]>(bankOrder);
