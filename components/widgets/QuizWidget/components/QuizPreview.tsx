@@ -340,7 +340,7 @@ const MCAnswerArea: React.FC<{
   <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
     {options.map((opt) => {
       const isSelected = selectedAnswer === opt;
-      const isCorrect = gradeAnswer(question, opt);
+      const isCorrect = gradeAnswer(question, opt).isCorrect;
 
       let variantClasses =
         'bg-brand-gray-lightest/50 border-brand-blue-primary/10 text-brand-blue-dark hover:bg-brand-blue-lighter/50 hover:border-brand-blue-primary/30';
@@ -474,6 +474,42 @@ const StructuredAnswerArea: React.FC<{
           </div>
         ))}
       </div>
+      {question.type === 'Matching' &&
+        question.matchingDistractors &&
+        question.matchingDistractors.length > 0 &&
+        showAnswer && (
+          <div
+            className="bg-brand-red-lighter/30 border border-brand-red-primary/10 rounded-2xl"
+            style={{ padding: 'min(10px, 2.5cqmin)' }}
+          >
+            <p
+              className="text-brand-red-dark font-black uppercase tracking-wider"
+              style={{
+                fontSize: 'min(10px, 3cqmin)',
+                marginBottom: 'min(4px, 1cqmin)',
+              }}
+            >
+              Distractors (in word bank)
+            </p>
+            <div
+              className="flex flex-wrap"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
+              {question.matchingDistractors.map((d, i) => (
+                <span
+                  key={i}
+                  className="bg-brand-red-lighter/50 border border-brand-red-primary/20 text-brand-red-dark font-bold rounded-lg"
+                  style={{
+                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                    fontSize: 'min(12px, 3.5cqmin)',
+                  }}
+                >
+                  {d}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       {!showAnswer && (
         <button
           onClick={onReveal}

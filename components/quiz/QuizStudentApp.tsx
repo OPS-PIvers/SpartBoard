@@ -50,6 +50,8 @@ import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
+import { MatchingResponseInput } from './MatchingResponseInput';
+import { OrderingResponseInput } from './OrderingResponseInput';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -827,6 +829,10 @@ const ActiveQuiz: React.FC<{
   const fibAnswerRef = useRef(fibAnswer);
   const draftMcAnswerRef = useRef(draftMcAnswer);
   const onAnswerRef = useRef(onAnswer);
+  // Live serialized answer for Matching/Ordering, written by the child
+  // StructuredQuestionInput on every drag/tap so timer auto-submit can
+  // capture partial placements instead of submitting the empty string.
+  const structuredAnswerRef = useRef<string>('');
 
   useEffect(() => {
     currentQuestionRef.current = currentQuestion;
@@ -835,6 +841,16 @@ const ActiveQuiz: React.FC<{
     draftMcAnswerRef.current = draftMcAnswer;
     onAnswerRef.current = onAnswer;
   }, [currentQuestion, selectedAnswer, fibAnswer, draftMcAnswer, onAnswer]);
+
+  // Reset the structured answer ref when the question changes so a stale
+  // answer from a previous question can't leak into auto-submit.
+  const [prevStructuredQuestionId, setPrevStructuredQuestionId] = useState(
+    currentQuestion?.id ?? null
+  );
+  if ((currentQuestion?.id ?? null) !== prevStructuredQuestionId) {
+    setPrevStructuredQuestionId(currentQuestion?.id ?? null);
+    structuredAnswerRef.current = '';
+  }
 
   // Countdown — only runs the interval; auto-submit is handled above.
   useEffect(() => {
@@ -863,13 +879,20 @@ const ActiveQuiz: React.FC<{
     if (!autoSubmitTriggeredFor) return;
     const question = currentQuestionRef.current;
     if (!question || question.id !== autoSubmitTriggeredFor) return;
+    // Pull from the type-appropriate live ref so a half-completed
+    // matching/ordering answer is preserved on timeout instead of
+    // submitting the empty string.
+    const answer =
+      question.type === 'Matching' || question.type === 'Ordering'
+        ? structuredAnswerRef.current
+        : (selectedAnswerRef.current ??
+          draftMcAnswerRef.current ??
+          fibAnswerRef.current ??
+          '');
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
-        selectedAnswerRef.current ??
-          draftMcAnswerRef.current ??
-          fibAnswerRef.current ??
-          '',
+        answer,
         0 // Speed bonus is 0 when timer expires
       )
       .catch((err: unknown) => {
@@ -1412,6 +1435,9 @@ const ActiveQuiz: React.FC<{
             savedAnswer={savedAnswerForCurrent}
             onSubmit={(answer) => void handleSubmit(answer)}
             onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
+            onAnswerChange={(answer) => {
+              structuredAnswerRef.current = answer;
+            }}
             submitting={submitting}
             isStudentPaced={isStudentPaced}
             isLastQuestion={currentIndex >= session.totalQuestions - 1}
@@ -1433,6 +1459,12 @@ const StructuredQuestionInput: React.FC<{
   savedAnswer: string | null;
   onSubmit: (answer: string) => void;
   onSubmitAndAdvance: (answer: string) => void;
+  /**
+   * Forwarded to the parent so it can keep a ref to the live partial answer.
+   * Timer auto-submit reads from this ref to preserve the student's work
+   * when the clock runs out mid-placement.
+   */
+  onAnswerChange?: (answer: string) => void;
   submitting: boolean;
   isStudentPaced: boolean;
   isLastQuestion: boolean;
@@ -1445,6 +1477,7 @@ const StructuredQuestionInput: React.FC<{
   savedAnswer,
   onSubmit,
   onSubmitAndAdvance,
+  onAnswerChange,
   submitting,
   isStudentPaced,
   isLastQuestion,
@@ -1458,80 +1491,52 @@ const StructuredQuestionInput: React.FC<{
     ? (question.matchingLeft ?? [])
     : (question.orderingItems ?? []);
 
-  const rightItemsShuffled: string[] = isMatching
-    ? (question.matchingRight ?? [])
-    : [];
+  // Live serialized answer driven by the structured input components below.
+  // `canSubmit` derives from this string: every term/slot must be filled
+  // (the structured inputs emit blank segments — `term:` or `||` — when a
+  // zone is empty, so we check for any blank token).
+  const [currentAnswer, setCurrentAnswer] = useState<string>(savedAnswer ?? '');
 
-  // Hydrate from a saved answer on mount (back-navigation in self-paced
-  // mode). The component remounts per question via `key={question.id}` so
-  // initial state is recomputed each visit.
-  const [matchings, setMatchings] = useState<Record<string, string>>(() => {
-    const base: Record<string, string> = Object.fromEntries(
-      leftItems.map((l: string) => [l, ''])
-    );
-    if (isMatching && savedAnswer) {
-      for (const pair of savedAnswer.split('|')) {
-        const sep = pair.indexOf(':');
-        if (sep < 0) continue;
-        const l = pair.slice(0, sep);
-        const r = pair.slice(sep + 1);
-        if (l in base) base[l] = r;
-      }
-    }
-    return base;
-  });
-  const [order, setOrder] = useState<string[]>(() => {
-    if (!isMatching && savedAnswer) {
-      const parsed = savedAnswer.split('|');
-      // Only adopt the saved order if it matches the current item set,
-      // otherwise fall back to the question's default ordering.
-      if (
-        parsed.length === leftItems.length &&
-        parsed.every((p) => leftItems.includes(p))
-      ) {
-        return parsed;
-      }
-    }
-    return [...leftItems];
-  });
-
-  const canSubmit = isMatching
-    ? Object.values(matchings).every((v: string) => !!v)
-    : order.length > 0 && order.length === leftItems.length;
-
-  const buildAnswer = (): string => {
-    if (isMatching) {
-      return leftItems
-        .map((l: string) => `${l}:${matchings[l] || ''}`)
-        .join('|');
-    }
-    return order.join('|');
+  // Mirror every change up to the parent ref so timer auto-submit can
+  // capture partial placements. We can't use the inline setter (the parent
+  // stores the value in a useRef, not state) so an explicit propagation
+  // call is required.
+  const handleAnswerChange = (answer: string) => {
+    setCurrentAnswer(answer);
+    onAnswerChange?.(answer);
   };
+
+  // Seed the parent ref with the hydrated savedAnswer on mount so timer
+  // auto-submit on a never-touched revisit still preserves the saved work.
+  useEffect(() => {
+    if (savedAnswer) onAnswerChange?.(savedAnswer);
+    // Intentionally only on mount — the child component's onChange covers
+    // every subsequent update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const canSubmit = useMemo(() => {
+    if (!currentAnswer) return false;
+    const segments = currentAnswer.split('|');
+    if (isMatching) {
+      if (segments.length !== leftItems.length) return false;
+      return segments.every((s) => {
+        const sep = s.indexOf(':');
+        return sep >= 0 && s.slice(sep + 1).length > 0;
+      });
+    }
+    return (
+      segments.length === leftItems.length &&
+      segments.every((s) => s.length > 0)
+    );
+  }, [currentAnswer, isMatching, leftItems.length]);
 
   const handleSubmitStructured = () => {
     if (isStudentPaced) {
-      onSubmitAndAdvance(buildAnswer());
+      onSubmitAndAdvance(currentAnswer);
     } else {
-      onSubmit(buildAnswer());
+      onSubmit(currentAnswer);
     }
-  };
-
-  // ─── Drag and Drop Handlers ────────────────────────────────────────────────
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
-
-    const newOrder = [...order];
-    const item = newOrder.splice(draggedIndex, 1)[0];
-    newOrder.splice(index, 0, item);
-    setOrder(newOrder);
-    setDraggedIndex(index);
   };
 
   // Self-paced revisits stay editable. We only switch out of the form for
@@ -1547,84 +1552,19 @@ const StructuredQuestionInput: React.FC<{
       {showEditableForm ? (
         <>
           {isMatching ? (
-            <div className="space-y-3">
-              {leftItems.map((left: string) => (
-                <div key={left} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-300 w-1/2">{left}</span>
-                  <select
-                    value={matchings[left]}
-                    onChange={(e) =>
-                      setMatchings((m) => ({ ...m, [left]: e.target.value }))
-                    }
-                    className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
-                  >
-                    <option value="">Select…</option>
-                    {rightItemsShuffled.map((r: string) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
+            <MatchingResponseInput
+              question={question}
+              savedAnswer={savedAnswer}
+              onChange={handleAnswerChange}
+              disabled={submitting}
+            />
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-500 mb-2">
-                Drag or use arrows to set the correct order:
-              </p>
-              {order.map((item: string, i: number) => (
-                <div
-                  key={item}
-                  draggable
-                  onDragStart={() => handleDragStart(i)}
-                  onDragOver={(e) => handleDragOver(e, i)}
-                  onDragEnd={() => setDraggedIndex(null)}
-                  className={`flex items-center gap-2 bg-slate-800 border rounded-xl px-4 py-3 cursor-grab active:cursor-grabbing transition-colors ${draggedIndex === i ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700'}`}
-                >
-                  <span className="text-violet-400 font-bold text-sm w-5">
-                    {i + 1}.
-                  </span>
-                  <span className="flex-1 text-sm text-white select-none">
-                    {item}
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => {
-                        if (i > 0) {
-                          const newOrder = [...order];
-                          [newOrder[i - 1], newOrder[i]] = [
-                            newOrder[i],
-                            newOrder[i - 1],
-                          ];
-                          setOrder(newOrder);
-                        }
-                      }}
-                      disabled={i === 0}
-                      className="p-1 text-slate-500 hover:text-white disabled:opacity-30 transition-colors"
-                    >
-                      ▲
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (i < order.length - 1) {
-                          const newOrder = [...order];
-                          [newOrder[i], newOrder[i + 1]] = [
-                            newOrder[i + 1],
-                            newOrder[i],
-                          ];
-                          setOrder(newOrder);
-                        }
-                      }}
-                      disabled={i === order.length - 1}
-                      className="p-1 text-slate-500 hover:text-white disabled:opacity-30 transition-colors"
-                    >
-                      ▼
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <OrderingResponseInput
+              question={question}
+              savedAnswer={savedAnswer}
+              onChange={handleAnswerChange}
+              disabled={submitting}
+            />
           )}
 
           {isStudentPaced && saveError && (

@@ -40,6 +40,16 @@ function driveQueryEscape(s: string): string {
 }
 
 /**
+ * Format a points value for export to a Google Sheet cell. Whole numbers
+ * stay as integers; fractional partial-credit values render with up to
+ * 2 decimals (trailing zeros stripped).
+ */
+function formatExportPoints(points: number): string {
+  if (Number.isInteger(points)) return String(points);
+  return (Math.round(points * 100) / 100).toString();
+}
+
+/**
  * Sanitize a title for use as a Drive file name.
  * Drive disallows `/` and some OS-reserved characters; replace them with underscores.
  */
@@ -561,13 +571,13 @@ export class QuizDriveService {
       const answerCols = questions.map((q) => {
         const ans = answerMap.get(q.id);
         if (!ans) return '';
-        const isCorrect = gradeAnswer(q, ans.answer);
-        return isCorrect ? String(q.points ?? 1) : '0';
+        const grade = gradeAnswer(q, ans.answer);
+        return formatExportPoints(grade.pointsEarned);
       });
       const earnedPoints = questions.reduce((sum, q) => {
         const ans = answerMap.get(q.id);
         if (!ans) return sum;
-        return sum + (gradeAnswer(q, ans.answer) ? (q.points ?? 1) : 0);
+        return sum + gradeAnswer(q, ans.answer).pointsEarned;
       }, 0);
       const scoreDisplay =
         r.status === 'completed' && maxPoints > 0
@@ -581,7 +591,7 @@ export class QuizDriveService {
         r.pin ?? '',
         r.status,
         scoreDisplay,
-        String(earnedPoints),
+        formatExportPoints(earnedPoints),
         String(maxPoints),
         warnings,
         submitted,
@@ -742,7 +752,7 @@ export class QuizDriveService {
         if (!q) continue;
 
         answeredSet.add(a.questionId);
-        if (gradeAnswer(q, a.answer)) {
+        if (gradeAnswer(q, a.answer).isCorrect) {
           correctSet.add(a.questionId);
         }
       }
