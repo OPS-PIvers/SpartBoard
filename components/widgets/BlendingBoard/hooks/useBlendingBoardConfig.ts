@@ -1,0 +1,40 @@
+import { useState, useEffect } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { BlendingBoardGlobalConfig } from '@/types';
+
+export const useBlendingBoardConfig = () => {
+  const [url, setUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(db, 'feature_permissions', 'blending-board'),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data() as {
+            config?: BlendingBoardGlobalConfig;
+            url?: string;
+          };
+          // Prefer config.url (new shape); fall back to top-level url (legacy shape)
+          const resolved = (data.config?.url ?? data.url ?? '').trim();
+          setUrl(resolved);
+        } else {
+          setUrl('');
+        }
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error(
+          'Failed to listen for Blending Board config changes:',
+          error
+        );
+        setIsLoading(false);
+        setUrl('');
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  return { url, isLoading };
+};

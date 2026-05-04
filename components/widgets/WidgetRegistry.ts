@@ -169,6 +169,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./CarRiderPro/Widget'),
     'CarRiderProWidget'
   ),
+  'blending-board': lazyNamed(
+    () => import('./BlendingBoard/Widget'),
+    'BlendingBoardWidget'
+  ),
   'first-5': lazyNamed(() => import('./First5/Widget'), 'First5Widget'),
   'specialist-schedule': lazyNamed(
     () => import('./SpecialistSchedule'),
@@ -319,6 +323,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
+  ),
+  'blending-board': lazyNamed(
+    () => import('./BlendingBoard/Settings'),
+    'BlendingBoardSettings'
   ),
   'first-5': lazyNamed(() => import('./First5/Settings'), 'First5Settings'),
   'specialist-schedule': lazyNamed(
@@ -815,6 +823,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   'car-rider-pro': {
+    baseWidth: 450,
+    baseHeight: 600,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  'blending-board': {
     baseWidth: 450,
     baseHeight: 600,
     canSpread: true,

@@ -352,6 +352,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 600,
     config: {},
   },
+  'blending-board': {
+    w: 450,
+    h: 600,
+    config: {},
+  },
   'first-5': {
     w: 450,
     h: 600,
