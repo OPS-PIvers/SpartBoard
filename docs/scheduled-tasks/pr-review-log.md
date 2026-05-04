@@ -320,3 +320,24 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1468 head SHA `0cf76282` — 4 files (`QuizLiveMonitor.tsx` + `SavedWidgetsContext.tsx` + `driveAuthErrors.ts` + test file)
   - PR #1366 head SHA `da8f0946` (was `af5c4043` before this run) — added one commit in this run
   - Branch-safety: no head branches match `main` or `dev-*`; all 4 PRs eligible for pushes; only PR #1366 received a push this run
+
+## 2026-05-04
+
+- PRs reviewed:
+  - #1491 — audit(sunday): scheduled task journals — 2026-05-03 (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+  - #1485 — Refactor dashboard components, enhance zoom functionality, and implement view-only modes (head `dev-paul`, base `main`) — READ-ONLY (dev-\* branch, no pushes per branch-safety policy)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 27 inline review threads — 0 fixed, 27 already-addressed-and-noted
+  - PR #1491: 2 inline threads — both already have OPS-PIvers replies (1 explaining the `useClickOutside` fix landed on `dev-paul` and flows here, 1 noting the copilot bot was confused by branch-vs-PR-diff scope)
+  - PR #1485: 19 inline threads — all already have OPS-PIvers addressing replies. Most are marked fixed in commits `9f66239`, `45d7db1`, or `930ba75`; the `LunchCount` `padStart` thread is "no action — month/day already pre-padded on lines 138-139"; `UrlWidget` font/a11y threads are stale against later commits
+  - PR #1366: 6 inline threads — all `is_outdated: true` with prior addressing replies from 2026-04-21 / 2026-04-22 rounds; no further action needed
+- Fixes pushed: 0
+- Reviews posted: 3
+  - PR #1491: Ready with minor notes — Sunday audit run; the diff against `main` includes the duplicated code changes (`useClickOutside`, `useVideoActivitySession`, `firestore.rules`, four StudentApp `logError` migrations, `config/tools.ts` JSDoc, `LazyChunkErrorBoundary` subtitle) that already exist on `dev-paul` and will resolve to no-op once the branch rebases. PR description claim ("audit-only") will read as inaccurate against the visible diff until that rebase happens. Recommend either rebasing onto current `dev-paul` or updating the description.
+  - PR #1485: Ready with minor notes — 113-file / 12,469-line PR delivering Assignment Modes (view-only sharing across Quiz/VA/MiniApp/GuidedLearning), Synced Quizzes for PLC collaboration, bottom-screen FAB clusters, and `LazyChunkErrorBoundary`. All 14 CI checks pass. Strong test coverage added (12+ new test files). Two regression-risk items worth a manual smoke pass: (1) widget config merging integration via `mergeWidgetConfig` in `DashboardContext`, (2) `DraggableWindow` world-bound clamping math with grouped widgets at zoom edges. Test gaps: `BoardNavFab` (216 lines, no test), `useSyncedQuizGroups` (338-line hook, rule-only coverage). Pre-existing `Stations` admin-config alignment gap noted as natural follow-up.
+  - PR #1366: Ready — sixth automated daily review on this branch with no content change since the 2026-05-01 `da8f094` commit; nothing material to add. All 6 prior threads still addressed. Plan execution still gated on "no open PRs" precondition (3 open today, including this PR, so not yet eligible).
+- Notes:
+  - PR #1491 head SHA `8e96f690` — 16 files: 8 markdown audit journals + 8 code files (the duplicated `dev-paul` content); CI status not retrieved this run
+  - PR #1485 head SHA `930ba751` — 113 files; CI 14/14 green (Build, Unit Tests, E2E, Code Quality, Firestore Rules, Docker, CodeQL, deploy, Analyze javascript-typescript, Analyze actions, test, lint, type-check, summary)
+  - PR #1366 head SHA `da8f0946` — unchanged since 2026-05-01; no new commits in this run
+  - Branch-safety: PR #1485 head `dev-paul` matches `dev-*` pattern → no pushes attempted (review-only). The other 2 PRs were eligible for pushes but none required code fixes this run.
