@@ -281,7 +281,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, addToast, rosters, addWidget } = useDashboard();
+  const { updateWidget, addToast, rosters, addWidget, selectedWidgetId } =
+    useDashboard();
   const { user, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
@@ -995,6 +996,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               widgetRect &&
               !widget.minimized &&
               !widget.flipped &&
+              // Mirror the DraggableWindow chrome: only show the floating
+              // toolbar while this widget is the selected one. Avoids leaving
+              // an orphaned action bar floating below an unfocused widget.
+              selectedWidgetId === widget.id &&
               // The toolbar lives at Z_INDEX.popover (11000), which is above
               // the running-mode modals (z-overlay = 9910). Hide it whenever
               // one of those modals is open so it doesn't float on top of the
