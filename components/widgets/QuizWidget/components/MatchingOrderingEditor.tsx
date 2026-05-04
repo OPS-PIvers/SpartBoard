@@ -26,6 +26,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useResetOnChange } from '@/hooks/useResetOnChange';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -181,25 +182,19 @@ export const MatchingAnswerEditor: React.FC<MatchingAnswerEditorProps> = ({
   const [distractors, setDistractors] = React.useState<string[]>(() =>
     matchingDistractors.length > 0 ? [...matchingDistractors] : []
   );
-  const [prevCorrectAnswer, setPrevCorrectAnswer] =
-    React.useState(correctAnswer);
-  const [prevDistractors, setPrevDistractors] =
-    React.useState<string[]>(matchingDistractors);
-  if (correctAnswer !== prevCorrectAnswer) {
-    setPrevCorrectAnswer(correctAnswer);
-    if (serializePairs(rows) !== correctAnswer) {
-      setRows(parsePairs(correctAnswer));
+  useResetOnChange(correctAnswer, (next) => {
+    if (serializePairs(rows) !== next) {
+      setRows(parsePairs(next));
     }
-  }
-  if (matchingDistractors !== prevDistractors) {
-    setPrevDistractors(matchingDistractors);
+  });
+  useResetOnChange(matchingDistractors, (next) => {
     if (
-      distractors.length !== matchingDistractors.length ||
-      distractors.some((d, i) => d !== matchingDistractors[i])
+      distractors.length !== next.length ||
+      distractors.some((d, i) => d !== next[i])
     ) {
-      setDistractors([...matchingDistractors]);
+      setDistractors([...next]);
     }
-  }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -414,14 +409,11 @@ export const OrderingAnswerEditor: React.FC<OrderingAnswerEditorProps> = ({
   const [rows, setRows] = React.useState<OrderRow[]>(() =>
     parseOrderItems(correctAnswer)
   );
-  const [prevCorrectAnswer, setPrevCorrectAnswer] =
-    React.useState(correctAnswer);
-  if (correctAnswer !== prevCorrectAnswer) {
-    setPrevCorrectAnswer(correctAnswer);
-    if (serializeOrderItems(rows) !== correctAnswer) {
-      setRows(parseOrderItems(correctAnswer));
+  useResetOnChange(correctAnswer, (next) => {
+    if (serializeOrderItems(rows) !== next) {
+      setRows(parseOrderItems(next));
     }
-  }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
