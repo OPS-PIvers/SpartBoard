@@ -114,6 +114,11 @@ const DRAG_CLICK_THRESHOLD_PX = 25;
 const INVISIBLE_EDGE_PAD = 20; // px of invisible grab zone extending outside widget bounds
 const INNER_EDGE_PAD = 16; // px of invisible drag zone inside widget bounds
 const INNER_EDGE_CORNER_INSET = 24; // px inset at corners to avoid resize handle overlap
+// Resize handles always win within this many px of the widget's outer edge in
+// the handle's direction, regardless of what's beneath. Prevents widgets that
+// place buttons / links flush to the corner (e.g. URL widget tiles) from
+// stealing the resize gesture via the elementsFromPoint pass-through check.
+const RESIZE_PRIORITY_INSET = 16;
 
 interface DraggableWindowProps {
   widget: WidgetData;
@@ -1019,27 +1024,50 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // Check if an interactive element exists beneath this resize overlay.
     // If so, let the event pass through to the interactive element instead of resizing.
+    // Skipped when the click is in the near-corner priority zone (overhang +
+    // RESIZE_PRIORITY_INSET inside on the relevant edges), so widgets that
+    // place buttons flush to the edge can't steal the resize gesture.
     const resizeEl = e.currentTarget as HTMLElement;
-    const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
-    for (const el of elementsAtPoint) {
-      if (el === resizeEl) continue;
-      // Iframes, canvases, and contentEditable elements (e.g. embed, drawing,
-      // or text widgets) often fill the entire container — the resize handle
-      // must take priority over them.
-      if (el instanceof HTMLIFrameElement || el instanceof HTMLCanvasElement)
-        continue;
-      if (el instanceof HTMLElement && el.isContentEditable) continue;
-      if (
-        el.matches?.(RESIZE_PASSTHROUGH_SELECTOR) ||
-        el.closest?.(RESIZE_PASSTHROUGH_SELECTOR)
-      ) {
-        // Temporarily remove pointer-events so the browser dispatches
-        // the subsequent click to the interactive element beneath.
-        resizeEl.style.pointerEvents = 'none';
-        requestAnimationFrame(() => {
-          resizeEl.style.pointerEvents = '';
-        });
-        return;
+    const windowEl = windowRef.current;
+    let inPriorityZone = false;
+    if (windowEl) {
+      const rect = windowEl.getBoundingClientRect();
+      const eastOk =
+        !direction.includes('e') ||
+        e.clientX >= rect.right - RESIZE_PRIORITY_INSET;
+      const westOk =
+        !direction.includes('w') ||
+        e.clientX <= rect.left + RESIZE_PRIORITY_INSET;
+      const southOk =
+        !direction.includes('s') ||
+        e.clientY >= rect.bottom - RESIZE_PRIORITY_INSET;
+      const northOk =
+        !direction.includes('n') ||
+        e.clientY <= rect.top + RESIZE_PRIORITY_INSET;
+      inPriorityZone = eastOk && westOk && southOk && northOk;
+    }
+    if (!inPriorityZone) {
+      const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
+      for (const el of elementsAtPoint) {
+        if (el === resizeEl) continue;
+        // Iframes, canvases, and contentEditable elements (e.g. embed, drawing,
+        // or text widgets) often fill the entire container — the resize handle
+        // must take priority over them.
+        if (el instanceof HTMLIFrameElement || el instanceof HTMLCanvasElement)
+          continue;
+        if (el instanceof HTMLElement && el.isContentEditable) continue;
+        if (
+          el.matches?.(RESIZE_PASSTHROUGH_SELECTOR) ||
+          el.closest?.(RESIZE_PASSTHROUGH_SELECTOR)
+        ) {
+          // Temporarily remove pointer-events so the browser dispatches
+          // the subsequent click to the interactive element beneath.
+          resizeEl.style.pointerEvents = 'none';
+          requestAnimationFrame(() => {
+            resizeEl.style.pointerEvents = '';
+          });
+          return;
+        }
       }
     }
 
