@@ -26,16 +26,16 @@ describe('detectWidgetType (Smart Paste)', () => {
   });
 
   it('detects Google Docs and converts to edit with minimal UI', () => {
-    const input = 'https://docs.google.com/document/d/1abc123/view';
+    const input = 'https://docs.google.com/document/d/1abc123/edit';
     const result = detectWidgetType(input);
 
     expect(result).not.toBeNull();
     if (result?.action === 'create-widget') {
       expect(result.type).toBe('embed');
       const config = result.config as EmbedConfig;
-      // From urlHelpers.ts: parsed.pathname = `/document/d/${docId}/edit`; parsed.searchParams.set('rm', 'minimal');
-      expect(config.url).toContain('/document/d/1abc123/edit');
-      expect(config.url).toContain('rm=minimal');
+      expect(config.url).toBe(
+        'https://docs.google.com/document/d/1abc123/edit?rm=minimal'
+      );
     } else {
       throw new Error('Expected create-widget action');
     }
@@ -56,7 +56,8 @@ describe('detectWidgetType (Smart Paste)', () => {
   });
 
   it('detects Google Drive file URL and converts to preview embed', () => {
-    const input = 'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/view';
+    const input =
+      'https://drive.google.com/file/d/some_file_id/view?usp=sharing';
     const result = detectWidgetType(input);
 
     expect(result).not.toBeNull();
@@ -64,7 +65,7 @@ describe('detectWidgetType (Smart Paste)', () => {
       expect(result.type).toBe('embed');
       const config = result.config as EmbedConfig;
       expect(config.url).toBe(
-        'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/preview'
+        'https://drive.google.com/file/d/some_file_id/preview'
       );
     } else {
       throw new Error('Expected create-widget action');
@@ -72,7 +73,7 @@ describe('detectWidgetType (Smart Paste)', () => {
   });
 
   it('detects Google Drive open?id= URL and converts to preview embed', () => {
-    const input = 'https://drive.google.com/open?id=1aBcDeFgHiJkLmNoPqRsT';
+    const input = 'https://drive.google.com/open?id=some_file_id';
     const result = detectWidgetType(input);
 
     expect(result).not.toBeNull();
@@ -80,7 +81,7 @@ describe('detectWidgetType (Smart Paste)', () => {
       expect(result.type).toBe('embed');
       const config = result.config as EmbedConfig;
       expect(config.url).toBe(
-        'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsT/preview'
+        'https://drive.google.com/file/d/some_file_id/preview'
       );
     } else {
       throw new Error('Expected create-widget action');
@@ -393,6 +394,46 @@ describe('detectWidgetType (Smart Paste)', () => {
       expect(result?.action).toBe('create-widget');
       if (result?.action === 'create-widget') {
         expect(result.type).toBe('text');
+      }
+    });
+  });
+
+  describe('error path handling', () => {
+    it('handles invalid URL strings in quiz import parser by falling through', () => {
+      // This string matches the domain regex but has an invalid port, causing URL constructor to throw
+      const input = 'example.com:999999/share/quiz/abc123';
+      const result = detectWidgetType(input);
+
+      expect(result).not.toBeNull();
+      // It falls through quiz import and eventually gets caught by URL detection as a generic URL
+      if (result?.action === 'prompt-url-or-qr') {
+        expect(result.url).toBe('https://' + input);
+      } else {
+        throw new Error('Expected prompt-url-or-qr action');
+      }
+    });
+
+    it('handles invalid URL strings in assignment import parser by falling through', () => {
+      const input = 'example.com:999999/share/assignment/abc123';
+      const result = detectWidgetType(input);
+
+      expect(result).not.toBeNull();
+      if (result?.action === 'prompt-url-or-qr') {
+        expect(result.url).toBe('https://' + input);
+      } else {
+        throw new Error('Expected prompt-url-or-qr action');
+      }
+    });
+
+    it('handles invalid URL strings in board import parser by falling through', () => {
+      const input = 'example.com:999999/share/boardId123';
+      const result = detectWidgetType(input);
+
+      expect(result).not.toBeNull();
+      if (result?.action === 'prompt-url-or-qr') {
+        expect(result.url).toBe('https://' + input);
+      } else {
+        throw new Error('Expected prompt-url-or-qr action');
       }
     });
   });
