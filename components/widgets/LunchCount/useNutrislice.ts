@@ -9,6 +9,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { toLunchCountSchoolSite } from '@/config/buildings';
+import { logError } from '@/utils/logError';
 
 interface UseNutrisliceProps {
   widgetId: string;
@@ -120,7 +121,7 @@ export const useNutrislice = ({
       );
       return result.data;
     } catch (error) {
-      console.error('[LunchCountWidget] Cloud Proxy failed:', error);
+      logError('useNutrislice.fetchProxy', error);
       throw error;
     }
   };
@@ -267,7 +268,7 @@ export const useNutrislice = ({
       });
       addToast(t('widgets.lunchCount.syncSuccess'), 'success');
     } catch (err) {
-      console.error('Nutrislice Sync Error:', err);
+      logError('useNutrislice.fetchNutrislice', err, { widgetId });
 
       // If we were trying to migrate a legacy-shape cache and the fetch
       // failed, install a non-legacy stub so the migration check flips to

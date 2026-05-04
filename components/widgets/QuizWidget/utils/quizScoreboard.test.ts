@@ -3,11 +3,17 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/hooks/useQuizSession', () => ({
   gradeAnswer: vi.fn(
     (
-      question: { correctAnswer: string; type: string },
+      question: { correctAnswer: string; type: string; points?: number },
       answer: string
-    ): boolean => {
+    ): { isCorrect: boolean; pointsEarned: number; pointsMax: number } => {
       const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-      return norm(question.correctAnswer) === norm(answer);
+      const isCorrect = norm(question.correctAnswer) === norm(answer);
+      const max = question.points ?? 1;
+      return {
+        isCorrect,
+        pointsEarned: isCorrect ? max : 0,
+        pointsMax: max,
+      };
     }
   ),
 }));
@@ -21,6 +27,7 @@ vi.mock('@/config/scoreboard', () => ({
   ],
 }));
 
+import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
   getEarnedPoints,
   getResponseScore,
@@ -212,6 +219,56 @@ describe('quizScoreboard', () => {
           { questionId: 'q2', answer: 'B', answeredAt: 200 },
         ]);
         expect(getEarnedPoints(response, questions, session)).toBe(2);
+      });
+
+      it('partial credit holds the streak — neither extends nor resets it', () => {
+        // Override gradeAnswer for this test so q2 returns the
+        // partial-credit branch (`isCorrect: false, pointsEarned > 0`)
+        // that the default correct-vs-zero mock can't reach. Uses
+        // mockImplementationOnce per call so the default mock takes
+        // over again for subsequent tests in the file.
+        const mocked = vi.mocked(gradeAnswer);
+        mocked.mockImplementationOnce(
+          (q: { points?: number }) =>
+            ({
+              isCorrect: true,
+              pointsEarned: q.points ?? 1,
+              pointsMax: q.points ?? 1,
+            }) as ReturnType<typeof gradeAnswer>
+        );
+        mocked.mockImplementationOnce(
+          (q: { points?: number }) =>
+            ({
+              isCorrect: false,
+              pointsEarned: (q.points ?? 1) / 2,
+              pointsMax: q.points ?? 1,
+            }) as ReturnType<typeof gradeAnswer>
+        );
+        mocked.mockImplementationOnce(
+          (q: { points?: number }) =>
+            ({
+              isCorrect: true,
+              pointsEarned: q.points ?? 1,
+              pointsMax: q.points ?? 1,
+            }) as ReturnType<typeof gradeAnswer>
+        );
+
+        const questions = [
+          makeQuestion('q1', 'A'),
+          makeQuestion('q2', 'B'), // partial — holds streak
+          makeQuestion('q3', 'C'),
+        ];
+        const session = makeSession({ streakBonusEnabled: true });
+        const response = makeResponse('01', [
+          { questionId: 'q1', answer: 'A', answeredAt: 100 },
+          { questionId: 'q2', answer: 'partial', answeredAt: 200 },
+          { questionId: 'q3', answer: 'C', answeredAt: 300 },
+        ]);
+        // q1: 1pt × 1.0 = 1 (streak=1)
+        // q2: 0.5pt × 1.0 = 0.5 (streak HELD at 1, partial doesn't extend)
+        // q3: 1pt × 1.5 = 1.5 (streak advances to 2; multiplier = 1.5)
+        // total = 3.0 → Math.round → 3
+        expect(getEarnedPoints(response, questions, session)).toBe(3);
       });
     });
 

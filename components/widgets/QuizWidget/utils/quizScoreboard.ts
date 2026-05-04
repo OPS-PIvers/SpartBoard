@@ -62,17 +62,22 @@ export function getEarnedPoints(
     const q = qMap.get(ans.questionId);
     if (!q) continue;
 
-    const basePts = q.points ?? 1;
-    const isCorrect = gradeAnswer(q, ans.answer);
+    const grade = gradeAnswer(q, ans.answer);
 
-    if (!isCorrect) {
+    if (grade.pointsEarned <= 0) {
       streak = 0;
       continue;
     }
 
-    streak++;
+    // Streak only advances on full credit. Partial credit holds the streak
+    // (neither extends nor resets) — the student earned some credit, so
+    // they shouldn't lose their multiplier; but a partly-wrong answer also
+    // shouldn't compound the multiplier on a half-right answer.
+    if (grade.isCorrect) {
+      streak++;
+    }
 
-    let pts = basePts;
+    let pts = grade.pointsEarned;
 
     // Speed bonus: up to 50% extra for fast answers (clamp untrusted client data)
     if (speedEnabled && q.timeLimit > 0 && ans.speedBonus) {

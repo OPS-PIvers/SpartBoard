@@ -91,6 +91,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   countdown: ALL_GRADE_LEVELS,
   music: ALL_GRADE_LEVELS,
   'car-rider-pro': ALL_GRADE_LEVELS,
+  'blending-board': ALL_GRADE_LEVELS,
   'first-5': ALL_GRADE_LEVELS,
   'specialist-schedule': ['k-2', '3-5', '6-8'],
   'graphic-organizer': ['k-2', '3-5', '6-8'],

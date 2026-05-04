@@ -48,9 +48,9 @@ describe('gradeAnswer', () => {
   };
 
   it('grades MC case-insensitively and ignores surrounding whitespace', () => {
-    expect(gradeAnswer(mcQuestion, 'paris')).toBe(true);
-    expect(gradeAnswer(mcQuestion, '  PARIS  ')).toBe(true);
-    expect(gradeAnswer(mcQuestion, 'London')).toBe(false);
+    expect(gradeAnswer(mcQuestion, 'paris').isCorrect).toBe(true);
+    expect(gradeAnswer(mcQuestion, '  PARIS  ').isCorrect).toBe(true);
+    expect(gradeAnswer(mcQuestion, 'London').isCorrect).toBe(false);
   });
 
   it('grades FIB with whitespace normalization', () => {
@@ -62,8 +62,8 @@ describe('gradeAnswer', () => {
       correctAnswer: 'four',
       incorrectAnswers: [],
     };
-    expect(gradeAnswer(fib, '  Four  ')).toBe(true);
-    expect(gradeAnswer(fib, 'five')).toBe(false);
+    expect(gradeAnswer(fib, '  Four  ').isCorrect).toBe(true);
+    expect(gradeAnswer(fib, 'five').isCorrect).toBe(false);
   });
 
   it('grades Matching regardless of pair order', () => {
@@ -75,8 +75,12 @@ describe('gradeAnswer', () => {
       correctAnswer: 'dog:bark|cat:meow|cow:moo',
       incorrectAnswers: [],
     };
-    expect(gradeAnswer(matching, 'cat:meow|dog:bark|cow:moo')).toBe(true);
-    expect(gradeAnswer(matching, 'dog:bark|cat:meow|cow:moo')).toBe(true);
+    expect(gradeAnswer(matching, 'cat:meow|dog:bark|cow:moo').isCorrect).toBe(
+      true
+    );
+    expect(gradeAnswer(matching, 'dog:bark|cat:meow|cow:moo').isCorrect).toBe(
+      true
+    );
   });
 
   it('rejects Matching when a pair is wrong or missing', () => {
@@ -88,8 +92,8 @@ describe('gradeAnswer', () => {
       correctAnswer: 'dog:bark|cat:meow',
       incorrectAnswers: [],
     };
-    expect(gradeAnswer(matching, 'dog:meow|cat:bark')).toBe(false);
-    expect(gradeAnswer(matching, 'dog:bark')).toBe(false);
+    expect(gradeAnswer(matching, 'dog:meow|cat:bark').isCorrect).toBe(false);
+    expect(gradeAnswer(matching, 'dog:bark').isCorrect).toBe(false);
   });
 
   it('grades Ordering strictly by sequence', () => {
@@ -101,9 +105,244 @@ describe('gradeAnswer', () => {
       correctAnswer: 'first|second|third',
       incorrectAnswers: [],
     };
-    expect(gradeAnswer(ordering, 'first|second|third')).toBe(true);
-    expect(gradeAnswer(ordering, 'FIRST|Second|THIRD')).toBe(true);
-    expect(gradeAnswer(ordering, 'first|third|second')).toBe(false);
+    expect(gradeAnswer(ordering, 'first|second|third').isCorrect).toBe(true);
+    expect(gradeAnswer(ordering, 'FIRST|Second|THIRD').isCorrect).toBe(true);
+    expect(gradeAnswer(ordering, 'first|third|second').isCorrect).toBe(false);
+  });
+
+  it('returns full points for correct answers and zero for wrong', () => {
+    const q: QuizQuestion = {
+      id: 'p1',
+      timeLimit: 0,
+      text: 'Order',
+      type: 'Ordering',
+      correctAnswer: 'a|b|c|d',
+      incorrectAnswers: [],
+      points: 4,
+    };
+    const correct = gradeAnswer(q, 'a|b|c|d');
+    expect(correct).toEqual({ isCorrect: true, pointsEarned: 4, pointsMax: 4 });
+    const wrong = gradeAnswer(q, 'd|c|b|a');
+    expect(wrong).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 4 });
+  });
+
+  it('defaults to 1 point when points is unset', () => {
+    const q: QuizQuestion = {
+      id: 'p2',
+      timeLimit: 0,
+      text: '?',
+      type: 'MC',
+      correctAnswer: 'yes',
+      incorrectAnswers: ['no'],
+    };
+    expect(gradeAnswer(q, 'yes').pointsEarned).toBe(1);
+    expect(gradeAnswer(q, 'no').pointsEarned).toBe(0);
+  });
+
+  describe('partial credit', () => {
+    it('Matching: awards (correctPairs / total) * points when allowPartialCredit', () => {
+      const q: QuizQuestion = {
+        id: 'pm1',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'dog:bark|cat:meow|cow:moo',
+        incorrectAnswers: [],
+        points: 6,
+        allowPartialCredit: true,
+      };
+      // 2 of 3 pairs correct → 4/6 points.
+      const partial = gradeAnswer(q, 'dog:bark|cat:meow|cow:wrong');
+      expect(partial.isCorrect).toBe(false);
+      expect(partial.pointsMax).toBe(6);
+      expect(partial.pointsEarned).toBeCloseTo(4, 5);
+    });
+
+    it('Matching: distractors picked as a "match" grade as wrong, do not crash grading', () => {
+      const q: QuizQuestion = {
+        id: 'pm2',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'dog:bark|cat:meow',
+        incorrectAnswers: [],
+        matchingDistractors: ['quack', 'oink'],
+        points: 4,
+        allowPartialCredit: true,
+      };
+      // Student picked one real pair and a distractor for the other → 1/2.
+      const grade = gradeAnswer(q, 'dog:bark|cat:quack');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBeCloseTo(2, 5);
+    });
+
+    it('Matching: duplicate same-pair submission cannot fake full credit', () => {
+      // Regression: an earlier set-membership grader scored "a:1|a:1" as
+      // matched=2/total=2 because both copies hit the correctSet. Per-left
+      // matching means each prompt is graded at most once.
+      const q: QuizQuestion = {
+        id: 'pm-dup',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'a:1|b:2',
+        incorrectAnswers: [],
+        points: 2,
+      };
+      const grade = gradeAnswer(q, 'a:1|a:1');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBe(0);
+
+      // And under partial credit, the dup answer earns 1/2, not 2/2.
+      const partialQ: QuizQuestion = { ...q, allowPartialCredit: true };
+      const partial = gradeAnswer(partialQ, 'a:1|a:1');
+      expect(partial.isCorrect).toBe(false);
+      expect(partial.pointsEarned).toBeCloseTo(1, 5);
+    });
+
+    it('Matching: full-credit bonus path still produces isCorrect=true with partial enabled', () => {
+      const q: QuizQuestion = {
+        id: 'pm3',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'a:1|b:2',
+        incorrectAnswers: [],
+        points: 2,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'a:1|b:2');
+      expect(grade.isCorrect).toBe(true);
+      expect(grade.pointsEarned).toBe(2);
+    });
+
+    it('Ordering: shifted-but-correct-order subsequence earns LIS-based partial credit', () => {
+      const q: QuizQuestion = {
+        id: 'po1',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C|D',
+        incorrectAnswers: [],
+        points: 4,
+        allowPartialCredit: true,
+      };
+      // correct=A,B,C,D ; given=B,C,D,A → LIS through B,C,D = 3 → 3/4 points.
+      const grade = gradeAnswer(q, 'B|C|D|A');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBeCloseTo(3, 5);
+    });
+
+    it('Ordering: full reverse on a 4-item list awards 1/4 (longest run is 1)', () => {
+      const q: QuizQuestion = {
+        id: 'po2',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C|D',
+        incorrectAnswers: [],
+        points: 4,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'D|C|B|A');
+      expect(grade.pointsEarned).toBeCloseTo(1, 5);
+    });
+
+    it('Ordering: full reverse on a 2-item list awards 1/2', () => {
+      const q: QuizQuestion = {
+        id: 'po3',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B',
+        incorrectAnswers: [],
+        points: 2,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'B|A');
+      expect(grade.pointsEarned).toBeCloseTo(1, 5);
+    });
+
+    it('Ordering: full match earns full points with partial enabled', () => {
+      const q: QuizQuestion = {
+        id: 'po4',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C',
+        incorrectAnswers: [],
+        points: 3,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'A|B|C');
+      expect(grade.isCorrect).toBe(true);
+      expect(grade.pointsEarned).toBe(3);
+    });
+
+    it('Ordering: handles duplicate items in correctAnswer positionally so a perfect answer scores full credit', () => {
+      // Regression: a value→index map (last-write-wins) made a perfect
+      // answer to "A|B|A" score 2/3. Positional pairing fixes it.
+      const q: QuizQuestion = {
+        id: 'po-dup',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|A',
+        incorrectAnswers: [],
+        points: 3,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, 'A|B|A');
+      expect(grade.isCorrect).toBe(true);
+      expect(grade.pointsEarned).toBe(3);
+    });
+
+    it('Matching: empty student answer earns zero points and is not flagged correct', () => {
+      const q: QuizQuestion = {
+        id: 'pm-empty',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'a:1|b:2',
+        incorrectAnswers: [],
+        points: 4,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, '');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBe(0);
+    });
+
+    it('Ordering: empty student answer earns zero points and is not flagged correct', () => {
+      const q: QuizQuestion = {
+        id: 'po-empty',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C',
+        incorrectAnswers: [],
+        points: 3,
+        allowPartialCredit: true,
+      };
+      const grade = gradeAnswer(q, '');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBe(0);
+    });
+
+    it('partial credit is ignored when allowPartialCredit is undefined', () => {
+      const q: QuizQuestion = {
+        id: 'po5',
+        timeLimit: 0,
+        text: 'Order',
+        type: 'Ordering',
+        correctAnswer: 'A|B|C',
+        incorrectAnswers: [],
+        points: 3,
+      };
+      const grade = gradeAnswer(q, 'A|C|B');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBe(0);
+    });
   });
 });
 
@@ -146,6 +385,52 @@ describe('toPublicQuestion', () => {
       expect.arrayContaining(['bark', 'meow', 'moo'])
     );
     expect(pub).not.toHaveProperty('correctAnswer');
+    expect(pub).not.toHaveProperty('matchingDistractors');
+  });
+
+  it('preserves a colon inside a matching definition end-to-end', () => {
+    // Regression: split(':') destructuring truncated definitions like "9:00 AM"
+    // to "9". indexOf(':') + slice keeps the rest intact.
+    const q: QuizQuestion = {
+      id: 'q-colon',
+      timeLimit: 0,
+      text: 'Match',
+      type: 'Matching',
+      correctAnswer: 'breakfast:9:00 AM|lunch:12:30 PM',
+      incorrectAnswers: [],
+    };
+    const pub = toPublicQuestion(q);
+    expect(pub.matchingLeft).toEqual(['breakfast', 'lunch']);
+    expect(pub.matchingRight).toEqual(
+      expect.arrayContaining(['9:00 AM', '12:30 PM'])
+    );
+
+    // gradeAnswer also has to round-trip the same wire format correctly.
+    const grade = gradeAnswer(q, 'breakfast:9:00 AM|lunch:12:30 PM');
+    expect(grade.isCorrect).toBe(true);
+  });
+
+  it('merges matchingDistractors into the shuffled right bank for Matching', () => {
+    const q: QuizQuestion = {
+      id: 'q2b',
+      timeLimit: 0,
+      text: 'Match',
+      type: 'Matching',
+      correctAnswer: 'dog:bark|cat:meow',
+      incorrectAnswers: [],
+      matchingDistractors: ['quack', 'oink'],
+    };
+    const pub = toPublicQuestion(q);
+    expect(pub.matchingLeft).toEqual(['dog', 'cat']);
+    // Bank contains real definitions + distractors merged together.
+    expect(pub.matchingRight).toHaveLength(4);
+    expect(pub.matchingRight).toEqual(
+      expect.arrayContaining(['bark', 'meow', 'quack', 'oink'])
+    );
+    // Distractors must NOT appear as a separate field — exposing them in the
+    // student-readable session doc would let a student pop devtools and read
+    // off exactly which entries are wrong.
+    expect(pub).not.toHaveProperty('matchingDistractors');
   });
 
   it('splits Ordering into items without preserving order or correctAnswer', () => {

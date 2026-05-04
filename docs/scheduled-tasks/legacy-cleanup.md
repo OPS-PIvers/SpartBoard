@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-04-26_
+_Last audited: 2026-05-03_
 _Last action: never_
 
 ---
@@ -27,17 +27,17 @@ _Nothing currently in progress._
 
 ## Clean (no issues found)
 
-Migration code audit (2026-04-26):
+Migration code audit (2026-05-03):
 
-- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts` migrateWidget() handler — correct. `utils/migration.ts:71-80` transforms to 'time-tool'.
+- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts` migrateWidget() handler — correct. `utils/migration.ts:71-80` transforms to 'time-tool'. Confirmed still clean; 'timer'/'stopwatch' strings found in TimeTool components are `TimeToolMode` values, not legacy WidgetType strings.
 - Old type string 'workSymbols': Only referenced in `utils/migration.ts:93` — transforms to 'expectations'. Zero usage elsewhere.
-- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx:1092-1094` with proper guard. Still needed.
+- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx:1168` with proper guard. Still needed.
 
-Commented-out code (2026-04-26): No blocks of 10+ consecutive commented lines found in components/, context/, hooks/, or utils/.
+Commented-out code (2026-05-03): No blocks of actual commented-out code found. Blocks detected by pattern scan were legitimate JSDoc documentation comments. Clean.
 
-Dead exports (2026-04-26): No new abandoned exports found.
+Dead exports (2026-05-03): No new abandoned exports found. New utils file `quizSyncMigration.ts` is actively imported by two hooks. Clean.
 
-console.log() calls (2026-04-26): Zero `console.log()` calls in components/, context/, hooks/, utils/. Clean.
+console.log() calls (2026-05-03): Zero `console.log()` calls in components/, context/, hooks/, utils/. `console.error()` calls in admin UI are legitimate error handlers. Clean.
 
 ---
 

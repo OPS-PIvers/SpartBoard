@@ -21,8 +21,8 @@ import {
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   url: {
-    w: 320,
-    h: 280,
+    w: 220,
+    h: 180,
     config: {
       urls: [],
     } satisfies import('@/types').UrlWidgetConfig,
@@ -348,6 +348,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   'car-rider-pro': {
+    w: 450,
+    h: 600,
+    config: {},
+  },
+  'blending-board': {
     w: 450,
     h: 600,
     config: {},

@@ -37,24 +37,37 @@ import type {
 
 const BADGE_TONE_STYLES: Record<
   LibraryBadgeTone,
-  { bg: string; fg: string; dot: string }
+  { bg: string; fg: string; dot: string; hoverBg: string }
 > = {
-  neutral: { bg: 'bg-slate-100', fg: 'text-slate-600', dot: 'bg-slate-400' },
+  neutral: {
+    bg: 'bg-slate-100',
+    fg: 'text-slate-600',
+    dot: 'bg-slate-400',
+    hoverBg: 'hover:bg-slate-200',
+  },
   info: {
     bg: 'bg-brand-blue-lighter/40',
     fg: 'text-brand-blue-dark',
     dot: 'bg-brand-blue-primary',
+    hoverBg: 'hover:bg-brand-blue-lighter/60',
   },
-  warn: { bg: 'bg-amber-100', fg: 'text-amber-700', dot: 'bg-amber-500' },
+  warn: {
+    bg: 'bg-amber-100',
+    fg: 'text-amber-700',
+    dot: 'bg-amber-500',
+    hoverBg: 'hover:bg-amber-200',
+  },
   success: {
     bg: 'bg-emerald-100',
     fg: 'text-emerald-700',
     dot: 'bg-emerald-500',
+    hoverBg: 'hover:bg-emerald-200',
   },
   danger: {
     bg: 'bg-brand-red-lighter/40',
     fg: 'text-brand-red-dark',
     dot: 'bg-brand-red-primary',
+    hoverBg: 'hover:bg-brand-red-lighter/60',
   },
 };
 
@@ -231,17 +244,78 @@ const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
 
 const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
   const tone = BADGE_TONE_STYLES[badge.tone];
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`}
-    >
+  const Icon = badge.icon;
+  // Container-query units cap at the original pixel sizes so badges look
+  // identical on default-size widgets but scale down with the rest of the
+  // card chrome (kebab button, icon-action buttons) on smaller widgets.
+  const baseClasses = `inline-flex items-center rounded-full font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
+  const baseStyle: React.CSSProperties = {
+    fontSize: 'min(11px, 4cqmin)',
+    paddingInline: 'min(8px, 2.5cqmin)',
+    paddingBlock: 'min(2px, 0.6cqmin)',
+    gap: 'min(4px, 1.2cqmin)',
+  };
+  const inner = (
+    <>
       {badge.dot && (
         <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
+          className={`shrink-0 rounded-full ${tone.dot}`}
+          style={{
+            width: 'min(6px, 1.8cqmin)',
+            height: 'min(6px, 1.8cqmin)',
+          }}
           aria-hidden="true"
         />
       )}
+      {Icon && (
+        <Icon
+          className="shrink-0"
+          style={{
+            width: 'min(12px, 4cqmin)',
+            height: 'min(12px, 4cqmin)',
+          }}
+        />
+      )}
       {badge.label}
+    </>
+  );
+
+  // Render as a <button> when there's an action attached OR when the badge
+  // is explicitly disabled (transient inert state like "Syncing…"). The
+  // disabled-button path matters: browsers swallow user clicks on disabled
+  // buttons, so the click doesn't bubble to the card body's onClick — a
+  // plain <span> would, and would open the editor mid-sync.
+  if (badge.onClick || badge.disabled) {
+    const handler = badge.onClick;
+    const accessibleLabel = badge.actionLabel ?? badge.label;
+    const interactiveClasses = badge.disabled
+      ? 'cursor-default'
+      : `${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`;
+    return (
+      <button
+        type="button"
+        disabled={badge.disabled}
+        onClick={
+          handler
+            ? (e) => {
+                e.stopPropagation();
+                handler();
+              }
+            : undefined
+        }
+        title={accessibleLabel}
+        aria-label={accessibleLabel}
+        className={`${baseClasses} ${interactiveClasses}`}
+        style={baseStyle}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <span className={baseClasses} style={baseStyle}>
+      {inner}
     </span>
   );
 };

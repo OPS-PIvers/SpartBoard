@@ -112,13 +112,14 @@ export async function handleJoinSyncedQuizGroup(
       uid
     );
     if (!alreadyJoined) {
-      participants[uid] = { joinedAt: Date.now() };
+      const now = Date.now();
+      participants[uid] = { joinedAt: now };
       tx.update(groupRef, {
         participants,
         // updatedAt tracks any server-side touch; updatedBy is left at the
         // last content-writer's uid so attribution doesn't flicker on
         // membership changes.
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
     }
     return {

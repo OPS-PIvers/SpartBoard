@@ -40,6 +40,7 @@ export type WidgetType =
   | 'onboarding'
   | 'countdown'
   | 'car-rider-pro'
+  | 'blending-board'
   | 'music'
   | 'specialist-schedule'
   | 'graphic-organizer'
@@ -476,6 +477,8 @@ export interface UrlWidgetConfig {
     title?: string;
     color?: string;
     icon?: string;
+    shape?: 'rectangle' | 'circle';
+    imageUrl?: string;
   }[];
 }
 
@@ -1727,6 +1730,32 @@ export interface QuizQuestion {
   incorrectAnswers: string[];
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
+  /**
+   * Matching only. Extra incorrect definitions added to the student's
+   * word bank to increase difficulty (e.g., 3 terms but 6 definitions).
+   * Empty/undefined = no distractors. Stored separately so they can never
+   * be mistakenly read as correct pairs.
+   */
+  matchingDistractors?: string[];
+  /**
+   * Per-question opt-in for partial credit on Matching/Ordering. Ignored
+   * for MC/FIB. Defaults to false.
+   */
+  allowPartialCredit?: boolean;
+}
+
+/**
+ * Result of grading a student's answer to a single quiz question.
+ * Replaces the legacy boolean return so partial credit (Matching / Ordering)
+ * can be expressed without changing wire formats.
+ */
+export interface GradeResult {
+  /** True iff the answer earned full credit. */
+  isCorrect: boolean;
+  /** Points actually awarded (fractional ok). */
+  pointsEarned: number;
+  /** Max points for this question (= q.points ?? 1). */
+  pointsMax: number;
 }
 
 /** Full quiz data stored in Google Drive as JSON */
@@ -1807,7 +1836,12 @@ export interface QuizPublicQuestion {
   choices?: string[];
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
-  /** Matching only: right-side definitions, pre-shuffled */
+  /**
+   * Matching only: right-side definitions, pre-shuffled and merged with any
+   * teacher-provided distractors. Distractors are intentionally NOT exposed
+   * as a separate field on the public payload — that would let a student
+   * read off the exact wrong options from devtools.
+   */
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
@@ -2798,6 +2832,8 @@ export interface CarRiderProConfig {
   cardOpacity?: number;
 }
 
+export type BlendingBoardConfig = Record<string, never>;
+
 export interface RevealCard {
   id: string;
   frontContent: string;
@@ -3304,6 +3340,7 @@ export type WidgetConfig =
   | OnboardingConfig
   | CountdownConfig
   | CarRiderProConfig
+  | BlendingBoardConfig
   | MusicConfig
   | SpecialistScheduleConfig
   | GraphicOrganizerConfig
@@ -3411,43 +3448,45 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                     ? CountdownConfig
                                                                                     : T extends 'car-rider-pro'
                                                                                       ? CarRiderProConfig
-                                                                                      : T extends 'music'
-                                                                                        ? MusicConfig
-                                                                                        : T extends 'specialist-schedule'
-                                                                                          ? SpecialistScheduleConfig
-                                                                                          : T extends 'graphic-organizer'
-                                                                                            ? GraphicOrganizerConfig
-                                                                                            : T extends 'concept-web'
-                                                                                              ? ConceptWebConfig
-                                                                                              : T extends 'reveal-grid'
-                                                                                                ? RevealGridConfig
-                                                                                                : T extends 'numberLine'
-                                                                                                  ? NumberLineConfig
-                                                                                                  : T extends 'syntax-framer'
-                                                                                                    ? SyntaxFramerConfig
-                                                                                                    : T extends 'hotspot-image'
-                                                                                                      ? HotspotImageConfig
-                                                                                                      : T extends 'starter-pack'
-                                                                                                        ? StarterPackConfig
-                                                                                                        : T extends 'video-activity'
-                                                                                                          ? VideoActivityConfig
-                                                                                                          : T extends 'guided-learning'
-                                                                                                            ? GuidedLearningConfig
-                                                                                                            : T extends 'custom-widget'
-                                                                                                              ? CustomWidgetConfig
-                                                                                                              : T extends 'activity-wall'
-                                                                                                                ? ActivityWallConfig
-                                                                                                                : T extends 'work-symbols'
-                                                                                                                  ? WorkSymbolsConfig
-                                                                                                                  : T extends 'blooms-taxonomy'
-                                                                                                                    ? BloomsTaxonomyConfig
-                                                                                                                    : T extends 'blooms-detail'
-                                                                                                                      ? BloomsDetailConfig
-                                                                                                                      : T extends 'need-do-put-then'
-                                                                                                                        ? NeedDoPutThenConfig
-                                                                                                                        : T extends 'stations'
-                                                                                                                          ? StationsConfig
-                                                                                                                          : never;
+                                                                                      : T extends 'blending-board'
+                                                                                        ? BlendingBoardConfig
+                                                                                        : T extends 'music'
+                                                                                          ? MusicConfig
+                                                                                          : T extends 'specialist-schedule'
+                                                                                            ? SpecialistScheduleConfig
+                                                                                            : T extends 'graphic-organizer'
+                                                                                              ? GraphicOrganizerConfig
+                                                                                              : T extends 'concept-web'
+                                                                                                ? ConceptWebConfig
+                                                                                                : T extends 'reveal-grid'
+                                                                                                  ? RevealGridConfig
+                                                                                                  : T extends 'numberLine'
+                                                                                                    ? NumberLineConfig
+                                                                                                    : T extends 'syntax-framer'
+                                                                                                      ? SyntaxFramerConfig
+                                                                                                      : T extends 'hotspot-image'
+                                                                                                        ? HotspotImageConfig
+                                                                                                        : T extends 'starter-pack'
+                                                                                                          ? StarterPackConfig
+                                                                                                          : T extends 'video-activity'
+                                                                                                            ? VideoActivityConfig
+                                                                                                            : T extends 'guided-learning'
+                                                                                                              ? GuidedLearningConfig
+                                                                                                              : T extends 'custom-widget'
+                                                                                                                ? CustomWidgetConfig
+                                                                                                                : T extends 'activity-wall'
+                                                                                                                  ? ActivityWallConfig
+                                                                                                                  : T extends 'work-symbols'
+                                                                                                                    ? WorkSymbolsConfig
+                                                                                                                    : T extends 'blooms-taxonomy'
+                                                                                                                      ? BloomsTaxonomyConfig
+                                                                                                                      : T extends 'blooms-detail'
+                                                                                                                        ? BloomsDetailConfig
+                                                                                                                        : T extends 'need-do-put-then'
+                                                                                                                          ? NeedDoPutThenConfig
+                                                                                                                          : T extends 'stations'
+                                                                                                                            ? StationsConfig
+                                                                                                                            : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -3767,6 +3806,11 @@ export interface FeaturePermission {
 
 export interface CarRiderProGlobalConfig {
   /** District portal login URL for the Car Rider Pro dismissal widget */
+  url?: string;
+}
+
+export interface BlendingBoardGlobalConfig {
+  /** Embedded research/blending board URL configured by district admin */
   url?: string;
 }
 

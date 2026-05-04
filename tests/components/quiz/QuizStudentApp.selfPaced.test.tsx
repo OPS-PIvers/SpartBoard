@@ -409,6 +409,113 @@ describe('QuizStudentApp — self-paced flow', () => {
     }
   });
 
+  it('preserves partial Matching placements when the timer auto-submits', async () => {
+    // Regression: before the structuredAnswerRef wiring, the timer-expiry
+    // auto-submit path read selectedAnswerRef ?? draftMcAnswerRef ??
+    // fibAnswerRef ?? '' — none of which capture the live wire string from
+    // the matching/ordering child component, so timeouts always submitted
+    // ''. This test holds that path: place one chip, let the clock run
+    // out, and assert the partial placement reaches submitAnswer.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      const matching: QuizPublicQuestion = {
+        id: 'qm-timer',
+        type: 'Matching',
+        text: 'Match the capitals',
+        timeLimit: 5,
+        matchingLeft: ['France', 'Germany'],
+        matchingRight: ['Paris', 'Berlin'],
+      };
+      hookState.session = buildSession({
+        publicQuestions: [matching, QUESTIONS[1]],
+        totalQuestions: 2,
+      });
+
+      render(<QuizStudentApp />);
+      expect(
+        await screen.findByText(/Match the capitals/i)
+      ).toBeInTheDocument();
+
+      // Tap-to-place: select Paris from the bank, then drop into France.
+      await user.click(
+        screen.getByRole('button', { name: /Paris, in word bank/ })
+      );
+      await user.click(
+        screen.getByRole('button', { name: /Drop zone for France/ })
+      );
+
+      // Run out the clock. The countdown effect ticks once per second, so
+      // 6s is enough to trigger auto-submit.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+
+      // The auto-submit must have called submitAnswer with the partial
+      // placement, not the empty string.
+      expect(mockSubmitAnswer).toHaveBeenCalledWith(
+        'qm-timer',
+        'France:Paris|Germany:',
+        0
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('preserves partial Ordering placements when the timer auto-submits', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      const ordering: QuizPublicQuestion = {
+        id: 'qo-timer',
+        type: 'Ordering',
+        text: 'Put these in order',
+        timeLimit: 5,
+        orderingItems: ['First', 'Second', 'Third'],
+      };
+      hookState.session = buildSession({
+        publicQuestions: [ordering, QUESTIONS[1]],
+        totalQuestions: 2,
+      });
+
+      render(<QuizStudentApp />);
+      expect(
+        await screen.findByText(/Put these in order/i)
+      ).toBeInTheDocument();
+
+      // Place First and Second; leave Third in the bank.
+      await user.click(
+        screen.getByRole('button', { name: /First, in word bank/ })
+      );
+      await user.click(
+        screen.getByRole('button', { name: /Empty drop zone, position 1/ })
+      );
+      await user.click(
+        screen.getByRole('button', { name: /Second, in word bank/ })
+      );
+      await user.click(
+        screen.getByRole('button', { name: /Empty drop zone, position 2/ })
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+
+      expect(mockSubmitAnswer).toHaveBeenCalledWith(
+        'qo-timer',
+        'First|Second|',
+        0
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('renders MC choices in a per-student order so neighbours diverge', async () => {
     // Use 6 choices so the chance of two random orders matching by accident
     // is small enough that this test won't flake (1/6! ≈ 0.14%).
@@ -493,7 +600,7 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(afterOrder).toEqual(beforeOrder);
   });
 
-  it('hydrates Matching dropdowns from a saved answer on revisit', async () => {
+  it('hydrates Matching placements from a saved answer on revisit', async () => {
     const user = userEvent.setup();
     const matching: QuizPublicQuestion = {
       id: 'qm',
@@ -508,26 +615,21 @@ describe('QuizStudentApp — self-paced flow', () => {
       totalQuestions: 2,
     });
 
+    // Seed a saved answer so the placements hydrate from Firestore on mount.
+    appendAnswer('qm', 'France:Paris|Germany:Berlin|Spain:Madrid');
+
     render(<QuizStudentApp />);
     expect(await screen.findByText(/Match the capitals/i)).toBeInTheDocument();
 
-    // Pick correct pairings.
-    const selects = screen.getAllByRole('combobox');
-    await user.selectOptions(selects[0], 'Paris');
-    await user.selectOptions(selects[1], 'Berlin');
-    await user.selectOptions(selects[2], 'Madrid');
+    // Each term has its definition placed (chips render with aria-pressed,
+    // bank items in remaining bank). NEXT submits the hydrated answer
+    // directly without further interaction.
     await user.click(screen.getByRole('button', { name: /^NEXT/i }));
-    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
-
-    // Back-nav: each <select> should re-show its prior value.
-    await user.click(
-      screen.getByRole('button', { name: /Previous question/i })
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'qm',
+      'France:Paris|Germany:Berlin|Spain:Madrid',
+      undefined
     );
-    expect(await screen.findByText(/Match the capitals/i)).toBeInTheDocument();
-    const revisitSelects = screen.getAllByRole<HTMLSelectElement>('combobox');
-    expect(revisitSelects[0].value).toBe('Paris');
-    expect(revisitSelects[1].value).toBe('Berlin');
-    expect(revisitSelects[2].value).toBe('Madrid');
   });
 
   it('hydrates Ordering arrangement from a saved answer on revisit', async () => {
@@ -551,14 +653,18 @@ describe('QuizStudentApp — self-paced flow', () => {
     render(<QuizStudentApp />);
     expect(await screen.findByText(/Put these in order/i)).toBeInTheDocument();
 
-    // The list items should appear in the saved order, not the default
-    // `[...orderingItems]` order.
-    const listed = screen
-      .getAllByText(/^(First|Second|Third|Fourth)$/, { selector: 'span' })
-      .map((s) => s.textContent);
-    expect(listed).toEqual(['Fourth', 'Third', 'Second', 'First']);
+    // The four slot chips should appear in the saved order. We scope the
+    // search to button elements since the bank shows chips too — but with
+    // all items hydrated into slots, the bank is empty.
+    const slotChips = screen
+      .getAllByRole('button')
+      .filter((b) =>
+        ['First', 'Second', 'Third', 'Fourth'].includes(b.textContent ?? '')
+      )
+      .map((b) => b.textContent);
+    expect(slotChips).toEqual(['Fourth', 'Third', 'Second', 'First']);
 
-    // And NEXT submits the existing arrangement on a single tap.
+    // NEXT submits the existing arrangement on a single tap.
     await user.click(screen.getByRole('button', { name: /^NEXT/i }));
     expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
       'qo',
