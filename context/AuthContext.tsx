@@ -583,11 +583,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) return;
 
+    // Reset to the loading state immediately when the user changes so the
+    // settings listener effect (gated on isAdmin === true) doesn't act on
+    // stale admin status from a previous user during a sign-out → sign-in
+    // transition while AuthContext stays mounted.
+    setIsAdmin(null);
+
     const checkAdminStatus = async () => {
-      if (!user?.email) {
-        setIsAdmin(null);
-        return;
-      }
+      if (!user?.email) return;
 
       try {
         const adminDoc = await getDoc(

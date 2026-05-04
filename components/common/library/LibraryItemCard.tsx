@@ -245,16 +245,37 @@ const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
 const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
   const tone = BADGE_TONE_STYLES[badge.tone];
   const Icon = badge.icon;
-  const baseClasses = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
+  // Container-query units cap at the original pixel sizes so badges look
+  // identical on default-size widgets but scale down with the rest of the
+  // card chrome (kebab button, icon-action buttons) on smaller widgets.
+  const baseClasses = `inline-flex items-center rounded-full font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
+  const baseStyle: React.CSSProperties = {
+    fontSize: 'min(11px, 4cqmin)',
+    paddingInline: 'min(8px, 2.5cqmin)',
+    paddingBlock: 'min(2px, 0.6cqmin)',
+    gap: 'min(4px, 1.2cqmin)',
+  };
   const inner = (
     <>
       {badge.dot && (
         <span
-          className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
+          className={`shrink-0 rounded-full ${tone.dot}`}
+          style={{
+            width: 'min(6px, 1.8cqmin)',
+            height: 'min(6px, 1.8cqmin)',
+          }}
           aria-hidden="true"
         />
       )}
-      {Icon && <Icon size={12} className="shrink-0" />}
+      {Icon && (
+        <Icon
+          className="shrink-0"
+          style={{
+            width: 'min(12px, 4cqmin)',
+            height: 'min(12px, 4cqmin)',
+          }}
+        />
+      )}
       {badge.label}
     </>
   );
@@ -272,13 +293,18 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
         title={accessibleLabel}
         aria-label={accessibleLabel}
         className={`${baseClasses} ${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
+        style={baseStyle}
       >
         {inner}
       </button>
     );
   }
 
-  return <span className={baseClasses}>{inner}</span>;
+  return (
+    <span className={baseClasses} style={baseStyle}>
+      {inner}
+    </span>
+  );
 };
 
 /* ─── Inner card body (presentation only — no dnd-kit coupling) ───────────── */
