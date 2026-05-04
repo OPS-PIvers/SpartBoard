@@ -1224,7 +1224,7 @@ const QuestionsTab: React.FC<{
 
         if (qStats && q) {
           qStats.answered++;
-          if (gradeAnswer(q, a.answer)) {
+          if (gradeAnswer(q, a.answer).isCorrect) {
             qStats.correct++;
           }
         }

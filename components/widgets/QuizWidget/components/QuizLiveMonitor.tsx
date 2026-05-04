@@ -2642,7 +2642,7 @@ const MCDistribution: React.FC<{
         const count = distribution[opt] || 0;
         const pct =
           totalAnswered > 0 ? Math.round((count / totalAnswered) * 100) : 0;
-        const isCorrect = gradeAnswer(question, opt);
+        const isCorrect = gradeAnswer(question, opt).isCorrect;
 
         return (
           <div key={opt}>

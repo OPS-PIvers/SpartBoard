@@ -32,6 +32,10 @@ import {
   generateQuiz,
 } from '@/utils/ai';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import {
+  MatchingAnswerEditor,
+  OrderingAnswerEditor,
+} from './MatchingOrderingEditor';
 
 interface QuizEditorModalProps {
   isOpen: boolean;
@@ -49,6 +53,11 @@ interface QuizEditorModalProps {
    */
   onFolderChange?: (folderId: string | null) => void;
 }
+
+/** Stable empty array reused as the `matchingDistractors` fallback so the
+ *  child editor's "did the prop change" check doesn't fire on every parent
+ *  render when the field is undefined. */
+const EMPTY_DISTRACTORS: readonly string[] = Object.freeze([]);
 
 const QUESTION_TYPES: {
   value: QuizQuestionType;
@@ -68,12 +77,12 @@ const QUESTION_TYPES: {
   {
     value: 'Matching',
     label: 'Matching',
-    hint: 'Format: term1:definition1|term2:definition2',
+    hint: 'Pair terms with their matching definitions. Add extra distractors to increase difficulty.',
   },
   {
     value: 'Ordering',
     label: 'Ordering',
-    hint: 'Format: item1|item2|item3 in the correct sequence.',
+    hint: 'List items in the correct sequence. Drag rows or use arrows to reorder.',
   },
 ];
 
@@ -98,12 +107,19 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       qa.correctAnswer !== qb.correctAnswer ||
       qa.timeLimit !== qb.timeLimit ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
+      (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
       qa.incorrectAnswers.length !== qb.incorrectAnswers.length
     ) {
       return false;
     }
     for (let j = 0; j < qa.incorrectAnswers.length; j++) {
       if (qa.incorrectAnswers[j] !== qb.incorrectAnswers[j]) return false;
+    }
+    const aDistractors = qa.matchingDistractors ?? [];
+    const bDistractors = qb.matchingDistractors ?? [];
+    if (aDistractors.length !== bDistractors.length) return false;
+    for (let j = 0; j < aDistractors.length; j++) {
+      if (aDistractors[j] !== bDistractors[j]) return false;
     }
   }
   return true;
@@ -538,11 +554,35 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 </div>
 
                 {(q.type === 'Matching' || q.type === 'Ordering') && (
-                  <div className="flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-xl shadow-sm">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <p className="font-medium text-xs">
-                      {QUESTION_TYPES.find((t) => t.value === q.type)?.hint}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-xl shadow-sm flex-1">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <p className="font-medium text-xs">
+                        {QUESTION_TYPES.find((t) => t.value === q.type)?.hint}
+                      </p>
+                    </div>
+                    <label
+                      className="flex items-center gap-2 px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl shadow-sm cursor-pointer select-none"
+                      title={
+                        q.type === 'Matching'
+                          ? 'Award partial points based on the number of correct pairs.'
+                          : 'Award partial points based on the longest correctly-ordered sequence.'
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={q.allowPartialCredit === true}
+                        onChange={(e) =>
+                          updateQuestion(q.id, {
+                            allowPartialCredit: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 accent-brand-blue-primary"
+                      />
+                      <span className="font-bold text-xs text-brand-blue-dark whitespace-nowrap">
+                        Allow partial credit
+                      </span>
+                    </label>
                   </div>
                 )}
 
@@ -561,26 +601,42 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block font-bold text-emerald-700 mb-1 text-xs">
-                    Correct Answer
-                  </label>
-                  <input
-                    type="text"
-                    value={q.correctAnswer}
-                    onChange={(e) =>
-                      updateQuestion(q.id, { correctAnswer: e.target.value })
+                {q.type === 'Matching' ? (
+                  <MatchingAnswerEditor
+                    correctAnswer={q.correctAnswer}
+                    matchingDistractors={
+                      q.matchingDistractors ?? (EMPTY_DISTRACTORS as string[])
                     }
-                    className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-                    placeholder={
-                      q.type === 'Matching'
-                        ? 'term1:def1|term2:def2'
-                        : q.type === 'Ordering'
-                          ? 'item1|item2|item3'
-                          : 'Enter the definitive answer'
+                    onChange={({ correctAnswer, matchingDistractors }) =>
+                      updateQuestion(q.id, {
+                        correctAnswer,
+                        matchingDistractors,
+                      })
                     }
                   />
-                </div>
+                ) : q.type === 'Ordering' ? (
+                  <OrderingAnswerEditor
+                    correctAnswer={q.correctAnswer}
+                    onChange={(correctAnswer) =>
+                      updateQuestion(q.id, { correctAnswer })
+                    }
+                  />
+                ) : (
+                  <div>
+                    <label className="block font-bold text-emerald-700 mb-1 text-xs">
+                      Correct Answer
+                    </label>
+                    <input
+                      type="text"
+                      value={q.correctAnswer}
+                      onChange={(e) =>
+                        updateQuestion(q.id, { correctAnswer: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+                      placeholder="Enter the definitive answer"
+                    />
+                  </div>
+                )}
 
                 {q.type === 'MC' && (
                   <div className="space-y-2">

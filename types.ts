@@ -1729,6 +1729,32 @@ export interface QuizQuestion {
   incorrectAnswers: string[];
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
+  /**
+   * Matching only. Extra incorrect definitions added to the student's
+   * word bank to increase difficulty (e.g., 3 terms but 6 definitions).
+   * Empty/undefined = no distractors. Stored separately so they can never
+   * be mistakenly read as correct pairs.
+   */
+  matchingDistractors?: string[];
+  /**
+   * Per-question opt-in for partial credit on Matching/Ordering. Ignored
+   * for MC/FIB. Defaults to false.
+   */
+  allowPartialCredit?: boolean;
+}
+
+/**
+ * Result of grading a student's answer to a single quiz question.
+ * Replaces the legacy boolean return so partial credit (Matching / Ordering)
+ * can be expressed without changing wire formats.
+ */
+export interface GradeResult {
+  /** True iff the answer earned full credit. */
+  isCorrect: boolean;
+  /** Points actually awarded (fractional ok). */
+  pointsEarned: number;
+  /** Max points for this question (= q.points ?? 1). */
+  pointsMax: number;
 }
 
 /** Full quiz data stored in Google Drive as JSON */
@@ -1811,6 +1837,13 @@ export interface QuizPublicQuestion {
   matchingLeft?: string[];
   /** Matching only: right-side definitions, pre-shuffled */
   matchingRight?: string[];
+  /**
+   * Matching only: extra distractor definitions, pre-shuffled together with
+   * `matchingRight` server-side and copied here for transparency. Students
+   * receive the merged shuffled bank; the boundary between real definitions
+   * and distractors is invisible at render time.
+   */
+  matchingDistractors?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
 }

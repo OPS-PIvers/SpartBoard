@@ -39,6 +39,7 @@ import {
   QuizResponseAnswer,
   QuizQuestion,
   QuizPublicQuestion,
+  GradeResult,
 } from '../types';
 import { resolvePeriodNames } from '../utils/periodCompat';
 
@@ -79,12 +80,23 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
       ...q.incorrectAnswers.filter(Boolean),
     ]);
   } else if (q.type === 'Matching') {
+    // Use indexOf+slice (not split(':')) so a definition that itself contains
+    // a colon (e.g. "9:00 AM", "H:O") survives intact. Only the FIRST colon
+    // separates term from definition; everything after stays in `right`.
     const pairs = q.correctAnswer.split('|').map((p) => {
-      const [left, right] = p.split(':');
-      return { left: left ?? '', right: right ?? '' };
+      const sep = p.indexOf(':');
+      if (sep < 0) return { left: p, right: '' };
+      return { left: p.slice(0, sep), right: p.slice(sep + 1) };
     });
+    const distractors = (q.matchingDistractors ?? []).filter(Boolean);
     base.matchingLeft = pairs.map((p) => p.left);
-    base.matchingRight = fisherYatesShuffle(pairs.map((p) => p.right));
+    base.matchingRight = fisherYatesShuffle([
+      ...pairs.map((p) => p.right),
+      ...distractors,
+    ]);
+    if (distractors.length > 0) {
+      base.matchingDistractors = distractors;
+    }
   } else if (q.type === 'Ordering') {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
   }
@@ -97,28 +109,100 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
 export const normalizeAnswer = (s: string) =>
   s.trim().toLowerCase().replace(/\s+/g, ' ');
 
+/**
+ * Length of the longest subsequence of `given` whose items appear in
+ * `correct` in correct relative order. Used for Ordering partial credit:
+ * rewards a student who has items in the right order even if shifted.
+ *
+ * Items in `given` not present in `correct` are skipped (don't break
+ * runs). Comparison is whitespace/case-insensitive (`normalizeAnswer`).
+ *
+ * Duplicate items in `correct` are handled positionally: each occurrence
+ * is consumed at most once, in left-to-right order, so a perfect student
+ * answer to `[A,B,A]` produces seq `[0,1,2]` (LIS = 3) rather than
+ * `[2,1,2]` (LIS = 2) which a value→index map would produce.
+ *
+ * O(n × m) for the pairing pass plus O(n log n) for the patience-sort
+ * tails — n is small enough (≤ 50 ordering items in practice) that the
+ * constant matters more than asymptotics.
+ */
+function longestOrderedSubsequenceLength(
+  correct: string[],
+  given: string[]
+): number {
+  const correctNorm = correct.map(normalizeAnswer);
+  const used = new Array<boolean>(correct.length).fill(false);
+  const seq: number[] = [];
+  for (const g of given) {
+    const target = normalizeAnswer(g);
+    // Pick the leftmost unused occurrence — left-to-right consumption is
+    // what produces the intuitive "perfect answer scores full credit"
+    // behavior on inputs with duplicates.
+    let chosen = -1;
+    for (let i = 0; i < correctNorm.length; i++) {
+      if (!used[i] && correctNorm[i] === target) {
+        chosen = i;
+        break;
+      }
+    }
+    if (chosen >= 0) {
+      used[chosen] = true;
+      seq.push(chosen);
+    }
+  }
+  const tails: number[] = [];
+  for (const x of seq) {
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (tails[mid] < x) lo = mid + 1;
+      else hi = mid;
+    }
+    tails[lo] = x;
+  }
+  return tails.length;
+}
+
 export function gradeAnswer(
   question: QuizQuestion,
   studentAnswer: string
-): boolean {
+): GradeResult {
+  const max = question.points ?? 1;
+  const partial = question.allowPartialCredit === true;
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 
   if (question.type === 'MC' || question.type === 'FIB') {
-    return correct === given;
+    const isCorrect = correct === given;
+    return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
   }
   if (question.type === 'Matching') {
-    const correctSet = new Set(correct.split('|').map(normalizeAnswer));
-    const givenParts = given.split('|').map(normalizeAnswer);
-    return (
-      givenParts.length === correctSet.size &&
-      givenParts.every((p) => correctSet.has(p))
-    );
+    const correctPairs = correct.split('|').map(normalizeAnswer);
+    const givenPairs = given.split('|').map(normalizeAnswer);
+    const correctSet = new Set(correctPairs);
+    const matched = givenPairs.filter((p) => correctSet.has(p)).length;
+    const total = correctPairs.length;
+    const isCorrect = matched === total && givenPairs.length === total;
+    if (!partial) {
+      return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+    }
+    const pointsEarned = total === 0 ? 0 : (matched / total) * max;
+    return { isCorrect, pointsEarned, pointsMax: max };
   }
   if (question.type === 'Ordering') {
-    return correct === given;
+    const isCorrect = correct === given;
+    if (!partial) {
+      return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
+    }
+    const correctItems = question.correctAnswer.split('|');
+    const givenItems = studentAnswer.split('|');
+    const lis = longestOrderedSubsequenceLength(correctItems, givenItems);
+    const pointsEarned =
+      correctItems.length === 0 ? 0 : (lis / correctItems.length) * max;
+    return { isCorrect, pointsEarned, pointsMax: max };
   }
-  return false;
+  return { isCorrect: false, pointsEarned: 0, pointsMax: max };
 }
 
 /**
