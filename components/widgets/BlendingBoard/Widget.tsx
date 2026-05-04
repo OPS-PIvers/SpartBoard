@@ -59,7 +59,13 @@ export const BlendingBoardWidget: React.FC<{ widget: WidgetData }> = ({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute top-2 right-2 z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-violet-500 shadow-sm border border-slate-200/50 rounded-lg p-1.5 transition-colors"
+            className="absolute z-10 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-500 hover:text-violet-500 shadow-sm border border-slate-200/50 transition-colors"
+            style={{
+              top: 'min(8px, 2cqmin)',
+              right: 'min(8px, 2cqmin)',
+              padding: 'min(6px, 1.5cqmin)',
+              borderRadius: 'min(8px, 2cqmin)',
+            }}
             title="Open in new tab"
             onPointerDown={(e) => e.stopPropagation()}
           >

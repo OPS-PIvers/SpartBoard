@@ -2834,11 +2834,7 @@ export interface CarRiderProConfig {
   cardOpacity?: number;
 }
 
-export interface BlendingBoardConfig {
-  iframeUrl?: string;
-  cardColor?: string;
-  cardOpacity?: number;
-}
+export type BlendingBoardConfig = Record<string, never>;
 
 export interface RevealCard {
   id: string;

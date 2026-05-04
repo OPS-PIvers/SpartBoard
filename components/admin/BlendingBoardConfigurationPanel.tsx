@@ -22,7 +22,8 @@ export const BlendingBoardConfigurationPanel: React.FC<
           id="blending-board-url"
           type="url"
           value={config.url ?? ''}
-          onChange={(e) => onChange({ ...config, url: e.target.value.trim() })}
+          onChange={(e) => onChange({ ...config, url: e.target.value })}
+          onBlur={(e) => onChange({ ...config, url: e.target.value.trim() })}
           placeholder="https://research.dwi.ufl.edu/op.n/file/bca9ju45kvvrvoan/?embed"
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-violet-500 outline-none text-sm"
         />
