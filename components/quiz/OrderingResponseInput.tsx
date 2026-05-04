@@ -23,6 +23,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { RotateCcw } from 'lucide-react';
 import type { QuizPublicQuestion } from '@/types';
+import { useResetOnChange } from '@/hooks/useResetOnChange';
 
 interface OrderingResponseInputProps {
   question: QuizPublicQuestion;
@@ -234,13 +235,11 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
     | null
   >(null);
 
-  const [prevQuestionId, setPrevQuestionId] = React.useState(question.id);
-  if (question.id !== prevQuestionId) {
-    setPrevQuestionId(question.id);
+  useResetOnChange(question.id, () => {
     setSlots(initialSlots);
     setBankItems(initialBank);
     setSelectedSource(null);
-  }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),

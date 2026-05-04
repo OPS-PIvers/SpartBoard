@@ -25,6 +25,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { RotateCcw } from 'lucide-react';
 import type { QuizPublicQuestion } from '@/types';
+import { useResetOnChange } from '@/hooks/useResetOnChange';
 
 interface MatchingResponseInputProps {
   question: QuizPublicQuestion;
@@ -218,14 +219,11 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
     | null
   >(null);
 
-  // Reset state when the question changes (different question id).
-  const [prevQuestionId, setPrevQuestionId] = React.useState(question.id);
-  if (question.id !== prevQuestionId) {
-    setPrevQuestionId(question.id);
+  useResetOnChange(question.id, () => {
     setZonePlacements(placements);
     setBankItems(bankOrder);
     setSelectedSource(null);
-  }
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
