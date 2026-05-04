@@ -354,9 +354,9 @@ export function useStudentAssignments({
       kind: SessionKind,
       channel: AssignmentChannel,
       config: KindConfig,
-      d: QuerySnapshot<DocumentData>['docs'][number]
+      d: QuerySnapshot<DocumentData>['docs'][number],
+      data: DocumentData
     ): AssignmentSummary => {
-      const data = d.data();
       const createdAtRaw: unknown = (data as Record<string, unknown>).createdAt;
       const endedAtRaw: unknown = (data as Record<string, unknown>).endedAt;
 
@@ -447,9 +447,30 @@ export function useStudentAssignments({
     ) => {
       const config = KIND_CONFIG[plan.kind];
       const key = planKey(plan);
+      // View-only sessions never appear in the student's My Assignments list:
+      // they're shared links, not assignments. Pre-feature sessions don't
+      // carry an assignment-mode field and pass through unchanged.
+      //
+      // Field-naming asymmetry: Quiz / Video Activity / Mini App store the
+      // mode under `mode`. Guided Learning uses `assignmentMode` because GL's
+      // session already has a `mode` field for play-mode (structured / guided
+      // / explore). Filtering by `plan.kind` keeps each widget's check
+      // narrow — using a single check that ORs both fields would, in theory,
+      // drop a GL doc whose play-mode happened to spell 'view-only'.
+      const modeField =
+        plan.kind === 'guided-learning' ? 'assignmentMode' : 'mode';
+      // Read each doc's `data()` exactly once — Firestore lazily decodes the
+      // payload on each call, so the filter+map version below would parse
+      // every doc twice for large assignment lists.
       buckets.set(
         key,
-        snap.docs.map((d) => docToSummary(plan.kind, plan.channel, config, d))
+        snap.docs.flatMap((d) => {
+          const data = d.data();
+          if ((data as Record<string, unknown>)[modeField] === 'view-only') {
+            return [];
+          }
+          return [docToSummary(plan.kind, plan.channel, config, d, data)];
+        })
       );
       emit(plan.kind, plan.channel);
       setErroredBuckets((prev) => {

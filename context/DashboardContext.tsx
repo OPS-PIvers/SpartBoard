@@ -25,7 +25,7 @@ import {
   DrawableObject,
 } from '../types';
 import { useAuth } from './useAuth';
-import { stripTransientKeys } from '../utils/widgetConfigPersistence';
+import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
 import { useFirestore } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
@@ -2586,14 +2586,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             version: 1,
             ...defaults,
             ...overrides,
-            // Layer order: widget defaults → admin building defaults → saved global config → explicit overrides
-            config: Object.assign(
-              {},
-              defaults.config ?? {},
+            config: mergeWidgetConfig(
+              defaults.config,
               adminConfig,
-              stripTransientKeys(savedWidgetConfigs?.[type] ?? {}),
-              overrides?.config ?? {}
-            ) as WidgetConfig,
+              savedWidgetConfigs?.[type],
+              overrides?.config
+            ),
           };
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
@@ -2665,14 +2663,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               ? validateGridConfig(item.gridConfig)
               : null;
 
-            // Base config from defaults, admin settings, and global persistence
-            const baseConfig = Object.assign(
-              {},
-              defaults.config ?? {},
+            const baseConfig = mergeWidgetConfig(
+              defaults.config,
               adminConfig,
-              stripTransientKeys(savedWidgetConfigs?.[item.type] ?? {}),
+              savedWidgetConfigs?.[item.type],
               sanitizedInputConfig
-            ) as WidgetConfig;
+            );
 
             const newWidgetId = crypto.randomUUID();
             locallyAddedWidgetIds.current.add(newWidgetId);

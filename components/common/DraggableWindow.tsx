@@ -39,6 +39,7 @@ import {
 } from '@/types';
 import { SNAP_LAYOUTS, SnapZone } from '@/config/snapLayouts';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
+import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
@@ -74,6 +75,16 @@ const POSITION_AWARE_WIDGETS: WidgetType[] = [
 
 const INTERACTIVE_ELEMENTS_SELECTOR =
   'button, input, textarea, select, canvas, iframe, label, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"], .cursor-pointer, [contenteditable="true"]';
+
+// Narrower selector for resize-handle pass-through. Excludes `.cursor-pointer`
+// because many widgets style edge-to-edge tiles/cards with that class, which
+// previously made it nearly impossible to grab corner handles at min widget
+// size. Resize handles take priority over generic clickable surfaces; they
+// only defer to genuine form/role-bearing elements. (canvas/iframe/
+// contentEditable are handled separately above the matches() check so the
+// resize handle takes priority over them.)
+const RESIZE_PASSTHROUGH_SELECTOR =
+  'button, input, textarea, select, a, label, summary, [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"]';
 
 const SCROLLABLE_ELEMENTS_SELECTOR =
   '.overflow-y-auto, .overflow-auto, .overflow-x-auto, [data-scrollable="true"], [style*="overflow:auto"], [style*="overflow: auto"], [style*="overflow-y:auto"], [style*="overflow-y: auto"], [style*="overflow-x:auto"], [style*="overflow-x: auto"]';
@@ -832,8 +843,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const deltaX = (moveEvent.clientX - initialMouseX) / zoom;
         const deltaY = (moveEvent.clientY - initialMouseY) / zoom;
 
-        const newX = widget.x + deltaX;
-        const newY = widget.y + deltaY;
+        // Clamp the leader to world bounds so widgets can't be dragged
+        // outside the area visible at ZOOM_MIN.
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const { x: newX, y: newY } = clampWidgetToWorld(
+          widget.x + deltaX,
+          widget.y + deltaY,
+          widget.w,
+          widget.h,
+          vw,
+          vh
+        );
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (
@@ -853,12 +874,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           });
         }
 
-        // Move group siblings via direct DOM manipulation
+        // Move group siblings via direct DOM manipulation, each clamped to
+        // world bounds independently of the leader so a sibling near the edge
+        // doesn't drag the whole group off-camera.
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
           for (const sib of groupSiblingsRef.current) {
-            const sibX = sib.startX + deltaX;
-            const sibY = sib.startY + deltaY;
+            const { x: sibX, y: sibY } = clampWidgetToWorld(
+              sib.startX + deltaX,
+              sib.startY + deltaY,
+              sib.startW,
+              sib.startH,
+              vw,
+              vh
+            );
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
           }
@@ -913,17 +942,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
       }
 
-      // Commit group sibling positions via batch update
+      // Commit group sibling positions via batch update — clamp each sibling
+      // to world bounds independently so a sibling near the edge stays inside
+      // even if the leader's delta would have pushed it past.
       if (groupSiblingsRef.current.length > 0) {
         const { x: deltaX, y: deltaY } = groupDragDeltaRef.current;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
         updateWidgets(
-          groupSiblingsRef.current.map((sib) => ({
-            id: sib.id,
-            changes: {
-              x: sib.startX + deltaX,
-              y: sib.startY + deltaY,
-            },
-          }))
+          groupSiblingsRef.current.map((sib) => {
+            const c = clampWidgetToWorld(
+              sib.startX + deltaX,
+              sib.startY + deltaY,
+              sib.startW,
+              sib.startH,
+              vw,
+              vh
+            );
+            return { id: sib.id, changes: { x: c.x, y: c.y } };
+          })
         );
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
@@ -980,8 +1017,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         continue;
       if (el instanceof HTMLElement && el.isContentEditable) continue;
       if (
-        el.matches?.(INTERACTIVE_ELEMENTS_SELECTOR) ||
-        el.closest?.(INTERACTIVE_ELEMENTS_SELECTOR)
+        el.matches?.(RESIZE_PASSTHROUGH_SELECTOR) ||
+        el.closest?.(RESIZE_PASSTHROUGH_SELECTOR)
       ) {
         // Temporarily remove pointer-events so the browser dispatches
         // the subsequent click to the interactive element beneath.
@@ -1064,6 +1101,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             newY = startPosY + dy;
           }
         }
+
+        // Clamp the resize result inside world bounds: pin the top-left
+        // first, then clip the right/bottom edges if they'd overshoot. The
+        // 150/100 size floors are themselves capped by the available world
+        // space — on a pathologically tiny viewport (or a widget pinned to
+        // the world edge) the floor would otherwise re-expand the widget
+        // back outside the world rectangle.
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const clamped = clampWidgetToWorld(newX, newY, newW, newH, vw, vh);
+        // West/north resize past a world boundary: clampWidgetToWorld pulls
+        // newX/newY back inside, but the unmodified width/height would then
+        // push the *opposite* edge outward (e.g. dragging the west handle
+        // west past minX would silently move the east edge east). Shrink
+        // the dimension by the same amount the top-left was pulled so the
+        // anchored edge stays put.
+        if (direction.includes('w')) newW -= clamped.x - newX;
+        if (direction.includes('n')) newH -= clamped.y - newY;
+        newX = clamped.x;
+        newY = clamped.y;
+        const wb = getWorldBounds(vw, vh);
+        const availableW = Math.max(0, wb.maxX - newX);
+        const availableH = Math.max(0, wb.maxY - newY);
+        newW = Math.max(Math.min(150, availableW), Math.min(newW, availableW));
+        newH = Math.max(Math.min(100, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (
@@ -1920,34 +1982,82 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             </>
           )}
         </div>
+      </div>
 
-        {/* Resize Handles (Corners Only) */}
-        {!isLocked && !isPinned && (
-          <>
+      {/* Resize Handles (Corners Only)
+          Rendered as siblings of `drag-surface` so they aren't clipped by its
+          `overflow: hidden`, allowing each handle to extend ~12px outside the
+          widget bounds for a 36×36 effective hit zone (12 outside + 24 inside).
+          The visible SE corner icon stays anchored at the inner corner.
+          Hidden when maximized or annotating to mirror the outer drag strips
+          and avoid intercepting annotation strokes near the corners. */}
+      {!isLocked && !isPinned && !isMaximized && !isAnnotating && (
+        <>
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'nw')}
+            className="resize-handle cursor-nw-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              top: -12,
+              left: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'ne')}
+            className="resize-handle cursor-ne-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              top: -12,
+              right: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'sw')}
+            className="resize-handle cursor-sw-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              bottom: -12,
+              left: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          />
+          <div
+            onPointerDown={(e) => handleResizeStart(e, 'se')}
+            className="resize-handle cursor-se-resize z-widget-resize"
+            style={{
+              position: 'absolute',
+              bottom: -12,
+              right: -12,
+              width: 36,
+              height: 36,
+              touchAction: 'none',
+            }}
+          >
             <div
-              onPointerDown={(e) => handleResizeStart(e, 'nw')}
-              className="resize-handle absolute top-0 left-0 w-6 h-6 cursor-nw-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'ne')}
-              className="resize-handle absolute top-0 right-0 w-6 h-6 cursor-ne-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'sw')}
-              className="resize-handle absolute bottom-0 left-0 w-6 h-6 cursor-sw-resize z-widget-resize touch-none"
-            />
-            <div
-              onPointerDown={(e) => handleResizeStart(e, 'se')}
-              className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-end justify-end p-1.5 z-widget-resize touch-none"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                bottom: 13.5,
+                right: 13.5,
+                pointerEvents: 'none',
+              }}
             >
               <ResizeHandleIcon
                 className="text-slate-400"
                 style={{ opacity: isSelected ? 1 : transparency }}
               />
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Invisible edge grab zones — extend INVISIBLE_EDGE_PAD px outside the widget's visual
           bounds so users can reliably grab and drag widgets whose content fills edge-to-edge.

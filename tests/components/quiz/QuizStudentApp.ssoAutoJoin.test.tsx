@@ -63,6 +63,7 @@ vi.mock('@/config/firebase', () => ({
 // but the module-level mock has to exist so Vite resolves the import.
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn().mockResolvedValue(undefined),
+  onAuthStateChanged: vi.fn(() => () => undefined),
 }));
 
 // Stub the hook so we can observe the call args and control rejections.

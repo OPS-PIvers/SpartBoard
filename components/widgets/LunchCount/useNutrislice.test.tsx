@@ -38,14 +38,39 @@ describe('useNutrislice', () => {
         date: '2023-10-27',
         menu_items: [
           {
+            is_section_title: true,
             section_name: 'Entrees',
-            food: { name: 'Cheese Pizza' },
-            text: 'Cheese Pizza',
+          },
+          {
+            section_name: 'Entrees',
+            food: { name: 'Cheese Pizza', image_url: 'https://cdn/pizza.jpg' },
+          },
+          {
+            is_section_title: true,
+            section_name: 'Sides',
           },
           {
             section_name: 'Sides',
-            food: { name: 'Veggie Bento Box' },
-            text: 'Veggie Bento Box',
+            food: { name: 'Marinara', image_url: 'https://cdn/marinara.jpg' },
+          },
+          {
+            section_name: 'Sides',
+            food: { name: 'Steamed Peas' },
+          },
+          {
+            is_section_title: true,
+            section_name: 'PB Jammin Bento Box',
+          },
+          {
+            section_name: 'PB Jammin Bento Box',
+            food: {
+              name: 'Veggie Bento Box',
+              image_url: 'https://cdn/bento.jpg',
+            },
+          },
+          {
+            section_name: 'PB Jammin Bento Box',
+            food: { name: 'Pretzel' },
           },
         ],
       },
@@ -91,7 +116,7 @@ describe('useNutrislice', () => {
     return null;
   };
 
-  it('should sync menu when data is missing or outdated', async () => {
+  it('parses entree, sides, and bento with image URLs', async () => {
     const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
     (httpsCallable as Mock).mockReturnValue(mockProxy);
 
@@ -114,8 +139,24 @@ describe('useNutrislice', () => {
         expect.objectContaining({
           config: expect.objectContaining({
             cachedMenu: {
-              hotLunch: 'Cheese Pizza',
-              bentoBox: 'Veggie Bento Box',
+              hotLunch: {
+                name: 'Cheese Pizza',
+                imageUrl: 'https://cdn/pizza.jpg',
+              },
+              hotLunchSides: [
+                {
+                  name: 'Marinara',
+                  imageUrl: 'https://cdn/marinara.jpg',
+                },
+                {
+                  name: 'Steamed Peas',
+                  imageUrl: undefined,
+                },
+              ],
+              bentoBox: {
+                name: 'Veggie Bento Box',
+                imageUrl: 'https://cdn/bento.jpg',
+              },
               date: expect.any(String) as string,
             },
             syncError: null,
@@ -130,7 +171,7 @@ describe('useNutrislice', () => {
     );
   });
 
-  it('should handle proxy failure', async () => {
+  it('handles proxy failure', async () => {
     const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
     (httpsCallable as Mock).mockReturnValue(mockProxy);
 
@@ -163,13 +204,14 @@ describe('useNutrislice', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('should not sync if data is up-to-date', async () => {
+  it('does not sync when current-shape data is up-to-date', async () => {
     const freshConfig: LunchCountConfig = {
       ...mockConfig,
       lastSyncDate: new Date().toISOString(),
       cachedMenu: {
-        hotLunch: 'Old Lunch',
-        bentoBox: 'Old Bento',
+        hotLunch: { name: 'Old Lunch' },
+        hotLunchSides: [],
+        bentoBox: { name: 'Old Bento' },
         date: new Date().toISOString(),
       },
     };
@@ -184,7 +226,113 @@ describe('useNutrislice', () => {
     expect(mockProxy).not.toHaveBeenCalled();
   });
 
-  it('should parse Bento Box correctly', async () => {
+  it('re-fetches when cached menu is in legacy string shape', async () => {
+    // Simulate a config saved before this change: hotLunch/bentoBox are
+    // strings instead of LunchMenuItem objects. Even though it was synced
+    // today, the widget should detect the legacy shape and re-fetch so it
+    // can populate sides + images.
+    const legacyConfig = {
+      ...mockConfig,
+      lastSyncDate: new Date().toISOString(),
+      cachedMenu: {
+        hotLunch: 'Old Lunch',
+        bentoBox: 'Old Bento',
+        date: new Date().toISOString(),
+      } as unknown as LunchCountConfig['cachedMenu'],
+    };
+
+    const mockProxy = vi.fn().mockResolvedValue({ data: mockMenuData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent initialConfig={legacyConfig} />);
+
+    await waitFor(() => {
+      expect(mockProxy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not loop when fetch fails on a legacy-shape config', async () => {
+    // P1 regression guard: a legacy cachedMenu plus a failing proxy used to
+    // pin hasLegacyShape=true forever, since the catch block didn't replace
+    // the menu. Each render would re-fire fetchNutrislice. Now the catch
+    // installs a non-legacy stub so the migration check flips to false after
+    // the first attempt.
+    const legacyConfig = {
+      ...mockConfig,
+      cachedMenu: {
+        hotLunch: 'Old Lunch',
+        bentoBox: 'Old Bento',
+        date: new Date().toISOString(),
+      } as unknown as LunchCountConfig['cachedMenu'],
+    };
+
+    const mockProxy = vi.fn().mockRejectedValue(new Error('Fail'));
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+
+    render(<TestComponent initialConfig={legacyConfig} />);
+
+    await waitFor(() => {
+      expect(mockProxy).toHaveBeenCalledTimes(1);
+    });
+
+    // Give React several ticks to re-render and re-evaluate the migration
+    // effect. With the bug present, this would queue many more calls.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockProxy).toHaveBeenCalledTimes(1);
+
+    consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('falls back to first food item when no Entrees/Main section exists', async () => {
+    const noEntreeData = {
+      days: [
+        {
+          date: '2023-10-27',
+          menu_items: [
+            { is_section_title: true, section_name: 'Specials' },
+            {
+              section_name: 'Specials',
+              food: { name: 'Mystery Meat', image_url: 'https://cdn/mm.jpg' },
+            },
+            { section_name: 'Specials', food: { name: 'Mystery Sauce' } },
+          ],
+        },
+      ],
+    };
+
+    const mockProxy = vi.fn().mockResolvedValue({ data: noEntreeData });
+    (httpsCallable as Mock).mockReturnValue(mockProxy);
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        mockWidgetId,
+        expect.objectContaining({
+          config: expect.objectContaining({
+            cachedMenu: expect.objectContaining({
+              hotLunch: {
+                name: 'Mystery Meat',
+                imageUrl: 'https://cdn/mm.jpg',
+              },
+              hotLunchSides: [{ name: 'Mystery Sauce', imageUrl: undefined }],
+            }) as unknown,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
+  it('parses bento via name match across any section', async () => {
     const bentoData = {
       days: [
         {
@@ -214,8 +362,9 @@ describe('useNutrislice', () => {
         expect.objectContaining({
           config: expect.objectContaining({
             cachedMenu: {
-              hotLunch: 'Chicken Nuggets',
-              bentoBox: 'Teriyaki Bento',
+              hotLunch: { name: 'Chicken Nuggets', imageUrl: undefined },
+              hotLunchSides: [],
+              bentoBox: { name: 'Teriyaki Bento', imageUrl: undefined },
               date: expect.any(String) as string,
             },
           }) as unknown,

@@ -15,8 +15,8 @@ interface AbsentStudentsModalProps {
 /**
  * Full-screen tappable grid for marking students absent for the current day.
  * The absent list is stored on the roster metadata with a date stamp, so it
- * auto-clears when the date changes and affects every Randomizer widget using
- * the same class.
+ * auto-clears when the date changes and applies to every widget that reads
+ * the same class (Randomizer, Stations, etc.).
  */
 export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
   isOpen,
@@ -28,10 +28,6 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
 
   const today = getLocalIsoDate();
 
-  // Derive absent IDs directly from the roster prop. useRosters already
-  // performs optimistic updates inside setAbsentStudents, so no local
-  // mirror state is needed — this also avoids impure state-updater +
-  // side-effect patterns flagged in earlier reviews.
   const absentIds = useMemo(
     () =>
       roster.absent?.date === today
@@ -175,7 +171,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
         <p className="text-xs text-slate-400 italic shrink-0 text-center">
           {t('widgets.random.absent.footer', {
             defaultValue:
-              'Absent marks apply to every Randomizer using this class. Resets automatically tomorrow.',
+              'Absent marks apply to every widget using this class. Resets automatically tomorrow.',
           })}
         </p>
       </div>

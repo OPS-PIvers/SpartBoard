@@ -14,6 +14,21 @@
     "upload": "Hochladen",
     "clearAll": "Alles löschen"
   },
+  "boardNav": {
+    "previous": "Vorherige Tafel",
+    "next": "Nächste Tafel",
+    "selectBoard": "Tafel auswählen",
+    "boardList": "Alle Tafeln"
+  },
+  "boardZoom": {
+    "zoomLevel": "Zoom",
+    "slider": "Zoomstufe",
+    "reset": "Auf 100% zurücksetzen",
+    "preset50": "50%",
+    "preset100": "100%",
+    "preset200": "200%",
+    "preset500": "500%"
+  },
   "sidebar": {
     "header": {
       "classroomManager": "SpartBoard",
@@ -26,6 +41,8 @@
       "adminSettings": "Admin-Einstellungen",
       "enterFullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
+      "annotateScreen": "Bildschirm annotieren",
+      "stopAnnotating": "Annotation beenden",
       "clearAllWindows": "Alle Fenster schließen",
       "switchBoards": "Tafeln wechseln",
       "hideBoards": "Tafeln ausblenden",
@@ -321,7 +338,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
-      "switchBoardsHint": "Tafelwechsel über die Tafelauswahl in der oberen Symbolleiste"
+      "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
     }
   }
 }

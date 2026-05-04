@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { WidgetData, WidgetComponentProps } from '@/types';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
+import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">
@@ -50,8 +51,10 @@ export const WidgetLayoutWrapper: React.FC<WidgetLayoutWrapperProps> = ({
   };
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <WidgetComponent {...componentProps} />
-    </Suspense>
+    <LazyChunkErrorBoundary>
+      <Suspense fallback={<LoadingFallback />}>
+        <WidgetComponent {...componentProps} />
+      </Suspense>
+    </LazyChunkErrorBoundary>
   );
 };

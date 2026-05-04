@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   WidgetData,
   QuizConfig,
@@ -9,13 +15,15 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { useQuiz } from '@/hooks/useQuiz';
+import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
+import { logError } from '@/utils/logError';
 import {
   useQuizSessionTeacher,
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useFolders } from '@/hooks/useFolders';
+import { useSyncedQuizGroupsByIds } from '@/hooks/useSyncedQuizGroups';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
@@ -45,6 +53,27 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 
+/**
+ * Session-options shape used when minting a view-only Quiz share. Typed as
+ * `Required<QuizSessionOptions>` so adding a new field to QuizSessionOptions
+ * fails type-check here until a deliberate value is chosen — the previous
+ * inline literal silently let new optional fields default to undefined.
+ *
+ * View-only shares disable every per-attempt feature (no leaderboard, no
+ * tab warnings, no bonuses, no result reveal) — none of them have meaning
+ * when there are no submissions to score or compare.
+ */
+const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
+  tabWarningsEnabled: false,
+  showResultToStudent: false,
+  showCorrectAnswerToStudent: false,
+  showCorrectOnBoard: false,
+  speedBonusEnabled: false,
+  streakBonusEnabled: false,
+  showPodiumBetweenQuestions: false,
+  soundEffectsEnabled: false,
+};
+
 export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
     updateWidget,
@@ -55,7 +84,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     pendingAssignmentSetupId,
     clearPendingAssignmentSetup,
   } = useDashboard();
-  const { user, googleAccessToken, orgId } = useAuth();
+  const { user, googleAccessToken, orgId, getAssignmentMode } = useAuth();
+  const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
 
@@ -70,6 +100,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     importFromCSV,
     createQuizTemplate,
     shareQuiz,
+    pullSyncedQuiz,
+    detachSyncedQuiz,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
@@ -99,6 +131,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setAssignmentExportUrl,
     setAssignmentExportedResponseIds,
     shareAssignment,
+    syncAssignmentToLatest,
   } = useQuizAssignments(user?.uid);
 
   // Folders are managed by QuizManager separately; this duplicate binding is
@@ -113,6 +146,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Assign modal) so the assign flow can resolve the selected PLC and its
   // members when creating a fresh per-assignment sheet via Share-with-PLC.
   const { plcs } = usePlcs();
+
+  // Synced-group subscriptions — collect every distinct `syncGroupId`
+  // referenced by the local user's quizzes or assignments, subscribe to
+  // each `/synced_quizzes/{groupId}` doc, and pass the resulting map down
+  // to QuizManager for stale-detection rendering. Recomputed only when
+  // the underlying ids change so the listener set is stable across
+  // unrelated metadata churn.
+  const syncGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const q of quizzes) {
+      if (q.sync) ids.add(q.sync.groupId);
+    }
+    for (const a of assignments) {
+      if (a.sync) ids.add(a.sync.groupId);
+    }
+    return Array.from(ids);
+  }, [quizzes, assignments]);
+  const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
 
   // Ephemeral modal state for per-assignment settings editing.
   const [editingAssignment, setEditingAssignment] =
@@ -683,6 +734,58 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }
 
   if (view === 'monitor' && liveSession) {
+    // View-only assignments never collect responses — show a notice instead
+    // of the live monitor. The mode is frozen at creation, so any session
+    // that arrives here as view-only stays that way for its entire life.
+    if (liveSession.mode === 'view-only') {
+      return (
+        <div
+          className="flex flex-col items-center justify-center h-full text-center text-slate-300"
+          style={{
+            gap: 'min(12px, 3cqmin)',
+            padding: 'min(32px, 7cqmin)',
+          }}
+        >
+          <p
+            className="font-bold text-white"
+            style={{ fontSize: 'min(14px, 5cqmin)' }}
+          >
+            View-only share — no submissions to monitor
+          </p>
+          <p
+            className="text-slate-400 max-w-md"
+            style={{ fontSize: 'min(12px, 4cqmin)' }}
+          >
+            Students opened this share as a view-only link, so there are no
+            responses to live-monitor. URL open counts appear in the Shared
+            archive.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  view: 'manager',
+                  managerTab: 'active',
+                } as QuizConfig,
+              })
+            }
+            className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+            style={{
+              marginTop: 'min(8px, 2cqmin)',
+              gap: 'min(6px, 1.5cqmin)',
+              paddingInline: 'min(12px, 3cqmin)',
+              paddingBlock: 'min(8px, 2cqmin)',
+              fontSize: 'min(12px, 4cqmin)',
+            }}
+          >
+            Back to library
+          </button>
+        </div>
+      );
+    }
+
     if (!loadedQuizData) {
       return (
         <div
@@ -772,6 +875,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizManager
         userId={user?.uid}
         defaultTeacherName={user?.displayName ?? undefined}
+        assignmentMode={quizAssignmentMode}
         quizzes={quizzes}
         loading={quizzesLoading}
         error={quizzesError ?? dataError}
@@ -931,10 +1035,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 periodNames: plcOptions.periodNames,
                 plc: plcLinkage,
               },
-              'paused',
-              derived.classIds,
-              derived.rosterIds,
-              derived.classPeriodByClassId
+              {
+                initialStatus: 'paused',
+                classIds: derived.classIds,
+                rosterIds: derived.rosterIds,
+                classPeriodByClassId: derived.classPeriodByClassId,
+                mode: quizAssignmentMode,
+              }
             );
             // Persist the teacher's last-used rosters per quiz so
             // re-launching the same quiz pre-selects the same classes.
@@ -1011,6 +1118,31 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           } catch {
             addToast(`Share link: ${url}`, 'info');
           }
+        }}
+        onCreateViewOnlyShare={async (meta) => {
+          // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
+          // entirely. Creates a minimal assignment with view-only mode so
+          // students can browse questions but can't submit; returns the
+          // student-facing URL for ViewOnlyShareModal to display.
+          const data = await loadQuiz(meta);
+          if (!data) {
+            throw new Error('Failed to load quiz data');
+          }
+          const { code } = await createAssignment(
+            {
+              id: meta.id,
+              title: meta.title,
+              driveFileId: meta.driveFileId,
+              questions: data.questions,
+            },
+            {
+              sessionMode: 'teacher',
+              sessionOptions: VIEW_ONLY_SESSION_OPTIONS,
+              attemptLimit: null,
+            },
+            { initialStatus: 'paused', mode: 'view-only' }
+          );
+          return `${window.location.origin}/quiz?code=${encodeURIComponent(code)}`;
         }}
         onDelete={async (meta) => {
           // Block deletion when active/paused assignments reference the quiz,
@@ -1322,26 +1454,46 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }}
         onArchiveDeactivate={async (a) => {
+          // Branch the success / failure copy on the assignment's frozen
+          // mode — view-only shares haven't collected anything to "preserve"
+          // and "Assignment" is the wrong noun for a tracked link.
+          const isViewOnlyAssignment = a.mode === 'view-only';
           try {
             await deactivateAssignment(a.id);
-            addToast('Assignment deactivated. Responses preserved.', 'success');
+            addToast(
+              isViewOnlyAssignment
+                ? 'Share ended.'
+                : 'Assignment deactivated. Responses preserved.',
+              'success'
+            );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to deactivate',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to end share'
+                  : 'Failed to deactivate',
               'error'
             );
           }
         }}
         onArchiveReopen={async (a) => {
+          const isViewOnlyAssignment = a.mode === 'view-only';
           try {
             await reopenAssignment(a.id);
             addToast(
-              'Reopened — click Resume to accept submissions.',
+              isViewOnlyAssignment
+                ? 'Share reactivated.'
+                : 'Reopened — click Resume to accept submissions.',
               'success'
             );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to reopen',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to reactivate share'
+                  : 'Failed to reopen',
               'error'
             );
           }
@@ -1361,6 +1513,62 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           updateWidget(widget.id, {
             config: { ...config, libraryViewMode: mode } as QuizConfig,
           });
+        }}
+        syncedGroups={syncedGroups}
+        onPullSyncedQuiz={async (quiz) => {
+          try {
+            await pullSyncedQuiz(quiz);
+            addToast('Quiz updated to latest version.', 'success');
+          } catch (err) {
+            logError('Widget.onPullSyncedQuiz', err, {
+              quizId: quiz.id,
+              syncGroupId: quiz.sync?.groupId ?? null,
+            });
+            addToast(
+              err instanceof Error
+                ? err.message
+                : 'Failed to pull synced quiz.',
+              'error'
+            );
+          }
+        }}
+        onDetachSyncedQuiz={async (quiz) => {
+          try {
+            await detachSyncedQuiz(quiz);
+            addToast('Stopped syncing.', 'success');
+          } catch (err) {
+            logError('Widget.onDetachSyncedQuiz', err, {
+              quizId: quiz.id,
+              syncGroupId: quiz.sync?.groupId ?? null,
+            });
+            addToast(
+              err instanceof Error ? err.message : 'Failed to stop syncing.',
+              'error'
+            );
+          }
+        }}
+        onSyncAssignment={async (a) => {
+          try {
+            const result = await syncAssignmentToLatest(a.id);
+            if (!result.updated) {
+              addToast('Assignment is already at the latest version.', 'info');
+              return;
+            }
+            const tagSummary =
+              result.taggedResponseCount > 0
+                ? ` ${result.taggedResponseCount} prior response${result.taggedResponseCount === 1 ? '' : 's'} tagged.`
+                : '';
+            addToast(`Assignment synced.${tagSummary}`, 'success');
+          } catch (err) {
+            logError('Widget.onSyncAssignment', err, {
+              assignmentId: a.id,
+              syncGroupId: a.sync?.groupId ?? null,
+            });
+            addToast(
+              err instanceof Error ? err.message : 'Failed to sync assignment.',
+              'error'
+            );
+          }
         }}
       />
       <QuizEditorModal
@@ -1395,7 +1603,41 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         onSave={async (updated) => {
           const isNew = !editingMeta;
-          await saveQuiz(updated, editingMeta?.driveFileId);
+          try {
+            await saveQuiz(updated, editingMeta?.driveFileId);
+          } catch (err) {
+            if (err instanceof SyncedQuizVersionConflictError) {
+              // A peer published a newer version of this synced quiz
+              // between when the editor opened and Save was clicked. The
+              // earlier behavior was to keep the editor open and tell the
+              // teacher to "pull and re-apply" — but the pull affordance
+              // (library-card pill) is unreachable while the modal is
+              // open, leaving the user stuck. Better UX: auto-pull the
+              // canonical content into the local Drive replica and close
+              // the editor with a clear, actionable toast. The teacher's
+              // unsaved edits ARE lost, but the system reaches a
+              // coherent state and they can re-open against the fresh
+              // canonical to re-apply.
+              if (editingMeta) {
+                try {
+                  await pullSyncedQuiz(editingMeta);
+                } catch (pullErr) {
+                  logError('Widget.onSave.autoPullAfterConflict', pullErr, {
+                    quizId: editingMeta.id,
+                    syncGroupId: editingMeta.sync?.groupId ?? null,
+                  });
+                }
+              }
+              setEditingQuiz(null);
+              setEditingMeta(null);
+              addToast(
+                'Another teacher published an update to this quiz. We pulled their changes; your unsaved edits were not saved. Reopen the quiz to re-apply.',
+                'warning'
+              );
+              return;
+            }
+            throw err;
+          }
           setLoadedQuizData(updated);
           addToast(isNew ? 'Quiz created!' : 'Quiz saved!', 'success');
         }}

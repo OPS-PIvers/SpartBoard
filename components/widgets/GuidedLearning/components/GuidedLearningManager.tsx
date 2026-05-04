@@ -37,6 +37,7 @@ import {
   CheckSquare,
 } from 'lucide-react';
 import type {
+  AssignmentMode,
   GuidedLearningAssignment,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
@@ -45,6 +46,9 @@ import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
+import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
+import { useSessionViewCount } from '@/hooks/useSessionViewCount';
+import { useAuth } from '@/context/useAuth';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -160,6 +164,10 @@ export interface GuidedLearningManagerProps {
   initialLibraryViewMode?: 'grid' | 'list';
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
+
+  /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
+   *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
+  assignmentMode?: AssignmentMode;
 }
 
 /* ─── Sort / filter config ────────────────────────────────────────────────── */
@@ -266,6 +274,28 @@ const formatDate = (ms: number): string =>
     year: 'numeric',
   });
 
+/* ─── ViewCountSubtitle ──────────────────────────────────────────────────── */
+
+/**
+ * Per-row hook host that renders the view-count chip inline as part of the
+ * subtitle line for view-only Shared / Closed cards.
+ *
+ * Gated by `canSeeShareTracking()` (admin-only by default — see
+ * `share-link-tracking` global permission). Non-admin users skip the
+ * Firestore aggregation entirely; the subtitle stays date-only.
+ */
+const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
+  const { canSeeShareTracking } = useAuth();
+  const trackingEnabled = canSeeShareTracking();
+  const { count } = useSessionViewCount(
+    'guided_learning_sessions',
+    sessionId,
+    trackingEnabled
+  );
+  if (!trackingEnabled) return null;
+  return <ViewCountBadge count={count} />;
+};
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
@@ -296,7 +326,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentDelete,
   initialLibraryViewMode,
   onLibraryViewModeChange,
+  assignmentMode = 'submissions',
 }) => {
+  const isViewOnly = assignmentMode === 'view-only';
+  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -669,7 +702,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         thumbnail={thumbnail}
         badges={badges}
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => onAssign(rawId, entry.driveFileId, entry.buildingSet),
         }}
@@ -701,47 +734,76 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     // (App.tsx routes the student app on pathname.startsWith('/guided-learning/')).
     const studentLink = `${window.location.origin}/guided-learning/${a.sessionId}`;
 
+    // Per-assignment mode is frozen at creation. View-only entries get
+    // share-flavored labels so teachers can distinguish them at a glance,
+    // matching the badge shape Quiz / VA / Mini App use.
+    const isViewOnly = a.assignmentMode === 'view-only';
     const badges: LibraryBadge[] =
       mode === 'active'
-        ? [{ label: 'Live', tone: 'success', dot: true }]
-        : [{ label: 'Archived', tone: 'neutral' }];
+        ? [
+            {
+              label: isViewOnly ? 'Shared' : 'Live',
+              tone: 'success',
+              dot: true,
+            },
+          ]
+        : [
+            {
+              // Single-word "Closed" reads cleaner and matches the other
+              // assignment widgets' archive labels for view-only shares
+              // (cf. MiniAppManager.statusBadge / QuizManager.resolveStatus).
+              label: isViewOnly ? 'Closed' : 'Archived',
+              tone: 'neutral',
+            },
+          ];
 
     if (a.source === 'building') {
       badges.push({ label: 'Building', tone: 'warn' });
     }
 
     const subtitle = (
-      <span>
-        {mode === 'active' ? 'Assigned ' : 'Archived '}
-        {formatDate(
-          mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
-        )}
+      <span className="inline-flex items-center gap-2">
+        <span>
+          {mode === 'active' ? 'Assigned ' : 'Archived '}
+          {formatDate(
+            mode === 'active' ? a.createdAt : (a.archivedAt ?? a.updatedAt)
+          )}
+        </span>
+        {isViewOnly && <ViewCountSubtitle sessionId={a.sessionId} />}
       </span>
     );
 
-    const secondary: LibraryMenuAction[] = [
-      {
+    // For view-only shares the card already exposes Copy link as a primary
+    // action (Shared tab) or surfaces no primary at all (archive tab) — the
+    // duplicate "Copy student link" kebab item is just visual noise. The
+    // "Open student link" affordance stays useful as a quick preview path.
+    const secondary: LibraryMenuAction[] = [];
+    if (!isViewOnly) {
+      secondary.push({
         id: 'copy',
         label: 'Copy student link',
         icon: Copy,
         onClick: () => onAssignmentCopyLink(a),
-      },
-      {
-        id: 'open',
-        label: 'Open student link',
-        icon: ExternalLink,
-        onClick: () => window.open(studentLink, '_blank', 'noopener'),
-      },
-    ];
+      });
+    }
+    secondary.push({
+      id: 'open',
+      label: 'Open student link',
+      icon: ExternalLink,
+      onClick: () => window.open(studentLink, '_blank', 'noopener'),
+    });
 
     if (mode === 'active') {
       secondary.push({
         id: 'archive',
-        label: 'Archive',
+        label: isViewOnly ? 'End share' : 'Archive',
         icon: ArchiveIcon,
         onClick: () => onAssignmentArchive(a),
       });
-    } else {
+    } else if (!isViewOnly) {
+      // Submissions archive: keep "Move to In Progress" as a kebab item.
+      // View-only archive surfaces Reactivate as a visible iconAction
+      // instead (see below) — including it in the kebab would duplicate.
       secondary.push({
         id: 'unarchive',
         label: 'Move to In Progress',
@@ -758,6 +820,43 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       onClick: () => onAssignmentDelete(a),
     });
 
+    // Primary action policy:
+    //   - View-only + active: Copy link (Shared tab — link is the entire UX).
+    //   - View-only + archive: no primary; the visible iconAction is
+    //     "Reactivate" — Copy would be misleading on a dead URL.
+    //   - Submissions (active or archive): View Results.
+    const assignmentIsViewOnly = isViewOnly;
+    const primaryAction = assignmentIsViewOnly
+      ? mode === 'active'
+        ? {
+            label: 'Copy link',
+            icon: Copy,
+            onClick: () => onAssignmentCopyLink(a),
+          }
+        : undefined
+      : {
+          label: 'View Results',
+          icon: BarChart2,
+          onClick: () => onAssignmentOpenResults(a),
+        };
+
+    // Compact icon-only action surfaced left of the (possibly absent)
+    // primary button. Used for the view-only archive Reactivate affordance
+    // so the row has a visible CTA instead of collapsing to the kebab
+    // (the badge is the only other anchor on archived rows).
+    const iconActions =
+      assignmentIsViewOnly && mode === 'archive'
+        ? [
+            {
+              id: 'reactivate',
+              label: 'Reactivate share',
+              icon: RotateCcw,
+              tone: 'primary' as const,
+              onClick: () => onAssignmentUnarchive(a),
+            },
+          ]
+        : undefined;
+
     return (
       <LibraryItemCard<GuidedLearningAssignment>
         key={a.id}
@@ -765,15 +864,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         title={a.setTitle}
         subtitle={subtitle}
         badges={badges}
-        primaryAction={{
-          label: 'View Results',
-          icon: BarChart2,
-          onClick: () => onAssignmentOpenResults(a),
-        }}
+        primaryAction={primaryAction}
+        iconActions={iconActions}
         secondaryActions={secondary}
         sortable={false}
         viewMode="list"
-        onClick={() => onAssignmentOpenResults(a)}
+        onClick={
+          assignmentIsViewOnly ? undefined : () => onAssignmentOpenResults(a)
+        }
       />
     );
   };
@@ -927,7 +1025,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         thumbnail={thumbnail}
         badges={[{ label: MODE_LABELS[entry.mode], tone: 'info' }]}
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => undefined,
         }}
@@ -951,6 +1049,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}
+      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
       primaryAction={tab === 'library' ? primaryAction : undefined}
       secondaryActions={tab === 'library' ? secondaryActions : undefined}
       filterSidebarSlot={folderSidebarSlot}

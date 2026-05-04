@@ -475,6 +475,7 @@ export interface UrlWidgetConfig {
     url: string;
     title?: string;
     color?: string;
+    icon?: string;
   }[];
 }
 
@@ -1221,9 +1222,17 @@ export interface CalendarConfig {
   cardOpacity?: number;
 }
 
+export interface LunchMenuItem {
+  name: string;
+  /** Nutrislice CDN URL for the food's photo. Undefined when the menu entry has no image. */
+  imageUrl?: string;
+}
+
 export interface LunchMenuDay {
-  hotLunch: string;
-  bentoBox: string;
+  hotLunch: LunchMenuItem;
+  /** Items served alongside the entree, in the order Nutrislice lists them, up to (but excluding) the bento alternative. */
+  hotLunchSides: LunchMenuItem[];
+  bentoBox: LunchMenuItem;
   date: string; // ISO String
 }
 
@@ -1342,8 +1351,11 @@ export interface MiniAppConfig {
    */
   lastRosterIdsByAppId?: Record<string, string[]>;
   /**
-   * Remembers the last submissions-enabled choice the teacher made per app,
-   * keyed by appId. Used to pre-populate the toggle on subsequent assigns.
+   * @deprecated The per-assignment Submissions toggle was removed when
+   * `assignment-modes` shipped — Mini App's submission behavior is now
+   * driven by the org-wide admin setting (see `getAssignmentMode`). New
+   * code never writes this field; preserved on the type only for legacy
+   * configs that may still carry it. Will be removed in a future major.
    */
   lastSubmissionsEnabledByAppId?: Record<string, boolean>;
 }
@@ -1383,6 +1395,13 @@ export interface MiniAppSession {
    * for legacy sessions (treated as `false` — view-only — by the runner).
    */
   submissionsEnabled?: boolean;
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full assignment experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   */
+  mode?: AssignmentMode;
 }
 
 /**
@@ -1719,6 +1738,29 @@ export interface QuizData {
   updatedAt: number;
 }
 
+/**
+ * Synchronized-quiz linkage on a library quiz. Present iff the quiz
+ * participates in a `/synced_quizzes/{groupId}` group shared with one
+ * or more PLC peers. Edits by any participant publish to the canonical
+ * doc and bump its `version`; library cards show a "Sync available"
+ * pill when `lastSyncedVersion < group.version`.
+ *
+ * Modeled as a single optional sub-object (rather than two parallel
+ * optional fields) so the type forbids partial states like "synced but
+ * no version" or "version but no group" — both fields are required or
+ * neither is present.
+ */
+export interface QuizMetadataSyncLinkage {
+  /** Doc id under `/synced_quizzes/{groupId}`. */
+  groupId: string;
+  /**
+   * The `version` of the canonical group doc this local Drive replica
+   * was last reconciled with. Used as a stale-detector against the
+   * canonical's live `version`.
+   */
+  lastSyncedVersion: number;
+}
+
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
 export interface QuizMetadata {
   id: string;
@@ -1732,6 +1774,8 @@ export interface QuizMetadata {
    * Refers to a folder id in `/users/{userId}/quiz_folders/{folderId}`.
    */
   folderId?: string | null;
+  /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
+  sync?: QuizMetadataSyncLinkage;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -1883,6 +1927,14 @@ export interface QuizSession {
    * `null`/`undefined` = unlimited (legacy sessions).
    */
   attemptLimit?: number | null;
+
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full live-quiz experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   */
+  mode?: AssignmentMode;
 }
 
 export interface QuizResponseAnswer {
@@ -1981,6 +2033,15 @@ export interface QuizResponse {
    * treats missing+`status==='completed'` as a single completed attempt.
    */
   completedAttempts?: number;
+  /**
+   * The assignment's `syncedVersion` at the moment this response was
+   * created OR last touched before a sync rebuilt the session questions.
+   * Set to the assignment's pre-sync `syncedVersion` when
+   * `syncAssignmentToLatest` runs against a session with existing
+   * responses, so the results UI can flag rows as "Answered before
+   * v{N+1} update." Absent on responses written outside synced mode.
+   */
+  preSyncVersion?: number;
 }
 
 /** Global admin configuration for the Quiz widget */
@@ -2170,6 +2231,78 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * time.
    */
   exportedResponseIds?: string[];
+  /**
+   * Synchronized-quiz linkage. Present iff the assignment was created
+   * from a synced library quiz; mirrored from the source quiz's
+   * linkage at assignment-create time rather than re-derived on read,
+   * so a later quiz detach can't silently strip the linkage from
+   * in-flight assignments.
+   *
+   * `groupId` points at `/synced_quizzes/{groupId}`. `syncedVersion` is
+   * the canonical version reflected in the assignment's session
+   * `publicQuestions[]`; `group.version > syncedVersion` flips the
+   * assignment card's "Sync" affordance.
+   *
+   * Modeled as a single optional sub-object so partial states ("group
+   * but no version", or vice versa) can't typecheck.
+   */
+  sync?: QuizAssignmentSyncLinkage;
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
+  mode?: AssignmentMode;
+}
+
+/** See `QuizAssignment.sync`. */
+export interface QuizAssignmentSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
+}
+
+/**
+ * Synchronized canonical quiz shared by multiple PLC peers, stored at
+ * `/synced_quizzes/{groupId}`.
+ *
+ * This is the source-of-truth for synced-mode shares. Each peer's local
+ * `quiz_metadata` carries `syncGroupId` referencing this doc; the Drive-
+ * resident JSON acts as an editing canvas + cached replica. When any peer
+ * saves an edit, the editor runs a Firestore transaction that increments
+ * `version`, writes the new `questions` + `title`, and stamps `updatedBy`.
+ * Other peers' `onSnapshot` listeners fire and the library card surfaces a
+ * "Sync available" pill.
+ *
+ * Last-write-wins on content; the transaction's monotonic `version`
+ * increment serializes concurrent saves. Participants are added/removed via
+ * the `joinSyncedQuizGroup` / `leaveSyncedQuizGroup` Cloud Functions so
+ * Firestore rules can keep client writes scoped to existing participants.
+ */
+export interface SyncedQuizGroup {
+  /** Group id (Firestore doc id). */
+  id: string;
+  /**
+   * Monotonically increasing version. Bumped inside a Firestore transaction
+   * on every content write so peers can detect divergence without diffing
+   * questions. Initial value is `1` at create time.
+   */
+  version: number;
+  title: string;
+  questions: QuizQuestion[];
+  /**
+   * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
+   * Modified only by the Cloud Function paths so the rules-side write check
+   * can be a simple `auth.uid in resource.data.participants` predicate.
+   */
+  participants: Record<string, { joinedAt: number }>;
+  /**
+   * Optional PLC linkage. Populated when the originating share was generated
+   * from a PLC-mode assignment. Reserved for downstream PLC notification
+   * routing (so stale-content alerts can be scoped to the right PLC inbox);
+   * no behavior consumes this field today.
+   */
+  plcId?: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Auth uid of whoever last published an edit (for participant attribution). */
+  updatedBy: string;
 }
 
 /**
@@ -2190,6 +2323,16 @@ export interface SharedQuizAssignment {
   /** Original author's UID. */
   originalAuthor: string;
   sharedAt: number;
+  /**
+   * If present, this share offers a "Sync" import option that joins the
+   * importer to the named synced group. The inlined `questions[]` above is
+   * still the source of truth for "Make a copy" imports and as a bootstrap
+   * snapshot for the synced importer's initial Drive write.
+   *
+   * Absent on legacy share docs and on shares explicitly published as
+   * copy-only — the import-mode picker only appears when this is set.
+   */
+  syncGroupId?: string;
 }
 
 // --- VIDEO ACTIVITY TYPES ---
@@ -2233,7 +2376,7 @@ export interface VideoActivityMetadata {
   folderId?: string | null;
 }
 
-export type VideoActivityView = 'manager' | 'create' | 'results';
+export type VideoActivityView = 'manager' | 'create' | 'results' | 'monitor';
 
 /** Widget configuration for the video activity widget (teacher side). */
 export interface VideoActivityConfig {
@@ -2331,6 +2474,13 @@ export interface VideoActivitySession {
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full assignment experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   */
+  mode?: AssignmentMode;
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2963,6 +3113,18 @@ export interface GuidedLearningSession {
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /**
+   * Frozen at creation from the org-wide `assignment-modes` admin setting.
+   * Determines whether students see a tracked Share link (`'view-only'`) or
+   * the full assignment experience (`'submissions'`). Absent on pre-feature
+   * sessions; consumers must default to `'submissions'`.
+   *
+   * NOTE: The GL session's own `mode` field is already in use (play-mode
+   * — structured / guided / explore), so the assignment mode lives under
+   * `assignmentMode` here. The other three widgets (Quiz, Video Activity,
+   * Mini App) store it as `mode`.
+   */
+  assignmentMode?: AssignmentMode;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -3506,7 +3668,9 @@ export type GlobalFeature =
   | 'embed-mini-app'
   | 'video-activity-audio-transcription'
   | 'ai-file-context'
-  | 'org-admin-writes';
+  | 'org-admin-writes'
+  | 'assignment-modes'
+  | 'share-link-tracking';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
@@ -3515,6 +3679,29 @@ export interface GlobalFeaturePermission {
   enabled: boolean;
   config?: Record<string, unknown>;
 }
+
+/**
+ * Assignment mode for student-facing widgets that can either collect submissions
+ * or be shared as view-only experiences. Set org-wide by an admin via Global
+ * Settings; frozen onto each assignment/session at creation time so flipping
+ * the admin toggle never alters the behavior of in-flight assignments.
+ */
+export type AssignmentMode = 'submissions' | 'view-only';
+
+/** Widgets whose assignment behavior is controlled by AssignmentModesConfig. */
+export type AssignmentWidgetKey =
+  | 'quiz'
+  | 'videoActivity'
+  | 'miniApp'
+  | 'guidedLearning';
+
+/**
+ * Stored as the `config` of the `assignment-modes` GlobalFeaturePermission doc.
+ * Missing keys default to `'submissions'` (preserves pre-feature behavior).
+ */
+export type AssignmentModesConfig = Partial<
+  Record<AssignmentWidgetKey, AssignmentMode>
+>;
 
 export interface AppSettings {
   geminiDailyLimit: number;
@@ -4165,6 +4352,9 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
    *  legacy assignments read via `className` / session.classIds only. See
    *  `utils/resolveAssignmentTargets.ts`. */
   rosterIds?: string[];
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Mirrors VideoActivitySession.mode. Absent on pre-feature assignments. */
+  mode?: AssignmentMode;
 }
 
 // === MiniApp assignments ===
@@ -4207,6 +4397,9 @@ export interface MiniAppAssignment {
   /** Mirrors `MiniAppSession.submissionsEnabled`. When true, the runner
    * reveals the Submit button and persists student submissions. */
   submissionsEnabled?: boolean;
+  /** Mirrors `MiniAppSession.mode`. Frozen at creation from the admin
+   *  `assignment-modes` setting. Absent on pre-feature assignments. */
+  mode?: AssignmentMode;
 }
 
 // === /MiniApp assignments ===
@@ -4242,6 +4435,10 @@ export interface GuidedLearningAssignment {
   source?: 'personal' | 'building';
   /** Unified roster targeting (new post-unification assignments). */
   rosterIds?: string[];
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
+   *  GL session's existing play-mode field. Absent on pre-feature assignments. */
+  assignmentMode?: AssignmentMode;
 }
 
 // === Library folders (Wave 3) ===

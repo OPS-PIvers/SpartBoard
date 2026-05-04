@@ -599,6 +599,80 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Synced quiz groups — canonical, mutable record of a quiz shared
+    // across PLC peers. The group id is an unguessable v4 UUID, so reads
+    // are gated only on auth (matches the `shared_assignments` posture).
+    //
+    // Content writes (questions / title / version bump) are allowed only
+    // for existing participants — every peer's editor runs a transaction
+    // that increments `version` monotonically, so a non-participant can't
+    // overwrite content. The participants map itself is treated as
+    // immutable from the client side: joins/leaves go through the
+    // `joinSyncedQuizGroup` / `leaveSyncedQuizGroup` Cloud Functions
+    // (admin SDK) so we don't have to reason about partial-self mutations
+    // in CEL.
+    //
+    // Create is allowed by any authed user as long as `participants` carries
+    // ONLY the caller's uid — this lets `shareAssignment` stand up the
+    // group inline without round-tripping through a function. Subsequent
+    // member additions still require the function path.
+    match /synced_quizzes/{groupId} {
+      allow get: if request.auth != null;
+      // Listing is closed: any authenticated user knowing only the
+      // collection name could otherwise enumerate every synced quiz
+      // (questions included), defeating the unguessable-id assumption
+      // that gates `get`. Clients always know the specific groupId via
+      // either their own `quiz_metadata` doc or a pasted share URL, so
+      // `get` is sufficient.
+      allow list: if false;
+
+      // Allowed top-level fields on a synced-quiz doc. Pin via
+      // `keys().hasOnly(...)` so a malicious client can't smuggle
+      // arbitrary extra fields onto the doc that downstream
+      // consumers might trust.
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
+        && request.resource.data.id == groupId
+        && request.resource.data.version is int
+        && request.resource.data.version == 1
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.participants.keys().hasOnly([request.auth.uid])
+        && request.resource.data.participants[request.auth.uid].joinedAt is int
+        && request.resource.data.participants[request.auth.uid].joinedAt >= 0
+        // Validate plcId type when present so a malformed link/cast can't write
+        // a non-string value that downstream PLC reads would mishandle.
+        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string);
+
+      // Content updates: caller must be a participant; participants map and
+      // doc id are immutable from the client; version must strictly
+      // increase by 1 (loser of a concurrent transaction retries with the
+      // newer base version). The hasOnly clause locks the field surface
+      // so an update can't introduce new top-level fields either.
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.updatedBy == request.auth.uid
+        // plcId is the link to the owning PLC and must stay immutable post-create
+        // — handle the case where either side is missing the field with a default.
+        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
+
+      // No client-side delete. If a group becomes orphaned (empty
+      // participants), it stays — pasting an old share URL should still
+      // resolve the bootstrap snapshot rather than 404.
+      allow delete: if false;
+    }
+
     // ---- PLC (Professional Learning Community) helpers + rules ----
     //
     // PLCs are top-level so cross-teacher reads work — every member needs to
@@ -859,6 +933,11 @@ service cloud.firestore {
         function sessionClassIds() {
           return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('classIds', []);
         }
+        // Defense in depth — block response writes on view-only sessions.
+        // Pre-feature sessions without a `mode` field default to 'submissions'.
+        function sessionMode() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions');
+        }
 
         // Student branch allows `resource == null` so the student-app join
         // flow can call getDoc() to probe whether a response already exists
@@ -896,8 +975,19 @@ service cloud.firestore {
           request.resource.data.score == null &&
           // Students cannot forge prior completions
           request.resource.data.get('completedAttempts', 0) == 0 &&
+          // Students cannot forge a `preSyncVersion` other than 0 — the
+          // field is initialized to 0 by the client at create time so
+          // `syncAssignmentToLatest` can run a server-side
+          // `where('preSyncVersion', '==', 0)` query that catches the
+          // row. A malicious student submitting `preSyncVersion: 999`
+          // would silently dodge that query and never get tagged.
+          // Tags are written by the teacher on sync, never by the
+          // student.
+          request.resource.data.get('preSyncVersion', 0) == 0 &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
+          // Block submissions on view-only sessions (mode is frozen at creation)
+          sessionMode() == 'submissions' &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
             : responseKey.matches('^pin-[a-z0-9_]+-[a-z0-9_]+$'));
@@ -932,8 +1022,18 @@ service cloud.firestore {
            request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
            request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
            request.resource.data.score == null &&
+           // Students may only ever write `0` to `preSyncVersion`. The
+           // rejoin path resets it to 0 so a previously-tagged response
+           // re-enters the "untagged" pool that
+           // `syncAssignmentToLatest` queries with
+           // `where('preSyncVersion', '==', 0)`. Allowing arbitrary
+           // values here would let a malicious student forge a tag
+           // (e.g. `preSyncVersion: 999`) to dodge future sync
+           // tagging, mirroring the create-time constraint above.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
+            request.resource.data.preSyncVersion == 0) &&
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score']) &&
+             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion']) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
@@ -941,6 +1041,28 @@ service cloud.firestore {
         );
         allow delete: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() || isAdmin());
+      }
+
+      // View tracking for view-only Share links. Each pageview by a student
+      // (anonymous or studentRole) appends an immutable doc with just a
+      // server timestamp; the teacher's "Shared" archive aggregates the
+      // count via getCountFromServer(). Refresh-inflation is accepted —
+      // the metric is "URL opens", not "unique viewers".
+      //
+      // The create rule requires the parent session to exist AND be in
+      // view-only mode, so an authenticated user can't spam view docs
+      // under arbitrary or non-view-only session IDs to inflate metrics.
+      match /views/{viewId} {
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == request.auth.uid
+        );
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['viewedAt']) &&
+          request.resource.data.viewedAt is timestamp &&
+          exists(/databases/$(database)/documents/quiz_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+        allow update, delete: if false;
       }
     }
 
@@ -1059,6 +1181,10 @@ service cloud.firestore {
         function vaSessionClassIds() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classIds', []);
         }
+        // Defense in depth — block response writes on view-only sessions.
+        function vaSessionMode() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions');
+        }
 
         // Teacher can read all responses; students can only read their own (doc ID == auth UID)
         allow read: if request.auth != null && (
@@ -1073,7 +1199,9 @@ service cloud.firestore {
           request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.score == null &&
           request.resource.data.completedAt == null &&
-          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId());
+          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+          // Block submissions on view-only sessions (mode is frozen at creation)
+          vaSessionMode() == 'submissions';
         // Students can update only their own response to add answers or set completedAt;
         // identity fields and score are immutable from the client; answers array may only grow
         allow update: if request.auth != null &&
@@ -1098,6 +1226,21 @@ service cloud.firestore {
           get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
           isAdmin()
         );
+      }
+
+      // View tracking for view-only Share links (see quiz_sessions/views).
+      // Create requires the parent session to exist AND be in view-only mode.
+      match /views/{viewId} {
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid
+        );
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['viewedAt']) &&
+          request.resource.data.viewedAt is timestamp &&
+          exists(/databases/$(database)/documents/video_activity_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+        allow update, delete: if false;
       }
     }
 
@@ -1187,6 +1330,9 @@ service cloud.firestore {
           request.resource.data.submittedAt is int &&
           request.resource.data.payload is map &&
           request.resource.data.payload.size() <= 50 &&
+          // Block submissions on view-only sessions (mode is frozen at creation).
+          // Defense in depth alongside the existing `submissionsEnabled` gate.
+          maSessionData().get('mode', 'submissions') == 'submissions' &&
           (
             maSessionData().get('submissionsEnabled', false) == true ||
             (request.resource.data.payload.keys().hasOnly(['completed']) &&
@@ -1199,6 +1345,21 @@ service cloud.firestore {
           isAdmin() ||
           maSessionData().teacherUid == request.auth.uid
         );
+      }
+
+      // View tracking for view-only Share links (see quiz_sessions/views).
+      // Create requires the parent session to exist AND be in view-only mode.
+      match /views/{viewId} {
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data.teacherUid == request.auth.uid
+        );
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['viewedAt']) &&
+          request.resource.data.viewedAt is timestamp &&
+          exists(/databases/$(database)/documents/mini_app_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+        allow update, delete: if false;
       }
     }
 
@@ -1244,6 +1405,13 @@ service cloud.firestore {
         function glSessionClassIds() {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classIds', []);
         }
+        // Defense in depth — block response writes on view-only sessions.
+        // GuidedLearningSession.mode already names the play-mode
+        // (structured/guided/explore), so the assignment mode ships under
+        // `assignmentMode` here. The other three widgets store it as `mode`.
+        function glSessionMode() {
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions');
+        }
 
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
@@ -1258,7 +1426,9 @@ service cloud.firestore {
           request.resource.data.studentAnonymousId == request.auth.uid &&
           request.resource.data.sessionId == sessionId &&
           request.resource.data.score == null &&
-          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId());
+          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
+          // Block submissions on view-only sessions (mode is frozen at creation)
+          glSessionMode() == 'submissions';
         // Students can update only their own response to add answers or set completedAt;
         // identity fields and score are immutable from the client
         allow update: if request.auth != null &&
@@ -1276,6 +1446,24 @@ service cloud.firestore {
           get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
           isAdmin()
         );
+      }
+
+      // View tracking for view-only Share links (see quiz_sessions/views).
+      // Create requires the parent session to exist AND be in view-only mode.
+      // GL stores assignment mode under `assignmentMode` (not `mode`) — the
+      // session's `mode` field is reserved for play-mode (structured / guided
+      // / explore). See types.ts and the response create rule above.
+      match /views/{viewId} {
+        allow read: if request.auth != null && (
+          isAdmin() ||
+          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid
+        );
+        allow create: if request.auth != null &&
+          request.resource.data.keys().hasOnly(['viewedAt']) &&
+          request.resource.data.viewedAt is timestamp &&
+          exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
+          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions') == 'view-only';
+        allow update, delete: if false;
       }
     }
 

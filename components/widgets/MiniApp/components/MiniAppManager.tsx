@@ -43,8 +43,10 @@ import {
   ExternalLink,
   Copy,
   CheckSquare,
+  RotateCcw,
 } from 'lucide-react';
 import type {
+  AssignmentMode,
   MiniAppItem,
   GlobalMiniAppItem,
   MiniAppAssignment,
@@ -54,6 +56,9 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
+import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
+import { useSessionViewCount } from '@/hooks/useSessionViewCount';
+import { useAuth } from '@/context/useAuth';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -73,6 +78,7 @@ import type {
   LibraryFilter,
   LibrarySortOption,
   LibraryMenuAction,
+  LibraryPrimaryAction,
   AssignmentStatusBadge,
 } from '@/components/common/library/types';
 
@@ -117,6 +123,12 @@ export interface MiniAppManagerProps {
   /* ── Archive / In Progress callbacks ──────────────────────────────────── */
   onArchiveCopyUrl: (assignment: MiniAppAssignment) => void;
   onArchiveEnd: (assignment: MiniAppAssignment) => void;
+  /**
+   * Re-open a previously ended share (view-only mode only). Flips the
+   * assignment + session status back to active so the URL works again.
+   * Optional so consumers that don't support reactivate can omit it.
+   */
+  onArchiveReactivate?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
@@ -125,6 +137,10 @@ export interface MiniAppManagerProps {
   initialLibraryViewMode?: 'grid' | 'list';
   /** Persist the library grid/list toggle into widget config. */
   onLibraryViewModeChange?: (mode: 'grid' | 'list') => void;
+
+  /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
+   *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
+  assignmentMode?: AssignmentMode;
 }
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
@@ -207,6 +223,45 @@ const LIBRARY_FILTER_PREDICATES = {
   source: (row: UnifiedRow, value: string): boolean => row.kind === value,
 };
 
+/* ─── View-only row wrapper (per-row hook host for view-count fetch) ──────── */
+
+const MiniAppArchiveRow: React.FC<{
+  assignment: MiniAppAssignment;
+  mode: 'active' | 'archive';
+  status: AssignmentStatusBadge;
+  primaryAction?: LibraryPrimaryAction;
+  secondaryActions: LibraryMenuAction[];
+}> = ({ assignment, mode, status, primaryAction, secondaryActions }) => {
+  const isViewOnly = assignment.mode === 'view-only';
+  // Admin-only by default — view-count display fires one Firestore
+  // aggregation per visible card on every dashboard tab-focus, so we gate
+  // it behind the `share-link-tracking` global permission. Non-admins
+  // pass `enabled: false` to the hook → no Firestore read at all.
+  const { canSeeShareTracking } = useAuth();
+  const trackingEnabled = canSeeShareTracking();
+  const { count } = useSessionViewCount(
+    'mini_app_sessions',
+    assignment.sessionId,
+    isViewOnly && trackingEnabled
+  );
+  return (
+    <AssignmentArchiveCard<MiniAppAssignment>
+      assignment={assignment}
+      mode={mode}
+      status={status}
+      title={assignment.assignmentName}
+      subtitle={assignment.appTitle}
+      meta={
+        isViewOnly && trackingEnabled ? (
+          <ViewCountBadge count={count} />
+        ) : undefined
+      }
+      primaryAction={primaryAction}
+      secondaryActions={secondaryActions}
+    />
+  );
+};
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
@@ -230,11 +285,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onExport,
   onArchiveCopyUrl,
   onArchiveEnd,
+  onArchiveReactivate,
   onArchiveDelete,
   onArchiveOpenApp,
   initialLibraryViewMode,
   onLibraryViewModeChange,
+  assignmentMode = 'submissions',
 }) => {
+  const isViewOnly = assignmentMode === 'view-only';
+  const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   /* ── Assignment buckets ─────────────────────────────────────────────── */
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
@@ -482,42 +541,73 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   function renderPersonalCard(row: UnifiedRow & { kind: 'personal' }) {
     const app = row.item;
-    const secondary: LibraryMenuAction[] = [
-      {
-        id: 'run',
-        label: 'Run app',
-        icon: Play,
-        onClick: () => onRun(app),
-      },
-      {
-        id: 'assignments',
-        label: 'View assignments',
-        icon: BarChart3,
-        onClick: () => onShowAssignments(app),
-      },
-      {
-        id: 'edit',
-        label: 'Edit',
-        icon: Pencil,
-        onClick: () => onEdit(app),
-      },
-      buildMoveToFolderAction({
-        onOpenPicker: () =>
-          setFolderPickerTarget({
-            id: app.id,
-            title: app.title,
-            folderId: app.folderId ?? null,
+    // View-only mode: Run is the dominant action — teachers nearly always
+    // want to *run* a mini-app on the dashboard before they share it. Pair
+    // Run with a compact Share/Link icon and drop "View assignments" from
+    // the overflow menu (the Shared tab is the surface for that).
+    // Submissions mode keeps the existing prominent "Assign" button and the
+    // full kebab so teachers can still jump to the assignments archive.
+    const secondary: LibraryMenuAction[] = isViewOnly
+      ? [
+          {
+            id: 'edit',
+            label: 'Edit',
+            icon: Pencil,
+            onClick: () => onEdit(app),
+          },
+          buildMoveToFolderAction({
+            onOpenPicker: () =>
+              setFolderPickerTarget({
+                id: app.id,
+                title: app.title,
+                folderId: app.folderId ?? null,
+              }),
+            disabled: !userId,
           }),
-        disabled: !userId,
-      }),
-      {
-        id: 'delete',
-        label: 'Delete',
-        icon: Trash2,
-        onClick: () => void onDelete(app),
-        destructive: true,
-      },
-    ];
+          {
+            id: 'delete',
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => void onDelete(app),
+            destructive: true,
+          },
+        ]
+      : [
+          {
+            id: 'run',
+            label: 'Run app',
+            icon: Play,
+            onClick: () => onRun(app),
+          },
+          {
+            id: 'assignments',
+            label: 'View assignments',
+            icon: BarChart3,
+            onClick: () => onShowAssignments(app),
+          },
+          {
+            id: 'edit',
+            label: 'Edit',
+            icon: Pencil,
+            onClick: () => onEdit(app),
+          },
+          buildMoveToFolderAction({
+            onOpenPicker: () =>
+              setFolderPickerTarget({
+                id: app.id,
+                title: app.title,
+                folderId: app.folderId ?? null,
+              }),
+            disabled: !userId,
+          }),
+          {
+            id: 'delete',
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => void onDelete(app),
+            destructive: true,
+          },
+        ];
 
     return (
       <LibraryItemCard<MiniAppItem>
@@ -534,11 +624,34 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             HTML
           </div>
         }
-        primaryAction={{
-          label: 'Assign',
-          icon: Link2,
-          onClick: () => onAssign(app),
-        }}
+        primaryAction={
+          isViewOnly
+            ? undefined
+            : {
+                label: primaryActionLabel,
+                icon: Link2,
+                onClick: () => onAssign(app),
+              }
+        }
+        iconActions={
+          isViewOnly
+            ? [
+                {
+                  id: 'run',
+                  label: 'Run app',
+                  icon: Play,
+                  tone: 'primary',
+                  onClick: () => onRun(app),
+                },
+                {
+                  id: 'share',
+                  label: 'Share link',
+                  icon: Link2,
+                  onClick: () => onAssign(app),
+                },
+              ]
+            : undefined
+        }
         secondaryActions={secondary}
         onClick={() => onEdit(app)}
         sortable={!selectionMode}
@@ -553,27 +666,37 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   function renderGlobalCard(row: UnifiedRow & { kind: 'global' }) {
     const app = row.item;
     const saving = savingGlobalId === app.id;
-    const secondary: LibraryMenuAction[] = [
-      {
-        id: 'run',
-        label: 'Run app',
-        icon: Play,
-        onClick: () => onRun(app),
-      },
-      {
-        id: 'assignments',
-        label: 'View assignments',
-        icon: BarChart3,
-        onClick: () => onShowAssignments(app),
-      },
-      {
-        id: 'save',
-        label: saving ? 'Saving…' : 'Save to my library',
-        icon: saving ? Loader2 : BookDown,
-        onClick: () => onSaveGlobalToLibrary(app),
-        disabled: saving,
-      },
-    ];
+    const secondary: LibraryMenuAction[] = isViewOnly
+      ? [
+          {
+            id: 'save',
+            label: saving ? 'Saving…' : 'Save to my library',
+            icon: saving ? Loader2 : BookDown,
+            onClick: () => onSaveGlobalToLibrary(app),
+            disabled: saving,
+          },
+        ]
+      : [
+          {
+            id: 'run',
+            label: 'Run app',
+            icon: Play,
+            onClick: () => onRun(app),
+          },
+          {
+            id: 'assignments',
+            label: 'View assignments',
+            icon: BarChart3,
+            onClick: () => onShowAssignments(app),
+          },
+          {
+            id: 'save',
+            label: saving ? 'Saving…' : 'Save to my library',
+            icon: saving ? Loader2 : BookDown,
+            onClick: () => onSaveGlobalToLibrary(app),
+            disabled: saving,
+          },
+        ];
 
     return (
       <LibraryItemCard<GlobalMiniAppItem>
@@ -590,11 +713,34 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             HTML
           </div>
         }
-        primaryAction={{
-          label: 'Assign',
-          icon: Link2,
-          onClick: () => onAssign(app),
-        }}
+        primaryAction={
+          isViewOnly
+            ? undefined
+            : {
+                label: primaryActionLabel,
+                icon: Link2,
+                onClick: () => onAssign(app),
+              }
+        }
+        iconActions={
+          isViewOnly
+            ? [
+                {
+                  id: 'run',
+                  label: 'Run app',
+                  icon: Play,
+                  tone: 'primary',
+                  onClick: () => onRun(app),
+                },
+                {
+                  id: 'share',
+                  label: 'Share link',
+                  icon: Link2,
+                  onClick: () => onAssign(app),
+                },
+              ]
+            : undefined
+        }
         secondaryActions={secondary}
         // No onClick for global items — they are read-only here; clicking the
         // body would imply "edit", which is admin-only.
@@ -646,10 +792,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const activeEmpty = (
     <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
       <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-        No active assignments
+        {isViewOnly ? 'No active shares' : 'No active assignments'}
       </p>
       <p className="text-xs font-medium text-slate-400">
-        Assign a mini-app to create a live link for students.
+        {isViewOnly
+          ? 'Share a mini-app to create a viewable link for students.'
+          : 'Assign a mini-app to create a live link for students.'}
       </p>
     </div>
   );
@@ -657,10 +805,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const archiveEmpty = (
     <div className="flex flex-col items-center justify-center gap-2 text-center py-10 text-slate-400">
       <p className="text-sm font-black uppercase tracking-widest text-slate-500">
-        No archived assignments
+        {isViewOnly ? 'No archived shares' : 'No archived assignments'}
       </p>
       <p className="text-xs font-medium text-slate-400">
-        Ended assignments will appear here.
+        {isViewOnly
+          ? 'Ended share links will appear here.'
+          : 'Ended assignments will appear here.'}
       </p>
     </div>
   );
@@ -671,23 +821,46 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     assignment: MiniAppAssignment,
     mode: 'active' | 'archive'
   ): AssignmentStatusBadge {
+    // Per-assignment mode is frozen at creation. View-only entries get
+    // share-flavored labels so teachers can distinguish them at a glance
+    // even when the org-wide admin toggle is later flipped back.
+    const isViewOnly = assignment.mode === 'view-only';
     if (mode === 'archive') {
-      return { label: 'Ended', tone: 'neutral' };
+      return {
+        // "Closed" reads cleaner than "Ended share" and matches the
+        // single-word convention used elsewhere for terminal states.
+        label: isViewOnly ? 'Closed' : 'Ended',
+        tone: 'neutral',
+      };
     }
-    return { label: 'Live', tone: 'success', dot: true };
+    return {
+      label: isViewOnly ? 'Shared' : 'Live',
+      tone: 'success',
+      dot: true,
+    };
   }
 
   function assignmentSecondary(
     assignment: MiniAppAssignment,
     mode: 'active' | 'archive'
   ): LibraryMenuAction[] {
+    const isViewOnly = assignment.mode === 'view-only';
     const actions: LibraryMenuAction[] = [];
-    actions.push({
-      id: 'copy-url',
-      label: 'Copy student link',
-      icon: Copy,
-      onClick: () => onArchiveCopyUrl(assignment),
-    });
+
+    // For view-only assignments the Shared-tab card already has a primary
+    // "Copy link" button, and archive view-only cards show "Reactivate" in
+    // place of a primary action — so the kebab Copy entry is redundant
+    // there. Submissions-mode cards keep the kebab entry as a stable
+    // secondary surface.
+    if (!isViewOnly) {
+      actions.push({
+        id: 'copy-url',
+        label: 'Copy student link',
+        icon: Copy,
+        onClick: () => onArchiveCopyUrl(assignment),
+      });
+    }
+
     if (onArchiveOpenApp) {
       actions.push({
         id: 'open',
@@ -699,11 +872,25 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     if (mode === 'active') {
       actions.push({
         id: 'end',
-        label: 'End assignment',
+        label: isViewOnly ? 'End share' : 'End assignment',
         icon: Box,
         onClick: () => onArchiveEnd(assignment),
       });
     }
+
+    // Reactivate is view-only-only, archive-only — flips status back to
+    // active so the URL works again. Submissions-mode assignments don't get
+    // this affordance: re-collecting submissions on a stale roster is a
+    // bigger UX call than this PR is scoped to make.
+    if (mode === 'archive' && isViewOnly && onArchiveReactivate !== undefined) {
+      actions.push({
+        id: 'reactivate',
+        label: 'Reactivate',
+        icon: RotateCcw,
+        onClick: () => onArchiveReactivate(assignment),
+      });
+    }
+
     actions.push({
       id: 'delete',
       label: 'Delete',
@@ -730,13 +917,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       tabContent = (
         <div className="flex flex-col gap-2">
           {activeAssignments.map((a) => (
-            <AssignmentArchiveCard<MiniAppAssignment>
+            <MiniAppArchiveRow
               key={a.id}
               assignment={a}
               mode="active"
               status={statusBadge(a, 'active')}
-              title={a.assignmentName}
-              subtitle={a.appTitle}
               primaryAction={{
                 label: 'Copy link',
                 icon: Copy,
@@ -760,22 +945,32 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     } else {
       tabContent = (
         <div className="flex flex-col gap-2">
-          {archivedAssignments.map((a) => (
-            <AssignmentArchiveCard<MiniAppAssignment>
-              key={a.id}
-              assignment={a}
-              mode="archive"
-              status={statusBadge(a, 'archive')}
-              title={a.assignmentName}
-              subtitle={a.appTitle}
-              primaryAction={{
-                label: 'Copy link',
-                icon: Copy,
-                onClick: () => onArchiveCopyUrl(a),
-              }}
-              secondaryActions={assignmentSecondary(a, 'archive')}
-            />
-          ))}
+          {archivedAssignments.map((a) => {
+            // Archived view-only shares have a dead URL — Firestore rules
+            // (and the student app guard) reject access once `status ==
+            // 'ended'`. Surfacing a Copy-link button there would mislead
+            // teachers; the kebab's "Reactivate" is the way to bring the
+            // link back if needed.
+            const archiveIsViewOnly = a.mode === 'view-only';
+            return (
+              <MiniAppArchiveRow
+                key={a.id}
+                assignment={a}
+                mode="archive"
+                status={statusBadge(a, 'archive')}
+                primaryAction={
+                  archiveIsViewOnly
+                    ? undefined
+                    : {
+                        label: 'Copy link',
+                        icon: Copy,
+                        onClick: () => onArchiveCopyUrl(a),
+                      }
+                }
+                secondaryActions={assignmentSecondary(a, 'archive')}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -856,7 +1051,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={{
-          label: 'Assign',
+          label: primaryActionLabel,
           icon: Link2,
           onClick: () => undefined,
         }}
@@ -922,6 +1117,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}
+      tabLabels={isViewOnly ? { active: 'Shared' } : undefined}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
       filterSidebarSlot={folderSidebarSlot}

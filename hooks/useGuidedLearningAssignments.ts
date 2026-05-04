@@ -25,7 +25,9 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { invalidateSessionViewCount } from './useSessionViewCount';
 import type {
+  AssignmentMode,
   GuidedLearningAssignment,
   GuidedLearningAssignmentStatus,
 } from '@/types';
@@ -46,6 +48,10 @@ export interface CreateAssignmentInput {
    *  assignments; ClassLink-imported rosters carry `classlinkClassId` so the
    *  student SSO gate resolves via session derivation). */
   rosterIds?: string[];
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
+   *  GL session's existing play-mode field. Defaults to `'submissions'`. */
+  assignmentMode?: AssignmentMode;
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -135,6 +141,7 @@ export const useGuidedLearningAssignments = (
         archivedAt: null,
         source: input.source,
         ...(rosterIds.length > 0 ? { rosterIds } : {}),
+        assignmentMode: input.assignmentMode ?? 'submissions',
       };
       await setDoc(
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, input.sessionId),
@@ -170,7 +177,16 @@ export const useGuidedLearningAssignments = (
 
   const unarchiveAssignment = useCallback<
     UseGuidedLearningAssignmentsResult['unarchiveAssignment']
-  >((assignmentId) => setStatus(assignmentId, 'active'), [setStatus]);
+  >(
+    async (assignmentId) => {
+      await setStatus(assignmentId, 'active');
+      // Drop any cached view count so the Shared row re-issues the
+      // aggregation query on next mount; the cache is module-scoped and
+      // would otherwise hold the pre-archive count forever.
+      invalidateSessionViewCount('guided_learning_sessions', assignmentId);
+    },
+    [setStatus]
+  );
 
   const deleteAssignment = useCallback<
     UseGuidedLearningAssignmentsResult['deleteAssignment']

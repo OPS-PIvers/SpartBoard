@@ -13,6 +13,11 @@ import {
   ScalingConfig,
   WidgetComponentProps,
 } from '@/types';
+import {
+  attemptChunkReload,
+  isChunkLoadError,
+  neverResolvingPromise,
+} from '@/utils/chunkLoadError';
 
 // Component type definitions to ensure type safety
 type SettingsComponentProps = {
@@ -26,15 +31,30 @@ type SettingsComponent =
   | React.ComponentType<SettingsComponentProps>
   | React.LazyExoticComponent<React.ComponentType<SettingsComponentProps>>;
 
-// Lazy load helper for named exports
+// Lazy load helper for named exports.
+//
+// If the dynamic import fails because the chunk no longer exists (the classic
+// stale-deploy hazard — see utils/chunkLoadError.ts), trigger a one-shot
+// full-page reload to pick up the new build. If reload was already attempted
+// this session, re-throw so the surrounding LazyChunkErrorBoundary can render
+// a scoped fallback UI.
 const lazyNamed = (
   importFactory: () => Promise<Record<string, unknown>>,
   name: string
 ) => {
   return lazy(() =>
-    importFactory().then((module) => ({
-      default: module[name] as React.ComponentType<unknown>,
-    }))
+    importFactory()
+      .then((module) => ({
+        default: module[name] as React.ComponentType<unknown>,
+      }))
+      .catch((error: unknown) => {
+        if (isChunkLoadError(error) && attemptChunkReload()) {
+          // Reload kicked off; suspend forever so React keeps showing the
+          // Suspense fallback until the reload completes.
+          return neverResolvingPromise();
+        }
+        throw error;
+      })
   );
 };
 

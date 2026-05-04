@@ -21,10 +21,14 @@ import {
   CheckCircle2,
   Trophy,
 } from 'lucide-react';
-import { auth } from '@/config/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
+
+const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -90,6 +94,24 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     window.location.pathname.split('/guided-learning/')[1] ?? '';
   const { session, loading, error, submitResponse } =
     useGuidedLearningSessionStudent(sessionId);
+  const isViewOnly = session?.assignmentMode === 'view-only';
+
+  // View tracking — log each pageview of a view-only Share link as an
+  // immutable doc in the session's `views/` subcollection. Best-effort and
+  // fire-and-forget. `wroteViewRef` dedupes within a single mount —
+  // refresh-inflation across mounts is accepted per the "URL opens" framing.
+  const wroteViewRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (!isViewOnly || !sessionId || !anonymousUid) return;
+    if (wroteViewRef.current === sessionId) return;
+    wroteViewRef.current = sessionId;
+    void addDoc(collection(db, GL_SESSIONS_COLLECTION, sessionId, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      // logError so sustained failures surface in error-level filters.
+      logError('GuidedLearningStudentApp.viewLog', err, { sessionId });
+    });
+  }, [isViewOnly, sessionId, anonymousUid]);
 
   const [pin, setPin] = useState('');
   const [started, setStarted] = useState(false);
@@ -130,6 +152,11 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     setScore(computedScore);
     setCompleted(true);
 
+    // View-only shares never persist a response — the Firestore rule rejects
+    // the write defense-in-depth, but skip it client-side too so the console
+    // stays clean.
+    if (isViewOnly) return;
+
     const response: GuidedLearningResponse = {
       sessionId,
       studentAnonymousId: anonymousUid,
@@ -152,6 +179,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     sessionId,
     submitResponse,
     classPeriod,
+    isViewOnly,
   ]);
 
   if (loading) return <FullPageLoader />;
@@ -159,7 +187,13 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   if (!session) return <ErrorScreen message="Session not found." />;
 
   if (completed) {
-    return <CompletionScreen session={session} score={score} />;
+    return (
+      <CompletionScreen
+        session={session}
+        score={score}
+        isViewOnly={isViewOnly}
+      />
+    );
   }
 
   if (!started) {
@@ -323,21 +357,24 @@ const StartScreen: React.FC<{
 const CompletionScreen: React.FC<{
   session: GuidedLearningSession;
   score: number | null;
-}> = ({ session, score }) => (
+  isViewOnly: boolean;
+}> = ({ session, score, isViewOnly }) => (
   <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
     <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
       <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
       <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
       <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
       <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
-      {score !== null && (
+      {!isViewOnly && score !== null && (
         <p className="text-slate-300 text-sm mb-4">
           You scored <span className="text-white font-bold">{score}%</span> on
           the comprehension questions.
         </p>
       )}
       <p className="text-slate-500 text-xs">
-        Your responses have been submitted.
+        {isViewOnly
+          ? 'Thanks for viewing!'
+          : 'Your responses have been submitted.'}
       </p>
     </div>
   </div>

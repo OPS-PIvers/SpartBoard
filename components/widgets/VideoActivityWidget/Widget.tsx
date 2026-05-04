@@ -5,7 +5,7 @@
  * as a sibling of the Manager library view.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
@@ -27,6 +27,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
+import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -70,7 +71,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     isAdmin,
     canAccessFeature,
     featurePermissions,
+    getAssignmentMode,
   } = useAuth();
+  const vaAssignmentMode = getAssignmentMode('videoActivity');
   const config = widget.config as VideoActivityConfig;
 
   const {
@@ -87,6 +90,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const {
     createSession,
     responses,
+    liveSession,
     subscribeToSession,
     unsubscribeFromSession,
   } = useVideoActivitySessionTeacher();
@@ -97,12 +101,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reactivateAssignment,
     deleteAssignment,
   } = useVideoActivityAssignments(user?.uid);
 
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
+  // Monotonically increasing token to guard against rapid Monitor/Results
+  // clicks across different assignments — we bail out of any stale fetch
+  // resolution that's no longer the most recent attempt.
+  const sessionLoadAttemptRef = useRef(0);
 
   // Editor modal state — ephemeral, not persisted to Firestore.
   const [editingActivity, setEditingActivity] =
@@ -151,6 +160,50 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     },
     [loadActivityData, addToast]
   );
+
+  // ─── Reactive cleanup ──────────────────────────────────────────────────
+  //
+  // Auto-exit the live monitor if the assignment under it goes inactive
+  // (deactivated from another tab) or the session doc is deleted. Without
+  // this the header would silently misrepresent state — pause/end both
+  // write `session.status='ended'`, so the monitor can't tell them apart
+  // from `session` alone, and a deleted session leaves a stale snapshot.
+  // Effect must run before the early-return guards below to keep hook
+  // order stable across renders.
+  const rawViewForGuard = config.view as
+    | VideoActivityView
+    | 'editor'
+    | undefined;
+  const viewForGuard: VideoActivityView =
+    rawViewForGuard === 'editor' || !rawViewForGuard
+      ? 'manager'
+      : rawViewForGuard;
+  useEffect(() => {
+    if (viewForGuard !== 'monitor' || !selectedSession || assignmentsLoading)
+      return;
+    const match = assignments.find((a) => a.id === selectedSession.id);
+    if (match && match.status !== 'inactive') return;
+    unsubscribeFromSession();
+    setSelectedSession(null);
+    addToast('Assignment is no longer active — returning to library.', 'info');
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'manager',
+        resultsSessionId: null,
+      } as VideoActivityConfig,
+    });
+  }, [
+    viewForGuard,
+    selectedSession,
+    assignments,
+    assignmentsLoading,
+    unsubscribeFromSession,
+    addToast,
+    updateWidget,
+    widget.id,
+    config,
+  ]);
 
   // ─── Guards ────────────────────────────────────────────────────────────────
 
@@ -232,6 +285,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const rawView = config.view as VideoActivityView | 'editor' | undefined;
   const view: VideoActivityView =
     rawView === 'editor' || !rawView ? 'manager' : rawView;
+
   const defaultSessionSettings: VideoActivitySessionSettings = {
     autoPlay: config.autoPlay ?? false,
     requireCorrectAnswer: config.requireCorrectAnswer ?? true,
@@ -282,11 +336,82 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
+  if (view === 'monitor' && selectedSession) {
+    // Prefer the live snapshot when it's caught up to the assignment we
+    // opened the monitor for; otherwise fall back to the initial fetch so
+    // the view never flashes empty between subscribe and first snapshot.
+    const sessionForMonitor =
+      liveSession && liveSession.id === selectedSession.id
+        ? liveSession
+        : selectedSession;
+    return (
+      <VideoActivityLiveMonitor
+        session={sessionForMonitor}
+        responses={responses}
+        onEnd={async () => {
+          try {
+            await deactivateAssignment(selectedSession.id);
+            addToast('Assignment ended.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to end assignment',
+              'error'
+            );
+            return;
+          }
+          unsubscribeFromSession();
+          setSelectedSession(null);
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'manager',
+              resultsSessionId: null,
+            } as VideoActivityConfig,
+          });
+        }}
+        onPause={async () => {
+          try {
+            await pauseAssignment(selectedSession.id);
+            addToast('Assignment paused.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to pause',
+              'error'
+            );
+          }
+        }}
+        onResume={async () => {
+          try {
+            await resumeAssignment(selectedSession.id);
+            addToast('Assignment resumed.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to resume',
+              'error'
+            );
+          }
+        }}
+        onBack={() => {
+          unsubscribeFromSession();
+          setSelectedSession(null);
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'manager',
+              resultsSessionId: null,
+            } as VideoActivityConfig,
+          });
+        }}
+      />
+    );
+  }
+
   // Default: manager view (with editor modal rendered as sibling)
   return (
     <>
       <VideoActivityManager
         userId={user?.uid}
+        assignmentMode={vaAssignmentMode}
         activities={activities}
         loading={loading}
         error={error}
@@ -331,7 +456,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             assignmentName,
             derived.classIds,
             derived.periodNames,
-            derived.rosterIds
+            derived.rosterIds,
+            vaAssignmentMode
           );
 
           // Persist per-activity memory of the last roster selection so
@@ -353,9 +479,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
 
           const url = `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`;
+          const isViewOnly = vaAssignmentMode === 'view-only';
           await copyUrlToClipboard(url, addToast, {
-            successMessage: 'Assignment link copied to clipboard!',
-            errorMessage: 'Assignment created, but link could not be copied.',
+            successMessage: isViewOnly
+              ? 'Share link copied to clipboard!'
+              : 'Assignment link copied to clipboard!',
+            errorMessage: isViewOnly
+              ? 'Share link created, but it could not be copied.'
+              : 'Assignment created, but link could not be copied.',
           });
           return sessionId;
         }}
@@ -399,12 +530,34 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           }
         }}
         onArchiveDeactivate={async (assignment) => {
+          // Branch the success toast on the assignment's frozen mode — for
+          // view-only shares "Assignment" is the wrong noun and "submit" is
+          // the wrong verb (no submissions exist).
+          const isViewOnlyAssignment = assignment.mode === 'view-only';
           try {
             await deactivateAssignment(assignment.id);
-            addToast('Assignment ended.', 'success');
+            addToast(
+              isViewOnlyAssignment ? 'Share ended.' : 'Assignment ended.',
+              'success'
+            );
           } catch (err) {
             addToast(
-              err instanceof Error ? err.message : 'Failed to end assignment',
+              err instanceof Error
+                ? err.message
+                : isViewOnlyAssignment
+                  ? 'Failed to end share'
+                  : 'Failed to end assignment',
+              'error'
+            );
+          }
+        }}
+        onArchiveReactivate={async (assignment) => {
+          try {
+            await reactivateAssignment(assignment.id);
+            addToast('Share reactivated.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to reactivate share',
               'error'
             );
           }
@@ -471,6 +624,49 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             config: {
               ...config,
               view: 'results',
+              selectedActivityId: assignment.activityId,
+              selectedActivityTitle: assignment.activityTitle,
+              resultsSessionId: assignment.id,
+            } as VideoActivityConfig,
+          });
+        }}
+        onArchiveMonitor={async (assignment) => {
+          // Fetch the session doc up-front so we can confirm it exists
+          // before arming the live listeners. Subscribing first would leak
+          // an open Firestore listener on every error / missing-session
+          // path here. The attempt token guards against a stale resolution
+          // clobbering a newer click for a different assignment.
+          const myAttempt = ++sessionLoadAttemptRef.current;
+          let sessionDoc: VideoActivitySession;
+          try {
+            const snap = await getDoc(
+              doc(db, 'video_activity_sessions', assignment.id)
+            );
+            if (myAttempt !== sessionLoadAttemptRef.current) return;
+            if (!snap.exists()) {
+              addToast(
+                'Session data no longer available — cannot open monitor.',
+                'error'
+              );
+              return;
+            }
+            sessionDoc = snap.data() as VideoActivitySession;
+          } catch (err) {
+            if (myAttempt !== sessionLoadAttemptRef.current) return;
+            addToast(
+              err instanceof Error
+                ? err.message
+                : 'Failed to open assignment monitor',
+              'error'
+            );
+            return;
+          }
+          setSelectedSession(sessionDoc);
+          subscribeToSession(assignment.id);
+          updateWidget(widget.id, {
+            config: {
+              ...config,
+              view: 'monitor',
               selectedActivityId: assignment.activityId,
               selectedActivityTitle: assignment.activityTitle,
               resultsSessionId: assignment.id,

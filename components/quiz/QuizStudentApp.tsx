@@ -40,8 +40,10 @@ import {
   X as XIcon,
   Check,
 } from 'lucide-react';
-import { signInAnonymously } from 'firebase/auth';
-import { auth } from '@/config/firebase';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
 import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
@@ -220,16 +222,55 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     void run();
   }, [isStudentRole, urlCode, joined, joinQuizSession]);
 
+  const isViewOnly = session?.mode === 'view-only';
+
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
+  const [authedUid, setAuthedUid] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
+  }, []);
+
+  // View tracking — log each pageview of a view-only Share link as an
+  // immutable doc in the session's `views/` subcollection. Best-effort and
+  // fire-and-forget; the Firestore rule accepts a single `viewedAt` field.
+  // The `wroteViewRef` guard prevents duplicate writes from React StrictMode
+  // double-invokes in dev and from unrelated session-doc field changes that
+  // re-run the effect (e.g. teacher status flips). The contract is "URL
+  // opens, refresh-inflation accepted" — but a single mount = one write.
+  const wroteViewRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isViewOnly || !session?.id || !authedUid) return;
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, 'quiz_sessions', sessionId, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      // logError (not warn) so a sustained 100% failure rate — e.g.
+      // schema drift breaking the rule's keys().hasOnly check — surfaces in
+      // any error-level log filter rather than getting lost in warn noise.
+      logError('QuizStudentApp.viewLog', err, { sessionId });
+    });
+  }, [isViewOnly, session?.id, authedUid]);
+
   const handleAnswer = useCallback(
     async (questionId: string, answer: string, speedBonus?: number) => {
+      // View-only shares never persist responses — the Firestore rule
+      // rejects the write defense-in-depth, but skip it client-side too so
+      // the console stays clean.
+      if (isViewOnly) return;
       await submitAnswer(questionId, answer, speedBonus);
     },
-    [submitAnswer]
+    [submitAnswer, isViewOnly]
   );
 
   const handleComplete = useCallback(async () => {
+    if (isViewOnly) return;
     await completeQuiz();
-  }, [completeQuiz]);
+  }, [completeQuiz, isViewOnly]);
 
   // Auto-join only works when a code AND a pin are both known. Since pin comes
   // from a form field there's no auto-join on URL code alone — the student

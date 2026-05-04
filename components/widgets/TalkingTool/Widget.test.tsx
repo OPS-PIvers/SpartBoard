@@ -36,6 +36,8 @@ const mockAuthContext = (
   updateAppSettings: () => Promise.resolve(),
   canAccessWidget: () => true,
   canAccessFeature: () => true,
+  getAssignmentMode: () => 'submissions',
+  canSeeShareTracking: () => false,
   signInWithGoogle: async () => {
     /* mock */
   },

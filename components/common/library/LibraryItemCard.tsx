@@ -28,6 +28,7 @@ import { LibraryGridLockContext } from './LibraryGridLockContext';
 import type {
   LibraryBadge,
   LibraryBadgeTone,
+  LibraryIconAction,
   LibraryItemCardProps,
   LibraryMenuAction,
 } from './types';
@@ -185,6 +186,47 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
   );
 };
 
+/* ─── Inline icon-only action button ──────────────────────────────────────── */
+
+const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
+  action,
+}) => {
+  const Icon = action.icon;
+  const isPrimary = action.tone === 'primary';
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!action.disabled) action.onClick();
+      }}
+      disabled={action.disabled}
+      title={action.disabled ? action.disabledReason : action.label}
+      aria-label={action.label}
+      // Hover affordances are only meaningful on an enabled button — gating
+      // them behind `enabled:` keeps the disabled state visually inert
+      // (Tailwind's `enabled:` variant matches `:not(:disabled)`). Without
+      // this, a disabled button still glowed on hover, which is misleading.
+      className={`inline-flex shrink-0 items-center justify-center rounded-xl shadow-sm transition-all enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+        isPrimary
+          ? 'bg-brand-blue-primary text-white enabled:hover:bg-brand-blue-dark'
+          : 'border border-slate-200 bg-white text-slate-600 enabled:hover:border-brand-blue-primary/40 enabled:hover:bg-brand-blue-lighter/30 enabled:hover:text-brand-blue-dark'
+      }`}
+      style={{
+        width: 'min(34px, 9.5cqmin)',
+        height: 'min(34px, 9.5cqmin)',
+      }}
+    >
+      <Icon
+        style={{
+          width: 'min(16px, 4.5cqmin)',
+          height: 'min(16px, 4.5cqmin)',
+        }}
+      />
+    </button>
+  );
+};
+
 /* ─── Badge chip ──────────────────────────────────────────────────────────── */
 
 const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
@@ -218,6 +260,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     thumbnail,
     badges,
     primaryAction,
+    iconActions,
     secondaryActions,
     onClick,
     viewMode = 'grid',
@@ -229,7 +272,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     onSelectionToggle,
   } = props;
 
-  const PrimaryIcon = primaryAction.icon;
+  const PrimaryIcon = primaryAction?.icon;
   const isList = viewMode === 'list';
 
   const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -259,8 +302,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         .filter(Boolean)
         .join(' ')}
       style={{
-        gap: isList ? 'min(12px, 3cqmin)' : 'min(12px, 3cqmin)',
-        padding: isList ? 'min(12px, 2.8cqmin)' : 'min(16px, 3.5cqmin)',
+        // List rows are deliberately compact — the row is the click target
+        // and gets read at-a-glance; padding here was previously over-tuned
+        // for grid/card density and felt cavernous in list mode.
+        gap: isList ? 'min(10px, 2.5cqmin)' : 'min(12px, 3cqmin)',
+        padding: isList
+          ? 'min(8px, 2cqmin) min(10px, 2.5cqmin)'
+          : 'min(16px, 3.5cqmin)',
       }}
       aria-hidden={isDragOverlay}
     >
@@ -358,35 +406,40 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         className={`flex shrink-0 items-center ${isList ? '' : 'self-end'}`}
         style={{ gap: 'min(6px, 1.5cqmin)' }}
       >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!primaryAction.disabled) primaryAction.onClick();
-          }}
-          disabled={primaryAction.disabled}
-          title={
-            primaryAction.disabled
-              ? primaryAction.disabledReason
-              : primaryAction.label
-          }
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue-primary font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
-          style={{
-            paddingInline: 'min(14px, 3.2cqmin)',
-            paddingBlock: 'min(6px, 1.6cqmin)',
-            fontSize: 'min(12px, 3.8cqmin)',
-          }}
-        >
-          {PrimaryIcon && (
-            <PrimaryIcon
-              style={{
-                width: 'min(14px, 4cqmin)',
-                height: 'min(14px, 4cqmin)',
-              }}
-            />
-          )}
-          {primaryAction.label}
-        </button>
+        {iconActions?.map((action) => (
+          <IconActionButton key={action.id} action={action} />
+        ))}
+        {primaryAction && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!primaryAction.disabled) primaryAction.onClick();
+            }}
+            disabled={primaryAction.disabled}
+            title={
+              primaryAction.disabled
+                ? primaryAction.disabledReason
+                : primaryAction.label
+            }
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue-primary font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
+            style={{
+              paddingInline: 'min(14px, 3.2cqmin)',
+              paddingBlock: 'min(6px, 1.6cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            {PrimaryIcon && (
+              <PrimaryIcon
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            )}
+            {primaryAction.label}
+          </button>
+        )}
         {secondaryActions && secondaryActions.length > 0 && (
           <OverflowMenu actions={secondaryActions} />
         )}

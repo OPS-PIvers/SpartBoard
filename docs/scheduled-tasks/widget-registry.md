@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-04-30_
-_Last action: 2026-04-26_
+_Last audited: 2026-05-02_
+_Last action: 2026-05-02_
 
 ---
 
@@ -15,20 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### LOW `catalyst-instruction`, `catalyst-visual` absent from config/tools.ts
-
-- **Detected:** 2026-04-12
-- **File:** config/tools.ts, types.ts
-- **Detail:** Both sub-types are in the WidgetType union, are registered in WIDGET_COMPONENTS and WIDGET_SETTINGS_COMPONENTS, and have entries in widgetDefaults.ts. They are intentionally absent from config/tools.ts because they are programmatically spawned by the Catalyst widget, not user-selectable from the Dock. However, this is undocumented — a developer adding a new sub-widget type could mistakenly conclude they need a tools.ts entry.
-- **Fix:** Add a comment in config/tools.ts near the catalyst entry noting that `catalyst-instruction` and `catalyst-visual` are intentionally omitted because they are spawned programmatically.
-
-### LOW `mathTool`, `onboarding`, `custom-widget` absent from config/tools.ts
-
-- **Detected:** 2026-04-12
-- **File:** config/tools.ts, types.ts
-- **Detail:** These three WidgetTypes are fully registered in all other locations (WIDGET_COMPONENTS, widgetDefaults.ts, widgetGradeLevels.ts) but are absent from config/tools.ts because they cannot be directly added from the Dock. `mathTool` is spawned by mathTools, `onboarding` is a one-time system widget, `custom-widget` is created via the Custom Widget system. This is intentional but undocumented.
-- **Fix:** Add a comment block in config/tools.ts documenting which WidgetTypes are intentionally excluded from the dock and why.
 
 ### LOW `stickers` missing from `WIDGET_SETTINGS_COMPONENTS`
 
@@ -47,6 +33,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### LOW `config/tools.ts` lacks documentation of intentionally-excluded `WidgetType`s
+
+- **Detected:** 2026-04-12 (catalyst sub-types), 2026-04-12 (mathTool/onboarding/custom-widget), 2026-05-01 (blooms-detail)
+- **Completed:** 2026-05-02
+- **File:** config/tools.ts
+- **Detail:** Six `WidgetType`s are fully registered elsewhere (WIDGET_COMPONENTS, widgetDefaults.ts, widgetGradeLevels.ts) but intentionally absent from `config/tools.ts` because they are not user-selectable from the Dock: `catalyst-instruction` and `catalyst-visual` (spawned by `catalyst`), `blooms-detail` (spawned by `blooms-taxonomy`), `mathTool` (spawned by the `mathTools` palette), `custom-widget` (created via Custom Widget system), and `onboarding` (one-time system widget). Each omission was deliberate but undocumented — a developer adding a new sub-widget could mistakenly conclude they needed a tools.ts entry.
+- **Resolution:** Added a JSDoc block above the `TOOLS` export in `config/tools.ts` explaining that the catalog is intentionally not exhaustive over `WidgetType` and listing each excluded type with the reason it is excluded. Also referenced `sticker`, which is handled via the `WidgetRenderer` special-case branch (already documented in the prior `WIDGET_COMPONENTS` comment, surfaced here for completeness). Documentation-only change — no behavioral impact. `pnpm type-check`, `pnpm exec eslint config/tools.ts --max-warnings 0`, and `pnpm exec prettier --check config/tools.ts` all clean.
 
 ### LOW `sticker` widget bypasses WIDGET_COMPONENTS via WidgetRenderer special-case
 

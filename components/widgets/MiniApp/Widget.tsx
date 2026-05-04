@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import {
+  AssignmentMode,
   MiniAppItem,
   MiniAppConfig,
   GlobalMiniAppItem,
@@ -19,7 +21,9 @@ import {
   CheckCircle2,
   ExternalLink,
   Bookmark,
+  QrCode,
 } from 'lucide-react';
+import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -61,7 +65,7 @@ import {
 } from './adapters/miniAppImportAdapter';
 import type { LibraryTab } from '@/components/common/library/types';
 
-// --- ASSIGN MODAL ---
+// --- ASSIGN / SHARE MODAL ---
 interface MiniAppAssignModalProps {
   appTitle: string;
   assignmentName: string;
@@ -76,9 +80,9 @@ interface MiniAppAssignModalProps {
   /** Current picker selection. */
   pickerValue: AssignClassPickerValue;
   onPickerChange: (next: AssignClassPickerValue) => void;
-  /** Whether submissions are enabled (Submit button shown, writes allowed). */
-  submissionsEnabled: boolean;
-  onSubmissionsEnabledChange: (next: boolean) => void;
+  /** Org-wide mode. Drives the modal copy (Assign vs Share) and whether the
+   *  underlying session is created with submissions enabled. */
+  mode: AssignmentMode;
 }
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
@@ -93,9 +97,9 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   rosters,
   pickerValue,
   onPickerChange,
-  submissionsEnabled,
-  onSubmissionsEnabledChange,
+  mode,
 }) => {
+  const isViewOnly = mode === 'view-only';
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
     : null;
@@ -122,7 +126,13 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               <Link2 className="w-5 h-5" />
             )}
             <span className="font-black uppercase tracking-tight">
-              {createdSessionId ? 'Assignment Created' : 'Assign'}
+              {createdSessionId
+                ? isViewOnly
+                  ? 'Share Link Ready'
+                  : 'Assignment Created'
+                : isViewOnly
+                  ? 'Share'
+                  : 'Assign'}
             </span>
           </div>
           <button
@@ -178,84 +188,62 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               </div>
             </>
           ) : (
-            /* Pre-creation: name input */
+            /* Pre-creation: zero form fields in view-only; name input + class
+               picker in submissions. */
             <>
               <div className="text-center">
                 <p className="font-bold text-brand-blue-dark text-base truncate px-2">
                   {appTitle}
                 </p>
-                <p
-                  className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
-                  style={{ fontSize: 'clamp(10px, 3cqmin, 12px)' }}
-                >
-                  Create Assignment Link
+                <p className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1 text-xs">
+                  {isViewOnly ? 'Create Share Link' : 'Create Assignment Link'}
                 </p>
               </div>
-              <p className="text-slate-600 text-sm text-center">
-                Name this assignment, then share the generated link with
-                students.
-              </p>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <label
-                  htmlFor="miniapp-assignment-name"
-                  className="block text-sm font-bold text-slate-700 mb-1.5"
-                >
-                  Assignment Name
-                </label>
-                <input
-                  id="miniapp-assignment-name"
-                  type="text"
-                  value={assignmentName}
-                  onChange={(e) => onNameChange(e.target.value)}
-                  placeholder="1st period"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
-                />
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <AssignClassPicker
-                  rosters={rosters}
-                  value={pickerValue}
-                  onChange={onPickerChange}
-                />
-                <p className="text-[11px] text-slate-500 mt-2">
-                  Enrolled students will see this in their assignments list.
-                  Leave unselected to share the link directly.
+              {isViewOnly ? (
+                /* View-only: zero form fields. Class targeting has no effect
+                   (rules don't gate views by class; sessions are filtered out
+                   of /my-assignments anyway). The auto-generated share name
+                   is used behind the scenes for the Shared archive — teachers
+                   can rename later from the archive's overflow menu. */
+                <p className="text-slate-600 text-sm text-center">
+                  Anyone with the link can view this app. No submissions are
+                  collected — view counts appear in the Shared archive.
                 </p>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-                <span className="block text-sm font-bold text-slate-700 mb-2">
-                  Submissions
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onSubmissionsEnabledChange(false)}
-                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-colors border ${
-                      !submissionsEnabled
-                        ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    View only
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onSubmissionsEnabledChange(true)}
-                    className={`rounded-lg px-3 py-2 text-sm font-bold transition-colors border ${
-                      submissionsEnabled
-                        ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    Submissions on
-                  </button>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-2">
-                  {submissionsEnabled
-                    ? 'Students will see a Submit button and their answers are saved to the submissions list.'
-                    : 'Students can interact with the app but the Submit button is hidden and nothing is saved.'}
-                </p>
-              </div>
+              ) : (
+                <>
+                  <p className="text-slate-600 text-sm text-center">
+                    Name this assignment, then share the generated link with
+                    students.
+                  </p>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <label
+                      htmlFor="miniapp-assignment-name"
+                      className="block text-sm font-bold text-slate-700 mb-1.5"
+                    >
+                      Assignment Name
+                    </label>
+                    <input
+                      id="miniapp-assignment-name"
+                      type="text"
+                      value={assignmentName}
+                      onChange={(e) => onNameChange(e.target.value)}
+                      placeholder="1st period"
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
+                    />
+                  </div>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <AssignClassPicker
+                      rosters={rosters}
+                      value={pickerValue}
+                      onChange={onPickerChange}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Enrolled students will see this in their assignments list.
+                      Leave unselected to share the link directly.
+                    </p>
+                  </div>
+                </>
+              )}
               {error && (
                 <p className="text-sm text-brand-red-primary text-center font-medium">
                   {error}
@@ -263,7 +251,10 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               )}
               <button
                 onClick={onConfirm}
-                disabled={isCreating || assignmentName.trim().length === 0}
+                disabled={
+                  isCreating ||
+                  (!isViewOnly && assignmentName.trim().length === 0)
+                }
                 className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
               >
                 {isCreating ? (
@@ -271,7 +262,11 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 ) : (
                   <Link2 className="w-4 h-4" />
                 )}
-                {isCreating ? 'Creating…' : 'Create Assignment Link'}
+                {isCreating
+                  ? 'Creating…'
+                  : isViewOnly
+                    ? 'Create Share Link'
+                    : 'Create Assignment Link'}
               </button>
             </>
           )}
@@ -286,8 +281,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
-  const { user } = useAuth();
+  const { updateWidget, addToast, rosters, addWidget } = useDashboard();
+  const { user, getAssignmentMode } = useAuth();
+  const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
   const { saveSavedWidget } = useSavedWidgets();
   const config = (widget.config ?? {}) as MiniAppConfig;
@@ -317,6 +313,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     loading: assignmentsLoading,
     createAssignment,
     endAssignment,
+    reactivateAssignment,
     deleteAssignment,
   } = useMiniAppAssignments(user?.uid);
 
@@ -328,8 +325,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assignPickerValue, setAssignPickerValue] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue());
-  const [assignSubmissionsEnabled, setAssignSubmissionsEnabled] =
-    useState(false);
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
 
@@ -360,9 +355,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       );
     }
     setAssignPickerValue({ rosterIds: lastRosterIds });
-    setAssignSubmissionsEnabled(
-      config.lastSubmissionsEnabledByAppId?.[app.id] ?? false
-    );
   };
 
   const handleOpenAssignments = (app: MiniAppItem) => {
@@ -416,6 +408,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // session — matching today's behavior. For the strict-gate collections
       // (quiz, video activity, guided learning), empty classIds block SSO
       // students entirely; PIN-joining students still pass.
+      // Mode is locked org-wide by the admin and frozen onto the session at
+      // creation. The session/assignment hooks derive `submissionsEnabled`
+      // from `mode` so the two fields can never diverge.
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -423,7 +418,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         {
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
-          submissionsEnabled: assignSubmissionsEnabled,
+          mode: assignmentMode,
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -437,7 +432,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           app: { id: assigningApp.id, title: assigningApp.title },
           assignmentName,
           rosterIds: derived.rosterIds,
-          submissionsEnabled: assignSubmissionsEnabled,
+          mode: assignmentMode,
         });
       } catch (archiveErr) {
         console.warn(
@@ -445,7 +440,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           archiveErr
         );
       }
-      // Remember the teacher's choices for next time.
+      // Remember the teacher's roster picker selection for next time. The
+      // legacy `lastSubmissionsEnabledByAppId` per-assignment toggle is
+      // intentionally no longer written — submissions/view-only is now an
+      // org-wide admin setting (see GlobalPermissionsManager).
       try {
         const prevRosters = config.lastRosterIdsByAppId ?? {};
         const nextRosters: Record<string, string[]> = { ...prevRosters };
@@ -454,16 +452,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         } else {
           delete nextRosters[assigningApp.id];
         }
-        const prevToggle = config.lastSubmissionsEnabledByAppId ?? {};
-        const nextToggle: Record<string, boolean> = {
-          ...prevToggle,
-          [assigningApp.id]: assignSubmissionsEnabled,
-        };
         updateWidget(widget.id, {
           config: {
             ...config,
             lastRosterIdsByAppId: nextRosters,
-            lastSubmissionsEnabledByAppId: nextToggle,
           } as MiniAppConfig,
         });
       } catch (cfgErr) {
@@ -474,16 +466,28 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       }
       setCreatedSessionId(sessionId);
       const url = `${window.location.origin}/miniapp/${sessionId}`;
+      const successCopy =
+        assignmentMode === 'view-only'
+          ? 'Share link copied to clipboard!'
+          : 'Assignment link copied to clipboard!';
+      const fallbackCopy =
+        assignmentMode === 'view-only'
+          ? `Share link created! URL: ${url}`
+          : `Assignment created! URL: ${url}`;
       try {
         await navigator.clipboard.writeText(url);
-        addToast('Assignment link copied to clipboard!', 'success');
+        addToast(successCopy, 'success');
       } catch {
-        addToast(`Assignment created! URL: ${url}`, 'info');
+        addToast(fallbackCopy, 'info');
       }
     } catch (err) {
-      setAssignError(
-        err instanceof Error ? err.message : 'Failed to create assignment.'
-      );
+      const message =
+        err instanceof Error ? err.message : 'Failed to create assignment.';
+      setAssignError(message);
+      // Also surface as a toast so the user sees the failure even if they
+      // dismissed the modal mid-error. Matches the Quiz / GL widgets'
+      // outer-error UX.
+      addToast(message, 'error');
     } finally {
       setIsCreatingSession(false);
     }
@@ -542,6 +546,123 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     },
     [activeApp, saveSavedWidget, addToast]
   );
+
+  // --- FLOATING TOOLBAR ANCHORING ---
+  // The running-mode action toolbar lives in a portal under <body> so it
+  // never overlaps the iframe content (the old hover-revealed buttons sat
+  // on top of the app). Pattern copied from EmbedWidget — same rect-tracking
+  // observers, but no hover gating: the toolbar is always visible while a
+  // mini app is running because hover doesn't reliably fire on touch.
+  const runningContentRef = useRef<HTMLDivElement | null>(null);
+  const [widgetEl, setWidgetEl] = useState<HTMLElement | null>(null);
+  const [widgetRect, setWidgetRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    const el =
+      runningContentRef.current?.closest<HTMLElement>(
+        `[data-widget-id="${widget.id}"]`
+      ) ?? null;
+    setWidgetEl(el);
+    if (el) setWidgetRect(el.getBoundingClientRect());
+  }, [widget.id, activeApp]);
+
+  const updateWidgetRect = useCallback(() => {
+    if (!widgetEl) return;
+    setWidgetRect(widgetEl.getBoundingClientRect());
+  }, [widgetEl]);
+
+  useEffect(() => {
+    if (!widgetEl) return;
+    updateWidgetRect();
+
+    // Coalesce all rect updates into one per animation frame. DraggableWindow
+    // updates inline `transform`/`left`/`top` on every pointermove during
+    // drag, which would otherwise trigger a synchronous getBoundingClientRect
+    // + setState + re-render at pointer rate.
+    let rafId: number | null = null;
+    const scheduleUpdate = () => {
+      if (rafId != null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateWidgetRect();
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleUpdate);
+    resizeObserver.observe(widgetEl);
+
+    const mutationObserver = new MutationObserver(scheduleUpdate);
+    mutationObserver.observe(widgetEl, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+
+    window.addEventListener('scroll', scheduleUpdate, true);
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      window.removeEventListener('resize', scheduleUpdate);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+    };
+  }, [widgetEl, updateWidgetRect]);
+
+  // --- QR SHARE ---
+  // Tap the QR icon to one-shot create a view-only share session and spawn
+  // a QR-code widget pre-loaded with the student URL. Always view-only,
+  // regardless of the widget's admin-configured assignmentMode — the QR
+  // flow is inherently a "students view on iPads" use case.
+  const [isCreatingQrShare, setIsCreatingQrShare] = useState(false);
+
+  const handleCreateQrShare = useCallback(async () => {
+    if (!user) {
+      addToast('Sign in to create a share link', 'info');
+      return;
+    }
+    if (!activeApp) return;
+    if (isCreatingQrShare) return;
+    setIsCreatingQrShare(true);
+    try {
+      const sessionId = await createSession(activeApp, user.uid, '', {
+        mode: 'view-only',
+      });
+      // Mirror into the per-teacher archive so this share appears in the
+      // Shared tab and can be renamed / ended / reactivated later from the
+      // library UI. Matches the handleConfirmAssign flow above. Failures
+      // here are non-fatal — the session itself still exists.
+      try {
+        await createAssignment({
+          sessionId,
+          app: { id: activeApp.id, title: activeApp.title },
+          assignmentName: '',
+          mode: 'view-only',
+        });
+      } catch (archiveErr) {
+        console.warn(
+          '[MiniAppWidget] Failed to archive QR share assignment',
+          archiveErr
+        );
+      }
+      const url = `${window.location.origin}/miniapp/${sessionId}`;
+      addWidget('qr', { config: { url, showUrl: true } });
+      addToast('Share link ready — students can scan the QR code', 'success');
+    } catch (err) {
+      console.error('[MiniAppWidget] Failed to create QR share', err);
+      addToast('Could not create share link', 'error');
+    } finally {
+      setIsCreatingQrShare(false);
+    }
+  }, [
+    user,
+    activeApp,
+    isCreatingQrShare,
+    createSession,
+    createAssignment,
+    addWidget,
+    addToast,
+  ]);
 
   // --- HANDLERS ---
 
@@ -781,20 +902,51 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   const handleArchiveEnd = useCallback(
     async (assignment: MiniAppAssignment) => {
+      // Branch all of the user-visible copy on the assignment's frozen mode.
+      // For view-only shares "submit" is the wrong verb (no submissions are
+      // collected) and "Assignment" is the wrong noun (it's a tracked link).
+      const isViewOnlyAssignment = assignment.mode === 'view-only';
       const confirmed = await showConfirm(
-        `End "${assignment.assignmentName}"? Students will no longer be able to submit.`,
-        { title: 'End Assignment', variant: 'danger', confirmLabel: 'End' }
+        isViewOnlyAssignment
+          ? `End "${assignment.assignmentName}"? The link will stop working.`
+          : `End "${assignment.assignmentName}"? Students will no longer be able to submit.`,
+        {
+          title: isViewOnlyAssignment ? 'End share' : 'End Assignment',
+          variant: 'danger',
+          confirmLabel: 'End',
+        }
       );
       if (!confirmed) return;
       try {
         await endAssignment(assignment.id);
-        addToast('Assignment ended', 'info');
+        addToast(
+          isViewOnlyAssignment ? 'Share ended' : 'Assignment ended',
+          'info'
+        );
       } catch (err) {
         console.error(err);
-        addToast('Failed to end assignment', 'error');
+        addToast(
+          isViewOnlyAssignment
+            ? 'Failed to end share'
+            : 'Failed to end assignment',
+          'error'
+        );
       }
     },
     [endAssignment, showConfirm, addToast]
+  );
+
+  const handleArchiveReactivate = useCallback(
+    async (assignment: MiniAppAssignment) => {
+      try {
+        await reactivateAssignment(assignment.id);
+        addToast('Share reactivated', 'success');
+      } catch (err) {
+        console.error(err);
+        addToast('Failed to reactivate share', 'error');
+      }
+    },
+    [reactivateAssignment, addToast]
   );
 
   const handleArchiveDelete = useCallback(
@@ -835,127 +987,153 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full flex flex-col relative overflow-hidden group/miniapp">
-            {!isStudentView && (
-              <>
-                {/* Left Actions: Assign controls */}
-                <div className="absolute top-2 left-2 z-10 flex items-center gap-2 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
-                  <button
-                    onClick={() => handleOpenAssign(activeApp)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                    }}
-                    title="Assign (copy student link)"
-                  >
-                    <Link2
+          <div
+            ref={runningContentRef}
+            className="w-full h-full flex flex-col relative overflow-hidden"
+          >
+            {!isStudentView &&
+              widgetRect &&
+              !widget.minimized &&
+              !widget.flipped &&
+              // The toolbar lives at Z_INDEX.popover (11000), which is above
+              // the running-mode modals (z-overlay = 9910). Hide it whenever
+              // one of those modals is open so it doesn't float on top of the
+              // dialog the teacher is interacting with.
+              !assigningApp &&
+              !assignmentsForApp &&
+              !showSaveAsWidget &&
+              !showSaveForm &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                (() => {
+                  // Smart flip: render above the widget when there isn't room
+                  // below. The toolbar is single-row (no flex-wrap) — labels
+                  // are dropped instead of wrapping when the widget gets
+                  // narrow, so 48px is a tight upper bound.
+                  const TOOLBAR_GAP = 8;
+                  const ESTIMATED_TOOLBAR_HEIGHT = 48;
+                  const flipAbove =
+                    widgetRect.bottom + ESTIMATED_TOOLBAR_HEIGHT + TOOLBAR_GAP >
+                    window.innerHeight;
+                  // Show button labels only when the widget is wide enough
+                  // to fit them. The toolbar's width tracks the widget
+                  // (`width: widgetRect.width`), so gating on viewport-based
+                  // `sm:` would let labels render-then-overflow on a narrow
+                  // widget on a wide screen. 480px clears all five labeled
+                  // buttons (Assign / Assignments / QR Share / Save as Widget
+                  // / Library) at h-8 text-xs without horizontal clipping;
+                  // narrower widgets fall back to icons-only.
+                  const showLabels = widgetRect.width >= 480;
+                  const labelClass = showLabels ? 'inline' : 'hidden';
+                  return (
+                    <div
+                      data-settings-exclude
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
                       style={{
-                        width: 'min(12px, 3cqmin)',
-                        height: 'min(12px, 3cqmin)',
+                        position: 'fixed',
+                        left: widgetRect.left,
+                        width: widgetRect.width,
+                        top: flipAbove
+                          ? widgetRect.top - TOOLBAR_GAP
+                          : widgetRect.bottom + TOOLBAR_GAP,
+                        transform: flipAbove ? 'translateY(-100%)' : undefined,
+                        zIndex: Z_INDEX.popover,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
                       }}
-                    />
-                    <span className="hidden sm:inline">Assign</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenAssignments(activeApp)}
-                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm flex items-center gap-1.5 font-black uppercase tracking-widest transition-all rounded-lg shadow-sm border border-slate-200/50"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                    }}
-                    title="View assignments"
-                  >
-                    <BarChart3
-                      style={{
-                        width: 'min(12px, 3cqmin)',
-                        height: 'min(12px, 3cqmin)',
-                      }}
-                    />
-                    <span className="hidden sm:inline">Assignments</span>
-                  </button>
-                </div>
-
-                {/* Right Actions: App Controls */}
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover/miniapp:opacity-100 transition-opacity duration-200">
-                  {config.activeAppUnsaved && (
-                    <>
-                      <div
-                        className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400"
-                        style={{
-                          padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
-                          fontSize: 'min(8px, 2cqmin)',
-                        }}
-                      >
-                        Unsaved
-                      </div>
-                      <button
-                        onClick={() => {
-                          setPendingSaveTitle(
-                            activeApp.title !== 'Untitled App'
-                              ? activeApp.title
-                              : ''
-                          );
-                          setShowSaveForm(true);
-                        }}
-                        className="bg-indigo-600/90 backdrop-blur-sm hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-lg border border-indigo-500 font-black transition-all"
-                        title="Save to library"
-                        style={{
-                          padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                          fontSize: 'min(10px, 2.5cqmin)',
-                          gap: 'min(6px, 1.5cqmin)',
-                        }}
-                      >
-                        <Save
-                          style={{
-                            width: 'min(10px, 2.5cqmin)',
-                            height: 'min(10px, 2.5cqmin)',
-                          }}
-                        />
-                        <span className="hidden sm:inline">Save</span>
-                      </button>
-                    </>
-                  )}
-                  {!config.activeAppUnsaved && user && (
-                    <button
-                      onClick={() => setShowSaveAsWidget(true)}
-                      className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
-                      style={{
-                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                        fontSize: 'min(10px, 2.5cqmin)',
-                        gap: 'min(6px, 1.5cqmin)',
-                      }}
-                      title="Save as widget — pin this mini app to your dock"
                     >
-                      <Bookmark
-                        style={{
-                          width: 'min(10px, 2.5cqmin)',
-                          height: 'min(10px, 2.5cqmin)',
-                        }}
-                      />
-                      <span className="hidden sm:inline">Save as Widget</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={handleCloseActive}
-                    className="bg-white/90 hover:bg-white text-slate-700 backdrop-blur-sm rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/50 font-black transition-all"
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.5cqmin)',
-                      gap: 'min(6px, 1.5cqmin)',
-                    }}
-                  >
-                    <LayoutGrid
-                      style={{
-                        width: 'min(10px, 2.5cqmin)',
-                        height: 'min(10px, 2.5cqmin)',
-                      }}
-                    />{' '}
-                    <span className="hidden sm:inline">Library</span>
-                  </button>
-                </div>
-              </>
-            )}
+                      <div
+                        className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg rounded-xl px-2 py-1.5 max-w-full"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        {/* Left group: Assign / Assignments — hidden in
+                            view-only mode (these are submission-tracking
+                            flows that don't apply). */}
+                        {assignmentMode !== 'view-only' && (
+                          <>
+                            <button
+                              onClick={() => handleOpenAssign(activeApp)}
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm h-8 px-3 text-xs"
+                              title="Assign (copy student link)"
+                            >
+                              <Link2 className="w-3.5 h-3.5" />
+                              <span className={labelClass}>Assign</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenAssignments(activeApp)}
+                              className="bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60 h-8 px-3 text-xs"
+                              title="View assignments"
+                            >
+                              <BarChart3 className="w-3.5 h-3.5" />
+                              <span className={labelClass}>Assignments</span>
+                            </button>
+                            <div className="w-px h-5 bg-slate-200/80 mx-0.5" />
+                          </>
+                        )}
+
+                        {/* Right group: QR Share + Save-as-Widget + Library
+                            (or Unsaved + Save when activeAppUnsaved). */}
+                        {config.activeAppUnsaved && (
+                          <>
+                            <div className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400 h-8 px-2 text-[10px]">
+                              Unsaved
+                            </div>
+                            <button
+                              onClick={() => {
+                                setPendingSaveTitle(
+                                  activeApp.title !== 'Untitled App'
+                                    ? activeApp.title
+                                    : ''
+                                );
+                                setShowSaveForm(true);
+                              }}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                              title="Save to library"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                              <span className={labelClass}>Save</span>
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => void handleCreateQrShare()}
+                          disabled={isCreatingQrShare || !user}
+                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="Share via QR — drops a QR-code widget that students can scan"
+                        >
+                          {isCreatingQrShare ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <QrCode className="w-3.5 h-3.5" />
+                          )}
+                          <span className={labelClass}>QR Share</span>
+                        </button>
+                        {!config.activeAppUnsaved && user && (
+                          <button
+                            onClick={() => setShowSaveAsWidget(true)}
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                            title="Save as widget — pin this mini app to your dock"
+                          >
+                            <Bookmark className="w-3.5 h-3.5" />
+                            <span className={labelClass}>Save as Widget</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={handleCloseActive}
+                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                          title="Back to library"
+                        >
+                          <LayoutGrid className="w-3.5 h-3.5" />
+                          <span className={labelClass}>Library</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })(),
+                document.body
+              )}
             <iframe
               ref={iframeRef}
               srcDoc={activeApp.html}
@@ -1013,15 +1191,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 rosters={rosters}
                 pickerValue={assignPickerValue}
                 onPickerChange={setAssignPickerValue}
-                submissionsEnabled={assignSubmissionsEnabled}
-                onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
+                mode={assignmentMode}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
                   setAssignPickerValue(makeEmptyPickerValue());
-                  setAssignSubmissionsEnabled(false);
                 }}
               />
             )}
@@ -1114,6 +1290,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onExport={handleExport}
               onArchiveCopyUrl={(a) => void handleArchiveCopyUrl(a)}
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
+              onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
               initialLibraryViewMode={config.libraryViewMode}
               onLibraryViewModeChange={(mode) =>
@@ -1121,6 +1298,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   config: { ...config, libraryViewMode: mode } as MiniAppConfig,
                 })
               }
+              assignmentMode={assignmentMode}
             />
             {/* Assign modal */}
             {!isStudentView && assigningApp && (
@@ -1134,15 +1312,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 rosters={rosters}
                 pickerValue={assignPickerValue}
                 onPickerChange={setAssignPickerValue}
-                submissionsEnabled={assignSubmissionsEnabled}
-                onSubmissionsEnabledChange={setAssignSubmissionsEnabled}
+                mode={assignmentMode}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
                   setCreatedSessionId(null);
                   setAssignError(null);
                   setAssignPickerValue(makeEmptyPickerValue());
-                  setAssignSubmissionsEnabled(false);
                 }}
               />
             )}

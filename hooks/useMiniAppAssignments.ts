@@ -27,7 +27,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { MiniAppAssignment, MiniAppItem } from '@/types';
+import { invalidateSessionViewCount } from './useSessionViewCount';
+import type { AssignmentMode, MiniAppAssignment, MiniAppItem } from '@/types';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
@@ -41,9 +42,10 @@ export interface CreateMiniAppAssignmentInput {
    *  in the Library shell can key off the assignment list without a
    *  session-doc join. */
   rosterIds?: string[];
-  /** Whether submissions are enabled for this assignment. Mirrors
-   *  MiniAppSession.submissionsEnabled. */
-  submissionsEnabled?: boolean;
+  /** Frozen at creation from the org-wide `assignment-modes` admin setting.
+   *  Mirrors MiniAppSession.mode. The `submissionsEnabled` field on the
+   *  assignment doc is derived from this — callers don't pass it directly. */
+  mode?: AssignmentMode;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -56,6 +58,15 @@ export interface UseMiniAppAssignmentsResult {
   renameAssignment: (assignmentId: string, name: string) => Promise<void>;
   /** Mark the assignment inactive and end the underlying session. */
   endAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Re-open a previously ended share. Symmetric to `endAssignment`: flips the
+   * assignment doc's `status` back to `'active'` and the session doc's
+   * `status` back to `'active'`. The historical `endedAt` is intentionally
+   * left in place — the student gate keys off `status`, not `endedAt`, and
+   * preserving the timestamp keeps useful audit history. The session URL
+   * works again. Used by the view-only Shared archive's "Reactivate" action.
+   */
+  reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently remove the archive row (the session doc is left as-is). */
   deleteAssignment: (assignmentId: string) => Promise<void>;
 }
@@ -126,6 +137,7 @@ export const useMiniAppAssignments = (
       // needs targeting metadata that teacher-side code actually reads back,
       // and no caller reads `assignment.classIds`. Matches the Quiz/VA/GL
       // shape (their assignment docs also store `rosterIds` only).
+      const mode: AssignmentMode = input.mode ?? 'submissions';
       const assignment: MiniAppAssignment = {
         id: assignmentId,
         sessionId: input.sessionId,
@@ -140,7 +152,9 @@ export const useMiniAppAssignments = (
         createdAt: now,
         updatedAt: now,
         ...(cleanedRosterIds.length > 0 ? { rosterIds: cleanedRosterIds } : {}),
-        submissionsEnabled: input.submissionsEnabled === true,
+        // Derived from `mode` so the two fields can never diverge.
+        submissionsEnabled: mode === 'submissions',
+        mode,
       };
 
       await setDoc(
@@ -215,6 +229,44 @@ export const useMiniAppAssignments = (
     [userId, assignments]
   );
 
+  const reactivateAssignment = useCallback<
+    UseMiniAppAssignmentsResult['reactivateAssignment']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignment = assignments.find((a) => a.id === assignmentId);
+
+      await updateDoc(
+        doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
+        { status: 'active', updatedAt: now }
+      );
+
+      // Mirror onto the session doc — its `status` is what the student app
+      // checks before rendering. The historical `endedAt` is intentionally
+      // left in place; the student gate keys off `status`, not `endedAt`,
+      // and preserving the timestamp is useful audit history.
+      if (assignment?.sessionId) {
+        try {
+          await updateDoc(doc(db, SESSIONS_COLLECTION, assignment.sessionId), {
+            status: 'active',
+          });
+        } catch (err) {
+          console.warn(
+            '[useMiniAppAssignments] session reactivate mirror failed',
+            err
+          );
+        }
+        // Drop any cached view count so the Shared row re-issues the
+        // aggregation query on next mount — students opening the link
+        // post-reactivate will be missed otherwise (the cache is keyed
+        // by sessionId and module-scoped, so it survives unmount).
+        invalidateSessionViewCount('mini_app_sessions', assignment.sessionId);
+      }
+    },
+    [userId, assignments]
+  );
+
   const deleteAssignment = useCallback<
     UseMiniAppAssignmentsResult['deleteAssignment']
   >(
@@ -234,6 +286,7 @@ export const useMiniAppAssignments = (
     createAssignment,
     renameAssignment,
     endAssignment,
+    reactivateAssignment,
     deleteAssignment,
   };
 };

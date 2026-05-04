@@ -9,8 +9,8 @@
  *  4. Completion / score screen when all questions answered and video ends
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { signInAnonymously } from 'firebase/auth';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
   PlayCircle,
   Loader2,
@@ -20,7 +20,9 @@ import {
   ClipboardList,
   Trophy,
 } from 'lucide-react';
-import { auth } from '@/config/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { VideoActivityQuestion } from '@/types';
 import { VideoPlayer } from './VideoPlayer';
@@ -86,6 +88,37 @@ const JoinAndPlay: React.FC = () => {
     submitAnswer,
     completeActivity,
   } = useVideoActivitySessionStudent();
+
+  const isViewOnly = session?.mode === 'view-only';
+
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
+  const [authedUid, setAuthedUid] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
+  }, []);
+
+  // View tracking — log each pageview of a view-only Share link as an
+  // immutable doc in the session's `views/` subcollection. Best-effort and
+  // fire-and-forget. `wroteViewRef` dedupes within a single mount (StrictMode
+  // double-invoke, session-doc re-emits) — refresh-inflation across mounts
+  // is accepted per the "URL opens" framing.
+  const wroteViewRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isViewOnly || !session?.id || !authedUid) return;
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, 'video_activity_sessions', sessionId, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      // logError so sustained failures (rule changes, schema drift)
+      // surface in error-level log filters rather than warn noise.
+      logError('VideoActivityStudentApp.viewLog', err, { sessionId });
+    });
+  }, [isViewOnly, session?.id, authedUid]);
 
   // Multi-period selection step — shown when the session has more than one
   // class-period name configured, so students pick their period before the
@@ -159,7 +192,12 @@ const JoinAndPlay: React.FC = () => {
         return;
       }
 
-      await submitAnswer(activeQuestion.id, answer);
+      // View-only shares never persist responses — the Firestore rule
+      // rejects the write defense-in-depth, but skip it client-side too so
+      // the console stays clean.
+      if (!isViewOnly) {
+        await submitAnswer(activeQuestion.id, answer);
+      }
       setActiveQuestion(null);
     },
     [
@@ -167,13 +205,15 @@ const JoinAndPlay: React.FC = () => {
       session?.settings?.requireCorrectAnswer,
       sortedQuestions,
       submitAnswer,
+      isViewOnly,
     ]
   );
 
   const handleVideoEnd = useCallback(async () => {
     setVideoEnded(true);
+    if (isViewOnly) return;
     await completeActivity();
-  }, [completeActivity]);
+  }, [completeActivity, isViewOnly]);
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 

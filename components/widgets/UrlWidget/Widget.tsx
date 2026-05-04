@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { Globe, ExternalLink, QrCode } from 'lucide-react';
+import { Globe, QrCode } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { getUrlIcon, DEFAULT_URL_COLOR } from './icons';
 
 export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { addWidget } = useDashboard();
@@ -54,68 +55,79 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 gap: 'min(10px, 2cqmin)',
               }}
             >
-              {urls.map((urlItem) => (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  key={urlItem.id}
-                  className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110 cursor-pointer text-left"
-                  style={{ backgroundColor: urlItem.color ?? '#10b981' }}
-                  onClick={() =>
-                    window.open(urlItem.url, '_blank', 'noopener,noreferrer')
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      window.open(urlItem.url, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors" />
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addWidget('qr', { config: { url: urlItem.url } });
-                    }}
-                    className="absolute z-20 rounded-full bg-black/20 text-white opacity-70 transition-all outline-none hover:bg-black/40 group-hover:opacity-100 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
+              {urls.map((urlItem) => {
+                const Icon = getUrlIcon(urlItem.icon);
+                const label = getDisplayLabel(urlItem.title, urlItem.url);
+                return (
+                  <div
+                    key={urlItem.id}
+                    className="relative overflow-hidden rounded-[min(16px,3cqmin)] transition-all group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
                     style={{
-                      top: 'min(8px, 2cqmin)',
-                      right: 'min(8px, 2cqmin)',
-                      padding: 'min(6px, 1.5cqmin)',
+                      backgroundColor: urlItem.color ?? DEFAULT_URL_COLOR,
+                      containerType: 'size',
                     }}
-                    title="Create QR Code"
-                    aria-label="Create QR Code"
                   >
-                    <QrCode
+                    <button
+                      type="button"
+                      onClick={() =>
+                        window.open(
+                          urlItem.url,
+                          '_blank',
+                          'noopener,noreferrer'
+                        )
+                      }
+                      aria-label={`Open ${label}`}
+                      className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-left transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors pointer-events-none"
+                      />
+
+                      <Icon
+                        className="text-white drop-shadow-sm z-10"
+                        style={{
+                          width: 'min(96px, 32cqmin)',
+                          height: 'min(96px, 32cqmin)',
+                          marginBottom: 'min(8px, 2.5cqmin)',
+                        }}
+                      />
+
+                      <span
+                        className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10 line-clamp-2"
+                        style={{
+                          fontSize: 'min(24px, 8cqmin)',
+                          padding: '0 min(8px, 1.5cqmin)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addWidget('qr', { config: { url: urlItem.url } })
+                      }
+                      className="absolute z-20 rounded-full bg-black/20 text-white opacity-70 transition-all outline-none hover:bg-black/40 group-hover:opacity-100 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
                       style={{
-                        width: 'min(20px, 6cqmin)',
-                        height: 'min(20px, 6cqmin)',
+                        top: 'min(8px, 2cqmin)',
+                        right: 'min(8px, 2cqmin)',
+                        padding: 'min(6px, 1.5cqmin)',
                       }}
-                    />
-                  </button>
-
-                  <ExternalLink
-                    className="text-white drop-shadow-sm z-10"
-                    style={{
-                      width: 'min(48px, 15cqmin)',
-                      height: 'min(48px, 15cqmin)',
-                      marginBottom: 'min(6px, 1.5cqmin)',
-                    }}
-                  />
-
-                  <span
-                    className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10"
-                    style={{
-                      fontSize: 'min(18px, 6cqmin)',
-                      padding: '0 min(8px, 1.5cqmin)',
-                    }}
-                  >
-                    {getDisplayLabel(urlItem.title, urlItem.url)}
-                  </span>
-                </div>
-              ))}
+                      title="Create QR Code"
+                      aria-label="Create QR Code"
+                    >
+                      <QrCode
+                        style={{
+                          width: 'min(20px, 10cqmin)',
+                          height: 'min(20px, 10cqmin)',
+                        }}
+                      />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

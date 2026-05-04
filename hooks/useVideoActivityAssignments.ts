@@ -25,7 +25,9 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { invalidateSessionViewCount } from './useSessionViewCount';
 import type {
+  AssignmentMode,
   VideoActivityAssignment,
   VideoActivityAssignmentSettings,
   VideoActivityAssignmentStatus,
@@ -69,7 +71,10 @@ export interface UseVideoActivityAssignmentsResult {
     initialStatus?: VideoActivityAssignmentStatus,
     classIds?: string[],
     periodNames?: string[],
-    rosterIds?: string[]
+    rosterIds?: string[],
+    /** Org-wide assignment mode frozen onto the assignment + session.
+     *  Defaults to `'submissions'` (preserves pre-feature behavior). */
+    mode?: AssignmentMode
   ) => Promise<{ id: string }>;
   /** Set both assignment.status and session.status to 'paused' (assignment) / 'ended' (session). */
   pauseAssignment: (assignmentId: string) => Promise<void>;
@@ -77,6 +82,19 @@ export interface UseVideoActivityAssignmentsResult {
   resumeAssignment: (assignmentId: string) => Promise<void>;
   /** Kills the student URL; preserves responses. assignment='inactive', session='ended'. */
   deactivateAssignment: (assignmentId: string) => Promise<void>;
+  /**
+   * Re-open a previously deactivated share (view-only mode only). Symmetric
+   * to `deactivateAssignment`: flips assignment → 'active' and session →
+   * 'active' so the URL works again. Submissions assignments don't expose
+   * this affordance; reopening a stale roster is a different UX call.
+   *
+   * Behaviorally equivalent to `resumeAssignment` today (both call
+   * `setStatus(id, 'active', 'active')`). Kept as a separate method so
+   * callers can express *intent* — view-only Reactivate from inactive vs.
+   * Resume from paused — and so the two can diverge later if Resume needs
+   * to preserve, e.g., a paused-at timestamp or pending-question state.
+   */
+  reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
   /** Update editable settings (className, session toggles). */
@@ -143,7 +161,8 @@ export const useVideoActivityAssignments = (
       initialStatus = 'active',
       classIds,
       periodNames,
-      rosterIds
+      rosterIds,
+      mode = 'submissions'
     ) => {
       if (!userId) throw new Error('Not authenticated');
       const targetClassIds = classIds ?? [];
@@ -164,6 +183,7 @@ export const useVideoActivityAssignments = (
         className: settings.className,
         sessionSettings: settings.sessionSettings,
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
+        mode,
       };
 
       // Session's status is binary — if the assignment is paused or inactive,
@@ -196,6 +216,7 @@ export const useVideoActivityAssignments = (
           ? { periodNames: targetPeriodNames }
           : {}),
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
+        mode,
       };
 
       const batch = writeBatch(db);
@@ -280,6 +301,19 @@ export const useVideoActivityAssignments = (
     [setStatus]
   );
 
+  const reactivateAssignment = useCallback<
+    UseVideoActivityAssignmentsResult['reactivateAssignment']
+  >(
+    async (assignmentId) => {
+      await setStatus(assignmentId, 'active', 'active');
+      // Drop any cached view count so the Shared row re-issues the
+      // aggregation query on next mount; the cache is module-scoped and
+      // would otherwise hold the pre-Closed count forever.
+      invalidateSessionViewCount('video_activity_sessions', assignmentId);
+    },
+    [setStatus]
+  );
+
   const deleteAssignment = useCallback<
     UseVideoActivityAssignmentsResult['deleteAssignment']
   >(
@@ -359,6 +393,7 @@ export const useVideoActivityAssignments = (
     pauseAssignment,
     resumeAssignment,
     deactivateAssignment,
+    reactivateAssignment,
     deleteAssignment,
     updateAssignmentSettings,
   };

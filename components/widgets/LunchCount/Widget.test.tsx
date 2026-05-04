@@ -100,8 +100,9 @@ describe('LunchCountWidget', () => {
         assignments: {},
         // Pre-populate cachedMenu to prevent auto-sync loop in tests
         cachedMenu: {
-          hotLunch: 'Pizza',
-          bentoBox: 'Bento',
+          hotLunch: { name: 'Pizza' },
+          hotLunchSides: [],
+          bentoBox: { name: 'Bento' },
           date: new Date().toISOString(),
         },
         lastSyncDate: new Date().toISOString(),
@@ -146,8 +147,9 @@ describe('LunchCountWidget', () => {
     const widget = createWidget({
       schoolSite: 'orono-middle-school',
       cachedMenu: {
-        hotLunch: 'Pizza',
-        bentoBox: 'Yogurt Parfait',
+        hotLunch: { name: 'Pizza' },
+        hotLunchSides: [],
+        bentoBox: { name: 'Yogurt Parfait' },
         date: new Date().toISOString(),
       },
     });

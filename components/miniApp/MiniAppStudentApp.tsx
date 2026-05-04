@@ -17,8 +17,16 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   Loader2,
@@ -29,6 +37,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import { MiniAppSession, MiniAppSubmission } from '@/types';
 
 type SubmissionStatus =
@@ -183,7 +192,39 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   // Tracks whether the student has submitted anything (via app or "I'm Done")
   // in this session. Prevents the Done button from reappearing after auto-clear.
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const submissionsEnabled = session.submissionsEnabled === true;
+  const isViewOnly = session.mode === 'view-only';
+  // View-only sessions never accept submissions, regardless of the
+  // submissionsEnabled flag stored on the session doc.
+  const submissionsEnabled = !isViewOnly && session.submissionsEnabled === true;
+
+  // Subscribe to auth so the view-log effect re-runs when anon sign-in
+  // resolves; `auth.currentUser` alone is non-reactive.
+  const [authedUid, setAuthedUid] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
+  }, []);
+
+  // View tracking — log each pageview of a view-only Share link as an
+  // immutable doc in the session's `views/` subcollection. The teacher's
+  // Shared archive aggregates the count via getCountFromServer(). Best-effort
+  // and fire-and-forget. `wroteViewRef` dedupes within a single mount
+  // (StrictMode double-invoke, session-doc re-emits) — refresh-inflation
+  // across mounts is accepted per the "URL opens" framing.
+  const wroteViewRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isViewOnly || !authedUid) return;
+    if (wroteViewRef.current === session.id) return;
+    wroteViewRef.current = session.id;
+    const sessionId = session.id;
+    void addDoc(collection(db, SESSIONS_COLLECTION, sessionId, 'views'), {
+      viewedAt: serverTimestamp(),
+    }).catch((err) => {
+      // logError so sustained failures surface in error-level filters.
+      logError('MiniAppStudentApp.viewLog', err, { sessionId });
+    });
+  }, [session.id, isViewOnly, authedUid]);
 
   // On mount, check Firestore for an existing submission so `hasSubmitted`
   // survives page refreshes. If the doc already exists we hide the "I'm Done"
@@ -373,8 +414,9 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
       <SubmissionStatusOverlay status={status} onRetry={submit} />
       {/* "I'm Done" button — allows students to mark the assignment complete
           regardless of whether the mini-app itself has a submit button.
-          Hidden once the student has submitted (via app or this button). */}
-      {!hasSubmitted && (
+          Hidden for view-only shares (no submissions tracked) and once the
+          student has submitted (via app or this button). */}
+      {!isViewOnly && !hasSubmitted && (
         <button
           type="button"
           onClick={() => void markDone()}

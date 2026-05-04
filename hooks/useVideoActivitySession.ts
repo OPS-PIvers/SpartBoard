@@ -25,7 +25,9 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import {
+  AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
   VideoActivityData,
@@ -102,7 +104,10 @@ export interface UseVideoActivitySessionTeacherResult {
     assignmentName?: string,
     classIds?: string[],
     periodNames?: string[],
-    rosterIds?: string[]
+    rosterIds?: string[],
+    /** Org-wide assignment mode frozen onto the session. Defaults to
+     *  `'submissions'`. */
+    mode?: AssignmentMode
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -117,9 +122,18 @@ export interface UseVideoActivitySessionTeacherResult {
   endSession: (sessionId: string) => Promise<void>;
   /** Real-time responses for a specific session. */
   responses: VideoActivityResponse[];
-  /** Subscribe to a specific session's responses. Cleans up any previous listener. */
+  /**
+   * Real-time snapshot of the session document the responses listener is
+   * scoped to. Populated by `subscribeToSession`. Lets the live monitor
+   * reflect pause/resume state changes without an extra fetch round-trip.
+   */
+  liveSession: VideoActivitySession | null;
+  /**
+   * Subscribe to a specific session's session doc + responses subcollection.
+   * Cleans up any previous listeners.
+   */
   subscribeToSession: (sessionId: string) => void;
-  /** Unsubscribe from the current session listener. */
+  /** Unsubscribe from the current session listeners. */
   unsubscribeFromSession: () => void;
   loading: boolean;
 }
@@ -129,8 +143,12 @@ export const useVideoActivitySessionTeacher =
     const [sessions, setSessions] = useState<VideoActivitySession[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(false);
     const [responses, setResponses] = useState<VideoActivityResponse[]>([]);
+    const [liveSession, setLiveSession] = useState<VideoActivitySession | null>(
+      null
+    );
     const [loading, setLoading] = useState(false);
     const unsubRef = useRef<Unsubscribe | null>(null);
+    const sessionDocUnsubRef = useRef<Unsubscribe | null>(null);
     const sessionsUnsubRef = useRef<Unsubscribe | null>(null);
 
     const createSession = useCallback(
@@ -142,7 +160,8 @@ export const useVideoActivitySessionTeacher =
         assignmentName?: string,
         classIds: string[] = [],
         periodNames: string[] = [],
-        rosterIds: string[] = []
+        rosterIds: string[] = [],
+        mode: AssignmentMode = 'submissions'
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -174,6 +193,7 @@ export const useVideoActivitySessionTeacher =
           ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
           ...(periodNames.length > 0 ? { periodNames } : {}),
           ...(rosterIds.length > 0 ? { rosterIds } : {}),
+          mode,
         };
 
         await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);
@@ -248,12 +268,21 @@ export const useVideoActivitySessionTeacher =
     }, []);
 
     const subscribeToSession = useCallback((sessionId: string) => {
-      // Clean up any existing listener before creating a new one
+      // Clean up any existing listeners before creating new ones
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = null;
       }
+      if (sessionDocUnsubRef.current) {
+        sessionDocUnsubRef.current();
+        sessionDocUnsubRef.current = null;
+      }
 
+      // Clear stale state from any prior subscription so consumers don't
+      // briefly render the previous session's roster / status while the
+      // first snapshot for the new session is in flight.
+      setResponses([]);
+      setLiveSession(null);
       setLoading(true);
       unsubRef.current = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
@@ -263,11 +292,33 @@ export const useVideoActivitySessionTeacher =
           setLoading(false);
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionTeacher] Firestore error:',
-            err
-          );
+          logError('useVideoActivitySessionTeacher.responsesListener', err, {
+            sessionId,
+          });
           setLoading(false);
+        }
+      );
+
+      // Mirror the session doc so consumers (e.g. the live monitor) reflect
+      // pause/resume state changes in real time.
+      sessionDocUnsubRef.current = onSnapshot(
+        doc(db, SESSIONS_COLLECTION, sessionId),
+        (snap) => {
+          if (snap.exists()) {
+            setLiveSession(
+              normalizeSession(
+                snap.id,
+                snap.data() as Partial<VideoActivitySession>
+              )
+            );
+          } else {
+            setLiveSession(null);
+          }
+        },
+        (err) => {
+          logError('useVideoActivitySessionTeacher.sessionDocListener', err, {
+            sessionId,
+          });
         }
       );
     }, []);
@@ -277,7 +328,12 @@ export const useVideoActivitySessionTeacher =
         unsubRef.current();
         unsubRef.current = null;
       }
+      if (sessionDocUnsubRef.current) {
+        sessionDocUnsubRef.current();
+        sessionDocUnsubRef.current = null;
+      }
       setResponses([]);
+      setLiveSession(null);
     }, []);
 
     // Clean up on unmount
@@ -291,6 +347,10 @@ export const useVideoActivitySessionTeacher =
           unsubRef.current();
           unsubRef.current = null;
         }
+        if (sessionDocUnsubRef.current) {
+          sessionDocUnsubRef.current();
+          sessionDocUnsubRef.current = null;
+        }
       };
     }, []);
 
@@ -303,6 +363,7 @@ export const useVideoActivitySessionTeacher =
       renameSession,
       endSession,
       responses,
+      liveSession,
       subscribeToSession,
       unsubscribeFromSession,
       loading,

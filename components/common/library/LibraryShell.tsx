@@ -114,6 +114,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   tab,
   onTabChange,
   counts,
+  tabLabels,
   primaryAction,
   secondaryActions,
   toolbarSlot,
@@ -134,19 +135,19 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   const tabs: TabDef[] = [
     {
       key: 'library',
-      label: 'Library',
+      label: tabLabels?.library ?? 'Library',
       icon: BookOpen,
       count: counts?.library,
     },
     {
       key: 'active',
-      label: 'In Progress',
+      label: tabLabels?.active ?? 'In Progress',
       icon: Activity,
       count: counts?.active,
     },
     {
       key: 'archive',
-      label: 'Archive',
+      label: tabLabels?.archive ?? 'Archive',
       icon: ArchiveIcon,
       count: counts?.archive,
     },

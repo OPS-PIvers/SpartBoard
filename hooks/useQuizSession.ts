@@ -956,11 +956,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               throw new AttemptLimitReachedError();
             }
             // Under the cap (or unlimited): reset for a new attempt.
+            // `preSyncVersion: 0` resets the "pre-sync" stamp so the new
+            // attempt is treated as fresh — without this, a response
+            // tagged on the prior attempt (e.g. `preSyncVersion: 4`)
+            // would carry that chip onto a fresh attempt taken against
+            // post-sync content, AND the response would be invisible
+            // to future `where('preSyncVersion', '==', 0)` queries.
+            // The matching firestore rule below allows students to
+            // write only `0` to this field; `syncAssignmentToLatest`
+            // tags it later if/when another sync runs.
             await updateDoc(responseRef, {
               status: 'joined',
               answers: [],
               score: null,
               submittedAt: null,
+              preSyncVersion: 0,
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
@@ -1082,6 +1092,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             score: null,
             submittedAt: null,
             completedAttempts: 0,
+            // Initialize `preSyncVersion: 0` on every response so
+            // `syncAssignmentToLatest` can use a server-side
+            // `where('preSyncVersion', '==', 0)` query to find
+            // responses that still need tagging — Firestore equality
+            // skips docs missing the field, so without this
+            // initialization the optimization would silently drop the
+            // very rows that need pre-sync tags. Fresh responses stay
+            // at 0; the results UI renders the pre-sync chip only
+            // when the value is > 0.
+            preSyncVersion: 0,
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
             ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),

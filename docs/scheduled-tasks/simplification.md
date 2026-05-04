@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-04-24_
-_Last action: never_
+_Last audited: 2026-05-01_
+_Last action: 2026-05-01_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM Duplicated config layer-merge pattern in DashboardContext — extraction candidate
-
-- **Detected:** 2026-04-17
-- **File:** context/DashboardContext.tsx:2482, :2561 (line numbers shift with each context addition)
-- **Detail:** Two `Object.assign` call sites (one for the widget-open path at line 2464, one for the add-widget path at line 2543) implement an identical four-layer config merge: `defaults.config → adminConfig → savedWidgetConfigs → overrides`. The pattern and argument list are visually identical; only variable names differ. Any change to the merge order or the inclusion of a new layer (e.g. user preferences) must be made in two places.
-- **Fix:** Extract a helper function such as `mergeWidgetConfig(defaults, adminConfig, saved, overrides)` that performs the `Object.assign` and documents the layer order. Call it from both sites. The function is a pure utility — no hook dependencies — and belongs in utils/ or as a module-level function in DashboardContext.tsx.
 
 ### LOW `as unknown as BuildingConfigPanel` repeated throughout FeatureConfigurationPanel
 
@@ -48,4 +41,10 @@ _Nothing currently in progress._
 
 ## Completed
 
-_No completed items yet._
+### MEDIUM Duplicated config layer-merge pattern in DashboardContext — extraction candidate
+
+- **Detected:** 2026-04-17
+- **Completed:** 2026-05-01
+- **File:** context/DashboardContext.tsx (addWidget + addWidgets paths), utils/widgetConfigPersistence.ts
+- **Detail:** Two `Object.assign` call sites (one in `addWidget` for single-widget adds, one in `addWidgets` for batch/AI/paste adds) implemented an identical four-layer config merge: `defaults.config → adminConfig → savedWidgetConfigs → overrides`.
+- **Resolution:** Extracted `mergeWidgetConfig(defaults, adminConfig, saved, overrides)` as a pure helper in `utils/widgetConfigPersistence.ts` next to `stripTransientKeys`. The helper documents the layer order in JSDoc, calls `stripTransientKeys` internally on the saved layer, and tolerates `undefined` for any layer. Both call sites in `DashboardContext.tsx` now delegate to it; the now-redundant `stripTransientKeys` import there was removed (still imported by `AuthContext.tsx` for save-side filtering, which is unchanged). Added three unit tests covering layer ordering, transient-key stripping, and all-undefined inputs. `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` clean; all 1680 tests pass.

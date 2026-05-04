@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -19,11 +25,13 @@ import {
   WidgetData,
   LunchCountConfig,
   LunchCountGlobalConfig,
+  LunchMenuItem,
   DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 import { Button } from '@/components/common/Button';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
-import { RefreshCw, Undo2, CheckCircle2, Box, Users } from 'lucide-react';
+import { Modal } from '@/components/common/Modal';
+import { RefreshCw, Undo2, CheckCircle2, Box, Users, X } from 'lucide-react';
 import { SubmitReportModal } from './SubmitReportModal';
 import { useNutrislice } from './useNutrislice';
 import { DraggableStudent } from './components/DraggableStudent';
@@ -32,6 +40,8 @@ import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { hexToRgba } from '@/utils/styles';
+
+const PEEK_AUTO_DISMISS_MS = 4000;
 
 /**
  * Format a grade value into the spreadsheet label used in column B.
@@ -122,6 +132,98 @@ function getCentralTimestamp(): string {
   }
 }
 
+interface MenuItemBlockProps {
+  item: LunchMenuItem | undefined | null;
+  sides?: LunchMenuItem[];
+  onPeekItem: (item: LunchMenuItem) => void;
+  nameTextClass: string;
+  sidesTextClass: string;
+  fallback: string;
+}
+
+/**
+ * Renders the food header inside an elementary drop zone: optional thumbnail,
+ * bold main name, and a dot-separated sides line. Each thumbnail and named side
+ * is tappable to open a transient image overlay.
+ */
+const MenuItemBlock: React.FC<MenuItemBlockProps> = ({
+  item,
+  sides = [],
+  onPeekItem,
+  nameTextClass,
+  sidesTextClass,
+  fallback,
+}) => {
+  const name = item?.name ?? fallback;
+  const imageUrl = item?.imageUrl;
+
+  return (
+    <div
+      className="flex items-start"
+      style={{ gap: 'min(8px, 2cqmin)', marginBottom: 'min(10px, 2cqmin)' }}
+    >
+      {imageUrl ? (
+        <button
+          type="button"
+          onClick={() => item && onPeekItem(item)}
+          className="shrink-0 rounded-lg overflow-hidden bg-white/40 border border-white/60 shadow-sm transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+          style={{
+            width: 'min(40px, 14cqmin)',
+            height: 'min(40px, 14cqmin)',
+          }}
+          aria-label={`Show photo of ${name}`}
+        >
+          <img
+            src={imageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        </button>
+      ) : null}
+      <div className="flex-1 min-w-0">
+        <div
+          className={`font-black ${nameTextClass} leading-tight line-clamp-2`}
+          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+        >
+          {name}
+        </div>
+        {sides.length > 0 ? (
+          <div
+            className={`font-medium ${sidesTextClass} opacity-70 leading-tight line-clamp-2`}
+            style={{
+              fontSize: 'min(10px, 3.5cqmin)',
+              marginTop: 'min(2px, 0.5cqmin)',
+            }}
+          >
+            {sides.map((s, i) => (
+              <React.Fragment key={`${s.name}-${i}`}>
+                {i > 0 ? (
+                  <span aria-hidden="true" style={{ margin: '0 0.4em' }}>
+                    ·
+                  </span>
+                ) : null}
+                {s.imageUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => onPeekItem(s)}
+                    className="hover:underline focus:outline-none focus:underline cursor-pointer"
+                    aria-label={`Show photo of ${s.name}`}
+                  >
+                    {s.name}
+                  </button>
+                ) : (
+                  <span>{s.name}</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
 export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -157,6 +259,58 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
+  const peekTriggerRef = useRef<HTMLElement | null>(null);
+  const peekCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closePeek = useCallback(() => {
+    setPeekedItem(null);
+    // Restore focus to the element that opened the peek, on the next frame so
+    // the Modal has unmounted from the portal first.
+    const trigger = peekTriggerRef.current;
+    peekTriggerRef.current = null;
+    if (trigger) {
+      window.requestAnimationFrame(() => trigger.focus());
+    }
+  }, []);
+
+  // Auto-dismiss the food-image peek after a short timeout. Outside-click and
+  // Esc are handled by the underlying Modal. The peek is local state only —
+  // never written to widget.config, so nothing persists in Firestore or Drive.
+  useEffect(() => {
+    if (!peekedItem) return undefined;
+    const timer = window.setTimeout(closePeek, PEEK_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [peekedItem, closePeek]);
+
+  // When the peek opens, move focus to the close button so keyboard users
+  // land inside the dialog rather than on the (now-covered) trigger.
+  useEffect(() => {
+    if (!peekedItem) return;
+    const id = window.requestAnimationFrame(() => {
+      peekCloseButtonRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [peekedItem]);
+
+  const peekItem = useCallback((item: LunchMenuItem | undefined | null) => {
+    if (!item?.imageUrl) return;
+    const active = document.activeElement;
+    peekTriggerRef.current = active instanceof HTMLElement ? active : null;
+    setPeekedItem(item);
+  }, []);
+
+  // Tab-key trap for the peek modal. The modal exposes a single focusable
+  // element (the close button); keep focus on it so Tab/Shift-Tab don't
+  // escape behind the dialog.
+  const handlePeekKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      peekCloseButtonRef.current?.focus();
+    },
+    []
+  );
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -360,7 +514,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   ) {
     const hotLunchItem = config.isManualMode
       ? config.manualHotLunch || t('widgets.lunchCount.noHotLunch')
-      : (cachedMenu?.hotLunch ?? t('common.loading'));
+      : (cachedMenu?.hotLunch?.name ?? t('common.loading'));
 
     const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
     const fontClass =
@@ -490,7 +644,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   })}
                 </p>
               </div>
-              {rosterMode === 'class' && <ActiveClassChip />}
+              {rosterMode === 'class' && <ActiveClassChip compact />}
             </div>
 
             <Button
@@ -634,15 +788,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     className="text-brand-red-primary opacity-40 group-hover:scale-110 transition-transform"
                   />
                 </div>
-                <div
-                  style={{
-                    fontSize: 'min(11px, 4cqmin)',
-                    marginBottom: 'min(10px, 2cqmin)',
-                  }}
-                  className="font-bold text-brand-red-dark leading-tight line-clamp-2 italic opacity-60"
-                >
-                  {cachedMenu?.hotLunch ?? 'Loading menu...'}
-                </div>
+                <MenuItemBlock
+                  item={cachedMenu?.hotLunch}
+                  sides={cachedMenu?.hotLunchSides ?? []}
+                  onPeekItem={peekItem}
+                  nameTextClass="text-brand-red-dark"
+                  sidesTextClass="text-brand-red-dark"
+                  fallback={t('common.loading')}
+                />
                 <div
                   className="flex-1 flex flex-wrap content-start overflow-y-auto custom-scrollbar"
                   style={{
@@ -699,15 +852,13 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     className="text-emerald-400 group-hover:scale-110 transition-transform"
                   />
                 </div>
-                <div
-                  style={{
-                    fontSize: 'min(11px, 4cqmin)',
-                    marginBottom: 'min(10px, 2cqmin)',
-                  }}
-                  className="font-bold text-emerald-800 leading-tight line-clamp-2 italic opacity-60"
-                >
-                  {cachedMenu?.bentoBox ?? 'Loading menu...'}
-                </div>
+                <MenuItemBlock
+                  item={cachedMenu?.bentoBox}
+                  onPeekItem={peekItem}
+                  nameTextClass="text-emerald-800"
+                  sidesTextClass="text-emerald-800"
+                  fallback={t('common.loading')}
+                />
                 <div
                   className="flex-1 flex flex-wrap content-start overflow-y-auto custom-scrollbar"
                   style={{
@@ -866,8 +1017,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
           staffName: formatTeacherName(user?.displayName ?? 'Unknown Staff'),
           hotLunch: stats.hotLunch,
           bentoBox: stats.bentoBox,
-          hotLunchName: cachedMenu?.hotLunch ?? 'Hot Lunch',
-          bentoBoxName: cachedMenu?.bentoBox ?? 'Bento Box',
+          hotLunchName: cachedMenu?.hotLunch?.name ?? 'Hot Lunch',
+          bentoBoxName: cachedMenu?.bentoBox?.name ?? 'Bento Box',
           schoolSite,
           lunchTime: formatLunchTime(lunchTimeHour, lunchTimeMinute),
           gradeLabel: formatGradeLabel(gradeLevel),
@@ -881,6 +1032,62 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         isSubmitting={isSubmitting}
       />
+      <Modal
+        isOpen={!!peekedItem}
+        onClose={closePeek}
+        variant="bare"
+        maxWidth="max-w-[min(60vmin,560px)]"
+        ariaLabel={peekedItem ? `Photo of ${peekedItem.name}` : undefined}
+      >
+        {/* The peek overlay renders into document.body via portal, outside any
+            container query context — cqmin would resolve to 0 here. We use
+            vmin instead so the photo scales legibly on classroom projectors
+            while still looking right on a teacher's laptop. */}
+        <div
+          className="relative bg-white shadow-2xl overflow-hidden border border-slate-200 motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:duration-200"
+          style={{ borderRadius: 'min(28px, 3vmin)' }}
+          onKeyDown={handlePeekKeyDown}
+        >
+          <button
+            ref={peekCloseButtonRef}
+            type="button"
+            onClick={closePeek}
+            className="absolute z-10 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            style={{
+              top: 'min(12px, 1.5vmin)',
+              right: 'min(12px, 1.5vmin)',
+              padding: 'min(8px, 1vmin)',
+            }}
+            aria-label="Close photo"
+          >
+            <X
+              style={{
+                width: 'min(20px, 2.5vmin)',
+                height: 'min(20px, 2.5vmin)',
+              }}
+            />
+          </button>
+          {peekedItem?.imageUrl ? (
+            // alt="" — the surrounding aria-label and visible <p> already
+            // announce the food name; double-announcing is noisy for screen
+            // readers.
+            <img
+              src={peekedItem.imageUrl}
+              alt=""
+              className="w-full bg-slate-100 object-contain"
+              style={{ maxHeight: '60vmin' }}
+            />
+          ) : null}
+          <div className="bg-white" style={{ padding: 'min(20px, 2.5vmin)' }}>
+            <p
+              className="font-black text-slate-900 text-center leading-tight"
+              style={{ fontSize: 'min(24px, 3vmin)' }}
+            >
+              {peekedItem?.name}
+            </p>
+          </div>
+        </div>
+      </Modal>
       <DragOverlay
         dropAnimation={dropAnimation}
         modifiers={[snapCenterToCursor]}

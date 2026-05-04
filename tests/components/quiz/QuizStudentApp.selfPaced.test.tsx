@@ -83,6 +83,7 @@ vi.mock('@/config/firebase', () => ({
 
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn().mockResolvedValue(undefined),
+  onAuthStateChanged: vi.fn(() => () => undefined),
 }));
 
 // Stateful hook mock. Each call subscribes via `registerRefresher` so tests

@@ -8,7 +8,14 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { AccessLevel, GlobalFeature, GlobalFeaturePermission } from '@/types';
+import {
+  AccessLevel,
+  AssignmentMode,
+  AssignmentWidgetKey,
+  GlobalFeature,
+  GlobalFeaturePermission,
+} from '@/types';
+import { parseAssignmentModesConfig } from '@/utils/assignmentModesConfig';
 import {
   Shield,
   Users,
@@ -29,6 +36,12 @@ import {
   Filter,
   ChevronDown,
   FileUp,
+  BookOpen,
+  Boxes,
+  Send,
+  Eye,
+  ListChecks,
+  PlayCircle,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -111,6 +124,70 @@ const GLOBAL_FEATURES: {
     icon: FileUp,
     description:
       'Allow attaching Google Drive files as context when generating with AI.',
+  },
+  {
+    id: 'share-link-tracking',
+    label: 'Share-link View Tracking',
+    icon: Eye,
+    description:
+      'Show "N views" on view-only Share cards in the Quiz, Video Activity, Mini App, and Guided Learning archives. Each visible card fires a Firestore aggregation query when the dashboard tab regains focus — keep this Admin-only unless you specifically want every teacher to see open counts.',
+  },
+];
+
+/**
+ * Features whose missing-permission default is `'admin'` instead of the
+ * usual `'public'`. Both `getPermission` (the editor's persisted-or-default
+ * resolver) and `filteredFeatures` (the toolbar filter's fallback) read
+ * from this set so the fallback rule is defined once. Any divergence
+ * between the two would silently mis-categorize a feature in the access-
+ * level filter when no permission doc exists yet.
+ *
+ * Keep this aligned with the runtime-side defaults in `AuthContext` —
+ * `canSeeShareTracking` likewise treats a missing 'share-link-tracking'
+ * record as admin-only.
+ */
+const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
+  new Set<GlobalFeature>(['embed-mini-app', 'share-link-tracking']);
+
+/**
+ * Widgets surfaced in the Assignment Modes admin section. All four widgets
+ * with student-facing assignment flows are listed; flipping any of them to
+ * View only swaps the teacher Assign button to Share, hides the In Progress
+ * tab in favor of Shared, blocks submissions, and starts logging URL views.
+ */
+const ASSIGNMENT_WIDGETS: {
+  key: AssignmentWidgetKey;
+  label: string;
+  description: string;
+  Icon: React.ElementType;
+}[] = [
+  {
+    key: 'quiz',
+    label: 'Quiz',
+    description:
+      'Submissions: live monitor + response tracking. View only: students see the quiz as a read-through with no answer collection.',
+    Icon: ListChecks,
+  },
+  {
+    key: 'videoActivity',
+    label: 'Video Activity',
+    description:
+      'Submissions: responses and completion are tracked. View only: each Share link plays the video with the questions visible but unanswerable.',
+    Icon: PlayCircle,
+  },
+  {
+    key: 'miniApp',
+    label: 'Mini Apps',
+    description:
+      'Submissions: students can submit answers from the app. View only: each Share link is just a viewable URL.',
+    Icon: Boxes,
+  },
+  {
+    key: 'guidedLearning',
+    label: 'Guided Learning',
+    description:
+      'Submissions: responses and scores are collected. View only: students walk through the lesson with no grading or roster tracking.',
+    Icon: BookOpen,
   },
 ];
 
@@ -440,8 +517,11 @@ export const GlobalPermissionsManager: React.FC = () => {
   }, [loadPermissions]);
 
   const getPermission = (featureId: GlobalFeature): GlobalFeaturePermission => {
-    const defaultAccessLevel: AccessLevel =
-      featureId === 'embed-mini-app' ? 'admin' : 'public';
+    const defaultAccessLevel: AccessLevel = ADMIN_ONLY_DEFAULT_FEATURES.has(
+      featureId
+    )
+      ? 'admin'
+      : 'public';
 
     // Set smart default limits
     let defaultLimit = 20;
@@ -466,15 +546,19 @@ export const GlobalPermissionsManager: React.FC = () => {
     featureId: GlobalFeature,
     updates: Partial<GlobalFeaturePermission>
   ) => {
-    const current = getPermission(featureId);
-    const updated = { ...current, ...updates };
-    setPermissions(new Map(permissions).set(featureId, updated));
-    setUnsavedChanges(new Set(unsavedChanges).add(featureId));
+    // Functional setState so rapid back-to-back calls (e.g. toggling several
+    // Assignment Mode widgets in one tick) all merge against the latest
+    // permissions/unsavedChanges instead of a stale closure.
+    setPermissions((prev) => {
+      const current = prev.get(featureId) ?? getPermission(featureId);
+      return new Map(prev).set(featureId, { ...current, ...updates });
+    });
+    setUnsavedChanges((prev) => new Set(prev).add(featureId));
   };
 
   const savePermission = async (featureId: GlobalFeature) => {
     try {
-      setSaving(new Set(saving).add(featureId));
+      setSaving((prev) => new Set(prev).add(featureId));
       const permission = getPermission(featureId);
 
       await setDoc(doc(db, 'global_permissions', featureId), permission);
@@ -573,7 +657,7 @@ export const GlobalPermissionsManager: React.FC = () => {
     return sorted.filter((feature) => {
       const perm = permissions.get(feature.id) ?? {
         featureId: feature.id,
-        accessLevel: (feature.id === 'embed-mini-app'
+        accessLevel: (ADMIN_ONLY_DEFAULT_FEATURES.has(feature.id)
           ? 'admin'
           : 'public') as AccessLevel,
         betaUsers: [] as string[],
@@ -702,6 +786,120 @@ export const GlobalPermissionsManager: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Assignment Modes */}
+      {(() => {
+        const assignmentPermission = getPermission('assignment-modes');
+        // `permission.config` is an admin-writable Firestore blob and could
+        // be any shape (a stale string, an array, etc.). Run it through the
+        // trust-boundary parser so the toggle UI never spreads a non-object
+        // into the saved config.
+        const config = parseAssignmentModesConfig(assignmentPermission.config);
+        const isSavingAssignment = saving.has('assignment-modes');
+        const hasUnsaved = unsavedChanges.has('assignment-modes');
+
+        const setMode = (widget: AssignmentWidgetKey, mode: AssignmentMode) => {
+          updatePermission('assignment-modes', {
+            accessLevel: 'public',
+            enabled: true,
+            config: { ...config, [widget]: mode },
+          });
+        };
+
+        return (
+          <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
+                <ClipboardCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-800 text-lg">
+                  Assignment Modes
+                </h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Choose whether each student-facing widget collects submissions
+                  or only generates view-only share links. Mode is locked at
+                  assignment creation, so flipping a toggle only affects new
+                  assignments.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {ASSIGNMENT_WIDGETS.map(({ key, label, description, Icon }) => {
+                const currentMode: AssignmentMode =
+                  config[key] === 'view-only' ? 'view-only' : 'submissions';
+
+                return (
+                  <div
+                    key={key}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <Icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-slate-800">
+                          {label}
+                        </div>
+                        <div className="text-xs text-slate-500 leading-snug">
+                          {description}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setMode(key, 'submissions')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          currentMode === 'submissions'
+                            ? 'bg-brand-blue-primary text-white shadow-sm'
+                            : 'text-slate-600 hover:text-slate-800'
+                        }`}
+                        aria-pressed={currentMode === 'submissions'}
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        Submissions
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMode(key, 'view-only')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          currentMode === 'view-only'
+                            ? 'bg-brand-blue-primary text-white shadow-sm'
+                            : 'text-slate-600 hover:text-slate-800'
+                        }`}
+                        aria-pressed={currentMode === 'view-only'}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View only
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => savePermission('assignment-modes')}
+              disabled={isSavingAssignment || !hasUnsaved}
+              className={`mt-4 w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-md disabled:opacity-50 ${
+                hasUnsaved
+                  ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                  : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+              }`}
+            >
+              {isSavingAssignment ? (
+                'Saving...'
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {hasUnsaved ? 'Save Changes' : 'Settings Up-to-Date'}
+                </>
+              )}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">

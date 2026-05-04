@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-04-24_
+_Last audited: 2026-05-01_
 _Last action: never_
 
 ---
@@ -55,6 +55,13 @@ _Nothing currently in progress._
 - **File:** functions/src/index.ts:1714 (line number shifts with function additions)
 - **Detail:** The `generateVideoActivity` function selects a model with `perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`. This duplicates the literal string defined by the `DEFAULT_STANDARD_MODEL` constant at line 97. If the default model is updated, this line will not automatically follow.
 - **Fix:** Replace the hardcoded string with `DEFAULT_STANDARD_MODEL`: `perm.config?.model ?? DEFAULT_STANDARD_MODEL`.
+
+### LOW `dashboard-layout` has no server-side per-feature rate limit or specific permission ID
+
+- **Detected:** 2026-05-01
+- **File:** functions/src/index.ts (generateWithAI), components/layout/dock/MagicLayoutModal.tsx
+- **Detail:** The `dashboard-layout` generation type has a client-side feature permission gate (`canAccessFeature('magic-layout')` in `MagicLayoutModal.tsx`) but no `specificFeatureId` assignment in the cloud function's rate-limit transaction. This means it shares the global daily `gemini-functions` quota but has no per-feature daily limit or admin-toggleable specific permission. An admin cannot restrict `dashboard-layout` usage independently of the global AI permission. Additionally, if the client-side gate is bypassed (e.g. direct API call), the cloud function will not reject the request based on a `magic-layout` feature check — only the global rate limit applies. This is similar to the existing MEDIUM finding for `instructional-routine`, but lower severity because the client-side gate does exist.
+- **Fix:** Add `if (genType === 'dashboard-layout') specificFeatureId = 'magic-layout';` in the `generateWithAI` cloud function alongside the other `specificFeatureId` assignments. The `'magic-layout'` feature is already defined in `types.ts` and `components/admin/GlobalPermissionsManager.tsx`, so only the cloud function change is needed to link server-side rate limiting to the existing permission.
 
 ### LOW RevealGrid "Sparkles" button uses AI icon for a paste-import feature
 

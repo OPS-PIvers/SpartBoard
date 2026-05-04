@@ -294,3 +294,29 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1414 head SHA `693ebf39` — unchanged since 2026-04-25; 4 files
   - PR #1366 head SHA `af5c4043` — unchanged since 2026-04-28; 1 file (doc-only)
   - Branch-safety: PR #1445 head `dev-paul` matches `dev-*` pattern → no pushes attempted; reply-only on its 2 unresolved comments. The other 3 PRs were eligible for pushes but none required code fixes this run.
+
+## 2026-05-01
+
+- PRs reviewed:
+  - #1470 — refactor(dashboard): extract mergeWidgetConfig + Friday 2026-05-01 audit (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+  - #1469 — feat(navigation): replace top-toolbar board picker with bottom-left FAB cluster (head `claude/redesign-board-navigation-gCWoW`, base `dev-paul`)
+  - #1468 — chore(pr1466-cleanup): refactor effect-based ref reset, setState deferral, and Drive error classification (head `feature/pr1466-cleanup`, base `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 9 total — 4 fixed (PR #1366 doc improvements bundled into one commit), 5 explained
+  - PR #1470: 1 outdated inline thread (gemini-code-assist on `ai-integration.md` wording for the `magic-layout` fix description) — reply-explained, no code change (wording suggestion, comment is outdated, the actual implementation when this finding is acted on will be a single-line `functions/src/index.ts` change)
+  - PR #1469: 10 inline threads — most outdated and addressed in subsequent commits on the branch (role=menu instead of listbox, focus management on open/close, full keyboard handler, useCallback wrapping of click-outside handler, focus-visible rings on menu items, length-truncation cleanup of itemRefs); 2 still-open threads reply-explained pointing at the addressing lines; 1 (gemini high-priority on music FAB opposite-side placement) declined by author with prior rationale, no further action
+  - PR #1468: 2 unresolved inline threads (copilot suggesting `useRef` over `useState` for `prevUid` / `prevSessionId`) — both reply-explained: the `useState`-based "adjusting state while rendering" pattern is React's documented approach (per `CLAUDE.md`) and the synchronous re-render is intentional to avoid one-frame stale-data flashes
+  - PR #1366: 4 issue-level comments from prior review rounds (Step 3 grep case-sensitivity, Steps 3/4 ordering, Step 5 missing `git add` / `git rebase --continue`, Step 4 `--ignore-all-space` over-broad) — all 4 fixed in a single commit on the branch
+- Fixes pushed:
+  - PR #1366 → `docs/line-endings-normalization-plan` branch: commit `da8f094` `docs(pr-1366): apply 4 review fixes to line-endings normalization plan` — Steps 3/4 swapped (verification now precedes squash-hash PR step), `SQUASH_HASH` lookup uses `grep -i` plus an explicit empty-hash hard-fail guard, verify-diff drops `--ignore-all-space` in favor of `--ignore-cr-at-eol` alone, rebase-conflict remediation adds the previously-missing `git add <file>` and `git rebase --continue` calls; format:check clean
+- Reviews posted: 4
+  - PR #1470: Ready — clean extract-method refactor of duplicated four-layer config merge into `mergeWidgetConfig` helper in `utils/widgetConfigPersistence.ts`; both `addWidget` and `addWidgets` delegate to it; 3 new unit tests cover layer ordering, transient-key stripping, all-undefined inputs; touches `DashboardContext.tsx` (regression-risk file) but layer order is preserved byte-for-byte; manual smoke of add-widget + AI-paste flows still unchecked in PR test plan
+  - PR #1469: Ready with minor notes — 209-line new `BoardNavFab.tsx` with strong accessibility (role=menu, aria-labelledby, full keyboard nav, focus management, focus-visible rings), help-FAB stacking refactored from nested ternary to named-variable IIFE, dead board-switcher state/refs/effects removed from `Sidebar.tsx`; missing test coverage for the new component flagged as non-blocking follow-up; deliberate "all FABs on one edge" design choice noted (author already declined the music-FAB-opposite-side alternative)
+  - PR #1468: Ready — three pattern-compliance refactors per `CLAUDE.md`: `prevSessionId`/`prevUid` "adjusting state while rendering" replaces `useEffect`-only-resets-refs, `shouldSubscribe` boolean replaces `setTimeout(..., 0)` deferral, `DriveAuthError` marker class enables `instanceof`-first classification with message-matching fallback preserved; backwards-compatible; 1678 tests pass per PR description
+  - PR #1366: Ready — doc-only, all 4 earlier issue-level comments now addressed in `da8f094`; plan in better shape than at any prior review (operator-friendly step ordering, hard-fail squash-hash capture, accurate verify-diff, complete rebase remediation); execution still gated on "no open PRs" precondition (4 open today, including this PR)
+- Notes:
+  - PR #1470 head SHA `ac945ca1` — 7 files (4 audit docs + `DashboardContext.tsx` + `widgetConfigPersistence.ts` + test file); CI status pending at review time per github status API
+  - PR #1469 head SHA `ad85e87f` — 7 files (1 new component + `DashboardView.tsx` + `Sidebar.tsx` + 4 locales)
+  - PR #1468 head SHA `0cf76282` — 4 files (`QuizLiveMonitor.tsx` + `SavedWidgetsContext.tsx` + `driveAuthErrors.ts` + test file)
+  - PR #1366 head SHA `da8f0946` (was `af5c4043` before this run) — added one commit in this run
+  - Branch-safety: no head branches match `main` or `dev-*`; all 4 PRs eligible for pushes; only PR #1366 received a push this run

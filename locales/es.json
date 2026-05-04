@@ -14,6 +14,21 @@
     "upload": "Subir",
     "clearAll": "Borrar Todo"
   },
+  "boardNav": {
+    "previous": "Tablero anterior",
+    "next": "Tablero siguiente",
+    "selectBoard": "Seleccionar tablero",
+    "boardList": "Todos los tableros"
+  },
+  "boardZoom": {
+    "zoomLevel": "Zoom",
+    "slider": "Nivel de zoom",
+    "reset": "Restablecer al 100%",
+    "preset50": "50%",
+    "preset100": "100%",
+    "preset200": "200%",
+    "preset500": "500%"
+  },
   "sidebar": {
     "header": {
       "classroomManager": "SpartBoard",
@@ -26,6 +41,8 @@
       "adminSettings": "Configuración Admin",
       "enterFullscreen": "Pantalla Completa",
       "exitFullscreen": "Salir de Pantalla Completa",
+      "annotateScreen": "Anotar Pantalla",
+      "stopAnnotating": "Detener Anotación",
       "clearAllWindows": "Cerrar Todas las Ventanas",
       "switchBoards": "Cambiar Tableros",
       "hideBoards": "Ocultar Tableros",
@@ -440,7 +457,7 @@
     },
     "dashboard": {
       "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
-      "switchBoardsHint": "Usa el selector de tableros en la barra de herramientas superior"
+      "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
     }
   }
 }

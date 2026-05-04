@@ -32,7 +32,25 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  updateDoc: vi.fn(),
   writeBatch: vi.fn(),
+}));
+
+// Mock the synced-quiz integration so the hook tests don't pull a real
+// Firestore listener or Cloud Function callable into scope. The mocks
+// expose `vi.fn()` shims so individual tests can override per-call
+// behavior (e.g. canonical content for syncAssignmentToLatest).
+vi.mock('@/hooks/useSyncedQuizGroups', () => ({
+  callJoinSyncedQuizGroup: vi.fn(),
+  callLeaveSyncedQuizGroup: vi.fn(),
+  createSyncedQuizGroup: vi.fn(),
+  pullSyncedQuizContent: vi.fn(),
+  publishSyncedQuiz: vi.fn(),
+  useSyncedQuizGroupsByIds: vi.fn(() => ({
+    groups: new Map(),
+    loading: false,
+  })),
+  SyncedQuizVersionConflictError: class extends Error {},
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -744,5 +762,248 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
     const patch = findAssignmentPatch();
     expect(patch).not.toHaveProperty('plc');
     expect(mockDeleteField).not.toHaveBeenCalled();
+  });
+});
+
+describe('useQuizAssignments - syncAssignmentToLatest', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('returns updated:false without writing when the assignment is not synced', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        // no syncGroupId — copy-mode assignment
+      }),
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let outcome: Awaited<
+      ReturnType<typeof result.current.syncAssignmentToLatest>
+    > = { updated: false, version: 0, taggedResponseCount: 0 };
+    await act(async () => {
+      outcome = await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(outcome).toEqual({
+      updated: false,
+      version: 0,
+      taggedResponseCount: 0,
+    });
+    // No batch should have been opened — the early return precedes any
+    // write activity.
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('returns updated:false when the canonical version is not ahead of the assignment snapshot', async () => {
+    // Pull the synced-quizzes module so we can override the per-call
+    // mock without touching the global `vi.mock` factory.
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Quiz Title',
+      questions: [
+        {
+          id: 'q0',
+          text: 'Q0',
+          type: 'MC',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b', 'c', 'd'],
+          timeLimit: 30,
+        },
+      ],
+      version: 3,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 3 },
+      }),
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let outcome: Awaited<
+      ReturnType<typeof result.current.syncAssignmentToLatest>
+    > = { updated: false, version: 0, taggedResponseCount: 0 };
+    await act(async () => {
+      outcome = await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(outcome).toEqual({
+      updated: false,
+      version: 3,
+      taggedResponseCount: 0,
+    });
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds the session questions, bumps assignment.syncedVersion, and tags pre-existing responses', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    const newQuestions = [
+      {
+        id: 'q0',
+        text: 'Q0',
+        type: 'MC' as const,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c', 'd'],
+        timeLimit: 30,
+      },
+      {
+        id: 'q1',
+        text: 'Q1',
+        type: 'MC' as const,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c', 'd'],
+        timeLimit: 30,
+      },
+    ];
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'Updated Title',
+      questions: newQuestions,
+      version: 4,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        quizTitle: 'Old Title',
+        sync: { groupId: 'group-1', syncedVersion: 3 },
+      }),
+    });
+    // Two existing responses: one in-progress, one completed. Both should
+    // be tagged with the OLD syncedVersion (3) since neither is at or
+    // beyond the new version.
+    const responseRef1 = { id: 'r1' };
+    const responseRef2 = { id: 'r2' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        { ref: responseRef1, data: () => ({ status: 'in-progress' }) },
+        { ref: responseRef2, data: () => ({ status: 'completed' }) },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let outcome: Awaited<
+      ReturnType<typeof result.current.syncAssignmentToLatest>
+    > = { updated: false, version: 0, taggedResponseCount: 0 };
+    await act(async () => {
+      outcome = await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(outcome).toEqual({
+      updated: true,
+      version: 4,
+      taggedResponseCount: 2,
+    });
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall) {
+      throw new Error('expected batch.update on assignment doc');
+    }
+    // Title is intentionally NOT overwritten — the teacher's local
+    // quiz title is independent of the canonical synced title.
+    expect(assignmentCall[1]).toMatchObject({
+      sync: { groupId: 'group-1', syncedVersion: 4 },
+    });
+    expect(assignmentCall[1]).not.toHaveProperty('quizTitle');
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) {
+      throw new Error('expected batch.update on session doc');
+    }
+    expect(sessionCall[1]).toMatchObject({ totalQuestions: 2 });
+    expect(sessionCall[1]).not.toHaveProperty('quizTitle');
+    // publicQuestions is rebuilt — verify the count and the no-correctAnswer
+    // shape (toPublicQuestion strips the answer key + shuffles MC choices).
+    const publicQuestions = (sessionCall[1] as { publicQuestions: unknown[] })
+      .publicQuestions;
+    expect(publicQuestions).toHaveLength(2);
+
+    // Both response docs must be tagged with the OLD syncedVersion so the
+    // results UI can render the "answered before v4" chip.
+    expect(batchUpdate).toHaveBeenCalledWith(responseRef1, {
+      preSyncVersion: 3,
+    });
+    expect(batchUpdate).toHaveBeenCalledWith(responseRef2, {
+      preSyncVersion: 3,
+    });
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('queries only responses with preSyncVersion == 0 (server-side skip of already-tagged rows)', async () => {
+    const { pullSyncedQuizContent } =
+      await import('@/hooks/useSyncedQuizGroups');
+    (pullSyncedQuizContent as Mock).mockResolvedValueOnce({
+      title: 'T',
+      questions: [],
+      version: 5,
+    });
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        id: ASSIGNMENT_ID,
+        teacherUid: TEACHER_UID,
+        sync: { groupId: 'group-1', syncedVersion: 4 },
+      }),
+    });
+    const refFresh = { id: 'fresh' };
+    // The server-side `where('preSyncVersion', '==', 0)` query returns
+    // only responses that have never been tagged — already-tagged
+    // docs are filtered out at the Firestore boundary, so they never
+    // reach the client. We simulate that by only including the
+    // untagged fresh response in the mock result.
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [{ ref: refFresh, data: () => ({ status: 'completed' }) }],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let outcome: Awaited<
+      ReturnType<typeof result.current.syncAssignmentToLatest>
+    > = { updated: false, version: 0, taggedResponseCount: 0 };
+    await act(async () => {
+      outcome = await result.current.syncAssignmentToLatest(ASSIGNMENT_ID);
+    });
+
+    expect(outcome.taggedResponseCount).toBe(1);
+    // The query was called with the right where-clause: `== 0`.
+    // Verifies the server-side filter shape, not just that the
+    // function returned the right count.
+    const { where } = await import('firebase/firestore');
+    expect(where).toHaveBeenCalledWith('preSyncVersion', '==', 0);
+    // The fresh untagged doc gets tagged.
+    const updatedRefs = batchUpdate.mock.calls.map(
+      (call: unknown[]) => call[0]
+    );
+    expect(updatedRefs).toContain(refFresh);
   });
 });

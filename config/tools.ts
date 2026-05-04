@@ -51,6 +51,31 @@ import { ToolMetadata } from '../types';
 import { RecordIcon } from '../components/layout/dock/RecordIcon';
 import { First5Icon } from '../components/widgets/First5/First5Icon';
 
+/**
+ * TOOLS is the Dock-facing catalog of user-selectable widgets. It is
+ * intentionally NOT exhaustive over the `WidgetType` union — several
+ * `WidgetType`s are registered in `WIDGET_COMPONENTS`, `widgetDefaults.ts`,
+ * etc., but are deliberately excluded here because they cannot be added
+ * directly from the Dock:
+ *
+ *   - `catalyst-instruction`, `catalyst-visual` — companion sub-widgets
+ *     spawned programmatically by the `catalyst` widget.
+ *   - `blooms-detail` — read-only companion widget spawned by the
+ *     `blooms-taxonomy` widget.
+ *   - `mathTool` — individual math-tool instance spawned by the
+ *     `mathTools` palette (the palette itself IS in the Dock).
+ *   - `custom-widget` — created via the Custom Widget system, surfaced in
+ *     the Dock through `CustomWidgetsContext`, not through this catalog.
+ *   - `onboarding` — one-time system widget that is added automatically
+ *     for new users; never user-selectable.
+ *   - `sticker` — handled via a hard-coded branch in
+ *     `WidgetRenderer.tsx`; spawned by the `stickers` (StickerBook) widget.
+ *
+ * If you add a new `WidgetType` that is meant to be user-selectable, add an
+ * entry below. If it is programmatically spawned, add it to the list above
+ * instead of this array so future maintainers know it was an intentional
+ * omission.
+ */
 export const TOOLS: ToolMetadata[] = [
   {
     type: 'url',

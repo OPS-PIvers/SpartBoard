@@ -202,7 +202,7 @@ export function AssignmentArchiveCard<TAssignment>({
   const tone = TONE_STYLES[status.tone];
   const isArchive = mode === 'archive';
 
-  const PrimaryIcon = primaryAction.icon;
+  const PrimaryIcon = primaryAction?.icon;
 
   const cardClass = isArchive
     ? 'bg-white/70 border-slate-200/60 opacity-70'
@@ -258,19 +258,22 @@ export function AssignmentArchiveCard<TAssignment>({
           {status.label}
         </div>
 
-        {/* Primary action */}
-        <button
-          type="button"
-          onClick={primaryAction.onClick}
-          disabled={primaryAction.disabled}
-          title={
-            primaryAction.disabled ? primaryAction.disabledReason : undefined
-          }
-          className="flex items-center gap-1 shrink-0 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
-          <span>{primaryAction.label}</span>
-        </button>
+        {/* Primary action — omitted on archived view-only cards where the
+            link is dead and a Copy button would be misleading. */}
+        {primaryAction && (
+          <button
+            type="button"
+            onClick={primaryAction.onClick}
+            disabled={primaryAction.disabled}
+            title={
+              primaryAction.disabled ? primaryAction.disabledReason : undefined
+            }
+            className="flex items-center gap-1 shrink-0 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
+            <span>{primaryAction.label}</span>
+          </button>
+        )}
 
         {/* Overflow menu */}
         {secondaryActions && secondaryActions.length > 0 && (
