@@ -476,6 +476,8 @@ export interface UrlWidgetConfig {
     title?: string;
     color?: string;
     icon?: string;
+    shape?: 'rectangle' | 'circle';
+    imageUrl?: string;
   }[];
 }
 

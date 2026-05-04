@@ -3,13 +3,18 @@ import { Link, QrCode, X, ArrowLeft, Check } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
+import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import {
   URL_ICONS,
-  URL_COLORS,
   DEFAULT_URL_ICON_ID,
   DEFAULT_URL_COLOR,
   getUrlIcon,
 } from '@/components/widgets/UrlWidget/icons';
+import { LinkBackgroundInput } from '@/components/widgets/UrlWidget/LinkBackgroundInput';
+import {
+  LinkShapePicker,
+  type LinkShape,
+} from '@/components/widgets/UrlWidget/LinkShapePicker';
 
 export type UrlPickerSelection =
   | { type: 'qr' }
@@ -18,6 +23,8 @@ export type UrlPickerSelection =
       title?: string;
       icon: string;
       color: string;
+      shape: LinkShape;
+      imageUrl?: string;
     };
 
 interface UrlPickerModalProps {
@@ -39,6 +46,8 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
   const [title, setTitle] = useState('');
   const [iconId, setIconId] = useState(DEFAULT_URL_ICON_ID);
   const [color, setColor] = useState(DEFAULT_URL_COLOR);
+  const [shape, setShape] = useState<LinkShape>('rectangle');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   const preview =
     url.length > PREVIEW_MAX_LENGTH
@@ -51,8 +60,13 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
       title: title.trim() || undefined,
       icon: iconId,
       color,
+      shape,
+      imageUrl,
     });
   };
+
+  const hasSafeImage = imageUrl ? isSafeIconUrl(imageUrl) : false;
+  const isCircle = shape === 'circle';
 
   return (
     <Modal isOpen={true} onClose={onClose} variant="bare" zIndex="z-critical">
@@ -81,7 +95,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
               <p className="text-xs text-slate-500 mt-0.5 font-bold">
                 {stage === 'choose'
                   ? 'Pick a widget type for this link'
-                  : 'Set a title, icon, and color'}
+                  : 'Set a title, shape, icon, and background'}
               </p>
             </div>
           </div>
@@ -145,18 +159,46 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
             {/* Live preview */}
             <div className="flex items-center justify-center">
               <div
-                className="flex flex-col items-center justify-center w-32 h-24 rounded-2xl border border-white/30 shadow-md"
-                style={{ backgroundColor: color }}
+                className={`relative overflow-hidden flex flex-col items-center justify-center border border-white/30 shadow-md ${
+                  isCircle ? 'w-24 h-24 rounded-full' : 'w-32 h-24 rounded-2xl'
+                }`}
+                style={{
+                  backgroundColor: hasSafeImage ? '#1e293b' : color,
+                }}
               >
-                {(() => {
-                  const Picked = getUrlIcon(iconId);
-                  return (
-                    <Picked className="w-8 h-8 text-white drop-shadow-sm" />
-                  );
-                })()}
-                <span className="font-black text-white text-sm mt-1 drop-shadow-md break-words text-center px-2 line-clamp-2">
-                  {title.trim() || 'Sample'}
-                </span>
+                {hasSafeImage && (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                  />
+                )}
+                {hasSafeImage ? (
+                  <span
+                    className="absolute left-0 right-0 bottom-0 z-10 font-black text-white text-xs text-center leading-tight px-2 py-1.5"
+                    style={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.42)',
+                      backdropFilter: 'blur(4px)',
+                      WebkitBackdropFilter: 'blur(4px)',
+                    }}
+                  >
+                    {title.trim() || 'Sample'}
+                  </span>
+                ) : (
+                  (() => {
+                    const Picked = getUrlIcon(iconId);
+                    return (
+                      <>
+                        <Picked className="w-8 h-8 text-white drop-shadow-sm" />
+                        <span className="font-black text-white text-sm mt-1 drop-shadow-md break-words text-center px-2 line-clamp-2">
+                          {title.trim() || 'Sample'}
+                        </span>
+                      </>
+                    );
+                  })()
+                )}
               </div>
             </div>
 
@@ -176,6 +218,14 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                 placeholder="e.g. Class Website"
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
               />
+            </div>
+
+            {/* Shape picker */}
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1.5 uppercase tracking-widest">
+                Shape
+              </label>
+              <LinkShapePicker shape={shape} onChange={setShape} />
             </div>
 
             {/* Icon picker */}
@@ -204,28 +254,19 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
               </div>
             </div>
 
-            {/* Color picker */}
+            {/* Background — color or image */}
             <div>
               <label className="block text-xs font-black text-slate-700 mb-1.5 uppercase tracking-widest">
-                Color
+                Background
               </label>
-              <div className="flex flex-wrap gap-2">
-                {URL_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
-                    aria-label={`Color ${c}`}
-                    aria-pressed={color === c}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      color === c
-                        ? 'border-slate-800 scale-110 shadow-sm'
-                        : 'border-transparent hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
+              <LinkBackgroundInput
+                color={color}
+                imageUrl={imageUrl}
+                onChange={({ color: nextColor, imageUrl: nextImage }) => {
+                  if (nextColor !== undefined) setColor(nextColor);
+                  setImageUrl(nextImage);
+                }}
+              />
             </div>
 
             {/* Confirm button */}

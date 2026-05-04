@@ -1,15 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { UrlWidget } from './Widget';
 import { WidgetData, UrlWidgetConfig } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
 
-// Mock the context
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-
-const mockAddWidget = vi.fn();
 let mockOpen: ReturnType<typeof vi.spyOn>;
 
 const createMockWidget = (
@@ -39,10 +32,6 @@ const createMockWidget = (
 describe('UrlWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as Mock).mockReturnValue({
-      addWidget: mockAddWidget,
-    });
-    // Mock window.open
     mockOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
@@ -70,16 +59,68 @@ describe('UrlWidget', () => {
     );
   });
 
-  it('spawns a QR widget when QrCode button is clicked', () => {
+  it('does not render a corner Create QR Code button (paste flow handles QR choice)', () => {
     const widget = createMockWidget();
     render(<UrlWidget widget={widget} />);
 
-    // Find the create QR code button
-    const qrCodeButton = screen.getByTitle('Create QR Code');
-    fireEvent.click(qrCodeButton);
+    expect(screen.queryByTitle('Create QR Code')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Create QR Code')).not.toBeInTheDocument();
+  });
 
-    expect(mockAddWidget).toHaveBeenCalledWith('qr', {
-      config: { url: 'https://example.com' },
+  it('renders an image-background tile (with bottom text plate) when imageUrl is set', () => {
+    const widget = createMockWidget({
+      urls: [
+        {
+          id: 'url-img',
+          url: 'https://example.com',
+          title: 'With Image',
+          imageUrl: 'https://images.example.com/photo.jpg',
+        },
+      ],
     });
+    const { container } = render(<UrlWidget widget={widget} />);
+
+    const img = container.querySelector(
+      'img[src="https://images.example.com/photo.jpg"]'
+    );
+    expect(img).not.toBeNull();
+    expect(screen.getByText('With Image')).toBeInTheDocument();
+  });
+
+  it('does NOT render an image when imageUrl uses an unsafe (non-https) protocol', () => {
+    const widget = createMockWidget({
+      urls: [
+        {
+          id: 'url-bad',
+          url: 'https://example.com',
+          title: 'Unsafe',
+          imageUrl: 'http://insecure.example.com/photo.jpg',
+        },
+      ],
+    });
+    const { container } = render(<UrlWidget widget={widget} />);
+
+    const img = container.querySelector(
+      'img[src^="http://insecure.example.com"]'
+    );
+    expect(img).toBeNull();
+  });
+
+  it('applies a circular shape when shape is "circle"', () => {
+    const widget = createMockWidget({
+      urls: [
+        {
+          id: 'url-circle',
+          url: 'https://example.com',
+          title: 'Round',
+          color: '#ef4444',
+          shape: 'circle',
+        },
+      ],
+    });
+    const { container } = render(<UrlWidget widget={widget} />);
+
+    const circle = container.querySelector('.rounded-full.aspect-square');
+    expect(circle).not.toBeNull();
   });
 });

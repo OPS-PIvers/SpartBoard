@@ -73,6 +73,19 @@ const POSITION_AWARE_WIDGETS: WidgetType[] = [
   'catalyst-visual',
 ];
 
+// Default min size all widgets shrink to during resize.
+const DEFAULT_MIN_W = 150;
+const DEFAULT_MIN_H = 100;
+
+// Per-widget overrides — used for widget types that intentionally need to
+// shrink smaller than the default floor (e.g. URL bookmarks meant to feel
+// like a floating icon on the board).
+const WIDGET_MIN_SIZE_OVERRIDES: Partial<
+  Record<WidgetType, { w: number; h: number }>
+> = {
+  url: { w: 80, h: 80 },
+};
+
 const INTERACTIVE_ELEMENTS_SELECTOR =
   'button, input, textarea, select, canvas, iframe, label, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"], .cursor-pointer, [contenteditable="true"]';
 
@@ -1055,6 +1068,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const startY = e.clientY;
     const startPosX = widget.x;
     const startPosY = widget.y;
+    const minW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
+    const minH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
 
     const targetElement = e.currentTarget as HTMLElement;
     try {
@@ -1082,21 +1097,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         let newY = startPosY;
 
         if (direction.includes('e')) {
-          newW = Math.max(150, startW + dx);
+          newW = Math.max(minW, startW + dx);
         }
         if (direction.includes('w')) {
           const potentialW = startW - dx;
-          if (potentialW >= 150) {
+          if (potentialW >= minW) {
             newW = potentialW;
             newX = startPosX + dx;
           }
         }
         if (direction.includes('s')) {
-          newH = Math.max(100, startH + dy);
+          newH = Math.max(minH, startH + dy);
         }
         if (direction.includes('n')) {
           const potentialH = startH - dy;
-          if (potentialH >= 100) {
+          if (potentialH >= minH) {
             newH = potentialH;
             newY = startPosY + dy;
           }
@@ -1124,8 +1139,8 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const wb = getWorldBounds(vw, vh);
         const availableW = Math.max(0, wb.maxX - newX);
         const availableH = Math.max(0, wb.maxY - newY);
-        newW = Math.max(Math.min(150, availableW), Math.min(newW, availableW));
-        newH = Math.max(Math.min(100, availableH), Math.min(newH, availableH));
+        newW = Math.max(Math.min(minW, availableW), Math.min(newW, availableW));
+        newH = Math.max(Math.min(minH, availableH), Math.min(newH, availableH));
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (

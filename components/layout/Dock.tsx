@@ -823,6 +823,8 @@ export const Dock: React.FC = () => {
                       title: selection.title,
                       icon: selection.icon,
                       color: selection.color,
+                      shape: selection.shape,
+                      imageUrl: selection.imageUrl,
                     },
                   ],
                 },
