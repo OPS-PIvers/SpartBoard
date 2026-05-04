@@ -41,7 +41,10 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <WidgetLayout
       padding="p-0"
       content={
-        <div className="h-full w-full flex flex-col overflow-hidden">
+        <div
+          className="h-full w-full flex flex-col overflow-hidden"
+          style={{ padding: 'min(4px, 1cqmin)' }}
+        >
           <div className="flex-1 min-h-0">
             <div
               className="grid h-full w-full"
