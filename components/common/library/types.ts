@@ -111,6 +111,25 @@ export interface LibraryBadge {
   tone: LibraryBadgeTone;
   /** Optional dot indicator (used for live/paused pulses on archive cards). */
   dot?: boolean;
+  /**
+   * When set, the badge renders as an interactive button (with hover/focus
+   * states and ARIA) that triggers this on click. Click propagation is
+   * stopped so the card body's `onClick` doesn't also fire. Omit for
+   * purely informational badges (the default).
+   */
+  onClick?: () => void;
+  /**
+   * Accessible name + tooltip when the badge is actionable. Required when
+   * `onClick` is set so screen readers get a verb-phrase ("Sync now")
+   * rather than the status label ("Sync available").
+   */
+  actionLabel?: string;
+  /** Optional leading icon (e.g. RefreshCw for "Sync available"). */
+  icon?: React.ComponentType<{
+    size?: number;
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
 }
 
 /** A sort option surfaced in the toolbar sort dropdown. */

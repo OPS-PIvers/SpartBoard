@@ -529,11 +529,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [googleAccessToken]);
 
-  // Listen to user roles
+  // Listen to user roles + app settings.
+  //
+  // Both docs live under `/admin_settings/*`, which Firestore rules restrict
+  // to admins (firestore.rules: `match /admin_settings/{document=**}` requires
+  // isAdmin()). Subscribing for non-admins fired permission-denied errors on
+  // every page load. Gate on `isAdmin === true` so the listeners only attach
+  // once admin status has resolved positively; for `null` (loading) and
+  // `false` (non-admin) we clear any stale config and stay quiet.
   useEffect(() => {
     if (isAuthBypass) return;
-    if (!user) {
+    if (!user || isAdmin !== true) {
       setUserRoles(null);
+      setAppSettings(null);
       return;
     }
 
@@ -569,17 +577,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       unsubscribe();
       appSettingsUnsubscribe();
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   // Check if user is admin
   useEffect(() => {
     if (isAuthBypass) return;
 
+    // Reset to the loading state immediately when the user changes so the
+    // settings listener effect (gated on isAdmin === true) doesn't act on
+    // stale admin status from a previous user during a sign-out → sign-in
+    // transition while AuthContext stays mounted.
+    setIsAdmin(null);
+
     const checkAdminStatus = async () => {
-      if (!user?.email) {
-        setIsAdmin(null);
-        return;
-      }
+      if (!user?.email) return;
 
       try {
         const adminDoc = await getDoc(

@@ -724,7 +724,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     if (!quiz.sync) return [];
     const group = syncedGroups?.get(quiz.sync.groupId);
     if (group && group.version > quiz.sync.lastSyncedVersion) {
-      return [{ label: 'Sync available', tone: 'warn' as const, dot: true }];
+      // Actionable badge: click pulls the canonical content into the local
+      // Drive replica. The kebab menu still surfaces a redundant "Sync
+      // available" item so keyboard / power users have a familiar path.
+      return [
+        {
+          label: 'Sync available',
+          tone: 'warn' as const,
+          dot: true,
+          icon: RefreshCw,
+          actionLabel: 'Sync now',
+          ...(onPullSyncedQuiz
+            ? { onClick: () => void onPullSyncedQuiz(quiz) }
+            : {}),
+        },
+      ];
     }
     return [{ label: 'Synced', tone: 'info' as const }];
   };
