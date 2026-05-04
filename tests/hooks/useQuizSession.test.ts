@@ -176,6 +176,30 @@ describe('gradeAnswer', () => {
       expect(grade.pointsEarned).toBeCloseTo(2, 5);
     });
 
+    it('Matching: duplicate same-pair submission cannot fake full credit', () => {
+      // Regression: an earlier set-membership grader scored "a:1|a:1" as
+      // matched=2/total=2 because both copies hit the correctSet. Per-left
+      // matching means each prompt is graded at most once.
+      const q: QuizQuestion = {
+        id: 'pm-dup',
+        timeLimit: 0,
+        text: 'Match',
+        type: 'Matching',
+        correctAnswer: 'a:1|b:2',
+        incorrectAnswers: [],
+        points: 2,
+      };
+      const grade = gradeAnswer(q, 'a:1|a:1');
+      expect(grade.isCorrect).toBe(false);
+      expect(grade.pointsEarned).toBe(0);
+
+      // And under partial credit, the dup answer earns 1/2, not 2/2.
+      const partialQ: QuizQuestion = { ...q, allowPartialCredit: true };
+      const partial = gradeAnswer(partialQ, 'a:1|a:1');
+      expect(partial.isCorrect).toBe(false);
+      expect(partial.pointsEarned).toBeCloseTo(1, 5);
+    });
+
     it('Matching: full-credit bonus path still produces isCorrect=true with partial enabled', () => {
       const q: QuizQuestion = {
         id: 'pm3',
@@ -403,8 +427,10 @@ describe('toPublicQuestion', () => {
     expect(pub.matchingRight).toEqual(
       expect.arrayContaining(['bark', 'meow', 'quack', 'oink'])
     );
-    // Distractor list copied through verbatim (for transparency / preview).
-    expect(pub.matchingDistractors).toEqual(['quack', 'oink']);
+    // Distractors must NOT appear as a separate field — exposing them in the
+    // student-readable session doc would let a student pop devtools and read
+    // off exactly which entries are wrong.
+    expect(pub).not.toHaveProperty('matchingDistractors');
   });
 
   it('splits Ordering into items without preserving order or correctAnswer', () => {

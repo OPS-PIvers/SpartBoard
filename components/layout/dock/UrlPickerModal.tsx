@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, QrCode, X, ArrowLeft, Check } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
+import { useStorage } from '@/hooks/useStorage';
 import {
   URL_ICONS,
   DEFAULT_URL_ICON_ID,
@@ -49,12 +50,43 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
   const [shape, setShape] = useState<LinkShape>('rectangle');
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
+  // If the teacher uploads a background image but then closes the modal or
+  // switches back to QR without confirming, the upload would otherwise stay
+  // as an orphaned blob in Drive/Storage. Track the staged URL and delete on
+  // unmount unless `handleConfirm` claimed it first.
+  const { deleteFile } = useStorage();
+  const stagedImageRef = useRef<string | undefined>(undefined);
+  const deleteFileRef = useRef(deleteFile);
+  useEffect(() => {
+    deleteFileRef.current = deleteFile;
+  }, [deleteFile]);
+  useEffect(() => {
+    stagedImageRef.current = imageUrl;
+  }, [imageUrl]);
+  useEffect(() => {
+    return () => {
+      const orphan = stagedImageRef.current;
+      if (orphan) {
+        void deleteFileRef.current(orphan).catch((err) => {
+          console.warn(
+            '[UrlPickerModal] Failed to clean up uncommitted image upload.',
+            err
+          );
+        });
+      }
+    };
+  }, []);
+
   const preview =
     url.length > PREVIEW_MAX_LENGTH
       ? url.slice(0, PREVIEW_MAX_LENGTH).trimEnd() + '…'
       : url;
 
   const handleConfirm = () => {
+    // The selected image is now owned by the caller (it gets persisted into a
+    // new URL widget). Clear the cleanup ref BEFORE notifying so the unmount
+    // effect can't race and delete a file the parent just took ownership of.
+    stagedImageRef.current = undefined;
     onSelect({
       type: 'url',
       title: title.trim() || undefined,

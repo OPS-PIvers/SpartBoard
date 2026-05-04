@@ -94,9 +94,9 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
       ...pairs.map((p) => p.right),
       ...distractors,
     ]);
-    if (distractors.length > 0) {
-      base.matchingDistractors = distractors;
-    }
+    // Do NOT copy `distractors` onto the public payload. The shuffled
+    // `matchingRight` already mixes them in; exposing the explicit list lets
+    // a student pop devtools and read off exactly which entries are wrong.
   } else if (q.type === 'Ordering') {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
   }
@@ -180,8 +180,29 @@ export function gradeAnswer(
   if (question.type === 'Matching') {
     const correctPairs = correct.split('|').map(normalizeAnswer);
     const givenPairs = given.split('|').map(normalizeAnswer);
-    const correctSet = new Set(correctPairs);
-    const matched = givenPairs.filter((p) => correctSet.has(p)).length;
+    // Build a left→right map from the answer key. Counting by full pair
+    // membership in a Set lets a student score full credit by repeating one
+    // correct pair (e.g. correct "a:1|b:2", given "a:1|a:1" → 2/2). Keying by
+    // left term ensures each prompt is graded at most once.
+    const splitPair = (p: string): [string, string] => {
+      const sep = p.indexOf(':');
+      return sep < 0 ? [p, ''] : [p.slice(0, sep), p.slice(sep + 1)];
+    };
+    const correctMap = new Map<string, string>();
+    for (const p of correctPairs) {
+      const [left, right] = splitPair(p);
+      correctMap.set(left, right);
+    }
+    const seenLefts = new Set<string>();
+    let matched = 0;
+    for (const p of givenPairs) {
+      const [left, right] = splitPair(p);
+      if (seenLefts.has(left)) continue;
+      seenLefts.add(left);
+      if (correctMap.has(left) && correctMap.get(left) === right) {
+        matched++;
+      }
+    }
     const total = correctPairs.length;
     const isCorrect = matched === total && givenPairs.length === total;
     if (!partial) {

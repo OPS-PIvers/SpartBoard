@@ -1835,15 +1835,13 @@ export interface QuizPublicQuestion {
   choices?: string[];
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
-  /** Matching only: right-side definitions, pre-shuffled */
-  matchingRight?: string[];
   /**
-   * Matching only: extra distractor definitions, pre-shuffled together with
-   * `matchingRight` server-side and copied here for transparency. Students
-   * receive the merged shuffled bank; the boundary between real definitions
-   * and distractors is invisible at render time.
+   * Matching only: right-side definitions, pre-shuffled and merged with any
+   * teacher-provided distractors. Distractors are intentionally NOT exposed
+   * as a separate field on the public payload — that would let a student
+   * read off the exact wrong options from devtools.
    */
-  matchingDistractors?: string[];
+  matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
 }

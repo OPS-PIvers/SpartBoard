@@ -14,8 +14,7 @@ import type { QuizPublicQuestion } from '@/types';
 
 function makeQuestion(
   matchingLeft: string[],
-  matchingRight: string[],
-  matchingDistractors?: string[]
+  matchingRight: string[]
 ): QuizPublicQuestion {
   return {
     id: 'q1',
@@ -24,7 +23,6 @@ function makeQuestion(
     timeLimit: 0,
     matchingLeft,
     matchingRight,
-    matchingDistractors,
   };
 }
 

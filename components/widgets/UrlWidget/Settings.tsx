@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useStorage } from '@/hooks/useStorage';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import {
@@ -41,6 +42,7 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboard();
+  const { deleteFile } = useStorage();
   const config = widget.config as UrlWidgetConfig;
   const urls = config.urls ?? [];
 
@@ -51,6 +53,32 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
   const [newIcon, setNewIcon] = useState(DEFAULT_URL_ICON_ID);
   const [newShape, setNewShape] = useState<LinkShape>('rectangle');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Track an "Add New Link" image upload that has not yet been committed via
+  // the Add Link button. If the panel unmounts (settings flipped, widget
+  // closed) while an uncommitted image is staged, delete it on the way out
+  // so we don't leak orphaned blobs in Drive/Storage.
+  const uncommittedImageRef = useRef<string | undefined>(undefined);
+  const deleteFileRef = useRef(deleteFile);
+  useEffect(() => {
+    deleteFileRef.current = deleteFile;
+  }, [deleteFile]);
+  useEffect(() => {
+    uncommittedImageRef.current = newImageUrl;
+  }, [newImageUrl]);
+  useEffect(() => {
+    return () => {
+      const orphan = uncommittedImageRef.current;
+      if (orphan) {
+        void deleteFileRef.current(orphan).catch((err) => {
+          console.warn(
+            '[UrlWidgetSettings] Failed to clean up uncommitted image upload.',
+            err
+          );
+        });
+      }
+    };
+  }, []);
 
   const update = (updates: Partial<UrlWidgetConfig>) => {
     updateWidget(widget.id, { config: { ...config, ...updates } });
@@ -79,6 +107,10 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
       imageUrl: newImageUrl,
     };
 
+    // Mark the staged image as committed BEFORE clearing state, so the
+    // unmount-cleanup effect can never race with us and delete a file we
+    // just persisted into the widget config.
+    uncommittedImageRef.current = undefined;
     update({ urls: [...urls, newItem] });
     setNewUrl('');
     setNewTitle('');
@@ -86,8 +118,19 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   const removeUrl = (id: string) => {
+    const removed = urls.find((u) => u.id === id);
     update({ urls: urls.filter((u) => u.id !== id) });
     if (expandedId === id) setExpandedId(null);
+    // Drop the link's uploaded background image too — otherwise it lingers
+    // as an orphaned blob in Drive/Storage every time someone removes a link.
+    if (removed?.imageUrl) {
+      void deleteFile(removed.imageUrl).catch((err) => {
+        console.warn(
+          '[UrlWidgetSettings] Failed to delete removed link image.',
+          err
+        );
+      });
+    }
   };
 
   const patchUrl = (
