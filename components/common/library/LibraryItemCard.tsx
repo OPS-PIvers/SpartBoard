@@ -37,24 +37,37 @@ import type {
 
 const BADGE_TONE_STYLES: Record<
   LibraryBadgeTone,
-  { bg: string; fg: string; dot: string }
+  { bg: string; fg: string; dot: string; hoverBg: string }
 > = {
-  neutral: { bg: 'bg-slate-100', fg: 'text-slate-600', dot: 'bg-slate-400' },
+  neutral: {
+    bg: 'bg-slate-100',
+    fg: 'text-slate-600',
+    dot: 'bg-slate-400',
+    hoverBg: 'hover:bg-slate-200',
+  },
   info: {
     bg: 'bg-brand-blue-lighter/40',
     fg: 'text-brand-blue-dark',
     dot: 'bg-brand-blue-primary',
+    hoverBg: 'hover:bg-brand-blue-lighter/60',
   },
-  warn: { bg: 'bg-amber-100', fg: 'text-amber-700', dot: 'bg-amber-500' },
+  warn: {
+    bg: 'bg-amber-100',
+    fg: 'text-amber-700',
+    dot: 'bg-amber-500',
+    hoverBg: 'hover:bg-amber-200',
+  },
   success: {
     bg: 'bg-emerald-100',
     fg: 'text-emerald-700',
     dot: 'bg-emerald-500',
+    hoverBg: 'hover:bg-emerald-200',
   },
   danger: {
     bg: 'bg-brand-red-lighter/40',
     fg: 'text-brand-red-dark',
     dot: 'bg-brand-red-primary',
+    hoverBg: 'hover:bg-brand-red-lighter/60',
   },
 };
 
@@ -231,19 +244,41 @@ const IconActionButton: React.FC<{ action: LibraryIconAction }> = ({
 
 const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
   const tone = BADGE_TONE_STYLES[badge.tone];
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`}
-    >
+  const Icon = badge.icon;
+  const baseClasses = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
+  const inner = (
+    <>
       {badge.dot && (
         <span
           className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}
           aria-hidden="true"
         />
       )}
+      {Icon && <Icon size={12} className="shrink-0" />}
       {badge.label}
-    </span>
+    </>
   );
+
+  if (badge.onClick) {
+    const handler = badge.onClick;
+    const accessibleLabel = badge.actionLabel ?? badge.label;
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          handler();
+        }}
+        title={accessibleLabel}
+        aria-label={accessibleLabel}
+        className={`${baseClasses} ${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <span className={baseClasses}>{inner}</span>;
 };
 
 /* ─── Inner card body (presentation only — no dnd-kit coupling) ───────────── */
