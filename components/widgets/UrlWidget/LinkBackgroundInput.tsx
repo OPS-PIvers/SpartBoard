@@ -9,6 +9,7 @@ import {
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { URL_COLORS } from './icons';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -200,44 +201,61 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
             onChange={handleFileChange}
           />
           {imageUrl ? (
-            <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg bg-white">
-              <img
-                src={imageUrl}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="w-12 h-12 rounded-md object-cover"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-slate-700 truncate">
-                  Custom image
+            (() => {
+              const safe = isSafeIconUrl(imageUrl);
+              return (
+                <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg bg-white">
+                  {safe ? (
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="w-12 h-12 rounded-md object-cover"
+                    />
+                  ) : (
+                    <div
+                      aria-hidden
+                      className="w-12 h-12 rounded-md bg-red-50 border border-red-200 flex items-center justify-center text-red-500"
+                      title="Image URL is not safe to load"
+                    >
+                      <ImageIcon size={18} />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-slate-700 truncate">
+                      {safe ? 'Custom image' : 'Unsafe image URL'}
+                    </div>
+                    <div className="text-xxs text-slate-400 truncate">
+                      {safe
+                        ? 'Saved to your Google Drive'
+                        : 'Remove and re-upload to fix.'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue-primary hover:bg-blue-50 transition-colors"
+                    title="Replace image"
+                  >
+                    {uploading ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Upload size={14} />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleClearImage()}
+                    disabled={uploading}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
+                    title="Remove image"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <div className="text-xxs text-slate-400 truncate">
-                  Saved to your Google Drive
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue-primary hover:bg-blue-50 transition-colors"
-                title="Replace image"
-              >
-                {uploading ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Upload size={14} />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleClearImage()}
-                disabled={uploading}
-                className="p-1.5 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
-                title="Remove image"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+              );
+            })()
           ) : (
             <button
               type="button"

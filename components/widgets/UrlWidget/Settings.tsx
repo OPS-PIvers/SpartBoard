@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import {
   URL_ICONS,
   DEFAULT_URL_ICON_ID,
@@ -178,7 +179,11 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
               const Icon = getUrlIcon(u.icon);
               const isExpanded = expandedId === u.id;
               const shape: LinkShape = u.shape ?? 'rectangle';
-              const previewBg = u.imageUrl
+              const safeImage =
+                u.imageUrl && isSafeIconUrl(u.imageUrl)
+                  ? u.imageUrl
+                  : undefined;
+              const previewBg = safeImage
                 ? undefined
                 : (u.color ?? DEFAULT_URL_COLOR);
               return (
@@ -194,9 +199,9 @@ export const UrlWidgetSettings: React.FC<{ widget: WidgetData }> = ({
                           previewBg ? { backgroundColor: previewBg } : undefined
                         }
                       >
-                        {u.imageUrl ? (
+                        {safeImage ? (
                           <img
-                            src={u.imageUrl}
+                            src={safeImage}
                             alt=""
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
