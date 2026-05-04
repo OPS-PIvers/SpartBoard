@@ -568,4 +568,129 @@ describe('DraggableWindow', () => {
       expect.objectContaining({ maximized: false })
     );
   });
+
+  describe('Resize handle priority zone', () => {
+    // Widget at x=100, y=100, w=200, h=200 → right=300, bottom=300.
+    // RESIZE_PRIORITY_INSET = 16, so the SE priority zone is
+    // clientX >= 284 AND clientY >= 284.
+    const WIDGET_RECT = {
+      x: 100,
+      y: 100,
+      left: 100,
+      top: 100,
+      right: 300,
+      bottom: 300,
+      width: 200,
+      height: 200,
+      toJSON: () => ({}),
+    } as DOMRect;
+
+    type ElementsFromPoint = (x: number, y: number) => Element[];
+    type DocWithElementsFromPoint = Document & {
+      elementsFromPoint?: ElementsFromPoint;
+    };
+
+    const getSeHandle = (): HTMLElementWithCapture => {
+      const el = document.querySelector('.cursor-se-resize');
+      if (!(el instanceof HTMLElement)) {
+        throw new Error('SE resize handle not found');
+      }
+      const handle = el as HTMLElementWithCapture;
+      handle.setPointerCapture = vi.fn();
+      handle.hasPointerCapture = vi.fn().mockReturnValue(true);
+      handle.releasePointerCapture = vi.fn();
+      return handle;
+    };
+
+    let getBoundingClientRectSpy: MockInstance;
+    let elementsFromPointMock: Mock;
+    let originalElementsFromPoint: ElementsFromPoint | undefined;
+
+    beforeEach(() => {
+      getBoundingClientRectSpy = vi
+        .spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockReturnValue(WIDGET_RECT);
+
+      // jsdom doesn't implement document.elementsFromPoint. Stub it directly
+      // so handleResizeStart's pass-through check has something to call.
+      const stubButton = document.createElement('button');
+      elementsFromPointMock = vi.fn().mockReturnValue([stubButton]);
+      const doc = document as DocWithElementsFromPoint;
+      originalElementsFromPoint = doc.elementsFromPoint;
+      doc.elementsFromPoint =
+        elementsFromPointMock as unknown as ElementsFromPoint;
+
+      document.body.classList.remove('is-dragging-widget');
+    });
+
+    afterEach(() => {
+      getBoundingClientRectSpy.mockRestore();
+      const doc = document as DocWithElementsFromPoint;
+      if (originalElementsFromPoint) {
+        doc.elementsFromPoint = originalElementsFromPoint;
+      } else {
+        Reflect.deleteProperty(doc, 'elementsFromPoint');
+      }
+      document.body.classList.remove('is-dragging-widget');
+    });
+
+    it('starts resize when click is in the corner priority zone, even with a button beneath', () => {
+      renderComponent({}, null, undefined, 'test-widget');
+      const seHandle = getSeHandle();
+
+      // (290, 290) is within 16px of right (300) and bottom (300) → priority zone.
+      fireEvent.pointerDown(seHandle, {
+        clientX: 290,
+        clientY: 290,
+        pointerId: 1,
+      });
+
+      // Resize started: body marker class is added and pointer capture taken.
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+      expect(seHandle.setPointerCapture).toHaveBeenCalledWith(1);
+      // elementsFromPoint pass-through must be skipped in the priority zone.
+      expect(elementsFromPointMock).not.toHaveBeenCalled();
+
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+
+    it('passes through to interactive element when click is outside priority zone', () => {
+      renderComponent({}, null, undefined, 'test-widget');
+      const seHandle = getSeHandle();
+
+      // (270, 270) is 30px inside right/bottom → NOT in the priority zone,
+      // so the elementsFromPoint pass-through check runs and finds a button.
+      fireEvent.pointerDown(seHandle, {
+        clientX: 270,
+        clientY: 270,
+        pointerId: 1,
+      });
+
+      // Resize did NOT start: no body marker class, no pointer capture.
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(
+        false
+      );
+      expect(seHandle.setPointerCapture).not.toHaveBeenCalled();
+      // Pass-through path was exercised.
+      expect(elementsFromPointMock).toHaveBeenCalledWith(270, 270);
+    });
+
+    it('starts resize from the overhang outside the widget bounds', () => {
+      renderComponent({}, null, undefined, 'test-widget');
+      const seHandle = getSeHandle();
+
+      // (305, 305) is OUTSIDE the widget (right=300, bottom=300) — the
+      // resize handle's 12px overhang. Always treated as priority zone.
+      fireEvent.pointerDown(seHandle, {
+        clientX: 305,
+        clientY: 305,
+        pointerId: 1,
+      });
+
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+      expect(elementsFromPointMock).not.toHaveBeenCalled();
+
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+  });
 });
