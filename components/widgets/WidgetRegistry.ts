@@ -397,6 +397,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
   // Populated per-widget in components/widgets/*/Settings.tsx
+  'blending-board': lazyNamed(
+    () => import('./BlendingBoard/Settings'),
+    'BlendingBoardAppearanceSettings'
+  ),
   clock: lazyNamed(
     () => import('./ClockWidget/Settings'),
     'ClockAppearanceSettings'

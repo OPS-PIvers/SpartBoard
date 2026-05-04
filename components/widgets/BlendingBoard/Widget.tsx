@@ -29,7 +29,7 @@ export const BlendingBoardWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  const isValidUrl = url.startsWith('https://');
+  const isValidUrl = url.toLowerCase().startsWith('https://');
 
   if (!url || !isValidUrl) {
     return (

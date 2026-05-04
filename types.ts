@@ -3342,6 +3342,7 @@ export type WidgetConfig =
   | OnboardingConfig
   | CountdownConfig
   | CarRiderProConfig
+  | BlendingBoardConfig
   | MusicConfig
   | SpecialistScheduleConfig
   | GraphicOrganizerConfig
