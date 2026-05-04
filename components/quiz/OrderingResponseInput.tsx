@@ -225,7 +225,10 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
       if (!used.has(i)) bank.push(i);
     }
     return [slots, shuffle(bank)];
-  }, [items, savedAnswer]);
+    // question.id forces a fresh shuffle when navigating to a new question
+    // even if orderingItems is referentially identical.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id, items, savedAnswer]);
 
   const [slots, setSlots] = React.useState<(number | null)[]>(initialSlots);
   const [bankItems, setBankItems] = React.useState<number[]>(initialBank);

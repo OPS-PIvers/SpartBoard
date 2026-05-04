@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useResetOnChange } from '../../hooks/useResetOnChange';
+import { useResetOnChange } from '@/hooks/useResetOnChange';
 
 describe('useResetOnChange', () => {
   it('does not call onChange on the initial render', () => {
