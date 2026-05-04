@@ -495,7 +495,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // truth for read-back in the handler; the state copy drives re-renders.
   const inFlightSyncRef = useRef<Set<string>>(new Set());
   const [syncingQuizIds, setSyncingQuizIds] = useState<ReadonlySet<string>>(
-    () => new Set()
+    new Set()
   );
 
   const handlePullSync = useCallback(
@@ -765,15 +765,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const buildQuizBadges = (quiz: QuizMetadata) => {
     if (!quiz.sync) return [];
 
-    // While a pull is in flight, show a non-clickable "Syncing…" pill with
-    // a spinning icon. Wins over the "Sync available" pill so the user
-    // can't double-tap, and gives instant feedback that the click landed.
+    // While a pull is in flight, show a disabled "Syncing…" pill with a
+    // spinning icon. `disabled: true` makes BadgeChip render as a
+    // <button disabled> — the browser swallows user clicks so the event
+    // doesn't bubble to the card body and accidentally open the editor
+    // (which a plain <span> would let happen).
     if (syncingQuizIds.has(quiz.id)) {
       return [
         {
           label: 'Syncing…',
           tone: 'info' as const,
           icon: SpinningRefreshIcon,
+          disabled: true,
         },
       ];
     }

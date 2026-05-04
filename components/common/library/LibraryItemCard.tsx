@@ -280,19 +280,32 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
     </>
   );
 
-  if (badge.onClick) {
+  // Render as a <button> when there's an action attached OR when the badge
+  // is explicitly disabled (transient inert state like "Syncing…"). The
+  // disabled-button path matters: browsers swallow user clicks on disabled
+  // buttons, so the click doesn't bubble to the card body's onClick — a
+  // plain <span> would, and would open the editor mid-sync.
+  if (badge.onClick || badge.disabled) {
     const handler = badge.onClick;
     const accessibleLabel = badge.actionLabel ?? badge.label;
+    const interactiveClasses = badge.disabled
+      ? 'cursor-default'
+      : `${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`;
     return (
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handler();
-        }}
+        disabled={badge.disabled}
+        onClick={
+          handler
+            ? (e) => {
+                e.stopPropagation();
+                handler();
+              }
+            : undefined
+        }
         title={accessibleLabel}
         aria-label={accessibleLabel}
-        className={`${baseClasses} ${tone.hoverBg} cursor-pointer transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-1`}
+        className={`${baseClasses} ${interactiveClasses}`}
         style={baseStyle}
       >
         {inner}
