@@ -36,6 +36,7 @@ import {
   ListOrdered,
   Music,
   CarFront,
+  Speech,
   Smartphone,
   Layers,
   MapPin,
@@ -152,6 +153,12 @@ export const TOOLS: ToolMetadata[] = [
     icon: CarFront,
     label: 'Car Rider',
     color: 'bg-blue-500',
+  },
+  {
+    type: 'blending-board',
+    icon: Speech,
+    label: 'Blending Board',
+    color: 'bg-violet-500',
   },
   {
     type: 'first-5',
