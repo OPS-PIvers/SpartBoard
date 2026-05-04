@@ -33,6 +33,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { Modal } from '../Modal';
 
@@ -118,21 +119,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
         className="text-white/60 hover:text-white transition-colors"
         aria-label="Close"
       >
-        {/* X glyph rendered as a small inline SVG so we don't widen the
-            lucide-react import for a single icon used only in the header. */}
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-5 h-5"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <X aria-hidden="true" className="w-5 h-5" />
       </button>
     </div>
   );

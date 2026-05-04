@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
+import { logError } from '../utils/logError';
 import type { QuizQuestion, SyncedQuizGroup } from '../types';
 
 const SYNCED_QUIZZES_COLLECTION = 'synced_quizzes';
@@ -165,10 +166,7 @@ export function useSyncedQuizGroupsByIds(
           markResolved(groupId);
         },
         (err) => {
-          console.error(
-            `[useSyncedQuizGroups] subscribe error for ${groupId}:`,
-            err
-          );
+          logError('useSyncedQuizGroups.subscribe', err, { groupId });
           markResolved(groupId);
         }
       )

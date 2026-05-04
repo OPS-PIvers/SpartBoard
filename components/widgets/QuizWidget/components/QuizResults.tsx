@@ -1524,13 +1524,13 @@ const StudentsTab: React.FC<{
                        * when the value is greater than zero. */}
                       {typeof r.preSyncVersion === 'number' &&
                         r.preSyncVersion > 0 && (
-                          <p
+                          <span
                             className="mt-0.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 font-bold uppercase tracking-wider text-amber-700"
                             style={{ fontSize: 'min(8px, 2.2cqmin)' }}
                             title="This response was started on an earlier version of the quiz. The teacher synced new content after the student began."
                           >
                             Pre-sync v{r.preSyncVersion}
-                          </p>
+                          </span>
                         )}
                     </>
                   ) : (

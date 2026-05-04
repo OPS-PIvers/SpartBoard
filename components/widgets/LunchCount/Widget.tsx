@@ -37,6 +37,7 @@ import { useNutrislice } from './useNutrislice';
 import { DraggableStudent } from './components/DraggableStudent';
 import { DroppableZone } from './components/DroppableZone';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { logError } from '@/utils/logError';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { hexToRgba } from '@/utils/styles';
@@ -478,7 +479,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('Lunch report submitted successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
-      console.error('[LunchCountWidget] Submission error:', err);
+      logError('LunchCountWidget.handleSubmitReport', err, {
+        widgetId: widget.id,
+      });
       addToast(
         err instanceof Error
           ? err.message
