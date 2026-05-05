@@ -341,3 +341,42 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1485 head SHA `930ba751` — 113 files; CI 14/14 green (Build, Unit Tests, E2E, Code Quality, Firestore Rules, Docker, CodeQL, deploy, Analyze javascript-typescript, Analyze actions, test, lint, type-check, summary)
   - PR #1366 head SHA `da8f0946` — unchanged since 2026-05-01; no new commits in this run
   - Branch-safety: PR #1485 head `dev-paul` matches `dev-*` pattern → no pushes attempted (review-only). The other 2 PRs were eligible for pushes but none required code fixes this run.
+
+## 2026-05-05
+
+- PRs reviewed:
+  - #1502 — Add tests for `getLocalIsoDate` in `localDate.ts` (head `fix/local-date-tests-…`, base `main`, DRAFT)
+  - #1503 — Add comprehensive tests for first5 utilities (head `testing/first5-utils-…`, base `main`, DRAFT)
+  - #1504 — Add comprehensive tests for `isCustomBackground` (head `testing-is-custom-background-…`, base `main`, DRAFT)
+  - #1505 — Add unit tests for `blobToBase64` (head `test-file-encoding-…`, base `main`, DRAFT)
+  - #1506 — Add error path tests for smartPaste URL parsers (head `testing/smart-paste-error-paths-…`, base `main`, DRAFT)
+  - #1507 — audit(scheduled-tasks): Tuesday 2026-05-05 (head `scheduled-tasks`, base `dev-paul`, DRAFT)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 5 actionable inline threads — 4 fixed, 1 (#1366 cluster) skipped as already-addressed
+  - PR #1507: 2 gemini-code-assist threads — both fixed in `de81795`
+    - dependency-audit.md line 29 — relabel protobufjs CRITICAL entry from MEDIUM → HIGH to match prior precedent
+    - skill-freshness.md — refresh post-merge line numbers (FeaturePermissionsManager 919–933 → 941–953; FeatureConfigurationPanel 682–694 → 688–700), verified against current source
+  - PR #1502: 1 gemini-code-assist thread — fixed in `40931d8`
+    - utils/localDate.test.ts:2 — `import { getLocalIsoDate } from './localDate'` → `'@/utils/localDate'` per repo style guide
+  - PR #1503: 1 gemini-code-assist thread — fixed in `df33da3`
+    - utils/first5.test.ts — added 8 new boundary tests covering 5:59 vs 6:00 AM rollover, same-day pre-rollover returning `activeDayNumber - 1`, and weekend stick-to-Friday transitions through Monday 6 AM
+  - PR #1366: 6 inline threads — all `is_outdated: true` with prior OPS-PIvers replies; no further action this run
+- Fixes pushed: 3
+  - PR #1507 → `scheduled-tasks` `de81795` — fix(pr-1507): relabel protobufjs to HIGH and refresh post-merge line numbers (markdown only; prettier check passed)
+  - PR #1502 → `fix/local-date-tests-…` `40931d8` — fix(pr-1502): use @/ path alias for internal import (type-check ✓ lint ✓ 6/6 tests pass)
+  - PR #1503 → `testing/first5-utils-…` `df33da3` — fix(pr-1503): expand computeCurrentDayNumber boundary tests (lint ✓ 20/20 tests pass)
+- Reviews posted: 7
+  - PR #1502: Ready — small focused test addition; only DST-boundary case noted as optional follow-up
+  - PR #1503: Ready — 20/20 pass after boundary additions; DST optional follow-up noted
+  - PR #1504: Ready — focused 4-test addition pinning `startsWith` semantics; adequate coverage
+  - PR #1505: Ready — solid coverage including null-error branch; minor convention nit on `tests/utils/` vs co-located placement
+  - PR #1506: Ready with minor notes — new error-path tests are valuable; flagged minor coverage regressions in fixture edits (`/view → /edit` Google Docs branch and Drive `?usp=sharing` stripping no longer covered)
+  - PR #1507: Ready — both gemini comments now fixed; flagged that the new dependency-audit items (axios MEDIUM, protobufjs HIGH via firebase-functions) should be triaged into upgrade PRs before next Tuesday cycle
+  - PR #1366: Ready — seventh review with no content change; all 6 prior threads still addressed
+- Notes:
+  - PR #1507 head SHA `de81795` (was `ac05d3a`) — 1 fix commit added this run; 2 markdown files changed
+  - PR #1502 head SHA `40931d8` (was `8401713`) — 1 fix commit added this run; 1 file changed
+  - PR #1503 head SHA `df33da3` (was `12ce825`) — 1 fix commit added this run; 1 file changed (+59 lines)
+  - PR #1504, #1505, #1506 had no inline review threads at audit time — review-only this run
+  - PR #1366 head SHA `da8f0946` — unchanged since 2026-05-01; no new commits this run
+  - Branch-safety: all 7 PRs had non-`main` / non-`dev-*` head branches → eligible for pushes; pushes only made where comments required a code/doc fix
