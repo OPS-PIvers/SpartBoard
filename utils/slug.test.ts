@@ -83,8 +83,7 @@ describe('slug', () => {
 
       const result = slugOrFallback('!!!', 'org');
 
-      // Truncated to UUID_FALLBACK_LENGTH (24)
-      // Should be truncated to 23 (stripping the trailing dash at index 23)
+      // Capped at 24 chars and trimmed of trailing dashes (index 23 is a dash)
       expect(result).toBe(fakeUuid.slice(0, 23));
       expect(result).toHaveLength(23);
     });
