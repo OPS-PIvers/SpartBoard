@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getFontClass, hexToRgba } from './styles';
+import { getFontClass, hexToRgba } from '@/utils/styles';
 
 describe('styles', () => {
   describe('getFontClass', () => {
