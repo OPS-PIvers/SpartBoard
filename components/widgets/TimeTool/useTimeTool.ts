@@ -96,6 +96,27 @@ export const useTimeTool = (widget: WidgetData) => {
     [config, updateWidget, widget.id]
   );
 
+  const adjustTime = useCallback(
+    (deltaSeconds: number) => {
+      if (config.mode !== 'timer') return;
+      const current = config.isRunning
+        ? runningDisplayTimeRef.current
+        : config.elapsedTime;
+      const next = Math.max(0, current + deltaSeconds);
+      const nextDuration = Math.max(config.duration, next);
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          elapsedTime: next,
+          duration: nextDuration,
+          startTime: config.isRunning ? Date.now() : null,
+        },
+      });
+      setRunningDisplayTime(next);
+    },
+    [config, updateWidget, widget.id]
+  );
+
   // RAF tick loop
   useEffect(() => {
     if (!config.isRunning || !config.startTime) {
@@ -243,5 +264,6 @@ export const useTimeTool = (widget: WidgetData) => {
     handleStop,
     handleReset,
     setTime,
+    adjustTime,
   };
 };

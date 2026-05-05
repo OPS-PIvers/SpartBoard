@@ -13,7 +13,15 @@ import {
   Type,
   Palette,
   Sparkles,
+  PlusSquare,
 } from 'lucide-react';
+
+const ADJUST_STEP_MIN = 1;
+const ADJUST_STEP_MAX = 600;
+const ADJUST_STEP_DEFAULT = 60;
+
+const clampAdjustStep = (n: number) =>
+  Math.max(ADJUST_STEP_MIN, Math.min(ADJUST_STEP_MAX, n));
 
 const SOUNDS = ['Chime', 'Blip', 'Gong', 'Alert'] as const;
 
@@ -156,6 +164,39 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
           ))}
         </div>
       </div>
+
+      {/* Adjust step (used by the on-face +/- buttons while a timer is running) */}
+      {config.mode === 'timer' && (
+        <div>
+          <SettingsLabel icon={PlusSquare}>
+            {t('widgets.timeTool.adjustStep')}
+          </SettingsLabel>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={ADJUST_STEP_MIN}
+              max={ADJUST_STEP_MAX}
+              value={config.adjustStepSeconds ?? ADJUST_STEP_DEFAULT}
+              onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                const next = Number.isFinite(parsed)
+                  ? clampAdjustStep(parsed)
+                  : ADJUST_STEP_DEFAULT;
+                updateWidget(widget.id, {
+                  config: { ...config, adjustStepSeconds: next },
+                });
+              }}
+              className="w-24 px-3 py-2 rounded-lg border-2 border-slate-200 bg-white text-sm font-bold text-slate-700 focus:border-blue-500 focus:outline-none"
+            />
+            <span className="text-xxs font-bold text-slate-500 uppercase tracking-tight">
+              {t('widgets.timeTool.adjustStepUnit')}
+            </span>
+          </div>
+          <p className="text-xxs text-slate-500 mt-2 leading-snug">
+            {t('widgets.timeTool.adjustStepHint')}
+          </p>
+        </div>
+      )}
 
       {/* Timer End Action */}
       <div>

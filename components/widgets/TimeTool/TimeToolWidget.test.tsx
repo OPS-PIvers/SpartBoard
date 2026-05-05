@@ -207,4 +207,172 @@ describe('TimeToolWidget', () => {
       })
     );
   });
+
+  describe('Adjust buttons (+/-)', () => {
+    it('hides ± buttons in stopwatch mode', () => {
+      const widget = createWidget({
+        mode: 'stopwatch',
+        isRunning: true,
+        elapsedTime: 30,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+    });
+
+    it('hides ± buttons in fresh-setup state (timer not started, elapsed === duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 300,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+    });
+
+    it('shows ± buttons while the timer is running', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 300,
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('shows ± buttons when paused mid-run (elapsed !== duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('tapping + adds exactly one step (default 60s)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 180,
+            duration: 300,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('tapping − at displayTime ≤ step clamps to 0 (does not go negative)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 30,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Subtract time'));
+      fireEvent.pointerUp(screen.getByLabelText('Subtract time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 0,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('adjusting + while running keeps isRunning true and refreshes startTime', () => {
+      const startTime = Date.now() - 30_000;
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 300,
+        startTime,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      const lastCall = mockUpdateWidget.mock.calls.at(-1);
+      expect(lastCall).toBeDefined();
+      const updatedConfig = (lastCall?.[1] as { config: TimeToolConfig })
+        .config;
+      expect(updatedConfig.isRunning).toBe(true);
+      expect(updatedConfig.startTime).not.toBeNull();
+      expect(updatedConfig.startTime).not.toBe(startTime);
+    });
+
+    it('adjusting + past original duration bumps duration to match', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 60,
+        elapsedTime: 30,
+        adjustStepSeconds: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 150,
+            duration: 150,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('respects custom adjustStepSeconds value', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+        adjustStepSeconds: 30,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 150,
+          }) as unknown,
+        })
+      );
+    });
+  });
 });
