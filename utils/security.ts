@@ -41,8 +41,7 @@ export const sanitizeHtml = (html: string): string => {
     ],
     // Allow data:image/ URIs for images
     ADD_DATA_URI_TAGS: ['img'],
-    // Ensure links don't have dangerous protocols
-    ALLOWED_URI_REGEXP:
-      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    // ALLOWED_URI_REGEXP intentionally omitted: DOMPurify's built-in default
+    // already restricts dangerous protocols and is kept up to date upstream.
   });
 };
