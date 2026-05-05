@@ -13,14 +13,22 @@ describe('backgroundCategories', () => {
         expect(resolveCategory('Any Label', 'SPACE')).toBe('Space');
       });
 
-      it('trims whitespace from adminCategory', () => {
+      it('trims whitespace from adminCategory and trims custom categories', () => {
         expect(resolveCategory('Any Label', '  Nature  ')).toBe('Nature');
+        expect(resolveCategory('Any Label', '  Custom Category  ')).toBe(
+          'Custom Category'
+        );
       });
 
       it('returns adminCategory as-is if it is not a known category', () => {
         expect(resolveCategory('Any Label', 'Custom Category')).toBe(
           'Custom Category'
         );
+      });
+
+      it('falls back to keyword matching when adminCategory is empty or whitespace', () => {
+        expect(resolveCategory('beautiful forest', '')).toBe('Nature');
+        expect(resolveCategory('beautiful forest', '   ')).toBe('Nature');
       });
     });
 
@@ -67,6 +75,13 @@ describe('backgroundCategories', () => {
         expect(resolveCategory('FOREST')).toBe('Nature');
         expect(resolveCategory('Eiffel')).toBe('Landmarks');
       });
+
+      it('respects category priority when multiple keywords match', () => {
+        // Classroom (higher priority) vs Space (lower priority)
+        expect(resolveCategory('classroom in space')).toBe('Classroom');
+        // Nature (higher priority) vs Seasonal (lower priority)
+        expect(resolveCategory('winter forest')).toBe('Nature');
+      });
     });
 
     describe('fallback', () => {
@@ -74,8 +89,9 @@ describe('backgroundCategories', () => {
         expect(resolveCategory('some random label')).toBe('General');
       });
 
-      it('returns "General" for empty label', () => {
+      it('returns "General" for empty or whitespace-only label', () => {
         expect(resolveCategory('')).toBe('General');
+        expect(resolveCategory('   ')).toBe('General');
       });
     });
   });
