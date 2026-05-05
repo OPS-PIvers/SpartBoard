@@ -15,6 +15,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 import { convertToEmbedUrl } from '@/utils/urlHelpers';
+import { extractYouTubeId } from '@/utils/youtube';
 import { EmbedTab } from './types';
 
 import { EmbedConfig } from '@/types';
@@ -56,11 +57,47 @@ export const EmbedConfigEditor: React.FC<{
   const embedUrl = convertToEmbedUrl(rawUrl);
   const wasConverted = rawUrl.trim() !== '' && embedUrl !== rawUrl.trim();
   const isDriveUrl = /drive\.google\.com/i.test(rawUrl);
+  const isYouTubeUrl = extractYouTubeId(rawUrl) !== null;
+
+  const startAtSeconds =
+    typeof config.startAtSeconds === 'number' && config.startAtSeconds > 0
+      ? config.startAtSeconds
+      : 0;
+  const startAtMinutes = Math.floor(startAtSeconds / 60);
+  const startAtSecsRemainder = startAtSeconds % 60;
+
+  const updateStartAt = (totalSeconds: number) => {
+    const next: Partial<EmbedConfig> = { ...config };
+    if (totalSeconds > 0) {
+      next.startAtSeconds = totalSeconds;
+    } else {
+      delete next.startAtSeconds;
+    }
+    onChange(next);
+  };
+
+  const handleStartAtMinutesChange = (raw: string) => {
+    const parsed = Number.parseInt(raw, 10);
+    const minutes = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    updateStartAt(minutes * 60 + startAtSecsRemainder);
+  };
+
+  const handleStartAtSecondsChange = (raw: string) => {
+    const parsed = Number.parseInt(raw, 10);
+    let seconds = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    if (seconds > 59) seconds = 59;
+    updateStartAt(startAtMinutes * 60 + seconds);
+  };
 
   const applyUrl = () => {
     const finalUrl = embedUrl || rawUrl.trim();
     if (finalUrl !== config.url) {
-      onChange({ ...config, url: finalUrl });
+      const next: Partial<EmbedConfig> = { ...config, url: finalUrl };
+      // Drop startAtSeconds if the new URL isn't YouTube — only YouTube honors it.
+      if (extractYouTubeId(finalUrl) === null) {
+        delete next.startAtSeconds;
+      }
+      onChange(next);
     }
   };
 
@@ -139,12 +176,20 @@ export const EmbedConfigEditor: React.FC<{
 
     if (finalUrl !== config.url) {
       newConfig.url = finalUrl;
+      if (extractYouTubeId(finalUrl) === null) {
+        delete newConfig.startAtSeconds;
+      }
     }
 
     if (tab === 'url' || tab === 'code') {
       newConfig.mode = tab;
     } else if (tab === 'live' && config.mode !== 'url') {
       newConfig.mode = 'url';
+    }
+
+    // Start-at only applies to URL-tab YouTube embeds.
+    if (tab !== 'url') {
+      delete newConfig.startAtSeconds;
     }
 
     onChange(newConfig);
@@ -227,6 +272,40 @@ export const EmbedConfigEditor: React.FC<{
                 <strong>&quot;Anyone with the link can view&quot;</strong>.
                 Otherwise teachers may see a blank loader due to browser
                 third-party cookie restrictions.
+              </p>
+            </div>
+          )}
+          {isYouTubeUrl && (
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Start at
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={startAtMinutes === 0 ? '' : startAtMinutes}
+                  onChange={(e) => handleStartAtMinutesChange(e.target.value)}
+                  placeholder="0"
+                  aria-label="Start at minutes"
+                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                />
+                <span className="text-xs text-slate-500">min</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={startAtSecsRemainder === 0 ? '' : startAtSecsRemainder}
+                  onChange={(e) => handleStartAtSecondsChange(e.target.value)}
+                  placeholder="0"
+                  aria-label="Start at seconds"
+                  className="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                />
+                <span className="text-xs text-slate-500">sec</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                The video will begin at this offset. Only YouTube videos support
+                a start time — Drive videos will ignore it.
               </p>
             </div>
           )}

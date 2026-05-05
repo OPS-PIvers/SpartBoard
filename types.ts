@@ -622,6 +622,8 @@ export interface EmbedConfig {
   blockedReason?: string;
   zoom?: number;
   autoplay?: boolean;
+  /** Start playback at this offset (seconds). YouTube only — Drive's /preview iframe ignores it. */
+  startAtSeconds?: number;
 }
 
 export interface BuildingPollDefaults {
@@ -3939,6 +3941,12 @@ export interface Announcement {
   activationType: AnnouncementActivationType;
   /** HH:MM in 24h format — used when activationType is 'scheduled' */
   scheduledActivationTime?: string;
+  /** YYYY-MM-DD local date — used when activationType is 'scheduled' */
+  scheduledActivationDate?: string;
+  /** YYYY-MM-DD local date — optional auto-deactivate end date (paired with scheduledEndTime) */
+  scheduledEndDate?: string;
+  /** HH:MM in 24h format — optional auto-deactivate end time (paired with scheduledEndDate) */
+  scheduledEndTime?: string;
   /** Whether the announcement is currently active (visible to targeted users) */
   isActive: boolean;
   /**
