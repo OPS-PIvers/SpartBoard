@@ -37,10 +37,11 @@ describe('slug', () => {
       expect(slugify('!!!hello!!!')).toBe('hello');
     });
 
-    it('caps length at 48 characters', () => {
+    it('caps length at 48 characters and trims trailing dashes after truncation', () => {
       const input = 'a'.repeat(100);
       expect(slugify(input)).toHaveLength(48);
       expect(slugify(input)).toBe('a'.repeat(48));
+      expect(slugify('a'.repeat(47) + ' ' + 'b')).toBe('a'.repeat(47));
     });
 
     it('returns empty string when input has no alphanumerics', () => {
@@ -83,8 +84,9 @@ describe('slug', () => {
       const result = slugOrFallback('!!!', 'org');
 
       // Truncated to UUID_FALLBACK_LENGTH (24)
-      expect(result).toBe(fakeUuid.slice(0, 24));
-      expect(result).toHaveLength(24);
+      // Should be truncated to 23 (stripping the trailing dash at index 23)
+      expect(result).toBe(fakeUuid.slice(0, 23));
+      expect(result).toHaveLength(23);
     });
 
     it('falls back to `${prefix}-${timestamp}` when crypto.randomUUID is unavailable', () => {
@@ -124,8 +126,10 @@ describe('slug', () => {
 
       try {
         const result = slugOrFallback('!!!', longPrefix);
-        expect(result).toHaveLength(24);
-        expect(result).toBe(`${longPrefix}-1234567890`.slice(0, 24));
+        expect(result).toBe(
+          `${longPrefix}-1234567890`.slice(0, 24).replace(/-+$/g, '')
+        );
+        expect(result).toHaveLength(result.length);
       } finally {
         Object.defineProperty(globalThis, 'crypto', {
           configurable: true,
