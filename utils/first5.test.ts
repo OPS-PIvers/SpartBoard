@@ -106,5 +106,64 @@ describe('first5 utils', () => {
         15
       );
     });
+
+    describe('rollover boundary at 6:00 AM', () => {
+      it('should treat 5:59 AM as the previous calendar day', () => {
+        const now = new Date(2023, 10, 14, 5, 59); // Tue 5:59 AM
+        // Effective date is Monday, so day number stays at 10
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(10);
+      });
+
+      it('should treat exactly 6:00 AM as the current calendar day', () => {
+        const now = new Date(2023, 10, 14, 6, 0); // Tue 6:00 AM sharp
+        // Effective date is Tuesday, so day number advances to 11
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(11);
+      });
+    });
+
+    describe('same-day pre-rollover relative to referenceDate', () => {
+      it('should return activeDayNumber - 1 when called pre-rollover on the reference Monday', () => {
+        const now = new Date(2023, 10, 13, 5); // Reference Monday, 5 AM
+        // Effective date is Sunday Nov 12 — one weekday backwards from Mon = -1
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(9);
+      });
+    });
+
+    describe('weekend transitions stick to Friday value', () => {
+      // referenceDate Monday Nov 13 with day 10 → Fri Nov 17 = day 14
+      it('returns the Friday value on Saturday', () => {
+        const now = new Date(2023, 10, 18, 12); // Sat noon
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(14);
+      });
+
+      it('returns the Friday value on Sunday', () => {
+        const now = new Date(2023, 10, 19, 12); // Sun noon
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(14);
+      });
+
+      it('still returns the Friday value early Monday before 6 AM', () => {
+        const now = new Date(2023, 10, 20, 5); // Mon 5 AM — effective is Sun
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(14);
+      });
+
+      it('rolls over to the new Monday value at exactly 6 AM Monday', () => {
+        const now = new Date(2023, 10, 20, 6); // Mon 6 AM sharp
+        expect(
+          computeCurrentDayNumber(activeDayNumber, referenceDate, now)
+        ).toBe(15);
+      });
+    });
   });
 });
