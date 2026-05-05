@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-04-28_
+_Last audited: 2026-05-05_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
 ### MEDIUM `spart-new-widget` references non-existent `SpecialistSchedule/Widget.tsx`
 
