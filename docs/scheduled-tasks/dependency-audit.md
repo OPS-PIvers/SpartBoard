@@ -26,7 +26,7 @@ _Nothing currently in progress._
     The previous upgrade to `1.15.0` (2026-04-14 completed item) patched the three CRITICAL CVEs. These two MODERATE CVEs are distinct advisories with `>=1.15.1` patch requirement. `pnpm outdated` shows latest is `1.16.0`.
 - **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. Both advisories are patched in `>=1.15.1`; upgrading to `1.16.0` (latest) addresses both. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
 
-### MEDIUM `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path — unresolved
+### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path — unresolved
 
 - **Detected:** 2026-05-05
 - **File:** package.json (via `firebase-functions@7.0.5 > protobufjs`), functions/package.json (same path)
