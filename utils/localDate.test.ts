@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getLocalIsoDate } from './localDate';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 describe('getLocalIsoDate', () => {
   afterEach(() => {
