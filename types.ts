@@ -1306,6 +1306,7 @@ export interface TimeToolConfig {
   glow?: boolean;
   fontFamily?: string;
   clockStyle?: string;
+  adjustStepSeconds?: number; // step size (in seconds) for the on-face +/- buttons; default 60
 }
 
 // 1. Define the Data Model for a Mini App

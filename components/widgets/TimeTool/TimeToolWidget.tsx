@@ -3,7 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useTimeTool } from './useTimeTool';
-import { Play, Pause, RotateCcw, Check, Delete } from 'lucide-react';
+import { useHoldAccelerate } from './useHoldAccelerate';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Check,
+  Delete,
+  Plus,
+  Minus,
+} from 'lucide-react';
 import { STANDARD_COLORS } from '@/config/colors';
 import { WidgetLayout } from '../WidgetLayout';
 
@@ -12,6 +21,61 @@ import { WidgetLayout } from '../WidgetLayout';
 const PRESETS = [60, 180, 300] as const;
 
 const presetLabel = (s: number) => (s >= 60 ? `${s / 60}m` : `${s}s`);
+
+const DEFAULT_ADJUST_STEP_SECONDS = 60;
+
+// ─── Adjust Button ──────────────────────────────────────────────────────────
+
+const AdjustButton: React.FC<{
+  sign: 1 | -1;
+  step: number;
+  disabled?: boolean;
+  ariaLabel: string;
+  onAdjust: (deltaSeconds: number) => void;
+}> = ({ sign, step, disabled, ariaLabel, onAdjust }) => {
+  const handlers = useHoldAccelerate((multiplier) => {
+    if (disabled) return;
+    onAdjust(sign * step * multiplier);
+  });
+
+  const Icon = sign === 1 ? Plus : Minus;
+
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onPointerDown={handlers.onPointerDown}
+      onPointerUp={handlers.onPointerUp}
+      onPointerCancel={handlers.onPointerCancel}
+      onPointerLeave={handlers.onPointerLeave}
+      onKeyDown={handlers.onKeyDown}
+      className={`flex flex-col items-center justify-center rounded-2xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
+        disabled ? 'opacity-30 cursor-not-allowed' : ''
+      }`}
+      style={{
+        width: 'min(56px, 14cqmin)',
+        height: 'min(56px, 14cqmin)',
+        padding: 'min(4px, 1cqmin)',
+        gap: 'min(2px, 0.5cqmin)',
+      }}
+    >
+      <Icon
+        style={{
+          width: 'min(28px, 8cqmin)',
+          height: 'min(28px, 8cqmin)',
+        }}
+        strokeWidth={3}
+      />
+      <span
+        className="font-black tabular-nums leading-none"
+        style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+      >
+        {presetLabel(step)}
+      </span>
+    </button>
+  );
+};
 
 // ─── Progress Ring ──────────────────────────────────────────────────────────
 
@@ -268,6 +332,7 @@ const Keypad: React.FC<{
 export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { activeDashboard } = useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const {
@@ -279,6 +344,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
     handleStop,
     handleReset,
     setTime,
+    adjustTime,
   } = useTimeTool(widget) as ReturnType<typeof useTimeTool> & {
     config: TimeToolConfig;
   };
@@ -292,7 +358,15 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
     glow = false,
     fontFamily = 'global',
     clockStyle = 'modern',
+    adjustStepSeconds = DEFAULT_ADJUST_STEP_SECONDS,
   } = config;
+
+  // Show ±buttons once a timer has started or been adjusted off its initial duration.
+  // Hides during the fresh-setup state (where the keypad handles input) and in stopwatch mode.
+  const showAdjustControls =
+    mode === 'timer' &&
+    !isEditing &&
+    (isRunning || config.elapsedTime !== config.duration);
 
   // ─── Parse time into parts ───────────────────────────────────────
 
@@ -395,72 +469,94 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
 
                 {/* The core centering unit: Time + Absolute Controls */}
                 <div className="relative flex flex-col items-center justify-center">
-                  <button
-                    onClick={() => {
-                      if (!isRunning && mode === 'timer') setIsEditing(true);
-                    }}
-                    disabled={isRunning || mode !== 'timer'}
-                    className={`relative z-10 flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()} ${
-                      !isRunning && mode === 'timer'
-                        ? 'cursor-pointer hover:scale-105 active:scale-95'
-                        : 'cursor-default'
-                    }`}
-                    style={{
-                      fontSize: isVisual
-                        ? 'min(22cqmin, 12rem)'
-                        : mode === 'stopwatch'
-                          ? 'min(55cqh, 18cqw)'
-                          : 'min(55cqh, 25cqw)',
-                      color: timeColor,
-                      textShadow: glow
-                        ? `0 0 0.1em ${timeColor}, 0 0 0.25em ${timeColor}66`
-                        : 'none',
-                    }}
+                  <div
+                    className="flex items-center justify-center"
+                    style={{ gap: 'min(12px, 3cqmin)' }}
                   >
-                    {clockStyle === 'lcd' && !isVisual && (
-                      <div
-                        className="absolute opacity-5 pointer-events-none select-none flex"
-                        aria-hidden="true"
-                        role="presentation"
-                      >
-                        <span>88</span>
-                        <span className="mx-[0.25em]">:</span>
-                        <span>88</span>
-                        {mode === 'stopwatch' && (
-                          <>
-                            <span className="opacity-30 mx-[0.05em]">.</span>
-                            <span>8</span>
-                          </>
-                        )}
-                      </div>
+                    {showAdjustControls && (
+                      <AdjustButton
+                        sign={-1}
+                        step={adjustStepSeconds}
+                        disabled={displayTime <= 0}
+                        ariaLabel={t('widgets.timeTool.subtractTime')}
+                        onAdjust={adjustTime}
+                      />
                     )}
-
-                    {/* Minutes and colon (shared between timer/stopwatch) */}
-                    <span>{timeParts.mins}</span>
-                    <span
-                      className={`${clockStyle === 'minimal' ? '' : 'animate-pulse'} mx-[0.1em] opacity-30`}
+                    <button
+                      onClick={() => {
+                        if (!isRunning && mode === 'timer') setIsEditing(true);
+                      }}
+                      disabled={isRunning || mode !== 'timer'}
+                      className={`relative z-10 flex items-baseline leading-none transition-all ${getFontClass()} ${getStyleClasses()} ${
+                        !isRunning && mode === 'timer'
+                          ? 'cursor-pointer hover:scale-105 active:scale-95'
+                          : 'cursor-default'
+                      }`}
+                      style={{
+                        fontSize: isVisual
+                          ? 'min(22cqmin, 12rem)'
+                          : mode === 'stopwatch'
+                            ? 'min(55cqh, 18cqw)'
+                            : 'min(55cqh, 25cqw)',
+                        color: timeColor,
+                        textShadow: glow
+                          ? `0 0 0.1em ${timeColor}, 0 0 0.25em ${timeColor}66`
+                          : 'none',
+                      }}
                     >
-                      :
-                    </span>
-                    <span>{timeParts.secs}</span>
-                    {/* Tenths digit (stopwatch only) */}
-                    {mode === 'stopwatch' && (
-                      <>
-                        <span
-                          className="opacity-30 mx-[0.05em]"
-                          style={{ fontSize: '0.5em' }}
+                      {clockStyle === 'lcd' && !isVisual && (
+                        <div
+                          className="absolute opacity-5 pointer-events-none select-none flex"
+                          aria-hidden="true"
+                          role="presentation"
                         >
-                          .
-                        </span>
-                        <span
-                          className="opacity-60"
-                          style={{ fontSize: '0.5em' }}
-                        >
-                          {timeParts.tenths}
-                        </span>
-                      </>
+                          <span>88</span>
+                          <span className="mx-[0.25em]">:</span>
+                          <span>88</span>
+                          {mode === 'stopwatch' && (
+                            <>
+                              <span className="opacity-30 mx-[0.05em]">.</span>
+                              <span>8</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Minutes and colon (shared between timer/stopwatch) */}
+                      <span>{timeParts.mins}</span>
+                      <span
+                        className={`${clockStyle === 'minimal' ? '' : 'animate-pulse'} mx-[0.1em] opacity-30`}
+                      >
+                        :
+                      </span>
+                      <span>{timeParts.secs}</span>
+                      {/* Tenths digit (stopwatch only) */}
+                      {mode === 'stopwatch' && (
+                        <>
+                          <span
+                            className="opacity-30 mx-[0.05em]"
+                            style={{ fontSize: '0.5em' }}
+                          >
+                            .
+                          </span>
+                          <span
+                            className="opacity-60"
+                            style={{ fontSize: '0.5em' }}
+                          >
+                            {timeParts.tenths}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                    {showAdjustControls && (
+                      <AdjustButton
+                        sign={1}
+                        step={adjustStepSeconds}
+                        ariaLabel={t('widgets.timeTool.addTime')}
+                        onAdjust={adjustTime}
+                      />
                     )}
-                  </button>
+                  </div>
 
                   {/* Square Controls - Positioned below the centerline without pushing it */}
                   <div
