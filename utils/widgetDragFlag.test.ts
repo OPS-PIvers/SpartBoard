@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { beginWidgetDrag, endWidgetDrag } from './widgetDragFlag';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
 describe('widgetDragFlag', () => {
   beforeEach(() => {
