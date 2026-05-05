@@ -394,6 +394,33 @@ describe('TimeToolWidget', () => {
       );
     });
 
+    it('back-to-back synchronous + taps accumulate (ref updates synchronously)', () => {
+      // Regression test for the press-and-hold ramp case: when adjustTime is
+      // called multiple times in the same task before React commits a render,
+      // each call must see the latest base, not the pre-render stale ref.
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 600,
+        elapsedTime: 600,
+        startTime: Date.now(),
+      });
+      renderWidget(widget);
+
+      const addBtn = screen.getByLabelText('Add time');
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+
+      const elapsedValues = mockUpdateWidget.mock.calls.map(
+        (c) => (c[1] as { config: TimeToolConfig }).config.elapsedTime
+      );
+      expect(elapsedValues).toEqual([660, 720, 780]);
+    });
+
     it('respects custom adjustStepSeconds value', () => {
       const widget = createWidget({
         mode: 'timer',
