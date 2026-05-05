@@ -109,7 +109,6 @@ const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE
 // RGB components of brand-blue-light (#4356a0) for group indicator styling
 const GROUP_BRAND_RGB = '67, 86, 160';
 
-// const MIN_GESTURE_SWIPE_DISTANCE = 100;
 const DRAG_CLICK_THRESHOLD_PX = 25;
 const INVISIBLE_EDGE_PAD = 20; // px of invisible grab zone extending outside widget bounds
 const INNER_EDGE_PAD = 16; // px of invisible drag zone inside widget bounds
