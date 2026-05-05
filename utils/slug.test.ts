@@ -129,7 +129,6 @@ describe('slug', () => {
         expect(result).toBe(
           `${longPrefix}-1234567890`.slice(0, 24).replace(/-+$/g, '')
         );
-        expect(result).toHaveLength(result.length);
       } finally {
         Object.defineProperty(globalThis, 'crypto', {
           configurable: true,
