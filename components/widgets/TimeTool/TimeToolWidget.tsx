@@ -461,37 +461,37 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
 
                 {/* Adjust buttons pinned to widget corners (active timer only) */}
                 {showAdjustControls && (
-                  <div
-                    className="absolute z-20"
-                    style={{
-                      top: 'min(10px, 2.5cqmin)',
-                      left: 'min(10px, 2.5cqmin)',
-                    }}
-                  >
-                    <AdjustButton
-                      sign={-1}
-                      step={adjustStepSeconds}
-                      disabled={displayTime <= 0}
-                      ariaLabel={t('widgets.timeTool.subtractTime')}
-                      onAdjust={adjustTime}
-                    />
-                  </div>
-                )}
-                {showAdjustControls && (
-                  <div
-                    className="absolute z-20"
-                    style={{
-                      top: 'min(10px, 2.5cqmin)',
-                      right: 'min(10px, 2.5cqmin)',
-                    }}
-                  >
-                    <AdjustButton
-                      sign={1}
-                      step={adjustStepSeconds}
-                      ariaLabel={t('widgets.timeTool.addTime')}
-                      onAdjust={adjustTime}
-                    />
-                  </div>
+                  <>
+                    <div
+                      className="absolute z-20"
+                      style={{
+                        top: 'min(10px, 2.5cqmin)',
+                        left: 'min(10px, 2.5cqmin)',
+                      }}
+                    >
+                      <AdjustButton
+                        sign={-1}
+                        step={adjustStepSeconds}
+                        disabled={displayTime <= 0}
+                        ariaLabel={t('widgets.timeTool.subtractTime')}
+                        onAdjust={adjustTime}
+                      />
+                    </div>
+                    <div
+                      className="absolute z-20"
+                      style={{
+                        top: 'min(10px, 2.5cqmin)',
+                        right: 'min(10px, 2.5cqmin)',
+                      }}
+                    >
+                      <AdjustButton
+                        sign={1}
+                        step={adjustStepSeconds}
+                        ariaLabel={t('widgets.timeTool.addTime')}
+                        onAdjust={adjustTime}
+                      />
+                    </div>
+                  </>
                 )}
 
                 {/* The core centering unit: Time + Absolute Controls */}
