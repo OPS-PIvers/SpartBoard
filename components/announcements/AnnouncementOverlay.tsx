@@ -82,17 +82,64 @@ function currentMinutes(): number {
 }
 
 /**
- * Returns true when the announcement should currently be visible.
- * @param nowMins - current wall-clock time in minutes (hours * 60 + minutes),
- *                  passed explicitly so callers can include it in useMemo deps.
+ * Combine a YYYY-MM-DD date and HH:MM time into a millisecond timestamp using
+ * local-time semantics. Returns null when either piece is missing or malformed.
  */
-function isScheduledTimeReached(a: Announcement, nowMins: number): boolean {
+function combineDateAndTime(
+  date: string | undefined,
+  time: string | undefined
+): number | null {
+  if (!date || !time) return null;
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!dateMatch || !timeMatch) return null;
+  const y = Number(dateMatch[1]);
+  const mo = Number(dateMatch[2]);
+  const d = Number(dateMatch[3]);
+  const h = Number(timeMatch[1]);
+  const mi = Number(timeMatch[2]);
+  if (
+    !Number.isFinite(y) ||
+    !Number.isFinite(mo) ||
+    !Number.isFinite(d) ||
+    !Number.isFinite(h) ||
+    !Number.isFinite(mi)
+  )
+    return null;
+  const ms = new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Returns true when the announcement is currently inside its active window.
+ * @param nowMs - current wall-clock time in ms, passed explicitly so callers
+ *                can include it in useMemo deps.
+ */
+function isWithinActiveWindow(a: Announcement, nowMs: number): boolean {
   // isActive acts as a master enable flag for all activation types.
   if (!a.isActive) return false;
-  // Non-scheduled announcements are visible whenever they are active.
+
+  // Optional auto-deactivate end window — applies regardless of activation type.
+  const endMs = combineDateAndTime(a.scheduledEndDate, a.scheduledEndTime);
+  if (endMs != null && nowMs >= endMs) return false;
+
   if (a.activationType !== 'scheduled') return true;
-  // Scheduled announcements become visible once the wall clock passes the configured activation time.
+
+  // Scheduled activation: gated by start date+time when present, falling back
+  // to time-only comparison for legacy announcements created before the
+  // date field existed (so old announcements still work).
+  if (a.scheduledActivationDate && a.scheduledActivationTime) {
+    const startMs = combineDateAndTime(
+      a.scheduledActivationDate,
+      a.scheduledActivationTime
+    );
+    if (startMs == null) return false;
+    return nowMs >= startMs;
+  }
   if (!a.scheduledActivationTime) return false;
+  // Legacy: HH:MM-only — visible when wall-clock minutes meet/exceed start time.
+  const now = new Date(nowMs);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
   return nowMins >= timeToMinutes(a.scheduledActivationTime);
 }
 
@@ -341,9 +388,10 @@ export const AnnouncementOverlay: React.FC = () => {
     const rec = getDismissals();
     return new Set(Object.keys(rec));
   });
-  // Current wall-clock time in minutes, updated every SCHEDULE_CHECK_INTERVAL_MS
-  // so scheduled activation/dismissal logic in useMemo re-runs automatically.
-  const [nowMinutes, setNowMinutes] = useState(currentMinutes);
+  // Current wall-clock time (ms), updated every SCHEDULE_CHECK_INTERVAL_MS so
+  // scheduled activation/dismissal logic in useMemo re-runs automatically and
+  // date-window transitions (start/end across midnight) trigger correctly.
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
 
   // Subscribe to the announcements collection (only active announcements)
   useEffect(() => {
@@ -371,7 +419,7 @@ export const AnnouncementOverlay: React.FC = () => {
   // Periodic clock update for scheduled activation/dismissal checks
   useEffect(() => {
     const interval = setInterval(
-      () => setNowMinutes(currentMinutes()),
+      () => setNowMs(Date.now()),
       SCHEDULE_CHECK_INTERVAL_MS
     );
     return () => clearInterval(interval);
@@ -387,14 +435,14 @@ export const AnnouncementOverlay: React.FC = () => {
   );
 
   // Determine which announcements are visible to this user.
-  // nowMinutes is the current wall-clock time (minutes since midnight) and
-  // is updated every SCHEDULE_CHECK_INTERVAL_MS so scheduled announcements
-  // appear/disappear without a full re-subscribe.
+  // nowMs is the current wall-clock time (ms) and is updated every
+  // SCHEDULE_CHECK_INTERVAL_MS so scheduled announcements appear/disappear
+  // and the auto-deactivate end window fires without a full re-subscribe.
   const visible = useMemo(
     () =>
       announcements.filter((a) => {
-        // Must pass scheduled/manual activation check
-        if (!isScheduledTimeReached(a, nowMinutes)) return false;
+        // Must pass scheduled/manual activation check + auto-deactivate window
+        if (!isWithinActiveWindow(a, nowMs)) return false;
 
         // Must not have been dismissed by this user in this push epoch
         const epochKey = `${a.id}_${a.activatedAt}`;
@@ -430,7 +478,7 @@ export const AnnouncementOverlay: React.FC = () => {
 
         return true;
       }),
-    [announcements, dismissed, selectedBuildings, nowMinutes, user?.email]
+    [announcements, dismissed, selectedBuildings, nowMs, user?.email]
   );
 
   if (visible.length === 0) return null;
