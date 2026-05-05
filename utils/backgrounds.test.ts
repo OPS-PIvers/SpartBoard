@@ -68,6 +68,18 @@ describe('backgrounds', () => {
       expect(isCustomBackground('Custom:#ff0000')).toBe(false);
       expect(isCustomBackground('CUSTOM:#ff0000')).toBe(false);
     });
+
+    it('returns false if prefix has leading whitespace', () => {
+      expect(isCustomBackground(' custom:#ff0000')).toBe(false);
+    });
+
+    it('returns false if prefix is not at the start', () => {
+      expect(isCustomBackground('prefix custom:#ff0000')).toBe(false);
+    });
+
+    it('returns false if colon is missing', () => {
+      expect(isCustomBackground('custom#ff0000')).toBe(false);
+    });
   });
 
   describe('getCustomBackgroundStyle', () => {
@@ -132,6 +144,20 @@ describe('backgrounds', () => {
 
     it('returns empty object when value after prefix is empty', () => {
       expect(getCustomBackgroundStyle('custom:')).toEqual({});
+    });
+
+    it('returns empty object if string does not start with custom:', () => {
+      expect(getCustomBackgroundStyle('bg-slate-900')).toEqual({});
+      expect(getCustomBackgroundStyle('#ff0000')).toEqual({});
+    });
+
+    it('returns empty object for malformed rgb values', () => {
+      expect(getCustomBackgroundStyle('custom:rgb(')).toEqual({});
+      expect(getCustomBackgroundStyle('custom:rgba(255, 0, 0, 1')).toEqual({});
+    });
+
+    it('returns empty object for malformed linear-gradient values', () => {
+      expect(getCustomBackgroundStyle('custom:linear-gradient(')).toEqual({});
     });
   });
 });
