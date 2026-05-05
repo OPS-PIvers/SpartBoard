@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 const HOLD_DELAY_MS = 400;
 const TICK_INTERVAL_MS = 250;
@@ -57,10 +57,22 @@ export const useHoldAccelerate = (onTick: (multiplier: number) => void) => {
     [stop]
   );
 
+  // Keyboard activation: Enter/Space fire a single 1× step. We handle this
+  // explicitly because pointer events don't fire for keyboard activation, and
+  // we suppress the native click default to avoid a double-fire after pointerup
+  // synthesises a click.
+  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onTickRef.current(1);
+    }
+  }, []);
+
   return {
     onPointerDown,
     onPointerUp: stop,
     onPointerCancel: stop,
     onPointerLeave: stop,
+    onKeyDown,
   };
 };

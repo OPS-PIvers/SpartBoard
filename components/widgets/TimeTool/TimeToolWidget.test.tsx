@@ -352,6 +352,48 @@ describe('TimeToolWidget', () => {
       );
     });
 
+    it('Enter key on + fires a single 1× step (keyboard accessibility)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.keyDown(screen.getByLabelText('Add time'), { key: 'Enter' });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 180,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('Space key on − fires a single 1× step (keyboard accessibility)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.keyDown(screen.getByLabelText('Subtract time'), { key: ' ' });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 60,
+          }) as unknown,
+        })
+      );
+    });
+
     it('respects custom adjustStepSeconds value', () => {
       const widget = createWidget({
         mode: 'timer',

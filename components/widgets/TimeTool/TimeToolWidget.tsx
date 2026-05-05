@@ -49,6 +49,7 @@ const AdjustButton: React.FC<{
       onPointerUp={handlers.onPointerUp}
       onPointerCancel={handlers.onPointerCancel}
       onPointerLeave={handlers.onPointerLeave}
+      onKeyDown={handlers.onKeyDown}
       className={`flex flex-col items-center justify-center rounded-2xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
         disabled ? 'opacity-30 cursor-not-allowed' : ''
       }`}
