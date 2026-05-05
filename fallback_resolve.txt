@@ -1,0 +1,30 @@
+        const identifiers = uids.map((uid) => ({ uid }));
+        const chunks: { uid: string }[][] = [];
+        for (let i = 0; i < identifiers.length; i += 100) {
+          chunks.push(identifiers.slice(i, i + 100));
+        }
+
+        await Promise.all(
+          chunks.map(async (chunk, chunkIdx) => {
+            try {
+              const result = await admin.auth().getUsers(chunk);
+              result.users.forEach((u) => {
+                if (u.email) {
+                  targetMap[u.uid] = u.email;
+                }
+              });
+            } catch (error) {
+              console.warn(
+                `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
+                {
+                  requestId,
+                  chunkSize: chunk.length,
+                  chunkStart: chunkIdx * 100,
+                  totalIdentifiers: identifiers.length,
+                  totalUids: uids.length,
+                  error,
+                }
+              );
+            }
+          })
+        );
