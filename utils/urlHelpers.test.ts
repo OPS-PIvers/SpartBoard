@@ -249,5 +249,9 @@ describe('urlHelpers', () => {
       const url = 'https://example.com';
       expect(convertToEmbedUrl(url)).toBe(url);
     });
+    it('returns original URL if URL parsing fails for Google Docs-like strings', () => {
+      const invalidUrl = 'https://docs.google.com:999999/%%';
+      expect(convertToEmbedUrl(invalidUrl)).toBe(invalidUrl);
+    });
   });
 });
