@@ -1,66 +1,48 @@
+import DOMPurify from 'dompurify';
+
 /**
- * Basic HTML sanitizer to prevent XSS in contentEditable widgets.
- * Removes script tags, iframes, objects, embeds, and event handlers.
+ * Robust HTML sanitizer to prevent XSS.
+ * Uses DOMPurify to remove dangerous tags and attributes.
  */
 export const sanitizeHtml = (html: string): string => {
   if (!html) return '';
 
-  // 1. Remove script tags and their content
-  let clean = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '');
-
-  // 2. Remove other dangerous tags (iframe, object, embed, form)
-  clean = clean.replace(
-    /<\/?(iframe|object|embed|form|input|button|textarea|select|option)[^>]*>/gim,
-    ''
-  );
-
-  // 3. Remove event handlers (on*) and javascript: protocols
-  if (typeof window !== 'undefined' && typeof DOMParser !== 'undefined') {
-    const doc = new DOMParser().parseFromString(clean, 'text/html');
-
-    // Remove dangerous elements that might have slipped through regex
-    const dangerousTags = [
-      'script',
-      'iframe',
-      'object',
-      'embed',
-      'form',
-      'link',
+  return DOMPurify.sanitize(html, {
+    // Whitelist tags that are necessary for the TextWidget and general formatting
+    ALLOWED_TAGS: [
+      'b',
+      'strong',
+      'i',
+      'em',
+      'u',
+      'strike',
+      'ul',
+      'ol',
+      'li',
+      'font',
+      'span',
+      'div',
+      'p',
+      'a',
+      'br',
+      'img',
+    ],
+    // Whitelist attributes needed for formatting and functionality
+    ALLOWED_ATTR: [
+      'href',
       'style',
-      'meta',
-    ];
-    dangerousTags.forEach((tag) => {
-      const elements = doc.querySelectorAll(tag);
-      elements.forEach((el) => el.remove());
-    });
-
-    // Remove dangerous attributes
-    const allElements = doc.querySelectorAll('*');
-    allElements.forEach((el) => {
-      const attributes = Array.from(el.attributes);
-      attributes.forEach((attr) => {
-        const name = attr.name.toLowerCase();
-        const value = attr.value.toLowerCase();
-
-        if (
-          name.startsWith('on') ||
-          value.includes('javascript:') ||
-          (value.includes('data:') && !value.startsWith('data:image/'))
-        ) {
-          el.removeAttribute(attr.name);
-        }
-      });
-    });
-
-    return doc.body.innerHTML;
-  } else {
-    // Fallback warning in development
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        'Security Warning: DOMParser not available. Using regex fallback for sanitization which may be less secure.'
-      );
-    }
-  }
-
-  return clean;
+      'color',
+      'size',
+      'target',
+      'src',
+      'class',
+      'align',
+      'title',
+    ],
+    // Allow data:image/ URIs for images
+    ADD_DATA_URI_TAGS: ['img'],
+    // Ensure links don't have dangerous protocols
+    ALLOWED_URI_REGEXP:
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+  });
 };
