@@ -50,21 +50,29 @@ const AdjustButton: React.FC<{
       onPointerCancel={handlers.onPointerCancel}
       onPointerLeave={handlers.onPointerLeave}
       onKeyDown={handlers.onKeyDown}
-      className={`flex items-center justify-center rounded-2xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
+      className={`flex flex-col items-center justify-center rounded-2xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
         disabled ? 'opacity-30 cursor-not-allowed' : ''
       }`}
       style={{
         width: 'min(56px, 14cqmin)',
         height: 'min(56px, 14cqmin)',
+        padding: 'min(4px, 1cqmin)',
+        gap: 'min(2px, 0.5cqmin)',
       }}
     >
       <Icon
         style={{
-          width: 'min(32px, 9cqmin)',
-          height: 'min(32px, 9cqmin)',
+          width: 'min(28px, 8cqmin)',
+          height: 'min(28px, 8cqmin)',
         }}
         strokeWidth={3}
       />
+      <span
+        className="font-black tabular-nums leading-none"
+        style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+      >
+        {presetLabel(step)}
+      </span>
     </button>
   );
 };
