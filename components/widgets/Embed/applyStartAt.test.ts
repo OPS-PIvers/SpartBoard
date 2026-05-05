@@ -62,6 +62,20 @@ describe('applyStartAt', () => {
     expect(applyStartAt(url, 30)).toBe(url);
   });
 
+  // youtu.be short links are normalized to youtube.com/embed/... by
+  // convertToEmbedUrl before this helper runs, and `?start=N` is only honored
+  // by the embed player anyway (short links use `?t=N`). Asserting the
+  // pass-through here makes the input contract explicit.
+  it('does not modify youtu.be short links (caller is expected to normalize first)', () => {
+    const url = 'https://youtu.be/abc123';
+    expect(applyStartAt(url, 30)).toBe(url);
+  });
+
+  it('does not modify youtube.com/watch URLs (caller is expected to normalize first)', () => {
+    const url = 'https://www.youtube.com/watch?v=abc123';
+    expect(applyStartAt(url, 30)).toBe(url);
+  });
+
   it('preserves existing query parameters', () => {
     const url = 'https://www.youtube.com/embed/abc123?autoplay=1&mute=1';
     const result = applyStartAt(url, 45);
