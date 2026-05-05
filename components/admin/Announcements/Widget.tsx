@@ -40,7 +40,7 @@ import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
-import { getLocalIsoDate } from '@/utils/localDate';
+import { getLocalIsoDate, combineDateAndTime } from '@/utils/localDate';
 import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
@@ -143,38 +143,6 @@ function buildDefaultForm(): AnnouncementFormData {
     targetBuildings: [],
     targetUsers: [],
   };
-}
-
-/**
- * Combine a YYYY-MM-DD date and HH:MM time into a millisecond timestamp using
- * local-time semantics. Returns null when either piece is missing or malformed.
- *
- * Wall-clock interpretation matches the admin's intent across timezones —
- * "May 5, 8:00 AM" means 8:00 AM in the school's local time, not UTC.
- */
-function combineDateAndTime(
-  date: string | undefined,
-  time: string | undefined
-): number | null {
-  if (!date || !time) return null;
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(time);
-  if (!dateMatch || !timeMatch) return null;
-  const y = Number(dateMatch[1]);
-  const mo = Number(dateMatch[2]);
-  const d = Number(dateMatch[3]);
-  const h = Number(timeMatch[1]);
-  const mi = Number(timeMatch[2]);
-  if (
-    !Number.isFinite(y) ||
-    !Number.isFinite(mo) ||
-    !Number.isFinite(d) ||
-    !Number.isFinite(h) ||
-    !Number.isFinite(mi)
-  )
-    return null;
-  const ms = new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
-  return Number.isFinite(ms) ? ms : null;
 }
 
 type AnnouncementLiveStatus = 'inactive' | 'scheduled' | 'active' | 'expired';
@@ -736,7 +704,11 @@ export const AnnouncementsManager: React.FC = () => {
       widgetSize: a.widgetSize,
       maximized: a.maximized,
       activationType: a.activationType,
-      scheduledActivationDate: a.scheduledActivationDate ?? today,
+      // Preserve legacy time-only schedules: leave the date empty when the
+      // announcement was created before the date field existed. The overlay
+      // falls back to a daily-recurring HH:MM compare in that case. Defaulting
+      // here would silently convert the legacy schedule to a one-shot.
+      scheduledActivationDate: a.scheduledActivationDate ?? '',
       scheduledActivationTime: a.scheduledActivationTime ?? '08:00',
       autoDeactivateEnabled: hasEndWindow,
       scheduledEndDate: a.scheduledEndDate ?? today,
@@ -805,13 +777,15 @@ export const AnnouncementsManager: React.FC = () => {
       return;
     }
     if (form.activationType === 'scheduled') {
-      if (!form.scheduledActivationDate || !form.scheduledActivationTime) {
+      if (!form.scheduledActivationTime) {
         addToast(
-          'Please set a start date and start time for scheduled announcements.',
+          'Please set a start time for scheduled announcements.',
           'error'
         );
         return;
       }
+      // Start date is optional — empty preserves the legacy time-only
+      // daily-recurring behavior. The overlay falls back accordingly.
     }
     if (form.autoDeactivateEnabled) {
       if (!form.scheduledEndDate || !form.scheduledEndTime) {
@@ -860,7 +834,7 @@ export const AnnouncementsManager: React.FC = () => {
             ? form.scheduledActivationTime
             : undefined,
         scheduledActivationDate:
-          form.activationType === 'scheduled'
+          form.activationType === 'scheduled' && form.scheduledActivationDate
             ? form.scheduledActivationDate
             : undefined,
         scheduledEndDate: form.autoDeactivateEnabled
@@ -1292,40 +1266,49 @@ export const AnnouncementsManager: React.FC = () => {
                 ))}
               </div>
               {form.activationType === 'scheduled' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.scheduledActivationDate}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          scheduledActivationDate: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                    />
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={form.scheduledActivationDate}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledActivationDate: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Start Time
+                      </label>
+                      <input
+                        type="time"
+                        value={form.scheduledActivationTime}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledActivationTime: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Start Time
-                    </label>
-                    <input
-                      type="time"
-                      value={form.scheduledActivationTime}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          scheduledActivationTime: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                    />
-                  </div>
-                </div>
+                  {!form.scheduledActivationDate && (
+                    <p className="text-xs text-amber-700">
+                      No start date set — the announcement recurs daily at the
+                      time above (legacy behavior). Pick a date to convert it to
+                      a one-shot schedule.
+                    </p>
+                  )}
+                </>
               )}
               {/* Auto-deactivate end window — applies to both manual and scheduled */}
               <div className="pt-3 border-t border-slate-100">

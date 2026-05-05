@@ -37,6 +37,7 @@ import { Announcement, WidgetData, WidgetConfig } from '@/types';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { Z_INDEX } from '@/config/zIndex';
+import { combineDateAndTime } from '@/utils/localDate';
 
 const DISMISSALS_KEY = 'spart_announcement_dismissals';
 const SCHEDULE_CHECK_INTERVAL_MS = 30_000;
@@ -79,35 +80,6 @@ function timeToMinutes(hhmm: string): number {
 function currentMinutes(): number {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
-}
-
-/**
- * Combine a YYYY-MM-DD date and HH:MM time into a millisecond timestamp using
- * local-time semantics. Returns null when either piece is missing or malformed.
- */
-function combineDateAndTime(
-  date: string | undefined,
-  time: string | undefined
-): number | null {
-  if (!date || !time) return null;
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(time);
-  if (!dateMatch || !timeMatch) return null;
-  const y = Number(dateMatch[1]);
-  const mo = Number(dateMatch[2]);
-  const d = Number(dateMatch[3]);
-  const h = Number(timeMatch[1]);
-  const mi = Number(timeMatch[2]);
-  if (
-    !Number.isFinite(y) ||
-    !Number.isFinite(mo) ||
-    !Number.isFinite(d) ||
-    !Number.isFinite(h) ||
-    !Number.isFinite(mi)
-  )
-    return null;
-  const ms = new Date(y, mo - 1, d, h, mi, 0, 0).getTime();
-  return Number.isFinite(ms) ? ms : null;
 }
 
 /**
