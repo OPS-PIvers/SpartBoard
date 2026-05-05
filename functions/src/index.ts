@@ -2457,7 +2457,7 @@ export const adminAnalytics = onRequest(
                   chunkStart: chunkIdx * 100,
                   totalIdentifiers: identifiers.length,
                   totalUids: uids.length,
-                  error,
+                  error: error instanceof Error ? error.message : String(error),
                 }
               );
             }
