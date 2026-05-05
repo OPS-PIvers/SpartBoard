@@ -102,5 +102,28 @@ describe('plc utils', () => {
       const result = getPlcTeammateEmails(plc, 'u1');
       expect(result).toEqual([]);
     });
+
+    it('ignores non-string teammate values', () => {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+      const plc: Plc = {
+        ...mockPlc,
+        memberUids: ['u1', 'u2', 'u3', 'u4'],
+        memberEmails: {
+          u1: 'self@example.com',
+          u2: 42 as any,
+          u3: null as any,
+          u4: 'teammate@example.com',
+        },
+      };
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+      expect(getPlcTeammateEmails(plc, 'u1')).toEqual(['teammate@example.com']);
+    });
+
+    it('handles missing memberEmails gracefully', () => {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+      const plc: Plc = { ...mockPlc, memberEmails: undefined as any };
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+      expect(getPlcTeammateEmails(plc, 'user-1')).toEqual([]);
+    });
   });
 });
