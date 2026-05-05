@@ -24,20 +24,17 @@ export const isCustomBackground = (background: string): boolean =>
 export const getCustomBackgroundStyle = (
   background: string
 ): React.CSSProperties => {
-  if (!background.startsWith('custom:')) {
+  if (!isCustomBackground(background)) {
     return {};
   }
-  const value = background.slice('custom:'.length);
+  const value = background.slice('custom:'.length).trim();
   if (/^#([0-9a-fA-F]{3}){1,2}$/.test(value)) {
     return { backgroundColor: value };
   }
-  if (
-    (value.startsWith('rgb(') || value.startsWith('rgba(')) &&
-    value.endsWith(')')
-  ) {
+  if (/^rgba?\(.*\)$/.test(value)) {
     return { backgroundColor: value };
   }
-  if (value.startsWith('linear-gradient(') && value.endsWith(')')) {
+  if (/^linear-gradient\(.*\)$/.test(value)) {
     return { background: value };
   }
   return {};

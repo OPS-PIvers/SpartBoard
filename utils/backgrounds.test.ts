@@ -159,5 +159,14 @@ describe('backgrounds', () => {
     it('returns empty object for malformed linear-gradient values', () => {
       expect(getCustomBackgroundStyle('custom:linear-gradient(')).toEqual({});
     });
+
+    it('trims surrounding whitespace from the value', () => {
+      expect(getCustomBackgroundStyle('custom:  #ff0000  ')).toEqual({
+        backgroundColor: '#ff0000',
+      });
+      expect(getCustomBackgroundStyle('custom: rgb(255, 0, 0) ')).toEqual({
+        backgroundColor: 'rgb(255, 0, 0)',
+      });
+    });
   });
 });
