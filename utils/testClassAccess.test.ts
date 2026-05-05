@@ -12,7 +12,7 @@ describe('canReadTestClasses', () => {
     superAdmins: ['super@example.com'],
   };
 
-  it('returns false if orgId is missing', () => {
+  it('returns false if orgId is missing or whitespace', () => {
     expect(
       canReadTestClasses(
         null,
@@ -32,6 +32,14 @@ describe('canReadTestClasses', () => {
     expect(
       canReadTestClasses('', 'super_admin', mockUserRoles, 'super@example.com')
     ).toBe(false);
+    expect(
+      canReadTestClasses(
+        '   ',
+        'super_admin',
+        mockUserRoles,
+        'super@example.com'
+      )
+    ).toBe(false);
   });
 
   it('returns true if roleId is super_admin', () => {
@@ -49,6 +57,12 @@ describe('canReadTestClasses', () => {
     expect(
       canReadTestClasses(orgId, 'teacher', mockUserRoles, 'SUPER@EXAMPLE.COM')
     ).toBe(true);
+
+    // Inverse case-insensitivity
+    const upperRoles = { ...mockUserRoles, superAdmins: ['ADMIN@EXAMPLE.COM'] };
+    expect(
+      canReadTestClasses(orgId, 'teacher', upperRoles, 'admin@example.com')
+    ).toBe(true);
   });
 
   it('returns false for regular roles and user not in superAdmins', () => {
@@ -60,6 +74,12 @@ describe('canReadTestClasses', () => {
     ).toBe(false);
     expect(
       canReadTestClasses(orgId, null, mockUserRoles, 'someone@example.com')
+    ).toBe(false);
+
+    // Empty superAdmins list
+    const emptyRoles = { ...mockUserRoles, superAdmins: [] };
+    expect(
+      canReadTestClasses(orgId, 'teacher', emptyRoles, 'super@example.com')
     ).toBe(false);
   });
 
