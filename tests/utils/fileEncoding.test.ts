@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { blobToBase64 } from '@/utils/fileEncoding';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('blobToBase64', () => {
   it('converts a simple text blob to base64 and strips prefix', async () => {
@@ -39,67 +43,56 @@ describe('blobToBase64', () => {
   it('rejects when FileReader fails', async () => {
     const blob = new Blob(['test']);
     const mockError = new Error('Simulated read failure');
-    const originalFileReader = global.FileReader;
 
-    // @ts-expect-error - Mocking FileReader for testing purposes
-    global.FileReader = class {
-      error = mockError;
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        if (this.onerror) this.onerror();
+    vi.stubGlobal(
+      'FileReader',
+      class {
+        error: Error | null = mockError;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        readAsDataURL() {
+          this.onerror?.();
+        }
       }
-    };
+    );
 
-    try {
-      await expect(blobToBase64(blob)).rejects.toThrow(
-        'Simulated read failure'
-      );
-    } finally {
-      global.FileReader = originalFileReader;
-    }
+    await expect(blobToBase64(blob)).rejects.toThrow('Simulated read failure');
   });
 
   it('rejects with default error if FileReader.error is null', async () => {
     const blob = new Blob(['test']);
-    const originalFileReader = global.FileReader;
 
-    // @ts-expect-error - Mocking FileReader for testing purposes
-    global.FileReader = class {
-      error = null;
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        if (this.onerror) this.onerror();
+    vi.stubGlobal(
+      'FileReader',
+      class {
+        error: Error | null = null;
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        readAsDataURL() {
+          this.onerror?.();
+        }
       }
-    };
+    );
 
-    try {
-      await expect(blobToBase64(blob)).rejects.toThrow('Read failed');
-    } finally {
-      global.FileReader = originalFileReader;
-    }
+    await expect(blobToBase64(blob)).rejects.toThrow('Read failed');
   });
 
   it('handles dataUrl without comma (unlikely but covered by code)', async () => {
     const blob = new Blob(['test']);
-    const originalFileReader = global.FileReader;
 
-    // @ts-expect-error - Mocking FileReader for testing purposes
-    global.FileReader = class {
-      result = 'barebase64string';
-      onload: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-      readAsDataURL() {
-        if (this.onload) this.onload();
+    vi.stubGlobal(
+      'FileReader',
+      class {
+        result = 'barebase64string';
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        readAsDataURL() {
+          this.onload?.();
+        }
       }
-    };
+    );
 
-    try {
-      const result = await blobToBase64(blob);
-      expect(result).toBe('barebase64string');
-    } finally {
-      global.FileReader = originalFileReader;
-    }
+    const result = await blobToBase64(blob);
+    expect(result).toBe('barebase64string');
   });
 });
