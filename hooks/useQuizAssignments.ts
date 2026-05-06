@@ -38,6 +38,9 @@ import type {
   QuizData,
   QuizMetadataSyncLinkage,
   QuizQuestion,
+  QuizResponse,
+  QuizResponseAnswer,
+  QuizScoreVisibility,
   QuizSession,
   SharedQuizAssignment,
 } from '../types';
@@ -45,6 +48,7 @@ import type { SessionTargets } from '../utils/resolveAssignmentTargets';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
+  gradeAnswer,
   toPublicQuestion,
   type ResponseDocKey,
 } from './useQuizSession';
@@ -305,6 +309,34 @@ export interface UseQuizAssignmentsResult {
     /** How many existing responses were tagged with `preSyncVersion`. */
     taggedResponseCount: number;
   }>;
+  /**
+   * Publish (or unpublish) score visibility for an archived assignment.
+   *
+   * For visibility levels other than `'none'`, this:
+   *   1. Computes each student's percentage score from the live response
+   *      docs using `gradeAnswer` against the canonical `quizData`, and
+   *      writes the resulting `score` + per-answer `isCorrect` flags onto
+   *      every response doc under `/quiz_sessions/{id}/responses/`.
+   *   2. Mirrors `scoreVisibility` onto both the assignment doc and the
+   *      session doc so the `/my-assignments` student view can read it
+   *      without a teacher-scoped fetch.
+   *   3. When `'score-responses-and-answers'`, populates
+   *      `session.revealedAnswers` with every question's canonical answer
+   *      so the student review screen can render the correct answer text.
+   *
+   * Passing `'none'` clears the visibility flags (and `revealedAnswers`)
+   * so a teacher who published in error can roll back without deleting
+   * the assignment. Already-written `score` / `isCorrect` fields on
+   * responses are left in place — re-publishing simply overwrites them.
+   *
+   * Returns the number of responses whose score was (re)computed; `0`
+   * when `'none'`.
+   */
+  publishAssignmentScores: (
+    assignmentId: string,
+    quizData: QuizData,
+    visibility: QuizScoreVisibility
+  ) => Promise<{ responsesUpdated: number }>;
 }
 
 /**
@@ -1579,6 +1611,161 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const publishAssignmentScores = useCallback<
+    UseQuizAssignmentsResult['publishAssignmentScores']
+  >(
+    async (assignmentId, quizData, visibility) => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        QUIZ_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
+
+      // Unpublish path — clear the visibility flags on assignment + session
+      // and wipe the revealed-answers map so the student review screen
+      // falls back to "scores not yet published". Already-written `score`
+      // and per-answer `isCorrect` fields on response docs are left in
+      // place: the reader gates on `scoreVisibility`, so leaving the
+      // numbers behind is harmless and avoids a multi-batch wipe on a
+      // gesture the teacher may immediately undo.
+      if (visibility === 'none') {
+        const batch = writeBatch(db);
+        batch.update(assignmentRef, {
+          scoreVisibility: 'none',
+          scorePublishedAt: deleteField(),
+          updatedAt: now,
+        });
+        batch.update(sessionRef, {
+          scoreVisibility: 'none',
+          revealedAnswers: deleteField(),
+        });
+        await batch.commit();
+        return { responsesUpdated: 0 };
+      }
+
+      // Index questions by id for O(1) grading lookups. Use the canonical
+      // `quizData.questions` (loaded from Drive on the teacher side) so
+      // grading sees the full `correctAnswer` text — `session.publicQuestions`
+      // strips it for student-safety.
+      const questionsById = new Map<string, QuizQuestion>();
+      for (const q of quizData.questions) {
+        questionsById.set(q.id, q);
+      }
+
+      const responsesSnap = await getDocs(
+        collection(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION
+        )
+      );
+
+      // Compute the score + per-answer correctness for every response. Per-
+      // response payload is built up front so the batch loop below stays
+      // straightforward and we can slice it across the 500-write cap.
+      interface ResponseUpdate {
+        ref: ReturnType<typeof doc>;
+        patch: { score: number; answers: QuizResponseAnswer[] };
+      }
+      const updates: ResponseUpdate[] = [];
+      for (const d of responsesSnap.docs) {
+        const data = d.data() as QuizResponse;
+        const answers = Array.isArray(data.answers) ? data.answers : [];
+        let pointsEarned = 0;
+        let pointsMax = 0;
+        const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
+          const q = questionsById.get(a.questionId);
+          if (!q) {
+            // Question deleted between submission and publish — leave the
+            // answer untouched (no `isCorrect` we can claim) and skip it
+            // from the score denominator so the percentage isn't punished
+            // for a missing question.
+            return a;
+          }
+          const result = gradeAnswer(q, a.answer);
+          pointsEarned += result.pointsEarned;
+          pointsMax += result.pointsMax;
+          return { ...a, isCorrect: result.isCorrect };
+        });
+        // Also count questions the student didn't answer at all toward the
+        // denominator so a blank response scores 0%, not undefined.
+        for (const q of quizData.questions) {
+          if (!answers.some((a) => a.questionId === q.id)) {
+            pointsMax += q.points ?? 1;
+          }
+        }
+        const score =
+          pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+        updates.push({
+          ref: d.ref,
+          patch: { score, answers: gradedAnswers },
+        });
+      }
+
+      // First batch carries the assignment + session writes so the
+      // visibility flag flips atomically with at least the first chunk
+      // of response updates. If subsequent chunks fail, a re-publish
+      // safely overwrites — the operation is idempotent.
+      const MAX_BATCH_WRITES = 400;
+      const firstBatch = writeBatch(db);
+      firstBatch.update(assignmentRef, {
+        scoreVisibility: visibility,
+        scorePublishedAt: now,
+        updatedAt: now,
+      });
+      const sessionPatch: Record<string, unknown> = {
+        scoreVisibility: visibility,
+      };
+      // Populate `revealedAnswers` only when the teacher chose to share
+      // correct-answer text. The other two visibility levels deliberately
+      // leave it untouched (or wiped on unpublish) so the student review
+      // screen can't surface answers the teacher hasn't opted in to.
+      if (visibility === 'score-responses-and-answers') {
+        const revealedAnswers: Record<string, string> = {};
+        for (const q of quizData.questions) {
+          revealedAnswers[q.id] = q.correctAnswer;
+        }
+        sessionPatch.revealedAnswers = revealedAnswers;
+      } else {
+        sessionPatch.revealedAnswers = deleteField();
+      }
+      firstBatch.update(sessionRef, sessionPatch);
+
+      // 2 writes already consumed (assignment + session); fill the rest
+      // of the first batch with response updates.
+      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      for (let i = 0; i < firstChunkSize; i++) {
+        firstBatch.update(updates[i].ref, updates[i].patch);
+      }
+      await firstBatch.commit();
+
+      // Remaining responses in subsequent batches (assignments with > ~398
+      // submissions across a PLC). Each batch is independently committed.
+      for (
+        let cursor = firstChunkSize;
+        cursor < updates.length;
+        cursor += MAX_BATCH_WRITES
+      ) {
+        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+        const chunkBatch = writeBatch(db);
+        for (const u of chunk) {
+          chunkBatch.update(u.ref, u.patch);
+        }
+        await chunkBatch.commit();
+      }
+
+      return { responsesUpdated: updates.length };
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -1597,5 +1784,6 @@ export const useQuizAssignments = (
     peekSharedAssignment,
     importSharedAssignment,
     syncAssignmentToLatest,
+    publishAssignmentScores,
   };
 };

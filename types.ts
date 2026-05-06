@@ -1972,6 +1972,18 @@ export interface QuizSession {
    * sessions; consumers must default to `'submissions'`.
    */
   mode?: AssignmentMode;
+  /**
+   * Mirror of `QuizAssignment.scoreVisibility`. Absent / `'none'` means
+   * scores have not been published to students yet. Read by the student
+   * `/my-assignments` Completed review screen to decide which fields
+   * (score / per-answer correctness / correct-answer text) to surface.
+   *
+   * `revealedAnswers` (above) is the source of truth for correct-answer
+   * text when `scoreVisibility === 'score-responses-and-answers'` —
+   * `publishAssignmentScores` populates it with every question's
+   * canonical answer in one batch.
+   */
+  scoreVisibility?: QuizScoreVisibility;
 }
 
 export interface QuizResponseAnswer {
@@ -2148,6 +2160,29 @@ export interface QuizConfig {
 export type QuizAssignmentStatus = 'active' | 'paused' | 'inactive';
 
 /**
+ * Score-publication visibility level for a quiz assignment.
+ *
+ * Set by the teacher's "Publish Scores" action on an archived assignment.
+ * Controls what each student sees on the `/my-assignments` Completed
+ * review screen.
+ *
+ * - `none`: scores not published. Students see only "submitted".
+ * - `score-only`: students see their numeric score (out of total).
+ * - `score-and-responses`: students see score + each of their answers
+ *   marked correct/incorrect, but not the correct answer.
+ * - `score-responses-and-answers`: students see score, their answers
+ *   marked correct/incorrect, AND the correct answer for each question.
+ *
+ * Mirrored to the matching `QuizSession` doc so students can read the
+ * level without needing access to the teacher's assignment doc.
+ */
+export type QuizScoreVisibility =
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
+
+/**
  * PLC linkage for a quiz assignment. Present iff the assignment is in PLC
  * mode (the originator opted into "Share with PLC" at create time, or the
  * importer is a member of the originator's PLC). The presence of this
@@ -2287,6 +2322,18 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Score-publication visibility level. Absent / `'none'` means scores
+   * have not been published to students yet. Mirrored to the matching
+   * `QuizSession` doc by `publishAssignmentScores`.
+   */
+  scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Timestamp of the most recent `publishAssignmentScores` call. Used by
+   * the archive UI to surface "Published <date>" text on cards whose
+   * scores have been shared with students.
+   */
+  scorePublishedAt?: number;
 }
 
 /** See `QuizAssignment.sync`. */

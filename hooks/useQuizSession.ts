@@ -760,6 +760,28 @@ export interface UseQuizSessionStudentResult {
     pin?: string,
     classPeriod?: string
   ) => Promise<string>;
+  /**
+   * Subscribe to an already-ended session for a read-only review of the
+   * student's previous submission. Used by the `/my-assignments` Completed
+   * list when the teacher has published scores via the archive's "Publish
+   * Scores" action.
+   *
+   * Unlike `joinQuizSession`, this never creates or mutates a response
+   * doc — it just resolves the session by code, picks the most recent
+   * matching doc (preferring published-score sessions over plain ended
+   * ones), and wires up the snapshot listeners so `session` and
+   * `myResponse` flow through to the consumer.
+   *
+   * Only meaningful for non-anonymous (SSO `studentRole`) callers because
+   * the response doc is keyed by `auth.uid` for them; anonymous PIN
+   * joiners would still need the PIN to compute their response key, so
+   * that path is rejected.
+   *
+   * Throws when no session matches, when the caller is anonymous, or
+   * when no response doc exists under the resolved key (e.g., the
+   * student never submitted before the session ended).
+   */
+  subscribeForReview: (code: string) => Promise<void>;
   submitAnswer: (
     questionId: string,
     answer: string,
@@ -1423,6 +1445,76 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     return newCount;
   }, []);
 
+  const subscribeForReview = useCallback(
+    async (code: string): Promise<void> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const normCode = code
+          .trim()
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase();
+        if (!normCode) throw new Error('Invalid code');
+
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('Not signed in.');
+        }
+        if (currentUser.isAnonymous) {
+          // Anonymous PIN students don't have a stable identity to look up
+          // their old response without re-supplying the PIN. Reject so the
+          // caller can fall back to the PIN form.
+          throw new Error(
+            'Sign in to review this quiz — anonymous review is not supported.'
+          );
+        }
+        const studentUid = currentUser.uid;
+
+        const snap = await getDocs(
+          query(
+            collection(db, QUIZ_SESSIONS_COLLECTION),
+            where('code', '==', normCode)
+          )
+        );
+        if (snap.empty) {
+          throw new Error('No quiz found with that code.');
+        }
+        // Prefer sessions where the teacher has published scores; among
+        // ties, fall back to the most-recent session by `endedAt` /
+        // `startedAt`. A code can recur across multiple sessions over a
+        // school year, and the student-facing review should land on the
+        // assignment that's actually been published.
+        const docs = snap.docs.slice().sort((a, b) => {
+          const ad = a.data() as QuizSession;
+          const bd = b.data() as QuizSession;
+          const aPublished = (ad.scoreVisibility ?? 'none') !== 'none' ? 1 : 0;
+          const bPublished = (bd.scoreVisibility ?? 'none') !== 'none' ? 1 : 0;
+          if (aPublished !== bPublished) return bPublished - aPublished;
+          const at = ad.endedAt ?? ad.startedAt ?? 0;
+          const bt = bd.endedAt ?? bd.startedAt ?? 0;
+          return bt - at;
+        });
+        const sessionDoc = docs[0];
+        sessionIdRef.current = sessionDoc.id;
+        // SSO students key their response doc by auth.uid (see
+        // `computeResponseKey` for the contract).
+        responseKeyRef.current = studentUid;
+        setSessionIdState(sessionDoc.id);
+        setResponseKeyState(studentUid);
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Could not load this quiz for review.';
+        setError(msg);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   return {
     session,
     myResponse,
@@ -1431,6 +1523,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     sessionIdRef,
     lookupSession,
     joinQuizSession,
+    subscribeForReview,
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
