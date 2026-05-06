@@ -1846,7 +1846,9 @@ export interface QuizSessionOptions {
 /**
  * Student-safe question stored in the session document.
  * Never contains correctAnswer so students cannot cheat by inspecting
- * Firestore/network traffic. Answer choices are pre-shuffled server-side.
+ * Firestore/network traffic. Answer choices are pre-shuffled by the teacher
+ * client at session-create time (in `toPublicQuestion`) before the doc is
+ * written to Firestore.
  */
 export interface QuizPublicQuestion {
   id: string;
