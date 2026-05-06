@@ -2192,29 +2192,34 @@ export const adminAnalytics = onRequest(
       const uidsToResolve = members
         .map((m) => m.uid)
         .filter((uid): uid is string => uid !== null);
+      const chunks: { uid: string }[][] = [];
       for (let i = 0; i < uidsToResolve.length; i += 100) {
-        const chunk = uidsToResolve.slice(i, i + 100).map((uid) => ({ uid }));
-        if (chunk.length === 0) continue;
-        try {
-          const result = await admin.auth().getUsers(chunk);
-          for (const u of result.users) {
-            const lastSignIn = u.metadata.lastSignInTime
-              ? new Date(u.metadata.lastSignInTime).getTime()
-              : 0;
-            authUsersMap.set(u.uid, {
-              email: u.email ?? '',
-              lastSignInMs: lastSignIn,
+        chunks.push(uidsToResolve.slice(i, i + 100).map((uid) => ({ uid })));
+      }
+
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          try {
+            const result = await admin.auth().getUsers(chunk);
+            for (const u of result.users) {
+              const lastSignIn = u.metadata.lastSignInTime
+                ? new Date(u.metadata.lastSignInTime).getTime()
+                : 0;
+              authUsersMap.set(u.uid, {
+                email: u.email ?? '',
+                lastSignInMs: lastSignIn,
+              });
+            }
+          } catch (err) {
+            console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
+              requestId,
+              orgId,
+              chunkSize: chunk.length,
+              error: err instanceof Error ? err.message : String(err),
             });
           }
-        } catch (err) {
-          console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
-            requestId,
-            orgId,
-            chunkSize: chunk.length,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }
+        })
+      );
 
       // 3b. Build a uid → member lookup so downstream dashboard/AI filters can
       // scope to org members without being gated on a successful
@@ -2429,30 +2434,35 @@ export const adminAnalytics = onRequest(
         warningContext: string
       ): Promise<void> => {
         const identifiers = uids.map((uid) => ({ uid }));
+        const chunks: { uid: string }[][] = [];
         for (let i = 0; i < identifiers.length; i += 100) {
-          const chunk = identifiers.slice(i, i + 100);
-          if (chunk.length === 0) continue;
-          try {
-            const result = await admin.auth().getUsers(chunk);
-            result.users.forEach((u) => {
-              if (u.email) {
-                targetMap[u.uid] = u.email;
-              }
-            });
-          } catch (error) {
-            console.warn(
-              `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
-              {
-                requestId,
-                chunkSize: chunk.length,
-                chunkStart: i,
-                totalIdentifiers: identifiers.length,
-                totalUids: uids.length,
-                error,
-              }
-            );
-          }
+          chunks.push(identifiers.slice(i, i + 100));
         }
+
+        await Promise.all(
+          chunks.map(async (chunk, chunkIdx) => {
+            try {
+              const result = await admin.auth().getUsers(chunk);
+              result.users.forEach((u) => {
+                if (u.email) {
+                  targetMap[u.uid] = u.email;
+                }
+              });
+            } catch (error) {
+              console.warn(
+                `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
+                {
+                  requestId,
+                  chunkSize: chunk.length,
+                  chunkStart: chunkIdx * 100,
+                  totalIdentifiers: identifiers.length,
+                  totalUids: uids.length,
+                  error: error instanceof Error ? error.message : String(error),
+                }
+              );
+            }
+          })
+        );
       };
       const allWidgetUidArray = Array.from(allWidgetUids);
       for (let i = 0; i < allWidgetUidArray.length; i += 30) {
