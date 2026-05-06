@@ -1889,7 +1889,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const dashboardId = d.id;
       const shareId = d.linkedShareId;
       if (!shareId) return () => undefined;
-      const role = d.linkedShareRole;
 
       return subscribeToSharedBoard(shareId, (remote) => {
         if (!remote) {
@@ -1905,21 +1904,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return;
         }
 
-        // Skip echoes of our own writes.
+        // Skip echoes of our own writes — `updatedBy` is stamped by the
+        // mirror effect with the writer's uid, so this filter applies
+        // symmetrically to owner, collaborator, and viewer roles.
         const remoteWith = remote as Dashboard & {
           updatedBy?: string;
         };
         if (remoteWith.updatedBy === user.uid) return;
 
-        // Apply remote content patch to local dashboard.
+        // Apply remote content patch to the local dashboard. This runs for
+        // every role:
+        //   - owner       receives collaborator edits (Synced bidirectional)
+        //   - collaborator receives owner + peer edits (Synced bidirectional)
+        //   - viewer       receives owner edits (View-Only one-way)
+        // The echo filter above prevents a writer from re-applying its own
+        // mirrored update.
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
-            // Owners receive participant-only updates from the shared doc
-            // (joins/leaves) — apply those without overwriting their own
-            // canonical local content.
-            if (role === 'owner') return x;
-            return {
+            const next: Dashboard = {
               ...x,
               widgets: remote.widgets ?? x.widgets,
               background: remote.background ?? x.background,
@@ -1927,6 +1930,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               settings: remote.settings ?? x.settings,
               linkedShareEnded: false,
             };
+            // Prime the mirror dedupe so the state change we just made
+            // doesn't trigger an immediate echo write back to the shared
+            // doc. Without this, every remote apply costs an extra
+            // Firestore write of identical content.
+            lastMirroredRef.current.set(shareId, serializeDashboard(next));
+            return next;
           })
         );
       });

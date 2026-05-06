@@ -5,7 +5,10 @@
  *  - owner     : "Sharing live" (host) with a Stop sharing action.
  *  - collaborator (synced) : "Synced with [host]" with a Leave action.
  *  - viewer (view-only)    : "View-only" indicator + Leave.
- *  - ended     : surfaced when the host revokes — board becomes read-only-frozen.
+ *  - ended     : surfaced when the host revokes the share. The local copy
+ *    becomes editable again (read-only mode is intentionally lifted once the
+ *    upstream link is gone — the user "inherits" the last synced state and
+ *    can detach to clear the banner permanently).
  *
  * Glassmorphic style matches the rest of the dashboard chrome — sits over
  * the canvas at low z, dismissable interactions go through DashboardContext.

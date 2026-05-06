@@ -254,21 +254,26 @@ const ShareBadge: React.FC<{
   let Icon = Cloud;
   let title = 'Shared';
   let className = 'bg-brand-blue-primary text-white';
+  let label = 'Shared';
 
   if (ended) {
     Icon = Unlink;
     title = 'Share ended';
     className = 'bg-slate-700 text-slate-100';
+    label = 'Ended';
   } else if (role === 'owner') {
     Icon = Radio;
     title = 'You are sharing this board';
+    label = 'Live';
   } else if (role === 'collaborator') {
     Icon = Cloud;
     title = 'Synced board';
+    label = 'Synced';
   } else if (role === 'viewer') {
     Icon = Eye;
     title = 'View-only — read-only board';
     className = 'bg-amber-500 text-white';
+    label = 'View-Only';
   }
 
   return (
@@ -277,17 +282,7 @@ const ShareBadge: React.FC<{
       title={title}
     >
       <Icon className="w-3 h-3" />
-      <span>
-        {ended
-          ? 'Ended'
-          : role === 'owner'
-            ? 'Live'
-            : role === 'collaborator'
-              ? 'Synced'
-              : role === 'viewer'
-                ? 'View-Only'
-                : 'Shared'}
-      </span>
+      <span>{label}</span>
     </div>
   );
 };

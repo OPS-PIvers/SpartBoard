@@ -191,6 +191,27 @@ class MockSharedStore {
 const mockStore = MockDashboardStore.getInstance();
 const mockSharedStore = MockSharedStore.getInstance();
 
+/**
+ * Normalize a /shared_boards/{shareId} doc payload into a Dashboard the
+ * client can consume directly. The shared doc stores the host's display
+ * name under `originalAuthorName` (the per-user link bookkeeping field
+ * `linkedShareHostName` is intentionally stripped on write — it's
+ * per-recipient state, not part of the broadcast). Map it back here so
+ * downstream callers see a single canonical field.
+ */
+function mapSharedDocToDashboard(data: unknown, shareId: string): Dashboard {
+  const record = (data ?? {}) as Record<string, unknown>;
+  const originalAuthorName =
+    typeof record.originalAuthorName === 'string'
+      ? record.originalAuthorName
+      : undefined;
+  return {
+    ...(record as unknown as Dashboard),
+    id: shareId,
+    ...(originalAuthorName ? { linkedShareHostName: originalAuthorName } : {}),
+  };
+}
+
 export const useFirestore = (userId: string | null) => {
   const dashboardsRef = useMemo(
     () =>
@@ -299,7 +320,14 @@ export const useFirestore = (userId: string | null) => {
   const shareDashboard = useCallback(
     async (dashboard: Dashboard, hostDisplayName?: string): Promise<string> => {
       if (isAuthBypass) {
-        return mockSharedStore.add(dashboard);
+        // Stash the host display name on the mock doc under the same field
+        // the live path uses so loadSharedDashboard's mapping works in bypass.
+        return mockSharedStore.add({
+          ...dashboard,
+          ...(hostDisplayName
+            ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
+            : {}),
+        } as Dashboard);
       }
 
       const shareRef = collection(db, 'shared_boards');
@@ -391,7 +419,7 @@ export const useFirestore = (userId: string | null) => {
             callback(null);
             return;
           }
-          callback({ ...snap.data(), id: snap.id } as Dashboard);
+          callback(mapSharedDocToDashboard(snap.data(), snap.id));
         },
         (err) => {
           console.error('Failed to subscribe to shared board:', err);
@@ -477,14 +505,14 @@ export const useFirestore = (userId: string | null) => {
   const loadSharedDashboard = useCallback(
     async (shareId: string): Promise<Dashboard | null> => {
       if (isAuthBypass) {
-        return mockSharedStore.get(shareId) ?? null;
+        const mock = mockSharedStore.get(shareId) ?? null;
+        return mock ? mapSharedDocToDashboard(mock, shareId) : null;
       }
 
       const docRef = doc(db, 'shared_boards', shareId);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        const data = snap.data();
-        return { ...data, id: snap.id } as Dashboard;
+        return mapSharedDocToDashboard(snap.data(), snap.id);
       }
       return null;
     },
