@@ -26,7 +26,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth, db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { writePlcAssignmentIndexEntry } from './usePlcAssignmentIndex';
 import type {

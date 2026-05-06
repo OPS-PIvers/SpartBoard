@@ -901,14 +901,46 @@ service cloud.firestore {
         // `sheetUrl` is pinned to the parent PLC's `sharedSheetUrl` — the
         // dashboard renders this as a clickable link, so an unconstrained
         // string would let a malicious member point teammates at a
-        // phishing URL through the dashboard. Two separate `get()`s on
-        // the parent PLC are de-duped by the rules engine within a single
+        // phishing URL through the dashboard. The two `get()`s on the
+        // parent PLC are de-duped by the rules engine within a single
         // evaluation, so this doesn't cost an extra read.
-        allow create, update: if request.auth != null
+        //
+        // Create and update are split because the `update` branch must
+        // also check the *existing* `resource.data.ownerUid`. Without that
+        // extra check, a different PLC member could overwrite someone
+        // else's entry by simply setting `request.resource.data.ownerUid`
+        // to their own UID. The split also lets `update` enforce
+        // immutability on `id`, `ownerUid`, and `createdAt` so future
+        // status-mirroring writes (later phases) can't quietly retarget
+        // an entry to a different assignment or rewrite history.
+        allow create: if request.auth != null
           && request.auth.uid == request.resource.data.ownerUid
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
+          && assignmentId == request.resource.data.id
+          && request.resource.data.keys().hasOnly([
+               'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
+               'title', 'sheetUrl', 'createdAt'
+             ])
+          && request.resource.data.kind == 'quiz'
+          && request.resource.data.sheetUrl == get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.get('sharedSheetUrl', '');
+
+        allow update: if request.auth != null
+          // Caller must be the *existing* owner — prevents takeover by a
+          // different member rewriting `ownerUid` to themselves.
+          && request.auth.uid == resource.data.ownerUid
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          // Identity fields are immutable across the lifetime of the
+          // entry. Mutable fields (e.g. status mirroring later) must
+          // still keep the doc shape closed via `keys().hasOnly([...])`.
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.createdAt == resource.data.createdAt
           && assignmentId == request.resource.data.id
           && request.resource.data.keys().hasOnly([
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
