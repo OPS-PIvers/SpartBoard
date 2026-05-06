@@ -670,9 +670,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Firestore-backed share: also tag the local dashboard so subsequent
       // edits mirror to the shared doc and Synced/View-Only guests stay in
-      // sync with the host.
+      // sync with the host. Both writes (the shared_boards seed and the
+      // local dashboard with its new linkage) MUST go through PII scrubbing
+      // — Firestore never holds student-name fields, even for the owner's
+      // own dashboards collection. The mirror effect (further down) and the
+      // local saveDashboard() path do this independently; here we scrub the
+      // shared_boards seed up front so the very first write is clean too.
       const hostName = user?.displayName ?? user?.email ?? undefined;
-      const shareId = await shareDashboardFirestore(dashboard, hostName);
+      const scrubbedSeed = scrubDashboardPII(dashboard);
+      const shareId = await shareDashboardFirestore(scrubbedSeed, hostName);
       const tagged: Dashboard = {
         ...dashboard,
         linkedShareId: shareId,
@@ -681,12 +687,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         linkedShareEnded: false,
       };
       // Optimistic local update so the UI reflects the live-share state
-      // immediately. The next save effect will persist this to Firestore.
+      // immediately.
       setDashboards((prev) =>
         prev.map((d) => (d.id === dashboard.id ? tagged : d))
       );
+      // Persist the linkage via the full saveDashboard pipeline, which
+      // handles PII scrub + Drive supplement. Going through
+      // saveDashboardFirestore directly would bypass that and could leak
+      // restored-from-Drive PII to Firestore.
       try {
-        await saveDashboardFirestore(tagged);
+        await saveDashboard(tagged);
       } catch (e) {
         console.error('Failed to persist share linkage on dashboard:', e);
       }
@@ -696,7 +706,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       isAdmin,
       driveService,
       shareDashboardFirestore,
-      saveDashboardFirestore,
+      saveDashboard,
       userDomain,
       user,
     ]
@@ -1827,6 +1837,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!user) return;
 
+    // Track which shareIds are still actively linked this pass so we can
+    // cancel any pending timers for dashboards that have been detached
+    // (stopSharingDashboard / leaveSharedBoard) before their 500ms debounce
+    // window elapses. Without this, a stale snapshot would land in the
+    // shared doc after the user already stopped sharing.
+    const liveShareIds = new Set<string>();
+
     dashboards.forEach((d) => {
       if (!d.linkedShareId || d.linkedShareEnded) return;
       if (
@@ -1836,18 +1853,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // Cheap dedupe based on the same fields the saveDashboard path uses.
-      const payload = serializeDashboard(d);
-      if (lastMirroredRef.current.get(d.linkedShareId) === payload) return;
-
       const shareId = d.linkedShareId;
+      liveShareIds.add(shareId);
+
+      // Scrub student PII before broadcasting. The local dashboard may have
+      // had names merged back in from Drive (mergeDashboardPII); those must
+      // never reach Firestore — least of all the cross-user shared_boards
+      // collection. The mirror sees only scrubbed data.
+      const scrubbed = scrubDashboardPII(d);
+
+      // Cheap dedupe based on the same fields the saveDashboard path uses.
+      const payload = serializeDashboard(scrubbed);
+      if (lastMirroredRef.current.get(shareId) === payload) return;
+
       const existing = mirrorTimersRef.current.get(shareId);
       if (existing) clearTimeout(existing);
 
       const timer = setTimeout(() => {
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.set(shareId, payload);
-        void mirrorSharedBoard(shareId, d).catch((err) => {
+        void mirrorSharedBoard(shareId, scrubbed).catch((err) => {
           console.warn('Mirror to shared board failed:', err);
           // Drop the cached payload so we retry on the next change.
           lastMirroredRef.current.delete(shareId);
@@ -1855,6 +1880,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }, 500);
       mirrorTimersRef.current.set(shareId, timer);
     });
+
+    // Cancel pending writes for shareIds that are no longer in the live set —
+    // i.e. boards that were detached/unlinked while a debounce was queued.
+    for (const [shareId, timer] of mirrorTimersRef.current) {
+      if (!liveShareIds.has(shareId)) {
+        clearTimeout(timer);
+        mirrorTimersRef.current.delete(shareId);
+        lastMirroredRef.current.delete(shareId);
+      }
+    }
   }, [dashboards, user, mirrorSharedBoard]);
 
   // Cleanup pending mirror timers on unmount so we don't write after teardown.

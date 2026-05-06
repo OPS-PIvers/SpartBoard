@@ -601,12 +601,17 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
 
       // Collaborator (Synced participant): may update content but must not
-      // change participants map, originalAuthor, or sharedAt.
+      // change participants map, originalAuthor, originalAuthorName, or
+      // sharedAt. originalAuthorName in particular is the host display
+      // name shown in the import-picker / banner UI for every participant,
+      // so a collaborator who could rewrite it would be able to spoof the
+      // host's identity to other peers.
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.get('participants', {}) &&
         resource.data.participants[request.auth.uid].get('role', '') == 'collaborator' &&
         request.resource.data.get('participants', {}) == resource.data.get('participants', {}) &&
         request.resource.data.originalAuthor == resource.data.originalAuthor &&
+        request.resource.data.get('originalAuthorName', null) == resource.data.get('originalAuthorName', null) &&
         request.resource.data.get('sharedAt', null) == resource.data.get('sharedAt', null);
 
       // Self-join: any authed user may add ONLY their own uid to participants
