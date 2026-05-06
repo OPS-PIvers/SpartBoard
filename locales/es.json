@@ -201,6 +201,8 @@
     "done": "Listo",
     "pin": "Fijar posición",
     "unpin": "Soltar posición",
+    "pinnedIndicator": "Widget fijado",
+    "pinnedTooltip": "Fijado: haz clic en el alfiler para soltar",
     "snapLayout": "Ajustar Diseño",
     "chooseLayout": "Elegir Diseño",
     "snapTo": "Ajustar a",

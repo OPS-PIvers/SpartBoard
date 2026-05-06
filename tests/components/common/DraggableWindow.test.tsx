@@ -340,4 +340,97 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
   });
+
+  describe('Pinned visual indicator', () => {
+    const renderWidget = (widgetOverrides: Partial<WidgetData> = {}) => {
+      const widget = { ...mockWidget, ...widgetOverrides };
+      return render(
+        <DashboardContext.Provider
+          value={mockContext as unknown as DashboardContextValue}
+        >
+          <DraggableWindow
+            widget={widget}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+    };
+
+    beforeEach(() => {
+      sessionStorage.clear();
+    });
+
+    it('renders the corner pin glyph when widget is pinned', () => {
+      renderWidget({ isPinned: true });
+      expect(screen.getByTestId('pinned-indicator')).toBeInTheDocument();
+    });
+
+    it('does not render the corner pin glyph when widget is unpinned', () => {
+      renderWidget({ isPinned: false });
+      expect(screen.queryByTestId('pinned-indicator')).not.toBeInTheDocument();
+    });
+
+    it('does not render the corner pin glyph when pinned widget is maximized', () => {
+      renderWidget({ isPinned: true, maximized: true });
+      expect(screen.queryByTestId('pinned-indicator')).not.toBeInTheDocument();
+    });
+
+    it('renders pinned blocker zones with not-allowed cursor when pinned', () => {
+      renderWidget({ isPinned: true });
+      const corner = screen.getByTestId('pinned-blocker-se');
+      expect(corner.style.cursor).toBe('not-allowed');
+    });
+
+    it('does not render pinned blocker zones when unpinned', () => {
+      renderWidget({ isPinned: false });
+      expect(screen.queryByTestId('pinned-blocker-se')).not.toBeInTheDocument();
+    });
+
+    it('brightens the pin glyph on blocker hover', () => {
+      renderWidget({ isPinned: true });
+      const glyph = screen.getByTestId('pinned-indicator');
+      const corner = screen.getByTestId('pinned-blocker-se');
+
+      expect(glyph.style.opacity).toBe('0.4');
+      fireEvent.pointerEnter(corner);
+      expect(glyph.style.opacity).toBe('1');
+      fireEvent.pointerLeave(corner);
+      expect(glyph.style.opacity).toBe('0.4');
+    });
+
+    it('shows the tooltip on first pointerdown and not the second time in a session', () => {
+      renderWidget({ isPinned: true });
+      const corner = screen.getByTestId('pinned-blocker-se');
+
+      fireEvent.pointerDown(corner, { clientX: 100, clientY: 200 });
+      expect(screen.getByTestId('pinned-tooltip')).toBeInTheDocument();
+
+      // Dismiss the visible tooltip and try again — should NOT reappear.
+      act(() => {
+        vi.useFakeTimers();
+      });
+      vi.useRealTimers();
+
+      // Second attempt: clear the rendered tooltip first by waiting it out is
+      // overkill — assert the session flag prevents a fresh one even if we
+      // simulate after dismissal. Render a fresh widget under the same session.
+      const second = renderWidget({ isPinned: true });
+      const secondCorner = second.getAllByTestId('pinned-blocker-se')[1];
+      fireEvent.pointerDown(secondCorner, { clientX: 50, clientY: 50 });
+      // Only the first tooltip remains (from the first widget); no new one.
+      expect(screen.getAllByTestId('pinned-tooltip')).toHaveLength(1);
+    });
+
+    it('does not call updateWidget when blocker zones receive pointerdown', () => {
+      renderWidget({ isPinned: true });
+      const corner = screen.getByTestId('pinned-blocker-se');
+      fireEvent.pointerDown(corner, { clientX: 0, clientY: 0 });
+      // Pointerdown on blocker should not trigger any drag/resize state change.
+      expect(mockContext.updateWidget).not.toHaveBeenCalled();
+    });
+  });
 });

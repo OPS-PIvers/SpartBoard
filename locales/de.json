@@ -192,6 +192,8 @@
     "done": "Fertig",
     "pin": "Position fixieren",
     "unpin": "Position lösen",
+    "pinnedIndicator": "Widget fixiert",
+    "pinnedTooltip": "Fixiert – klicken Sie zum Lösen auf das Stecknadel-Symbol",
     "snapLayout": "Layout anpassen",
     "chooseLayout": "Layout wählen",
     "snapTo": "Anpassen an",
