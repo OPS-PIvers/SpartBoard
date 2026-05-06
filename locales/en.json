@@ -274,6 +274,8 @@
     "done": "Done",
     "pin": "Pin Position",
     "unpin": "Unpin Position",
+    "pinnedIndicator": "Widget pinned",
+    "pinnedTooltip": "Pinned — open the widget toolbar and click the pin to unpin",
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
