@@ -193,7 +193,7 @@
     "pin": "Épingler la position",
     "unpin": "Désépingler la position",
     "pinnedIndicator": "Widget épinglé",
-    "pinnedTooltip": "Épinglé — cliquez sur l'épingle pour désépingler",
+    "pinnedTooltip": "Épinglé — ouvrez la barre d'outils du widget et cliquez sur l'épingle pour désépingler",
     "snapLayout": "Ajuster la mise en page",
     "chooseLayout": "Choisir la mise en page",
     "snapTo": "Ajuster à",

@@ -402,27 +402,84 @@ describe('DraggableWindow (Tests folder)', () => {
       expect(glyph.style.opacity).toBe('0.4');
     });
 
-    it('shows the tooltip on first pointerdown and not the second time in a session', () => {
+    it('shows the tooltip on first pointerdown and not on a fresh widget within the same session', () => {
       renderWidget({ isPinned: true });
       const corner = screen.getByTestId('pinned-blocker-se');
 
       fireEvent.pointerDown(corner, { clientX: 100, clientY: 200 });
       expect(screen.getByTestId('pinned-tooltip')).toBeInTheDocument();
+      expect(sessionStorage.getItem('spart_pinned_tip_shown')).toBe('true');
 
-      // Dismiss the visible tooltip and try again — should NOT reappear.
-      act(() => {
-        vi.useFakeTimers();
-      });
-      vi.useRealTimers();
-
-      // Second attempt: clear the rendered tooltip first by waiting it out is
-      // overkill — assert the session flag prevents a fresh one even if we
-      // simulate after dismissal. Render a fresh widget under the same session.
+      // Mount a second pinned widget within the same session — the session
+      // flag is what suppresses re-showing, not timer dismissal of the first
+      // tooltip, so we don't need to advance timers here.
       const second = renderWidget({ isPinned: true });
       const secondCorner = second.getAllByTestId('pinned-blocker-se')[1];
       fireEvent.pointerDown(secondCorner, { clientX: 50, clientY: 50 });
       // Only the first tooltip remains (from the first widget); no new one.
       expect(screen.getAllByTestId('pinned-tooltip')).toHaveLength(1);
+    });
+
+    it('auto-dismisses the tooltip after the timeout', () => {
+      vi.useFakeTimers();
+      try {
+        renderWidget({ isPinned: true });
+        const corner = screen.getByTestId('pinned-blocker-se');
+        fireEvent.pointerDown(corner, { clientX: 100, clientY: 200 });
+        expect(screen.getByTestId('pinned-tooltip')).toBeInTheDocument();
+
+        act(() => {
+          vi.advanceTimersByTime(3500);
+        });
+        expect(screen.queryByTestId('pinned-tooltip')).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('resets hover-brighten state when the widget is unpinned mid-hover', () => {
+      const { rerender } = renderWidget({ isPinned: true });
+      const corner = screen.getByTestId('pinned-blocker-se');
+      const glyph = screen.getByTestId('pinned-indicator');
+
+      // Hover, then unpin while still hovering — onPointerLeave never fires
+      // because the blocker zones unmount.
+      fireEvent.pointerEnter(corner);
+      expect(glyph.style.opacity).toBe('1');
+
+      rerender(
+        <DashboardContext.Provider
+          value={mockContext as unknown as DashboardContextValue}
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, isPinned: false }}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+      expect(screen.queryByTestId('pinned-indicator')).not.toBeInTheDocument();
+
+      // Re-pin — glyph should be back at 0.4, not stuck at 1.
+      rerender(
+        <DashboardContext.Provider
+          value={mockContext as unknown as DashboardContextValue}
+        >
+          <DraggableWindow
+            widget={{ ...mockWidget, isPinned: true }}
+            settings={<div>Settings</div>}
+            title="Test Widget"
+            globalStyle={mockGlobalStyle}
+          >
+            <div data-testid="widget-content">Content</div>
+          </DraggableWindow>
+        </DashboardContext.Provider>
+      );
+      const reGlyph = screen.getByTestId('pinned-indicator');
+      expect(reGlyph.style.opacity).toBe('0.4');
     });
 
     it('does not call updateWidget when blocker zones receive pointerdown', () => {

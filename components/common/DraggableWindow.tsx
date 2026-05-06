@@ -457,6 +457,14 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const isPinned = widget.isPinned ?? false;
 
   const [pinnedHover, setPinnedHover] = useState(false);
+  // Adjust state while rendering to clear stale hover when the widget is
+  // unpinned — the blocker zones unmount without firing onPointerLeave, so
+  // re-pinning would otherwise leave the glyph stuck at full opacity.
+  const [pinnedHoverWasPinned, setPinnedHoverWasPinned] = useState(isPinned);
+  if (pinnedHoverWasPinned !== isPinned) {
+    setPinnedHoverWasPinned(isPinned);
+    if (!isPinned && pinnedHover) setPinnedHover(false);
+  }
   const [pinnedTooltipPos, setPinnedTooltipPos] = useState<{
     x: number;
     y: number;
@@ -1810,7 +1818,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           aria-label={t('widgetWindow.pinnedIndicator')}
           style={{
             position: 'absolute',
-            top: isInGroup ? 6 : 6,
+            top: 6,
+            // Offset to the right of the group indicator dot when the widget
+            // is in a group, so both indicators are visible side-by-side.
             left: isInGroup ? 22 : 6,
             opacity: pinnedHover ? 1 : 0.4,
             transition: 'opacity 150ms ease-out',
