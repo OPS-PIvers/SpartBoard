@@ -2574,13 +2574,13 @@ export const adminAnalytics = onRequest(
         .map(([uid]) => uid);
       const topUserEmails: Record<string, string> = {};
 
-      const chunks: string[][] = [];
+      const uidChunks: string[][] = [];
       for (let i = 0; i < topUserUids.length; i += 10) {
-        chunks.push(topUserUids.slice(i, i + 10));
+        uidChunks.push(topUserUids.slice(i, i + 10));
       }
 
       await Promise.all(
-        chunks.map(async (uidChunk) => {
+        uidChunks.map(async (uidChunk) => {
           if (uidChunk.length === 0) return;
           const usersSnapshot = await db
             .collection('users')
